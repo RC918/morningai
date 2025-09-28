@@ -12,6 +12,6 @@ jobs:
       - name: Install dependencies
         run: |
           cd handoff/20250928/40_App/morningai_enhanced/frontend-dashboard
-          npm install
+          npm install --legacy-peer-deps
       - name: Build frontend
         run: echo "Frontend build placeholder"
