@@ -1,0 +1,10 @@
+name: orchestrator-e2e
+on: [workflow_dispatch]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python -V
+          echo "This is a placeholder for running orchestrator demo in CI"
