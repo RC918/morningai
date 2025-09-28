@@ -14,5 +14,9 @@ def run_step(step: str):
     return {"ok": True}
 
 def enqueue(steps):
-    jobs = [q.enqueue(run_step, s) for s in steps]
-    return [j.id for j in jobs]
+    try:
+        jobs = [q.enqueue(run_step, s) for s in steps]
+        return [j.id for j in jobs]
+    except Exception as e:
+        print(f"[Worker] Redis unavailable, running in demo mode: {e}")
+        return [f"demo-job-{i}" for i in range(len(steps))]

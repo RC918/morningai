@@ -28,13 +28,25 @@ def execute(goal:str, repo_full: str):
 def main(goal:str, repo:str):
     steps = planner(goal)
     print("[Planner] steps:", steps)
-    job_ids = enqueue(steps)
-    print("[Queue] enqueued jobs:", job_ids)
+    try:
+        job_ids = enqueue(steps)
+        print("[Queue] enqueued jobs:", job_ids)
+    except Exception as e:
+        print(f"[Queue] Redis unavailable, continuing in demo mode: {e}")
+        job_ids = [f"demo-job-{i}" for i in range(len(steps))]
     # In parallel, we try to execute a minimal GH loop
-    pr_url, state = execute(goal, repo)
-    print("[Result]", pr_url, state)
-    mem = recall_top("recent")
-    print("[Memory] recent items:", len(mem))
+    try:
+        pr_url, state = execute(goal, repo)
+        print("[Result]", pr_url, state)
+    except Exception as e:
+        print(f"[GitHub] API unavailable, continuing in demo mode: {e}")
+        pr_url, state = "demo-pr-url", "demo"
+    try:
+        mem = recall_top("recent")
+        print("[Memory] recent items:", len(mem))
+    except Exception as e:
+        print(f"[Memory] Supabase unavailable, continuing in demo mode: {e}")
+        mem = []
 
 if __name__ == "__main__":
     load_dotenv()
