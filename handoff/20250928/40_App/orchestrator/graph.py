@@ -1,7 +1,7 @@
 import os, argparse, time
 from dotenv import load_dotenv
 from tools.github_api import get_repo, create_branch, commit_file, open_pr, get_pr_checks
-from queue.worker import enqueue
+from redis_queue.worker import enqueue
 from memory.pgvector_store import save_text, recall_top
 
 def planner(goal:str):
