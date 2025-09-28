@@ -1,0 +1,60 @@
+# Morning AI 優化版依賴需求
+# 基礎依賴
+asyncio
+logging
+datetime
+typing
+dataclasses
+enum
+json
+time
+os
+pathlib
+
+# 數據處理
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# 機器學習
+scikit-learn>=1.0.0
+prophet>=1.1.0
+joblib>=1.1.0
+
+# 資料庫
+sqlalchemy>=1.4.0
+psycopg2-binary>=2.9.0
+redis>=4.0.0
+
+# Web 框架
+flask>=2.0.0
+flask-cors>=3.0.0
+requests>=2.25.0
+
+# AI 服務
+openai>=1.0.0
+anthropic>=0.3.0
+google-generativeai>=0.3.0
+
+# 容器化
+docker>=6.0.0
+
+# AWS 服務
+boto3>=1.20.0
+botocore>=1.23.0
+
+# 監控
+prometheus-client>=0.12.0
+
+# 配置管理
+pyyaml>=6.0
+python-dotenv>=0.19.0
+
+# 圖形處理 (用於 LangGraph)
+langgraph>=0.1.0
+
+# 工具庫
+click>=8.0.0
+rich>=12.0.0
+tqdm>=4.62.0
+

@@ -1,0 +1,28 @@
+# Morning AI - 優化版配置文件
+
+# 資料庫配置
+database_url: "postgresql://user:password@localhost/morningai"
+redis_url: "redis://localhost:6379/0"
+
+# AI 服務 API Keys
+openai_api_key: "sk-your-openai-key"
+anthropic_api_key: "your-anthropic-key"
+google_api_key: "your-google-ai-key"
+
+# 本地模型端點
+local_model_endpoint: "http://localhost:11434" # Ollama 默認端點
+
+# AWS SageMaker 配置
+aws_region: "us-east-1"
+aws_access_key_id: "your-aws-access-key"
+aws_secret_access_key: "your-aws-secret-key"
+sagemaker_execution_role: "arn:aws:iam::account:role/SageMakerExecutionRole"
+
+# Meta-Agent 循環間隔（秒）
+cycle_interval: 30
+
+# 監控配置
+monitoring:
+  prometheus_url: "http://localhost:9090"
+
+

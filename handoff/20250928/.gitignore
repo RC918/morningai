@@ -1,0 +1,18 @@
+# Node
+node_modules/
+dist/
+.build/
+.next/
+out/
+*.log
+# Python
+__pycache__/
+*.pyc
+.venv/
+# Mac
+.DS_Store
+# Env
+.env
+.env.*
+# Design caches
+*.sketchcache

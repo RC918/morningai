@@ -1,0 +1,31 @@
+@startuml
+
+title AI Agent 輔助平台綁定狀態圖
+
+state "未綁定" as Unbound
+state "引導中" as Guiding
+state "待驗證" as PendingValidation
+state "配置中" as Configuring
+state "已綁定" as Bound
+state "綁定失敗" as Failed
+
+[*] --> Unbound
+
+Unbound --> Guiding: 用戶點擊「AI助手綁定」
+
+Guiding --> PendingValidation: 用戶提供 Token
+Guiding --> Unbound: 用戶取消綁定
+
+PendingValidation --> Configuring: Token 初步格式正確
+PendingValidation --> Failed: Token 格式錯誤
+
+Configuring --> Bound: 後端自動化配置成功
+Configuring --> Failed: 後端自動化配置失敗 (e.g., API 錯誤)
+
+Bound --> Unbound: 用戶解除綁定
+
+Failed --> Guiding: 用戶選擇「重試」
+Failed --> Unbound: 用戶放棄綁定
+
+@enduml
+

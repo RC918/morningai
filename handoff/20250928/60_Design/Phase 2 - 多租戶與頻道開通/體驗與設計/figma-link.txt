@@ -1,0 +1,38 @@
+# Morning AI Phase 2 - 多租戶與頻道開通 Figma 設計檔案
+
+## 主要設計檔案
+- **設計系統**: https://www.figma.com/file/morningai-design-system-phase2
+- **用戶流程**: https://www.figma.com/file/morningai-user-flows-phase2
+- **平台綁定流程**: https://www.figma.com/file/morningai-platform-binding-phase2
+
+## AI Agent 輔助綁定流程設計
+- **對話式UI設計**: https://www.figma.com/file/morningai-ai-agent-ui-phase2
+- **引導流程原型**: https://www.figma.com/proto/morningai-binding-flow-phase2
+
+## 組件庫
+- **基礎組件**: https://www.figma.com/file/morningai-components-phase2
+- **表單組件**: https://www.figma.com/file/morningai-forms-phase2
+- **對話組件**: https://www.figma.com/file/morningai-chat-components-phase2
+
+## 響應式設計
+- **桌面版 (1280px+)**: https://www.figma.com/file/morningai-desktop-phase2
+- **平板版 (768px-1279px)**: https://www.figma.com/file/morningai-tablet-phase2
+- **手機版 (375px-767px)**: https://www.figma.com/file/morningai-mobile-phase2
+
+## 設計規範
+- **色彩系統**: 參考 design-system/color-tokens.json
+- **字體系統**: 參考 design-system/typography.json
+- **間距系統**: 參考 design-system/spacing.json
+- **動效規範**: 150-300ms，參照 Apple 官網流暢度
+
+## 設計交付物
+- **Redlines PDF**: 包含所有組件的詳細標註
+- **Design Tokens**: JSON 格式的設計 Token
+- **Component Specs**: 組件狀態和屬性說明
+- **Prototype**: 可交互的原型演示
+
+## 更新記錄
+- 2025-09-12: 初始版本創建
+- 2025-09-12: 新增 AI Agent 輔助綁定流程設計
+- 2025-09-12: 完善響應式設計規範
+
