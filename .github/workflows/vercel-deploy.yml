@@ -1,0 +1,67 @@
+name: vercel-deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "handoff/20250928/40_App/morningai_enhanced/frontend-dashboard/**"
+      - ".github/workflows/vercel-deploy.yml"
+  pull_request:
+    paths:
+      - "handoff/20250928/40_App/morningai_enhanced/frontend-dashboard/**"
+      - ".github/workflows/vercel-deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_DIR: handoff/20250928/40_App/morningai_enhanced/frontend-dashboard
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build (Vite)
+        run: pnpm build
+
+      # 可選：上傳 build 成果做為工作流附件
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: ${{ env.APP_DIR }}/dist
+
+      - name: Deploy to Vercel (Preview on PR / Prod on main)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npm i -g vercel@latest
+          vercel pull --yes --environment=${{ github.ref_name == 'main' && 'production' || 'preview' }} \
+            --token=$VERCEL_TOKEN --cwd="$PWD" --org $VERCEL_ORG_ID --project $VERCEL_PROJECT_ID
+          vercel deploy --prebuilt \
+            --token=$VERCEL_TOKEN --cwd="$PWD" --org $VERCEL_ORG_ID --project $VERCEL_PROJECT_ID \
+            $([ "${{ github.ref_name }}" = "main" ] && echo "--prod" || true)
