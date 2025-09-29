@@ -4,5 +4,5 @@
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
   "outputDirectory": "dist",
-  "rootDirectory": "handoff/20250928/40_App/frontend-dashboard"
+  "rootDirectory": "handoff/20250928/40_App/morningai_enhanced/frontend-dashboard"
 }
