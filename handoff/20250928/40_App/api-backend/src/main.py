@@ -503,8 +503,298 @@ def get_report_history():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+try:
+    morningai_root = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')
+    sys.path.insert(0, morningai_root)
+    from phase4_meta_agent_api import (
+        api_meta_agent_ooda_cycle,
+        api_create_langgraph_workflow,
+        api_execute_workflow,
+        api_governance_status,
+        api_create_governance_policy
+    )
+    from phase5_data_intelligence_api import (
+        api_create_quicksight_dashboard,
+        api_get_dashboard_insights,
+        api_generate_automated_report,
+        api_create_referral_program,
+        api_get_referral_analytics,
+        api_generate_marketing_content,
+        api_get_business_intelligence
+    )
+    from phase6_security_governance_api import (
+        api_evaluate_access_request,
+        api_review_security_event,
+        api_submit_hitl_review,
+        api_get_pending_reviews,
+        api_perform_security_audit
+    )
+    PHASE_456_AVAILABLE = True
+    print("✅ Phase 4-6 APIs imported successfully")
+except ImportError as e:
+    print(f"⚠️ Phase 4-6 APIs not available: {e}")
+    PHASE_456_AVAILABLE = False
+
+@app.route('/api/meta-agent/ooda-cycle', methods=['POST'])
+def meta_agent_ooda_cycle():
+    """启动 OODA 循环"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_meta_agent_ooda_cycle())
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/langgraph/workflows', methods=['POST'])
+def create_langgraph_workflow():
+    """创建 LangGraph 工作流"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_create_langgraph_workflow(request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/langgraph/workflows/<workflow_id>/execute', methods=['POST'])
+def execute_workflow(workflow_id):
+    """执行工作流"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_execute_workflow(workflow_id, request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/governance/status', methods=['GET'])
+def governance_status():
+    """获取治理状态"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_governance_status())
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/governance/policies', methods=['POST'])
+def create_governance_policy():
+    """创建治理政策"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_create_governance_policy(request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quicksight/dashboards', methods=['POST'])
+def create_quicksight_dashboard():
+    """创建 QuickSight 仪表板"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_create_quicksight_dashboard(request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quicksight/dashboards/<dashboard_id>/insights', methods=['GET'])
+def get_dashboard_insights(dashboard_id):
+    """获取仪表板洞察"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_get_dashboard_insights(dashboard_id))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports/automated', methods=['POST'])
+def generate_automated_report():
+    """生成自动化报告"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_generate_automated_report(request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/growth/referral-programs', methods=['POST'])
+def create_referral_program():
+    """创建推荐计划"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_create_referral_program(request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/growth/referral-programs/<program_id>/analytics', methods=['GET'])
+def get_referral_analytics(program_id):
+    """获取推荐分析"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_get_referral_analytics(program_id))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/growth/content/generate', methods=['POST'])
+def generate_marketing_content():
+    """生成营销内容"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_generate_marketing_content(request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/business-intelligence/summary', methods=['GET'])
+def get_business_intelligence():
+    """获取商业智能摘要"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_get_business_intelligence())
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/access-requests/evaluate', methods=['POST'])
+def evaluate_access_request():
+    """评估访问请求"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_evaluate_access_request(request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/events/review', methods=['POST'])
+def review_security_event():
+    """审查安全事件"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_review_security_event(request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/hitl/submit', methods=['POST'])
+def submit_hitl_review():
+    """提交人工审查"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        data = request.json or {}
+        result = loop.run_until_complete(api_submit_hitl_review(
+            data.get('event_data'), 
+            data.get('ai_analysis')
+        ))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/hitl/pending', methods=['GET'])
+def get_pending_reviews():
+    """获取待审查项目"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_get_pending_reviews())
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/audit/perform', methods=['POST'])
+def perform_security_audit():
+    """执行安全审计"""
+    if not PHASE_456_AVAILABLE:
+        return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(api_perform_security_audit(request.json or {}))
+        loop.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_ENV') != 'production'
     app.run(host='0.0.0.0', port=port, debug=debug)
-import os
