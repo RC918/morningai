@@ -4,7 +4,7 @@ import datetime
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, send_from_directory, jsonify, request
 from models.user import db
 from routes.user import user_bp
 from routes.auth import auth_bp
@@ -100,6 +100,131 @@ def serve(path):
         else:
             return "index.html not found", 404
 
+
+@app.route('/api/phase7/status')
+def phase7_status():
+    """Phase 7 system status endpoint"""
+    try:
+        from phase7_startup import Phase7System
+        system = Phase7System()
+        
+        status = {
+            'phase': 'Phase 7: Performance, Growth & Beta Introduction',
+            'version': '1.0.0',
+            'enabled': system.config.get('phase7', {}).get('enabled', False),
+            'components': {
+                'ops_agent': system.config.get('ops_agent', {}).get('enabled', False),
+                'growth_strategist': system.config.get('growth_strategist', {}).get('enabled', False),
+                'pm_agent': system.config.get('pm_agent', {}).get('enabled', False),
+                'hitl_approval': system.config.get('hitl_approval', {}).get('enabled', False)
+            },
+            'integration': {
+                'phase6_security': system.config.get('integration', {}).get('phase6_security', False),
+                'meta_agent_decision_hub': system.config.get('integration', {}).get('meta_agent_decision_hub', False),
+                'monitoring_system': system.config.get('integration', {}).get('monitoring_system', False)
+            },
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'phase': 'Phase 7', 'status': 'error'}), 500
+
+@app.route('/api/phase7/approvals/pending')
+def get_pending_approvals():
+    """Get pending HITL approval requests"""
+    try:
+        from hitl_approval_system import HITLApprovalSystem
+        hitl_system = HITLApprovalSystem()
+        
+        pending = hitl_system.get_pending_requests()
+        return jsonify({
+            'pending_requests': [
+                {
+                    'request_id': req.request_id,
+                    'trace_id': req.trace_id,
+                    'title': req.title,
+                    'description': req.description,
+                    'priority': req.priority,
+                    'requester_agent': req.requester_agent,
+                    'created_at': req.created_at.isoformat(),
+                    'expires_at': req.expires_at.isoformat()
+                } for req in pending
+            ],
+            'count': len(pending)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/phase7/approvals/history')
+def get_approval_history():
+    """Get HITL approval history"""
+    try:
+        from hitl_approval_system import HITLApprovalSystem
+        hitl_system = HITLApprovalSystem()
+        
+        limit = int(request.args.get('limit', 50))
+        history = hitl_system.get_approval_history(limit=limit)
+        
+        return jsonify({
+            'approval_history': [
+                {
+                    'request_id': req.request_id,
+                    'trace_id': req.trace_id,
+                    'title': req.title,
+                    'status': req.status.value,
+                    'approved_by': req.approved_by,
+                    'approved_at': req.approved_at.isoformat() if req.approved_at else None,
+                    'approval_channel': req.approval_channel.value if req.approval_channel else None,
+                    'created_at': req.created_at.isoformat()
+                } for req in history
+            ],
+            'count': len(history)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/phase7/beta/candidates')
+def get_beta_candidates():
+    """Get Beta program candidates"""
+    try:
+        from pm_agent import PMAgent
+        pm_agent = PMAgent()
+        
+        status = pm_agent.get_beta_program_status()
+        return jsonify(status)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/phase7/growth/metrics')
+def get_growth_metrics():
+    """Get growth strategy metrics"""
+    try:
+        from growth_strategist import GrowthStrategist
+        growth_strategist = GrowthStrategist()
+        
+        report = growth_strategist.get_growth_report()
+        return jsonify(report)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/phase7/ops/metrics')
+def get_ops_metrics():
+    """Get operations performance metrics"""
+    try:
+        from ops_agent import OpsAgent
+        ops_agent = OpsAgent()
+        
+        report = ops_agent.get_performance_report()
+        return jsonify(report)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
