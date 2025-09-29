@@ -84,7 +84,7 @@ def get_health_payload():
         
         health_status["backend_services"] = "available" if BACKEND_SERVICES_AVAILABLE else "unavailable"
         health_status["service"] = "morningai-backend"
-        health_status["phase"] = "Phase 7: Performance, Growth & Beta Introduction"
+        health_status["phase"] = os.environ.get('PHASE_BANNER', os.environ.get('APP_PHASE', 'Phase 8: Self-service Dashboard & Reporting Center'))
         
         return health_status
         
@@ -495,29 +495,3 @@ if __name__ == '__main__':
     debug = os.environ.get('FLASK_ENV') != 'production'
     app.run(host='0.0.0.0', port=port, debug=debug)
 import os
-@app.get("/health")
-def health():
-    return {
-        "service": "morningai-backend",
-        "status": "healthy",
-        "environment": os.getenv("ENV","production"),
-        "phase": os.getenv("PHASE_BANNER", os.getenv("APP_PHASE","Phase 7: Performance, Growth & Beta")),
-        "app_version": os.getenv("APP_VERSION","7.0.0"),
-        "database_status": os.getenv("DB_HEALTH_STATUS","connected" if os.getenv("DB_HEALTH_SKIP")=="1" else "unknown"),
-        "security_status": os.getenv("SECURITY_STATUS","available"),
-        "timestamp": __import__("datetime").datetime.utcnow().isoformat()
-    }
-
-# --- appended by hotfix: /healthz ---
-@app.route("/healthz")
-def healthz():
-    import os, datetime
-    return {
-        "service": "morningai-backend",
-        "status": "healthy",
-        "environment": os.getenv("ENV","production"),
-        "phase": os.getenv("PHASE_BANNER", os.getenv("APP_PHASE","Phase 7: Performance, Growth & Beta")),
-        "app_version": os.getenv("APP_VERSION","7.0.0"),
-        "database_status": ("connected" if os.getenv("DB_HEALTH_SKIP")=="1" else "unknown"),
-        "timestamp": datetime.datetime.utcnow().isoformat()
-    }
