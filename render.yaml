@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: morningai-web
+    name: morningai-backend-v2
     env: python
     runtime: python-3.11
     buildCommand: |
