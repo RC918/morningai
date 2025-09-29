@@ -7,9 +7,18 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - name: Fetch health
+        id: h
+        run: |
+          set -e
+          curl -sS https://morningai-backend-v2.onrender.com/healthz | tee /tmp/health.json
+          echo "phase=$(jq -r '.phase' /tmp/health.json)" >> $GITHUB_OUTPUT
+          echo "version=$(jq -r '.version // .app_version // .app_version_tag // .app_build // "?"' /tmp/health.json)" >> $GITHUB_OUTPUT
       - name: Assert Phase & Version
         run: |
-          curl -sS https://morningai-backend-v2.onrender.com/healthz \
-          | jq -e -r '.phase,.version' \
-          | paste -sd ' ' - \
-          | grep -q 'Phase 8 8.0.0'
+          echo "phase: ${{ steps.h.outputs.phase }}"
+          echo "version: ${{ steps.h.outputs.version }}"
+          jq -e '
+            (.phase       | test("Phase 8")) and
+            (.version     // .app_version // .app_version_tag // .app_build // "" | test("^8\\.0\\.0$"))
+          ' /tmp/health.json > /dev/null
