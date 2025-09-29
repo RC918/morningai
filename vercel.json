@@ -1,9 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "cd handoff/20250928/40_App/morningai_enhanced/frontend-dashboard && pnpm build",
-  "installCommand": "cd handoff/20250928/40_App/morningai_enhanced/frontend-dashboard && pnpm install",
-  "outputDirectory": "handoff/20250928/40_App/morningai_enhanced/frontend-dashboard/dist",
+  "rootDirectory": "handoff/20250928/40_App/morningai_enhanced/frontend-dashboard",
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
+  "outputDirectory": "dist",
   "env": {
     "VITE_API_BASE_URL": "https://morningai-api.onrender.com"
   },
