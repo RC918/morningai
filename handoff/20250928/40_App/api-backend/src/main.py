@@ -58,7 +58,7 @@ def health_check():
         health_status = {
             "status": "healthy" if env_validation["valid"] else "degraded",
             "timestamp": datetime.datetime.now().isoformat(),
-            "version": os.environ.get('APP_VERSION', '8.0.0'),
+            "version": os.environ.get('APP_VERSION', '7.0.0'),
             "environment": os.environ.get('FLASK_ENV', 'production'),
             "environment_validation": env_validation
         }
@@ -86,7 +86,7 @@ def health_check():
         
         health_status["backend_services"] = "available" if BACKEND_SERVICES_AVAILABLE else "unavailable"
         health_status["service"] = "morningai-backend"
-        health_status["phase"] = "Phase 8: Self-service Dashboard and Reporting Center"
+        health_status["phase"] = "Phase 7: Performance, Growth & Beta Introduction"
         
         return jsonify(health_status)
         
