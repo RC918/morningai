@@ -1,22 +1,65 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { DndProvider, useDrag, useDrop } from 'react-dnd'
+import { HTML5Backend } from 'react-dnd-html5-backend'
 import { 
-  Activity, 
-  TrendingUp, 
-  TrendingDown, 
-  AlertTriangle, 
-  CheckCircle,
-  Clock,
-  DollarSign,
-  Cpu,
-  MemoryStick,
-  Zap
+  Activity, TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
+  Clock, DollarSign, Cpu, MemoryStick, Zap, Settings, Download,
+  Plus, Trash2, Edit3, FileText, Grid3X3
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
+import ReportCenter from './ReportCenter'
+
+const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
+  const [{ isDragging }, drag] = useDrag({
+    type: 'widget',
+    item: { index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  })
+
+  const [, drop] = useDrop({
+    accept: 'widget',
+    hover: (draggedItem) => {
+      if (draggedItem.index !== index) {
+        moveWidget(draggedItem.index, index)
+        draggedItem.index = index
+      }
+    },
+  })
+
+  return (
+    <div
+      ref={(node) => drag(drop(node))}
+      className={`relative ${isDragging ? 'opacity-50' : ''} ${isEditMode ? 'cursor-move' : ''}`}
+    >
+      {isEditMode && (
+        <Button
+          variant="destructive"
+          size="sm"
+          className="absolute top-2 right-2 z-10"
+          onClick={() => onRemove(index)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      )}
+      {widget.component}
+    </div>
+  )
+}
 
 const Dashboard = () => {
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [showReportCenter, setShowReportCenter] = useState(false)
+  const [availableWidgets, setAvailableWidgets] = useState([])
+  const [dashboardLayout, setDashboardLayout] = useState([])
+  const [dashboardData, setDashboardData] = useState({})
   const [systemMetrics, setSystemMetrics] = useState({
     cpu_usage: 72,
     memory_usage: 68,
@@ -65,6 +108,12 @@ const Dashboard = () => {
   ])
 
   useEffect(() => {
+    loadDashboardLayout()
+    loadAvailableWidgets()
+    loadDashboardData()
+  }, [])
+
+  useEffect(() => {
     // 模擬實時數據更新
     const interval = setInterval(() => {
       setSystemMetrics(prev => ({
@@ -73,10 +122,103 @@ const Dashboard = () => {
         memory_usage: Math.max(40, Math.min(85, prev.memory_usage + (Math.random() - 0.5) * 8)),
         response_time: Math.max(100, Math.min(300, prev.response_time + (Math.random() - 0.5) * 20))
       }))
+      
+      if (!isEditMode) {
+        loadDashboardData()
+      }
     }, 5000)
 
     return () => clearInterval(interval)
+  }, [isEditMode])
+
+  const loadDashboardLayout = async () => {
+    try {
+      const response = await fetch('/api/dashboard/layouts?user_id=default')
+      const layout = await response.json()
+      if (layout.widgets) {
+        setDashboardLayout(layout.widgets.map(widget => ({
+          ...widget,
+          component: null // Will be populated when rendering
+        })))
+      } else {
+        setDashboardLayout(getDefaultWidgets())
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard layout:', error)
+      setDashboardLayout(getDefaultWidgets())
+    }
+  }
+
+  const loadAvailableWidgets = async () => {
+    try {
+      const response = await fetch('/api/dashboard/widgets/available')
+      const widgets = await response.json()
+      setAvailableWidgets(widgets)
+    } catch (error) {
+      console.error('Failed to load available widgets:', error)
+    }
+  }
+
+  const loadDashboardData = async () => {
+    try {
+      const response = await fetch('/api/dashboard/data')
+      const data = await response.json()
+      setDashboardData(data)
+      
+      if (data.system_metrics) {
+        setSystemMetrics(data.system_metrics)
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error)
+    }
+  }
+
+  const saveDashboardLayout = async () => {
+    try {
+      await fetch('/api/dashboard/layouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: 'default',
+          layout: { widgets: dashboardLayout.map(w => ({ id: w.id, position: w.position })) }
+        })
+      })
+    } catch (error) {
+      console.error('Failed to save dashboard layout:', error)
+    }
+  }
+
+  const getDefaultWidgets = () => [
+    { id: 'cpu_usage', position: { x: 0, y: 0, w: 6, h: 4 } },
+    { id: 'memory_usage', position: { x: 6, y: 0, w: 6, h: 4 } },
+    { id: 'response_time', position: { x: 0, y: 4, w: 6, h: 4 } },
+    { id: 'error_rate', position: { x: 6, y: 4, w: 6, h: 4 } },
+    { id: 'active_strategies', position: { x: 0, y: 8, w: 4, h: 3 } },
+    { id: 'pending_approvals', position: { x: 4, y: 8, w: 4, h: 3 } },
+    { id: 'task_execution', position: { x: 8, y: 8, w: 4, h: 6 } }
+  ]
+
+  const moveWidget = useCallback((dragIndex, hoverIndex) => {
+    setDashboardLayout(prev => {
+      const newLayout = [...prev]
+      const draggedWidget = newLayout[dragIndex]
+      newLayout.splice(dragIndex, 1)
+      newLayout.splice(hoverIndex, 0, draggedWidget)
+      return newLayout
+    })
   }, [])
+
+  const removeWidget = useCallback((index) => {
+    setDashboardLayout(prev => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const addWidget = (widgetId) => {
+    const newWidget = {
+      id: widgetId,
+      position: { x: 0, y: 0, w: 6, h: 4 }
+    }
+    setDashboardLayout(prev => [...prev, newWidget])
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -96,226 +238,234 @@ const Dashboard = () => {
     }
   }
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* 頁面標題 */}
+  const DashboardToolbar = () => (
+    <div className="flex justify-between items-center mb-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">系統監控儀表板</h1>
-        <p className="text-gray-600 mt-2">Morning AI 智能決策系統實時狀態</p>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {showReportCenter ? '報表中心' : '自助儀表板'}
+        </h1>
+        <p className="text-gray-600 mt-2">
+          {showReportCenter ? '生成和管理系統報表' : '可自訂的系統監控與任務追蹤'}
+        </p>
       </div>
-
-      {/* 關鍵指標卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CPU 使用率</CardTitle>
-            <Cpu className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemMetrics.cpu_usage}%</div>
-            <Progress value={systemMetrics.cpu_usage} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              {systemMetrics.cpu_usage > 80 ? (
-                <span className="text-red-600 flex items-center">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  需要關注
-                </span>
-              ) : (
-                <span className="text-green-600 flex items-center">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  正常範圍
-                </span>
-              )}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">內存使用率</CardTitle>
-            <MemoryStick className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemMetrics.memory_usage}%</div>
-            <Progress value={systemMetrics.memory_usage} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              <span className="text-green-600 flex items-center">
-                <TrendingDown className="w-3 h-3 mr-1" />
-                較昨日 -5%
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">響應時間</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemMetrics.response_time}ms</div>
-            <p className="text-xs text-muted-foreground mt-2">
-              <span className="text-green-600 flex items-center">
-                <TrendingDown className="w-3 h-3 mr-1" />
-                較昨日 -12%
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">今日成本</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${systemMetrics.cost_today}</div>
-            <p className="text-xs text-muted-foreground mt-2">
-              <span className="text-green-600 flex items-center">
-                <TrendingDown className="w-3 h-3 mr-1" />
-                節省 ${systemMetrics.cost_saved}
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 圖表區域 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 性能趨勢圖 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>性能趨勢</CardTitle>
-            <CardDescription>過去6小時的系統性能指標</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="cpu" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  name="CPU (%)"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="memory" 
-                  stroke="#10b981" 
-                  strokeWidth={2}
-                  name="內存 (%)"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* 響應時間圖 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>響應時間趨勢</CardTitle>
-            <CardDescription>系統響應時間變化</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <Tooltip />
-                <Area 
-                  type="monotone" 
-                  dataKey="response_time" 
-                  stroke="#f59e0b" 
-                  fill="#fef3c7"
-                  name="響應時間 (ms)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 最近決策 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>最近決策</CardTitle>
-          <CardDescription>AI系統最近執行的決策和策略</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentDecisions.map((decision) => (
-              <div key={decision.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className={`p-2 rounded-full ${getStatusColor(decision.status)}`}>
-                    {getStatusIcon(decision.status)}
-                  </div>
-                  <div>
-                    <h4 className="font-medium">{decision.strategy}</h4>
-                    <p className="text-sm text-gray-600">{decision.impact}</p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(decision.timestamp).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <Badge variant="outline" className={getStatusColor(decision.status)}>
-                    {decision.status === 'executed' ? '已執行' : 
-                     decision.status === 'pending' ? '待審批' : '失敗'}
-                  </Badge>
-                  <p className="text-sm text-gray-600 mt-1">
-                    信心度: {(decision.confidence * 100).toFixed(0)}%
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 系統狀態摘要 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">活躍策略</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-600">
-              {systemMetrics.active_strategies}
-            </div>
-            <p className="text-sm text-gray-600 mt-2">個策略正在運行</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">待審批</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-600">
-              {systemMetrics.pending_approvals}
-            </div>
-            <p className="text-sm text-gray-600 mt-2">個決策等待審批</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">錯誤率</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">
-              {(systemMetrics.error_rate * 100).toFixed(2)}%
-            </div>
-            <p className="text-sm text-gray-600 mt-2">系統運行穩定</p>
-          </CardContent>
-        </Card>
+      <div className="flex space-x-2">
+        <Button
+          variant={showReportCenter ? "default" : "outline"}
+          onClick={() => setShowReportCenter(!showReportCenter)}
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          報表中心
+        </Button>
+        {!showReportCenter && (
+          <Button
+            variant={isEditMode ? "default" : "outline"}
+            onClick={() => {
+              setIsEditMode(!isEditMode)
+              if (isEditMode) saveDashboardLayout()
+            }}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            {isEditMode ? '完成編輯' : '自訂儀表板'}
+          </Button>
+        )}
       </div>
     </div>
+  )
+
+  const WidgetAddDialog = () => (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full h-32 border-dashed">
+          <Plus className="w-8 h-8 mb-2" />
+          <span>添加組件</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>選擇組件</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+          {availableWidgets.map((widget) => (
+            <Button
+              key={widget.id}
+              variant="outline"
+              className="h-20 flex-col"
+              onClick={() => {
+                addWidget(widget.id)
+                document.querySelector('[data-state="open"]')?.click() // Close dialog
+              }}
+            >
+              <Grid3X3 className="w-6 h-6 mb-2" />
+              <span className="text-xs">{widget.name}</span>
+            </Button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+
+  if (showReportCenter) {
+    return (
+      <DndProvider backend={HTML5Backend}>
+        <div className="p-6 space-y-6">
+          <DashboardToolbar />
+          <ReportCenter />
+        </div>
+      </DndProvider>
+    )
+  }
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <div className="p-6 space-y-6">
+        <DashboardToolbar />
+
+        {/* Customizable Dashboard Widgets */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {dashboardLayout.map((widget, index) => {
+            const WidgetComponent = getWidgetComponent(widget.id)
+            const widgetWithComponent = {
+              ...widget,
+              component: <WidgetComponent data={dashboardData} />
+            }
+            
+            return (
+              <DraggableWidget
+                key={`${widget.id}-${index}`}
+                widget={widgetWithComponent}
+                index={index}
+                moveWidget={moveWidget}
+                onRemove={removeWidget}
+                isEditMode={isEditMode}
+              />
+            )
+          })}
+          
+          {isEditMode && (
+            <WidgetAddDialog />
+          )}
+        </div>
+
+        {/* Performance Charts - Always visible */}
+        {!isEditMode && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 性能趨勢圖 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>性能趨勢</CardTitle>
+                <CardDescription>過去6小時的系統性能指標</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={performanceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey="cpu" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      name="CPU (%)"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="memory" 
+                      stroke="#10b981" 
+                      strokeWidth={2}
+                      name="內存 (%)"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* 響應時間圖 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>響應時間趨勢</CardTitle>
+                <CardDescription>系統響應時間變化</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={performanceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <Tooltip />
+                    <Area 
+                      type="monotone" 
+                      dataKey="response_time" 
+                      stroke="#f59e0b" 
+                      fill="#fef3c7"
+                      name="響應時間 (ms)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Recent Decisions - Always visible when not in edit mode */}
+        {!isEditMode && (
+          <Card>
+            <CardHeader>
+              <CardTitle>最近決策</CardTitle>
+              <CardDescription>AI系統最近執行的決策和策略</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentDecisions.map((decision) => (
+                  <div key={decision.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className={`p-2 rounded-full ${getStatusColor(decision.status)}`}>
+                        {getStatusIcon(decision.status)}
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{decision.strategy}</h4>
+                        <p className="text-sm text-gray-600">{decision.impact}</p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(decision.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="outline" className={getStatusColor(decision.status)}>
+                        {decision.status === 'executed' ? '已執行' : 
+                         decision.status === 'pending' ? '待審批' : '失敗'}
+                      </Badge>
+                      <p className="text-sm text-gray-600 mt-1">
+                        信心度: {(decision.confidence * 100).toFixed(0)}%
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Edit Mode Instructions */}
+        {isEditMode && (
+          <Card className="border-dashed border-2">
+            <CardContent className="p-6 text-center">
+              <Edit3 className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-medium mb-2">自訂儀表板</h3>
+              <p className="text-gray-600 mb-4">
+                拖拽組件重新排列，點擊垃圾桶圖標刪除組件，或添加新的組件
+              </p>
+              <div className="flex justify-center space-x-2">
+                <Button onClick={() => setDashboardLayout(getDefaultWidgets())}>
+                  重置為預設布局
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </DndProvider>
   )
 }
 
