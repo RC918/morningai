@@ -20,11 +20,20 @@ try:
 except ImportError:
     SECURITY_AVAILABLE = False
 
+try:
+    from persistence.state_manager import PersistentStateManager
+    from services.monitoring_dashboard import monitoring_dashboard
+    from services.report_generator import report_generator
+    from utils.env_schema_validator import validate_environment
+    BACKEND_SERVICES_AVAILABLE = True
+except ImportError:
+    BACKEND_SERVICES_AVAILABLE = False
+
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 
-# 啟用CORS支持
-CORS(app)
+cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
+CORS(app, resources={r"/*": {"origins": cors_origins}})
 
 if SECURITY_AVAILABLE:
     security_config = {
@@ -42,37 +51,51 @@ app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 @app.route('/health')
 @app.route('/healthz')
 def health_check():
+    """Health check endpoint with comprehensive system status"""
     try:
-        db.engine.execute('SELECT 1')
-        db_status = "connected"
-    except:
-        db_status = "disconnected"
-    
-    security_status = "available" if SECURITY_AVAILABLE else "unavailable"
-    
-    health_data = {
-        'status': 'healthy', 
-        'timestamp': datetime.datetime.now().isoformat(),
-        'environment': os.environ.get('FLASK_ENV', 'development'),
-        'python_version': sys.version,
-        'database_status': db_status,
-        'security_status': security_status,
-        'service': 'morningai-backend',
-        'phase': 'Phase 6: Security and Audit Enhancement'
-    }
-    
-    if SECURITY_AVAILABLE and hasattr(app, 'security_manager'):
+        env_validation = validate_environment() if BACKEND_SERVICES_AVAILABLE else {"valid": False, "errors": ["Backend services not available"]}
+        
+        health_status = {
+            "status": "healthy" if env_validation["valid"] else "degraded",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "version": os.environ.get('APP_VERSION', '8.0.0'),
+            "environment": os.environ.get('FLASK_ENV', 'production'),
+            "environment_validation": env_validation
+        }
+        
         try:
-            app.security_manager.audit_logger.log_api_access(
-                'system', '/health', 'GET', 
-                request.remote_addr if request else 'localhost',
-                request.headers.get('User-Agent', 'health-check') if request else 'health-check',
-                200
-            )
-        except:
-            pass  # 不讓審計日誌錯誤影響健康檢查
-    
-    return jsonify(health_data)
+            db.engine.execute('SELECT 1')
+            health_status["database"] = "connected"
+        except Exception as e:
+            health_status["database"] = f"error: {str(e)}"
+            health_status["status"] = "degraded"
+        
+        if SECURITY_AVAILABLE and hasattr(app, 'security_manager'):
+            health_status["security"] = "enabled"
+            try:
+                app.security_manager.audit_logger.log_api_access(
+                    'system', '/health', 'GET', 
+                    request.remote_addr if request else 'localhost',
+                    request.headers.get('User-Agent', 'health-check') if request else 'health-check',
+                    200
+                )
+            except:
+                pass
+        else:
+            health_status["security"] = "disabled"
+        
+        health_status["backend_services"] = "available" if BACKEND_SERVICES_AVAILABLE else "unavailable"
+        health_status["service"] = "morningai-backend"
+        health_status["phase"] = "Phase 8: Self-service Dashboard and Reporting Center"
+        
+        return jsonify(health_status)
+        
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.datetime.now().isoformat()
+        }), 500
 
 db_dir = os.path.join(os.path.dirname(__file__), 'database')
 os.makedirs(db_dir, exist_ok=True)
@@ -230,7 +253,8 @@ def get_ops_metrics():
 def get_monitoring_dashboard():
     """Get monitoring dashboard data"""
     try:
-        from monitoring_dashboard import monitoring_dashboard
+        if not BACKEND_SERVICES_AVAILABLE:
+            return jsonify({"error": "Backend services not available"}), 500
         
         hours = int(request.args.get('hours', 1))
         dashboard_data = monitoring_dashboard.get_dashboard_data(hours=hours)
@@ -245,7 +269,7 @@ def get_resilience_metrics():
     """Get resilience pattern metrics"""
     try:
         from resilience_patterns import resilience_manager
-        from persistent_state_manager import persistent_state_manager
+        persistent_state_manager = PersistentStateManager()
         from saga_orchestrator import saga_orchestrator
         
         metrics = {
@@ -264,7 +288,8 @@ def get_resilience_metrics():
 def get_monitoring_alerts():
     """Get current monitoring alerts"""
     try:
-        from monitoring_dashboard import monitoring_dashboard
+        if not BACKEND_SERVICES_AVAILABLE:
+            return jsonify({"error": "Backend services not available"}), 500
         
         if monitoring_dashboard.metrics_history:
             latest_metrics = monitoring_dashboard.metrics_history[-1]
@@ -303,7 +328,7 @@ def validate_environment():
 def manage_dashboard_layouts():
     """Get or save user dashboard layouts"""
     try:
-        from persistent_state_manager import persistent_state_manager
+        persistent_state_manager = PersistentStateManager()
         
         if request.method == 'GET':
             user_id = request.args.get('user_id', 'default')
@@ -354,7 +379,8 @@ def get_available_widgets():
 def get_dashboard_data():
     """Get real-time dashboard data"""
     try:
-        from monitoring_dashboard import monitoring_dashboard
+        if not BACKEND_SERVICES_AVAILABLE:
+            return jsonify({"error": "Backend services not available"}), 500
         
         hours = int(request.args.get('hours', 1))
         dashboard_data = monitoring_dashboard.get_dashboard_data(hours=hours)
@@ -390,7 +416,8 @@ def get_dashboard_data():
 def generate_report():
     """Generate custom reports"""
     try:
-        from report_generator import report_generator
+        if not BACKEND_SERVICES_AVAILABLE:
+            return jsonify({"error": "Backend services not available"}), 500
         
         data = request.get_json()
         report_type = data.get('type', 'performance')
@@ -448,7 +475,7 @@ def get_report_templates():
 def get_report_history():
     """Get report generation history"""
     try:
-        from persistent_state_manager import persistent_state_manager
+        persistent_state_manager = PersistentStateManager()
         
         history = persistent_state_manager.get_report_history()
         return jsonify(history)
