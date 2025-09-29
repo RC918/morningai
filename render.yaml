@@ -10,7 +10,11 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///database/morningai.db
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
       - key: ADMIN_PASSWORD
         generateValue: true
       - key: JWT_SECRET_KEY
