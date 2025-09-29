@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: morningai-backend
+    env: python
+    runtime: python-3.11
+    buildCommand: |
+      cd handoff/20250928/40_App/api-backend &&
+      pip install --upgrade pip &&
+      pip install -r requirements.txt
+    startCommand: cd handoff/20250928/40_App/api-backend/src && gunicorn --bind 0.0.0.0:$PORT main:app --timeout 120 --workers 1
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///database/app.db
+      - key: REDIS_URL
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true

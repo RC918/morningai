@@ -12,7 +12,7 @@ from routes.dashboard import dashboard_bp
 from flask_cors import CORS
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 
 # 啟用CORS支持
 CORS(app)
@@ -24,7 +24,15 @@ app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 @app.route('/health')
 @app.route('/healthz')
 def health_check():
-    return jsonify({'status': 'healthy', 'timestamp': datetime.datetime.now().isoformat()})
+    return jsonify({
+        'status': 'healthy', 
+        'timestamp': datetime.datetime.now().isoformat(),
+        'environment': os.environ.get('FLASK_ENV', 'development'),
+        'python_version': sys.version
+    })
+
+db_dir = os.path.join(os.path.dirname(__file__), 'database')
+os.makedirs(db_dir, exist_ok=True)
 
 # uncomment if you need to use database
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
@@ -51,4 +59,6 @@ def serve(path):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    port = int(os.environ.get('PORT', 5001))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    app.run(host='0.0.0.0', port=port, debug=debug)
