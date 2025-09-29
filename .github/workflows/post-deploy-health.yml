@@ -1,0 +1,7 @@
+name: post-deploy-health
+on: {workflow_dispatch: {}, push: {branches: [main]}}
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -sS -f https://morningai-backend-v2.onrender.com/health | head -n 1
