@@ -24,11 +24,19 @@ app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 @app.route('/health')
 @app.route('/healthz')
 def health_check():
+    try:
+        db.engine.execute('SELECT 1')
+        db_status = "connected"
+    except:
+        db_status = "disconnected"
+    
     return jsonify({
         'status': 'healthy', 
         'timestamp': datetime.datetime.now().isoformat(),
         'environment': os.environ.get('FLASK_ENV', 'development'),
-        'python_version': sys.version
+        'python_version': sys.version,
+        'database_status': db_status,
+        'service': 'morningai-backend'
     })
 
 db_dir = os.path.join(os.path.dirname(__file__), 'database')
