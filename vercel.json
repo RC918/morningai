@@ -7,11 +7,15 @@
   "env": {
     "VITE_API_BASE_URL": "https://morningai-api.onrender.com"
   },
-  "functions": {
-    "handoff/20250928/40_App/morningai_enhanced/frontend-dashboard/dist/**": {
-      "headers": {
-        "cache-control": "public, max-age=31536000, immutable"
-      }
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
-  }
+  ]
 }
