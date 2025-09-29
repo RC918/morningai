@@ -1,0 +1,142 @@
+---
+
+system:
+  name: "Morning AI"
+  version: "6.0.0"
+  environment: "production"
+  startup_time: "2025-09-29T13:50:22Z"
+
+security:
+  master_key: "${MASTER_KEY}"
+  secret_key: "${SECRET_KEY}"
+  audit_log_file: "security_audit.log"
+  session_timeout: 3600  # 1 hour
+  max_login_attempts: 5
+  password_policy:
+    min_length: 8
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special_chars: true
+
+# 監控配置
+monitoring:
+  base_url: "https://morningai-backend-v2.onrender.com"
+  check_interval: 3600  # 1 hour
+  alert_thresholds:
+    error_rate_warning: 0.01  # 1%
+    error_rate_critical: 0.05  # 5%
+    latency_warning: 500  # 500ms
+    consecutive_5xx_critical: 3
+    consecutive_health_fail_critical: 2
+  slack_webhook: "${SLACK_WEBHOOK_URL}"
+  log_file: "monitoring.log"
+
+meta_agent:
+  redis_url: "${REDIS_URL}"
+  db_url: "${DATABASE_URL}"
+  decision_timeout: 300  # 5 minutes
+  ooda_loop:
+    observe_interval: 60  # 1 minute
+    orient_window: 600   # 10 minutes
+    decide_timeout: 30   # 30 seconds
+    act_timeout: 120     # 2 minutes
+
+governance:
+  host: "0.0.0.0"
+  port: 5002
+  dashboard_url: "/governance/dashboard"
+  default_rules:
+    - name: "基本內容過濾"
+      type: "content_filter"
+      config:
+        keywords: ["spam", "abuse", "inappropriate"]
+    - name: "預設使用量限制"
+      type: "usage_limit"
+      config:
+        max_tokens: 10000
+        time_window: "daily"
+
+permissions:
+  roles:
+    platform_admin:
+      - "manage_all_tenants"
+      - "manage_system_settings"
+      - "view_all_governance_rules"
+      - "manage_all_governance_rules"
+      - "view_system_analytics"
+      - "manage_users"
+    tenant_admin:
+      - "manage_tenant_settings"
+      - "view_tenant_governance_rules"
+      - "manage_tenant_governance_rules"
+      - "view_tenant_analytics"
+      - "manage_tenant_users"
+    tenant_user:
+      - "use_ai_features"
+      - "view_own_usage"
+      - "view_tenant_governance_rules"
+
+cloud_services:
+  supabase:
+    url: "${SUPABASE_URL}"
+    anon_key: "${SUPABASE_ANON_KEY}"
+    service_role_key: "${SUPABASE_SERVICE_ROLE_KEY}"
+  cloudflare:
+    api_token: "${CLOUDFLARE_API_TOKEN}"
+    zone_id: "${CLOUDFLARE_ZONE_ID}"
+  vercel:
+    token: "${VERCEL_TOKEN}"
+    org_id: "${VERCEL_ORG_ID}"
+    project_id: "${VERCEL_PROJECT_ID}"
+  render:
+    api_key: "${RENDER_API_KEY}"
+  sentry:
+    dsn: "${SENTRY_DSN}"
+    auth_token: "${SENTRY_AUTH_TOKEN}"
+  upstash_redis:
+    rest_url: "${UPSTASH_REDIS_REST_URL}"
+    rest_token: "${UPSTASH_REDIS_REST_TOKEN}"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  files:
+    main: "phase6_startup.log"
+    monitoring: "monitoring.log"
+    security: "security_audit.log"
+    governance: "governance.log"
+  rotation:
+    max_size: "10MB"
+    backup_count: 5
+
+health_checks:
+  endpoints:
+    - "/health"
+    - "/healthz"
+  timeout: 10
+  retry_count: 3
+  retry_delay: 5
+
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 每天凌晨 2 點
+  retention_days: 30
+  destinations:
+    - type: "local"
+      path: "/backup"
+    - type: "cloud"
+      provider: "s3"
+      bucket: "${BACKUP_BUCKET}"
+
+performance:
+  max_concurrent_requests: 100
+  request_timeout: 30
+  connection_pool_size: 20
+  cache_ttl: 300  # 5 minutes
+
+debug:
+  enabled: false
+  log_sql_queries: false
+  profiling: false
+  metrics_collection: true

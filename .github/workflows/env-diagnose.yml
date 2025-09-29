@@ -6,20 +6,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Supabase
-        env: { SUPABASE_URL: ${{ secrets.SUPABASE_URL }}, SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} }
-        run: curl -sS "$SUPABASE_URL/rest/v1/" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | head -n 1
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: 'curl -sS "$SUPABASE_URL/rest/v1/" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | head -n 1'
       - name: Redis (tcp)
-        env: { REDIS_URL: ${{ secrets.REDIS_URL }} }
-        run: python - <<'PY'\nimport os, redis; r=redis.from_url(os.environ['REDIS_URL']); print('PING:', r.ping())\nPY
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          python - <<'PY'
+          import os, redis
+          r=redis.from_url(os.environ['REDIS_URL'])
+          print('PING:', r.ping())
+          PY
       - name: Redis (rest)
-        env: { UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}, UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }} }
-        run: curl -sS "$UPSTASH_REDIS_REST_URL/ping" -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" -H "Content-Type: application/json" | head -n 1
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: 'curl -sS "$UPSTASH_REDIS_REST_URL/ping" -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" -H "Content-Type: application/json" | head -n 1'
       - name: Cloudflare
-        env: { CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}, CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }} }
-        run: curl -sS "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/dns_records?per_page=1" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" | head -n 1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: 'curl -sS "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/dns_records?per_page=1" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" | head -n 1'
       - name: Vercel
-        env: { VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}, VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }} }
-        run: npx -y vercel@latest projects ls --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" | head -n 1
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: 'npx -y vercel@latest projects ls --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" | head -n 1'
       - name: Render
-        env: { RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }} }
-        run: curl -sS https://api.render.com/v1/services -H "Authorization: Bearer $RENDER_API_KEY" | head -n 1
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: 'curl -sS https://api.render.com/v1/services -H "Authorization: Bearer $RENDER_API_KEY" | head -n 1'
