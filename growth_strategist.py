@@ -8,8 +8,11 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
+
+from resilience_patterns import resilience_manager
+from persistent_state_manager import persistent_state_manager
 
 @dataclass
 class GamificationRule:
@@ -47,27 +50,39 @@ class GrowthStrategist:
         self.gamification_rules = self._initialize_gamification_rules()
         
     def _initialize_gamification_rules(self) -> Dict[str, GamificationRule]:
-        """Initialize default gamification rules"""
-        return {
-            'daily_login': GamificationRule(
-                rule_id='daily_login',
-                name='Daily Login Reward',
-                trigger_condition='user_login_daily',
-                reward_type=RewardType.POINTS.value,
-                reward_amount=50,
-                effectiveness_score=0.65,
-                last_updated=datetime.now()
-            ),
-            'weekly_streak': GamificationRule(
-                rule_id='weekly_streak',
-                name='Weekly Streak Bonus',
-                trigger_condition='consecutive_7_days',
-                reward_type=RewardType.POINTS.value,
-                reward_amount=500,
-                effectiveness_score=0.85,
-                last_updated=datetime.now()
-            )
-        }
+        """Initialize gamification rules from persistent storage or defaults"""
+        try:
+            default_rules = {
+                'daily_login': GamificationRule(
+                    rule_id='daily_login',
+                    name='Daily Login Reward',
+                    trigger_condition='user_login_daily',
+                    reward_type=RewardType.POINTS.value,
+                    reward_amount=50,
+                    effectiveness_score=0.65,
+                    last_updated=datetime.now()
+                ),
+                'weekly_streak': GamificationRule(
+                    rule_id='weekly_streak',
+                    name='Weekly Streak Bonus',
+                    trigger_condition='consecutive_7_days',
+                    reward_type=RewardType.POINTS.value,
+                    reward_amount=500,
+                    effectiveness_score=0.85,
+                    last_updated=datetime.now()
+                )
+            }
+            
+            for rule in default_rules.values():
+                rule_data = asdict(rule)
+                rule_data['last_updated'] = rule_data['last_updated'].isoformat()
+                persistent_state_manager.save_gamification_rule(rule_data)
+                
+            return default_rules
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize gamification rules: {e}")
+            return {}
         
     async def plan_user_campaign(self, target_users: int) -> CampaignStrategy:
         """Plan user invitation campaign with capacity constraints"""

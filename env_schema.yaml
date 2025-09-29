@@ -1,0 +1,113 @@
+version: '1.0'
+description: 'Morning AI Phase 7 environment schema'
+fields:
+  DATABASE_URL:
+    type: url
+    required: true
+    description: Database connection URL
+  REDIS_URL:
+    type: url
+    required: false
+    default: redis://localhost:6379/0
+    description: Redis connection URL
+  SUPABASE_URL:
+    type: url
+    required: true
+    description: Supabase project URL
+  SUPABASE_ANON_KEY:
+    type: secret
+    required: true
+    description: Supabase anonymous key
+  SUPABASE_SERVICE_ROLE_KEY:
+    type: secret
+    required: true
+    description: Supabase service role key
+  CLOUDFLARE_API_TOKEN:
+    type: secret
+    required: true
+    description: Cloudflare API token
+  CLOUDFLARE_ZONE_ID:
+    type: string
+    required: true
+    description: Cloudflare zone ID
+  VERCEL_TOKEN:
+    type: secret
+    required: true
+    description: Vercel deployment token
+  VERCEL_ORG_ID:
+    type: string
+    required: true
+    description: Vercel organization ID
+  VERCEL_PROJECT_ID:
+    type: string
+    required: true
+    description: Vercel project ID
+  RENDER_API_KEY:
+    type: secret
+    required: true
+    description: Render API key
+  UPSTASH_REDIS_REST_URL:
+    type: url
+    required: true
+    description: Upstash Redis REST URL
+  UPSTASH_REDIS_REST_TOKEN:
+    type: secret
+    required: true
+    description: Upstash Redis REST token
+  SENTRY_DSN:
+    type: url
+    required: true
+    description: Sentry DSN for error tracking
+  SENTRY_AUTH_TOKEN:
+    type: secret
+    required: false
+    description: Sentry authentication token
+  FLASK_ENV:
+    type: string
+    required: false
+    default: development
+    choices: [development, staging, production]
+    description: Flask environment
+  SECRET_KEY:
+    type: secret
+    required: true
+    min_length: 32
+    description: Application secret key
+  PORT:
+    type: integer
+    required: false
+    default: 5000
+    description: Application port
+  TELEGRAM_BOT_TOKEN:
+    type: secret
+    required: false
+    description: Telegram bot token for HITL approvals
+  TELEGRAM_ADMIN_CHAT_ID:
+    type: string
+    required: false
+    description: Telegram admin chat ID
+  PHASE7_ENABLED:
+    type: boolean
+    required: false
+    default: true
+    description: Enable Phase 7 components
+  OPS_AGENT_ENABLED:
+    type: boolean
+    required: false
+    default: true
+    description: Enable Ops Agent
+  GROWTH_STRATEGIST_ENABLED:
+    type: boolean
+    required: false
+    default: true
+    description: Enable Growth Strategist
+  PM_AGENT_ENABLED:
+    type: boolean
+    required: false
+    default: true
+    description: Enable PM Agent
+  HITL_APPROVAL_ENABLED:
+    type: boolean
+    required: false
+    default: true
+    description: Enable HITL approval system

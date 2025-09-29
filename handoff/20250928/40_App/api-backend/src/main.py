@@ -226,6 +226,79 @@ def get_ops_metrics():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/phase7/monitoring/dashboard')
+def get_monitoring_dashboard():
+    """Get monitoring dashboard data"""
+    try:
+        from monitoring_dashboard import monitoring_dashboard
+        
+        hours = int(request.args.get('hours', 1))
+        dashboard_data = monitoring_dashboard.get_dashboard_data(hours=hours)
+        
+        return jsonify(dashboard_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/phase7/monitoring/metrics')
+def get_resilience_metrics():
+    """Get resilience pattern metrics"""
+    try:
+        from resilience_patterns import resilience_manager
+        from persistent_state_manager import persistent_state_manager
+        from saga_orchestrator import saga_orchestrator
+        
+        metrics = {
+            'resilience': resilience_manager.get_all_metrics(),
+            'storage': persistent_state_manager.get_storage_stats(),
+            'saga': saga_orchestrator.get_orchestrator_metrics(),
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+        
+        return jsonify(metrics)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/phase7/monitoring/alerts')
+def get_monitoring_alerts():
+    """Get current monitoring alerts"""
+    try:
+        from monitoring_dashboard import monitoring_dashboard
+        
+        if monitoring_dashboard.metrics_history:
+            latest_metrics = monitoring_dashboard.metrics_history[-1]
+            alerts = monitoring_dashboard._generate_alerts(latest_metrics)
+            return jsonify({'alerts': alerts, 'count': len(alerts)})
+        else:
+            return jsonify({'alerts': [], 'count': 0})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/phase7/environment/validate')
+def validate_environment():
+    """Validate environment configuration"""
+    try:
+        from env_schema_validator import env_schema_validator
+        
+        validation_result = env_schema_validator.validate_environment()
+        config_summary = env_schema_validator.get_config_summary()
+        
+        return jsonify({
+            'validation': {
+                'valid': validation_result.valid,
+                'errors': validation_result.errors,
+                'warnings': validation_result.warnings,
+                'missing_required': validation_result.missing_required,
+                'invalid_values': validation_result.invalid_values
+            },
+            'summary': config_summary
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_ENV') != 'production'

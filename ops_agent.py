@@ -11,6 +11,9 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
+from resilience_patterns import resilience_manager, CircuitBreakerConfig
+from persistent_state_manager import persistent_state_manager
+
 @dataclass
 class SystemCapacity:
     """System capacity metrics"""
@@ -48,10 +51,16 @@ class OpsAgent:
             'memory_usage': 0.8      # 80%
         }
         
+        self.circuit_breaker_config = CircuitBreakerConfig(
+            failure_threshold=3,
+            recovery_timeout=30,
+            timeout=10.0
+        )
+        
     async def get_current_metrics(self) -> PerformanceMetrics:
-        """Get current system performance metrics"""
-        if self.monitoring_system:
-            try:
+        """Get current system performance metrics with circuit breaker protection"""
+        async def _get_metrics():
+            if self.monitoring_system:
                 result = self.monitoring_system.check_endpoint('/health', dry_run=True)
                 return PerformanceMetrics(
                     api_latency_p95=result.response_time * 1000,  # Convert to ms
@@ -61,17 +70,30 @@ class OpsAgent:
                     memory_usage=0.7,
                     timestamp=datetime.now()
                 )
-            except Exception as e:
-                self.logger.warning(f"Failed to get real metrics: {e}")
+            else:
+                return PerformanceMetrics(
+                    api_latency_p95=250.0,
+                    error_rate=0.005,
+                    throughput_rps=120.0,
+                    cpu_usage=0.6,
+                    memory_usage=0.7,
+                    timestamp=datetime.now()
+                )
         
-        return PerformanceMetrics(
-            api_latency_p95=250.0,
-            error_rate=0.005,
-            throughput_rps=120.0,
-            cpu_usage=0.6,
-            memory_usage=0.7,
-            timestamp=datetime.now()
-        )
+        try:
+            return await resilience_manager.protected_call(
+                'monitoring_system', _get_metrics
+            )
+        except Exception as e:
+            self.logger.warning(f"Failed to get metrics with circuit breaker: {e}")
+            return PerformanceMetrics(
+                api_latency_p95=500.0,  # Higher latency indicates degraded state
+                error_rate=0.02,
+                throughput_rps=50.0,
+                cpu_usage=0.8,
+                memory_usage=0.8,
+                timestamp=datetime.now()
+            )
         
     async def analyze_system_capacity(self) -> SystemCapacity:
         """Analyze current system capacity and recommend batch sizes"""

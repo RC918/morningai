@@ -104,8 +104,10 @@ class Phase7System:
         return logging.getLogger(__name__)
         
     async def initialize(self):
-        """Initialize all Phase 7 components"""
+        """Initialize all Phase 7 components with environment validation"""
         self.logger.info("Initializing Phase 7: Performance, Growth & Beta Introduction")
+        
+        await self._validate_environment()
         
         if PHASE6_AVAILABLE and self.config.get('integration', {}).get('monitoring_system'):
             try:
@@ -299,6 +301,33 @@ class Phase7System:
         }
         
         return status
+        
+    async def _validate_environment(self):
+        """Validate environment configuration at startup"""
+        try:
+            from env_schema_validator import env_schema_validator
+            
+            validation_result = env_schema_validator.validate_environment()
+            
+            if not validation_result.valid:
+                error_msg = f"Environment validation failed:\n"
+                for error in validation_result.errors:
+                    error_msg += f"  - {error}\n"
+                    
+                self.logger.error(error_msg)
+                raise RuntimeError("Environment validation failed - cannot start Phase 7")
+                
+            if validation_result.warnings:
+                for warning in validation_result.warnings:
+                    self.logger.warning(f"Environment warning: {warning}")
+                    
+            self.logger.info("Environment validation passed")
+            
+        except ImportError:
+            self.logger.warning("Environment validator not available, skipping validation")
+        except Exception as e:
+            self.logger.error(f"Environment validation error: {e}")
+            raise
 
 async def main():
     """Main entry point"""

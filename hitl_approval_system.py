@@ -13,6 +13,9 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import uuid
 
+from persistent_state_manager import persistent_state_manager
+from resilience_patterns import resilience_manager
+
 class ApprovalStatus(Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -53,8 +56,6 @@ class HITLApprovalSystem:
     
     def __init__(self, telegram_bot_token: Optional[str] = None, admin_chat_id: Optional[str] = None):
         self.logger = logging.getLogger(__name__)
-        self.pending_requests: Dict[str, ApprovalRequest] = {}
-        self.approval_history: List[ApprovalRequest] = []
         self.telegram_bot_token = telegram_bot_token
         self.admin_chat_id = admin_chat_id
         self.approval_callbacks: Dict[str, Callable] = {}
@@ -65,6 +66,8 @@ class HITLApprovalSystem:
             ApprovalPriority.MEDIUM.value: 24,
             ApprovalPriority.LOW.value: 72
         }
+        
+        self._load_persistent_state()
         
     async def create_approval_request(
         self,
@@ -95,7 +98,12 @@ class HITLApprovalSystem:
             expires_at=datetime.now() + timedelta(hours=timeout_hours)
         )
         
-        self.pending_requests[request_id] = request
+        request_data = asdict(request)
+        request_data['created_at'] = request_data['created_at'].isoformat()
+        request_data['expires_at'] = request_data['expires_at'].isoformat()
+        request_data['status'] = request_data['status'].value
+        
+        persistent_state_manager.save_approval_request(request_data)
         
         await self._send_console_notification(request)
         if self.telegram_bot_token:
@@ -194,8 +202,14 @@ class HITLApprovalSystem:
         request.approval_channel = channel
         request.comments = comments
         
-        self.approval_history.append(request)
-        del self.pending_requests[request_id]
+        request_data = asdict(request)
+        request_data['created_at'] = request_data['created_at'].isoformat()
+        request_data['expires_at'] = request_data['expires_at'].isoformat()
+        request_data['approved_at'] = request_data['approved_at'].isoformat() if request_data['approved_at'] else None
+        request_data['status'] = request_data['status'].value
+        request_data['approval_channel'] = request_data['approval_channel'].value if request_data['approval_channel'] else None
+        
+        persistent_state_manager.save_approval_request(request_data)
         
         if request_id in self.approval_callbacks:
             callback = self.approval_callbacks[request_id]
@@ -232,16 +246,36 @@ class HITLApprovalSystem:
         self.approval_callbacks[request_id] = callback
         
     def get_pending_requests(self, priority_filter: Optional[str] = None) -> List[ApprovalRequest]:
-        """Get all pending approval requests, optionally filtered by priority"""
-        requests = list(self.pending_requests.values())
-        
-        if priority_filter:
-            requests = [r for r in requests if r.priority == priority_filter]
+        """Get all pending approval requests from persistent storage"""
+        try:
+            pending_data = persistent_state_manager.load_approval_requests(status='pending')
+            requests = []
             
-        priority_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
-        requests.sort(key=lambda x: (priority_order.get(x.priority, 4), x.created_at))
-        
-        return requests
+            for request_data in pending_data:
+                if not priority_filter or request_data['priority'] == priority_filter:
+                    request = ApprovalRequest(
+                        request_id=request_data['request_id'],
+                        trace_id=request_data['trace_id'],
+                        title=request_data['title'],
+                        description=request_data['description'],
+                        context=request_data['context'],
+                        prompt_details=request_data['prompt_details'],
+                        requester_agent=request_data['requester_agent'],
+                        priority=request_data['priority'],
+                        created_at=datetime.fromisoformat(request_data['created_at']),
+                        expires_at=datetime.fromisoformat(request_data['expires_at']),
+                        status=ApprovalStatus(request_data['status'])
+                    )
+                    requests.append(request)
+                    
+            priority_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+            requests.sort(key=lambda x: (priority_order.get(x.priority, 4), x.created_at))
+            
+            return requests
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get pending requests: {e}")
+            return []
         
     def get_approval_history(self, limit: int = 100, status_filter: Optional[str] = None) -> List[ApprovalRequest]:
         """Get approval history with optional filtering"""
@@ -268,6 +302,58 @@ class HITLApprovalSystem:
             self.logger.info(f"Cleaned up {len(expired_requests)} expired approval requests")
             
         return len(expired_requests)
+        
+    def _load_persistent_state(self):
+        """Load approval requests from persistent storage"""
+        try:
+            pending_data = persistent_state_manager.load_approval_requests(status='pending')
+            self.pending_requests = {}
+            
+            for request_data in pending_data:
+                request = ApprovalRequest(
+                    request_id=request_data['request_id'],
+                    trace_id=request_data['trace_id'],
+                    title=request_data['title'],
+                    description=request_data['description'],
+                    context=request_data['context'],
+                    prompt_details=request_data['prompt_details'],
+                    requester_agent=request_data['requester_agent'],
+                    priority=request_data['priority'],
+                    created_at=datetime.fromisoformat(request_data['created_at']),
+                    expires_at=datetime.fromisoformat(request_data['expires_at']),
+                    status=ApprovalStatus(request_data['status'])
+                )
+                self.pending_requests[request.request_id] = request
+                
+            history_data = persistent_state_manager.load_approval_requests(limit=1000)
+            self.approval_history = []
+            
+            for request_data in history_data:
+                if request_data['status'] != 'pending':
+                    request = ApprovalRequest(
+                        request_id=request_data['request_id'],
+                        trace_id=request_data['trace_id'],
+                        title=request_data['title'],
+                        description=request_data['description'],
+                        context=request_data['context'],
+                        prompt_details=request_data['prompt_details'],
+                        requester_agent=request_data['requester_agent'],
+                        priority=request_data['priority'],
+                        created_at=datetime.fromisoformat(request_data['created_at']),
+                        expires_at=datetime.fromisoformat(request_data['expires_at']),
+                        status=ApprovalStatus(request_data['status']),
+                        approved_by=request_data.get('approved_by'),
+                        approved_at=datetime.fromisoformat(request_data['approved_at']) if request_data.get('approved_at') else None,
+                        approval_channel=ApprovalChannel(request_data['approval_channel']) if request_data.get('approval_channel') else None
+                    )
+                    self.approval_history.append(request)
+                    
+            self.logger.info(f"Loaded {len(self.pending_requests)} pending requests and {len(self.approval_history)} historical requests")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to load persistent state: {e}")
+            self.pending_requests = {}
+            self.approval_history = []
         
     def get_system_status(self) -> Dict:
         """Get HITL approval system status"""
