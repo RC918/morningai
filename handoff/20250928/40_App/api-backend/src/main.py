@@ -316,3 +316,17 @@ def health():
         "security_status": os.getenv("SECURITY_STATUS","available"),
         "timestamp": __import__("datetime").datetime.utcnow().isoformat()
     }
+
+# --- appended by hotfix: /healthz ---
+@app.route("/healthz")
+def healthz():
+    import os, datetime
+    return {
+        "service": "morningai-backend",
+        "status": "healthy",
+        "environment": os.getenv("ENV","production"),
+        "phase": os.getenv("PHASE_BANNER", os.getenv("APP_PHASE","Phase 7: Performance, Growth & Beta")),
+        "app_version": os.getenv("APP_VERSION","7.0.0"),
+        "database_status": ("connected" if os.getenv("DB_HEALTH_SKIP")=="1" else "unknown"),
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    }
