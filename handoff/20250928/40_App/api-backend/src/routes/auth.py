@@ -7,11 +7,12 @@ from src.models.user import db, User
 auth_bp = Blueprint('auth', __name__)
 
 # 模擬用戶數據（實際應用中應該從數據庫讀取）
+import os
 MOCK_USERS = {
     'admin': {
         'id': 1,
         'username': 'admin',
-        'password_hash': generate_password_hash('admin123'),
+        'password_hash': generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'admin123')),
         'name': '系統管理員',
         'role': '超級管理員',
         'avatar': None
@@ -39,11 +40,12 @@ def login():
             return jsonify({'message': '用戶名或密碼錯誤'}), 401
         
         # 生成JWT token
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
         token = jwt.encode({
             'user_id': user_data['id'],
             'username': username,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-        }, 'your-secret-key', algorithm='HS256')
+        }, jwt_secret, algorithm='HS256')
         
         # 返回用戶信息和token
         return jsonify({
@@ -76,7 +78,8 @@ def verify_token():
         
         # 驗證token
         try:
-            payload = jwt.decode(token, 'your-secret-key', algorithms=['HS256'])
+            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+            payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             username = payload['username']
             
             # 獲取用戶信息

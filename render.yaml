@@ -25,3 +25,7 @@ services:
         sync: false
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
