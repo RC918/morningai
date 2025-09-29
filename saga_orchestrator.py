@@ -280,6 +280,20 @@ class SagaOrchestrator:
             ]
         }
         
+    async def execute_with_idempotency(self, idempotency_key: str, operation: Callable) -> Any:
+        """Execute operation with idempotency guarantee"""
+        if self.idempotency_manager.is_processed(idempotency_key):
+            self.logger.info(f"Returning cached result for idempotency key: {idempotency_key}")
+            return self.idempotency_manager.get_result(idempotency_key)
+        
+        try:
+            result = await operation()
+            self.idempotency_manager.mark_processed(idempotency_key, result)
+            return result
+        except Exception as e:
+            self.logger.error(f"Operation failed for idempotency key {idempotency_key}: {e}")
+            raise
+
     def get_orchestrator_metrics(self) -> Dict:
         """Get Saga orchestrator metrics"""
         return {
