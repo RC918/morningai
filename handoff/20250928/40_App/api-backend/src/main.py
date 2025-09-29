@@ -48,17 +48,15 @@ app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 
-@app.route('/health')
-@app.route('/healthz')
-def health_check():
-    """Health check endpoint with comprehensive system status"""
+def get_health_payload():
+    """Generate health status payload - shared by /health and /healthz endpoints"""
     try:
         env_validation = validate_environment() if BACKEND_SERVICES_AVAILABLE else {"valid": False, "errors": ["Backend services not available"]}
         
         health_status = {
             "status": "healthy" if env_validation["valid"] else "degraded",
             "timestamp": datetime.datetime.now().isoformat(),
-            "version": os.environ.get('APP_VERSION', '7.0.0'),
+            "version": os.environ.get('APP_VERSION', 'unknown'),
             "environment": os.environ.get('FLASK_ENV', 'production'),
             "environment_validation": env_validation
         }
@@ -88,14 +86,23 @@ def health_check():
         health_status["service"] = "morningai-backend"
         health_status["phase"] = "Phase 7: Performance, Growth & Beta Introduction"
         
-        return jsonify(health_status)
+        return health_status
         
     except Exception as e:
-        return jsonify({
+        return {
             "status": "unhealthy",
             "error": str(e),
             "timestamp": datetime.datetime.now().isoformat()
-        }), 500
+        }
+
+@app.route('/health')
+@app.route('/healthz')
+def health_check():
+    """Health check endpoint with comprehensive system status"""
+    health_payload = get_health_payload()
+    if health_payload.get("status") == "unhealthy":
+        return jsonify(health_payload), 500
+    return jsonify(health_payload)
 
 db_dir = os.path.join(os.path.dirname(__file__), 'database')
 os.makedirs(db_dir, exist_ok=True)
