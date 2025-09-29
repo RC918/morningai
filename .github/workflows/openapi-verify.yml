@@ -1,0 +1,10 @@
+name: openapi-verify
+on: [push, pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          pip install check-openapi-spec || true
+          echo "lint openapi (placeholder)"

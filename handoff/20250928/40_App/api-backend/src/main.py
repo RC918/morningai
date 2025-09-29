@@ -1,13 +1,14 @@
 import os
 import sys
+import datetime
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from flask import Flask, send_from_directory
-from src.models.user import db
-from src.routes.user import user_bp
-from src.routes.auth import auth_bp
-from src.routes.dashboard import dashboard_bp
+from flask import Flask, send_from_directory, jsonify
+from models.user import db
+from routes.user import user_bp
+from routes.auth import auth_bp
+from routes.dashboard import dashboard_bp
 from flask_cors import CORS
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
@@ -19,6 +20,11 @@ CORS(app)
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+
+@app.route('/health')
+@app.route('/healthz')
+def health_check():
+    return jsonify({'status': 'healthy', 'timestamp': datetime.datetime.now().isoformat()})
 
 # uncomment if you need to use database
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
@@ -45,4 +51,4 @@ def serve(path):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)

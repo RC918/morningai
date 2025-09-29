@@ -1,0 +1,17 @@
+name: frontend-ci
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: |
+          cd handoff/20250928/40_App/morningai_enhanced/frontend-dashboard
+          npm install --legacy-peer-deps
+      - name: Build frontend
+        run: echo "Frontend build placeholder"

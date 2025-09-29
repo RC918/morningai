@@ -1,0 +1,7 @@
+python-dotenv==1.0.1
+PyGithub==2.4.0
+redis==5.0.7
+rq==1.16.2
+supabase==2.6.0
+openai==1.52.2
+requests==2.32.3

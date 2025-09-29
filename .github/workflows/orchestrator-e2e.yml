@@ -1,0 +1,19 @@
+name: orchestrator-e2e
+on: [push, pull_request]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install orchestrator dependencies
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          pip install -r requirements.txt
+      - name: Run orchestrator demo
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          python graph.py --goal "demo task"
