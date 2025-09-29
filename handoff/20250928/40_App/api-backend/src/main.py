@@ -84,7 +84,7 @@ def get_health_payload():
         
         health_status["backend_services"] = "available" if BACKEND_SERVICES_AVAILABLE else "unavailable"
         health_status["service"] = "morningai-backend"
-        health_status["phase"] = "Phase 7: Performance, Growth & Beta Introduction"
+        health_status["phase"] = "Phase 8: Self-service Dashboard and Reporting Center"
         
         return health_status
         
