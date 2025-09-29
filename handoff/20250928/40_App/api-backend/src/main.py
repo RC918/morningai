@@ -24,7 +24,15 @@ app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 @app.route('/health')
 @app.route('/healthz')
 def health_check():
-    return jsonify({'status': 'healthy', 'timestamp': datetime.datetime.now().isoformat()})
+    return jsonify({
+        'status': 'healthy', 
+        'timestamp': datetime.datetime.now().isoformat(),
+        'environment': os.environ.get('FLASK_ENV', 'development'),
+        'python_version': sys.version
+    })
+
+db_dir = os.path.join(os.path.dirname(__file__), 'database')
+os.makedirs(db_dir, exist_ok=True)
 
 # uncomment if you need to use database
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
