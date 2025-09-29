@@ -23,10 +23,10 @@ except ImportError:
     SECURITY_AVAILABLE = False
 
 try:
-    from persistence.state_manager import PersistentStateManager
-    from services.monitoring_dashboard import monitoring_dashboard
-    from services.report_generator import report_generator
-    from utils.env_schema_validator import validate_environment
+    from src.persistence.state_manager import PersistentStateManager
+    from src.services.monitoring_dashboard import monitoring_dashboard
+    from src.services.report_generator import report_generator
+    from src.utils.env_schema_validator import validate_environment as validate_env_config
     BACKEND_SERVICES_AVAILABLE = True
 except ImportError:
     BACKEND_SERVICES_AVAILABLE = False
@@ -53,7 +53,7 @@ app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 def get_health_payload():
     """Generate health status payload - shared by /health and /healthz endpoints"""
     try:
-        env_validation = validate_environment() if BACKEND_SERVICES_AVAILABLE else {"valid": False, "errors": ["Backend services not available"]}
+        env_validation = validate_env_config() if BACKEND_SERVICES_AVAILABLE else {"valid": False, "errors": ["Backend services not available"]}
         
         health_status = {
             "status": "healthy" if env_validation["valid"] else "degraded",
@@ -64,7 +64,20 @@ def get_health_payload():
         }
         
         try:
-            db.engine.execute('SELECT 1')
+            from sqlalchemy import create_engine, text
+            
+            db_url = os.environ.get('HEALTH_DB_URL', None)
+            db_query = os.environ.get('HEALTH_DB_QUERY', 'SELECT 1')
+            db_timeout = int(os.environ.get('HEALTH_DB_TIMEOUT', '5'))
+            
+            if db_url:
+                engine = create_engine(db_url, connect_args={'timeout': db_timeout})
+                with engine.connect() as conn:
+                    conn.execute(text(db_query))
+            else:
+                with db.engine.connect() as conn:
+                    conn.execute(text(db_query))
+            
             health_status["database"] = "connected"
         except Exception as e:
             health_status["database"] = f"error: {str(e)}"
