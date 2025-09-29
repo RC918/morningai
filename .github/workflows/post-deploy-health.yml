@@ -1,0 +1,15 @@
+name: post-deploy-health
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert Phase & Version
+        run: |
+          curl -sS https://morningai-backend-v2.onrender.com/healthz \
+          | jq -e -r '.phase,.version' \
+          | paste -sd ' ' - \
+          | grep -q 'Phase 8 8.0.0'
