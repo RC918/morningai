@@ -1,0 +1,105 @@
+
+phase7:
+  name: "Performance, Growth & Beta Introduction"
+  version: "1.0.0"
+  enabled: true
+  
+ops_agent:
+  enabled: true
+  performance_thresholds:
+    api_latency_p95: 500  # milliseconds
+    error_rate: 0.01      # 1%
+    cpu_usage: 0.8        # 80%
+    memory_usage: 0.8     # 80%
+  monitoring_interval: 30  # seconds
+  capacity_analysis_interval: 300  # seconds
+  auto_scaling:
+    enabled: true
+    scale_factor: 1.5
+    cooldown_minutes: 5
+  
+growth_strategist:
+  enabled: true
+  default_batch_size: 10000
+  campaign_monitoring_interval: 60  # seconds
+  gamification_analysis_interval: 3600  # seconds
+  retention_campaign_size: 1000
+  gamification_rules:
+    daily_login:
+      reward_amount: 50
+      effectiveness_threshold: 0.7
+    weekly_streak:
+      reward_amount: 500
+      effectiveness_threshold: 0.8
+  
+pm_agent:
+  enabled: true
+  beta_screening:
+    min_activity_score: 0.8
+    screening_interval: 86400  # daily
+    max_candidates_per_batch: 50
+    invitation_batch_size: 10
+  feedback_analysis:
+    collection_interval: 3600  # hourly
+    nlp_sentiment_threshold: 0.6
+    auto_story_generation: true
+  sprint_planning:
+    max_stories_per_sprint: 15
+    effort_points_limit: 100
+    
+hitl_approval:
+  enabled: true
+  default_timeout_hours: 24
+  priority_timeout_hours:
+    low: 72
+    medium: 24
+    high: 8
+    critical: 2
+  telegram:
+    enabled: true
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    admin_chat_id: "${TELEGRAM_ADMIN_CHAT_ID}"
+    notification_format: "detailed"
+  console:
+    enabled: true
+    websocket_endpoint: "/ws/approvals"
+    auto_refresh_interval: 30  # seconds
+  cleanup:
+    expired_requests_cleanup_interval: 3600  # hourly
+    
+integration:
+  phase6_security: true
+  meta_agent_decision_hub: true
+  monitoring_system: true
+  ai_governance: true
+  
+logging:
+  level: "INFO"
+  file: "phase7.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  max_file_size: "10MB"
+  backup_count: 5
+  
+database:
+  beta_candidates_table: "beta_candidates"
+  approval_requests_table: "approval_requests"
+  user_stories_table: "user_stories"
+  gamification_rules_table: "gamification_rules"
+  feedback_analysis_table: "feedback_analysis"
+  
+api_endpoints:
+  phase7_status: "/api/phase7/status"
+  pending_approvals: "/api/phase7/approvals/pending"
+  approval_history: "/api/phase7/approvals/history"
+  beta_candidates: "/api/phase7/beta/candidates"
+  user_stories: "/api/phase7/pm/stories"
+  growth_metrics: "/api/phase7/growth/metrics"
+  ops_metrics: "/api/phase7/ops/metrics"
+  
+monitoring:
+  health_check_interval: 60  # seconds
+  metrics_collection_interval: 300  # seconds
+  alert_thresholds:
+    pending_approvals_critical: 10
+    expired_requests_warning: 5
+    system_load_critical: 0.9
