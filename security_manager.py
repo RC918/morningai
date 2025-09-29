@@ -71,6 +71,7 @@ class KeyManagementService:
             # 生成新的加密密鑰
             new_master_key = self._generate_master_key()
             old_fernet = self.fernet
+            old_master_key = self.master_key
             
             # 創建新的Fernet實例
             self.master_key = new_master_key
@@ -91,7 +92,7 @@ class KeyManagementService:
                 return base64.urlsafe_b64encode(new_encrypted_data).decode()
             except Exception as e:
                 # 恢復舊密鑰
-                self.master_key = self.master_key
+                self.master_key = old_master_key
                 self.fernet = old_fernet
                 raise Exception(f"密鑰輪換失敗: {str(e)}")
         else:
@@ -195,63 +196,6 @@ class APISecurityManager:
         """檢查IP是否被封鎖"""
         return ip_address in self.blocked_ips
 
-class CommunicationSecurity:
-    """通信安全管理"""
-    
-    def __init__(self):
-        self.session_keys = {}
-        
-    def generate_session_key(self, agent_id: str) -> str:
-        """為Agent生成會話密鑰"""
-        session_key = secrets.token_urlsafe(32)
-        self.session_keys[agent_id] = {
-            'key': session_key,
-            'created_at': datetime.now(),
-            'last_used': datetime.now()
-        }
-        return session_key
-    
-    def encrypt_message(self, message: str, agent_id: str) -> str:
-        """加密Agent間通信消息"""
-        if agent_id not in self.session_keys:
-            raise Exception(f"Agent {agent_id} 沒有有效的會話密鑰")
-        
-        session_key = self.session_keys[agent_id]['key']
-        fernet = Fernet(base64.urlsafe_b64encode(session_key.encode()[:32].ljust(32, b'\0')))
-        
-        encrypted_message = fernet.encrypt(message.encode())
-        self.session_keys[agent_id]['last_used'] = datetime.now()
-        
-        return base64.urlsafe_b64encode(encrypted_message).decode()
-    
-    def decrypt_message(self, encrypted_message: str, agent_id: str) -> str:
-        """解密Agent間通信消息"""
-        if agent_id not in self.session_keys:
-            raise Exception(f"Agent {agent_id} 沒有有效的會話密鑰")
-        
-        session_key = self.session_keys[agent_id]['key']
-        fernet = Fernet(base64.urlsafe_b64encode(session_key.encode()[:32].ljust(32, b'\0')))
-        
-        try:
-            encrypted_data = base64.urlsafe_b64decode(encrypted_message.encode())
-            decrypted_message = fernet.decrypt(encrypted_data)
-            self.session_keys[agent_id]['last_used'] = datetime.now()
-            
-            return decrypted_message.decode()
-        except Exception as e:
-            raise Exception(f"消息解密失敗: {str(e)}")
-    
-    def cleanup_expired_sessions(self, max_age_hours: int = 24):
-        """清理過期的會話密鑰"""
-        cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
-        expired_agents = [
-            agent_id for agent_id, session_info in self.session_keys.items()
-            if session_info['last_used'] < cutoff_time
-        ]
-        
-        for agent_id in expired_agents:
-            del self.session_keys[agent_id]
-
 class AuditLogger:
     """審計日誌管理器"""
     
@@ -328,19 +272,6 @@ class AuditLogger:
             'user_id': user_id,
             'timestamp': datetime.now().isoformat()
         }))
-    
-    def log_system_change(self, change_type: str, description: str, user_id: str, 
-                         old_value: Any = None, new_value: Any = None):
-        """記錄系統變更"""
-        self.logger.info(json.dumps({
-            'event_type': 'system_change',
-            'change_type': change_type,
-            'description': description,
-            'user_id': user_id,
-            'old_value': str(old_value) if old_value is not None else None,
-            'new_value': str(new_value) if new_value is not None else None,
-            'timestamp': datetime.now().isoformat()
-        }))
 
 class SecurityManager:
     """統一安全管理器"""
@@ -349,7 +280,6 @@ class SecurityManager:
         self.config = config
         self.kms = KeyManagementService(config.get('master_key'))
         self.api_security = APISecurityManager(config.get('secret_key', 'default-secret'))
-        self.comm_security = CommunicationSecurity()
         self.audit_logger = AuditLogger(config.get('audit_log_file', 'audit.log'))
         
     def require_auth(self, f):
@@ -431,38 +361,3 @@ class SecurityManager:
                 return f(*args, **kwargs)
             return decorated_function
         return decorator
-    
-    def validate_input(self, data: Dict[str, Any], schema: Dict[str, Any]) -> bool:
-        """輸入驗證"""
-        try:
-            for field, rules in schema.items():
-                if field not in data and rules.get('required', False):
-                    raise ValueError(f"缺少必需字段: {field}")
-                
-                if field in data:
-                    value = data[field]
-                    
-                    # 類型檢查
-                    if 'type' in rules and not isinstance(value, rules['type']):
-                        raise ValueError(f"字段 {field} 類型錯誤")
-                    
-                    # 長度檢查
-                    if 'max_length' in rules and len(str(value)) > rules['max_length']:
-                        raise ValueError(f"字段 {field} 長度超過限制")
-                    
-                    # 正則表達式檢查
-                    if 'pattern' in rules:
-                        import re
-                        if not re.match(rules['pattern'], str(value)):
-                            raise ValueError(f"字段 {field} 格式不正確")
-            
-            return True
-            
-        except ValueError as e:
-            self.audit_logger.log_security_event(
-                'input_validation_failure', 'low',
-                f'Input validation failed: {str(e)}',
-                request.remote_addr if request else None
-            )
-            return False
-

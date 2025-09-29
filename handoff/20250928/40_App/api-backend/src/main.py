@@ -10,12 +10,30 @@ from routes.user import user_bp
 from routes.auth import auth_bp
 from routes.dashboard import dashboard_bp
 from flask_cors import CORS
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+try:
+    from security_manager import SecurityManager
+    SECURITY_AVAILABLE = True
+except ImportError:
+    SECURITY_AVAILABLE = False
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 
 # 啟用CORS支持
 CORS(app)
+
+if SECURITY_AVAILABLE:
+    security_config = {
+        'master_key': os.environ.get('MASTER_KEY', 'default-master-key'),
+        'secret_key': app.config['SECRET_KEY'],
+        'audit_log_file': 'api_audit.log'
+    }
+    security_manager = SecurityManager(security_config)
+    app.security_manager = security_manager
 
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -30,14 +48,31 @@ def health_check():
     except:
         db_status = "disconnected"
     
-    return jsonify({
+    security_status = "available" if SECURITY_AVAILABLE else "unavailable"
+    
+    health_data = {
         'status': 'healthy', 
         'timestamp': datetime.datetime.now().isoformat(),
         'environment': os.environ.get('FLASK_ENV', 'development'),
         'python_version': sys.version,
         'database_status': db_status,
-        'service': 'morningai-backend'
-    })
+        'security_status': security_status,
+        'service': 'morningai-backend',
+        'phase': 'Phase 6: Security and Audit Enhancement'
+    }
+    
+    if SECURITY_AVAILABLE and hasattr(app, 'security_manager'):
+        try:
+            app.security_manager.audit_logger.log_api_access(
+                'system', '/health', 'GET', 
+                request.remote_addr if request else 'localhost',
+                request.headers.get('User-Agent', 'health-check') if request else 'health-check',
+                200
+            )
+        except:
+            pass  # 不讓審計日誌錯誤影響健康檢查
+    
+    return jsonify(health_data)
 
 db_dir = os.path.join(os.path.dirname(__file__), 'database')
 os.makedirs(db_dir, exist_ok=True)
