@@ -15,6 +15,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import CloudStatus from './CloudStatus'
+import config from '../config'
 
 const Dashboard = () => {
   const [systemMetrics, setSystemMetrics] = useState({
@@ -65,15 +67,20 @@ const Dashboard = () => {
   ])
 
   useEffect(() => {
-    // 模擬實時數據更新
-    const interval = setInterval(() => {
-      setSystemMetrics(prev => ({
-        ...prev,
-        cpu_usage: Math.max(50, Math.min(90, prev.cpu_usage + (Math.random() - 0.5) * 10)),
-        memory_usage: Math.max(40, Math.min(85, prev.memory_usage + (Math.random() - 0.5) * 8)),
-        response_time: Math.max(100, Math.min(300, prev.response_time + (Math.random() - 0.5) * 20))
-      }))
-    }, 5000)
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch(`${config.apiBaseUrl}/api/system/metrics`)
+        if (response.ok) {
+          const data = await response.json()
+          setSystemMetrics(data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch system metrics:', error)
+      }
+    }
+
+    fetchMetrics()
+    const interval = setInterval(fetchMetrics, 10000) // Update every 10 seconds
 
     return () => clearInterval(interval)
   }, [])
@@ -276,6 +283,9 @@ const Dashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* 雲端服務狀態 */}
+      <CloudStatus />
 
       {/* 系統狀態摘要 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

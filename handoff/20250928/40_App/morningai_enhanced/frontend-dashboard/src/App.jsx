@@ -9,6 +9,7 @@ import HistoryAnalysis from '@/components/HistoryAnalysis'
 import CostAnalysis from '@/components/CostAnalysis'
 import SystemSettings from '@/components/SystemSettings'
 import LoginPage from '@/components/LoginPage'
+import config from './config'
 import './App.css'
 
 function App() {
@@ -23,7 +24,7 @@ function App() {
         const token = localStorage.getItem('auth_token')
         if (token) {
           // 驗證token有效性
-          const response = await fetch('/api/auth/verify', {
+          const response = await fetch(`${config.apiBaseUrl}/api/auth/verify`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
