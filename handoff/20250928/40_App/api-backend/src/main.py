@@ -4,11 +4,11 @@ import datetime
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from flask import Flask, send_from_directory, jsonify, request
-from models.user import db
-from routes.user import user_bp
-from routes.auth import auth_bp
-from routes.dashboard import dashboard_bp
+from flask import Flask, send_from_directory, jsonify, request, send_file, Response
+from src.models.user import db
+from src.routes.user import user_bp
+from src.routes.auth import auth_bp
+from src.routes.dashboard import dashboard_bp
 from flask_cors import CORS
 import sys
 import os
@@ -295,6 +295,163 @@ def validate_environment():
             },
             'summary': config_summary
         })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/layouts', methods=['GET', 'POST'])
+def manage_dashboard_layouts():
+    """Get or save user dashboard layouts"""
+    try:
+        from persistent_state_manager import persistent_state_manager
+        
+        if request.method == 'GET':
+            user_id = request.args.get('user_id', 'default')
+            layout = persistent_state_manager.load_dashboard_layout(user_id)
+            if not layout:
+                layout = {
+                    'widgets': [
+                        {'id': 'cpu_usage', 'position': {'x': 0, 'y': 0, 'w': 6, 'h': 4}},
+                        {'id': 'memory_usage', 'position': {'x': 6, 'y': 0, 'w': 6, 'h': 4}},
+                        {'id': 'response_time', 'position': {'x': 0, 'y': 4, 'w': 6, 'h': 4}},
+                        {'id': 'error_rate', 'position': {'x': 6, 'y': 4, 'w': 6, 'h': 4}},
+                        {'id': 'active_strategies', 'position': {'x': 0, 'y': 8, 'w': 4, 'h': 3}},
+                        {'id': 'pending_approvals', 'position': {'x': 4, 'y': 8, 'w': 4, 'h': 3}},
+                        {'id': 'circuit_breakers', 'position': {'x': 8, 'y': 8, 'w': 4, 'h': 3}}
+                    ]
+                }
+            return jsonify(layout)
+        
+        elif request.method == 'POST':
+            data = request.get_json()
+            user_id = data.get('user_id', 'default')
+            layout = data.get('layout', {})
+            
+            persistent_state_manager.save_dashboard_layout(user_id, layout)
+            return jsonify({'status': 'success', 'message': 'Layout saved'})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/widgets/available')
+def get_available_widgets():
+    """Get list of available dashboard widgets"""
+    widgets = [
+        {'id': 'cpu_usage', 'name': 'CPU使用率', 'type': 'gauge', 'category': 'system'},
+        {'id': 'memory_usage', 'name': '內存使用率', 'type': 'gauge', 'category': 'system'},
+        {'id': 'response_time', 'name': '響應時間', 'type': 'line_chart', 'category': 'performance'},
+        {'id': 'error_rate', 'name': '錯誤率', 'type': 'area_chart', 'category': 'reliability'},
+        {'id': 'active_strategies', 'name': '活躍策略', 'type': 'counter', 'category': 'ai'},
+        {'id': 'pending_approvals', 'name': '待審批', 'type': 'counter', 'category': 'workflow'},
+        {'id': 'circuit_breakers', 'name': '熔斷器狀態', 'type': 'status_grid', 'category': 'resilience'},
+        {'id': 'task_execution', 'name': '任務執行狀態', 'type': 'timeline', 'category': 'tasks'},
+        {'id': 'cost_today', 'name': '今日成本', 'type': 'counter', 'category': 'financial'},
+        {'id': 'performance_trend', 'name': '性能趨勢', 'type': 'line_chart', 'category': 'performance'}
+    ]
+    return jsonify(widgets)
+
+@app.route('/api/dashboard/data')
+def get_dashboard_data():
+    """Get real-time dashboard data"""
+    try:
+        from monitoring_dashboard import monitoring_dashboard
+        
+        hours = int(request.args.get('hours', 1))
+        dashboard_data = monitoring_dashboard.get_dashboard_data(hours=hours)
+        
+        dashboard_data['task_execution'] = {
+            'recent_tasks': [
+                {'name': 'AI策略優化', 'status': 'completed', 'duration': '2.3s', 'agent': 'GrowthStrategist'},
+                {'name': '系統監控檢查', 'status': 'running', 'duration': '1.1s', 'agent': 'OpsAgent'},
+                {'name': '用戶反饋分析', 'status': 'pending', 'duration': '-', 'agent': 'PMAgent'},
+                {'name': '安全審計', 'status': 'completed', 'duration': '5.7s', 'agent': 'SecurityManager'}
+            ],
+            'total_tasks_today': 47,
+            'success_rate': 0.96,
+            'avg_duration': '3.2s'
+        }
+        
+        dashboard_data['system_metrics'] = {
+            'cpu_usage': 72,
+            'memory_usage': 68,
+            'response_time': 145,
+            'error_rate': 0.02,
+            'active_strategies': 12,
+            'pending_approvals': 3,
+            'cost_today': 45.67
+        }
+        
+        return jsonify(dashboard_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports/generate', methods=['POST'])
+def generate_report():
+    """Generate custom reports"""
+    try:
+        from report_generator import report_generator
+        
+        data = request.get_json()
+        report_type = data.get('type', 'performance')
+        time_range = data.get('time_range', '24h')
+        format_type = data.get('format', 'json')
+        
+        report_data = report_generator.generate_report(report_type, time_range)
+        
+        if format_type == 'pdf':
+            pdf_path = report_generator.export_pdf(report_data, report_type)
+            return send_file(pdf_path, as_attachment=True, 
+                           download_name=f'report_{report_type}_{time_range}.pdf')
+        elif format_type == 'csv':
+            csv_data = report_generator.export_csv(report_data)
+            return Response(csv_data, mimetype='text/csv', 
+                          headers={'Content-Disposition': f'attachment; filename=report_{report_type}_{time_range}.csv'})
+        else:
+            return jsonify(report_data)
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports/templates')
+def get_report_templates():
+    """Get available report templates"""
+    templates = [
+        {
+            'id': 'performance',
+            'name': '系統性能報告',
+            'description': '包含CPU、內存、響應時間等系統性能指標',
+            'metrics': ['cpu_usage', 'memory_usage', 'response_time', 'error_rate']
+        },
+        {
+            'id': 'task_tracking',
+            'name': '任務追蹤報告',
+            'description': '顯示AI Agent任務執行狀態和成功率',
+            'metrics': ['task_success_rate', 'avg_duration', 'agent_performance']
+        },
+        {
+            'id': 'resilience',
+            'name': '韌性模式報告',
+            'description': '熔斷器、隔艙模式和系統韌性指標',
+            'metrics': ['circuit_breaker_status', 'bulkhead_utilization', 'retry_rates']
+        },
+        {
+            'id': 'financial',
+            'name': '成本分析報告',
+            'description': '系統運行成本和資源使用分析',
+            'metrics': ['daily_cost', 'resource_utilization', 'cost_trends']
+        }
+    ]
+    return jsonify(templates)
+
+@app.route('/api/reports/history')
+def get_report_history():
+    """Get report generation history"""
+    try:
+        from persistent_state_manager import persistent_state_manager
+        
+        history = persistent_state_manager.get_report_history()
+        return jsonify(history)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -105,6 +105,37 @@ class PersistentStateManager:
                 )
             ''')
             
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS dashboard_layouts (
+                    user_id TEXT PRIMARY KEY,
+                    layout_config TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            ''')
+            
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS report_templates (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    config TEXT NOT NULL,
+                    created_by TEXT,
+                    created_at TEXT NOT NULL
+                )
+            ''')
+            
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS report_history (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    format TEXT NOT NULL,
+                    file_path TEXT,
+                    generated_at TEXT NOT NULL,
+                    status TEXT NOT NULL
+                )
+            ''')
+            
             conn.commit()
             
     @contextmanager
@@ -368,7 +399,8 @@ class PersistentStateManager:
                 stats = {}
                 
                 tables = ['beta_candidates', 'approval_requests', 'user_stories', 
-                         'gamification_rules', 'state_checkpoints']
+                         'gamification_rules', 'state_checkpoints', 'dashboard_layouts',
+                         'report_templates', 'report_history']
                 
                 for table in tables:
                     cursor = conn.execute(f'SELECT COUNT(*) as count FROM {table}')
@@ -381,5 +413,82 @@ class PersistentStateManager:
         except Exception as e:
             self.logger.error(f"Failed to get storage stats: {e}")
             return {}
+    
+    def save_dashboard_layout(self, user_id: str, layout: Dict):
+        """Save user dashboard layout configuration"""
+        try:
+            with self._lock, self._get_connection() as conn:
+                conn.execute('''
+                    INSERT OR REPLACE INTO dashboard_layouts 
+                    (user_id, layout_config, updated_at)
+                    VALUES (?, ?, ?)
+                ''', (user_id, json.dumps(layout), datetime.now().isoformat()))
+                conn.commit()
+                self.logger.info(f"Saved dashboard layout for user {user_id}")
+        except Exception as e:
+            self.logger.error(f"Failed to save dashboard layout: {e}")
+            
+    def load_dashboard_layout(self, user_id: str) -> Optional[Dict]:
+        """Load user dashboard layout configuration"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute('''
+                    SELECT layout_config FROM dashboard_layouts 
+                    WHERE user_id = ?
+                ''', (user_id,))
+                result = cursor.fetchone()
+                if result:
+                    return json.loads(result['layout_config'])
+                return None
+        except Exception as e:
+            self.logger.error(f"Failed to load dashboard layout: {e}")
+            return None
+    
+    def save_report_history(self, report_id: str, name: str, report_type: str, 
+                           format_type: str, file_path: str = None, status: str = 'completed'):
+        """Save report generation history"""
+        try:
+            with self._lock, self._get_connection() as conn:
+                conn.execute('''
+                    INSERT INTO report_history 
+                    (id, name, type, format, file_path, generated_at, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (report_id, name, report_type, format_type, file_path, 
+                      datetime.now().isoformat(), status))
+                conn.commit()
+                self.logger.info(f"Saved report history: {report_id}")
+        except Exception as e:
+            self.logger.error(f"Failed to save report history: {e}")
+    
+    def get_report_history(self, limit: int = 50) -> List[Dict]:
+        """Get report generation history"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute('''
+                    SELECT id, name, type, format, file_path, generated_at, status
+                    FROM report_history 
+                    ORDER BY generated_at DESC 
+                    LIMIT ?
+                ''', (limit,))
+                
+                results = cursor.fetchall()
+                history = []
+                
+                for row in results:
+                    history.append({
+                        'id': row['id'],
+                        'name': row['name'],
+                        'type': row['type'],
+                        'format': row['format'],
+                        'file_path': row['file_path'],
+                        'generated_at': row['generated_at'],
+                        'status': row['status']
+                    })
+                
+                return history
+                
+        except Exception as e:
+            self.logger.error(f"Failed to get report history: {e}")
+            return []
 
 persistent_state_manager = PersistentStateManager()
