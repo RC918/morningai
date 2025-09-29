@@ -491,4 +491,144 @@ class PersistentStateManager:
             self.logger.error(f"Failed to get report history: {e}")
             return []
 
+    def save_agent_binding(self, binding_data):
+        """Save AI agent binding data"""
+        try:
+            with self._lock, self._get_connection() as conn:
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS agent_bindings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        binding_id TEXT UNIQUE,
+                        tenant_id TEXT,
+                        platform_type TEXT,
+                        status TEXT,
+                        success_rate REAL,
+                        binding_time TEXT,
+                        data_json TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                conn.execute('''
+                    INSERT OR REPLACE INTO agent_bindings 
+                    (binding_id, tenant_id, platform_type, status, success_rate, binding_time, data_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    binding_data.get('binding_id'),
+                    binding_data.get('tenant_id'),
+                    binding_data.get('platform_type'),
+                    binding_data.get('status'),
+                    binding_data.get('success_rate'),
+                    binding_data.get('binding_time'),
+                    json.dumps(binding_data)
+                ))
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Error saving agent binding: {e}")
+
+    def save_bot_creation(self, bot_data):
+        """Save AI bot creation data"""
+        try:
+            with self._lock, self._get_connection() as conn:
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS bot_creations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        bot_id TEXT UNIQUE,
+                        bot_name TEXT,
+                        bot_type TEXT,
+                        tenant_id TEXT,
+                        status TEXT,
+                        created_at TEXT,
+                        data_json TEXT,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                conn.execute('''
+                    INSERT OR REPLACE INTO bot_creations 
+                    (bot_id, bot_name, bot_type, tenant_id, status, created_at, data_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    bot_data.get('bot_id'),
+                    bot_data.get('bot_name'),
+                    bot_data.get('bot_type'),
+                    bot_data.get('tenant_id'),
+                    bot_data.get('status'),
+                    bot_data.get('created_at'),
+                    json.dumps(bot_data)
+                ))
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Error saving bot creation: {e}")
+
+    def save_subscription(self, subscription_data):
+        """Save subscription data"""
+        try:
+            with self._lock, self._get_connection() as conn:
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS subscriptions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        subscription_id TEXT UNIQUE,
+                        tenant_id TEXT,
+                        plan_type TEXT,
+                        status TEXT,
+                        amount REAL,
+                        currency TEXT,
+                        created_at TEXT,
+                        data_json TEXT,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                conn.execute('''
+                    INSERT OR REPLACE INTO subscriptions 
+                    (subscription_id, tenant_id, plan_type, status, amount, currency, created_at, data_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    subscription_data.get('subscription_id'),
+                    subscription_data.get('tenant_id'),
+                    subscription_data.get('plan_type'),
+                    subscription_data.get('status'),
+                    subscription_data.get('amount'),
+                    subscription_data.get('currency'),
+                    subscription_data.get('created_at'),
+                    json.dumps(subscription_data)
+                ))
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Error saving subscription: {e}")
+
+    def save_tenant_isolation(self, isolation_data):
+        """Save tenant isolation configuration"""
+        try:
+            with self._lock, self._get_connection() as conn:
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS tenant_isolations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        tenant_id TEXT UNIQUE,
+                        isolation_level TEXT,
+                        status TEXT,
+                        database_schema TEXT,
+                        created_at TEXT,
+                        data_json TEXT,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                conn.execute('''
+                    INSERT OR REPLACE INTO tenant_isolations 
+                    (tenant_id, isolation_level, status, database_schema, created_at, data_json)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    isolation_data.get('tenant_id'),
+                    isolation_data.get('isolation_level'),
+                    isolation_data.get('status'),
+                    isolation_data.get('database_schema'),
+                    isolation_data.get('created_at'),
+                    json.dumps(isolation_data)
+                ))
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Error saving tenant isolation: {e}")
+
 persistent_state_manager = PersistentStateManager()
