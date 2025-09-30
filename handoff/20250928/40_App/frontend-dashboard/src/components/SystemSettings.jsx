@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
@@ -16,24 +16,35 @@ import {
   Globe,
   Key
 } from 'lucide-react'
+import useSettingsStore from '@/stores/settingsStore'
 
 const SystemSettings = () => {
-  const [profile, setProfile] = useState({
-    name: 'Ryan Chen',
-    email: 'ryan@morningai.com',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
-    role: 'Owner'
-  })
+  const {
+    profile,
+    preferences,
+    loading,
+    error,
+    setProfile,
+    setPreferences,
+    setLanguage,
+    setTheme,
+    setNotifications,
+    loadFromAPI,
+    saveToAPI
+  } = useSettingsStore()
 
-  const [preferences, setPreferences] = useState({
-    language: 'zh-TW',
-    theme: 'light',
-    notifications: {
-      email: true,
-      desktop: true,
-      aiSuggestions: true
+  useEffect(() => {
+    loadFromAPI().catch(console.warn)
+  }, [loadFromAPI])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', preferences.theme)
+    if (preferences.theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
     }
-  })
+  }, [preferences.theme])
 
   return (
     <div className="space-y-6">
@@ -71,11 +82,11 @@ const SystemSettings = () => {
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
                 <Avatar className="w-20 h-20">
-                  <AvatarImage src={profile.avatar} />
+                  <AvatarImage src={profile.avatar} alt={`${profile.name} 的頭像`} />
                   <AvatarFallback>RC</AvatarFallback>
                 </Avatar>
                 <div>
-                  <Button variant="outline" size="sm">更換頭像</Button>
+                  <Button variant="outline" size="sm" aria-label="更換頭像">更換頭像</Button>
                   <p className="text-sm text-gray-600 mt-1">JPG、PNG 或 GIF，最大 2MB</p>
                 </div>
               </div>
@@ -87,6 +98,7 @@ const SystemSettings = () => {
                     id="name"
                     value={profile.name}
                     onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                    aria-describedby="name-description"
                   />
                 </div>
                 <div className="space-y-2">
@@ -96,6 +108,7 @@ const SystemSettings = () => {
                     type="email"
                     value={profile.email}
                     onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                    aria-describedby="email-description"
                   />
                 </div>
               </div>
@@ -105,8 +118,16 @@ const SystemSettings = () => {
                 <span className="text-sm text-gray-600">帳號角色</span>
               </div>
 
+              {error && (
+                <div className="text-red-600 text-sm" role="alert" aria-live="polite">
+                  {error}
+                </div>
+              )}
+
               <div className="flex justify-end">
-                <Button>儲存變更</Button>
+                <Button onClick={saveToAPI} disabled={loading} aria-label="儲存個人資料變更">
+                  {loading ? '儲存中...' : '儲存變更'}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -124,9 +145,7 @@ const SystemSettings = () => {
                   <Globe className="w-4 h-4" />
                   語言
                 </Label>
-                <Select value={preferences.language} onValueChange={(value) => 
-                  setPreferences({ ...preferences, language: value })
-                }>
+                <Select value={preferences.language} onValueChange={setLanguage}>
                   <SelectTrigger id="language">
                     <SelectValue />
                   </SelectTrigger>
@@ -144,9 +163,7 @@ const SystemSettings = () => {
                   <Palette className="w-4 h-4" />
                   主題
                 </Label>
-                <Select value={preferences.theme} onValueChange={(value) =>
-                  setPreferences({ ...preferences, theme: value })
-                }>
+                <Select value={preferences.theme} onValueChange={setTheme}>
                   <SelectTrigger id="theme">
                     <SelectValue />
                   </SelectTrigger>
@@ -158,8 +175,16 @@ const SystemSettings = () => {
                 </Select>
               </div>
 
+              {error && (
+                <div className="text-red-600 text-sm" role="alert" aria-live="polite">
+                  {error}
+                </div>
+              )}
+
               <div className="flex justify-end">
-                <Button>儲存變更</Button>
+                <Button onClick={saveToAPI} disabled={loading} aria-label="儲存變更">
+                  {loading ? '儲存中...' : '儲存變更'}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -180,10 +205,7 @@ const SystemSettings = () => {
                 <Switch
                   checked={preferences.notifications.email}
                   onCheckedChange={(checked) =>
-                    setPreferences({
-                      ...preferences,
-                      notifications: { ...preferences.notifications, email: checked }
-                    })
+                    setNotifications({ ...preferences.notifications, email: checked })
                   }
                 />
               </div>
@@ -196,10 +218,7 @@ const SystemSettings = () => {
                 <Switch
                   checked={preferences.notifications.desktop}
                   onCheckedChange={(checked) =>
-                    setPreferences({
-                      ...preferences,
-                      notifications: { ...preferences.notifications, desktop: checked }
-                    })
+                    setNotifications({ ...preferences.notifications, desktop: checked })
                   }
                 />
               </div>
@@ -212,16 +231,21 @@ const SystemSettings = () => {
                 <Switch
                   checked={preferences.notifications.aiSuggestions}
                   onCheckedChange={(checked) =>
-                    setPreferences({
-                      ...preferences,
-                      notifications: { ...preferences.notifications, aiSuggestions: checked }
-                    })
+                    setNotifications({ ...preferences.notifications, aiSuggestions: checked })
                   }
                 />
               </div>
 
+              {error && (
+                <div className="text-red-600 text-sm" role="alert" aria-live="polite">
+                  {error}
+                </div>
+              )}
+
               <div className="flex justify-end">
-                <Button>儲存變更</Button>
+                <Button onClick={saveToAPI} disabled={loading} aria-label="儲存變更">
+                  {loading ? '儲存中...' : '儲存變更'}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -262,7 +286,9 @@ const SystemSettings = () => {
 
               <div className="flex justify-end gap-3">
                 <Button variant="outline">取消</Button>
-                <Button>更新密碼</Button>
+                <Button onClick={saveToAPI} disabled={loading}>
+                  {loading ? '更新中...' : '更新密碼'}
+                </Button>
               </div>
             </CardContent>
           </Card>

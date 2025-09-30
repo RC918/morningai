@@ -19,6 +19,7 @@ import {
   Settings
 } from 'lucide-react'
 import { colors, spacing, typography } from '@/lib/design-tokens'
+import apiClient from '@/lib/api'
 
 const CheckoutPage = () => {
   const [loading, setLoading] = useState(true)
@@ -26,7 +27,7 @@ const CheckoutPage = () => {
   const [selectedPlan, setSelectedPlan] = useState('pro')
   const [selectedPayment, setSelectedPayment] = useState('credit_card')
   const [discountCode, setDiscountCode] = useState('')
-  const [useMockData, setUseMockData] = useState(false)
+  const [useMockData, setUseMockData] = useState(import.meta.env.VITE_USE_MOCK === 'true')
   const [billingPlans, setBillingPlans] = useState([])
 
   useEffect(() => {
@@ -35,12 +36,7 @@ const CheckoutPage = () => {
 
   const loadBillingPlans = async () => {
     try {
-      const response = await fetch('/api/billing/plans')
-      if (response.ok) {
-        const data = await response.json()
-        return data.plans || []
-      }
-      throw new Error('Failed to fetch billing plans')
+      return await apiClient.getBillingPlans()
     } catch (error) {
       console.error('Failed to load billing plans:', error)
       return []
@@ -49,17 +45,14 @@ const CheckoutPage = () => {
 
   const loadCheckoutData = useCallback(async () => {
     try {
+      const plans = await loadBillingPlans()
+      setBillingPlans(plans)
+      
       if (useMockData) {
-        const response = await fetch('/api/checkout/mock')
-        const data = await response.json()
+        const data = await apiClient.request('/checkout/mock')
         setCheckoutData(data)
-        setBillingPlans(data.pricing_tiers || [])
       } else {
-        const plans = await loadBillingPlans()
-        setBillingPlans(plans)
-        
-        const mockResponse = await fetch('/api/checkout/mock')
-        const mockData = await mockResponse.json()
+        const mockData = await apiClient.request('/checkout/mock')
         
         setCheckoutData({
           ...mockData,
@@ -114,40 +107,17 @@ const CheckoutPage = () => {
 
   const handleCheckout = async () => {
     try {
-      if (useMockData) {
-        const response = await fetch('/api/checkout/mock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            plan: selectedPlan,
-            payment_method: selectedPayment,
-            discount_code: discountCode
-          })
-        })
-        const result = await response.json()
-        
-        if (result.success) {
-          window.location.href = result.checkout_session.payment_url
-        }
-      } else {
-        const response = await fetch('/api/billing/checkout/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            plan_id: selectedPlan,
-            payment_method: selectedPayment,
-            discount_code: discountCode
-          })
-        })
-        
-        if (response.ok) {
-          const result = await response.json()
-          if (result.redirect_url) {
-            window.location.href = result.redirect_url
-          }
-        } else {
-          throw new Error('Checkout session creation failed')
-        }
+      const result = await apiClient.createCheckoutSession({
+        plan_id: selectedPlan,
+        payment_method: selectedPayment,
+        discount_code: discountCode
+      })
+      
+      if (result.success && result.checkout_session) {
+        console.log('Checkout successful:', result)
+        window.location.href = result.checkout_session.payment_url
+      } else if (result.redirect_url) {
+        window.location.href = result.redirect_url
       }
     } catch (error) {
       console.error('Checkout failed:', error)
@@ -179,15 +149,15 @@ const CheckoutPage = () => {
       <div className="p-6 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-8 w-48" aria-busy="true" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-64" />
+                <Skeleton key={i} className="h-64" aria-busy="true" />
               ))}
             </div>
           </div>
           <div>
-            <Skeleton className="h-96" />
+            <Skeleton className="h-96" aria-busy="true" />
           </div>
         </div>
       </div>
@@ -211,7 +181,11 @@ const CheckoutPage = () => {
               checked={useMockData}
               onChange={(e) => setUseMockData(e.target.checked)}
               className="rounded"
+              aria-describedby="mock-toggle-description"
             />
+            <span id="mock-toggle-description" className="sr-only">
+              切換使用測試資料或真實 API 資料
+            </span>
           </div>
         </div>
       </div>
@@ -317,7 +291,7 @@ const CheckoutPage = () => {
                         value={discountCode}
                         onChange={(e) => setDiscountCode(e.target.value)}
                       />
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" aria-label="套用優惠代碼">
                         套用
                       </Button>
                     </div>
@@ -343,8 +317,9 @@ const CheckoutPage = () => {
                     className="w-full" 
                     size="lg"
                     onClick={handleCheckout}
+                    aria-label="進行安全結帳流程"
                   >
-                    <Shield className="w-4 h-4 mr-2" />
+                    <Shield className="w-4 h-4 mr-2" aria-hidden="true" />
                     安全結帳
                   </Button>
                   

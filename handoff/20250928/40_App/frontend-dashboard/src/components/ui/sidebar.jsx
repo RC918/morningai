@@ -583,11 +583,12 @@ function SidebarMenuSkeleton({
       className={cn("flex h-8 items-center gap-2 rounded-md px-2", className)}
       {...props}>
       {showIcon && (
-        <Skeleton className="size-4 rounded-md" data-sidebar="menu-skeleton-icon" />
+        <Skeleton className="size-4 rounded-md" data-sidebar="menu-skeleton-icon" aria-busy="true" />
       )}
       <Skeleton
         className="h-4 max-w-(--skeleton-width) flex-1"
         data-sidebar="menu-skeleton-text"
+        aria-busy="true"
         style={
           {
             "--skeleton-width": width
@@ -654,7 +655,6 @@ function SidebarMenuSubButton({
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export {
   Sidebar,
   SidebarContent,

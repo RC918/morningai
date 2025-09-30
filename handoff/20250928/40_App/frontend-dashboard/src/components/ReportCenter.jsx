@@ -3,11 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { 
   Download, FileText, Calendar, Clock, CheckCircle, 
   AlertCircle, Loader2, BarChart3, TrendingUp 
 } from 'lucide-react'
+import apiClient from '@/lib/api'
 
 const ReportCenter = () => {
   const [reportType, setReportType] = useState('performance')
@@ -23,8 +25,7 @@ const ReportCenter = () => {
 
   const loadReportTemplates = async () => {
     try {
-      const response = await fetch('/api/reports/templates')
-      const templates = await response.json()
+      const templates = await apiClient.getReportTemplates()
       setReportTemplates(templates)
     } catch (error) {
       console.error('Failed to load report templates:', error)
@@ -33,8 +34,7 @@ const ReportCenter = () => {
 
   const loadReportHistory = async () => {
     try {
-      const response = await fetch('/api/reports/history')
-      const history = await response.json()
+      const history = await apiClient.getReportHistory()
       setReportHistory(history)
     } catch (error) {
       console.error('Failed to load report history:', error)
@@ -70,31 +70,17 @@ const ReportCenter = () => {
   const generateReport = async (format) => {
     setIsGenerating(true)
     try {
-      const response = await fetch('/api/reports/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: reportType,
-          time_range: timeRange,
-          format: format
-        })
+      const result = await apiClient.generateReport({
+        type: reportType,
+        time_range: timeRange,
+        format: format
       })
 
-      if (format === 'pdf' || format === 'csv') {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `report_${reportType}_${timeRange}.${format}`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-        
+      if (result.success && result.download_url) {
+        window.open(result.download_url, '_blank')
         setTimeout(loadReportHistory, 1000)
       } else {
-        const data = await response.json()
-        console.log('Report data:', data)
+        console.log('Report data:', result)
       }
     } catch (error) {
       console.error('Report generation failed:', error)
@@ -157,9 +143,9 @@ const ReportCenter = () => {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium">報表類型</label>
+              <Label htmlFor="report-type" className="text-sm font-medium">報表類型</Label>
               <Select value={reportType} onValueChange={setReportType}>
-                <SelectTrigger>
+                <SelectTrigger id="report-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -175,9 +161,9 @@ const ReportCenter = () => {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">時間範圍</label>
+              <Label htmlFor="time-range" className="text-sm font-medium">時間範圍</Label>
               <Select value={timeRange} onValueChange={setTimeRange}>
-                <SelectTrigger>
+                <SelectTrigger id="time-range">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
