@@ -15,7 +15,7 @@ from pathlib import Path
 
 class Phase456TestSuite:
     def __init__(self):
-        self.base_url = "http://127.0.0.1:10001"
+        self.base_url = "http://127.0.0.1:5001"
         self.results = []
         self.start_time = datetime.now()
         
