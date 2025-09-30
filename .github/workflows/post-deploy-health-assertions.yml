@@ -20,24 +20,46 @@ jobs:
             ((.status // "") | test("healthy") or (.database // "") | test("connected"))
           ' /tmp/health.json >/dev/null
 
-      - name: Test Phase 4–6 API endpoints (JWT optional)
+      - name: Test Phase 4–6 API endpoints (JWT optional, with retry)
         env:
           TEST_ADMIN_JWT: ${{ secrets.TEST_ADMIN_JWT }}
         run: |
           set -e
           BASE="https://morningai-backend-v2.onrender.com"
-          # Phase 4 & 5 要 200
+
+          curl_code(){  # $1: path, optional $2: "auth"
+            local ep="$1" auth="$2" code=0
+            for i in 1 2 3; do
+              if [ "$auth" = "auth" ]; then
+                code=$(curl -s -H "Authorization: Bearer $TEST_ADMIN_JWT" -o /dev/null -w "%{http_code}" "$BASE$ep")
+              else
+                code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE$ep")
+              fi
+              [ "$code" != "000" ] && break
+              sleep 1
+            done
+            echo "$code"
+          }
+
+          echo "=== Phase 4 & 5 expect 200 ==="
           for EP in /api/governance/status /api/business-intelligence/summary; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE$EP")
-            test "$code" -eq 200 || { echo "$EP code=$code"; exit 1; }
+            code=$(curl_code "$EP")
+            echo "$EP code=$code"
+            test "$code" -eq 200 || { echo "::error::$EP expected 200, got $code"; exit 1; }
           done
-          # Phase 6：有 JWT 期待 200，沒有 JWT 允許 401（保護生效）
+
+          echo "=== Phase 6 protected endpoint ==="
           if [ -n "$TEST_ADMIN_JWT" ]; then
-            code=$(curl -s -H "Authorization: Bearer $TEST_ADMIN_JWT" -o /dev/null -w "%{http_code}" "$BASE/api/security/reviews/pending")
-            test "$code" -eq 200 || { echo "/api/security/reviews/pending code=$code (expect 200 with JWT)"; exit 1; }
+            code=$(curl_code "/api/security/reviews/pending" auth)
+            echo "/api/security/reviews/pending (auth) code=$code"
+            test "$code" -eq 200 || { echo "::error::with JWT expected 200, got $code"; exit 1; }
           else
-            code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/security/reviews/pending")
-            test "$code" -eq 200 -o "$code" -eq 401 || { echo "/api/security/reviews/pending code=$code (expect 200 or 401)"; exit 1; }
+            code=$(curl_code "/api/security/reviews/pending")
+            echo "/api/security/reviews/pending code=$code"
+            case "$code" in
+              200|401|403) : ;;  # 視為保護正常生效
+              *) echo "::error::expected 200/401/403 without JWT, got $code"; exit 1;;
+            esac
           fi
 
       - name: SLA Baseline (success-rate & latency)
