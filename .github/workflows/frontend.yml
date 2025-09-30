@@ -11,7 +11,10 @@ jobs:
           node-version: '18'
       - name: Install dependencies
         run: |
-          cd handoff/20250928/40_App/morningai_enhanced/frontend-dashboard
+          cd handoff/20250928/40_App/frontend-dashboard
           npm install --legacy-peer-deps
-      - name: Build frontend
-        run: echo "Frontend build placeholder"
+      - name: Build and test frontend
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          npm run build
+          npm run lint
