@@ -415,11 +415,22 @@ class HITLSecurityAnalysis:
     
     async def get_pending_reviews(self) -> Dict[str, Any]:
         """獲取待審查項目"""
+        serialized_reviews = []
+        for review in self.pending_reviews[-10:]:  # 最近10個
+            serialized_review = review.copy()
+            if 'event' in serialized_review and isinstance(serialized_review['event'], dict):
+                event = serialized_review['event']
+                if 'event_type' in event and hasattr(event['event_type'], 'value'):
+                    event['event_type'] = event['event_type'].value
+                if 'severity' in event and hasattr(event['severity'], 'value'):
+                    event['severity'] = event['severity'].value
+            serialized_reviews.append(serialized_review)
+            
         return {
             'total_pending': len(self.pending_reviews),
             'urgent_count': len([r for r in self.pending_reviews if r['priority'] == 'urgent']),
             'high_count': len([r for r in self.pending_reviews if r['priority'] == 'high']),
-            'pending_reviews': self.pending_reviews[-10:],  # 最近10個
+            'pending_reviews': serialized_reviews,
             'average_wait_time': "45 minutes"
         }
 
