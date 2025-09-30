@@ -1,0 +1,51 @@
+{
+  "plans": [
+    {
+      "id": "starter",
+      "name": "Starter",
+      "price": 0,
+      "currency": "USD",
+      "interval": "month",
+      "features": [
+        "1 個 AI Agent",
+        "基礎功能",
+        "社群支援",
+        "每月 1,000 點數"
+      ],
+      "popular": false
+    },
+    {
+      "id": "pro",
+      "name": "Pro",
+      "price": 29,
+      "currency": "USD",
+      "interval": "month",
+      "features": [
+        "5 個 AI Agents",
+        "進階功能",
+        "優先支援",
+        "每月 10,000 點數",
+        "自訂工作流程"
+      ],
+      "popular": true,
+      "trial": true,
+      "trialDays": 14
+    },
+    {
+      "id": "enterprise",
+      "name": "Enterprise",
+      "price": 99,
+      "currency": "USD",
+      "interval": "month",
+      "features": [
+        "無限 AI Agents",
+        "所有功能",
+        "專屬客戶成功經理",
+        "無限點數",
+        "SSO 與進階安全",
+        "SLA 保證"
+      ],
+      "popular": false
+    }
+  ]
+}

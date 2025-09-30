@@ -7,6 +7,7 @@ import {
   CheckCircle, 
   History, 
   DollarSign,
+  CreditCard,
   LogOut,
   User,
   ChevronLeft,
@@ -51,6 +52,12 @@ const Sidebar = ({ user, onLogout }) => {
       icon: DollarSign,
       label: '成本分析',
       description: 'AI服務成本'
+    },
+    {
+      path: '/checkout',
+      icon: CreditCard,
+      label: '訂閱方案',
+      description: '升級與付款'
     },
     {
       path: '/settings',

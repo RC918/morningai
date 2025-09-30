@@ -1,0 +1,38 @@
+{
+  "profile": {
+    "name": "Ryan Chen",
+    "email": "ryan@morningai.com",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan",
+    "role": "Owner",
+    "joinedDate": "2024-01-15",
+    "twoFactorEnabled": true
+  },
+  "tenants": [
+    {
+      "id": 1,
+      "name": "Morning AI",
+      "role": "owner",
+      "status": "active",
+      "members": 8,
+      "createdAt": "2024-01-15"
+    },
+    {
+      "id": 2,
+      "name": "Beta Testing Group",
+      "role": "admin",
+      "status": "active",
+      "members": 3,
+      "createdAt": "2024-02-20"
+    }
+  ],
+  "preferences": {
+    "language": "zh-TW",
+    "theme": "light",
+    "notifications": {
+      "email": true,
+      "desktop": true,
+      "aiSuggestions": true,
+      "weeklyReport": true
+    }
+  }
+}
