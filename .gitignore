@@ -16,3 +16,10 @@ __pycache__/
 .render/
 coverage/
 tmp/
+# Local artifacts (ignore)
+Environment
+*.log
+phase7_state.db
+
+# (keep project scripts under control)
+# 如果未來要版控 scripts，請移回並針對性加入
