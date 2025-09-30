@@ -9,17 +9,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
       - name: Install dependencies
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
-          npm install --legacy-peer-deps
+          pnpm install --frozen-lockfile
       - name: Build and test frontend
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
-          npm run build
-          npm run lint
+          pnpm run build
+          pnpm run lint
       
       - name: Smoke Tests
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
-          npm run test:smoke
+          pnpm run test:smoke
