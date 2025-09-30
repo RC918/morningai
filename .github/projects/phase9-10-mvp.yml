@@ -1,0 +1,66 @@
+# name: "Phase 9 → Agent MVP → Phase 10"
+description: >
+  Roadmap execution board. Engineering × Design parallel streams.
+  Covers Phase 9 (Commercialization), Agent MVP (closed-loop), Phase 10 (Governance & Compliance).
+type: board
+
+columns:
+  - name: 🟢 To Do
+  - name: 🚧 In Progress
+  - name: ✅ Done
+
+cards:
+  # --- Engineering Phase 9 ---
+  - title: "Stripe/TapPay 集成 (Trial/Refund、多幣種、多國)"
+    note: "Engineering - Phase 9\nIssue: #26"
+    column: 🟢 To Do
+  - title: "Web PWA (手機端完整體驗)"
+    note: "Engineering - Phase 9"
+    column: 🟢 To Do
+  - title: "多租戶 Dashboard 擴展 (Phase 8 基礎)"
+    note: "Engineering - Phase 9"
+    column: 🟢 To Do
+
+  # --- Agent MVP ---
+  - title: "Orchestrator → CodeWriter PR"
+    note: "Agent MVP\nIssue: #28"
+    column: 🟢 To Do
+  - title: "Auto-QA 驗證 CI"
+    note: "Agent MVP"
+    column: 🟢 To Do
+  - title: "Deploy Agent 上線"
+    note: "Agent MVP"
+    column: 🟢 To Do
+  - title: "FAQ → PR → CI → Deploy 閉環驗證"
+    note: "Agent MVP"
+    column: 🟢 To Do
+
+  # --- Security 強化 ---
+  - title: "JWT + RBAC (Phase 6 endpoints)"
+    note: "Security\nIssue: #25"
+    column: 🟢 To Do
+  - title: "統一錯誤格式 → JSON"
+    note: "Security"
+    column: 🟢 To Do
+
+  # --- Phase 10 ---
+  - title: "SLA / SLO 定義"
+    note: "Governance\nIssue: #29"
+    column: 🟢 To Do
+  - title: "SOC2 / GDPR 合規文件"
+    note: "Governance"
+    column: 🟢 To Do
+  - title: "FinOps 成本報表"
+    note: "Governance"
+    column: 🟢 To Do
+
+  # --- Design ---
+  - title: "PWA 響應式設計 (手機 / 瀏覽器)"
+    note: "Design - Phase 9\nUpdate docs/UX/README.md with Figma Links"
+    column: 🟢 To Do
+  - title: "多租戶 Dashboard 視覺設計"
+    note: "Design - Phase 9"
+    column: 🟢 To Do
+  - title: "Plugin Marketplace 原型 (類似 App Store)"
+    note: "Design - Phase 9"
+    column: 🟢 To Do
