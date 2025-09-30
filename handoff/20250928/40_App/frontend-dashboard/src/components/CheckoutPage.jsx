@@ -30,10 +30,6 @@ const CheckoutPage = () => {
   const [useMockData, setUseMockData] = useState(import.meta.env.VITE_USE_MOCK === 'true')
   const [billingPlans, setBillingPlans] = useState([])
 
-  useEffect(() => {
-    loadCheckoutData()
-  }, [useMockData, loadCheckoutData])
-
   const loadBillingPlans = async () => {
     try {
       return await apiClient.getBillingPlans()
@@ -74,6 +70,10 @@ const CheckoutPage = () => {
       setLoading(false)
     }
   }, [useMockData])
+
+  useEffect(() => {
+    loadCheckoutData()
+  }, [useMockData, loadCheckoutData])
 
   const getFeaturesByPlan = (planId) => {
     const features = {
