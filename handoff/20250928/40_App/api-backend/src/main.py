@@ -10,6 +10,7 @@ from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.auth import auth_bp
 from src.routes.dashboard import dashboard_bp
+from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required
 from flask_cors import CORS
 import sys
 import os
@@ -692,6 +693,7 @@ def get_business_intelligence():
 
 @app.route('/api/security/access/evaluate', methods=['GET', 'POST'])
 @app.route('/api/security/access-requests/evaluate', methods=['GET', 'POST'])
+@admin_required
 def evaluate_access_request():
     """评估访问请求"""
     if not PHASE_456_AVAILABLE:
@@ -707,6 +709,7 @@ def evaluate_access_request():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/security/events/review', methods=['POST'])
+@analyst_required
 def review_security_event():
     """审查安全事件"""
     if not PHASE_456_AVAILABLE:
@@ -722,6 +725,7 @@ def review_security_event():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/security/hitl/submit', methods=['POST'])
+@analyst_required
 def submit_hitl_review():
     """提交人工审查"""
     if not PHASE_456_AVAILABLE:
@@ -738,6 +742,7 @@ def submit_hitl_review():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/security/hitl/pending', methods=['GET'])
+@analyst_required
 def get_pending_reviews():
     """获取待审查项目"""
     if not PHASE_456_AVAILABLE:
@@ -754,6 +759,7 @@ def get_pending_reviews():
 
 @app.route('/api/security/audit', methods=['GET', 'POST'])
 @app.route('/api/security/audit/perform', methods=['GET', 'POST'])
+@admin_required
 def perform_security_audit():
     """执行安全审计"""
     if not PHASE_456_AVAILABLE:
@@ -769,6 +775,7 @@ def perform_security_audit():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/security/reviews/pending', methods=['GET'])
+@analyst_required
 def get_pending_security_reviews():
     """Get pending security reviews"""
     try:
