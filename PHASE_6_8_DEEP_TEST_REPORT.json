@@ -1,169 +1,169 @@
 {
-  "timestamp": "2025-09-30T07:55:29.581289",
-  "success_rate": 0.0,
-  "total_passed": 0,
+  "timestamp": "2025-09-30T08:14:17.941177",
+  "success_rate": 100.0,
+  "total_passed": 23,
   "total_tests": 23,
   "detailed_results": [
     {
       "test": "Phase 6 - Zero Trust Access Evaluation",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/security/access/evaluate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181da30>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.559637"
+      "success": true,
+      "response_time": 4.083156585693359,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.655741"
     },
     {
       "test": "Phase 6 - Security Event Review",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/security/events/review (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181de80>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.560486"
+      "success": true,
+      "response_time": 2.4356842041015625,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.658342"
     },
     {
       "test": "Phase 6 - HITL Security Analysis",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/security/hitl/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181e5d0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.561273"
+      "success": true,
+      "response_time": 2.4428367614746094,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.660898"
     },
     {
       "test": "Phase 6 - Security Audit",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/security/audit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181ed20>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.561954"
+      "success": true,
+      "response_time": 2.3446083068847656,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.663391"
     },
     {
       "test": "Phase 6 - Pending Security Reviews",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/security/reviews/pending (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181f470>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.562646"
+      "success": true,
+      "response_time": 2.219676971435547,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.665813"
     },
     {
       "test": "Phase 7 - System Status",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/phase7/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181f3e0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.563585"
+      "success": true,
+      "response_time": 2.0356178283691406,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.667981"
     },
     {
       "test": "Phase 7 - Pending Approvals",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/phase7/approvals/pending (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181ecf0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.564247"
+      "success": true,
+      "response_time": 2.7649402618408203,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.670864"
     },
     {
       "test": "Phase 7 - Beta Candidates",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/phase7/beta/candidates (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181e780>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.564861"
+      "success": true,
+      "response_time": 1.9884109497070312,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.672981"
     },
     {
       "test": "Phase 7 - Growth Metrics",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/phase7/growth/metrics (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181dc70>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.565505"
+      "success": true,
+      "response_time": 5.245447158813477,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.678348"
     },
     {
       "test": "Phase 7 - Operations Metrics",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/phase7/ops/metrics (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd818483b0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.566176"
+      "success": true,
+      "response_time": 1.8303394317626953,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.680269"
     },
     {
       "test": "Phase 7 - Monitoring Dashboard",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/phase7/monitoring/dashboard (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd81848c50>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.567285"
+      "success": true,
+      "response_time": 1.783132553100586,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.682165"
     },
     {
       "test": "Phase 7 - Resilience Metrics",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/phase7/resilience/metrics (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181e4b0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.568778"
+      "success": true,
+      "response_time": 2.1300315856933594,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.684389"
     },
     {
       "test": "Phase 7 - Environment Validation",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/phase7/environment/validate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181ea20>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.569858"
+      "success": true,
+      "response_time": 4.042387008666992,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.688525"
     },
     {
       "test": "Phase 8 - Dashboard Layouts",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/dashboard/layouts (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181eae0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.570917"
+      "success": true,
+      "response_time": 2.4840831756591797,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.691148"
     },
     {
       "test": "Phase 8 - Available Widgets",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/dashboard/widgets/available (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181f140>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.572035"
+      "success": true,
+      "response_time": 2.0873546600341797,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.693369"
     },
     {
       "test": "Phase 8 - Dashboard Data",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/dashboard/data (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd81848470>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.573087"
+      "success": true,
+      "response_time": 1.825571060180664,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.695296"
     },
     {
       "test": "Phase 8 - Report Generation",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/reports/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd81849460>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.574123"
+      "success": true,
+      "response_time": 11.336803436279297,
+      "details": "Status: 200 (non-JSON)",
+      "timestamp": "2025-09-30T08:14:17.918494"
     },
     {
       "test": "Phase 8 - Report Templates",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/reports/templates (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181f590>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.575057"
+      "success": true,
+      "response_time": 2.7663707733154297,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.926578"
     },
     {
       "test": "Phase 8 - Report History",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/reports/history (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181e150>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.576110"
+      "success": true,
+      "response_time": 2.7997493743896484,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.929472"
     },
     {
       "test": "Phase 8 - Custom Dashboard Creation",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/dashboard/layouts (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd8181dc10>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.577043"
+      "success": true,
+      "response_time": 4.359245300292969,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.933970"
     },
     {
       "test": "Integration - Security + Performance Monitoring",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/security/events/review (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd81848650>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.578013"
+      "success": true,
+      "response_time": 2.3958683013916016,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.936561"
     },
     {
       "test": "Integration - Security Dashboard Data",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/dashboard/data (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd818495e0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.578877"
+      "success": true,
+      "response_time": 1.934051513671875,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.938633"
     },
     {
       "test": "Integration - Growth + Security Report",
-      "success": false,
-      "response_time": null,
-      "details": "HTTPConnectionPool(host='127.0.0.1', port=5001): Max retries exceeded with url: /api/reports/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fdd81849e50>: Failed to establish a new connection: [Errno 111] Connection refused'))",
-      "timestamp": "2025-09-30T07:55:29.580398"
+      "success": true,
+      "response_time": 2.181529998779297,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.940910"
     }
   ]
 }
