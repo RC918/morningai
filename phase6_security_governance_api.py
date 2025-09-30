@@ -553,13 +553,18 @@ async def api_evaluate_access_request(access_request: Dict[str, Any]):
     """API: 評估存取請求"""
     return await zero_trust_model.evaluate_access_request(access_request)
 
-async def api_review_security_event(event_data: Dict[str, Any]):
+async def api_review_security_event(event_data):
     """API: 審查安全事件"""
     import time
     
-    event_id = event_data.get('event_id', f"evt_{int(time.time())}")
+    if hasattr(event_data, 'event_id'):
+        event_id = event_data.event_id
+    else:
+        event_id = event_data.get('event_id', f"evt_{int(time.time())}")
     timestamp = datetime.now()
-    if 'timestamp' in event_data:
+    if hasattr(event_data, 'timestamp'):
+        timestamp = event_data.timestamp
+    elif isinstance(event_data, dict) and 'timestamp' in event_data:
         try:
             timestamp = datetime.fromisoformat(event_data['timestamp'])
         except:
@@ -575,7 +580,10 @@ async def api_review_security_event(event_data: Dict[str, Any]):
         'anomalous_behavior': ThreatType.ANOMALOUS_BEHAVIOR
     }
     
-    event_type_str = event_data.get('event_type', 'anomalous_behavior')
+    if hasattr(event_data, 'event_type'):
+        event_type_str = event_data.event_type.name.lower()
+    else:
+        event_type_str = event_data.get('event_type', 'anomalous_behavior')
     event_type = event_type_mapping.get(event_type_str, ThreatType.ANOMALOUS_BEHAVIOR)
     
     severity_mapping = {
@@ -585,11 +593,19 @@ async def api_review_security_event(event_data: Dict[str, Any]):
         'critical': SecurityLevel.CRITICAL
     }
     
-    severity_str = event_data.get('severity', 'medium')
+    if hasattr(event_data, 'severity'):
+        severity_str = event_data.severity.name.lower()
+    else:
+        severity_str = event_data.get('severity', 'medium')
     severity = severity_mapping.get(severity_str, SecurityLevel.MEDIUM)
     
-    description = event_data.get('description', f"Security event: {event_type_str}")
-    if 'details' in event_data:
+    if hasattr(event_data, 'description'):
+        description = event_data.description
+    else:
+        description = event_data.get('description', f"Security event: {event_type_str}")
+    if hasattr(event_data, 'description') and hasattr(event_data, 'risk_score'):
+        details = f"Risk Score: {event_data.risk_score}"
+    elif isinstance(event_data, dict) and 'details' in event_data:
         details = event_data['details']
         if isinstance(details, dict):
             detail_parts = []
@@ -597,8 +613,13 @@ async def api_review_security_event(event_data: Dict[str, Any]):
                 detail_parts.append(f"{key}: {value}")
             description += f" - {', '.join(detail_parts)}"
     
-    risk_score = event_data.get('risk_score', 0.5)
-    if 'details' in event_data:
+    if hasattr(event_data, 'risk_score'):
+        risk_score = event_data.risk_score
+    else:
+        risk_score = event_data.get('risk_score', 0.5)
+    if hasattr(event_data, 'description') and hasattr(event_data, 'risk_score'):
+        details = f"Risk Score: {event_data.risk_score}"
+    elif isinstance(event_data, dict) and 'details' in event_data:
         details = event_data['details']
         if isinstance(details, dict):
             if details.get('failed_attempts', 0) > 2:
@@ -615,11 +636,11 @@ async def api_review_security_event(event_data: Dict[str, Any]):
         timestamp=timestamp,
         event_type=event_type,
         severity=severity,
-        source_ip=event_data.get('source_ip', '127.0.0.1'),
-        user_id=event_data.get('user_id') or event_data.get('user'),
+        source_ip=getattr(event_data, 'source_ip', event_data.get('source_ip', '127.0.0.1') if isinstance(event_data, dict) else '127.0.0.1'),
+        user_id=getattr(event_data, 'user_id', event_data.get('user_id') if isinstance(event_data, dict) else None) or getattr(event_data, 'user', event_data.get('user') if isinstance(event_data, dict) else None),
         description=description,
         risk_score=risk_score,
-        requires_human_review=event_data.get('requires_human_review', risk_score > 0.7)
+        requires_human_review=getattr(event_data, 'requires_human_review', event_data.get('requires_human_review', risk_score > 0.7) if isinstance(event_data, dict) else risk_score > 0.7)
     )
     
     return await security_reviewer.review_security_event(event)
@@ -637,7 +658,9 @@ async def api_submit_hitl_review(request_data: Dict[str, Any]):
     
     event_id = event_data.get('event_id', f"hitl_{int(time.time())}")
     timestamp = datetime.now()
-    if 'timestamp' in event_data:
+    if hasattr(event_data, 'timestamp'):
+        timestamp = event_data.timestamp
+    elif isinstance(event_data, dict) and 'timestamp' in event_data:
         try:
             timestamp = datetime.fromisoformat(event_data['timestamp'])
         except:
@@ -653,7 +676,10 @@ async def api_submit_hitl_review(request_data: Dict[str, Any]):
         'anomalous_behavior': ThreatType.ANOMALOUS_BEHAVIOR
     }
     
-    event_type_str = event_data.get('event_type', 'anomalous_behavior')
+    if hasattr(event_data, 'event_type'):
+        event_type_str = event_data.event_type.name.lower()
+    else:
+        event_type_str = event_data.get('event_type', 'anomalous_behavior')
     event_type = event_type_mapping.get(event_type_str, ThreatType.ANOMALOUS_BEHAVIOR)
     
     severity_mapping = {
@@ -683,7 +709,7 @@ async def api_submit_hitl_review(request_data: Dict[str, Any]):
         timestamp=timestamp,
         event_type=event_type,
         severity=severity,
-        source_ip=event_data.get('source_ip', '127.0.0.1'),
+        source_ip=getattr(event_data, 'source_ip', event_data.get('source_ip', '127.0.0.1') if isinstance(event_data, dict) else '127.0.0.1'),
         user_id=event_data.get('user_id'),
         description=description,
         risk_score=risk_score,
