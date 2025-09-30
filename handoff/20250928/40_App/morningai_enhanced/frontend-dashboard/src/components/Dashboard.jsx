@@ -1,319 +1,251 @@
-import { useState, useEffect } from 'react'
-import { 
-  Activity, 
-  TrendingUp, 
-  TrendingDown, 
-  AlertTriangle, 
-  CheckCircle,
-  Clock,
-  DollarSign,
-  Cpu,
-  MemoryStick,
-  Zap
-} from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Calendar, CheckCircle, Sparkles, Play, Users, TrendingUp, Clock, Zap } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import mockData from '@/mocks/dashboard.json'
 
 const Dashboard = () => {
-  const [systemMetrics, setSystemMetrics] = useState({
-    cpu_usage: 72,
-    memory_usage: 68,
-    response_time: 145,
-    error_rate: 0.02,
-    active_strategies: 12,
-    pending_approvals: 3,
-    cost_today: 45.67,
-    cost_saved: 123.45
+  const [data, setData] = useState({
+    todayFocus: [],
+    aiAgents: [],
+    projects: []
   })
 
-  const [recentDecisions, setRecentDecisions] = useState([
-    {
-      id: 1,
-      timestamp: '2024-01-01T14:30:00Z',
-      strategy: 'CPU優化策略',
-      status: 'executed',
-      impact: '+15% 性能提升',
-      confidence: 0.87
-    },
-    {
-      id: 2,
-      timestamp: '2024-01-01T14:15:00Z',
-      strategy: '緩存優化',
-      status: 'pending',
-      impact: '預計 +20% 響應速度',
-      confidence: 0.92
-    },
-    {
-      id: 3,
-      timestamp: '2024-01-01T14:00:00Z',
-      strategy: '自動擴容',
-      status: 'executed',
-      impact: '處理能力 +50%',
-      confidence: 0.78
-    }
-  ])
-
-  const [performanceData, setPerformanceData] = useState([
-    { time: '12:00', cpu: 65, memory: 60, response_time: 120 },
-    { time: '12:30', cpu: 70, memory: 65, response_time: 135 },
-    { time: '13:00', cpu: 75, memory: 70, response_time: 150 },
-    { time: '13:30', cpu: 72, memory: 68, response_time: 145 },
-    { time: '14:00', cpu: 68, memory: 65, response_time: 130 },
-    { time: '14:30', cpu: 72, memory: 68, response_time: 145 }
-  ])
-
   useEffect(() => {
-    // 模擬實時數據更新
-    const interval = setInterval(() => {
-      setSystemMetrics(prev => ({
-        ...prev,
-        cpu_usage: Math.max(50, Math.min(90, prev.cpu_usage + (Math.random() - 0.5) * 10)),
-        memory_usage: Math.max(40, Math.min(85, prev.memory_usage + (Math.random() - 0.5) * 8)),
-        response_time: Math.max(100, Math.min(300, prev.response_time + (Math.random() - 0.5) * 20))
-      }))
-    }, 5000)
-
-    return () => clearInterval(interval)
+    setData(mockData)
   }, [])
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'executed': return 'bg-green-100 text-green-800'
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'failed': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-100 text-red-700 border-red-200'
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-200'
+      case 'low':
+        return 'bg-green-100 text-green-700 border-green-200'
+      default:
+        return 'bg-gray-100 text-gray-700 border-gray-200'
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'task':
+        return <CheckCircle className="w-5 h-5" />
+      case 'meeting':
+        return <Calendar className="w-5 h-5" />
+      case 'ai-suggestion':
+        return <Sparkles className="w-5 h-5" />
+      case 'reminder':
+        return <Clock className="w-5 h-5" />
+      default:
+        return <CheckCircle className="w-5 h-5" />
+    }
+  }
+
+  const getStatusColor = (status) => {
     switch (status) {
-      case 'executed': return <CheckCircle className="w-4 h-4" />
-      case 'pending': return <Clock className="w-4 h-4" />
-      case 'failed': return <AlertTriangle className="w-4 h-4" />
-      default: return <Activity className="w-4 h-4" />
+      case 'active':
+        return 'bg-green-500'
+      case 'idle':
+        return 'bg-gray-400'
+      case 'busy':
+        return 'bg-yellow-500'
+      default:
+        return 'bg-gray-400'
+    }
+  }
+
+  const getProjectStatusColor = (status) => {
+    switch (status) {
+      case 'in-progress':
+        return 'bg-blue-100 text-blue-700'
+      case 'planning':
+        return 'bg-purple-100 text-purple-700'
+      case 'completed':
+        return 'bg-green-100 text-green-700'
+      default:
+        return 'bg-gray-100 text-gray-700'
     }
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* 頁面標題 */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">系統監控儀表板</h1>
-        <p className="text-gray-600 mt-2">Morning AI 智能決策系統實時狀態</p>
+    <div className="p-6 max-w-[1400px] mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">早安，Ryan 👋</h1>
+        <p className="text-gray-600">這是你今天的焦點和 AI 助手狀態</p>
       </div>
 
-      {/* 關鍵指標卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CPU 使用率</CardTitle>
-            <Cpu className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemMetrics.cpu_usage}%</div>
-            <Progress value={systemMetrics.cpu_usage} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              {systemMetrics.cpu_usage > 80 ? (
-                <span className="text-red-600 flex items-center">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  需要關注
-                </span>
-              ) : (
-                <span className="text-green-600 flex items-center">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  正常範圍
-                </span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border-none shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-[var(--color-accent-orange-500)]" />
+                今日焦點
+              </CardTitle>
+              <CardDescription>需要你關注的事項</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {data.todayFocus.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-4 rounded-lg border border-gray-200 hover:border-[var(--color-primary-500)] hover:shadow-md transition-all duration-[var(--duration-fast)] cursor-pointer"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 text-[var(--color-primary-500)]">
+                      {getTypeIcon(item.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 mb-1">{item.title}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {item.priority && (
+                          <Badge variant="outline" className={getPriorityColor(item.priority)}>
+                            {item.priority === 'high' && '高優先級'}
+                            {item.priority === 'medium' && '中優先級'}
+                            {item.priority === 'low' && '低優先級'}
+                          </Badge>
+                        )}
+                        {item.dueTime && (
+                          <span className="text-sm text-gray-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {item.dueTime}
+                          </span>
+                        )}
+                        {item.time && (
+                          <span className="text-sm text-gray-500 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {item.time}
+                          </span>
+                        )}
+                        {item.attendees && (
+                          <span className="text-sm text-gray-500 flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {item.attendees} 人
+                          </span>
+                        )}
+                        {item.confidence && (
+                          <span className="text-sm text-[var(--color-accent-purple-500)] font-medium">
+                            {Math.round(item.confidence * 100)}% 信心度
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {data.todayFocus.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Sparkles className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p>太好了！今天沒有待辦事項</p>
+                </div>
               )}
-            </p>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">內存使用率</CardTitle>
-            <MemoryStick className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemMetrics.memory_usage}%</div>
-            <Progress value={systemMetrics.memory_usage} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              <span className="text-green-600 flex items-center">
-                <TrendingDown className="w-3 h-3 mr-1" />
-                較昨日 -5%
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">響應時間</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemMetrics.response_time}ms</div>
-            <p className="text-xs text-muted-foreground mt-2">
-              <span className="text-green-600 flex items-center">
-                <TrendingDown className="w-3 h-3 mr-1" />
-                較昨日 -12%
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">今日成本</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${systemMetrics.cost_today}</div>
-            <p className="text-xs text-muted-foreground mt-2">
-              <span className="text-green-600 flex items-center">
-                <TrendingDown className="w-3 h-3 mr-1" />
-                節省 ${systemMetrics.cost_saved}
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 圖表區域 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 性能趨勢圖 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>性能趨勢</CardTitle>
-            <CardDescription>過去6小時的系統性能指標</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="cpu" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  name="CPU (%)"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="memory" 
-                  stroke="#10b981" 
-                  strokeWidth={2}
-                  name="內存 (%)"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* 響應時間圖 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>響應時間趨勢</CardTitle>
-            <CardDescription>系統響應時間變化</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <Tooltip />
-                <Area 
-                  type="monotone" 
-                  dataKey="response_time" 
-                  stroke="#f59e0b" 
-                  fill="#fef3c7"
-                  name="響應時間 (ms)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 最近決策 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>最近決策</CardTitle>
-          <CardDescription>AI系統最近執行的決策和策略</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentDecisions.map((decision) => (
-              <div key={decision.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className={`p-2 rounded-full ${getStatusColor(decision.status)}`}>
-                    {getStatusIcon(decision.status)}
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border-none shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[var(--color-accent-purple-500)]" />
+                AI Agent 狀態
+              </CardTitle>
+              <CardDescription>你的 AI 助手們正在工作</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {data.aiAgents.map((agent) => (
+                <div
+                  key={agent.id}
+                  className="p-4 rounded-lg border border-gray-200 hover:border-[var(--color-primary-500)] hover:shadow-md transition-all duration-[var(--duration-fast)]"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl">{agent.avatar}</div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">{agent.name}</h4>
+                        <p className="text-sm text-gray-500">{agent.lastActivity}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${getStatusColor(agent.status)}`} />
+                      <span className="text-sm text-gray-600">
+                        {agent.status === 'active' ? '運行中' : '閒置'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium">{decision.strategy}</h4>
-                    <p className="text-sm text-gray-600">{decision.impact}</p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(decision.timestamp).toLocaleString()}
-                    </p>
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                    <span className="text-sm text-gray-600">已完成任務</span>
+                    <span className="font-semibold text-[var(--color-primary-600)]">
+                      {agent.tasksCompleted}
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <Badge variant="outline" className={getStatusColor(decision.status)}>
-                    {decision.status === 'executed' ? '已執行' : 
-                     decision.status === 'pending' ? '待審批' : '失敗'}
-                  </Badge>
-                  <p className="text-sm text-gray-600 mt-1">
-                    信心度: {(decision.confidence * 100).toFixed(0)}%
-                  </p>
+              ))}
+              <Button className="w-full bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] transition-colors duration-[var(--duration-fast)]">
+                <Play className="w-4 h-4 mr-2" />
+                啟動新的 Agent
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border-none shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-[var(--color-primary-500)]" />
+                專案看板
+              </CardTitle>
+              <CardDescription>你的專案進度一覽</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {data.projects.map((project) => (
+                <div
+                  key={project.id}
+                  className="p-4 rounded-lg border border-gray-200 hover:border-[var(--color-primary-500)] hover:shadow-md transition-all duration-[var(--duration-fast)] cursor-pointer"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900 mb-1">{project.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getProjectStatusColor(project.status)}>
+                          {project.status === 'in-progress' && '進行中'}
+                          {project.status === 'planning' && '規劃中'}
+                          {project.status === 'completed' && '已完成'}
+                        </Badge>
+                        {project.aiCollaboration && (
+                          <Badge variant="outline" className="border-[var(--color-accent-purple-500)] text-[var(--color-accent-purple-500)]">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            AI 協作
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">進度</span>
+                      <span className="font-medium text-gray-900">{project.progress}%</span>
+                    </div>
+                    <Progress value={project.progress} className="h-2" />
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <span>{project.completedTasks} / {project.tasks} 任務完成</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 系統狀態摘要 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">活躍策略</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-600">
-              {systemMetrics.active_strategies}
-            </div>
-            <p className="text-sm text-gray-600 mt-2">個策略正在運行</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">待審批</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-600">
-              {systemMetrics.pending_approvals}
-            </div>
-            <p className="text-sm text-gray-600 mt-2">個決策等待審批</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">錯誤率</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">
-              {(systemMetrics.error_rate * 100).toFixed(2)}%
-            </div>
-            <p className="text-sm text-gray-600 mt-2">系統運行穩定</p>
-          </CardContent>
-        </Card>
+              ))}
+              {data.projects.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <TrendingUp className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p>還沒有專案，開始創建你的第一個專案吧</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

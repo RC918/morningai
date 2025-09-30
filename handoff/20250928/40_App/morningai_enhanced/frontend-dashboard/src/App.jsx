@@ -8,6 +8,7 @@ import DecisionApproval from '@/components/DecisionApproval'
 import HistoryAnalysis from '@/components/HistoryAnalysis'
 import CostAnalysis from '@/components/CostAnalysis'
 import SystemSettings from '@/components/SystemSettings'
+import Checkout from '@/components/Checkout'
 import LoginPage from '@/components/LoginPage'
 import './App.css'
 
@@ -85,6 +86,7 @@ function App() {
             <Route path="/approvals" element={<DecisionApproval />} />
             <Route path="/history" element={<HistoryAnalysis />} />
             <Route path="/costs" element={<CostAnalysis />} />
+            <Route path="/checkout" element={<Checkout />} />
             <Route path="/settings" element={<SystemSettings />} />
           </Routes>
         </main>
