@@ -1,0 +1,40 @@
+name: post-deploy-health-assertions
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: "0 * * * *"  # hourly
+jobs:
+  assert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check /healthz JSON
+        id: h
+        run: |
+          set -e
+          curl -sS https://morningai-backend-v2.onrender.com/healthz | tee /tmp/health.json
+          jq -e '
+            (.phase   | test("Phase 8")) and
+            ((.version // .app_version // .app_version_tag // .app_build // "") | test("^8\\.0\\.0$")) and
+            ((.status // "") | test("healthy")) or ((.database // "") | test("connected"))
+          ' /tmp/health.json > /dev/null
+      - name: Check Phase 4–6 endpoints
+        run: |
+          set -e
+          for EP in /api/governance/status /api/business-intelligence/summary /api/security/reviews/pending; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "https://morningai-backend-v2.onrender.com$EP")
+            test "$code" -eq 200 || (echo "$EP code=$code" && exit 1)
+          done
+      - name: Success-rate & latency baseline
+        run: |
+          URL="https://morningai-backend-v2.onrender.com/health"; TOTAL=10; S=0; T=0
+          for i in $(seq 1 $TOTAL); do
+            o=$(curl -s -o /dev/null -w '%{http_code} %{time_total}\n' "$URL")
+            c=${o% *}; d=${o#* }
+            [ "$c" -eq 200 ] && S=$((S+1))
+            T=$(awk -v a=$T -v b=$d 'BEGIN{printf "%.6f", a+b}')
+          done
+          RATE=$((S*100/TOTAL)); AVG=$(awk -v T=$T -v N=$TOTAL 'BEGIN{printf "%.3f", T/N}')
+          echo "rate=$RATE avg=${AVG}s"
+          test "$RATE" -ge 90
