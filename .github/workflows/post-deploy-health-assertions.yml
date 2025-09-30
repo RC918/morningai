@@ -16,8 +16,8 @@ jobs:
           curl -sS https://morningai-backend-v2.onrender.com/healthz | tee /tmp/health.json
           jq -e '
             (.phase | test("Phase 8")) and
-            ((.version // .app_version // .app_version_tag // .app_build // "") | test("^8\\.0\\.0$")) and
-            ((.status // "") | test("healthy") or (.database // "") | test("connected"))
+            ((.version // .app_version // .app_version_tag // .app_build // "") | test("^8[.]0[.]0$")) and
+            ((.status == "healthy") or (.database == "connected"))
           ' /tmp/health.json >/dev/null
 
       - name: Test Phase 4–6 API endpoints (JWT optional, with retry)
