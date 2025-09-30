@@ -10,3 +10,11 @@ This is a simple change to verify repository access and PR creation functionalit
 
 ## Status
 ![env-diagnose](https://github.com/RC918/morningai/actions/workflows/env-diagnose.yml/badge.svg)
+
+## Milestones
+- Phase 9 - Commercialization & PWA
+- Phase 10 - Governance & Compliance
+
+## Baseline Tag
+- v8.0.0-handoff
+
