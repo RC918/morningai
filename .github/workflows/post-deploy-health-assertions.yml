@@ -1,75 +1,172 @@
 name: Post-Deploy Health Assertions
+
 on:
   workflow_dispatch:
-  push: { branches: [ main ] }
+  push:
+    branches: [main]
   schedule:
-    - cron: "0 * * * *"
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    # Run health checks every hour
+    - cron: '0 * * * *'
 
-      - name: Check core health (/healthz)
+env:
+  PRODUCTION_URL: https://morningai-backend-v2.onrender.com
+
+jobs:
+  health-assertions:
+    runs-on: ubuntu-latest
+    name: Validate Production Health & Phase Assertions
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install jq for JSON processing
+        run: sudo apt-get update && sudo apt-get install -y jq
+        
+      - name: Test Core Health Endpoints
         run: |
-          set -e
-          curl -sS https://morningai-backend-v2.onrender.com/healthz | tee /tmp/health.json
+          echo "=== Testing Core Health Endpoints ==="
+          
+          # Test /health endpoint
+          echo "Testing /health endpoint..."
+          curl -sS ${{ env.PRODUCTION_URL }}/health > /tmp/health.json
+          cat /tmp/health.json | jq '.'
+          
+          # Assert Phase 8 and version 8.0.0
           jq -e '
             (.phase | test("Phase 8")) and
-            ((.version // .app_version // .app_version_tag // .app_build // "") | test("^8\\.0\\.0$")) and
-            ((.status // "") | test("healthy") or (.database // "") | test("connected"))
-          ' /tmp/health.json >/dev/null
-
-      - name: Test Phase 4–6 API endpoints (JWT optional, with retry)
-        env:
-          TEST_ADMIN_JWT: ${{ secrets.TEST_ADMIN_JWT }}
+            (.version | test("^8\\.0\\.0$")) and
+            (.status == "healthy" or .database == "connected")
+          ' /tmp/health.json || (echo "❌ Health endpoint assertions failed" && exit 1)
+          
+          echo "✅ /health endpoint assertions passed"
+          
+          # Test /healthz endpoint
+          echo "Testing /healthz endpoint..."
+          curl -sS ${{ env.PRODUCTION_URL }}/healthz > /tmp/healthz.json
+          cat /tmp/healthz.json | jq '.'
+          
+          jq -e '
+            (.phase | test("Phase 8")) and
+            (.version | test("^8\\.0\\.0$"))
+          ' /tmp/healthz.json || (echo "❌ Healthz endpoint assertions failed" && exit 1)
+          
+          echo "✅ /healthz endpoint assertions passed"
+          
+      - name: Test Phase 4-6 API Endpoints
         run: |
-          set -e
-          BASE="https://morningai-backend-v2.onrender.com"
-
-          curl_code(){  # $1: path, optional $2: "auth"
-            local ep="$1" auth="$2" code=0
-            for i in 1 2 3; do
-              if [ "$auth" = "auth" ]; then
-                code=$(curl -s -H "Authorization: Bearer $TEST_ADMIN_JWT" -o /dev/null -w "%{http_code}" "$BASE$ep")
-              else
-                code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE$ep")
-              fi
-              [ "$code" != "000" ] && break
-              sleep 1
-            done
-            echo "$code"
-          }
-
-          echo "=== Phase 4 & 5 expect 200 ==="
-          for EP in /api/governance/status /api/business-intelligence/summary; do
-            code=$(curl_code "$EP")
-            echo "$EP code=$code"
-            test "$code" -eq 200 || { echo "::error::$EP expected 200, got $code"; exit 1; }
-          done
-
-          echo "=== Phase 6 protected endpoint ==="
-          if [ -n "$TEST_ADMIN_JWT" ]; then
-            code=$(curl_code "/api/security/reviews/pending" auth)
-            echo "/api/security/reviews/pending (auth) code=$code"
-            test "$code" -eq 200 || { echo "::error::with JWT expected 200, got $code"; exit 1; }
-          else
-            code=$(curl_code "/api/security/reviews/pending")
-            echo "/api/security/reviews/pending code=$code"
-            case "$code" in
-              200|401|403) : ;;  # 視為保護正常生效
-              *) echo "::error::expected 200/401/403 without JWT, got $code"; exit 1;;
-            esac
+          echo "=== Testing Phase 4-6 API Endpoints ==="
+          
+          # Test Phase 4 Meta Agent endpoint
+          echo "Testing Phase 4 Meta Agent..."
+          STATUS_4=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.PRODUCTION_URL }}/api/governance/status)
+          if [ "$STATUS_4" != "200" ]; then
+            echo "❌ Phase 4 endpoint failed with status $STATUS_4"
+            exit 1
           fi
-
-      - name: SLA Baseline (success-rate & latency)
+          echo "✅ Phase 4 endpoint responding (HTTP $STATUS_4)"
+          
+          # Test Phase 5 Data Intelligence endpoint
+          echo "Testing Phase 5 Data Intelligence..."
+          STATUS_5=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.PRODUCTION_URL }}/api/business-intelligence/summary)
+          if [ "$STATUS_5" != "200" ]; then
+            echo "❌ Phase 5 endpoint failed with status $STATUS_5"
+            exit 1
+          fi
+          echo "✅ Phase 5 endpoint responding (HTTP $STATUS_5)"
+          
+          # Test Phase 6 Security endpoint
+          echo "Testing Phase 6 Security..."
+          STATUS_6=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.PRODUCTION_URL }}/api/security/reviews/pending)
+          if [ "$STATUS_6" != "200" ]; then
+            echo "❌ Phase 6 endpoint failed with status $STATUS_6"
+            exit 1
+          fi
+          echo "✅ Phase 6 endpoint responding (HTTP $STATUS_6)"
+          
+      - name: Performance Baseline Validation
         run: |
-          URL="https://morningai-backend-v2.onrender.com/health"; TOTAL=10; S=0; T=0
+          echo "=== Performance Baseline Validation ==="
+          
+          # Test response time and success rate (10 requests for CI efficiency)
+          URL=${{ env.PRODUCTION_URL }}/health
+          TOTAL=10
+          SUCCESS=0
+          TOTAL_TIME=0
+          
+          echo "Running $TOTAL requests to validate performance..."
           for i in $(seq 1 $TOTAL); do
-            o=$(curl -s -o /dev/null -w '%{http_code} %{time_total}\n' "$URL"); c=${o% *}; d=${o#* }
-            [ "$c" -eq 200 ] && S=$((S+1))
-            T=$(awk -v a=$T -v b=$d 'BEGIN{printf "%.6f", a+b}')
+            OUTPUT=$(curl -s -o /dev/null -w '%{http_code} %{time_total}\n' "$URL")
+            HTTP_CODE=${OUTPUT% *}
+            TIME=${OUTPUT#* }
+            
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              SUCCESS=$((SUCCESS + 1))
+            fi
+            
+            TOTAL_TIME=$(awk -v a=$TOTAL_TIME -v b=$TIME 'BEGIN{printf "%.6f", a+b}')
           done
-          RATE=$((S*100/TOTAL)); AVG=$(awk -v T=$T -v N=$TOTAL 'BEGIN{printf "%.3f", T/N}')
-          echo "rate=$RATE avg=${AVG}s"
-          test "$RATE" -ge 90
+          
+          # Calculate success rate
+          SUCCESS_RATE=$(awk -v s=$SUCCESS -v t=$TOTAL 'BEGIN{printf "%.0f", (s/t)*100}')
+          AVG_LATENCY=$(awk -v total=$TOTAL_TIME -v count=$TOTAL 'BEGIN{printf "%.0f", (total/count)*1000}')
+          
+          echo "Success Rate: $SUCCESS_RATE%"
+          echo "Average Latency: ${AVG_LATENCY}ms"
+          
+          # Assert performance criteria
+          if [ "$SUCCESS_RATE" -lt 90 ]; then
+            echo "❌ Performance assertion failed: Success rate $SUCCESS_RATE% < 90%"
+            exit 1
+          fi
+          
+          if [ "$AVG_LATENCY" -gt 5000 ]; then
+            echo "❌ Performance assertion failed: Average latency ${AVG_LATENCY}ms > 5000ms"
+            exit 1
+          fi
+          
+          echo "✅ Performance assertions passed: $SUCCESS_RATE% success, ${AVG_LATENCY}ms latency"
+          
+      - name: Data Quality Assertions
+        run: |
+          echo "=== Data Quality Assertions ==="
+          
+          # Test for placeholder values in key endpoints
+          echo "Checking for placeholder values..."
+          
+          # Check governance status for real data
+          curl -sS ${{ env.PRODUCTION_URL }}/api/governance/status > /tmp/governance.json
+          if jq -e 'has("governance_score") and (.governance_score > 0)' /tmp/governance.json >/dev/null; then
+            echo "✅ Governance data quality validated"
+          else
+            echo "❌ Governance data quality check failed"
+            exit 1
+          fi
+          
+          # Check business intelligence for insights
+          curl -sS ${{ env.PRODUCTION_URL }}/api/business-intelligence/summary > /tmp/bi.json
+          if jq -e 'has("insights") and (.insights | length > 0)' /tmp/bi.json >/dev/null; then
+            echo "✅ Business intelligence data quality validated"
+          else
+            echo "❌ Business intelligence data quality check failed"
+            exit 1
+          fi
+          
+          echo "✅ All data quality assertions passed"
+          
+      - name: Generate Health Report
+        if: always()
+        run: |
+          echo "=== Health Check Summary ==="
+          echo "Timestamp: $(date -u)"
+          echo "Production URL: ${{ env.PRODUCTION_URL }}"
+          echo "Tag: v4.6.0"
+          echo "Phase: 8.0.0"
+          echo ""
+          echo "All health assertions completed."
+          echo "See job logs for detailed results."
