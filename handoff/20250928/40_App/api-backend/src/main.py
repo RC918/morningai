@@ -52,6 +52,7 @@ if SECURITY_AVAILABLE:
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+app.register_blueprint(billing_bp)
 
 if BACKEND_SERVICES_AVAILABLE:
     try:
