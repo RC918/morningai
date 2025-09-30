@@ -9,12 +9,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
       - name: Install dependencies
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
-          npm install --legacy-peer-deps
+          pnpm install --frozen-lockfile
+      - name: Create environment files for CI
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          echo "VITE_API_BASE_URL=http://localhost:5000" > .env.production
+          echo "STRIPE_SECRET_KEY=sk_test_placeholder" >> .env.production
+          echo "STRIPE_WEBHOOK_SECRET=whsec_placeholder" >> .env.production
+          echo "VITE_API_BASE_URL=http://localhost:5000" > .env.local
+          echo "STRIPE_SECRET_KEY=sk_test_placeholder" >> .env.local
+          echo "STRIPE_WEBHOOK_SECRET=whsec_placeholder" >> .env.local
+      
       - name: Build and test frontend
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
-          npm run build
-          npm run lint
+          pnpm run build
+          pnpm run lint
+      
+      - name: Smoke Tests
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm run test:smoke
