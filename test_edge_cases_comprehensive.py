@@ -27,10 +27,10 @@ class TestBoundaryConditions:
         """Test handling of empty string inputs"""
         hub = MetaAgentDecisionHub()
         
-        result = hub.start_ooda_cycle()
+        result = hub.create_workflow({"name": "", "type": "", "agents": []})
         assert isinstance(result, dict)
         
-        result = hub.start_ooda_cycle()
+        result = hub.start_ooda_cycle({"scenario": ""})
         assert isinstance(result, dict)
     
     def test_null_and_none_inputs(self):
@@ -39,13 +39,13 @@ class TestBoundaryConditions:
         integration = QuickSightIntegration()
         model = ZeroTrustSecurityModel()
         
-        result = hub.start_ooda_cycle()
+        result = hub.start_ooda_cycle(None)
         assert isinstance(result, dict)
         
-        result = integration.create_dashboard({})
+        result = integration.create_dashboard(None)
         assert isinstance(result, dict)
         
-        result = model.evaluate_access_request({})
+        result = model.evaluate_access_request(None)
         assert isinstance(result, dict)
     
     def test_extremely_large_inputs(self):
@@ -60,7 +60,7 @@ class TestBoundaryConditions:
             }
         }
         
-        result = hub.start_ooda_cycle()
+        result = hub.start_ooda_cycle(large_data)
         assert isinstance(result, dict)
     
     def test_special_characters_in_inputs(self):
@@ -73,7 +73,7 @@ class TestBoundaryConditions:
             "unicode": "测试中文字符 العربية русский 日本語"
         }
         
-        result = hub.start_ooda_cycle()
+        result = hub.create_workflow(special_data)
         assert isinstance(result, dict)
     
     def test_deeply_nested_data_structures(self):
@@ -94,7 +94,7 @@ class TestBoundaryConditions:
             }
         }
         
-        result = integration.create_dashboard({})
+        result = integration.create_dashboard(nested_data)
         assert isinstance(result, dict)
 
 class TestInvalidInputScenarios:
@@ -104,13 +104,13 @@ class TestInvalidInputScenarios:
         """Test handling of wrong data types"""
         hub = MetaAgentDecisionHub()
         
-        result = hub.start_ooda_cycle()
+        result = hub.start_ooda_cycle(12345)
         assert isinstance(result, dict)
         
-        result = hub.start_ooda_cycle()
+        result = hub.create_workflow("invalid_input")
         assert isinstance(result, dict)
         
-        result = hub.start_ooda_cycle()
+        result = hub.start_ooda_cycle([1, 2, 3])
         assert isinstance(result, dict)
     
     def test_missing_required_fields(self):
@@ -135,7 +135,7 @@ class TestInvalidInputScenarios:
             "context": {"device": "invalid_device_type"}
         }
         
-        result = model.evaluate_access_request({})
+        result = model.evaluate_access_request(request_data)
         assert isinstance(result, dict)
     
     def test_circular_references(self):
@@ -146,7 +146,7 @@ class TestInvalidInputScenarios:
         circular_data["self"] = circular_data
         
         try:
-            result = hub.start_ooda_cycle()
+            result = hub.start_ooda_cycle(circular_data)
             assert isinstance(result, dict)
         except (ValueError, RecursionError):
             pass
@@ -165,7 +165,7 @@ class TestConcurrencyAndRaceConditions:
                 "type": "test",
                 "agents": [f"agent_{i}"]
             }
-            result = hub.start_ooda_cycle()
+            result = hub.create_workflow(workflow_data)
             results.append(result)
         
         assert len(results) == 10
@@ -184,7 +184,7 @@ class TestConcurrencyAndRaceConditions:
                 "action": "read",
                 "context": {"session_id": f"session_{i}"}
             }
-            result = model.evaluate_access_request({})
+            result = model.evaluate_access_request(request_data)
             results.append(result)
         
         assert len(results) == 20
@@ -205,7 +205,7 @@ class TestResourceLimitsAndMemory:
             "data_sources": [f"source_{i}" for i in range(100)]
         }
         
-        result = integration.create_dashboard({})
+        result = integration.create_dashboard(large_dashboard)
         assert isinstance(result, dict)
     
     def test_repeated_operations(self):
@@ -218,7 +218,7 @@ class TestResourceLimitsAndMemory:
                 "topic": f"topic_{i}",
                 "iteration": i
             }
-            result = engine.create_referral_program(content_data)
+            result = engine.generate_content(content_data)
             assert isinstance(result, dict)
 
 class TestDatabaseAndPersistenceEdgeCases:
@@ -231,7 +231,7 @@ class TestDatabaseAndPersistenceEdgeCases:
             mock_connect.side_effect = sqlite3.Error("Database connection failed")
             
             hub = MetaAgentDecisionHub()
-            result = hub.start_ooda_cycle()
+            result = hub.start_ooda_cycle({"test": "data"})
             assert isinstance(result, dict)
     
     def test_file_system_errors(self):
@@ -240,7 +240,7 @@ class TestDatabaseAndPersistenceEdgeCases:
             mock_open.side_effect = IOError("File system error")
             
             integration = QuickSightIntegration()
-            result = integration.create_dashboard({})
+            result = integration.create_dashboard({"name": "test"})
             assert isinstance(result, dict)
 
 class TestNetworkAndExternalServiceFailures:
@@ -252,7 +252,7 @@ class TestNetworkAndExternalServiceFailures:
             mock_get.side_effect = TimeoutError("Network timeout")
             
             integration = QuickSightIntegration()
-            result = integration.create_dashboard({"name": "test_dashboard"})
+            result = integration.get_insights("test_dashboard")
             assert isinstance(result, dict)
     
     def test_external_api_failure(self):
@@ -264,7 +264,7 @@ class TestNetworkAndExternalServiceFailures:
             mock_post.return_value = mock_response
             
             engine = GrowthMarketingEngine()
-            result = engine.create_referral_program({"type": "test"})
+            result = engine.generate_content({"type": "test"})
             assert isinstance(result, dict)
 
 class TestSecurityEdgeCases:
@@ -312,7 +312,7 @@ class TestAsyncEdgeCases:
             mock_sleep.side_effect = asyncio.TimeoutError("Operation timed out")
             
             try:
-                result = analysis.get_pending_reviews()
+                result = analysis.submit_for_analysis({"test": "data"})
                 assert isinstance(result, dict)
             except asyncio.TimeoutError:
                 pass
@@ -323,7 +323,7 @@ class TestAsyncEdgeCases:
         analysis = HITLSecurityAnalysis()
         
         task = asyncio.create_task(
-            analysis.get_pending_reviews()
+            asyncio.coroutine(lambda: analysis.get_pending_reviews())()
         )
         task.cancel()
         

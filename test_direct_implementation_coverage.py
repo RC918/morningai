@@ -66,7 +66,7 @@ class TestPhase4DirectImplementation:
         """Test LangGraphWorkflowEngine initialization"""
         engine = LangGraphWorkflowEngine()
         assert hasattr(engine, 'workflows')
-        assert hasattr(engine, 'active_executions')
+        assert hasattr(engine, 'execution_history')
     
     @pytest.mark.asyncio
     async def test_langgraph_create_workflow(self):
@@ -86,8 +86,8 @@ class TestPhase4DirectImplementation:
     def test_ai_governance_console_init(self):
         """Test AIGovernanceConsole initialization"""
         console = AIGovernanceConsole()
-        assert hasattr(console, 'governance_policies')
-        assert hasattr(console, 'audit_logs')
+        assert hasattr(console, 'policies')
+        assert hasattr(console, 'compliance_status')
     
     @pytest.mark.asyncio
     async def test_governance_status_check(self):
@@ -96,8 +96,8 @@ class TestPhase4DirectImplementation:
         result = await console.get_governance_status()
         
         assert isinstance(result, dict)
-        assert 'governance_score' in result
-        assert 'compliance_status' in result
+        assert 'overall_status' in result
+        assert 'policy_compliance' in result
 
 class TestPhase5DirectImplementation:
     """Direct testing of Phase 5 implementation classes"""
@@ -131,7 +131,7 @@ class TestPhase5DirectImplementation:
         result = await integration.get_dashboard_insights("test_dashboard")
         
         assert isinstance(result, dict)
-        assert 'error' in result or 'insights' in result
+        assert 'insights' in result
     
     def test_growth_marketing_engine_init(self):
         """Test GrowthMarketingEngine initialization"""
@@ -157,8 +157,8 @@ class TestPhase5DirectImplementation:
     def test_data_intelligence_platform_init(self):
         """Test DataIntelligencePlatform initialization"""
         platform = DataIntelligencePlatform()
-        assert hasattr(platform, 'analytics_cache')
-        assert hasattr(platform, 'growth_engine')
+        assert hasattr(platform, 'data_sources')
+        assert hasattr(platform, 'insights_cache')
     
     @pytest.mark.asyncio
     async def test_business_intelligence_summary(self):
@@ -213,27 +213,21 @@ class TestPhase6DirectImplementation:
     def test_security_reviewer_agent_init(self):
         """Test SecurityReviewerAgent initialization"""
         agent = SecurityReviewerAgent()
-        assert hasattr(agent, 'security_policies')
-        assert hasattr(agent, 'security_policies')
+        assert hasattr(agent, 'review_history')
+        assert hasattr(agent, 'threat_patterns')
     
     @pytest.mark.asyncio
     async def test_security_event_review_direct(self):
         """Test security event review directly"""
         agent = SecurityReviewerAgent()
-        from datetime import datetime
-        event = SecurityEvent(
-            event_id="test_event",
-            timestamp=datetime.now(),
-            event_type=ThreatType.UNAUTHORIZED_ACCESS,
-            severity=SecurityLevel.HIGH,
-            source_ip="192.168.1.100",
-            user_id="test_user",
-            description="Test security event",
-            risk_score=0.8,
-            requires_human_review=True
-        )
+        event_data = {
+            "event_id": "test_event",
+            "event_type": "unauthorized_access",
+            "severity": "high",
+            "source_ip": "192.168.1.100"
+        }
         
-        result = await agent.review_security_event(event)
+        result = await agent.review_security_event(event_data)
         assert isinstance(result, dict)
         assert 'review_id' in result
         assert 'confidence' in result
@@ -243,46 +237,34 @@ class TestPhase6DirectImplementation:
         """Test HITLSecurityAnalysis initialization"""
         analysis = HITLSecurityAnalysis()
         assert hasattr(analysis, 'pending_reviews')
-        assert hasattr(analysis, 'escalation_rules')
+        assert hasattr(analysis, 'review_queue')
     
     @pytest.mark.asyncio
     async def test_hitl_submit_for_review(self):
         """Test HITL review submission"""
         analysis = HITLSecurityAnalysis()
-        from datetime import datetime
-        event = SecurityEvent(
-            event_id="critical_event",
-            timestamp=datetime.now(),
-            event_type=ThreatType.DATA_BREACH,
-            severity=SecurityLevel.CRITICAL,
-            source_ip="192.168.1.100",
-            user_id="test_user",
-            description="Potential data breach",
-            risk_score=0.9,
-            requires_human_review=True
-        )
-        ai_analysis = {"confidence": 0.3, "risk_assessment": "high"}
+        event_data = {
+            "event_id": "critical_event",
+            "severity": "critical",
+            "description": "Potential data breach"
+        }
         
-        result = await analysis.submit_for_human_review(event, ai_analysis)
+        result = await analysis.submit_for_human_review(event_data)
         assert isinstance(result, dict)
-        assert 'request_id' in result
+        assert 'review_id' in result
         assert 'priority' in result
     
     def test_security_audit_system_init(self):
         """Test SecurityAuditSystem initialization"""
         audit_system = SecurityAuditSystem()
-        assert hasattr(audit_system, 'audit_reports')
+        assert hasattr(audit_system, 'audit_history')
         assert hasattr(audit_system, 'compliance_checks')
     
     @pytest.mark.asyncio
     async def test_security_audit_perform(self):
         """Test security audit performance"""
         audit_system = SecurityAuditSystem()
-        audit_scope = {
-            "systems": ["api", "database"],
-            "policies": ["access_control", "data_protection"]
-        }
-        result = await audit_system.perform_security_audit(audit_scope)
+        result = await audit_system.perform_security_audit()
         
         assert isinstance(result, dict)
         assert 'audit_id' in result
@@ -355,7 +337,7 @@ class TestErrorHandlingAndEdgeCases:
         """Test QuickSightIntegration error handling"""
         integration = QuickSightIntegration()
         
-        result = await integration.create_dashboard({})
+        result = await integration.create_dashboard(None)
         assert isinstance(result, dict)
     
     @pytest.mark.asyncio

@@ -55,7 +55,7 @@ class TestPhase4MetaAgentAPI:
     def test_meta_agent_start_ooda_cycle(self):
         """Test OODA cycle initiation"""
         hub = MetaAgentDecisionHub()
-        result = hub.start_ooda_cycle()
+        result = hub.start_ooda_cycle({})
         
         assert isinstance(result, dict)
         assert 'cycle_id' in result
@@ -66,12 +66,18 @@ class TestPhase4MetaAgentAPI:
     def test_meta_agent_create_workflow(self):
         """Test workflow creation"""
         hub = MetaAgentDecisionHub()
-        result = hub.start_ooda_cycle()
+        workflow_data = {
+            "name": "test_workflow",
+            "type": "decision_tree",
+            "agents": ["analyzer", "executor"]
+        }
+        result = hub.create_workflow(workflow_data)
         
         assert isinstance(result, dict)
-        assert 'cycle_id' in result
+        assert 'workflow_id' in result
         assert 'status' in result
-        assert 'timestamp' in result
+        assert 'name' in result
+        assert result['name'] == "test_workflow"
     
     def test_meta_agent_governance_status(self):
         """Test governance status retrieval"""
@@ -101,20 +107,28 @@ class TestPhase5DataIntelligenceAPI:
     def test_quicksight_create_dashboard(self):
         """Test dashboard creation"""
         integration = QuickSightIntegration()
-        result = integration.create_dashboard({})
+        dashboard_data = {
+            "name": "test_dashboard",
+            "data_source": "analytics_db",
+            "widgets": ["revenue_chart", "user_metrics"]
+        }
+        result = integration.create_dashboard(dashboard_data)
         
         assert isinstance(result, dict)
         assert 'dashboard_id' in result
         assert 'status' in result
+        assert 'name' in result
+        assert result['name'] == "test_dashboard"
     
     def test_quicksight_get_insights(self):
         """Test insights retrieval"""
         integration = QuickSightIntegration()
-        result = integration.create_dashboard({})
+        result = integration.get_insights("test_dashboard")
         
         assert isinstance(result, dict)
-        assert 'dashboard_id' in result
-        assert 'status' in result
+        assert 'insights' in result
+        assert 'metrics' in result
+        assert 'timestamp' in result
     
     def test_growth_marketing_engine_initialization(self):
         """Test GrowthMarketingEngine initialization"""
@@ -143,11 +157,18 @@ class TestPhase5DataIntelligenceAPI:
     def test_growth_marketing_generate_content(self):
         """Test content generation"""
         engine = GrowthMarketingEngine()
-        result = engine.create_referral_program({})
+        content_data = {
+            "type": "social_media_post",
+            "topic": "AI automation benefits",
+            "platform": "linkedin",
+            "tone": "professional"
+        }
+        result = engine.generate_content(content_data)
         
         assert isinstance(result, dict)
-        assert 'program_id' in result
-        assert 'status' in result
+        assert 'content_id' in result
+        assert 'content' in result
+        assert 'quality_score' in result
     
     def test_phase5_functionality_integration(self):
         """Test Phase 5 functionality integration"""
@@ -204,12 +225,19 @@ class TestPhase6SecurityGovernanceAPI:
     def test_zero_trust_evaluate_access_request(self):
         """Test access request evaluation"""
         model = ZeroTrustSecurityModel()
-        result = model.evaluate_access_request({})
+        request_data = {
+            "user_id": "user_123",
+            "resource": "sensitive_database",
+            "action": "read",
+            "context": {"location": "office", "device": "trusted"}
+        }
+        result = model.evaluate_access_request(request_data)
         
         assert isinstance(result, dict)
         assert 'decision' in result
         assert 'trust_score' in result
         assert 'risk_level' in result
+        assert result['decision'] in ['allow', 'deny', 'require_additional_auth']
     
     def test_security_reviewer_agent_initialization(self):
         """Test SecurityReviewerAgent initialization"""
@@ -221,7 +249,13 @@ class TestPhase6SecurityGovernanceAPI:
     def test_security_reviewer_review_event(self):
         """Test security event review"""
         agent = SecurityReviewerAgent()
-        result = agent.review_security_event({})
+        event_data = {
+            "event_id": "SEC_001",
+            "event_type": "unauthorized_access_attempt",
+            "severity": "high",
+            "source_ip": "192.168.1.100"
+        }
+        result = agent.review_security_event(event_data)
         
         assert isinstance(result, dict)
         assert 'review_id' in result
@@ -239,11 +273,19 @@ class TestPhase6SecurityGovernanceAPI:
     def test_hitl_submit_for_analysis(self):
         """Test HITL analysis submission"""
         analysis = HITLSecurityAnalysis()
-        result = analysis.get_pending_reviews()
+        analysis_data = {
+            "event_id": "SEC_001",
+            "analysis_type": "threat_assessment",
+            "analyst_id": "analyst_001",
+            "priority": "high"
+        }
+        result = analysis.submit_for_analysis(analysis_data)
         
         assert isinstance(result, dict)
-        assert 'pending_reviews' in result
-        assert 'total_count' in result
+        assert 'analysis_id' in result
+        assert 'status' in result
+        assert 'priority' in result
+        assert result['status'] == 'submitted'
     
     def test_hitl_get_pending_reviews(self):
         """Test pending reviews retrieval"""
