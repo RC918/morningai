@@ -1,0 +1,54 @@
+Name                                        Stmts   Miss  Cover   Missing
+-------------------------------------------------------------------------
+ai_governance_module.py                       267    267     0%   8-676
+env_schema_validator.py                       134    134     0%   7-408
+examine_api_responses.py                       49     49     0%   4-78
+fix_cloud_auth.py                             151    151     0%   6-209
+growth_strategist.py                           87     87     0%   7-172
+hitl_approval_system.py                       172    172     0%   7-397
+meta_agent_decision_hub.py                    285    285     0%   8-557
+monitoring_dashboard.py                       153    153     0%   7-312
+monitoring_system.py                          155    155     0%   7-334
+ops_agent.py                                   68     68     0%   7-160
+persistent_state_manager.py                   196    196     0%   7-494
+phase4_meta_agent_api.py                      192     35    82%   79, 84, 381-449, 452
+phase5_data_intelligence_api.py               173     51    71%   190-193, 226, 451-533, 536
+phase6_security_governance_api.py             392    110    72%   130, 144-145, 149-150, 169, 171, 239-240, 260-261, 272-274, 296, 301-307, 314-322, 353, 401, 405, 412, 563, 567-571, 586, 599, 605, 608-614, 619, 622-630, 653-654, 662, 664-667, 680, 697-699, 703-705, 731-822, 825
+phase6_startup.py                             184    184     0%   7-315
+phase7_startup.py                             216    216     0%   7-346
+pm_agent.py                                   109    109     0%   7-266
+report_generator.py                           195    195     0%   7-414
+resilience_patterns.py                        144    144     0%   7-237
+run_comprehensive_tests.py                     66     66     0%   5-118
+saga_orchestrator.py                          181    181     0%   7-309
+security_manager.py                           170    170     0%   6-363
+test_acceptance_criteria.py                   152    152     0%   7-245
+test_additional_coverage.py                   248    248     0%   7-589
+test_async_functions_fixed.py                 168    168     0%   7-330
+test_backend_reorganization.py                133    133     0%   7-195
+test_cloud_connections.py                     152    152     0%   7-218
+test_core_modules_comprehensive.py            225    225     0%   7-490
+test_direct_implementation_coverage.py        209    209     0%   7-370
+test_edge_cases_comprehensive.py              183    183     0%   7-354
+test_environment_scenarios.py                 190    190     0%   7-300
+test_failure_simulation.py                    179    179     0%   7-299
+test_flask_imports.py                          27     27     0%   6-42
+test_phase4_6_advanced_coverage.py            271      1    99%   602
+test_phase4_6_comprehensive.py                218    218     0%   7-485
+test_phase4_6_corrected.py                    115    115     0%   7-302
+test_phase4_6_integrated.py                   201    201     0%   7-502
+test_phase6_8_comprehensive.py                180    180     0%   7-512
+test_phase6_components.py                      74     74     0%   7-131
+test_phase7_components.py                     183    183     0%   7-283
+test_phase8_backend.py                        125    125     0%   7-187
+test_resilience_patterns.py                   189    189     0%   7-306
+test_service_restart.py                        93     93     0%   7-200
+test_targeted_coverage_improvement.py         206    206     0%   7-431
+test_uncovered_functions_comprehensive.py     253      2    99%   485, 567
+test_unit_comprehensive.py                    212    212     0%   7-349
+test_zero_coverage_modules.py                 182    182     0%   7-341
+validate_env_vars.py                           36     36     0%   6-62
+validate_workflow_yaml.py                      32     32     0%   6-49
+verify_deployment.py                           73     73     0%   5-112
+-------------------------------------------------------------------------
+TOTAL                                        8248   7166    13%

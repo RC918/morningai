@@ -1,0 +1,50 @@
+Name                                     Stmts   Miss  Cover   Missing
+----------------------------------------------------------------------
+ai_governance_module.py                    267    267     0%   8-676
+env_schema_validator.py                    134    134     0%   7-408
+examine_api_responses.py                    49     49     0%   4-78
+fix_cloud_auth.py                          151    151     0%   6-209
+growth_strategist.py                        87     87     0%   7-172
+hitl_approval_system.py                    172    172     0%   7-397
+meta_agent_decision_hub.py                 285    285     0%   8-557
+monitoring_dashboard.py                    153    153     0%   7-312
+monitoring_system.py                       155    155     0%   7-334
+ops_agent.py                                68     68     0%   7-160
+persistent_state_manager.py                196    196     0%   7-494
+phase4_meta_agent_api.py                   192     80    58%   79, 84, 141, 143, 158, 160, 162, 168-200, 204-210, 221-226, 279-301, 334-348, 361, 365, 369, 373, 377, 381-449, 452
+phase5_data_intelligence_api.py            173     72    58%   92-121, 131-165, 190-193, 225-249, 253-301, 423, 427, 431, 435, 439, 443, 447, 451-533, 536
+phase6_security_governance_api.py          372    175    53%   111-112, 118, 123, 130, 144-145, 149-150, 153-154, 157-158, 169, 171, 182, 195-204, 239-240, 260-261, 264-265, 272-274, 296, 301-307, 311-342, 353, 400-405, 411-414, 418-429, 554, 558-625, 629-693, 697, 701, 705-796, 799
+phase6_startup.py                          184    184     0%   7-315
+phase7_startup.py                          216    216     0%   7-346
+pm_agent.py                                109    109     0%   7-266
+report_generator.py                        195    195     0%   7-414
+resilience_patterns.py                     144    144     0%   7-237
+run_comprehensive_tests.py                  66     66     0%   5-118
+saga_orchestrator.py                       181    181     0%   7-309
+security_manager.py                        170    170     0%   6-363
+test_acceptance_criteria.py                152    152     0%   7-245
+test_additional_coverage.py                248    248     0%   7-589
+test_backend_reorganization.py             133    133     0%   7-195
+test_cloud_connections.py                  152    152     0%   7-218
+test_core_modules_comprehensive.py         225    225     0%   7-490
+test_direct_implementation_coverage.py     209      1    99%   370
+test_edge_cases_comprehensive.py           183    183     0%   7-354
+test_environment_scenarios.py              190    190     0%   7-300
+test_failure_simulation.py                 179    179     0%   7-299
+test_flask_imports.py                       27     27     0%   6-42
+test_phase4_6_comprehensive.py             218    218     0%   7-485
+test_phase4_6_corrected.py                 115    115     0%   7-302
+test_phase4_6_integrated.py                201    201     0%   7-502
+test_phase6_8_comprehensive.py             180    180     0%   7-512
+test_phase6_components.py                   74     74     0%   7-131
+test_phase7_components.py                  183    183     0%   7-283
+test_phase8_backend.py                     125    125     0%   7-187
+test_resilience_patterns.py                189    189     0%   7-306
+test_service_restart.py                     93     93     0%   7-200
+test_targeted_coverage_improvement.py      206    206     0%   7-431
+test_unit_comprehensive.py                 212    212     0%   7-349
+validate_env_vars.py                        36     36     0%   6-62
+validate_workflow_yaml.py                   32     32     0%   6-49
+verify_deployment.py                        73     73     0%   5-112
+----------------------------------------------------------------------
+TOTAL                                     7354   6736     8%

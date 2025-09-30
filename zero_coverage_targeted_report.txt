@@ -1,0 +1,55 @@
+Name                                        Stmts   Miss  Cover   Missing
+-------------------------------------------------------------------------
+ai_governance_module.py                       267    267     0%   8-676
+env_schema_validator.py                       134    134     0%   7-408
+examine_api_responses.py                       49     49     0%   4-78
+fix_cloud_auth.py                             151    151     0%   6-209
+growth_strategist.py                           87     39    55%   83-85, 89-99, 109-128, 139-146, 154-168, 172
+hitl_approval_system.py                       172    172     0%   7-397
+meta_agent_decision_hub.py                    285    285     0%   8-557
+monitoring_dashboard.py                       153    153     0%   7-312
+monitoring_system.py                          155    155     0%   7-334
+ops_agent.py                                   68     68     0%   7-160
+persistent_state_manager.py                   196    135    31%   153-174, 178-199, 203-231, 235-257, 261-283, 306-308, 312-342, 346-372, 376-393, 397-415, 419-429, 433-445, 450-461, 465-492
+phase4_meta_agent_api.py                      192    192     0%   7-452
+phase5_data_intelligence_api.py               173    173     0%   7-536
+phase6_security_governance_api.py             392    392     0%   7-825
+phase6_startup.py                             184    184     0%   7-315
+phase7_startup.py                             216    216     0%   7-346
+pm_agent.py                                   109    109     0%   7-266
+report_generator.py                           195    195     0%   7-414
+resilience_patterns.py                        144     88    39%   43-47, 51-71, 75-82, 86-94, 98-102, 106, 121-126, 130-148, 152, 165-167, 171-185, 197-199, 203-205, 209-218, 222
+run_comprehensive_tests.py                     66     66     0%   5-118
+saga_orchestrator.py                          181    181     0%   7-309
+security_manager.py                           170    170     0%   6-363
+test_acceptance_criteria.py                   152    152     0%   7-245
+test_additional_coverage.py                   248    248     0%   7-589
+test_async_functions_fixed.py                 168    168     0%   7-330
+test_backend_reorganization.py                133    133     0%   7-195
+test_cloud_connections.py                     152    152     0%   7-218
+test_core_modules_comprehensive.py            225    225     0%   7-490
+test_direct_implementation_coverage.py        209    209     0%   7-370
+test_edge_cases_comprehensive.py              183    183     0%   7-354
+test_environment_scenarios.py                 190    190     0%   7-300
+test_failure_simulation.py                    179    179     0%   7-299
+test_flask_imports.py                          27     27     0%   6-42
+test_phase4_6_advanced_coverage.py            271    271     0%   7-602
+test_phase4_6_comprehensive.py                218    218     0%   7-485
+test_phase4_6_corrected.py                    115    115     0%   7-302
+test_phase4_6_integrated.py                   201    201     0%   7-502
+test_phase6_8_comprehensive.py                180    180     0%   7-512
+test_phase6_components.py                      74     74     0%   7-131
+test_phase7_components.py                     183    183     0%   7-283
+test_phase8_backend.py                        125    125     0%   7-187
+test_resilience_patterns.py                   189    189     0%   7-306
+test_service_restart.py                        93     93     0%   7-200
+test_targeted_coverage_improvement.py         206    206     0%   7-431
+test_uncovered_functions_comprehensive.py     253    253     0%   7-567
+test_unit_comprehensive.py                    212    212     0%   7-349
+test_zero_coverage_modules.py                 182    182     0%   7-341
+test_zero_coverage_targeted.py                128     41    68%   17-20, 29-35, 51-52, 72-74, 83-85, 108-110, 119-129, 152-154, 163-172, 199-201, 210-220, 237
+validate_env_vars.py                           36     36     0%   6-62
+validate_workflow_yaml.py                      32     32     0%   6-49
+verify_deployment.py                           73     73     0%   5-112
+-------------------------------------------------------------------------
+TOTAL                                        8376   8124     3%

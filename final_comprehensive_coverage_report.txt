@@ -1,0 +1,47 @@
+Name                                     Stmts   Miss  Cover   Missing
+----------------------------------------------------------------------
+ai_governance_module.py                    267    267     0%   8-676
+env_schema_validator.py                    134    134     0%   7-408
+examine_api_responses.py                    49     49     0%   4-78
+fix_cloud_auth.py                          151    151     0%   6-209
+growth_strategist.py                        87     87     0%   7-172
+hitl_approval_system.py                    172    172     0%   7-397
+meta_agent_decision_hub.py                 285    285     0%   8-557
+monitoring_dashboard.py                    153    153     0%   7-312
+monitoring_system.py                       155    155     0%   7-334
+ops_agent.py                                68     68     0%   7-160
+persistent_state_manager.py                196    196     0%   7-494
+phase4_meta_agent_api.py                   192    116    40%   65-108, 112, 124, 136-145, 155-164, 168-200, 204-210, 221-226, 243-269, 279-301, 313, 334-348, 361, 365, 369, 373, 377, 381-449, 452
+phase5_data_intelligence_api.py            173    110    36%   50-79, 89-121, 131-165, 184-215, 225-249, 253-301, 325-331, 354, 366, 377, 388-417, 423, 427, 431, 435, 439, 443, 447, 451-533, 536
+phase6_security_governance_api.py          372    157    58%   111-112, 118, 121, 130, 144-145, 149-150, 157-158, 169, 171, 175, 182, 188, 204, 239-240, 260-261, 272-274, 296, 301-307, 311-342, 353, 373-388, 398-405, 409-414, 418-429, 447-475, 479, 496, 512, 529, 533-545, 565-566, 593-598, 602-609, 629-693, 697, 701, 765-796, 799
+phase6_startup.py                          184    184     0%   7-315
+phase7_startup.py                          216    216     0%   7-346
+pm_agent.py                                109    109     0%   7-266
+report_generator.py                        195    195     0%   7-414
+resilience_patterns.py                     144    144     0%   7-237
+run_comprehensive_tests.py                  66     66     0%   5-118
+saga_orchestrator.py                       181    181     0%   7-309
+security_manager.py                        170    170     0%   6-363
+test_acceptance_criteria.py                152    152     0%   7-245
+test_backend_reorganization.py             133    133     0%   7-195
+test_cloud_connections.py                  152    152     0%   7-218
+test_direct_implementation_coverage.py     209    209     0%   7-370
+test_edge_cases_comprehensive.py           183     44    76%   31-34, 43-49, 64, 77, 108-114, 124-125, 150, 152, 169-173, 193, 222, 235, 256, 268, 301, 316, 318, 328-333, 342-351
+test_environment_scenarios.py              190    190     0%   7-300
+test_failure_simulation.py                 179    179     0%   7-299
+test_flask_imports.py                       27     27     0%   6-42
+test_phase4_6_comprehensive.py             218     11    95%   59-60, 387, 389, 394, 396, 402-403, 414-417
+test_phase4_6_corrected.py                 115    115     0%   7-302
+test_phase4_6_integrated.py                201    201     0%   7-502
+test_phase6_8_comprehensive.py             180    180     0%   7-512
+test_phase6_components.py                   74     74     0%   7-131
+test_phase7_components.py                  183    183     0%   7-283
+test_phase8_backend.py                     125    125     0%   7-187
+test_resilience_patterns.py                189    189     0%   7-306
+test_service_restart.py                     93     93     0%   7-200
+test_unit_comprehensive.py                 226     80    65%   43-45, 53, 60-64, 76-80, 87-90, 118-121, 128-131, 152-155, 168-171, 184-186, 199-202, 213-216, 237-240, 261-264, 271, 284-288, 296-298, 304, 314-318, 327-328, 337-338, 350-355, 374, 381-382, 388
+validate_env_vars.py                        36     36     0%   6-62
+validate_workflow_yaml.py                   32     32     0%   6-49
+verify_deployment.py                        73     73     0%   5-112
+----------------------------------------------------------------------
+TOTAL                                     6689   5843    13%
