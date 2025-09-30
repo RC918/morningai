@@ -55,7 +55,7 @@ app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 
 if BACKEND_SERVICES_AVAILABLE:
     try:
-        app.register_blueprint(mock_api, url_prefix='/api')
+        app.register_blueprint(mock_api)
     except NameError:
         pass
 
