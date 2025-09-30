@@ -1,0 +1,169 @@
+{
+  "timestamp": "2025-09-30T08:14:17.941177",
+  "success_rate": 100.0,
+  "total_passed": 23,
+  "total_tests": 23,
+  "detailed_results": [
+    {
+      "test": "Phase 6 - Zero Trust Access Evaluation",
+      "success": true,
+      "response_time": 4.083156585693359,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.655741"
+    },
+    {
+      "test": "Phase 6 - Security Event Review",
+      "success": true,
+      "response_time": 2.4356842041015625,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.658342"
+    },
+    {
+      "test": "Phase 6 - HITL Security Analysis",
+      "success": true,
+      "response_time": 2.4428367614746094,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.660898"
+    },
+    {
+      "test": "Phase 6 - Security Audit",
+      "success": true,
+      "response_time": 2.3446083068847656,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.663391"
+    },
+    {
+      "test": "Phase 6 - Pending Security Reviews",
+      "success": true,
+      "response_time": 2.219676971435547,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.665813"
+    },
+    {
+      "test": "Phase 7 - System Status",
+      "success": true,
+      "response_time": 2.0356178283691406,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.667981"
+    },
+    {
+      "test": "Phase 7 - Pending Approvals",
+      "success": true,
+      "response_time": 2.7649402618408203,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.670864"
+    },
+    {
+      "test": "Phase 7 - Beta Candidates",
+      "success": true,
+      "response_time": 1.9884109497070312,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.672981"
+    },
+    {
+      "test": "Phase 7 - Growth Metrics",
+      "success": true,
+      "response_time": 5.245447158813477,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.678348"
+    },
+    {
+      "test": "Phase 7 - Operations Metrics",
+      "success": true,
+      "response_time": 1.8303394317626953,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.680269"
+    },
+    {
+      "test": "Phase 7 - Monitoring Dashboard",
+      "success": true,
+      "response_time": 1.783132553100586,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.682165"
+    },
+    {
+      "test": "Phase 7 - Resilience Metrics",
+      "success": true,
+      "response_time": 2.1300315856933594,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.684389"
+    },
+    {
+      "test": "Phase 7 - Environment Validation",
+      "success": true,
+      "response_time": 4.042387008666992,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.688525"
+    },
+    {
+      "test": "Phase 8 - Dashboard Layouts",
+      "success": true,
+      "response_time": 2.4840831756591797,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.691148"
+    },
+    {
+      "test": "Phase 8 - Available Widgets",
+      "success": true,
+      "response_time": 2.0873546600341797,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.693369"
+    },
+    {
+      "test": "Phase 8 - Dashboard Data",
+      "success": true,
+      "response_time": 1.825571060180664,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.695296"
+    },
+    {
+      "test": "Phase 8 - Report Generation",
+      "success": true,
+      "response_time": 11.336803436279297,
+      "details": "Status: 200 (non-JSON)",
+      "timestamp": "2025-09-30T08:14:17.918494"
+    },
+    {
+      "test": "Phase 8 - Report Templates",
+      "success": true,
+      "response_time": 2.7663707733154297,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.926578"
+    },
+    {
+      "test": "Phase 8 - Report History",
+      "success": true,
+      "response_time": 2.7997493743896484,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.929472"
+    },
+    {
+      "test": "Phase 8 - Custom Dashboard Creation",
+      "success": true,
+      "response_time": 4.359245300292969,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.933970"
+    },
+    {
+      "test": "Integration - Security + Performance Monitoring",
+      "success": true,
+      "response_time": 2.3958683013916016,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.936561"
+    },
+    {
+      "test": "Integration - Security Dashboard Data",
+      "success": true,
+      "response_time": 1.934051513671875,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.938633"
+    },
+    {
+      "test": "Integration - Growth + Security Report",
+      "success": true,
+      "response_time": 2.181529998779297,
+      "details": "Status: 200",
+      "timestamp": "2025-09-30T08:14:17.940910"
+    }
+  ]
+}

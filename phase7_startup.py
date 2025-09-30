@@ -28,6 +28,10 @@ class Phase7System:
     """Phase 7 system coordinator"""
     
     def __init__(self, config_path: str = "phase7_config.yaml"):
+        # Initialize basic logger first for config loading
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger(__name__)
+        
         self.config = self._load_config(config_path)
         self.logger = self._setup_logging()
         
