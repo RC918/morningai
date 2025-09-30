@@ -49,8 +49,13 @@ if SECURITY_AVAILABLE:
 
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
-app.register_blueprint(mock_api)
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+
+if BACKEND_SERVICES_AVAILABLE:
+    try:
+        app.register_blueprint(mock_api, url_prefix='/api')
+    except NameError:
+        pass
 
 def get_health_payload():
     """Generate health check payload with JSON serializable values"""

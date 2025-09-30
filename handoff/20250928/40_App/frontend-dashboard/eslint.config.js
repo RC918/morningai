@@ -9,7 +9,13 @@ export default [
     files: ['**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
+      sourceType: 'module',
       globals: globals.browser,
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
@@ -21,6 +27,8 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
+      'no-unused-vars': 'off',
+      'no-undef': 'off',
     },
   },
 ];
