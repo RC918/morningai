@@ -57,8 +57,9 @@ jobs:
             code=$(curl_code "/api/security/reviews/pending")
             echo "/api/security/reviews/pending code=$code"
             case "$code" in
-              200|401|403) : ;;  # 視為保護正常生效
-              *) echo "::error::expected 200/401/403 without JWT, got $code"; exit 1;;
+              401|403) echo "✅ Security endpoint properly protected" ;;
+              200) echo "::warning::Security endpoint accessible without auth - check JWT enforcement" ;;
+              *) echo "::error::unexpected response code $code"; exit 1;;
             esac
           fi
 

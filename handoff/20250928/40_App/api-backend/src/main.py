@@ -27,6 +27,7 @@ try:
     from services.monitoring_dashboard import monitoring_dashboard
     from services.report_generator import report_generator
     from utils.env_schema_validator import validate_environment
+    from routes.mock_api import mock_api
     BACKEND_SERVICES_AVAILABLE = True
 except ImportError:
     BACKEND_SERVICES_AVAILABLE = False
@@ -48,6 +49,7 @@ if SECURITY_AVAILABLE:
 
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(mock_api)
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 
 def get_health_payload():
@@ -732,10 +734,10 @@ def submit_hitl_review():
         return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
     try:
         import asyncio
+        data = request.json or {}
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        data = request.json or {}
-        result = loop.run_until_complete(api_submit_hitl_review(request.json or {}))
+        result = loop.run_until_complete(api_submit_hitl_review(data))
         loop.close()
         return jsonify(result)
     except Exception as e:

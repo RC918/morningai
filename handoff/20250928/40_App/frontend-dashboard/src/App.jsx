@@ -8,7 +8,10 @@ import DecisionApproval from '@/components/DecisionApproval'
 import HistoryAnalysis from '@/components/HistoryAnalysis'
 import CostAnalysis from '@/components/CostAnalysis'
 import SystemSettings from '@/components/SystemSettings'
+import CheckoutPage from '@/components/CheckoutPage'
+import SettingsPageSkeleton from '@/components/SettingsPageSkeleton'
 import LoginPage from '@/components/LoginPage'
+import { applyDesignTokens } from '@/lib/design-tokens'
 import './App.css'
 
 function App() {
@@ -46,6 +49,7 @@ function App() {
     }
 
     checkAuth()
+    applyDesignTokens()
   }, [])
 
   const handleLogin = (userData, token) => {
@@ -85,7 +89,8 @@ function App() {
             <Route path="/approvals" element={<DecisionApproval />} />
             <Route path="/history" element={<HistoryAnalysis />} />
             <Route path="/costs" element={<CostAnalysis />} />
-            <Route path="/settings" element={<SystemSettings />} />
+            <Route path="/settings" element={<SettingsPageSkeleton />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
           </Routes>
         </main>
         
