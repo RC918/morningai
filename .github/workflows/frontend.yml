@@ -18,3 +18,8 @@ jobs:
           cd handoff/20250928/40_App/frontend-dashboard
           npm run build
           npm run lint
+      
+      - name: Smoke Tests
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          npm run test:smoke

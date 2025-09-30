@@ -1,11 +1,11 @@
-from src.routes.billing import bp as billing_bp
-
 import os
 import sys
 import datetime
 import asyncio
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from src.routes.billing import bp as billing_bp
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db

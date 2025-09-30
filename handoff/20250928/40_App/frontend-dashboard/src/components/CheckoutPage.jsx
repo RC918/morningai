@@ -15,7 +15,8 @@ import {
   Zap,
   Users,
   Clock,
-  DollarSign
+  DollarSign,
+  Settings
 } from 'lucide-react'
 import { colors, spacing, typography } from '@/lib/design-tokens'
 
@@ -25,46 +26,138 @@ const CheckoutPage = () => {
   const [selectedPlan, setSelectedPlan] = useState('pro')
   const [selectedPayment, setSelectedPayment] = useState('credit_card')
   const [discountCode, setDiscountCode] = useState('')
+  const [useMockData, setUseMockData] = useState(false)
+  const [billingPlans, setBillingPlans] = useState([])
 
   useEffect(() => {
     loadCheckoutData()
-  }, [])
+  }, [useMockData])
+
+  const loadBillingPlans = async () => {
+    try {
+      const response = await fetch('/api/billing/plans')
+      if (response.ok) {
+        const data = await response.json()
+        return data.plans || []
+      }
+      throw new Error('Failed to fetch billing plans')
+    } catch (error) {
+      console.error('Failed to load billing plans:', error)
+      return []
+    }
+  }
 
   const loadCheckoutData = async () => {
     try {
-      const response = await fetch('/api/checkout/mock')
-      const data = await response.json()
-      setCheckoutData(data)
+      if (useMockData) {
+        const response = await fetch('/api/checkout/mock')
+        const data = await response.json()
+        setCheckoutData(data)
+        setBillingPlans(data.pricing_tiers || [])
+      } else {
+        const plans = await loadBillingPlans()
+        setBillingPlans(plans)
+        
+        const mockResponse = await fetch('/api/checkout/mock')
+        const mockData = await mockResponse.json()
+        
+        setCheckoutData({
+          ...mockData,
+          pricing_tiers: plans.map(plan => ({
+            id: plan.id,
+            name: plan.name,
+            price: plan.price,
+            billing: plan.interval,
+            currency: plan.currency,
+            popular: plan.id === 'pro',
+            features: getFeaturesByPlan(plan.id)
+          }))
+        })
+      }
       setLoading(false)
     } catch (error) {
       console.error('Failed to load checkout data:', error)
+      setUseMockData(true)
       setLoading(false)
     }
   }
 
+  const getFeaturesByPlan = (planId) => {
+    const features = {
+      starter: [
+        '基礎 AI 助手功能',
+        '每月 100 次查詢',
+        '標準客服支援',
+        '基礎報表功能'
+      ],
+      pro: [
+        '進階 AI 助手功能',
+        '每月 1000 次查詢',
+        '優先客服支援',
+        '進階報表與分析',
+        '自訂工作流程',
+        'API 存取權限'
+      ],
+      enterprise: [
+        '完整 AI 助手功能',
+        '無限制查詢',
+        '專屬客服經理',
+        '完整報表與分析',
+        '自訂工作流程',
+        '完整 API 存取',
+        '單點登入 (SSO)',
+        '專屬部署選項'
+      ]
+    }
+    return features[planId] || features.starter
+  }
+
   const handleCheckout = async () => {
     try {
-      const response = await fetch('/api/checkout/mock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plan: selectedPlan,
-          payment_method: selectedPayment,
-          discount_code: discountCode
+      if (useMockData) {
+        const response = await fetch('/api/checkout/mock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan: selectedPlan,
+            payment_method: selectedPayment,
+            discount_code: discountCode
+          })
         })
-      })
-      const result = await response.json()
-      
-      if (result.success) {
-        window.location.href = result.checkout_session.payment_url
+        const result = await response.json()
+        
+        if (result.success) {
+          window.location.href = result.checkout_session.payment_url
+        }
+      } else {
+        const response = await fetch('/api/billing/checkout/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan_id: selectedPlan,
+            payment_method: selectedPayment,
+            discount_code: discountCode
+          })
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          if (result.redirect_url) {
+            window.location.href = result.redirect_url
+          }
+        } else {
+          throw new Error('Checkout session creation failed')
+        }
       }
     } catch (error) {
       console.error('Checkout failed:', error)
+      alert('結帳失敗，請稍後再試')
     }
   }
 
   const getPlanIcon = (planId) => {
     switch (planId) {
+      case 'starter': return <Zap className="w-6 h-6" />
       case 'basic': return <Zap className="w-6 h-6" />
       case 'pro': return <Star className="w-6 h-6" />
       case 'enterprise': return <Users className="w-6 h-6" />
@@ -104,8 +197,23 @@ const CheckoutPage = () => {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">選擇您的方案</h1>
-        <p className="text-gray-600">升級到 Morning AI Pro，解鎖更多強大功能</p>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">選擇您的方案</h1>
+            <p className="text-gray-600">升級到 Morning AI Pro，解鎖更多強大功能</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Settings className="w-4 h-4" />
+            <Label htmlFor="mock-toggle" className="text-sm">使用測試資料</Label>
+            <input
+              id="mock-toggle"
+              type="checkbox"
+              checked={useMockData}
+              onChange={(e) => setUseMockData(e.target.checked)}
+              className="rounded"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
