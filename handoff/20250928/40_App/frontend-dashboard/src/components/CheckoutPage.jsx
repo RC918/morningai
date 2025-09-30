@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,7 +31,7 @@ const CheckoutPage = () => {
 
   useEffect(() => {
     loadCheckoutData()
-  }, [useMockData])
+  }, [useMockData, loadCheckoutData])
 
   const loadBillingPlans = async () => {
     try {
@@ -47,7 +47,7 @@ const CheckoutPage = () => {
     }
   }
 
-  const loadCheckoutData = async () => {
+  const loadCheckoutData = useCallback(async () => {
     try {
       if (useMockData) {
         const response = await fetch('/api/checkout/mock')
@@ -80,7 +80,7 @@ const CheckoutPage = () => {
       setUseMockData(true)
       setLoading(false)
     }
-  }
+  }, [useMockData])
 
   const getFeaturesByPlan = (planId) => {
     const features = {

@@ -108,10 +108,13 @@ const Dashboard = () => {
   ])
 
   useEffect(() => {
-    loadDashboardLayout()
-    loadAvailableWidgets()
-    loadDashboardData()
-  }, [])
+    const initializeDashboard = async () => {
+      await loadDashboardLayout()
+      await loadAvailableWidgets()
+      await loadDashboardData()
+    }
+    initializeDashboard()
+  }, [loadDashboardLayout, loadAvailableWidgets, loadDashboardData])
 
   useEffect(() => {
     // 模擬實時數據更新
@@ -129,9 +132,9 @@ const Dashboard = () => {
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [isEditMode])
+  }, [isEditMode, loadDashboardData])
 
-  const loadDashboardLayout = async () => {
+  const loadDashboardLayout = useCallback(async () => {
     try {
       const response = await fetch('/api/dashboard/layouts?user_id=default')
       const layout = await response.json()
@@ -147,9 +150,9 @@ const Dashboard = () => {
       console.error('Failed to load dashboard layout:', error)
       setDashboardLayout(getDefaultWidgets())
     }
-  }
+  }, [])
 
-  const loadAvailableWidgets = async () => {
+  const loadAvailableWidgets = useCallback(async () => {
     try {
       const response = await fetch('/api/dashboard/widgets/available')
       const widgets = await response.json()
@@ -157,9 +160,9 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Failed to load available widgets:', error)
     }
-  }
+  }, [])
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       const response = await fetch('/api/dashboard/data')
       const data = await response.json()
@@ -171,7 +174,7 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
     }
-  }
+  }, [])
 
   const saveDashboardLayout = async () => {
     try {
