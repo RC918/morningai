@@ -39,8 +39,8 @@ const tests = [
       if (!fs.existsSync(checkoutPath)) return false;
       
       const content = fs.readFileSync(checkoutPath, 'utf8');
-      return content.includes('/api/billing/plans') && 
-             content.includes('/api/billing/checkout/session') &&
+      return content.includes('apiClient.getBillingPlans') && 
+             content.includes('apiClient.createCheckoutSession') &&
              content.includes('useMockData');
     }
   },
