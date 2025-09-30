@@ -1,0 +1,46 @@
+name: PR Guard (Design/Backend Split)
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, edited]
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect PR labels
+        id: lbl
+        run: |
+          echo "labels=$(jq -r '[.pull_request.labels[].name]|join(\",\")' $GITHUB_EVENT_PATH)" >> $GITHUB_OUTPUT
+
+      - name: List changed files
+        id: diff
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed.txt
+          echo "changed=$(tr '\n' ',' < changed.txt)" >> $GITHUB_OUTPUT
+          echo "---- Changed files ----"; cat changed.txt || true
+
+      - name: Enforce label presence
+        run: |
+          LBL="${{ steps.lbl.outputs.labels }}"
+          if [ -z "$LBL" ] || [ "$LBL" = "null" ]; then
+            echo "❌ 請先為 PR 加上 label（design/ux 或 backend/security/agent 等）"
+            exit 1
+          fi
+
+      - name: Block Design PR from touching API/backend
+        if: contains(steps.lbl.outputs.labels, 'design') || contains(steps.lbl.outputs.labels, 'ux')
+        run: |
+          BAD=$(grep -E '(^|,)(handoff/.*/30_API/openapi/|.*/api/|.*/src/)' changed.txt || true)
+          if [ -n "$BAD" ]; then
+            echo "❌ Design PR 不可修改 API/後端："; echo "$BAD"; exit 1
+          fi
+
+      - name: Block Backend PR from touching UX folder
+        if: contains(steps.lbl.outputs.labels, 'backend') || contains(steps.lbl.outputs.labels, 'security') || contains(steps.lbl.outputs.labels, 'agent')
+        run: |
+          BAD=$(grep -E '(^|,)docs/UX/' changed.txt || true)
+          if [ -n "$BAD" ]; then
+            echo "❌ Backend PR 不可修改 docs/UX/**："; echo "$BAD"; exit 1
+          fi
