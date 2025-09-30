@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 
 class Phase456IntegratedTestSuite:
-    def __init__(self, base_url="http://127.0.0.1:10001"):
+    def __init__(self, base_url="http://127.0.0.1:5001"):
         self.base_url = base_url
         self.results = []
         self.start_time = datetime.now()

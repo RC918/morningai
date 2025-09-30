@@ -755,10 +755,7 @@ def submit_hitl_review():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         data = request.json or {}
-        result = loop.run_until_complete(api_submit_hitl_review(
-            data.get('event_data'), 
-            data.get('ai_analysis')
-        ))
+        result = loop.run_until_complete(api_submit_hitl_review(request.json or {}))
         loop.close()
         return jsonify(result)
     except Exception as e:

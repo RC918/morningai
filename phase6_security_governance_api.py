@@ -544,31 +544,138 @@ async def api_evaluate_access_request(access_request: Dict[str, Any]):
 
 async def api_review_security_event(event_data: Dict[str, Any]):
     """API: 審查安全事件"""
+    import time
+    
+    event_id = event_data.get('event_id', f"evt_{int(time.time())}")
+    timestamp = datetime.now()
+    if 'timestamp' in event_data:
+        try:
+            timestamp = datetime.fromisoformat(event_data['timestamp'])
+        except:
+            pass
+    
+    event_type_mapping = {
+        'suspicious_login': ThreatType.UNAUTHORIZED_ACCESS,
+        'data_access_anomaly': ThreatType.ANOMALOUS_BEHAVIOR,
+        'unauthorized_access': ThreatType.UNAUTHORIZED_ACCESS,
+        'data_breach': ThreatType.DATA_BREACH,
+        'malicious_activity': ThreatType.MALICIOUS_ACTIVITY,
+        'policy_violation': ThreatType.POLICY_VIOLATION,
+        'anomalous_behavior': ThreatType.ANOMALOUS_BEHAVIOR
+    }
+    
+    event_type_str = event_data.get('event_type', 'anomalous_behavior')
+    event_type = event_type_mapping.get(event_type_str, ThreatType.ANOMALOUS_BEHAVIOR)
+    
+    severity_mapping = {
+        'low': SecurityLevel.LOW,
+        'medium': SecurityLevel.MEDIUM,
+        'high': SecurityLevel.HIGH,
+        'critical': SecurityLevel.CRITICAL
+    }
+    
+    severity_str = event_data.get('severity', 'medium')
+    severity = severity_mapping.get(severity_str, SecurityLevel.MEDIUM)
+    
+    description = event_data.get('description', f"Security event: {event_type_str}")
+    if 'details' in event_data:
+        details = event_data['details']
+        if isinstance(details, dict):
+            detail_parts = []
+            for key, value in details.items():
+                detail_parts.append(f"{key}: {value}")
+            description += f" - {', '.join(detail_parts)}"
+    
+    risk_score = event_data.get('risk_score', 0.5)
+    if 'details' in event_data:
+        details = event_data['details']
+        if isinstance(details, dict):
+            if details.get('failed_attempts', 0) > 2:
+                risk_score += 0.2
+            if details.get('unusual_location'):
+                risk_score += 0.15
+            if details.get('device_fingerprint') == 'unknown':
+                risk_score += 0.1
+    
+    risk_score = min(1.0, risk_score)
+    
     event = SecurityEvent(
-        event_id=event_data['event_id'],
-        timestamp=datetime.fromisoformat(event_data['timestamp']),
-        event_type=ThreatType(event_data['event_type']),
-        severity=SecurityLevel(event_data['severity']),
-        source_ip=event_data['source_ip'],
-        user_id=event_data.get('user_id'),
-        description=event_data['description'],
-        risk_score=event_data['risk_score'],
-        requires_human_review=event_data.get('requires_human_review', False)
+        event_id=event_id,
+        timestamp=timestamp,
+        event_type=event_type,
+        severity=severity,
+        source_ip=event_data.get('source_ip', '127.0.0.1'),
+        user_id=event_data.get('user_id') or event_data.get('user'),
+        description=description,
+        risk_score=risk_score,
+        requires_human_review=event_data.get('requires_human_review', risk_score > 0.7)
     )
     
     return await security_reviewer.review_security_event(event)
 
-async def api_submit_hitl_review(event_data: Dict[str, Any], ai_analysis: Dict[str, Any]):
+async def api_submit_hitl_review(request_data: Dict[str, Any]):
     """API: 提交人工審查"""
+    import time
+    
+    if 'event_data' in request_data:
+        event_data = request_data['event_data']
+        ai_analysis = request_data.get('ai_analysis', {})
+    else:
+        event_data = request_data
+        ai_analysis = {}
+    
+    event_id = event_data.get('event_id', f"hitl_{int(time.time())}")
+    timestamp = datetime.now()
+    if 'timestamp' in event_data:
+        try:
+            timestamp = datetime.fromisoformat(event_data['timestamp'])
+        except:
+            pass
+    
+    event_type_mapping = {
+        'suspicious_login': ThreatType.UNAUTHORIZED_ACCESS,
+        'data_access_anomaly': ThreatType.ANOMALOUS_BEHAVIOR,
+        'unauthorized_access': ThreatType.UNAUTHORIZED_ACCESS,
+        'data_breach': ThreatType.DATA_BREACH,
+        'malicious_activity': ThreatType.MALICIOUS_ACTIVITY,
+        'policy_violation': ThreatType.POLICY_VIOLATION,
+        'anomalous_behavior': ThreatType.ANOMALOUS_BEHAVIOR
+    }
+    
+    event_type_str = event_data.get('event_type', 'anomalous_behavior')
+    event_type = event_type_mapping.get(event_type_str, ThreatType.ANOMALOUS_BEHAVIOR)
+    
+    severity_mapping = {
+        'low': SecurityLevel.LOW,
+        'medium': SecurityLevel.MEDIUM,
+        'high': SecurityLevel.HIGH,
+        'critical': SecurityLevel.CRITICAL
+    }
+    
+    severity_str = event_data.get('severity', 'high')
+    severity = severity_mapping.get(severity_str, SecurityLevel.HIGH)
+    
+    description = event_data.get('description', f"HITL security event: {event_type_str}")
+    if 'affected_resources' in event_data:
+        resources = event_data['affected_resources']
+        if isinstance(resources, list):
+            description += f" - Affected resources: {', '.join(resources)}"
+    
+    risk_score = ai_analysis.get('risk_score', 0.85)
+    if 'threat_indicators' in ai_analysis:
+        indicators = ai_analysis['threat_indicators']
+        if isinstance(indicators, list) and len(indicators) > 2:
+            risk_score = min(1.0, risk_score + 0.1)
+    
     event = SecurityEvent(
-        event_id=event_data['event_id'],
-        timestamp=datetime.fromisoformat(event_data['timestamp']),
-        event_type=ThreatType(event_data['event_type']),
-        severity=SecurityLevel(event_data['severity']),
-        source_ip=event_data['source_ip'],
+        event_id=event_id,
+        timestamp=timestamp,
+        event_type=event_type,
+        severity=severity,
+        source_ip=event_data.get('source_ip', '127.0.0.1'),
         user_id=event_data.get('user_id'),
-        description=event_data['description'],
-        risk_score=event_data['risk_score'],
+        description=description,
+        risk_score=risk_score,
         requires_human_review=True
     )
     
