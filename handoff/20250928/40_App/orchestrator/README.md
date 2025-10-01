@@ -12,7 +12,7 @@ pip install -r requirements.txt
 ```
 
 ## 1) Environment
-Copy `.env.sample` to `.env` and fill values:
+Create a `.env` file with the following variables (all optional - demo mode works without these):
 - `GITHUB_TOKEN` (repo: RC918/morningai or your fork) - minimal permissions: `repo`, `workflow`
 - `GITHUB_REPO`  (e.g. RC918/morningai)
 - `REDIS_URL`    (e.g. redis://localhost:6379/0 or Upstash URL) - for queue & idempotency
@@ -23,10 +23,7 @@ Copy `.env.sample` to `.env` and fill values:
 **Features:**
 - **Idempotency**: Tasks with same goal are deduplicated using Redis (1-hour TTL)
 - **Trace ID**: Each task gets a UUID for tracking in PR descriptions and Sentry logs
-
-```bash
-cp .env.sample .env && nano .env
-```
+- **Demo Mode**: Orchestrator runs without credentials by simulating GitHub/Redis/Supabase operations
 
 ## 2) Create memory table (SQL for pgvector)
 ```sql
