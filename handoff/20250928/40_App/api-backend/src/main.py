@@ -12,6 +12,7 @@ from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.auth import auth_bp
 from src.routes.dashboard import dashboard_bp
+from src.routes.agent import agent_bp
 from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required
 from flask_cors import CORS
 import sys
@@ -53,6 +54,7 @@ app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 app.register_blueprint(billing_bp)
+app.register_blueprint(agent_bp)
 
 if BACKEND_SERVICES_AVAILABLE:
     try:

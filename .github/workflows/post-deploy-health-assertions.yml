@@ -48,6 +48,34 @@ jobs:
             test "$code" -eq 200 || { echo "::error::$EP expected 200, got $code"; exit 1; }
           done
 
+          echo "=== Billing API endpoints ==="
+          for EP in /api/billing/plans; do
+            code=$(curl_code "$EP")
+            echo "$EP code=$code"
+            test "$code" -eq 200 || { echo "::error::$EP expected 200, got $code"; exit 1; }
+          done
+
+          echo "=== Billing checkout endpoint (POST) ==="
+          code=$(curl -s -X POST -H "Content-Type: application/json" \
+            -d '{"plan_id":"pro","payment_method":"credit_card"}' \
+            -o /dev/null -w "%{http_code}" "$BASE/api/billing/checkout/session")
+          echo "/api/billing/checkout/session (POST) code=$code"
+          test "$code" -eq 201 || { echo "::error::checkout session expected 201, got $code"; exit 1; }
+
+          echo "=== Billing API endpoints ==="
+          for EP in /api/billing/plans; do
+            code=$(curl_code "$EP")
+            echo "$EP code=$code"
+            test "$code" -eq 200 || { echo "::error::$EP expected 200, got $code"; exit 1; }
+          done
+
+          echo "=== Billing checkout endpoint (POST) ==="
+          code=$(curl -s -X POST -H "Content-Type: application/json" \
+            -d '{"plan_id":"pro","payment_method":"credit_card"}' \
+            -o /dev/null -w "%{http_code}" "$BASE/api/billing/checkout/session")
+          echo "/api/billing/checkout/session (POST) code=$code"
+          test "$code" -eq 201 || { echo "::error::checkout session expected 201, got $code"; exit 1; }
+
           echo "=== Phase 6 protected endpoint ==="
           if [ -n "$TEST_ADMIN_JWT" ]; then
             code=$(curl_code "/api/security/reviews/pending" auth)

@@ -187,7 +187,138 @@ const useAppStore = create(
           global: false
         },
         error: null
-      })
+      }),
+
+      dashboardState: {
+        isEditMode: false,
+        showReportCenter: false,
+        availableWidgets: [],
+        dashboardLayout: [],
+        dashboardData: {},
+        systemMetrics: {
+          cpu_usage: 72,
+          memory_usage: 68,
+          response_time: 145,
+          error_rate: 0.02,
+          active_strategies: 12,
+          pending_approvals: 3,
+          cost_today: 45.67,
+          cost_saved: 123.45
+        },
+        recentDecisions: [],
+        performanceData: []
+      },
+
+      setEditMode: (isEditMode) => set(state => ({ 
+        dashboardState: { ...state.dashboardState, isEditMode } 
+      })),
+      setShowReportCenter: (showReportCenter) => set(state => ({ 
+        dashboardState: { ...state.dashboardState, showReportCenter } 
+      })),
+      updateSystemMetrics: (metrics) => set(state => ({ 
+        dashboardState: { ...state.dashboardState, systemMetrics: { ...state.dashboardState.systemMetrics, ...metrics } } 
+      })),
+      setDashboardLayout: (layout) => set(state => ({ 
+        dashboardState: { ...state.dashboardState, dashboardLayout: layout } 
+      })),
+      setAvailableWidgets: (widgets) => set(state => ({ 
+        dashboardState: { ...state.dashboardState, availableWidgets: widgets } 
+      })),
+      setDashboardData: (data) => set(state => ({ 
+        dashboardState: { ...state.dashboardState, dashboardData: data } 
+      })),
+      setRecentDecisions: (decisions) => set(state => ({ 
+        dashboardState: { ...state.dashboardState, recentDecisions: decisions } 
+      })),
+      setPerformanceData: (data) => set(state => ({ 
+        dashboardState: { ...state.dashboardState, performanceData: data } 
+      })),
+      loadDashboardData: async () => {
+        set(state => ({ loading: { ...state.loading, dashboard: true } }))
+        try {
+          const data = await apiClient.getDashboardData()
+          set(state => ({ 
+            dashboardState: { ...state.dashboardState, dashboardData: data },
+            loading: { ...state.loading, dashboard: false }
+          }))
+        } catch (error) {
+          console.error('Failed to load dashboard data:', error)
+          set(state => ({ loading: { ...state.loading, dashboard: false } }))
+        }
+      },
+
+      decisionApprovalState: {
+        pendingDecisions: [],
+        selectedDecision: null,
+        approvalComment: ''
+      },
+
+      setPendingDecisions: (decisions) => set(state => ({ 
+        decisionApprovalState: { ...state.decisionApprovalState, pendingDecisions: decisions } 
+      })),
+      setSelectedDecision: (decision) => set(state => ({ 
+        decisionApprovalState: { ...state.decisionApprovalState, selectedDecision: decision } 
+      })),
+      setApprovalComment: (comment) => set(state => ({ 
+        decisionApprovalState: { ...state.decisionApprovalState, approvalComment: comment } 
+      })),
+      approveDecision: async (decisionId, comment = '') => {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          set(state => ({
+            decisionApprovalState: {
+              ...state.decisionApprovalState,
+              pendingDecisions: state.decisionApprovalState.pendingDecisions.filter(d => d.id !== decisionId),
+              selectedDecision: null,
+              approvalComment: ''
+            }
+          }))
+          get().addToast({
+            title: "決策已批准",
+            description: "策略將立即執行",
+            variant: "default"
+          })
+        } catch (error) {
+          get().addToast({
+            title: "批准失敗", 
+            description: "請稍後重試",
+            variant: "destructive"
+          })
+        }
+      },
+      rejectDecision: async (decisionId, comment) => {
+        if (!comment.trim()) {
+          get().addToast({
+            title: "請提供拒絕理由",
+            description: "拒絕決策時必須說明原因",
+            variant: "destructive"
+          })
+          return
+        }
+
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          set(state => ({
+            decisionApprovalState: {
+              ...state.decisionApprovalState,
+              pendingDecisions: state.decisionApprovalState.pendingDecisions.filter(d => d.id !== decisionId),
+              selectedDecision: null,
+              approvalComment: ''
+            }
+          }))
+          get().addToast({
+            title: "決策已拒絕",
+            description: "系統將尋找替代方案",
+            variant: "default"
+          })
+        } catch (error) {
+          get().addToast({
+            title: "拒絕失敗",
+            description: "請稍後重試",
+            variant: "destructive"
+          })
+        }
+      }
     }),
     {
       name: 'morning-ai-app-store',
@@ -197,7 +328,9 @@ const useAppStore = create(
         billing: state.billing,
         status: {
           notifications_count: state.status.notifications_count
-        }
+        },
+        dashboardState: state.dashboardState,
+        decisionApprovalState: state.decisionApprovalState
       })
     }
   )

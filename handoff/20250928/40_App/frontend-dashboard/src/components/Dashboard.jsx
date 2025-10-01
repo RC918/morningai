@@ -15,6 +15,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'
 import apiClient from '@/lib/api'
+import useAppStore from '@/stores/appStore'
 
 const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
   const [{ isDragging }, drag] = useDrag({
@@ -57,57 +58,71 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) =>
 }
 
 const Dashboard = () => {
-  const [isEditMode, setIsEditMode] = useState(false)
-  const [showReportCenter, setShowReportCenter] = useState(false)
-  const [availableWidgets, setAvailableWidgets] = useState([])
-  const [dashboardLayout, setDashboardLayout] = useState([])
-  const [dashboardData, setDashboardData] = useState({})
-  const [systemMetrics, setSystemMetrics] = useState({
-    cpu_usage: 72,
-    memory_usage: 68,
-    response_time: 145,
-    error_rate: 0.02,
-    active_strategies: 12,
-    pending_approvals: 3,
-    cost_today: 45.67,
-    cost_saved: 123.45
-  })
+  const { 
+    dashboardState, 
+    setEditMode, 
+    setShowReportCenter, 
+    updateSystemMetrics,
+    setDashboardLayout,
+    setAvailableWidgets,
+    setDashboardData,
+    setRecentDecisions,
+    setPerformanceData,
+    loadDashboardData 
+  } = useAppStore()
+  
+  const {
+    isEditMode,
+    showReportCenter,
+    availableWidgets,
+    dashboardLayout,
+    dashboardData,
+    systemMetrics,
+    recentDecisions,
+    performanceData
+  } = dashboardState
 
-  const [recentDecisions, setRecentDecisions] = useState([
-    {
-      id: 1,
-      timestamp: '2024-01-01T14:30:00Z',
-      strategy: 'CPU優化策略',
-      status: 'executed',
-      impact: '+15% 性能提升',
-      confidence: 0.87
-    },
-    {
-      id: 2,
-      timestamp: '2024-01-01T14:15:00Z',
-      strategy: '緩存優化',
-      status: 'pending',
-      impact: '預計 +20% 響應速度',
-      confidence: 0.92
-    },
-    {
-      id: 3,
-      timestamp: '2024-01-01T14:00:00Z',
-      strategy: '自動擴容',
-      status: 'executed',
-      impact: '處理能力 +50%',
-      confidence: 0.78
+  useEffect(() => {
+    if (recentDecisions.length === 0) {
+      setRecentDecisions([
+        {
+          id: 1,
+          timestamp: '2024-01-01T14:30:00Z',
+          strategy: 'CPU優化策略',
+          status: 'executed',
+          impact: '+15% 性能提升',
+          confidence: 0.87
+        },
+        {
+          id: 2,
+          timestamp: '2024-01-01T14:15:00Z',
+          strategy: '緩存優化',
+          status: 'pending',
+          impact: '預計 +20% 響應速度',
+          confidence: 0.92
+        },
+        {
+          id: 3,
+          timestamp: '2024-01-01T14:00:00Z',
+          strategy: '自動擴容',
+          status: 'executed',
+          impact: '處理能力 +50%',
+          confidence: 0.78
+        }
+      ])
     }
-  ])
 
-  const [performanceData, setPerformanceData] = useState([
-    { time: '12:00', cpu: 65, memory: 60, response_time: 120 },
-    { time: '12:30', cpu: 70, memory: 65, response_time: 135 },
-    { time: '13:00', cpu: 75, memory: 70, response_time: 150 },
-    { time: '13:30', cpu: 72, memory: 68, response_time: 145 },
-    { time: '14:00', cpu: 68, memory: 65, response_time: 130 },
-    { time: '14:30', cpu: 72, memory: 68, response_time: 145 }
-  ])
+    if (performanceData.length === 0) {
+      setPerformanceData([
+        { time: '12:00', cpu: 65, memory: 60, response_time: 120 },
+        { time: '12:30', cpu: 70, memory: 65, response_time: 135 },
+        { time: '13:00', cpu: 75, memory: 70, response_time: 150 },
+        { time: '13:30', cpu: 72, memory: 68, response_time: 145 },
+        { time: '14:00', cpu: 68, memory: 65, response_time: 130 },
+        { time: '14:30', cpu: 72, memory: 68, response_time: 145 }
+      ])
+    }
+  }, [])
 
 
   const loadDashboardLayout = useCallback(async () => {
@@ -136,15 +151,6 @@ const Dashboard = () => {
     }
   }, [])
 
-  const loadDashboardData = useCallback(async () => {
-    try {
-      const data = await apiClient.getDashboardData()
-      setDashboardData(data)
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error)
-    }
-  }, [])
-
   useEffect(() => {
     const initializeDashboard = async () => {
       await loadDashboardLayout()
@@ -157,12 +163,11 @@ const Dashboard = () => {
   useEffect(() => {
     // 模擬實時數據更新
     const interval = setInterval(() => {
-      setSystemMetrics(prev => ({
-        ...prev,
-        cpu_usage: Math.max(50, Math.min(90, prev.cpu_usage + (Math.random() - 0.5) * 10)),
-        memory_usage: Math.max(40, Math.min(85, prev.memory_usage + (Math.random() - 0.5) * 8)),
-        response_time: Math.max(100, Math.min(300, prev.response_time + (Math.random() - 0.5) * 20))
-      }))
+      updateSystemMetrics({
+        cpu_usage: Math.max(50, Math.min(90, systemMetrics.cpu_usage + (Math.random() - 0.5) * 10)),
+        memory_usage: Math.max(40, Math.min(85, systemMetrics.memory_usage + (Math.random() - 0.5) * 8)),
+        response_time: Math.max(100, Math.min(300, systemMetrics.response_time + (Math.random() - 0.5) * 20))
+      })
       
       if (!isEditMode) {
         loadDashboardData()
@@ -170,7 +175,7 @@ const Dashboard = () => {
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [isEditMode, loadDashboardData])
+  }, [isEditMode, loadDashboardData, updateSystemMetrics, systemMetrics])
 
 
   const saveDashboardLayout = async () => {
@@ -205,11 +210,11 @@ const Dashboard = () => {
       newLayout.splice(hoverIndex, 0, draggedWidget)
       return newLayout
     })
-  }, [])
+  }, [setDashboardLayout])
 
   const removeWidget = useCallback((index) => {
     setDashboardLayout(prev => prev.filter((_, i) => i !== index))
-  }, [])
+  }, [setDashboardLayout])
 
   const addWidget = (widgetId) => {
     const newWidget = {
@@ -259,7 +264,7 @@ const Dashboard = () => {
           <Button
             variant={isEditMode ? "default" : "outline"}
             onClick={() => {
-              setIsEditMode(!isEditMode)
+              setEditMode(!isEditMode)
               if (isEditMode) saveDashboardLayout()
             }}
           >

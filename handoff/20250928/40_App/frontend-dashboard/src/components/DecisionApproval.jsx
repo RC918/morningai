@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   CheckCircle, 
   XCircle, 
@@ -17,10 +17,23 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/hooks/use-toast'
+import useAppStore from '@/stores/appStore'
 
 const DecisionApproval = () => {
-  const { toast } = useToast()
-  const [pendingDecisions, setPendingDecisions] = useState([
+  const { 
+    decisionApprovalState, 
+    setPendingDecisions, 
+    setSelectedDecision, 
+    setApprovalComment,
+    approveDecision,
+    rejectDecision 
+  } = useAppStore()
+  
+  const { pendingDecisions, selectedDecision, approvalComment } = decisionApprovalState
+
+  useEffect(() => {
+    if (pendingDecisions.length === 0) {
+      setPendingDecisions([
     {
       id: 'decision_001',
       timestamp: '2024-01-01T14:30:00Z',
@@ -108,12 +121,11 @@ const DecisionApproval = () => {
         factors: ['緊急操作', '影響用戶', '需要監控']
       },
       priority: 'critical',
-      auto_approve_in: 120 // 2分鐘後自動批准
+      auto_approve_in: 120
     }
   ])
-
-  const [selectedDecision, setSelectedDecision] = useState(null)
-  const [approvalComment, setApprovalComment] = useState('')
+    }
+  }, [pendingDecisions.length, setPendingDecisions])
 
   useEffect(() => {
     // 模擬自動倒計時
@@ -129,64 +141,12 @@ const DecisionApproval = () => {
     return () => clearInterval(interval)
   }, [])
 
-  const handleApprove = async (decisionId, comment = '') => {
-    try {
-      // 模擬API調用
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setPendingDecisions(prev => 
-        prev.filter(d => d.id !== decisionId)
-      )
-      
-      toast({
-        title: "決策已批准",
-        description: "策略將立即執行",
-        variant: "default"
-      })
-      
-      setSelectedDecision(null)
-      setApprovalComment('')
-    } catch (error) {
-      toast({
-        title: "批准失敗",
-        description: "請稍後重試",
-        variant: "destructive"
-      })
-    }
+  const handleApprove = (decisionId, comment = '') => {
+    approveDecision(decisionId, comment)
   }
 
-  const handleReject = async (decisionId, comment) => {
-    if (!comment.trim()) {
-      toast({
-        title: "請提供拒絕理由",
-        description: "拒絕決策時必須說明原因",
-        variant: "destructive"
-      })
-      return
-    }
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setPendingDecisions(prev => 
-        prev.filter(d => d.id !== decisionId)
-      )
-      
-      toast({
-        title: "決策已拒絕",
-        description: "系統將尋找替代方案",
-        variant: "default"
-      })
-      
-      setSelectedDecision(null)
-      setApprovalComment('')
-    } catch (error) {
-      toast({
-        title: "拒絕失敗",
-        description: "請稍後重試",
-        variant: "destructive"
-      })
-    }
+  const handleReject = (decisionId, comment) => {
+    rejectDecision(decisionId, comment)
   }
 
   const getPriorityColor = (priority) => {
