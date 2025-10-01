@@ -1,16 +1,15 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
+// @ts-ignore
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5001'
 
-export const customFetch = async (options: any) => {
-  const { url, ...fetchOptions } = options
-  
+export const customFetch = async (url: string, options: RequestInit = {}) => {
   const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`
   
-  const config = {
+  const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
-      ...fetchOptions.headers,
+      ...options.headers,
     },
-    ...fetchOptions,
+    ...options,
   }
 
   const token = localStorage.getItem('auth_token')
