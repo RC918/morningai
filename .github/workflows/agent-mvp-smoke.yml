@@ -10,7 +10,7 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: Curl health & billing
+      - name: Curl health & billing (GET)
         run: |
           set -e
           BASE="https://morningai-backend-v2.onrender.com"
@@ -19,3 +19,11 @@ jobs:
             echo "$ep => $code"
             [ "$code" -eq 200 ] || (echo "::error::$ep expected 200, got $code" && exit 1)
           done
+      
+      - name: POST /api/billing/checkout/session expects 201
+        run: |
+          set -e
+          BASE="https://morningai-backend-v2.onrender.com"
+          code=$(curl -s -X POST -o /dev/null -w "%{http_code}" "$BASE/api/billing/checkout/session")
+          echo "/api/billing/checkout/session (POST) => $code"
+          [ "$code" -eq 201 ] || (echo "::error::POST /api/billing/checkout/session expected 201, got $code" && exit 1)
