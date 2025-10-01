@@ -1,0 +1,21 @@
+name: agent-mvp-smoke
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl health & billing
+        run: |
+          set -e
+          BASE="https://morningai-backend-v2.onrender.com"
+          for ep in /healthz /api/billing/plans; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE$ep")
+            echo "$ep => $code"
+            [ "$code" -eq 200 ] || (echo "::error::$ep expected 200, got $code" && exit 1)
+          done
