@@ -23,6 +23,7 @@ import {
   Check
 } from 'lucide-react'
 import { colors, spacing, typography } from '@/lib/design-tokens'
+import apiClient from '@/lib/api'
 
 const SettingsPageSkeleton = () => {
   const [loading, setLoading] = useState(true)
@@ -36,8 +37,7 @@ const SettingsPageSkeleton = () => {
 
   const loadSettings = async () => {
     try {
-      const response = await fetch('/api/settings/mock')
-      const data = await response.json()
+      const data = await apiClient.getSettings()
       setSettings(data)
       setLoading(false)
     } catch (error) {
@@ -74,12 +74,7 @@ const SettingsPageSkeleton = () => {
   const saveSettings = async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/settings/mock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      })
-      const result = await response.json()
+      const result = await apiClient.saveSettings(settings)
       
       if (result.success) {
         setHasChanges(false)
@@ -95,12 +90,12 @@ const SettingsPageSkeleton = () => {
     return (
       <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-6">
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-96" />
+          <Skeleton className="h-8 w-48 mb-2" aria-busy="true" aria-label="載入頁面標題" />
+          <Skeleton className="h-4 w-96" aria-busy="true" aria-label="載入頁面描述" />
         </div>
         <div className="space-y-6">
-          <Skeleton className="h-96" />
-          <Skeleton className="h-64" />
+          <Skeleton className="h-96" aria-busy="true" aria-label="載入主要設定區域" />
+          <Skeleton className="h-64" aria-busy="true" aria-label="載入次要設定區域" />
         </div>
       </div>
     )

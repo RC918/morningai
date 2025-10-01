@@ -37,7 +37,7 @@ except ImportError:
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 
-cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
+cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
 CORS(app, resources={r"/*": {"origins": cors_origins}})
 
 if SECURITY_AVAILABLE:
@@ -822,6 +822,31 @@ def get_phase7_resilience_metrics():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/settings', methods=['GET', 'POST'])
+def settings():
+    if request.method == 'GET':
+        return jsonify({
+            "profile": {
+                "name": "Ryan Chen",
+                "email": "ryan@morningai.com",
+                "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan",
+                "role": "Owner"
+            },
+            "preferences": {
+                "language": "zh-TW",
+                "theme": "light",
+                "notifications": {
+                    "email": True,
+                    "desktop": True,
+                    "aiSuggestions": True
+                }
+            }
+        })
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        return jsonify({"message": "Settings saved successfully", "data": data})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))

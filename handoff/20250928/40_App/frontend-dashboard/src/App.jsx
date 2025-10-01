@@ -12,6 +12,7 @@ import CheckoutPage from '@/components/CheckoutPage'
 import SettingsPageSkeleton from '@/components/SettingsPageSkeleton'
 import LoginPage from '@/components/LoginPage'
 import { applyDesignTokens } from '@/lib/design-tokens'
+import apiClient from '@/lib/api'
 import './App.css'
 
 function App() {
@@ -25,20 +26,9 @@ function App() {
       try {
         const token = localStorage.getItem('auth_token')
         if (token) {
-          // 驗證token有效性
-          const response = await fetch('/api/auth/verify', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          })
-          
-          if (response.ok) {
-            const userData = await response.json()
-            setUser(userData)
-            setIsAuthenticated(true)
-          } else {
-            localStorage.removeItem('auth_token')
-          }
+          const userData = await apiClient.verifyAuth()
+          setUser(userData)
+          setIsAuthenticated(true)
         }
       } catch (error) {
         console.error('認證檢查失敗:', error)
@@ -67,7 +57,11 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div 
+          className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"
+          aria-label="載入中"
+          role="status"
+        ></div>
       </div>
     )
   }
@@ -81,7 +75,7 @@ function App() {
       <div className="flex h-screen bg-gray-100">
         <Sidebar user={user} onLogout={handleLogout} />
         
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />

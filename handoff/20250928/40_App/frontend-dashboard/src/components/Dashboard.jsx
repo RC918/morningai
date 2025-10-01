@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'
+import apiClient from '@/lib/api'
 
 const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
   const [{ isDragging }, drag] = useDrag({
@@ -45,8 +46,9 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) =>
           size="sm"
           className="absolute top-2 right-2 z-10"
           onClick={() => onRemove(index)}
+          aria-label="移除小工具"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-4 h-4" aria-hidden="true" />
         </Button>
       )}
       {widget.component}
@@ -107,6 +109,41 @@ const Dashboard = () => {
     { time: '14:30', cpu: 72, memory: 68, response_time: 145 }
   ])
 
+  const loadDashboardLayout = useCallback(async () => {
+    try {
+      const layout = await apiClient.request('/dashboard/layouts?user_id=default')
+      if (layout.widgets) {
+        setDashboardLayout(layout.widgets.map(widget => ({
+          ...widget,
+          component: getWidgetComponent(widget.type)
+        })))
+      } else {
+        setDashboardLayout(getDefaultWidgets())
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard layout:', error)
+      setDashboardLayout(getDefaultWidgets())
+    }
+  }, [])
+
+  const loadAvailableWidgets = useCallback(async () => {
+    try {
+      const widgets = await apiClient.request('/dashboard/widgets')
+      setAvailableWidgets(widgets)
+    } catch (error) {
+      console.error('Failed to load available widgets:', error)
+    }
+  }, [])
+
+  const loadDashboardData = useCallback(async () => {
+    try {
+      const data = await apiClient.getDashboardData()
+      setDashboardData(data)
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error)
+    }
+  }, [])
+
   useEffect(() => {
     const initializeDashboard = async () => {
       await loadDashboardLayout()
@@ -134,53 +171,11 @@ const Dashboard = () => {
     return () => clearInterval(interval)
   }, [isEditMode, loadDashboardData])
 
-  const loadDashboardLayout = useCallback(async () => {
-    try {
-      const response = await fetch('/api/dashboard/layouts?user_id=default')
-      const layout = await response.json()
-      if (layout.widgets) {
-        setDashboardLayout(layout.widgets.map(widget => ({
-          ...widget,
-          component: null // Will be populated when rendering
-        })))
-      } else {
-        setDashboardLayout(getDefaultWidgets())
-      }
-    } catch (error) {
-      console.error('Failed to load dashboard layout:', error)
-      setDashboardLayout(getDefaultWidgets())
-    }
-  }, [])
-
-  const loadAvailableWidgets = useCallback(async () => {
-    try {
-      const response = await fetch('/api/dashboard/widgets/available')
-      const widgets = await response.json()
-      setAvailableWidgets(widgets)
-    } catch (error) {
-      console.error('Failed to load available widgets:', error)
-    }
-  }, [])
-
-  const loadDashboardData = useCallback(async () => {
-    try {
-      const response = await fetch('/api/dashboard/data')
-      const data = await response.json()
-      setDashboardData(data)
-      
-      if (data.system_metrics) {
-        setSystemMetrics(data.system_metrics)
-      }
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error)
-    }
-  }, [])
 
   const saveDashboardLayout = async () => {
     try {
-      await fetch('/api/dashboard/layouts', {
+      await apiClient.request('/dashboard/layouts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: 'default',
           layout: { widgets: dashboardLayout.map(w => ({ id: w.id, position: w.position })) }

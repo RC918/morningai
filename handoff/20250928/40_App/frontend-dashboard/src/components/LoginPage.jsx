@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import apiClient from '@/lib/api'
 
 const LoginPage = ({ onLogin }) => {
   const [credentials, setCredentials] = useState({
@@ -20,21 +21,12 @@ const LoginPage = ({ onLogin }) => {
     setError('')
 
     try {
-      // 模擬API調用
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials)
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        onLogin(data.user, data.token)
+      const result = await apiClient.login(credentials)
+      
+      if (result.user && result.token) {
+        onLogin(result.user, result.token)
       } else {
-        const errorData = await response.json()
-        setError(errorData.message || '登錄失敗，請檢查用戶名和密碼')
+        setError(result.message || '登錄失敗，請檢查用戶名和密碼')
       }
     } catch (error) {
       // 開發環境下的模擬登錄
