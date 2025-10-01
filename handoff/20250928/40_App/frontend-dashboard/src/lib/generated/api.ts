@@ -5,6 +5,7 @@
  * Comprehensive AI Agent Ecosystem API
  * OpenAPI spec version: 1.0.0
  */
+import { customFetch } from '../api-client';
 export interface User {
   id?: string;
   name?: string;
@@ -134,20 +135,14 @@ export const getGetAuthVerifyUrl = () => {
 
 export const getAuthVerify = async ( options?: RequestInit): Promise<getAuthVerifyResponse> => {
   
-  const res = await fetch(getGetAuthVerifyUrl(),
+  return customFetch<getAuthVerifyResponse>(getGetAuthVerifyUrl(),
   {      
     ...options,
     method: 'GET'
     
     
   }
-)
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-  
-  const data: getAuthVerifyResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as getAuthVerifyResponse
-}
+);}
 
 
 
@@ -183,7 +178,7 @@ export const getPostAuthLoginUrl = () => {
 
 export const postAuthLogin = async (loginRequest: LoginRequest, options?: RequestInit): Promise<postAuthLoginResponse> => {
   
-  const res = await fetch(getPostAuthLoginUrl(),
+  return customFetch<postAuthLoginResponse>(getPostAuthLoginUrl(),
   {      
     ...options,
     method: 'POST',
@@ -191,13 +186,7 @@ export const postAuthLogin = async (loginRequest: LoginRequest, options?: Reques
     body: JSON.stringify(
       loginRequest,)
   }
-)
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-  
-  const data: postAuthLoginResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as postAuthLoginResponse
-}
+);}
 
 
 
@@ -226,20 +215,14 @@ export const getGetBillingPlansUrl = () => {
 
 export const getBillingPlans = async ( options?: RequestInit): Promise<getBillingPlansResponse> => {
   
-  const res = await fetch(getGetBillingPlansUrl(),
+  return customFetch<getBillingPlansResponse>(getGetBillingPlansUrl(),
   {      
     ...options,
     method: 'GET'
     
     
   }
-)
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-  
-  const data: getBillingPlansResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as getBillingPlansResponse
-}
+);}
 
 
 
@@ -268,7 +251,7 @@ export const getPostBillingCheckoutSessionUrl = () => {
 
 export const postBillingCheckoutSession = async (checkoutSessionRequest: CheckoutSessionRequest, options?: RequestInit): Promise<postBillingCheckoutSessionResponse> => {
   
-  const res = await fetch(getPostBillingCheckoutSessionUrl(),
+  return customFetch<postBillingCheckoutSessionResponse>(getPostBillingCheckoutSessionUrl(),
   {      
     ...options,
     method: 'POST',
@@ -276,13 +259,7 @@ export const postBillingCheckoutSession = async (checkoutSessionRequest: Checkou
     body: JSON.stringify(
       checkoutSessionRequest,)
   }
-)
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-  
-  const data: postBillingCheckoutSessionResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as postBillingCheckoutSessionResponse
-}
+);}
 
 
 
@@ -311,20 +288,14 @@ export const getGetSettingsUrl = () => {
 
 export const getSettings = async ( options?: RequestInit): Promise<getSettingsResponse> => {
   
-  const res = await fetch(getGetSettingsUrl(),
+  return customFetch<getSettingsResponse>(getGetSettingsUrl(),
   {      
     ...options,
     method: 'GET'
     
     
   }
-)
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-  
-  const data: getSettingsResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as getSettingsResponse
-}
+);}
 
 
 
@@ -353,7 +324,7 @@ export const getPostSettingsUrl = () => {
 
 export const postSettings = async (userSettings: UserSettings, options?: RequestInit): Promise<postSettingsResponse> => {
   
-  const res = await fetch(getPostSettingsUrl(),
+  return customFetch<postSettingsResponse>(getPostSettingsUrl(),
   {      
     ...options,
     method: 'POST',
@@ -361,13 +332,7 @@ export const postSettings = async (userSettings: UserSettings, options?: Request
     body: JSON.stringify(
       userSettings,)
   }
-)
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-  
-  const data: postSettingsResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as postSettingsResponse
-}
+);}
 
 
 
@@ -396,17 +361,11 @@ export const getGetDashboardDataUrl = () => {
 
 export const getDashboardData = async ( options?: RequestInit): Promise<getDashboardDataResponse> => {
   
-  const res = await fetch(getGetDashboardDataUrl(),
+  return customFetch<getDashboardDataResponse>(getGetDashboardDataUrl(),
   {      
     ...options,
     method: 'GET'
     
     
   }
-)
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-  
-  const data: getDashboardDataResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as getDashboardDataResponse
-}
+);}
