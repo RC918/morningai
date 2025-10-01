@@ -11,6 +11,8 @@ import HistoryAnalysis from '@/components/HistoryAnalysis'
 import CostAnalysis from '@/components/CostAnalysis'
 import SystemSettings from '@/components/SystemSettings'
 import CheckoutPage from '@/components/CheckoutPage'
+import CheckoutSuccess from '@/components/CheckoutSuccess'
+import CheckoutCancel from '@/components/CheckoutCancel'
 import LoginPage from '@/components/LoginPage'
 import WIPPage from '@/components/WIPPage'
 import { applyDesignTokens } from '@/lib/design-tokens'
@@ -175,6 +177,8 @@ function App() {
               ) : (
                 <Route path="/checkout" element={<WIPPage title="結帳頁面開發中" />} />
               )}
+              <Route path="/checkout/success" element={<CheckoutSuccess />} />
+              <Route path="/checkout/cancel" element={<CheckoutCancel />} />
 
               {/* WIP pages for disabled features */}
               <Route path="/wip" element={<WIPPage />} />

@@ -33,14 +33,20 @@ class ApiClient {
         error.requestId = requestId
         error.endpoint = endpoint
         
+        console.error(`API Error [${requestId}]: ${endpoint} - ${error.message}`, {
+          status: response.status,
+          url,
+          config
+        })
+        
         window.dispatchEvent(new CustomEvent('api-error', {
           detail: { endpoint, error: error.message, status: response.status, requestId }
         }))
 
         if (window.Sentry) {
           window.Sentry.captureException(error, {
-            tags: { section: 'api_client' },
-            extra: { endpoint, requestId, status: response.status }
+            tags: { section: 'api_client', endpoint },
+            extra: { requestId, status: response.status, url }
           })
         }
 
@@ -52,21 +58,54 @@ class ApiClient {
         error.requestId = requestId
         error.endpoint = endpoint
         
+        console.error(`Network Error [${requestId}]: ${endpoint} - ${error.message}`, {
+          url,
+          config,
+          errorType: error.name
+        })
+        
         window.dispatchEvent(new CustomEvent('api-error', {
-          detail: { endpoint, error: error.message, status: 0, requestId }
+          detail: { endpoint, error: error.message, status: 0, requestId, type: 'network' }
         }))
 
         if (window.Sentry) {
           window.Sentry.captureException(error, {
-            tags: { section: 'api_client' },
-            extra: { endpoint, requestId }
+            tags: { section: 'api_client', endpoint, error_type: 'network' },
+            extra: { requestId, url }
           })
         }
       }
       
-      console.error(`API request failed: ${endpoint}`, error)
       throw error
     }
+  }
+
+  async checkHealth() {
+    try {
+      const response = await this.request('/health')
+      return { healthy: true, ...response }
+    } catch (error) {
+      console.warn('Backend health check failed:', error.message)
+      return { healthy: false, error: error.message }
+    }
+  }
+
+  async requestWithRetry(endpoint, options = {}, maxRetries = 2) {
+    let lastError
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.request(endpoint, options)
+      } catch (error) {
+        lastError = error
+        if (attempt < maxRetries && (error.status === 0 || error.status >= 500)) {
+          console.warn(`Retry ${attempt + 1}/${maxRetries} for ${endpoint}:`, error.message)
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+          continue
+        }
+        break
+      }
+    }
+    throw lastError
   }
 
   async verifyAuth() {
@@ -95,7 +134,11 @@ class ApiClient {
   }
 
   async getDashboardData() {
-    return this.request('/dashboard/data')
+    return this.requestWithRetry('/dashboard/data')
+  }
+
+  async getDashboardWidgets() {
+    return this.requestWithRetry('/dashboard/widgets')
   }
 
   async getReportTemplates() {

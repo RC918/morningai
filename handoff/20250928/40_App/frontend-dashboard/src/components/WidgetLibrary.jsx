@@ -146,21 +146,21 @@ export const WidgetLibrary = {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {(data?.task_execution?.recent_tasks || []).map((task, index) => (
+          {(Array.isArray(data?.task_execution?.recent_tasks) ? data.task_execution.recent_tasks : []).map((task, index) => (
             <div key={index} className="flex items-center justify-between p-2 border rounded">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4" />
                 <div>
-                  <span className="text-sm font-medium">{task.name}</span>
-                  <p className="text-xs text-gray-500">{task.agent} • {task.duration}</p>
+                  <span className="text-sm font-medium">{task?.name || 'Unknown Task'}</span>
+                  <p className="text-xs text-gray-500">{task?.agent || 'Unknown'} • {task?.duration || 'N/A'}</p>
                 </div>
               </div>
               <Badge variant={
-                task.status === 'completed' ? 'default' : 
-                task.status === 'running' ? 'secondary' : 'outline'
+                task?.status === 'completed' ? 'default' : 
+                task?.status === 'running' ? 'secondary' : 'outline'
               }>
-                {task.status === 'completed' ? '已完成' : 
-                 task.status === 'running' ? '運行中' : '待處理'}
+                {task?.status === 'completed' ? '已完成' : 
+                 task?.status === 'running' ? '運行中' : '待處理'}
               </Badge>
             </div>
           ))}
@@ -187,32 +187,71 @@ export const WidgetLibrary = {
     </Card>
   ),
   
-  circuit_breakers: ({ data }) => (
-    <Card>
-      <CardHeader>
-        <CardTitle>熔斷器狀態</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-2">
-          {(data?.circuit_breakers || []).map((cb, index) => (
-            <div key={index} className="flex items-center justify-between p-2 border rounded">
-              <span className="text-sm">{cb.name}</span>
-              <Badge variant={cb.state === 'closed' ? 'default' : 'destructive'}>
-                {cb.state === 'closed' ? '正常' : 
-                 cb.state === 'open' ? '開啟' : '半開'}
-              </Badge>
-            </div>
-          ))}
-          {(!data?.circuit_breakers || data.circuit_breakers.length === 0) && (
-            <div className="col-span-2 text-center text-gray-500 py-4">
-              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
-              <p className="text-sm">所有熔斷器運行正常</p>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  ),
+  circuit_breakers: ({ data }) => {
+    let circuitBreakersArray = []
+    
+    try {
+      const circuitBreakers = data?.circuit_breakers
+      
+      if (!circuitBreakers) {
+        circuitBreakersArray = []
+      }
+      else if (Array.isArray(circuitBreakers)) {
+        circuitBreakersArray = circuitBreakers.filter(cb => cb && typeof cb === 'object')
+      }
+      else if (typeof circuitBreakers === 'object') {
+        circuitBreakersArray = Object.entries(circuitBreakers)
+          .filter(([key, value]) => key && value !== null && value !== undefined)
+          .map(([name, state]) => ({
+            name: String(name),
+            state: typeof state === 'string' ? state : 
+                   (state?.state && typeof state.state === 'string' ? state.state : 'unknown')
+          }))
+      }
+      else {
+        console.warn('Invalid circuit_breakers data type:', typeof circuitBreakers, circuitBreakers)
+        circuitBreakersArray = []
+      }
+    } catch (error) {
+      console.error('Error processing circuit breakers data:', error)
+      circuitBreakersArray = []
+      
+      if (window.Sentry) {
+        window.Sentry.captureException(error, {
+          tags: { section: 'widget_library', widget: 'circuit_breakers' },
+          extra: { data: data?.circuit_breakers }
+        })
+      }
+    }
+    
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>熔斷器狀態</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-2">
+            {circuitBreakersArray.map((cb, index) => (
+              <div key={`cb-${index}-${cb?.name || 'unknown'}`} className="flex items-center justify-between p-2 border rounded">
+                <span className="text-sm">{cb?.name || `Circuit ${index + 1}`}</span>
+                <Badge variant={cb?.state === 'closed' ? 'default' : 'destructive'}>
+                  {cb?.state === 'closed' ? '正常' : 
+                   cb?.state === 'open' ? '開啟' : 
+                   cb?.state === 'half-open' ? '半開' : '未知'}
+                </Badge>
+              </div>
+            ))}
+            {circuitBreakersArray.length === 0 && (
+              <div className="col-span-2 text-center text-gray-500 py-4">
+                <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                <p className="text-sm">所有熔斷器運行正常</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  },
   
   performance_trend: ({ data }) => (
     <Card>

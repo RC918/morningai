@@ -115,13 +115,21 @@ const CheckoutPage = () => {
       
       if (result.success && result.checkout_session) {
         console.log('Checkout successful:', result)
-        window.location.href = result.checkout_session.payment_url
+        if (useMockData) {
+          window.location.href = `/checkout/success?session_id=mock_${Date.now()}&plan=${selectedPlan}`
+        } else {
+          window.location.href = result.checkout_session.payment_url
+        }
       } else if (result.redirect_url) {
         window.location.href = result.redirect_url
       }
     } catch (error) {
       console.error('Checkout failed:', error)
-      alert('結帳失敗，請稍後再試')
+      if (useMockData) {
+        window.location.href = `/checkout/cancel?reason=payment_failed`
+      } else {
+        alert('結帳失敗，請稍後再試')
+      }
     }
   }
 
@@ -203,6 +211,16 @@ const CheckoutPage = () => {
                     : 'hover:shadow-md'
                 } ${plan.popular ? 'border-blue-500' : ''}`}
                 onClick={() => setSelectedPlan(plan.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setSelectedPlan(plan.id)
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`選擇 ${plan.name} 方案，價格 $${plan.price}/${plan.billing}`}
+                aria-pressed={selectedPlan === plan.id}
               >
                 {plan.popular && (
                   <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-500">
@@ -242,7 +260,10 @@ const CheckoutPage = () => {
             <CardContent>
               <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
                 {checkoutData?.payment_methods?.map((method) => (
-                  <div key={method.id} className="flex items-center space-x-2 p-3 border rounded-lg">
+                  <div 
+                    key={method.id} 
+                    className="flex items-center space-x-2 p-3 border rounded-lg"
+                  >
                     <RadioGroupItem value={method.id} id={method.id} />
                     <Label htmlFor={method.id} className="flex items-center cursor-pointer flex-1">
                       {getPaymentIcon(method.id)}
