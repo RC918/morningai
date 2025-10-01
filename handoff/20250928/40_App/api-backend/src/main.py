@@ -96,6 +96,8 @@ def get_health_payload():
 
 @app.route('/health')
 @app.route('/healthz')
+@app.route('/api/health')
+@app.route('/api/healthz')
 def health_check():
     """Health check endpoint with comprehensive system status"""
     health_payload = get_health_payload()
