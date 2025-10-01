@@ -8,10 +8,12 @@ class ApiClient {
   }
 
   async request(endpoint, options = {}) {
+    const requestId = Math.random().toString(36).substr(2, 9)
     const url = `${this.baseURL}/api${endpoint}`
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
         ...options.headers,
       },
       ...options,
@@ -25,10 +27,43 @@ class ApiClient {
     try {
       const response = await fetch(url, config)
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorData = await response.json().catch(() => ({}))
+        const error = new Error(errorData.error?.message || `HTTP error! status: ${response.status}`)
+        error.status = response.status
+        error.requestId = requestId
+        error.endpoint = endpoint
+        
+        window.dispatchEvent(new CustomEvent('api-error', {
+          detail: { endpoint, error: error.message, status: response.status, requestId }
+        }))
+
+        if (window.Sentry) {
+          window.Sentry.captureException(error, {
+            tags: { section: 'api_client' },
+            extra: { endpoint, requestId, status: response.status }
+          })
+        }
+
+        throw error
       }
       return await response.json()
     } catch (error) {
+      if (!error.requestId) {
+        error.requestId = requestId
+        error.endpoint = endpoint
+        
+        window.dispatchEvent(new CustomEvent('api-error', {
+          detail: { endpoint, error: error.message, status: 0, requestId }
+        }))
+
+        if (window.Sentry) {
+          window.Sentry.captureException(error, {
+            tags: { section: 'api_client' },
+            extra: { endpoint, requestId }
+          })
+        }
+      }
+      
       console.error(`API request failed: ${endpoint}`, error)
       throw error
     }
