@@ -5,7 +5,7 @@
  * Comprehensive AI Agent Ecosystem API
  * OpenAPI spec version: 1.0.0
  */
-import { customFetch } from '../api-client';
+import { apiClient } from '../api-client';
 export interface User {
   id?: string;
   name?: string;
@@ -135,7 +135,7 @@ export const getGetAuthVerifyUrl = () => {
 
 export const getAuthVerify = async ( options?: RequestInit): Promise<getAuthVerifyResponse> => {
   
-  return customFetch<getAuthVerifyResponse>(getGetAuthVerifyUrl(),
+  return apiClient<getAuthVerifyResponse>(getGetAuthVerifyUrl(),
   {      
     ...options,
     method: 'GET'
@@ -178,7 +178,7 @@ export const getPostAuthLoginUrl = () => {
 
 export const postAuthLogin = async (loginRequest: LoginRequest, options?: RequestInit): Promise<postAuthLoginResponse> => {
   
-  return customFetch<postAuthLoginResponse>(getPostAuthLoginUrl(),
+  return apiClient<postAuthLoginResponse>(getPostAuthLoginUrl(),
   {      
     ...options,
     method: 'POST',
@@ -215,7 +215,7 @@ export const getGetBillingPlansUrl = () => {
 
 export const getBillingPlans = async ( options?: RequestInit): Promise<getBillingPlansResponse> => {
   
-  return customFetch<getBillingPlansResponse>(getGetBillingPlansUrl(),
+  return apiClient<getBillingPlansResponse>(getGetBillingPlansUrl(),
   {      
     ...options,
     method: 'GET'
@@ -251,7 +251,7 @@ export const getPostBillingCheckoutSessionUrl = () => {
 
 export const postBillingCheckoutSession = async (checkoutSessionRequest: CheckoutSessionRequest, options?: RequestInit): Promise<postBillingCheckoutSessionResponse> => {
   
-  return customFetch<postBillingCheckoutSessionResponse>(getPostBillingCheckoutSessionUrl(),
+  return apiClient<postBillingCheckoutSessionResponse>(getPostBillingCheckoutSessionUrl(),
   {      
     ...options,
     method: 'POST',
@@ -288,7 +288,7 @@ export const getGetSettingsUrl = () => {
 
 export const getSettings = async ( options?: RequestInit): Promise<getSettingsResponse> => {
   
-  return customFetch<getSettingsResponse>(getGetSettingsUrl(),
+  return apiClient<getSettingsResponse>(getGetSettingsUrl(),
   {      
     ...options,
     method: 'GET'
@@ -324,7 +324,7 @@ export const getPostSettingsUrl = () => {
 
 export const postSettings = async (userSettings: UserSettings, options?: RequestInit): Promise<postSettingsResponse> => {
   
-  return customFetch<postSettingsResponse>(getPostSettingsUrl(),
+  return apiClient<postSettingsResponse>(getPostSettingsUrl(),
   {      
     ...options,
     method: 'POST',
@@ -361,7 +361,7 @@ export const getGetDashboardDataUrl = () => {
 
 export const getDashboardData = async ( options?: RequestInit): Promise<getDashboardDataResponse> => {
   
-  return customFetch<getDashboardDataResponse>(getGetDashboardDataUrl(),
+  return apiClient<getDashboardDataResponse>(getGetDashboardDataUrl(),
   {      
     ...options,
     method: 'GET'
