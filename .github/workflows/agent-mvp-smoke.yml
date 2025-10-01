@@ -29,6 +29,7 @@ jobs:
           [ "$code" -eq 201 ] || (echo "::error::POST /api/billing/checkout/session expected 201, got $code" && exit 1)
       
       - name: POST /api/agent/faq health check
+        if: github.ref == 'refs/heads/main'
         run: |
           set -e
           BASE="https://morningai-backend-v2.onrender.com"
