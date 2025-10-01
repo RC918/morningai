@@ -187,32 +187,39 @@ export const WidgetLibrary = {
     </Card>
   ),
   
-  circuit_breakers: ({ data }) => (
-    <Card>
-      <CardHeader>
-        <CardTitle>熔斷器狀態</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-2">
-          {(data?.circuit_breakers || []).map((cb, index) => (
-            <div key={index} className="flex items-center justify-between p-2 border rounded">
-              <span className="text-sm">{cb.name}</span>
-              <Badge variant={cb.state === 'closed' ? 'default' : 'destructive'}>
-                {cb.state === 'closed' ? '正常' : 
-                 cb.state === 'open' ? '開啟' : '半開'}
-              </Badge>
-            </div>
-          ))}
-          {(!data?.circuit_breakers || data.circuit_breakers.length === 0) && (
-            <div className="col-span-2 text-center text-gray-500 py-4">
-              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
-              <p className="text-sm">所有熔斷器運行正常</p>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  ),
+  circuit_breakers: ({ data }) => {
+    const circuitBreakers = data?.circuit_breakers || {}
+    const circuitBreakersArray = Array.isArray(circuitBreakers) 
+      ? circuitBreakers 
+      : Object.entries(circuitBreakers).map(([name, state]) => ({ name, state }))
+    
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>熔斷器狀態</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-2">
+            {circuitBreakersArray.map((cb, index) => (
+              <div key={index} className="flex items-center justify-between p-2 border rounded">
+                <span className="text-sm">{cb.name}</span>
+                <Badge variant={cb.state === 'closed' ? 'default' : 'destructive'}>
+                  {cb.state === 'closed' ? '正常' : 
+                   cb.state === 'open' ? '開啟' : '半開'}
+                </Badge>
+              </div>
+            ))}
+            {circuitBreakersArray.length === 0 && (
+              <div className="col-span-2 text-center text-gray-500 py-4">
+                <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                <p className="text-sm">所有熔斷器運行正常</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  },
   
   performance_trend: ({ data }) => (
     <Card>
