@@ -5,9 +5,9 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'src/lib/generated'] },
   {
-    files: ['**/*.{js,jsx,ts,tsx}'],
+    files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
