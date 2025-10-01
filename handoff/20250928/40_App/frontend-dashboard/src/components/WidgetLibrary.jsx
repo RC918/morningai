@@ -189,9 +189,21 @@ export const WidgetLibrary = {
   
   circuit_breakers: ({ data }) => {
     const circuitBreakers = data?.circuit_breakers || {}
-    const circuitBreakersArray = Array.isArray(circuitBreakers) 
-      ? circuitBreakers 
-      : Object.entries(circuitBreakers).map(([name, state]) => ({ name, state }))
+    let circuitBreakersArray = []
+    
+    try {
+      if (Array.isArray(circuitBreakers)) {
+        circuitBreakersArray = circuitBreakers
+      } else if (circuitBreakers && typeof circuitBreakers === 'object') {
+        circuitBreakersArray = Object.entries(circuitBreakers).map(([name, state]) => ({ 
+          name, 
+          state: typeof state === 'string' ? state : (state?.state || 'unknown')
+        }))
+      }
+    } catch (error) {
+      console.warn('Error processing circuit breakers data:', error)
+      circuitBreakersArray = []
+    }
     
     return (
       <Card>
@@ -202,10 +214,11 @@ export const WidgetLibrary = {
           <div className="grid grid-cols-2 gap-2">
             {circuitBreakersArray.map((cb, index) => (
               <div key={index} className="flex items-center justify-between p-2 border rounded">
-                <span className="text-sm">{cb.name}</span>
-                <Badge variant={cb.state === 'closed' ? 'default' : 'destructive'}>
-                  {cb.state === 'closed' ? '正常' : 
-                   cb.state === 'open' ? '開啟' : '半開'}
+                <span className="text-sm">{cb?.name || `Circuit ${index + 1}`}</span>
+                <Badge variant={cb?.state === 'closed' ? 'default' : 'destructive'}>
+                  {cb?.state === 'closed' ? '正常' : 
+                   cb?.state === 'open' ? '開啟' : 
+                   cb?.state === 'half-open' ? '半開' : '未知'}
                 </Badge>
               </div>
             ))}
