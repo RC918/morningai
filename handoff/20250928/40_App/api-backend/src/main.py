@@ -800,6 +800,34 @@ def get_pending_security_reviews():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/dashboard/widgets', methods=['GET'])
+def get_dashboard_widgets():
+    """Get available dashboard widgets"""
+    widgets = [
+        {
+            "id": "performance_metrics",
+            "name": "性能指標",
+            "type": "chart",
+            "description": "系統性能監控圖表",
+            "config": {"chart_type": "line", "data_points": 24}
+        },
+        {
+            "id": "recent_decisions", 
+            "name": "最近決策",
+            "type": "list",
+            "description": "AI系統最近執行的決策",
+            "config": {"max_items": 5}
+        },
+        {
+            "id": "system_status",
+            "name": "系統狀態",
+            "type": "status",
+            "description": "整體系統健康狀態",
+            "config": {"refresh_interval": 30}
+        }
+    ]
+    return jsonify({"widgets": widgets})
+
 @app.route('/api/phase7/resilience/metrics', methods=['GET'])
 def get_phase7_resilience_metrics():
     """Get Phase 7 resilience metrics"""

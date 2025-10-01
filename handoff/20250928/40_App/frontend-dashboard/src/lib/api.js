@@ -98,6 +98,10 @@ class ApiClient {
     return this.request('/dashboard/data')
   }
 
+  async getDashboardWidgets() {
+    return this.request('/dashboard/widgets')
+  }
+
   async getReportTemplates() {
     return this.request('/reports/templates')
   }

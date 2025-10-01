@@ -109,13 +109,14 @@ const Dashboard = () => {
     { time: '14:30', cpu: 72, memory: 68, response_time: 145 }
   ])
 
+
   const loadDashboardLayout = useCallback(async () => {
     try {
       const layout = await apiClient.request('/dashboard/layouts?user_id=default')
       if (layout.widgets) {
         setDashboardLayout(layout.widgets.map(widget => ({
           ...widget,
-          component: getWidgetComponent(widget.type)
+          component: null
         })))
       } else {
         setDashboardLayout(getDefaultWidgets())
@@ -128,8 +129,8 @@ const Dashboard = () => {
 
   const loadAvailableWidgets = useCallback(async () => {
     try {
-      const widgets = await apiClient.request('/dashboard/widgets')
-      setAvailableWidgets(widgets)
+      const response = await apiClient.getDashboardWidgets()
+      setAvailableWidgets(response.widgets || [])
     } catch (error) {
       console.error('Failed to load available widgets:', error)
     }
