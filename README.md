@@ -18,3 +18,7 @@ This is a simple change to verify repository access and PR creation functionalit
 ## Baseline Tag
 - v8.0.0-handoff
 
+
+## Release
+[v9.0.0](https://github.com/RC918/morningai/releases/tag/v9.0.0)
+
