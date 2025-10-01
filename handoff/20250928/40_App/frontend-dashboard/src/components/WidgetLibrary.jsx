@@ -146,21 +146,21 @@ export const WidgetLibrary = {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {(data?.task_execution?.recent_tasks || []).map((task, index) => (
+          {(Array.isArray(data?.task_execution?.recent_tasks) ? data.task_execution.recent_tasks : []).map((task, index) => (
             <div key={index} className="flex items-center justify-between p-2 border rounded">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4" />
                 <div>
-                  <span className="text-sm font-medium">{task.name}</span>
-                  <p className="text-xs text-gray-500">{task.agent} • {task.duration}</p>
+                  <span className="text-sm font-medium">{task?.name || 'Unknown Task'}</span>
+                  <p className="text-xs text-gray-500">{task?.agent || 'Unknown'} • {task?.duration || 'N/A'}</p>
                 </div>
               </div>
               <Badge variant={
-                task.status === 'completed' ? 'default' : 
-                task.status === 'running' ? 'secondary' : 'outline'
+                task?.status === 'completed' ? 'default' : 
+                task?.status === 'running' ? 'secondary' : 'outline'
               }>
-                {task.status === 'completed' ? '已完成' : 
-                 task.status === 'running' ? '運行中' : '待處理'}
+                {task?.status === 'completed' ? '已完成' : 
+                 task?.status === 'running' ? '運行中' : '待處理'}
               </Badge>
             </div>
           ))}
@@ -188,21 +188,40 @@ export const WidgetLibrary = {
   ),
   
   circuit_breakers: ({ data }) => {
-    const circuitBreakers = data?.circuit_breakers || {}
     let circuitBreakersArray = []
     
     try {
-      if (Array.isArray(circuitBreakers)) {
-        circuitBreakersArray = circuitBreakers
-      } else if (circuitBreakers && typeof circuitBreakers === 'object') {
-        circuitBreakersArray = Object.entries(circuitBreakers).map(([name, state]) => ({ 
-          name, 
-          state: typeof state === 'string' ? state : (state?.state || 'unknown')
-        }))
+      const circuitBreakers = data?.circuit_breakers
+      
+      if (!circuitBreakers) {
+        circuitBreakersArray = []
+      }
+      else if (Array.isArray(circuitBreakers)) {
+        circuitBreakersArray = circuitBreakers.filter(cb => cb && typeof cb === 'object')
+      }
+      else if (typeof circuitBreakers === 'object') {
+        circuitBreakersArray = Object.entries(circuitBreakers)
+          .filter(([key, value]) => key && value !== null && value !== undefined)
+          .map(([name, state]) => ({
+            name: String(name),
+            state: typeof state === 'string' ? state : 
+                   (state?.state && typeof state.state === 'string' ? state.state : 'unknown')
+          }))
+      }
+      else {
+        console.warn('Invalid circuit_breakers data type:', typeof circuitBreakers, circuitBreakers)
+        circuitBreakersArray = []
       }
     } catch (error) {
-      console.warn('Error processing circuit breakers data:', error)
+      console.error('Error processing circuit breakers data:', error)
       circuitBreakersArray = []
+      
+      if (window.Sentry) {
+        window.Sentry.captureException(error, {
+          tags: { section: 'widget_library', widget: 'circuit_breakers' },
+          extra: { data: data?.circuit_breakers }
+        })
+      }
     }
     
     return (
@@ -213,7 +232,7 @@ export const WidgetLibrary = {
         <CardContent>
           <div className="grid grid-cols-2 gap-2">
             {circuitBreakersArray.map((cb, index) => (
-              <div key={index} className="flex items-center justify-between p-2 border rounded">
+              <div key={`cb-${index}-${cb?.name || 'unknown'}`} className="flex items-center justify-between p-2 border rounded">
                 <span className="text-sm">{cb?.name || `Circuit ${index + 1}`}</span>
                 <Badge variant={cb?.state === 'closed' ? 'default' : 'destructive'}>
                   {cb?.state === 'closed' ? '正常' : 
