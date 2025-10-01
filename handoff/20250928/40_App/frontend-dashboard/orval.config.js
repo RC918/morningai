@@ -2,14 +2,12 @@ export default {
   morningai: {
     input: './src/lib/openapi.yaml',
     output: {
-      mode: 'split',
-      target: 'src/lib/generated/api.ts',
-      schemas: 'src/lib/generated/schemas',
+      target: 'src/lib/generated/api.js',
       client: 'fetch',
       override: {
         mutator: {
-          path: 'src/lib/api-client.ts',
-          name: 'customFetch'
+          path: 'src/lib/api.js',
+          name: 'apiClient'
         }
       }
     }
