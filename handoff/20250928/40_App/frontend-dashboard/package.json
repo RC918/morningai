@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:smoke": "node scripts/smoke-tests.js",
-    "generate:api": "orval",
+    "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
