@@ -1,35 +1,40 @@
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:5001'
+const API_BASE_URL =
+  (typeof window !== 'undefined' && (window as any).__VITE_API_BASE_URL__) ||
+  (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') ||
+  '';
 
-export const customFetch = async (url: string, options: RequestInit = {}) => {
-  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`
-  
-  const config: RequestInit = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  }
+export async function apiClient({
+  url,
+  method,
+  params,
+  data,
+  headers,
+}: {
+  url: string;
+  method: string;
+  params?: Record<string, any>;
+  data?: any;
+  headers?: Record<string, string>;
+}) {
+  const qs = params
+    ? '?' +
+      new URLSearchParams(
+        Object.fromEntries(
+          Object.entries(params).map(([k, v]) => [k, String(v)])
+        )
+      ).toString()
+    : '';
 
-  const token = localStorage.getItem('auth_token')
-  if (token) {
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${token}`,
-    }
-  }
+  const res = await fetch(`${API_BASE_URL}${url}${qs}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(headers || {}) },
+    body: data != null ? JSON.stringify(data) : undefined,
+  });
 
-  try {
-    const response = await fetch(fullUrl, config)
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`)
-    }
-    
-    return await response.json()
-  } catch (error) {
-    console.error(`API request failed: ${fullUrl}`, error)
-    throw error
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
   }
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : res.text();
 }

@@ -4,9 +4,7 @@ module.exports = {
     output: {
       target: 'src/lib/generated/api.ts',
       client: 'fetch',
-      override: {
-        mutator: { path: 'src/lib/api-client.ts', name: 'apiClient' }
-      }
+      override: { mutator: { path: 'src/lib/api-client.ts', name: 'apiClient' } }
     }
   }
 }
