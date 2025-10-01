@@ -1,6 +1,7 @@
 .env.local
 .env
 .env.*
+!.env.sample
 .DS_Store
 node_modules/
 dist/
