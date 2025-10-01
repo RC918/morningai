@@ -27,3 +27,11 @@ jobs:
           code=$(curl -s -X POST -o /dev/null -w "%{http_code}" "$BASE/api/billing/checkout/session")
           echo "/api/billing/checkout/session (POST) => $code"
           [ "$code" -eq 201 ] || (echo "::error::POST /api/billing/checkout/session expected 201, got $code" && exit 1)
+      
+      - name: POST /api/agent/faq health check
+        run: |
+          set -e
+          BASE="https://morningai-backend-v2.onrender.com"
+          code=$(curl -s -X POST -o /dev/null -w "%{http_code}" "$BASE/api/agent/faq" -H 'Content-Type: application/json' -d '{"topic":"smoke-test"}')
+          echo "/api/agent/faq (POST) => $code"
+          [ "$code" -eq 200 ] || (echo "::error::POST /api/agent/faq expected 200, got $code" && exit 1)
