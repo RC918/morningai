@@ -13,12 +13,17 @@ pip install -r requirements.txt
 
 ## 1) Environment
 Copy `.env.sample` to `.env` and fill values:
-- `GITHUB_TOKEN` (repo: RC918/morningai or your fork)
+- `GITHUB_TOKEN` (repo: RC918/morningai or your fork) - minimal permissions: `repo`, `workflow`
 - `GITHUB_REPO`  (e.g. RC918/morningai)
-- `REDIS_URL`    (e.g. redis://localhost:6379/0 or Upstash URL)
+- `REDIS_URL`    (e.g. redis://localhost:6379/0 or Upstash URL) - for queue & idempotency
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 - `OPENAI_API_KEY` (for embeddings only)
 - `MEMORY_TABLE` (default: memory)
+
+**Features:**
+- **Idempotency**: Tasks with same goal are deduplicated using Redis (1-hour TTL)
+- **Trace ID**: Each task gets a UUID for tracking in PR descriptions and Sentry logs
+
 ```bash
 cp .env.sample .env && nano .env
 ```

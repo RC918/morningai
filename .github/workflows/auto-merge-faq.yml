@@ -1,0 +1,37 @@
+name: Auto-merge FAQ PRs
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'docs/FAQ.md'
+  check_suite:
+    types: [completed]
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'github-actions[bot]' || contains(github.event.pull_request.title, 'trace-id')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check if only FAQ.md changed
+        id: check
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "Changed files: $FILES"
+          
+          if [ "$FILES" = "docs/FAQ.md" ]; then
+            echo "only_faq=true" >> $GITHUB_OUTPUT
+          else
+            echo "only_faq=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Enable auto-merge
+        if: steps.check.outputs.only_faq == 'true'
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} \
+            --auto --squash \
+            --repo ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
