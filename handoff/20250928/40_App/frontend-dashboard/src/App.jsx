@@ -13,6 +13,7 @@ import SystemSettings from '@/components/SystemSettings'
 import CheckoutPage from '@/components/CheckoutPage'
 import CheckoutSuccess from '@/components/CheckoutSuccess'
 import CheckoutCancel from '@/components/CheckoutCancel'
+import AgentControl from '@/components/AgentControl'
 import LoginPage from '@/components/LoginPage'
 import WIPPage from '@/components/WIPPage'
 import { applyDesignTokens } from '@/lib/design-tokens'
@@ -179,6 +180,9 @@ function App() {
               )}
               <Route path="/checkout/success" element={<CheckoutSuccess />} />
               <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+
+              {/* Agent MVP Control Panel */}
+              <Route path="/agent" element={<AgentControl />} />
 
               {/* WIP pages for disabled features */}
               <Route path="/wip" element={<WIPPage />} />

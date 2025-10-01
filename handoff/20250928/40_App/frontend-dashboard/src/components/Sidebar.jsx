@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Brain,
-  CreditCard
+  CreditCard,
+  Bot
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -72,6 +73,13 @@ const Sidebar = ({ user, onLogout }) => {
       label: '訂閱方案',
       description: '選擇付費方案',
       feature: AVAILABLE_FEATURES.CHECKOUT
+    },
+    {
+      path: '/agent',
+      icon: Bot,
+      label: 'Agent MVP',
+      description: 'FAQ 自動化測試',
+      feature: AVAILABLE_FEATURES.SETTINGS
     }
   ]
 
