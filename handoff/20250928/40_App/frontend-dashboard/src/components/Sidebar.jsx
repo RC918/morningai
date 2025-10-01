@@ -11,54 +11,71 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  Brain
+  Brain,
+  CreditCard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 
 const Sidebar = ({ user, onLogout }) => {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
 
-  const menuItems = [
+  const allMenuItems = [
     {
       path: '/dashboard',
       icon: LayoutDashboard,
       label: '監控儀表板',
-      description: '系統狀態總覽'
+      description: '系統狀態總覽',
+      feature: AVAILABLE_FEATURES.DASHBOARD
     },
     {
       path: '/strategies',
       icon: Brain,
       label: '策略管理',
-      description: '管理AI策略'
+      description: '管理AI策略',
+      feature: AVAILABLE_FEATURES.STRATEGIES
     },
     {
       path: '/approvals',
       icon: CheckCircle,
       label: '決策審批',
       description: '人工審核待辦',
-      badge: '3' // 示例徽章
+      badge: '3',
+      feature: AVAILABLE_FEATURES.APPROVALS
     },
     {
       path: '/history',
       icon: History,
       label: '歷史分析',
-      description: '決策歷史回顧'
+      description: '決策歷史回顧',
+      feature: AVAILABLE_FEATURES.HISTORY
     },
     {
       path: '/costs',
       icon: DollarSign,
       label: '成本分析',
-      description: 'AI服務成本'
+      description: 'AI服務成本',
+      feature: AVAILABLE_FEATURES.COSTS
     },
     {
       path: '/settings',
       icon: Settings,
       label: '系統設置',
-      description: '配置管理'
+      description: '配置管理',
+      feature: AVAILABLE_FEATURES.SETTINGS
+    },
+    {
+      path: '/checkout',
+      icon: CreditCard,
+      label: '訂閱方案',
+      description: '選擇付費方案',
+      feature: AVAILABLE_FEATURES.CHECKOUT
     }
   ]
+
+  const menuItems = allMenuItems.filter(item => isFeatureEnabled(item.feature))
 
   const isActive = (path) => location.pathname === path
 
