@@ -2,18 +2,19 @@ import os
 import json
 import uuid
 import subprocess
-import threading
 import re
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis
+from rq import Queue
 
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
+queue = Queue("orchestrator", connection=redis_client)
 
 def execute_orchestrator_task(task_id, topic, repo):
-    """Background thread to execute orchestrator and update task status"""
+    """RQ job to execute orchestrator and update task status in Redis"""
     try:
         redis_client.setex(
             f"agent:task:{task_id}",
@@ -74,6 +75,18 @@ def execute_orchestrator_task(task_id, topic, repo):
                     "updated_at": datetime.utcnow().isoformat()
                 })
             )
+    except subprocess.TimeoutExpired:
+        redis_client.setex(
+            f"agent:task:{task_id}",
+            3600,
+            json.dumps({
+                "status": "error",
+                "topic": topic,
+                "error": "Task timed out after 5 minutes",
+                "updated_at": datetime.utcnow().isoformat()
+            })
+        )
+        raise
     except Exception as e:
         redis_client.setex(
             f"agent:task:{task_id}",
@@ -85,10 +98,11 @@ def execute_orchestrator_task(task_id, topic, repo):
                 "updated_at": datetime.utcnow().isoformat()
             })
         )
+        raise
 
 @bp.post("/faq")
 def create_faq_task():
-    """Create FAQ generation task"""
+    """Create FAQ generation task using RQ worker"""
     try:
         payload = request.get_json(silent=True) or {}
         topic = payload.get("topic", "Update FAQ with common questions")
@@ -107,12 +121,13 @@ def create_faq_task():
             })
         )
         
-        thread = threading.Thread(
-            target=execute_orchestrator_task,
-            args=(task_id, topic, repo)
+        job = queue.enqueue(
+            execute_orchestrator_task,
+            task_id, topic, repo,
+            job_id=task_id,
+            retry=3,
+            job_timeout=600
         )
-        thread.daemon = True
-        thread.start()
         
         return jsonify({"task_id": task_id}), 200
     except Exception as e:

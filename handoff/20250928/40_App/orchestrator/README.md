@@ -50,10 +50,16 @@ create table if not exists memory(
 -- and a simple RPC or cosine search can be added depending on your setup.
 ```
 
-## 3) Start Redis worker
+## 3) Start Redis worker (for API integration)
 ```bash
+cd ../api-backend
 rq worker orchestrator -u "$REDIS_URL"
 ```
+
+Worker features:
+- Automatic retry (3 attempts with exponential backoff)
+- 10-minute job timeout
+- Idempotency support via Redis keys
 
 ## 4) Enqueue a long task
 ```bash

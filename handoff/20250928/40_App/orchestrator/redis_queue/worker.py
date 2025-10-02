@@ -13,7 +13,18 @@ def run_step(step: str):
         return {"ok": False, "error": "build failed"}
     return {"ok": True}
 
-def enqueue(steps, idempotency_key: Optional[str] = None) -> List[str]:
+def enqueue(steps, idempotency_key: Optional[str] = None, retry_count: int = 3) -> List[str]:
+    """
+    Enqueue orchestrator steps with retry support
+    
+    Args:
+        steps: List of steps to enqueue
+        idempotency_key: Optional key for deduplication
+        retry_count: Number of retries (default 3)
+    
+    Returns:
+        List of job IDs
+    """
     try:
         if idempotency_key:
             key = f"orchestrator:job:{idempotency_key}"
@@ -24,14 +35,17 @@ def enqueue(steps, idempotency_key: Optional[str] = None) -> List[str]:
                     print(f"[Worker] Job with key {idempotency_key} already exists: {existing_job_ids}")
                     return existing_job_ids
             
-            jobs = [q.enqueue(run_step, s) for s in steps]
+            jobs = [
+                q.enqueue(run_step, s, retry=retry_count, job_timeout=300) 
+                for s in steps
+            ]
             job_ids = [j.id for j in jobs]
             
             redis.setex(key, 3600, ','.join(job_ids))
             print(f"[Worker] Created idempotent job with key {idempotency_key}: {job_ids}")
             return job_ids
         else:
-            jobs = [q.enqueue(run_step, s) for s in steps]
+            jobs = [q.enqueue(run_step, s, retry=retry_count, job_timeout=300) for s in steps]
             return [j.id for j in jobs]
     except Exception as e:
         print(f"[Worker] Redis unavailable, running in demo mode: {e}")
