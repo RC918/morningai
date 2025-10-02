@@ -17,6 +17,45 @@ from src.middleware.auth_middleware import jwt_required, admin_required, analyst
 from flask_cors import CORS
 import sys
 import os
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
+)
+logger = logging.getLogger(__name__)
+
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+APP_VERSION = os.getenv("APP_VERSION", "8.0.0")
+
+def before_send(event, hint):
+    """Filter out 400/404 errors to reduce noise"""
+    if 'exc_info' in hint:
+        exc_type, exc_value, tb = hint['exc_info']
+        if hasattr(exc_value, 'code') and exc_value.code in [400, 404]:
+            return None
+    
+    if event.get('request', {}).get('status_code') in [400, 404]:
+        return None
+    
+    return event
+
+if SENTRY_DSN and SENTRY_DSN.strip():
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            environment=os.getenv("ENVIRONMENT", "production"),
+            release=APP_VERSION,
+            traces_sample_rate=1.0,
+            before_send=before_send,
+        )
+        logger.info(f"Sentry initialized successfully with release {APP_VERSION}")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Sentry: {e}. Continuing without Sentry integration.")
+        SENTRY_DSN = None
+else:
+    SENTRY_DSN = None
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 try:
@@ -61,6 +100,24 @@ if BACKEND_SERVICES_AVAILABLE:
         app.register_blueprint(mock_api)
     except NameError:
         pass
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Global exception handler to capture unhandled errors in Sentry"""
+    if hasattr(e, 'code'):
+        return jsonify({"error": str(e)}), e.code
+    
+    logger.exception("Unhandled exception", extra={"error": str(e)})
+    
+    if SENTRY_DSN:
+        sentry_sdk.capture_exception(e)
+    
+    return jsonify({
+        "error": {
+            "code": "internal_server_error",
+            "message": "An unexpected error occurred"
+        }
+    }), 500
 
 def get_health_payload():
     """Generate health check payload with JSON serializable values"""
