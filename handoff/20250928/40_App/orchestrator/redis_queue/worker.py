@@ -41,7 +41,7 @@ else:
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-redis = Redis.from_url(redis_url, decode_responses=True)
+redis = Redis.from_url(redis_url)
 q = Queue("orchestrator", connection=redis)
 
 def run_step(step: str):
