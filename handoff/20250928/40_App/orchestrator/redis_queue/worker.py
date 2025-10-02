@@ -14,6 +14,29 @@ from redis import Redis
 from rq import Queue
 from rq.decorators import job
 from rq import Retry
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
+)
+logger = logging.getLogger(__name__)
+
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN and SENTRY_DSN.strip():
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            environment=os.getenv("ENVIRONMENT", "production"),
+            traces_sample_rate=1.0,
+        )
+        logger.info("Sentry initialized in worker")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Sentry: {e}. Continuing without Sentry integration.")
+        SENTRY_DSN = None
+else:
+    SENTRY_DSN = None
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -75,9 +98,28 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     """
     from graph import execute
     
+    logger.info(f"Starting orchestrator task", extra={"task_id": task_id, "question": question})
+    
+    if SENTRY_DSN:
+        sentry_sdk.add_breadcrumb(
+            category='task',
+            message=f'Starting orchestrator task',
+            level='info',
+            data={'task_id': task_id, 'question': question, 'repo': repo}
+        )
+    
     try:
+        redis_key = f"agent:task:{task_id}"
+        if SENTRY_DSN:
+            sentry_sdk.add_breadcrumb(
+                category='redis',
+                message=f'Updating task status to running',
+                level='info',
+                data={'redis_key': redis_key, 'task_id': task_id}
+            )
+        
         redis.setex(
-            f"agent:task:{task_id}",
+            redis_key,
             3600,
             json.dumps({
                 "status": "running",
@@ -87,10 +129,26 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
             })
         )
         
+        if SENTRY_DSN:
+            sentry_sdk.add_breadcrumb(
+                category='orchestrator',
+                message=f'Executing orchestrator',
+                level='info',
+                data={'task_id': task_id, 'trace_id': task_id}
+            )
+        
         pr_url, state, trace_id = execute(question, repo, trace_id=task_id)
         
+        if SENTRY_DSN:
+            sentry_sdk.add_breadcrumb(
+                category='redis',
+                message=f'Updating task status to done',
+                level='info',
+                data={'redis_key': redis_key, 'task_id': task_id, 'pr_url': pr_url}
+            )
+        
         redis.setex(
-            f"agent:task:{task_id}",
+            redis_key,
             3600,
             json.dumps({
                 "status": "done",
@@ -102,10 +160,30 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
             })
         )
         
+        logger.info(f"Task completed successfully", extra={"task_id": task_id, "pr_url": pr_url})
         return {"pr_url": pr_url, "trace_id": trace_id, "state": state}
         
     except Exception as e:
         error_msg = str(e)
+        logger.error(f"Task failed: {error_msg}", extra={"task_id": task_id, "trace_id": task_id})
+        
+        if SENTRY_DSN:
+            sentry_sdk.add_breadcrumb(
+                category='error',
+                message=f'Task execution failed',
+                level='error',
+                data={'task_id': task_id, 'trace_id': task_id, 'error': error_msg}
+            )
+            sentry_sdk.capture_exception(e)
+        
+        if SENTRY_DSN:
+            sentry_sdk.add_breadcrumb(
+                category='redis',
+                message=f'Updating task status to error',
+                level='error',
+                data={'redis_key': f"agent:task:{task_id}", 'task_id': task_id}
+            )
+        
         redis.setex(
             f"agent:task:{task_id}",
             3600,
