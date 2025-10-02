@@ -296,14 +296,16 @@ class SagaOrchestrator:
 
     def get_orchestrator_metrics(self) -> Dict:
         """Get Saga orchestrator metrics"""
+        saga_status_counts = {status.value: 0 for status in SagaStatus}
+        for saga in self.active_sagas.values():
+            if saga.status.value in saga_status_counts:
+                saga_status_counts[saga.status.value] += 1
+        
         return {
             'active_sagas': len(self.active_sagas),
             'completed_sagas': len(self.completed_sagas),
             'processed_idempotency_keys': len(self.idempotency_manager.processed_keys),
-            'saga_statuses': {
-                status.value: len([s for s in self.active_sagas.values() if s.status == status])
-                for status in SagaStatus
-            }
+            'saga_statuses': saga_status_counts
         }
 
 saga_orchestrator = SagaOrchestrator()

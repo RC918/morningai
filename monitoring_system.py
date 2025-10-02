@@ -155,7 +155,7 @@ class MonitoringSystem:
             return 0.0
         
         latencies = [r.latency_ms for r in recent_results]
-        return statistics.quantiles(latencies, n=20)[18] if len(latencies) >= 20 else max(latencies)
+        return statistics.quantiles(latencies, n=100)[94] if len(latencies) >= 100 else max(latencies)
     
     def check_alerts(self) -> List[Dict]:
         """檢查告警條件"""
@@ -247,7 +247,7 @@ class MonitoringSystem:
         successful_results = [r for r in today_results if r.success and r.latency_ms > 0]
         if successful_results:
             latencies = [r.latency_ms for r in successful_results]
-            p95_latency = statistics.quantiles(latencies, n=20)[18] if len(latencies) >= 20 else max(latencies)
+            p95_latency = statistics.quantiles(latencies, n=100)[94] if len(latencies) >= 100 else max(latencies)
             avg_latency = statistics.mean(latencies)
         else:
             p95_latency = 0
