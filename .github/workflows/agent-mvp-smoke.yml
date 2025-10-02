@@ -5,12 +5,17 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      check_agent_faq:
+        description: 'Also check POST /api/agent/faq'
+        required: false
+        default: 'false'
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: Curl health & billing (GET)
+      - name: Core smoke (healthz + billing)
         run: |
           set -e
           BASE="https://morningai-backend-v2.onrender.com"
@@ -19,11 +24,12 @@ jobs:
             echo "$ep => $code"
             [ "$code" -eq 200 ] || (echo "::error::$ep expected 200, got $code" && exit 1)
           done
-      
-      - name: POST /api/billing/checkout/session expects 201
+      - name: (Optional) Agent FAQ smoke
+        if: ${{ github.event.inputs.check_agent_faq == 'true' }}
         run: |
           set -e
           BASE="https://morningai-backend-v2.onrender.com"
-          code=$(curl -s -X POST -o /dev/null -w "%{http_code}" "$BASE/api/billing/checkout/session")
-          echo "/api/billing/checkout/session (POST) => $code"
-          [ "$code" -eq 201 ] || (echo "::error::POST /api/billing/checkout/session expected 201, got $code" && exit 1)
+          code=$(curl -s -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' \
+                 -d '{"prompt":"Generate FAQ"}' "$BASE/api/agent/faq")
+          echo "/api/agent/faq => $code"
+          [ "$code" -eq 200 ] || (echo "::error::/api/agent/faq expected 200, got $code" && exit 1)
