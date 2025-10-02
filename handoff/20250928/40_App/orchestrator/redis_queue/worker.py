@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RQ Worker for orchestrator tasks
+RQ Worker for orchestrator tasks with heartbeat monitoring
 Usage: rq worker orchestrator --url redis://localhost:6379/0
 """
 
@@ -8,9 +8,12 @@ import os
 import sys
 import time
 import json
+import threading
+import signal
+import atexit
 from datetime import datetime
 from typing import Optional, List
-from redis import Redis
+from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
 from rq.decorators import job
 from rq import Retry
@@ -20,6 +23,73 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis = Redis.from_url(redis_url, decode_responses=True)
 q = Queue("orchestrator", connection=redis)
+
+WORKER_ID = os.getenv("RENDER_INSTANCE_ID", os.getenv("HOSTNAME", "worker-local"))
+shutdown_event = threading.Event()
+heartbeat_thread = None
+
+def update_worker_heartbeat():
+    """
+    Background thread to update worker heartbeat in Redis with TTL.
+    Runs until shutdown_event is set.
+    """
+    print(f"[Worker] Heartbeat thread started for worker_id={WORKER_ID}")
+    
+    while not shutdown_event.is_set():
+        try:
+            if redis:
+                heartbeat_key = f"worker:health:{WORKER_ID}"
+                redis.setex(
+                    heartbeat_key,
+                    120,
+                    json.dumps({
+                        "last_heartbeat": datetime.utcnow().isoformat() + "Z",
+                        "worker_id": WORKER_ID,
+                        "status": "healthy",
+                        "timestamp": int(time.time())
+                    })
+                )
+            
+            shutdown_event.wait(30)
+        except RedisConnectionError as e:
+            print(f"[Worker] Heartbeat Redis connection error: {e}")
+            shutdown_event.wait(30)
+        except Exception as e:
+            print(f"[Worker] Heartbeat update failed: {e}")
+            shutdown_event.wait(30)
+    
+    print(f"[Worker] Heartbeat thread stopped for worker_id={WORKER_ID}")
+
+def cleanup_heartbeat():
+    """
+    Cleanup function to gracefully shutdown heartbeat thread.
+    Called on worker shutdown or exit.
+    """
+    global heartbeat_thread
+    
+    print(f"[Worker] Initiating graceful shutdown for worker_id={WORKER_ID}")
+    shutdown_event.set()
+    
+    if heartbeat_thread and heartbeat_thread.is_alive():
+        heartbeat_thread.join(timeout=5)
+        if heartbeat_thread.is_alive():
+            print(f"[Worker] Warning: Heartbeat thread did not stop within timeout")
+        else:
+            print(f"[Worker] Heartbeat thread stopped successfully")
+    
+    try:
+        if redis:
+            heartbeat_key = f"worker:health:{WORKER_ID}"
+            redis.delete(heartbeat_key)
+            print(f"[Worker] Cleaned up heartbeat key: {heartbeat_key}")
+    except Exception as e:
+        print(f"[Worker] Failed to cleanup heartbeat key: {e}")
+
+def signal_handler(signum, frame):
+    """Handle termination signals gracefully"""
+    print(f"[Worker] Received signal {signum}, shutting down gracefully...")
+    cleanup_heartbeat()
+    sys.exit(0)
 
 def run_step(step: str):
     """Demo function for testing worker with steps"""
@@ -124,6 +194,23 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
 
 if __name__ == "__main__":
     from rq import Worker
-    print("Starting RQ worker for 'orchestrator' queue...")
-    worker = Worker([q], connection=redis)
-    worker.work()
+    
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    atexit.register(cleanup_heartbeat)
+    
+    print(f"[Worker] Starting RQ worker for 'orchestrator' queue (worker_id={WORKER_ID})")
+    
+    heartbeat_thread = threading.Thread(target=update_worker_heartbeat, daemon=False, name="HeartbeatThread")
+    heartbeat_thread.start()
+    print(f"[Worker] Heartbeat monitoring enabled with 120s TTL")
+    
+    try:
+        worker = Worker([q], connection=redis)
+        worker.work()
+    except KeyboardInterrupt:
+        print(f"[Worker] KeyboardInterrupt received")
+    except Exception as e:
+        print(f"[Worker] Unexpected error: {e}")
+    finally:
+        cleanup_heartbeat()
