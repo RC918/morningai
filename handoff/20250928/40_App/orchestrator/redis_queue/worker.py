@@ -46,7 +46,7 @@ def enqueue(steps, idempotency_key: Optional[str] = None) -> List[str]:
             if redis.exists(key):
                 result = redis.get(key)
                 if result:
-                    existing_job_ids = result.decode('utf-8').split(',')
+                    existing_job_ids = result.split(',')
                     print(f"[Worker] Job with key {idempotency_key} already exists: {existing_job_ids}")
                     return existing_job_ids
             
