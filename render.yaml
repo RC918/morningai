@@ -41,11 +41,18 @@ services:
     buildCommand: |
       cd handoff/20250928/40_App/orchestrator &&
       pip install --upgrade pip &&
-      pip install -r requirements.txt
+      pip install -r requirements.txt &&
+      pip install -e .
     startCommand: cd handoff/20250928/40_App/orchestrator && rq worker orchestrator --url $REDIS_URL
     envVars:
       - key: REDIS_URL
         sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: DEMO_MODE
+        value: false
+      - key: ENVIRONMENT
+        value: production
       - key: GITHUB_TOKEN
         sync: false
       - key: GITHUB_REPO
