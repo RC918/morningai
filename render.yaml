@@ -46,6 +46,12 @@ services:
     envVars:
       - key: REDIS_URL
         sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: DEMO_MODE
+        value: false
+      - key: ENVIRONMENT
+        value: production
       - key: GITHUB_TOKEN
         sync: false
       - key: GITHUB_REPO
