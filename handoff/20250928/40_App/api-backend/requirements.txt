@@ -20,4 +20,5 @@ gunicorn
 psycopg2-binary
 redis
 rq
+sentry-sdk==2.19.2
 

@@ -5,3 +5,4 @@ rq==1.16.2
 supabase==2.6.0
 openai==1.52.2
 requests==2.32.3
+sentry-sdk==2.19.2
