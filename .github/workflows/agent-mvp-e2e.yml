@@ -1,6 +1,12 @@
 name: agent-mvp-e2e
 on:
   workflow_dispatch:
+    inputs:
+      test_sentry:
+        description: 'Test Sentry integration (send smoke message)'
+        required: false
+        type: boolean
+        default: false
   schedule:
     - cron: '0 2 * * *'
 
@@ -10,65 +16,62 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-      
+
       - name: Install dependencies
         run: |
-          pip install requests PyGithub
-      
+          pip install requests PyGithub sentry-sdk
+
       - name: Run E2E Test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_URL: https://morningai-backend-v2.onrender.com
         run: |
           python - <<'EOF'
-          import os
-          import sys
-          import time
-          import requests
+          import os, sys, time, requests
           from github import Github
-          
+
           BASE = os.environ['BASE_URL']
           GITHUB_TOKEN = os.environ['GITHUB_TOKEN']
-          
+
           print("=== Agent MVP E2E Test ===")
-          
+
           print("\n1. Creating FAQ task...")
           response = requests.post(
               f"{BASE}/api/agent/faq",
               json={"question": "E2E test FAQ update"},
               headers={"Content-Type": "application/json"}
           )
-          
+
           if response.status_code != 202:
               print(f"❌ Failed to create task: {response.status_code}")
               sys.exit(1)
-          
+
           data = response.json()
           task_id = data.get('task_id')
           print(f"✅ Task created: {task_id}")
-          
+
           print("\n2. Polling task status...")
           max_attempts = 60
           pr_url = None
           trace_id = None
-          
+
           for attempt in range(max_attempts):
               time.sleep(5)
               response = requests.get(f"{BASE}/api/agent/tasks/{task_id}")
-              
+
               if response.status_code != 200:
                   print(f"❌ Failed to get task status: {response.status_code}")
                   sys.exit(1)
-              
+
               task = response.json()
               status = task.get('status')
               print(f"  Attempt {attempt + 1}: status={status}")
-              
+
               if status == 'done':
                   pr_url = task.get('pr_url')
                   trace_id = task.get('trace_id')
@@ -82,25 +85,46 @@ jobs:
           else:
               print("❌ Task did not complete in time")
               sys.exit(1)
-          
+
           if pr_url:
               print("\n3. Verifying PR status...")
               gh = Github(GITHUB_TOKEN)
               repo = gh.get_repo("RC918/morningai")
-              
+
               pr_number = int(pr_url.split('/')[-1])
               pr = repo.get_pull(pr_number)
-              
+
               print(f"   PR #{pr_number}: {pr.title}")
               print(f"   State: {pr.state}")
               print(f"   Merged: {pr.merged}")
-              
+
               if pr.state == 'open':
                   print("✅ PR is open (will be auto-merged by CI)")
               elif pr.merged:
                   print("✅ PR is already merged")
               else:
                   print(f"⚠️  PR state: {pr.state}")
-          
+
           print("\n=== E2E Test Complete ===")
+          EOF
+
+      - name: Test Sentry Integration (Optional)
+        if: ${{ github.event.inputs.test_sentry == 'true' }}
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          python - <<'EOF'
+          import os, sys
+          dsn = os.environ.get("SENTRY_DSN", "").strip()
+          if not dsn:
+              print("⚠️  SENTRY_DSN not configured, skipping Sentry test")
+              sys.exit(0)
+          try:
+              import sentry_sdk
+              sentry_sdk.init(dsn=dsn, environment="ci-test", traces_sample_rate=1.0)
+              event_id = sentry_sdk.capture_message("E2E Smoke Test - Sentry Integration", level="info")
+              print(f"✅ Sentry smoke test successful. Event ID: {event_id}")
+          except Exception as e:
+              print(f"❌ Sentry smoke test failed: {e}")
+              sys.exit(1)
           EOF
