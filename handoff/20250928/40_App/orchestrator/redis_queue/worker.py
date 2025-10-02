@@ -16,7 +16,7 @@ from rq import Queue
 from rq.decorators import job
 from rq import Retry
 from rq.worker import Worker
-from logger_util import log_structured
+from .logger_util import log_structured
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 if SENTRY_DSN:
@@ -42,15 +42,9 @@ try:
     q = Queue("orchestrator", connection=redis)
     log_structured("INFO", f"Redis connected successfully", "startup", worker_id=WORKER_ID, redis_url=redis_url[:20] + "...")
 except (RedisConnectionError, Exception) as e:
-    if DEMO_MODE:
-        log_structured("WARNING", f"Redis unavailable, running in DEMO_MODE", "startup", error=str(e), worker_id=WORKER_ID)
-        redis = None
-        q = None
-    else:
-        log_structured("ERROR", f"Redis connection failed", "startup", error=str(e), worker_id=WORKER_ID)
-        if SENTRY_DSN:
-            sentry_sdk.capture_exception(e)
-        raise
+    log_structured("WARNING", f"Redis unavailable at module import", "startup", error=str(e), worker_id=WORKER_ID, demo_mode=DEMO_MODE)
+    redis = None
+    q = None
 
 def update_worker_heartbeat():
     """Background thread to update worker heartbeat in Redis"""
