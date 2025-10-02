@@ -40,11 +40,11 @@ jobs:
           print("\n1. Creating FAQ task...")
           response = requests.post(
               f"{BASE}/api/agent/faq",
-              json={"topic": "E2E test FAQ update"},
+              json={"question": "E2E test FAQ update"},
               headers={"Content-Type": "application/json"}
           )
           
-          if response.status_code != 200:
+          if response.status_code != 202:
               print(f"❌ Failed to create task: {response.status_code}")
               sys.exit(1)
           

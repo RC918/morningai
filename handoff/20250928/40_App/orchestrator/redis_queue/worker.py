@@ -64,13 +64,13 @@ def enqueue(steps, idempotency_key: Optional[str] = None) -> List[str]:
         return [f"demo-job-{i}" for i in range(len(steps))]
 
 @job('orchestrator', connection=redis, retry=Retry(max=3, interval=[10, 30, 60]))
-def run_orchestrator_task(task_id: str, topic: str, repo: str):
+def run_orchestrator_task(task_id: str, question: str, repo: str):
     """
     Execute orchestrator with retry logic (used by API for agent tasks)
     
     Args:
         task_id: Unique task identifier
-        topic: FAQ topic or question
+        question: FAQ question or topic
         repo: GitHub repository (owner/repo format)
     """
     from graph import execute
@@ -81,20 +81,20 @@ def run_orchestrator_task(task_id: str, topic: str, repo: str):
             3600,
             json.dumps({
                 "status": "running",
-                "topic": topic,
+                "question": question,
                 "trace_id": task_id,
                 "updated_at": datetime.utcnow().isoformat()
             })
         )
         
-        pr_url, state, trace_id = execute(topic, repo, trace_id=task_id)
+        pr_url, state, trace_id = execute(question, repo, trace_id=task_id)
         
         redis.setex(
             f"agent:task:{task_id}",
             3600,
             json.dumps({
                 "status": "done",
-                "topic": topic,
+                "question": question,
                 "trace_id": trace_id,
                 "pr_url": pr_url,
                 "state": state,
@@ -111,7 +111,7 @@ def run_orchestrator_task(task_id: str, topic: str, repo: str):
             3600,
             json.dumps({
                 "status": "error",
-                "topic": topic,
+                "question": question,
                 "trace_id": task_id,
                 "error": {
                     "code": "ORCHESTRATOR_FAILED",

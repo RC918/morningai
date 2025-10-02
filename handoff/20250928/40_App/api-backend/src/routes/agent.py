@@ -14,11 +14,19 @@ q = Queue("orchestrator", connection=redis_client)
 @bp.post("/faq")
 def create_faq_task():
     """Create FAQ generation task"""
+    payload = request.get_json(silent=True) or {}
+    question = (payload.get("question") or "").strip()
+    
+    if not question:
+        return jsonify({
+            "error": {
+                "code": "invalid_input",
+                "message": "question parameter is required and cannot be empty"
+            }
+        }), 400
+    
     try:
-        payload = request.get_json(silent=True) or {}
-        topic = payload.get("topic", "Update FAQ with common questions")
         repo = os.getenv("GITHUB_REPO", "RC918/morningai")
-        
         task_id = str(uuid.uuid4())
         
         redis_client.setex(
@@ -26,7 +34,7 @@ def create_faq_task():
             3600,
             json.dumps({
                 "status": "queued",
-                "topic": topic,
+                "question": question,
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             })
@@ -35,14 +43,28 @@ def create_faq_task():
         q.enqueue(
             'redis_queue.worker.run_orchestrator_task',
             task_id,
-            topic,
+            question,
             repo,
             job_id=task_id
         )
         
-        return jsonify({"task_id": task_id}), 200
+        return jsonify({
+            "task_id": task_id,
+            "status": "queued"
+        }), 202
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import logging
+        logging.exception("Failed to enqueue FAQ task", extra={
+            "op": "faq",
+            "error": str(e),
+            "task_id": task_id if 'task_id' in locals() else None
+        })
+        return jsonify({
+            "error": {
+                "code": "queue_unavailable",
+                "message": "Service temporarily unavailable. Please try again later."
+            }
+        }), 503
 
 @bp.get("/tasks/<task_id>")
 def get_task_status(task_id):
