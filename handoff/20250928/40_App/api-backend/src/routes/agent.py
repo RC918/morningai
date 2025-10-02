@@ -8,7 +8,7 @@ from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
-if SENTRY_DSN:
+if SENTRY_DSN and SENTRY_DSN.strip():
     import sentry_sdk
     sentry_sdk.init(
         dsn=SENTRY_DSN,
@@ -76,7 +76,7 @@ def create_faq_task():
             "error_type": "redis_connection"
         })
         
-        if SENTRY_DSN:
+        if SENTRY_DSN and SENTRY_DSN.strip():
             sentry_sdk.add_breadcrumb(
                 category='redis',
                 message='Redis connection failed during task creation',
@@ -98,7 +98,7 @@ def create_faq_task():
             "task_id": task_id if 'task_id' in locals() else None
         })
         
-        if SENTRY_DSN:
+        if SENTRY_DSN and SENTRY_DSN.strip():
             sentry_sdk.capture_exception(e)
         
         return jsonify({
