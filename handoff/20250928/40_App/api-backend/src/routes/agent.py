@@ -123,7 +123,16 @@ def create_faq_task():
 def get_task_status(task_id):
     """Get task status by ID"""
     try:
-        task_data = redis_client.hgetall(f"agent:task:{task_id}")
+        key = f"agent:task:{task_id}"
+        key_type = redis_client.type(key)
+        
+        if key_type == "hash":
+            task_data = redis_client.hgetall(key)
+        elif key_type == "string":
+            task_json = redis_client.get(key)
+            task_data = json.loads(task_json) if task_json else None
+        else:
+            task_data = None
         
         if not task_data:
             return jsonify({"error": "Task not found"}), 404
@@ -144,16 +153,26 @@ def debug_queue_status():
         task_keys = redis_client.keys("agent:task:*")
         sample_task = None
         if task_keys:
-            latest_key = max(task_keys, key=lambda k: redis_client.hget(k, "created_at") or "")
-            task_data = redis_client.hgetall(latest_key)
-            if task_data:
-                sample_task = {
-                    "task_id": latest_key.decode() if isinstance(latest_key, bytes) else latest_key.split(":")[-1],
-                    "status": task_data.get(b"status" if isinstance(list(task_data.keys())[0], bytes) else "status") if task_data else None,
-                    "job_id": task_data.get(b"job_id" if isinstance(list(task_data.keys())[0], bytes) else "job_id") if task_data else None,
-                    "created_at": task_data.get(b"created_at" if isinstance(list(task_data.keys())[0], bytes) else "created_at") if task_data else None,
-                    "question_length": len(task_data.get(b"question" if isinstance(list(task_data.keys())[0], bytes) else "question", ""))
-                }
+            latest_key = sorted(task_keys)[-1] if task_keys else None
+            if latest_key:
+                key_type = redis_client.type(latest_key)
+                
+                if key_type == "hash":
+                    task_data = redis_client.hgetall(latest_key)
+                elif key_type == "string":
+                    task_json = redis_client.get(latest_key)
+                    task_data = json.loads(task_json) if task_json else None
+                else:
+                    task_data = None
+                
+                if task_data:
+                    sample_task = {
+                        "task_id": latest_key.split(":")[-1],
+                        "status": task_data.get("status"),
+                        "job_id": task_data.get("job_id"),
+                        "created_at": task_data.get("created_at"),
+                        "question_length": len(task_data.get("question", ""))
+                    }
         
         return jsonify({
             "queue_length": queue_length,
