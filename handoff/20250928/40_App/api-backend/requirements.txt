@@ -19,4 +19,5 @@ requests
 gunicorn
 psycopg2-binary
 redis
+rq
 

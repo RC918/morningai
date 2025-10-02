@@ -23,3 +23,36 @@ services:
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        value: RC918/morningai
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+
+  - type: worker
+    name: morningai-agent-worker
+    env: python
+    runtime: python-3.11
+    buildCommand: |
+      cd handoff/20250928/40_App/orchestrator &&
+      pip install --upgrade pip &&
+      pip install -r requirements.txt
+    startCommand: cd handoff/20250928/40_App/orchestrator && rq worker orchestrator --url $REDIS_URL
+    envVars:
+      - key: REDIS_URL
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        value: RC918/morningai
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
