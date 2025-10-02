@@ -357,9 +357,29 @@ class HITLApprovalSystem:
         
     def get_system_status(self) -> Dict:
         """Get HITL approval system status"""
-        pending_by_priority = {}
-        for priority in ['critical', 'high', 'medium', 'low']:
-            pending_by_priority[priority] = len([r for r in self.pending_requests.values() if r.priority == priority])
+        pending_by_priority = {
+            'critical': 0,
+            'high': 0,
+            'medium': 0,
+            'low': 0
+        }
+        for request in self.pending_requests.values():
+            if request.priority in pending_by_priority:
+                pending_by_priority[request.priority] += 1
+        
+        history_total = len(self.approval_history)
+        history_counts = {
+            'approved': 0,
+            'rejected': 0,
+            'expired': 0
+        }
+        for request in self.approval_history:
+            if request.status == ApprovalStatus.APPROVED:
+                history_counts['approved'] += 1
+            elif request.status == ApprovalStatus.REJECTED:
+                history_counts['rejected'] += 1
+            elif request.status == ApprovalStatus.EXPIRED:
+                history_counts['expired'] += 1
             
         return {
             'agent': 'HITL_Approval_System',
@@ -372,10 +392,10 @@ class HITLApprovalSystem:
                 'by_priority': pending_by_priority
             },
             'approval_history': {
-                'total': len(self.approval_history),
-                'approved': len([r for r in self.approval_history if r.status == ApprovalStatus.APPROVED]),
-                'rejected': len([r for r in self.approval_history if r.status == ApprovalStatus.REJECTED]),
-                'expired': len([r for r in self.approval_history if r.status == ApprovalStatus.EXPIRED])
+                'total': history_total,
+                'approved': history_counts['approved'],
+                'rejected': history_counts['rejected'],
+                'expired': history_counts['expired']
             },
             'configuration': {
                 'timeout_hours': self.timeout_hours

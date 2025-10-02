@@ -6,6 +6,7 @@ Coordinates with Ops_Agent for performance-aware growth campaigns
 
 import asyncio
 import logging
+import statistics
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
@@ -178,6 +179,6 @@ class GrowthStrategist:
                 'Integration with Ops_Agent and Meta-Agent'
             ],
             'active_rules': len(self.gamification_rules),
-            'average_effectiveness': sum(rule.effectiveness_score for rule in self.gamification_rules.values()) / len(self.gamification_rules),
+            'average_effectiveness': statistics.mean(rule.effectiveness_score for rule in self.gamification_rules.values()) if self.gamification_rules else 0,
             'status': 'operational'
         }
