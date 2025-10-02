@@ -7,25 +7,30 @@ from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
-if SENTRY_DSN and SENTRY_DSN.strip():
-    import sentry_sdk
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        environment=os.getenv("ENVIRONMENT", "production"),
-        traces_sample_rate=1.0,
-    )
-
-bp = Blueprint("agent", __name__, url_prefix="/api/agent")
-
-redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
-q = Queue("orchestrator", connection=redis_client)
-
 logging.basicConfig(
     level=logging.INFO,
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
 )
 logger = logging.getLogger(__name__)
+
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN and SENTRY_DSN.strip():
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            environment=os.getenv("ENVIRONMENT", "production"),
+            traces_sample_rate=1.0,
+        )
+        logger.info("Sentry initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Sentry: {e}. Continuing without Sentry integration.")
+        SENTRY_DSN = None
+
+bp = Blueprint("agent", __name__, url_prefix="/api/agent")
+
+redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
+q = Queue("orchestrator", connection=redis_client)
 
 @bp.post("/faq")
 def create_faq_task():
