@@ -22,7 +22,7 @@ Create a `.env` file with the following variables (all optional - demo mode work
 
 **Redis Key Naming Convention:**
 - Task status tracking: `agent:task:{task_id}` (1-hour TTL)
-  - Stores JSON: `{status, topic, trace_id, pr_url, created_at, updated_at, error}`
+  - Stores JSON: `{status, question, trace_id, pr_url, created_at, updated_at, error}`
   - Status values: `queued`, `running`, `done`, `error`
 - Idempotency keys: `orchestrator:job:{md5_hash}` (1-hour TTL)
   - Used internally by RQ worker for deduplication
