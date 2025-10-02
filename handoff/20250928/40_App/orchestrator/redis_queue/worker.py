@@ -123,4 +123,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
         raise
 
 if __name__ == "__main__":
-    print("RQ Worker started. Listening for orchestrator tasks...")
+    from rq import Worker
+    print("Starting RQ worker for 'orchestrator' queue...")
+    with Worker([q], connection=redis) as worker:
+        worker.work()
