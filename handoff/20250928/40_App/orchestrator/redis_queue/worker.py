@@ -8,6 +8,8 @@ import os
 import sys
 import time
 import json
+import socket
+import threading
 from datetime import datetime
 from typing import Optional, List
 from redis import Redis
@@ -200,8 +202,39 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
         )
         raise
 
+def start_heartbeat():
+    """
+    Start background heartbeat thread to update worker health status in Redis
+    Key pattern: worker:health:{hostname}:{pid}
+    TTL: 90 seconds, refresh every 30 seconds
+    """
+    hostname = socket.gethostname()
+    pid = os.getpid()
+    key = f"worker:health:{hostname}:{pid}"
+    
+    def heartbeat_loop():
+        while True:
+            try:
+                heartbeat_data = json.dumps({
+                    "ts": datetime.utcnow().isoformat(),
+                    "hostname": hostname,
+                    "pid": pid
+                })
+                redis.setex(key, 90, heartbeat_data)
+                logger.info(f"Worker heartbeat updated", extra={"key": key, "hostname": hostname, "pid": pid})
+            except Exception as e:
+                logger.error(f"Failed to update worker heartbeat: {e}", extra={"key": key})
+            time.sleep(30)
+    
+    thread = threading.Thread(target=heartbeat_loop, daemon=True)
+    thread.start()
+    logger.info(f"Worker started successfully / heartbeat started", extra={"key": key, "hostname": hostname, "pid": pid})
+
 if __name__ == "__main__":
     from rq import Worker
+    
+    start_heartbeat()
+    
     print("Starting RQ worker for 'orchestrator' queue...")
     worker = Worker([q], connection=redis)
     worker.work()
