@@ -24,12 +24,14 @@ jobs:
             echo "$ep => $code"
             [ "$code" -eq 200 ] || (echo "::error::$ep expected 200, got $code" && exit 1)
           done
-      - name: (Optional) Agent FAQ smoke
+      - name: (Optional) Agent FAQ smoke (expect 202)
         if: ${{ github.event.inputs.check_agent_faq == 'true' }}
         run: |
           set -e
           BASE="https://morningai-backend-v2.onrender.com"
-          code=$(curl -s -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' \
-                 -d '{"prompt":"Generate FAQ"}' "$BASE/api/agent/faq")
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H 'Content-Type: application/json' \
+                -d '{"question":"Generate FAQ"}' \
+                "$BASE/api/agent/faq")
           echo "/api/agent/faq => $code"
-          [ "$code" -eq 200 ] || (echo "::error::/api/agent/faq expected 200, got $code" && exit 1)
+          [ "$code" -eq 202 ] || (echo "::error::/api/agent/faq expected 202, got $code" && exit 1)

@@ -16,6 +16,10 @@ if [ -z "$REDIS_URL" ]; then
     echo "⚠️  REDIS_URL not set, will run in demo mode"
 fi
 
+echo "Checking FAQ endpoint..."
+BASE="${BASE_URL:-https://morningai-backend-v2.onrender.com}"
+curl -fsS "$BASE/api/agent/faq" -X POST -H 'Content-Type: application/json' -d '{"topic":"smoke-test"}' >/dev/null && echo "✅ FAQ endpoint responsive" || echo "⚠️  FAQ endpoint check failed"
+
 echo "Running orchestrator..."
 cd handoff/20250928/40_App/orchestrator
 

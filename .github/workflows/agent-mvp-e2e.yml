@@ -1,0 +1,106 @@
+name: agent-mvp-e2e
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests PyGithub
+      
+      - name: Run E2E Test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_URL: https://morningai-backend-v2.onrender.com
+        run: |
+          python - <<'EOF'
+          import os
+          import sys
+          import time
+          import requests
+          from github import Github
+          
+          BASE = os.environ['BASE_URL']
+          GITHUB_TOKEN = os.environ['GITHUB_TOKEN']
+          
+          print("=== Agent MVP E2E Test ===")
+          
+          print("\n1. Creating FAQ task...")
+          response = requests.post(
+              f"{BASE}/api/agent/faq",
+              json={"topic": "E2E test FAQ update"},
+              headers={"Content-Type": "application/json"}
+          )
+          
+          if response.status_code != 200:
+              print(f"❌ Failed to create task: {response.status_code}")
+              sys.exit(1)
+          
+          data = response.json()
+          task_id = data.get('task_id')
+          print(f"✅ Task created: {task_id}")
+          
+          print("\n2. Polling task status...")
+          max_attempts = 60
+          pr_url = None
+          trace_id = None
+          
+          for attempt in range(max_attempts):
+              time.sleep(5)
+              response = requests.get(f"{BASE}/api/agent/tasks/{task_id}")
+              
+              if response.status_code != 200:
+                  print(f"❌ Failed to get task status: {response.status_code}")
+                  sys.exit(1)
+              
+              task = response.json()
+              status = task.get('status')
+              print(f"  Attempt {attempt + 1}: status={status}")
+              
+              if status == 'done':
+                  pr_url = task.get('pr_url')
+                  trace_id = task.get('trace_id')
+                  print(f"✅ Task completed!")
+                  print(f"   PR URL: {pr_url}")
+                  print(f"   Trace ID: {trace_id}")
+                  break
+              elif status == 'error':
+                  print(f"❌ Task failed: {task.get('error')}")
+                  sys.exit(1)
+          else:
+              print("❌ Task did not complete in time")
+              sys.exit(1)
+          
+          if pr_url:
+              print("\n3. Verifying PR status...")
+              gh = Github(GITHUB_TOKEN)
+              repo = gh.get_repo("RC918/morningai")
+              
+              pr_number = int(pr_url.split('/')[-1])
+              pr = repo.get_pull(pr_number)
+              
+              print(f"   PR #{pr_number}: {pr.title}")
+              print(f"   State: {pr.state}")
+              print(f"   Merged: {pr.merged}")
+              
+              if pr.state == 'open':
+                  print("✅ PR is open (will be auto-merged by CI)")
+              elif pr.merged:
+                  print("✅ PR is already merged")
+              else:
+                  print(f"⚠️  PR state: {pr.state}")
+          
+          print("\n=== E2E Test Complete ===")
+          EOF

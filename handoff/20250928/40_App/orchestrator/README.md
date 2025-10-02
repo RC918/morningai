@@ -20,6 +20,20 @@ Create a `.env` file with the following variables (all optional - demo mode work
 - `OPENAI_API_KEY` (for embeddings only)
 - `MEMORY_TABLE` (default: memory)
 
+**Redis Key Naming Convention:**
+- Task status tracking: `agent:task:{task_id}` (1-hour TTL)
+  - Stores JSON: `{status, topic, trace_id, pr_url, created_at, updated_at, error}`
+  - Status values: `queued`, `running`, `done`, `error`
+- Idempotency keys: `orchestrator:job:{md5_hash}` (1-hour TTL)
+  - Used internally by RQ worker for deduplication
+
+**API Integration:**
+The orchestrator can be triggered via API backend at `/api/agent/faq`:
+- POST request creates a task and returns `task_id`
+- GET `/api/agent/tasks/:id` polls for status
+- Orchestrator executes in background and updates task status in Redis
+- See `handoff/20250928/40_App/api-backend/src/routes/agent.py` for implementation
+
 **Features:**
 - **Idempotency**: Tasks with same goal are deduplicated using Redis (1-hour TTL)
 - **Trace ID**: Each task gets a UUID for tracking in PR descriptions and Sentry logs
