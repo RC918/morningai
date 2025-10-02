@@ -30,8 +30,6 @@ if SENTRY_DSN:
 else:
     log_structured("INFO", "Sentry not configured", "startup")
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
 WORKER_ID = os.getenv("RENDER_INSTANCE_ID", os.getenv("HOSTNAME", "worker-local"))
@@ -295,3 +293,6 @@ if __name__ == "__main__":
     log_structured("INFO", "Worker health check", "health_check", **health)
     
     print("RQ Worker started. Listening for orchestrator tasks...")
+    
+    w = Worker(['orchestrator'], connection=redis, exception_handlers=[custom_exception_handler])
+    w.work()

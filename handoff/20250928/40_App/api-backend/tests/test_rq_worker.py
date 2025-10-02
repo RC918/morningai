@@ -14,9 +14,6 @@ from rq import Queue
 def test_worker_module_imports():
     """Test that worker module can be imported"""
     try:
-        import sys
-        import os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../orchestrator'))
         from redis_queue import worker
         
         assert hasattr(worker, 'run_orchestrator_task')
