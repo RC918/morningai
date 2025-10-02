@@ -50,24 +50,30 @@ def create_faq_task():
         repo = os.getenv("GITHUB_REPO", "RC918/morningai")
         task_id = str(uuid.uuid4())
         
-        redis_client.setex(
-            f"agent:task:{task_id}",
-            3600,
-            json.dumps({
-                "status": "queued",
-                "question": question,
-                "created_at": datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat()
-            })
-        )
-        
-        q.enqueue(
+        job = q.enqueue(
             'redis_queue.worker.run_orchestrator_task',
             task_id,
             question,
             repo,
-            job_id=task_id
+            job_id=task_id,
+            ttl=600,
+            result_ttl=86400,
+            failure_ttl=3600
         )
+        
+        redis_client.hset(
+            f"agent:task:{task_id}",
+            mapping={
+                "status": "queued",
+                "question": question,
+                "job_id": job.id,
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        )
+        redis_client.expire(f"agent:task:{task_id}", 3600)
+        
+        logger.info(f"enqueued task_id={task_id} job_id={job.id}")
         
         return jsonify({
             "task_id": task_id,
@@ -117,12 +123,44 @@ def create_faq_task():
 def get_task_status(task_id):
     """Get task status by ID"""
     try:
-        task_data = redis_client.get(f"agent:task:{task_id}")
+        task_data = redis_client.hgetall(f"agent:task:{task_id}")
         
         if not task_data:
             return jsonify({"error": "Task not found"}), 404
         
-        task = json.loads(task_data)
-        return jsonify(task), 200
+        return jsonify(task_data), 200
     except Exception as e:
+        logger.error(f"Failed to get task status: {e}", extra={"task_id": task_id})
+        return jsonify({"error": str(e)}), 500
+
+@bp.get("/debug/queue")
+def debug_queue_status():
+    """Debug endpoint showing queue and task status"""
+    try:
+        queue_length = redis_client.llen("rq:queue:orchestrator")
+        
+        recent_jobs = redis_client.lrange("rq:queue:orchestrator", 0, 4)
+        
+        task_keys = redis_client.keys("agent:task:*")
+        sample_task = None
+        if task_keys:
+            latest_key = max(task_keys, key=lambda k: redis_client.hget(k, "created_at") or "")
+            task_data = redis_client.hgetall(latest_key)
+            if task_data:
+                sample_task = {
+                    "task_id": latest_key.decode() if isinstance(latest_key, bytes) else latest_key.split(":")[-1],
+                    "status": task_data.get(b"status" if isinstance(list(task_data.keys())[0], bytes) else "status") if task_data else None,
+                    "job_id": task_data.get(b"job_id" if isinstance(list(task_data.keys())[0], bytes) else "job_id") if task_data else None,
+                    "created_at": task_data.get(b"created_at" if isinstance(list(task_data.keys())[0], bytes) else "created_at") if task_data else None,
+                    "question_length": len(task_data.get(b"question" if isinstance(list(task_data.keys())[0], bytes) else "question", ""))
+                }
+        
+        return jsonify({
+            "queue_length": queue_length,
+            "recent_job_ids": [job.decode() if isinstance(job, bytes) else job for job in recent_jobs[:5]],
+            "sample_task": sample_task,
+            "timestamp": datetime.utcnow().isoformat()
+        }), 200
+    except Exception as e:
+        logger.error(f"Failed to get debug status: {e}")
         return jsonify({"error": str(e)}), 500
