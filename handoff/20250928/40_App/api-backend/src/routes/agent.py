@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
+from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required
 
 logging.basicConfig(
@@ -31,7 +32,7 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
-q = Queue("orchestrator", connection=redis_client)
+q = Queue("orchestrator", connection=redis_client, serializer=JSONSerializer)
 
 @bp.post("/faq")
 @analyst_required
