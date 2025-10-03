@@ -8,12 +8,27 @@ from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
 from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 logging.basicConfig(
     level=logging.INFO,
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
 )
 logger = logging.getLogger(__name__)
+
+class FAQRequest(BaseModel):
+    """Request model for FAQ generation"""
+    question: str = Field(..., description="Question to generate FAQ for")
+    
+    @field_validator('question')
+    @classmethod
+    def validate_question(cls, v: str) -> str:
+        """Strip whitespace and validate question is not empty"""
+        if isinstance(v, str):
+            v = v.strip()
+        if not v:
+            raise ValueError('question cannot be empty or whitespace only')
+        return v
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 if SENTRY_DSN and SENTRY_DSN.strip():
@@ -38,14 +53,17 @@ q = Queue("orchestrator", connection=redis_client, serializer=JSONSerializer)
 @analyst_required
 def create_faq_task():
     """Create FAQ generation task"""
-    payload = request.get_json(silent=True) or {}
-    question = (payload.get("question") or "").strip()
-    
-    if not question:
+    try:
+        payload = request.get_json(silent=True) or {}
+        validated_request = FAQRequest(**payload)
+        question = validated_request.question
+    except ValidationError as e:
+        error_details = json.loads(e.json())
         return jsonify({
             "error": {
                 "code": "invalid_input",
-                "message": "question parameter is required and cannot be empty"
+                "message": "Invalid request parameters",
+                "details": error_details
             }
         }), 400
     
