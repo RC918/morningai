@@ -12,6 +12,8 @@ on:
 
 jobs:
   e2e-test:
+  env:
+    JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || secrets.JWT_SECRET }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
