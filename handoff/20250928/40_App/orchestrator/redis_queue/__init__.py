@@ -2,7 +2,7 @@
 Redis Queue module for orchestrator
 """
 try:
-    from .worker import enqueue, run_orchestrator_task, check_worker_health
-    __all__ = ['enqueue', 'run_orchestrator_task', 'check_worker_health']
+    from .worker import enqueue, run_orchestrator_task
+    __all__ = ['enqueue', 'run_orchestrator_task']
 except ImportError:
     pass
