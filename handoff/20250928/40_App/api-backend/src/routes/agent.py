@@ -152,7 +152,7 @@ def debug_queue_status():
         
         recent_jobs = redis_client.lrange("rq:queue:orchestrator", 0, 4)
         
-        task_keys = redis_client.keys("agent:task:*")
+        task_keys = list(redis_client.scan_iter("agent:task:*", count=100))
         sample_task = None
         if task_keys:
             latest_key = sorted(task_keys)[-1] if task_keys else None
