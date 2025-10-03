@@ -1,5 +1,6 @@
 import pytest
 import json
+from unittest.mock import patch, MagicMock
 from src.main import app
 from src.middleware import create_admin_token, generate_jwt_token
 
@@ -9,6 +10,22 @@ def client():
     app.config['TESTING'] = True
     with app.test_client() as client:
         yield client
+
+@pytest.fixture
+def mock_redis():
+    """Mock Redis client for tests that need it"""
+    with patch('src.routes.agent.redis_client') as mock:
+        mock.llen.return_value = 0
+        mock.lrange.return_value = []
+        mock.keys.return_value = []
+        mock.type.return_value = "hash"
+        mock.hgetall.return_value = {
+            "status": "queued",
+            "job_id": "test-job-123",
+            "created_at": "2025-10-03T00:00:00",
+            "question": "test question"
+        }
+        yield mock
 
 def create_operator_token():
     """Create operator JWT token for testing"""
@@ -58,7 +75,7 @@ def test_debug_endpoint_viewer_role(client):
     assert 'error' in data
     assert data['error'] == 'Insufficient privileges'
 
-def test_debug_endpoint_operator_role(client):
+def test_debug_endpoint_operator_role(client, mock_redis):
     """Test debug endpoint with operator role returns 200"""
     token = create_operator_token()
     response = client.get(
@@ -70,7 +87,7 @@ def test_debug_endpoint_operator_role(client):
     assert 'queue_length' in data
     assert 'timestamp' in data
 
-def test_debug_endpoint_admin_role(client):
+def test_debug_endpoint_admin_role(client, mock_redis):
     """Test debug endpoint with admin role returns 200"""
     token = create_admin_token()
     response = client.get(
