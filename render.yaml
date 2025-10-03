@@ -43,7 +43,7 @@ services:
       pip install --upgrade pip &&
       pip install -r requirements.txt &&
       pip install -e .
-    startCommand: cd handoff/20250928/40_App/orchestrator && rq worker orchestrator --url $REDIS_URL
+    startCommand: cd handoff/20250928/40_App/orchestrator && python redis_queue/worker.py
     envVars:
       - key: REDIS_URL
         sync: false
@@ -62,4 +62,6 @@ services:
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
