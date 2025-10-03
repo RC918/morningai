@@ -1,6 +1,7 @@
 import pytest
 import time
 from redis import Redis
+from redis.exceptions import ConnectionError
 import os
 
 @pytest.fixture
@@ -8,6 +9,12 @@ def redis_client():
     """Create Redis client for testing"""
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     client = Redis.from_url(redis_url, decode_responses=True)
+    
+    try:
+        client.ping()
+    except ConnectionError:
+        pytest.skip("Redis server not available - skipping performance tests")
+    
     yield client
     for key in client.scan_iter("test:agent:task:*"):
         client.delete(key)
