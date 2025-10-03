@@ -11,6 +11,105 @@ paths:
       responses:
         '200':
           description: ok
+  /api/agent/faq:
+    post:
+      summary: Create FAQ generation task
+      description: Submit a question to generate a FAQ response using the AI agent
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question
+              properties:
+                question:
+                  type: string
+                  description: The question to be answered by the FAQ agent
+                  example: "What is the system architecture?"
+      responses:
+        '202':
+          description: Task accepted and queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task_id:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for the FAQ task
+                  status:
+                    type: string
+                    enum: [queued]
+                    description: Current status of the task
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: invalid_input
+                      message:
+                        type: string
+                        example: question parameter is required and cannot be empty
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: missing_token
+                      message:
+                        type: string
+                        example: No token provided
+        '403':
+          description: Insufficient privileges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: insufficient_privileges
+                      message:
+                        type: string
+                        example: User role 'user' does not have access to this endpoint
+        '503':
+          description: Service temporarily unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        enum: [redis_unavailable, queue_unavailable]
+                      message:
+                        type: string
+                        example: Service temporarily unavailable. Please try again later.
   /agents:
     get:
       summary: List agents

@@ -200,7 +200,20 @@ def create_analyst_token():
     }
     return generate_jwt_token(analyst_data)
 
+<<<<<<< HEAD
 def require_roles(*allowed_roles):
+=======
+def create_user_token():
+    """Create user JWT token for testing purposes"""
+    user_data = {
+        'id': 3,
+        'username': 'user',
+        'role': 'user'
+    }
+    return generate_jwt_token(user_data)
+
+def roles_required(*allowed_roles):
+>>>>>>> main
     """Decorator for endpoints requiring specific roles"""
     def decorator(f):
         @wraps(f)
@@ -227,10 +240,17 @@ def require_roles(*allowed_roles):
                 
                 user_role = payload.get('role', 'user')
                 
+<<<<<<< HEAD
                 if user_role not in allowed_roles:
                     return jsonify({
                         'error': 'Insufficient privileges',
                         'message': f'Access requires one of: {", ".join(allowed_roles)}'
+=======
+                if user_role not in allowed_roles and user_role not in ['超級管理員']:
+                    return jsonify({
+                        'error': 'Insufficient privileges',
+                        'message': f'Access denied. Required role(s): {", ".join(allowed_roles)}'
+>>>>>>> main
                     }), 403
                 
                 request.current_user = {
@@ -251,6 +271,14 @@ def require_roles(*allowed_roles):
                     'error': 'Invalid token',
                     'message': 'JWT token is invalid or malformed.'
                 }), 401
+<<<<<<< HEAD
+=======
+            except Exception as e:
+                return jsonify({
+                    'error': 'Authentication failed',
+                    'message': 'Unable to verify JWT token.'
+                }), 401
+>>>>>>> main
         
         return decorated_function
     return decorator

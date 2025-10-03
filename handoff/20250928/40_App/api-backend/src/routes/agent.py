@@ -6,7 +6,11 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
+<<<<<<< HEAD
 from src.middleware import jwt_required, require_roles
+=======
+from src.middleware.auth_middleware import analyst_required,jwt_required,require_roles
+>>>>>>> main
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,6 +38,7 @@ redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0")
 q = Queue("orchestrator", connection=redis_client)
 
 @bp.post("/faq")
+@analyst_required
 def create_faq_task():
     """Create FAQ generation task"""
     payload = request.get_json(silent=True) or {}
