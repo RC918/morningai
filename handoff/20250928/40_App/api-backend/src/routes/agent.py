@@ -47,7 +47,8 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
-q = Queue("orchestrator", connection=redis_client, serializer=JSONSerializer)
+redis_client_rq = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+q = Queue("orchestrator", connection=redis_client_rq, serializer=JSONSerializer)
 
 @bp.post("/faq")
 @analyst_required
