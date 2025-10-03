@@ -24,12 +24,13 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install requests PyGithub
+          pip install requests PyGithub PyJWT
       
       - name: Run E2E Test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_URL: https://morningai-backend-v2.onrender.com
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: |
           python - <<'EOF'
           import os
@@ -37,9 +38,22 @@ jobs:
           import time
           import requests
           from github import Github
+          import jwt
+          import datetime
           
           BASE = os.environ['BASE_URL']
           GITHUB_TOKEN = os.environ['GITHUB_TOKEN']
+          JWT_SECRET = os.environ['JWT_SECRET_KEY']
+          
+          # Generate analyst JWT token for authentication
+          analyst_payload = {
+              'user_id': 2,
+              'username': 'e2e-analyst',
+              'role': 'analyst',
+              'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+              'iat': datetime.datetime.utcnow()
+          }
+          token = jwt.encode(analyst_payload, JWT_SECRET, algorithm='HS256')
           
           print("=== Agent MVP E2E Test ===")
           
@@ -47,7 +61,10 @@ jobs:
           response = requests.post(
               f"{BASE}/api/agent/faq",
               json={"question": "E2E test FAQ update"},
-              headers={"Content-Type": "application/json"}
+              headers={
+                  "Content-Type": "application/json",
+                  "Authorization": f"Bearer {token}"
+              }
           )
           
           if response.status_code != 202:
