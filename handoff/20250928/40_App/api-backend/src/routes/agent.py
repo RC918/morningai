@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
+from src.middleware import jwt_required, require_roles
 
 logging.basicConfig(
     level=logging.INFO,
@@ -143,6 +144,8 @@ def get_task_status(task_id):
         return jsonify({"error": str(e)}), 500
 
 @bp.get("/debug/queue")
+@jwt_required
+@require_roles("operator", "admin")
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
