@@ -13,8 +13,10 @@ from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.auth import auth_bp
 from src.routes.dashboard import dashboard_bp
-from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required
+from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required, roles_required
 from flask_cors import CORS
+from pydantic import BaseModel, Field, ValidationError
+from typing import Optional
 import sys
 import os
 import logging
@@ -24,6 +26,25 @@ logging.basicConfig(
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
 )
 logger = logging.getLogger(__name__)
+
+class AccessEvaluationRequest(BaseModel):
+    """Request model for Zero Trust access evaluation"""
+    user_id: str = Field(..., min_length=1, description="User ID requesting access")
+    resource: str = Field(..., min_length=1, description="Resource being accessed")
+    action: str = Field(..., min_length=1, description="Action to perform")
+    context: dict = Field(default_factory=dict, description="Additional context for evaluation")
+
+class SecurityEventReviewRequest(BaseModel):
+    """Request model for security event review"""
+    event_id: str = Field(..., min_length=1, description="Security event ID")
+    review_status: str = Field(..., description="Review status")
+    notes: Optional[str] = Field(None, description="Review notes")
+
+class HITLReviewRequest(BaseModel):
+    """Request model for human-in-the-loop review submission"""
+    review_id: str = Field(..., min_length=1, description="Review request ID")
+    decision: str = Field(..., description="Human decision")
+    reasoning: Optional[str] = Field(None, description="Decision reasoning")
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 APP_VERSION = os.getenv("APP_VERSION", "8.0.0")
@@ -770,10 +791,26 @@ def evaluate_access_request():
     if not PHASE_456_AVAILABLE:
         return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
     try:
+        if request.method == 'POST':
+            try:
+                payload = request.get_json(silent=True) or {}
+                validated_request = AccessEvaluationRequest(**payload)
+                request_data = validated_request.model_dump()
+            except ValidationError as e:
+                return jsonify({
+                    "error": {
+                        "code": "invalid_input",
+                        "message": "Invalid request parameters",
+                        "details": e.errors()
+                    }
+                }), 400
+        else:
+            request_data = {}
+        
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(api_evaluate_access_request(request.json or {}))
+        result = loop.run_until_complete(api_evaluate_access_request(request_data))
         loop.close()
         return jsonify(result)
     except Exception as e:
@@ -786,10 +823,23 @@ def review_security_event():
     if not PHASE_456_AVAILABLE:
         return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
     try:
+        try:
+            payload = request.get_json(silent=True) or {}
+            validated_request = SecurityEventReviewRequest(**payload)
+            request_data = validated_request.model_dump()
+        except ValidationError as e:
+            return jsonify({
+                "error": {
+                    "code": "invalid_input",
+                    "message": "Invalid request parameters",
+                    "details": e.errors()
+                }
+            }), 400
+        
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(api_review_security_event(request.json or {}))
+        result = loop.run_until_complete(api_review_security_event(request_data))
         loop.close()
         return jsonify(result)
     except Exception as e:
@@ -802,8 +852,20 @@ def submit_hitl_review():
     if not PHASE_456_AVAILABLE:
         return jsonify({'error': 'Phase 4-6 APIs not available'}), 503
     try:
+        try:
+            payload = request.get_json(silent=True) or {}
+            validated_request = HITLReviewRequest(**payload)
+            data = validated_request.model_dump()
+        except ValidationError as e:
+            return jsonify({
+                "error": {
+                    "code": "invalid_input",
+                    "message": "Invalid request parameters",
+                    "details": e.errors()
+                }
+            }), 400
+        
         import asyncio
-        data = request.json or {}
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         result = loop.run_until_complete(api_submit_hitl_review(data))
