@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Optional, List
 from redis import Redis
 from rq import Queue
+from rq.serializers import JSONSerializer
 from rq.decorators import job
 from rq import Retry
 import logging
@@ -44,7 +45,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis = Redis.from_url(redis_url)
-q = Queue("orchestrator", connection=redis)
+q = Queue("orchestrator", connection=redis, serializer=JSONSerializer)
 
 def run_step(step: str):
     """Demo function for testing worker with steps"""
