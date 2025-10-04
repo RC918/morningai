@@ -10,6 +10,12 @@ from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
+orchestrator_path = os.path.join(os.path.dirname(__file__), '../../../orchestrator')
+if orchestrator_path not in sys.path:
+    sys.path.insert(0, orchestrator_path)
+
+from redis_queue.worker import run_orchestrator_task
+
 logging.basicConfig(
     level=logging.INFO,
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
@@ -73,7 +79,7 @@ def create_faq_task():
         task_id = str(uuid.uuid4())
         
         job = q.enqueue(
-            'redis_queue.worker.run_orchestrator_task',
+            run_orchestrator_task,
             task_id,
             question,
             repo,
