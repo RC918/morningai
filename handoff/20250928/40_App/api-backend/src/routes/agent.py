@@ -9,6 +9,7 @@ from rq import Queue
 from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required
 from pydantic import BaseModel, Field, ValidationError, field_validator
+import sys
 
 orchestrator_path = os.path.join(os.path.dirname(__file__), '../../../orchestrator')
 if orchestrator_path not in sys.path:
