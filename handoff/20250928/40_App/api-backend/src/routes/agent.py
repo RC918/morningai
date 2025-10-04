@@ -168,9 +168,9 @@ def get_task_status(task_id):
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
-        queue_length = redis_client.llen("rq:queue:orchestrator")
+        queue_length = redis_client_rq.llen("rq:queue:orchestrator")
         
-        recent_jobs = redis_client.lrange("rq:queue:orchestrator", 0, 4)
+        recent_jobs = redis_client_rq.lrange("rq:queue:orchestrator", 0, 4)
         
         task_keys = list(redis_client.scan_iter("agent:task:*", count=100))
         sample_task = None
