@@ -1,6 +1,12 @@
 name: agent-mvp-e2e
 on:
   workflow_dispatch:
+    inputs:
+      test_sentry:
+        description: 'Test Sentry integration (send smoke message)'
+        required: false
+        type: boolean
+        default: false
   schedule:
     - cron: '0 2 * * *'
 
@@ -18,12 +24,13 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install requests PyGithub
+          pip install requests PyGithub PyJWT
       
       - name: Run E2E Test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_URL: https://morningai-backend-v2.onrender.com
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: |
           python - <<'EOF'
           import os
@@ -31,9 +38,22 @@ jobs:
           import time
           import requests
           from github import Github
+          import jwt
+          import datetime
           
           BASE = os.environ['BASE_URL']
           GITHUB_TOKEN = os.environ['GITHUB_TOKEN']
+          JWT_SECRET = os.environ['JWT_SECRET_KEY']
+          
+          # Generate analyst JWT token for authentication
+          analyst_payload = {
+              'user_id': 2,
+              'username': 'e2e-analyst',
+              'role': 'analyst',
+              'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+              'iat': datetime.datetime.utcnow()
+          }
+          token = jwt.encode(analyst_payload, JWT_SECRET, algorithm='HS256')
           
           print("=== Agent MVP E2E Test ===")
           
@@ -41,7 +61,10 @@ jobs:
           response = requests.post(
               f"{BASE}/api/agent/faq",
               json={"question": "E2E test FAQ update"},
-              headers={"Content-Type": "application/json"}
+              headers={
+                  "Content-Type": "application/json",
+                  "Authorization": f"Bearer {token}"
+              }
           )
           
           if response.status_code != 202:
@@ -103,4 +126,41 @@ jobs:
                   print(f"⚠️  PR state: {pr.state}")
           
           print("\n=== E2E Test Complete ===")
+          EOF
+      
+      - name: Test Sentry Integration (Optional)
+        if: github.event.inputs.test_sentry == 'true'
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          python - <<'EOF'
+          import os
+          import sys
+          
+          SENTRY_DSN = os.environ.get('SENTRY_DSN')
+          
+          if not SENTRY_DSN:
+              print("⚠️  SENTRY_DSN not configured, skipping Sentry test")
+              sys.exit(0)
+          
+          try:
+              import sentry_sdk
+              sentry_sdk.init(
+                  dsn=SENTRY_DSN,
+                  environment="ci-test",
+                  traces_sample_rate=1.0,
+              )
+              
+              event_id = sentry_sdk.capture_message(
+                  "E2E Smoke Test - Sentry Integration",
+                  level="info"
+              )
+              
+              print(f"✅ Sentry smoke test successful")
+              print(f"   Event ID: {event_id}")
+              print(f"   Check Sentry dashboard for this event")
+              
+          except Exception as e:
+              print(f"❌ Sentry smoke test failed: {e}")
+              sys.exit(1)
           EOF
