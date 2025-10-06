@@ -236,5 +236,5 @@ if __name__ == "__main__":
     start_heartbeat()
     
     print("Starting RQ worker for 'orchestrator' queue...")
-    worker = Worker([q])
+    worker = Worker([q], connection=redis)
     worker.work()
