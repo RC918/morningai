@@ -10,6 +10,9 @@ on:
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
     if: github.event.pull_request.user.login == 'github-actions[bot]' || contains(github.event.pull_request.title, 'trace-id')
     steps:
       - uses: actions/checkout@v4
