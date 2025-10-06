@@ -6,17 +6,29 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
-<<<<<<< HEAD
-from src.middleware import jwt_required, require_roles
-=======
-from src.middleware.auth_middleware import analyst_required,jwt_required,require_roles
->>>>>>> main
+from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
+from pydantic import BaseModel, Field, ValidationError, field_validator
+from redis_queue.worker import run_orchestrator_task
 
 logging.basicConfig(
     level=logging.INFO,
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
 )
 logger = logging.getLogger(__name__)
+
+class FAQRequest(BaseModel):
+    """Request model for FAQ generation"""
+    question: str = Field(..., description="Question to generate FAQ for")
+    
+    @field_validator('question')
+    @classmethod
+    def validate_question(cls, v: str) -> str:
+        """Strip whitespace and validate question is not empty"""
+        if isinstance(v, str):
+            v = v.strip()
+        if not v:
+            raise ValueError('question cannot be empty or whitespace only')
+        return v
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 if SENTRY_DSN and SENTRY_DSN.strip():
@@ -35,20 +47,23 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
-q = Queue("orchestrator", connection=redis_client)
+redis_client_rq = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+q = Queue("orchestrator", connection=redis_client_rq)
 
 @bp.post("/faq")
-@analyst_required
 def create_faq_task():
     """Create FAQ generation task"""
-    payload = request.get_json(silent=True) or {}
-    question = (payload.get("question") or "").strip()
-    
-    if not question:
+    try:
+        payload = request.get_json(silent=True) or {}
+        validated_request = FAQRequest(**payload)
+        question = validated_request.question
+    except ValidationError as e:
+        error_details = json.loads(e.json())
         return jsonify({
             "error": {
                 "code": "invalid_input",
-                "message": "question parameter is required and cannot be empty"
+                "message": "Invalid request parameters",
+                "details": error_details
             }
         }), 400
     
@@ -57,7 +72,7 @@ def create_faq_task():
         task_id = str(uuid.uuid4())
         
         job = q.enqueue(
-            'redis_queue.worker.run_orchestrator_task',
+            run_orchestrator_task,
             task_id,
             question,
             repo,
@@ -150,15 +165,15 @@ def get_task_status(task_id):
 
 @bp.get("/debug/queue")
 @jwt_required
-@require_roles("operator", "admin")
+@roles_required("operator", "admin")
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
-        queue_length = redis_client.llen("rq:queue:orchestrator")
+        queue_length = redis_client_rq.llen("rq:queue:orchestrator")
         
-        recent_jobs = redis_client.lrange("rq:queue:orchestrator", 0, 4)
+        recent_jobs = redis_client_rq.lrange("rq:queue:orchestrator", 0, 4)
         
-        task_keys = redis_client.keys("agent:task:*")
+        task_keys = list(redis_client.scan_iter("agent:task:*", count=100))
         sample_task = None
         if task_keys:
             latest_key = sorted(task_keys)[-1] if task_keys else None
