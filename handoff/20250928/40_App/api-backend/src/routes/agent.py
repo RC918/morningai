@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
-from src.middleware.auth_middleware import analyst_required
+from src.middleware.auth_middleware import analyst_required, jwt_required
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from redis_queue.worker import run_orchestrator_task
 
@@ -51,7 +51,6 @@ redis_client_rq = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/
 q = Queue("orchestrator", connection=redis_client_rq)
 
 @bp.post("/faq")
-@analyst_required
 def create_faq_task():
     """Create FAQ generation task"""
     try:
@@ -165,6 +164,7 @@ def get_task_status(task_id):
         return jsonify({"error": str(e)}), 500
 
 @bp.get("/debug/queue")
+@jwt_required
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
