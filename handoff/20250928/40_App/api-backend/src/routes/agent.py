@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
-from src.middleware.auth_middleware import analyst_required, jwt_required
+from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from redis_queue.worker import run_orchestrator_task
 
@@ -165,6 +165,7 @@ def get_task_status(task_id):
 
 @bp.get("/debug/queue")
 @jwt_required
+@roles_required("operator", "admin")
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:

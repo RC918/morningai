@@ -14,7 +14,23 @@ MOCK_USERS = {
         'username': 'admin',
         'password_hash': generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'admin123')),
         'name': '系統管理員',
-        'role': '超級管理員',
+        'role': 'admin',
+        'avatar': None
+    },
+    'operator': {
+        'id': 2,
+        'username': 'operator',
+        'password_hash': generate_password_hash('operator123'),
+        'name': '操作員',
+        'role': 'operator',
+        'avatar': None
+    },
+    'viewer': {
+        'id': 3,
+        'username': 'viewer',
+        'password_hash': generate_password_hash('viewer123'),
+        'name': '查看者',
+        'role': 'viewer',
         'avatar': None
     }
 }
@@ -44,6 +60,7 @@ def login():
         token = jwt.encode({
             'user_id': user_data['id'],
             'username': username,
+            'role': user_data['role'],
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
         }, jwt_secret, algorithm='HS256')
         
