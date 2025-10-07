@@ -36,7 +36,7 @@ import socket
 import threading
 import signal
 import atexit
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
@@ -99,7 +99,7 @@ def update_worker_heartbeat():
                     120,
                     json.dumps({
                         "state": state,
-                        "last_heartbeat": datetime.utcnow().isoformat() + "Z",
+                        "last_heartbeat": datetime.now(timezone.utc).isoformat() + "Z",
                         "worker_id": WORKER_ID,
                         "timestamp": int(time.time())
                     })
@@ -138,7 +138,7 @@ def cleanup_heartbeat():
             120,
             json.dumps({
                 "state": "shutting_down",
-                "last_heartbeat": datetime.utcnow().isoformat() + "Z",
+                "last_heartbeat": datetime.now(timezone.utc).isoformat() + "Z",
                 "worker_id": WORKER_ID,
                 "timestamp": int(time.time())
             })
@@ -264,7 +264,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 "question": question,
                 "trace_id": task_id,
                 "job_id": job_id,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.now(timezone.utc).isoformat()
             }
         )
         redis.expire(redis_key, 3600)
@@ -296,7 +296,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 "job_id": job_id,
                 "pr_url": pr_url,
                 "state": state,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.now(timezone.utc).isoformat()
             }
         )
         redis.expire(redis_key, 3600)
@@ -334,7 +334,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 "job_id": job_id,
                 "error_code": "ORCHESTRATOR_FAILED",
                 "error_message": error_msg,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.now(timezone.utc).isoformat()
             }
         )
         redis.expire(f"agent:task:{task_id}", 3600)
