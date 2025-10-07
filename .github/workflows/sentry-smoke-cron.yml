@@ -1,0 +1,42 @@
+name: Weekly Sentry Smoke Test
+
+on:
+  schedule:
+    - cron: '0 12 * * 1'
+  workflow_dispatch:
+
+jobs:
+  sentry-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install Sentry SDK
+        run: pip install sentry-sdk==2.19.2
+      
+      - name: Send Sentry smoke test message
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          python - <<EOF
+          import sentry_sdk
+          import os
+          
+          dsn = os.getenv('SENTRY_DSN')
+          if not dsn or not dsn.strip():
+              print("❌ SENTRY_DSN is not configured")
+              exit(1)
+          
+          sentry_sdk.init(dsn=dsn, traces_sample_rate=1.0)
+          
+          event_id = sentry_sdk.capture_message("weekly smoke test", level="info")
+          sentry_sdk.flush(timeout=5)
+          
+          print(f"✅ Weekly Sentry smoke test message sent successfully")
+          print(f"Event ID: {event_id}")
+          EOF
