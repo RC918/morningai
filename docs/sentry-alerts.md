@@ -117,3 +117,11 @@ for i in range(3):
 ## Backend 規則（回填）
 - Error Rule URL: https://sentry.io/organizations/morningai-core/alerts/rules/16341755/
 - 通知管道: Email / Slack #oncall
+
+
+## Sentry 規則回填（2025-10-07）
+- Frontend Error Rule URL: https://sentry.io/organizations/morningai-core/alerts/rules/16293151/
+- React Error Rule URL:    https://sentry.io/organizations/morningai-core/alerts/rules/16330925/
+- Backend Error Rule URL:  https://sentry.io/organizations/morningai-core/alerts/rules/16341755/
+- 通知管道: Email / Slack #oncall
+
