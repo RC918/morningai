@@ -12,6 +12,28 @@ paths:
         '200':
           description: ok
   /api/agent/faq:
+    get:
+      summary: Method not allowed
+      description: GET requests are not supported. Use POST instead.
+      responses:
+        '405':
+          description: Method not allowed
+          headers:
+            Allow:
+              schema:
+                type: string
+                example: POST
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Method Not Allowed
+                  message:
+                    type: string
+                    example: This endpoint only accepts POST requests. Please use POST with a JSON body containing 'question' field.
     post:
       summary: Create FAQ generation task
       description: Submit a question to generate a FAQ response using the AI agent

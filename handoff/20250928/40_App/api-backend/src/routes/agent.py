@@ -50,7 +50,15 @@ redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client_rq = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 q = Queue("orchestrator", connection=redis_client_rq)
 
-@bp.post("/faq")
+@bp.route("/faq", methods=["GET"])
+def faq_method_not_allowed():
+    """Return 405 for GET requests to prevent misuse"""
+    return jsonify({
+        "error": "Method Not Allowed",
+        "message": "This endpoint only accepts POST requests. Please use POST with a JSON body containing 'question' field."
+    }), 405, {"Allow": "POST"}
+
+@bp.route("/faq", methods=["POST"])
 def create_faq_task():
     """Create FAQ generation task"""
     try:
