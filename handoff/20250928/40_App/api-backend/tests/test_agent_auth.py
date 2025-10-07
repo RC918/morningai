@@ -2,7 +2,7 @@ import pytest
 import json
 from unittest.mock import patch, MagicMock
 from src.main import app
-from src.middleware import create_admin_token, generate_jwt_token
+from src.middleware import create_admin_token, create_analyst_token, create_user_token
 
 @pytest.fixture
 def client():
@@ -30,24 +30,6 @@ def mock_redis():
         
         yield mock_client
 
-def create_operator_token():
-    """Create operator JWT token for testing"""
-    operator_data = {
-        'id': 2,
-        'username': 'operator',
-        'role': 'operator'
-    }
-    return generate_jwt_token(operator_data)
-
-def create_viewer_token():
-    """Create viewer JWT token for testing"""
-    viewer_data = {
-        'id': 3,
-        'username': 'viewer',
-        'role': 'viewer'
-    }
-    return generate_jwt_token(viewer_data)
-
 def test_debug_endpoint_no_token(client):
     """Test debug endpoint without token returns 401"""
     response = client.get('/api/agent/debug/queue')
@@ -66,9 +48,9 @@ def test_debug_endpoint_invalid_token(client):
     data = json.loads(response.data)
     assert 'error' in data
 
-def test_debug_endpoint_viewer_role(client):
-    """Test debug endpoint with viewer role returns 403"""
-    token = create_viewer_token()
+def test_debug_endpoint_user_role(client):
+    """Test debug endpoint with user role returns 403"""
+    token = create_user_token()
     response = client.get(
         '/api/agent/debug/queue',
         headers={'Authorization': f'Bearer {token}'}
@@ -78,9 +60,9 @@ def test_debug_endpoint_viewer_role(client):
     assert 'error' in data
     assert data['error'] == 'Insufficient privileges'
 
-def test_debug_endpoint_operator_role(client, mock_redis):
-    """Test debug endpoint with operator role returns 200"""
-    token = create_operator_token()
+def test_debug_endpoint_analyst_role(client, mock_redis):
+    """Test debug endpoint with analyst role returns 200"""
+    token = create_analyst_token()
     response = client.get(
         '/api/agent/debug/queue',
         headers={'Authorization': f'Bearer {token}'}

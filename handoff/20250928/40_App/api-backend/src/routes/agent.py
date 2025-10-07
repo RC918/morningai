@@ -165,7 +165,7 @@ def get_task_status(task_id):
 
 @bp.get("/debug/queue")
 @jwt_required
-@roles_required("operator", "admin")
+@roles_required("analyst", "admin")
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
