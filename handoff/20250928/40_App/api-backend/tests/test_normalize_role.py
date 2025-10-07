@@ -148,3 +148,71 @@ def test_backward_compatibility_viewer_login():
     decoded = jwt.decode(token, jwt_secret, algorithms=['HS256'])
     
     assert decoded['role'] == 'user'
+
+
+def test_roles_required_decorator_with_operator_token():
+    """Integration test: operator token can access analyst-required endpoint"""
+    from src.middleware import roles_required
+    from flask import Flask, jsonify
+    import jwt as jwt_lib
+    import datetime
+    
+    app = Flask(__name__)
+    
+    @app.route('/test-endpoint')
+    @roles_required("analyst", "admin")
+    def test_endpoint():
+        return jsonify({"message": "success"})
+    
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    payload = {
+        'user_id': 2,
+        'username': 'operator',
+        'role': 'operator',
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+        'iat': datetime.datetime.utcnow()
+    }
+    operator_token = jwt_lib.encode(payload, jwt_secret, algorithm='HS256')
+    
+    with app.test_client() as client:
+        response = client.get(
+            '/test-endpoint',
+            headers={'Authorization': f'Bearer {operator_token}'}
+        )
+        
+        assert response.status_code == 200
+        assert response.json['message'] == 'success'
+
+
+def test_roles_required_decorator_with_viewer_token():
+    """Integration test: viewer token cannot access analyst-required endpoint"""
+    from src.middleware import roles_required
+    from flask import Flask, jsonify
+    import jwt as jwt_lib
+    import datetime
+    
+    app = Flask(__name__)
+    
+    @app.route('/test-endpoint')
+    @roles_required("analyst", "admin")
+    def test_endpoint():
+        return jsonify({"message": "success"})
+    
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    payload = {
+        'user_id': 3,
+        'username': 'viewer',
+        'role': 'viewer',
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+        'iat': datetime.datetime.utcnow()
+    }
+    viewer_token = jwt_lib.encode(payload, jwt_secret, algorithm='HS256')
+    
+    with app.test_client() as client:
+        response = client.get(
+            '/test-endpoint',
+            headers={'Authorization': f'Bearer {viewer_token}'}
+        )
+        
+        assert response.status_code == 403
+        assert 'Insufficient privileges' in response.json['error']

@@ -270,8 +270,9 @@ def roles_required(*allowed_roles):
                 payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
                 
                 user_role = payload.get('role', 'user')
+                normalized_role = normalize_role(user_role)
                 
-                if user_role not in allowed_roles and user_role not in ['超級管理員']:
+                if normalized_role not in allowed_roles and normalized_role not in ['超級管理員']:
                     return jsonify({
                         'error': 'Insufficient privileges',
                         'message': f'Access denied. Required role(s): {", ".join(allowed_roles)}'
@@ -280,7 +281,7 @@ def roles_required(*allowed_roles):
                 request.current_user = {
                     'user_id': payload.get('user_id'),
                     'username': payload.get('username'),
-                    'role': user_role
+                    'role': normalized_role
                 }
                 
                 return f(*args, **kwargs)
