@@ -112,3 +112,8 @@ for i in range(3):
 
 - [Sentry Alerts Documentation](https://docs.sentry.io/product/alerts/)
 - [Sentry API - Alert Rules](https://docs.sentry.io/api/alerts/)
+
+
+## Backend 規則（回填）
+- Error Rule URL: https://sentry.io/organizations/morningai-core/alerts/rules/16341755/
+- 通知管道: Email / Slack #oncall
