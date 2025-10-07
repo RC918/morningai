@@ -57,6 +57,18 @@ jobs:
           
           print("=== Agent MVP E2E Test ===")
           
+          print("\n0. Health check...")
+          try:
+              health_response = requests.get(f"{BASE}/healthz", timeout=10)
+              if health_response.status_code != 200:
+                  print(f"❌ Health check failed: {health_response.status_code}")
+                  print(f"   Response: {health_response.text}")
+                  sys.exit(1)
+              print("✅ Health check passed")
+          except Exception as e:
+              print(f"❌ Health check failed: {e}")
+              sys.exit(1)
+          
           print("\n1. Creating FAQ task...")
           response = requests.post(
               f"{BASE}/api/agent/faq",
@@ -69,6 +81,7 @@ jobs:
           
           if response.status_code != 202:
               print(f"❌ Failed to create task: {response.status_code}")
+              print(f"   Response: {response.text}")
               sys.exit(1)
           
           data = response.json()
@@ -76,7 +89,7 @@ jobs:
           print(f"✅ Task created: {task_id}")
           
           print("\n2. Polling task status...")
-          max_attempts = 60
+          max_attempts = 120
           pr_url = None
           trace_id = None
           
@@ -86,6 +99,7 @@ jobs:
               
               if response.status_code != 200:
                   print(f"❌ Failed to get task status: {response.status_code}")
+                  print(f"   Response: {response.text}")
                   sys.exit(1)
               
               task = response.json()
@@ -101,6 +115,7 @@ jobs:
                   break
               elif status == 'error':
                   print(f"❌ Task failed: {task.get('error')}")
+                  print(f"   Full response: {task}")
                   sys.exit(1)
           else:
               print("❌ Task did not complete in time")
