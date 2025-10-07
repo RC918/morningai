@@ -1,42 +1,66 @@
 name: Weekly Sentry Smoke Test
-
 on:
   schedule:
-    - cron: '0 12 * * 1'
+    - cron: "0 4 * * 1"   # UTC 04:00 = TPE 12:00, Monday
   workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   sentry-smoke:
     runs-on: ubuntu-latest
+    env:
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-      
+        with: { fetch-depth: 1 }
+
+      - uses: actions/setup-python@v4
+        with: { python-version: "3.x" }
+
       - name: Install Sentry SDK
-        run: pip install sentry-sdk==2.19.2
-      
+        run: pip install --quiet sentry-sdk
+
       - name: Send Sentry smoke test message
-        env:
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
-          python - <<EOF
+          test -n "$SENTRY_DSN" || { echo "Missing SENTRY_DSN"; exit 2; }
+          python - <<'PY'
+          import os,time
           import sentry_sdk
-          import os
-          
-          dsn = os.getenv('SENTRY_DSN')
-          if not dsn or not dsn.strip():
-              print("❌ SENTRY_DSN is not configured")
-              exit(1)
-          
-          sentry_sdk.init(dsn=dsn, traces_sample_rate=1.0)
-          
-          event_id = sentry_sdk.capture_message("weekly smoke test", level="info")
-          sentry_sdk.flush(timeout=5)
-          
-          print(f"✅ Weekly Sentry smoke test message sent successfully")
-          print(f"Event ID: {event_id}")
-          EOF
+          dsn=os.environ["SENTRY_DSN"]
+          sentry_sdk.init(dsn=dsn, traces_sample_rate=0.0)
+          with sentry_sdk.push_scope() as scope:
+              scope.set_tag("smoke","weekly")
+              scope.set_tag("env","prod")
+              sentry_sdk.capture_message(f"Weekly Sentry smoke @ {time.time()}")
+          print("OK")
+          PY
+
+      - name: Open GitHub Issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create needs-fix --color FF8C00 --description "CI failing – requires fixes" 2>/dev/null || true
+          gh issue create \
+            --title "Sentry smoke failed: $GITHUB_RUN_ID" \
+            --body  "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\nJob: $GITHUB_JOB\nRef: $GITHUB_REF\nActor: $GITHUB_ACTOR" \
+            --label needs-fix
+
+      - name: Slack notify on failure (optional)
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          payload=$(cat <<JSON
+          {
+            "text": ":rotating_light: Sentry smoke failed",
+            "blocks": [
+              { "type": "section", "text": { "type": "mrkdwn",
+                "text": "*Sentry smoke failed*\nRun: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" } }
+            ]
+          }
+          JSON
+          )
+          curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" >/dev/null 2>&1 || true
