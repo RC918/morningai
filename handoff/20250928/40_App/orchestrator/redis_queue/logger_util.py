@@ -4,7 +4,7 @@ Structured logging utility for worker operations
 """
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 def log_structured(
@@ -29,7 +29,7 @@ def log_structured(
         **extra: Additional fields to include
     """
     log_entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         "level": level,
         "message": message,
         "operation": operation,

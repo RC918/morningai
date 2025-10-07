@@ -79,6 +79,7 @@ q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer()
 WORKER_ID = os.getenv("RENDER_INSTANCE_ID", os.getenv("HOSTNAME", "worker-local"))
 shutdown_event = threading.Event()
 shutting_down = False
+cleanup_started = False
 heartbeat_thread = None
 
 def update_worker_heartbeat():
@@ -125,9 +126,15 @@ def cleanup_heartbeat():
     Cleanup function to gracefully shutdown heartbeat thread.
     Called on worker shutdown or exit.
     Sets shutting_down flag, updates heartbeat state, and cleans up Redis key.
+    Idempotent: safe to call multiple times.
     """
-    global heartbeat_thread, shutting_down
+    global heartbeat_thread, shutting_down, cleanup_started
     
+    if cleanup_started:
+        logger.debug(f"Cleanup already in progress, skipping duplicate call", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        return
+    
+    cleanup_started = True
     logger.info(f"Initiating graceful shutdown", extra={"operation": "shutdown", "worker_id": WORKER_ID})
     shutting_down = True
     

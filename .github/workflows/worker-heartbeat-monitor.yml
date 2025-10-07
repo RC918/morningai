@@ -1,0 +1,111 @@
+name: Worker Heartbeat Monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check worker heartbeats
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          pip install redis
+          python - <<'EOF'
+          import os
+          import sys
+          import json
+          import time
+          from datetime import datetime, timezone
+          from redis import Redis
+          
+          redis_url = os.environ.get('REDIS_URL')
+          if not redis_url:
+              print("ERROR: REDIS_URL not configured")
+              sys.exit(1)
+          
+          redis = Redis.from_url(redis_url, decode_responses=True)
+          
+          heartbeat_keys = list(redis.scan_iter("worker:heartbeat:*"))
+          
+          if not heartbeat_keys:
+              print("No worker heartbeats found (workers might be offline during deploy)")
+              sys.exit(0)
+          
+          missing_workers = []
+          current_time = int(time.time())
+          
+          for key in heartbeat_keys:
+              data_str = redis.get(key)
+              if not data_str:
+                  continue
+              
+              data = json.loads(data_str)
+              worker_id = data.get('worker_id', 'unknown')
+              last_heartbeat_ts = data.get('timestamp', 0)
+              state = data.get('state', 'unknown')
+              
+              age_seconds = current_time - last_heartbeat_ts
+              
+              if age_seconds > 120 and state != 'shutting_down':
+                  missing_workers.append({
+                      'worker_id': worker_id,
+                      'age_seconds': age_seconds,
+                      'age_minutes': round(age_seconds / 60, 1),
+                      'state': state
+                  })
+          
+          if missing_workers:
+              print("⚠️  Workers with stale heartbeats detected:")
+              for w in missing_workers:
+                  print(f"  - {w['worker_id']}: {w['age_minutes']} minutes old (state: {w['state']})")
+              sys.exit(1)
+          else:
+              print("✅ All worker heartbeats are fresh")
+          EOF
+      
+      - name: Create issue on heartbeat failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '⚠️ Worker Heartbeat Alert: Missing heartbeats detected';
+            const body = `## Worker Heartbeat Alert
+            
+            One or more workers have not sent heartbeats for >2 minutes.
+            
+            **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            **Time:** ${new Date().toISOString()}
+            
+            ### Action Required
+            - Check Render worker logs: https://dashboard.render.com
+            - Verify Redis connectivity
+            - Check for worker crashes or restarts
+            
+            ### Related
+            - Issue #162 - Worker hardening
+            - docs/ops/worker-shutdown-report.md
+            
+            cc @RC918`;
+            
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'worker-heartbeat-alert'
+            });
+            
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['worker-heartbeat-alert', 'oncall', 'P1']
+              });
+            } else {
+              console.log('Heartbeat alert issue already exists, skipping duplicate');
+            }
