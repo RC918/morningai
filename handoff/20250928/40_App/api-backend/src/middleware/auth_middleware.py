@@ -167,15 +167,50 @@ def analyst_required(f):
     
     return decorated_function
 
+def normalize_role(role):
+    """
+    Normalize role names for backward compatibility.
+    Maps legacy role names to current standard role names.
+    
+    Role mapping:
+    - operator -> analyst
+    - viewer -> user
+    - admin -> admin (unchanged)
+    
+    Args:
+        role (str): The role name to normalize
+        
+    Returns:
+        str: The normalized role name
+    """
+    role_mapping = {
+        'operator': 'analyst',
+        'viewer': 'user',
+        'admin': 'admin',
+        'analyst': 'analyst',
+        'user': 'user',
+        '超級管理員': 'admin',
+        '分析師': 'analyst',
+        '操作員': 'analyst',
+        '查看者': 'user'
+    }
+    
+    normalized = role_mapping.get(role, role)
+    return normalized
+
 def generate_jwt_token(user_data, expires_hours=24):
     """Generate JWT token for user authentication"""
     import datetime
     
     jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    
+    original_role = user_data.get('role')
+    normalized_role = normalize_role(original_role)
+    
     payload = {
         'user_id': user_data.get('id'),
         'username': user_data.get('username'),
-        'role': user_data.get('role'),
+        'role': normalized_role,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=expires_hours),
         'iat': datetime.datetime.utcnow()
     }
