@@ -108,6 +108,42 @@ for i in range(3):
 
 ---
 
+---
+
+## Frontend / javascript-react Alert Rules
+
+### Frontend Error Alert 配置步驟
+
+1. 登入 Sentry → 選擇專案 `javascript-react` (或前端專案名稱)
+2. 前往 **Alerts** → **Create Alert Rule**
+3. 選擇 **Issues**
+4. 配置條件：
+   - **WHEN**: An issue is seen
+   - **IF**: `event.count` >= 1 in 5 minutes
+   - **AND**: `environment` equals `production`
+   - **THEN**: Send a notification to Slack (#oncall) and Email
+5. 過濾條件（可選）：
+   - 排除 `error.type` equals `ChunkLoadError`（網路問題）
+   - 排除 `error.type` equals `NetworkError`（用戶端網路問題）
+6. 儲存規則，命名為：**Frontend - Production Errors**
+
+### Frontend Performance Alert（可選）
+
+1. Sentry → **Alerts** → **Create Alert Rule**
+2. 選擇 **Performance**
+3. 配置條件：
+   - **WHEN**: `transaction.duration` (p95)
+   - **IF**: > 3000ms for 10 minutes
+   - **AND**: `environment` equals `production`
+4. **THEN**: Send notification to Slack (#oncall)
+5. 儲存規則，命名為：**Frontend - Slow Performance**
+
+**配置完成後回填**：
+- Frontend Error Rule URL: _待填入_
+- Frontend Performance Rule URL: _待填入（可選）_
+
+---
+
 ## 參考文件
 
 - [Sentry Alerts Documentation](https://docs.sentry.io/product/alerts/)
