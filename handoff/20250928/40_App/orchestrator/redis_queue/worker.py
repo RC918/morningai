@@ -1,7 +1,31 @@
 #!/usr/bin/env python3
 """
-RQ Worker for orchestrator tasks
-Usage: rq worker orchestrator --url redis://localhost:6379/0
+RQ Worker for orchestrator tasks with graceful shutdown and heartbeat monitoring
+
+Environment Variables:
+- REDIS_URL: Redis connection URL (default: redis://localhost:6379/0)
+- RQ_QUEUE_NAME: Queue name to process (default: orchestrator)
+- SENTRY_DSN: Sentry DSN for error tracking (optional)
+- RENDER_INSTANCE_ID / HOSTNAME: Worker identifier
+
+Signal Handling:
+- SIGTERM / SIGINT: Triggers graceful shutdown
+  1. Sets shutting_down flag to stop accepting new tasks
+  2. Waits for current tasks to complete (try/finally ensures cleanup)
+  3. Updates heartbeat state to 'shutting_down'
+  4. Cleans up heartbeat key and exits
+
+Heartbeat:
+- Updates worker:heartbeat:<worker_id> every 30s with 120s TTL
+- Payload: {"state": "running|shutting_down", "last_heartbeat": "...", "timestamp": ...}
+- Key deleted on clean shutdown or expires via TTL
+
+Job Configuration:
+- ttl=600 (job timeout)
+- result_ttl=86400 (result retention: 24h)
+- failure_ttl=3600 (failure retention: 1h)
+
+Usage: python redis_queue/worker.py
 """
 
 import os
@@ -10,12 +34,15 @@ import time
 import json
 import socket
 import threading
+import signal
+import atexit
 from datetime import datetime
 from typing import Optional, List
-from redis import Redis
+from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
 from rq.decorators import job
 from rq import Retry
+from rq.serializers import JSONSerializer
 import logging
 
 logging.basicConfig(
@@ -43,8 +70,109 @@ else:
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-redis = Redis.from_url(redis_url)
-q = Queue("orchestrator", connection=redis)
+RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
+
+redis = Redis.from_url(redis_url, decode_responses=True)
+redis_client_rq = Redis.from_url(redis_url, decode_responses=False)
+q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
+
+WORKER_ID = os.getenv("RENDER_INSTANCE_ID", os.getenv("HOSTNAME", "worker-local"))
+shutdown_event = threading.Event()
+shutting_down = False
+heartbeat_thread = None
+
+def update_worker_heartbeat():
+    """
+    Background thread to update worker heartbeat in Redis with TTL.
+    Runs until shutdown_event is set.
+    Updates state to 'shutting_down' when shutdown is initiated.
+    """
+    logger.info(f"Heartbeat thread started", extra={"operation": "heartbeat", "worker_id": WORKER_ID})
+    
+    while not shutdown_event.is_set():
+        try:
+            if redis:
+                heartbeat_key = f"worker:heartbeat:{WORKER_ID}"
+                state = "shutting_down" if shutting_down else "running"
+                redis.setex(
+                    heartbeat_key,
+                    120,
+                    json.dumps({
+                        "state": state,
+                        "last_heartbeat": datetime.utcnow().isoformat() + "Z",
+                        "worker_id": WORKER_ID,
+                        "timestamp": int(time.time())
+                    })
+                )
+                logger.debug(f"Heartbeat updated", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "state": state})
+            
+            shutdown_event.wait(30)
+        except RedisConnectionError as e:
+            logger.error(f"Heartbeat Redis connection error: {e}", extra={"operation": "heartbeat", "worker_id": WORKER_ID})
+            if SENTRY_DSN:
+                sentry_sdk.capture_exception(e)
+            shutdown_event.wait(30)
+        except Exception as e:
+            logger.exception(f"Heartbeat update failed", extra={"operation": "heartbeat", "worker_id": WORKER_ID})
+            if SENTRY_DSN:
+                sentry_sdk.capture_exception(e)
+            shutdown_event.wait(30)
+    
+    logger.info(f"Heartbeat thread stopped", extra={"operation": "heartbeat", "worker_id": WORKER_ID})
+
+def cleanup_heartbeat():
+    """
+    Cleanup function to gracefully shutdown heartbeat thread.
+    Called on worker shutdown or exit.
+    Sets shutting_down flag, updates heartbeat state, and cleans up Redis key.
+    """
+    global heartbeat_thread, shutting_down
+    
+    logger.info(f"Initiating graceful shutdown", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+    shutting_down = True
+    
+    try:
+        heartbeat_key = f"worker:heartbeat:{WORKER_ID}"
+        redis.setex(
+            heartbeat_key,
+            120,
+            json.dumps({
+                "state": "shutting_down",
+                "last_heartbeat": datetime.utcnow().isoformat() + "Z",
+                "worker_id": WORKER_ID,
+                "timestamp": int(time.time())
+            })
+        )
+        logger.info(f"Updated heartbeat state to shutting_down", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+    except Exception as e:
+        logger.exception(f"Failed to update heartbeat state during shutdown", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
+    
+    shutdown_event.set()
+    
+    if heartbeat_thread and heartbeat_thread.is_alive():
+        heartbeat_thread.join(timeout=5)
+        if heartbeat_thread.is_alive():
+            logger.warning(f"Heartbeat thread did not stop within timeout", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        else:
+            logger.info(f"Heartbeat thread stopped successfully", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+    
+    try:
+        if redis:
+            heartbeat_key = f"worker:heartbeat:{WORKER_ID}"
+            redis.delete(heartbeat_key)
+            logger.info(f"Cleaned up heartbeat key", extra={"operation": "shutdown", "worker_id": WORKER_ID, "key": heartbeat_key})
+    except Exception as e:
+        logger.exception(f"Failed to cleanup heartbeat key", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
+
+def signal_handler(signum, frame):
+    """Handle termination signals gracefully (SIGTERM from container orchestrator, SIGINT from Ctrl+C)"""
+    logger.info(f"Received signal {signum}, initiating graceful shutdown", extra={"operation": "signal_handler", "signal": signum, "worker_id": WORKER_ID})
+    cleanup_heartbeat()
+    sys.exit(0)
 
 def run_step(step: str):
     """Demo function for testing worker with steps"""
@@ -72,42 +200,51 @@ def enqueue(steps, idempotency_key: Optional[str] = None) -> List[str]:
                 result = redis.get(key)
                 if result:
                     existing_job_ids = result.split(',')
-                    print(f"[Worker] Job with key {idempotency_key} already exists: {existing_job_ids}")
+                    logger.info(f"Job with idempotency key already exists", extra={"operation": "enqueue", "idempotency_key": idempotency_key, "job_ids": existing_job_ids})
                     return existing_job_ids
             
-            jobs = [q.enqueue(run_step, s) for s in steps]
+            jobs = [q.enqueue(run_step, s, ttl=600, result_ttl=86400, failure_ttl=3600) for s in steps]
             job_ids = [j.id for j in jobs]
             
             redis.setex(key, 3600, ','.join(job_ids))
-            print(f"[Worker] Created idempotent job with key {idempotency_key}: {job_ids}")
+            logger.info(f"Created idempotent jobs", extra={"operation": "enqueue", "idempotency_key": idempotency_key, "job_ids": job_ids})
             return job_ids
         else:
-            jobs = [q.enqueue(run_step, s) for s in steps]
-            return [j.id for j in jobs]
+            jobs = [q.enqueue(run_step, s, ttl=600, result_ttl=86400, failure_ttl=3600) for s in steps]
+            job_ids = [j.id for j in jobs]
+            logger.info(f"Enqueued jobs", extra={"operation": "enqueue", "job_ids": job_ids})
+            return job_ids
     except Exception as e:
-        print(f"[Worker] Redis unavailable, running in demo mode: {e}")
+        logger.exception(f"Redis unavailable, running in demo mode", extra={"operation": "enqueue"})
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
         return [f"demo-job-{i}" for i in range(len(steps))]
 
-@job('orchestrator', connection=redis, retry=Retry(max=3, interval=[10, 30, 60]))
+@job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]))
 def run_orchestrator_task(task_id: str, question: str, repo: str):
     """
     Execute orchestrator with retry logic (used by API for agent tasks)
+    Configured with ttl=600, result_ttl=86400, failure_ttl=3600
     
     Args:
-        task_id: Unique task identifier
+        task_id: Unique task identifier (also used as trace_id)
         question: FAQ question or topic
         repo: GitHub repository (owner/repo format)
+    
+    Returns:
+        dict: {"pr_url": str, "trace_id": str, "state": str}
     """
     from graph import execute
     
-    logger.info(f"Starting orchestrator task", extra={"task_id": task_id, "question": question})
+    job_id = task_id
+    logger.info(f"Starting orchestrator task", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": task_id, "question": question[:50]})
     
     if SENTRY_DSN:
         sentry_sdk.add_breadcrumb(
             category='task',
             message=f'Starting orchestrator task',
             level='info',
-            data={'task_id': task_id, 'question': question, 'repo': repo}
+            data={'task_id': task_id, 'job_id': job_id, 'question': question, 'repo': repo}
         )
     
     try:
@@ -120,16 +257,17 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 data={'redis_key': redis_key, 'task_id': task_id}
             )
         
-        redis.setex(
+        redis.hset(
             redis_key,
-            3600,
-            json.dumps({
+            mapping={
                 "status": "running",
                 "question": question,
                 "trace_id": task_id,
+                "job_id": job_id,
                 "updated_at": datetime.utcnow().isoformat()
-            })
+            }
         )
+        redis.expire(redis_key, 3600)
         
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
@@ -149,25 +287,26 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 data={'redis_key': redis_key, 'task_id': task_id, 'pr_url': pr_url}
             )
         
-        redis.setex(
+        redis.hset(
             redis_key,
-            3600,
-            json.dumps({
+            mapping={
                 "status": "done",
                 "question": question,
                 "trace_id": trace_id,
+                "job_id": job_id,
                 "pr_url": pr_url,
                 "state": state,
                 "updated_at": datetime.utcnow().isoformat()
-            })
+            }
         )
+        redis.expire(redis_key, 3600)
         
-        logger.info(f"Task completed successfully", extra={"task_id": task_id, "pr_url": pr_url})
+        logger.info(f"Job OK", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": trace_id, "status": "done", "pr_url": pr_url})
         return {"pr_url": pr_url, "trace_id": trace_id, "state": state}
         
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"Task failed: {error_msg}", extra={"task_id": task_id, "trace_id": task_id})
+        logger.exception(f"Task failed", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": task_id, "status": "error", "error": error_msg})
         
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
@@ -186,55 +325,51 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 data={'redis_key': f"agent:task:{task_id}", 'task_id': task_id}
             )
         
-        redis.setex(
+        redis.hset(
             f"agent:task:{task_id}",
-            3600,
-            json.dumps({
+            mapping={
                 "status": "error",
                 "question": question,
                 "trace_id": task_id,
-                "error": {
-                    "code": "ORCHESTRATOR_FAILED",
-                    "message": error_msg
-                },
+                "job_id": job_id,
+                "error_code": "ORCHESTRATOR_FAILED",
+                "error_message": error_msg,
                 "updated_at": datetime.utcnow().isoformat()
-            })
+            }
         )
+        redis.expire(f"agent:task:{task_id}", 3600)
         raise
-
-def start_heartbeat():
-    """
-    Start background heartbeat thread to update worker health status in Redis
-    Key pattern: worker:health:{hostname}:{pid}
-    TTL: 90 seconds, refresh every 30 seconds
-    """
-    hostname = socket.gethostname()
-    pid = os.getpid()
-    key = f"worker:health:{hostname}:{pid}"
-    
-    def heartbeat_loop():
-        while True:
-            try:
-                heartbeat_data = json.dumps({
-                    "ts": datetime.utcnow().isoformat(),
-                    "hostname": hostname,
-                    "pid": pid
-                })
-                redis.setex(key, 90, heartbeat_data)
-                logger.info(f"Worker heartbeat updated", extra={"key": key, "hostname": hostname, "pid": pid})
-            except Exception as e:
-                logger.error(f"Failed to update worker heartbeat: {e}", extra={"key": key})
-            time.sleep(30)
-    
-    thread = threading.Thread(target=heartbeat_loop, daemon=True)
-    thread.start()
-    logger.info(f"Worker started successfully / heartbeat started", extra={"key": key, "hostname": hostname, "pid": pid})
 
 if __name__ == "__main__":
     from rq import Worker
     
-    start_heartbeat()
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    atexit.register(cleanup_heartbeat)
     
-    print("Starting RQ worker for 'orchestrator' queue...")
-    worker = Worker([q], connection=redis)
-    worker.work()
+    logger.info(f"Starting RQ worker", extra={"operation": "startup", "worker_id": WORKER_ID, "queue": RQ_QUEUE_NAME, "redis_url": redis_url})
+    
+    heartbeat_thread = threading.Thread(target=update_worker_heartbeat, daemon=False, name="HeartbeatThread")
+    heartbeat_thread.start()
+    logger.info(f"Heartbeat monitoring enabled", extra={"operation": "startup", "worker_id": WORKER_ID, "ttl": 120, "interval": 30})
+    
+    try:
+        worker = Worker(
+            [q],
+            connection=redis_client_rq,
+            name=WORKER_ID,
+            default_worker_ttl=600,
+            default_result_ttl=86400
+        )
+        logger.info(f"Worker configuration complete", extra={"operation": "startup", "worker_id": WORKER_ID, "worker_ttl": 600, "result_ttl": 86400})
+        worker.work()
+    except KeyboardInterrupt:
+        logger.info(f"KeyboardInterrupt received", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+    except Exception as e:
+        logger.exception(f"Unexpected worker error", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
+        raise
+    finally:
+        cleanup_heartbeat()
+        logger.info(f"Worker shutdown complete", extra={"operation": "shutdown", "worker_id": WORKER_ID})
