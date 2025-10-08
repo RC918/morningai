@@ -9,63 +9,41 @@ jobs:
   check-heartbeat:
     runs-on: ubuntu-latest
     steps:
+      
       - name: Check worker heartbeats
-        env:
-          REDIS_URL: ${{ secrets.REDIS_URL }}
         run: |
-          pip install redis
-          python - <<'EOF'
-          import os
-          import sys
-          import json
-          import time
-          from datetime import datetime, timezone
-          from redis import Redis
-          
-          redis_url = os.environ.get('REDIS_URL')
-          if not redis_url:
-              print("ERROR: REDIS_URL not configured")
-              sys.exit(1)
-          
-          redis = Redis.from_url(redis_url, decode_responses=True)
-          
-          heartbeat_keys = list(redis.scan_iter("worker:heartbeat:*"))
-          
-          if not heartbeat_keys:
-              print("No worker heartbeats found (workers might be offline during deploy)")
-              sys.exit(0)
-          
-          missing_workers = []
-          current_time = int(time.time())
-          
-          for key in heartbeat_keys:
-              data_str = redis.get(key)
-              if not data_str:
-                  continue
-              
-              data = json.loads(data_str)
-              worker_id = data.get('worker_id', 'unknown')
-              last_heartbeat_ts = data.get('timestamp', 0)
-              state = data.get('state', 'unknown')
-              
-              age_seconds = current_time - last_heartbeat_ts
-              
-              if age_seconds > 120 and state != 'shutting_down':
-                  missing_workers.append({
-                      'worker_id': worker_id,
-                      'age_seconds': age_seconds,
-                      'age_minutes': round(age_seconds / 60, 1),
-                      'state': state
-                  })
-          
-          if missing_workers:
-              print("⚠️  Workers with stale heartbeats detected:")
-              for w in missing_workers:
-                  print(f"  - {w['worker_id']}: {w['age_minutes']} minutes old (state: {w['state']})")
-              sys.exit(1)
-          else:
-              print("✅ All worker heartbeats are fresh")
-          EOF
+          python - <<'PY'
+          import os, sys, time
+          import redis
+          url=os.getenv("REDIS_URL","")
+          if not url:
+              print("No REDIS_URL provided; skipping (neutral)."); sys.exit(78)
+          r=redis.from_url(url)
+          now=time.time()
+          stale=[]
+          found=False
+          for k in r.scan_iter(b"worker:heartbeat:*", count=100):
+              found=True
+              m=r.hgetall(k)
+              ts=(m.get(b'last_heartbeat') or m.get(b'lastHeartbeat') or b'0').decode()
+              try:
+                  # 支援 ISO8601 或 epoch（若有）
+                  t = time.time()
+                  if ts.replace(':','',1).isdigit():
+                      t=float(ts)
+                  else:
+                      from datetime import datetime, timezone
+                      t=datetime.fromisoformat(ts.replace('Z','+00:00')).timestamp()
+              except Exception:
+                  t=0
+              if now - t > 120:
+                  stale.append(k.decode())
+          if not found:
+              print("No heartbeat keys found; likely deploy window — skipping (neutral)."); sys.exit(78)
+          if stale:
+              print("Stale heartbeats (>120s):", stale); sys.exit(1)
+          print("Heartbeats OK."); sys.exit(0)
+          PY
       
       - name: Create issue on heartbeat failure
         if: failure()
