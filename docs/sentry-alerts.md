@@ -1,5 +1,31 @@
 # Sentry Alert Rules（Issue #80）
 
+## Phase 10 Update: Production Environment Filtering (Issue #166)
+
+**狀態**: ✅ 已更新 (2025-10-07)
+
+所有告警規則已更新為僅監控 `environment:production`，以減少來自 dev/staging 環境的雜訊。
+
+### 已更新規則 (env=production)
+- **Frontend Error Alert**: https://sentry.io/organizations/morningai-core/alerts/rules/16293151/
+  - 條件: `environment equals production` ✅
+  - 閾值: ≥1 error in 5 minutes
+- **React Error Alert**: https://sentry.io/organizations/morningai-core/alerts/rules/16330925/
+  - 條件: `environment equals production` ✅
+  - 閾值: ≥1 error in 5 minutes
+- **Backend Error Alert**: https://sentry.io/organizations/morningai-core/alerts/rules/16341755/
+  - 條件: `environment equals production` ✅
+  - 閾值: >10 errors in 5 minutes
+
+### 手動更新步驟（如需要）
+1. 登入 Sentry → Alerts → Rules
+2. 編輯每個規則 (Frontend/React/Backend)
+3. 新增條件: **IF** `environment` equals `production`
+4. 儲存規則
+5. 在規則詳情頁面確認
+
+---
+
 ## Web Error Alert（必備）
 - **範圍**: `environment:production`
 - **條件**: 同一錯誤（相同 issue）
@@ -124,4 +150,3 @@ for i in range(3):
 - React Error Rule URL:    https://sentry.io/organizations/morningai-core/alerts/rules/16330925/
 - Backend Error Rule URL:  https://sentry.io/organizations/morningai-core/alerts/rules/16341755/
 - 通知管道: Email / Slack #oncall
-

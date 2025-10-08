@@ -37,3 +37,31 @@
 - (Done) Merge PR #163 — timezone-aware + idempotent shutdown.
 - (Optional) Add Sentry breadcrumb for `shutting_down` transition to correlate restarts.
 - (Optional) Alert if `worker:heartbeat:*` missing > 2 min during deploy window.
+
+---
+
+## Phase 10 Verification (2025-10-07)
+
+### Verification Checklist
+- ✅ **Timezone-aware datetime**: All `datetime.utcnow()` replaced with `datetime.now(timezone.utc)`
+  - worker.py: 5 locations already fixed in prior PR
+  - logger_util.py: 1 location fixed (line 32)
+  - No DeprecationWarning in logs after fix
+- ✅ **Idempotent shutdown**: Added `cleanup_started` flag guard
+  - Prevents duplicate cleanup during rolling restarts
+  - Safe to call from signal_handler, atexit, and finally block
+  - Only executes shutdown logic once per worker instance
+- ✅ **Heartbeat monitoring**: GitHub Action workflow created
+  - Checks Redis keys every 5 minutes
+  - Auto-creates issue if heartbeat >2 min stale
+  - Workflow: `.github/workflows/worker-heartbeat-monitor.yml`
+  - Skips alert during expected downtime (no heartbeat keys)
+
+### Implementation PR
+- Branch: devin/{timestamp}-phase10-worker-hardening
+- Addresses Issue #162 worker hardening requirements
+
+### Verification Workflow Runs
+- e2e success: https://github.com/RC918/morningai/actions/runs/18318505535
+- e2e success: https://github.com/RC918/morningai/actions/runs/18317771788
+- Sentry smoke: https://github.com/RC918/morningai/actions/runs/18317030222
