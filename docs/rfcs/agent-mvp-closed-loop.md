@@ -22,7 +22,37 @@
 
 ---
 
-## 1. 系統流程圖
+## 1. 目標（TTE ≤ 1 min、成功率 ≥ 99%）
+
+### 1.1 核心目標
+
+本 RFC 的核心目標是建立一個**快速、可靠、可觀測**的 Agent MVP 閉環流程：
+
+| 指標 | 目標值 | 說明 |
+|------|--------|------|
+| **TTE (Time-to-Execute)** | P95 ≤ 60 秒 | 從 API 請求到 PR 合併的端到端時間 |
+| **成功率** | ≥ 99% | 任務成功完成率（含 CI 通過、Auto-merge、部署驗證） |
+| **TRB (Time-to-Rollback)** | ≤ 8 分鐘 | 偵測問題到回滾完成的時間 |
+| **可用性** | ≥ 99.5% | Worker 和 API 的月度可用性 |
+
+### 1.2 成功標準
+
+一個任務被視為「成功」需滿足：
+1. ✅ Task status = "done"
+2. ✅ PR 成功建立（pr_url 非空）
+3. ✅ 所有 CI 檢查通過
+4. ✅ Auto-merge 成功執行
+5. ✅ Post-deploy health check 通過
+
+### 1.3 非功能性需求
+
+- **可觀測性**: 每個任務都有 trace_id，可追蹤整個生命週期
+- **可回滾性**: 部署失敗時 8 分鐘內自動回滾
+- **容錯性**: 支援重試機制，減少瞬時錯誤影響
+
+---
+
+## 2. 系統流程圖
 
 ### 1.1 整體流程
 
@@ -113,7 +143,7 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 資料流時序圖
+### 2.2 資料流時序圖
 
 ```
 User/API  Backend  Redis   Worker  Orchestrator  GitHub  CI  Auto-merge  Deploy
@@ -141,9 +171,9 @@ User/API  Backend  Redis   Worker  Orchestrator  GitHub  CI  Auto-merge  Deploy
 
 ---
 
-## 2. 權限設計
+## 3. 權限設計
 
-### 2.1 GitHub Token Scope 要求
+### 3.1 GitHub Token Scope 要求
 
 當前使用的 `GITHUB_TOKEN` 權限需求：
 
@@ -180,7 +210,7 @@ permissions:
   contents: write        # 合併到 main 分支
 ```
 
-### 2.2 CI Trigger 條件
+### 3.2 CI Trigger 條件
 
 #### 觸發條件矩陣
 
@@ -212,9 +242,9 @@ if: |
 
 ---
 
-## 3. trace_id 與 pr_url 資料流設計
+## 4. trace_id 與 pr_url 資料流設計
 
-### 3.1 trace_id 生成與傳播
+### 4.1 trace_id 生成與傳播
 
 #### 生成時機
 ```python
@@ -246,7 +276,7 @@ Redis (final)   → agent:task:{task_id}:
                   - job_id: {rq_job_id}
 ```
 
-### 3.2 Redis 資料結構
+### 4.2 Redis 資料結構
 
 #### Task 狀態追蹤
 ```redis
@@ -279,7 +309,7 @@ GET agent:faq:hash:a3f2e1d9c8b7
 # 相同問題 1 小時內只處理一次
 ```
 
-### 3.3 Sentry Breadcrumb 整合
+### 4.3 Sentry Breadcrumb 整合
 
 當前實作位置: `orchestrator/redis_queue/worker.py`
 
@@ -332,7 +362,7 @@ sentry_sdk.add_breadcrumb(
 )
 ```
 
-### 3.4 pr_url 回寫流程
+### 4.4 pr_url 回寫流程
 
 ```python
 # orchestrator/graph.py:execute()
@@ -359,7 +389,7 @@ redis.hset(
 )
 ```
 
-### 3.5 端到端追蹤查詢
+### 4.5 端到端追蹤查詢
 
 #### 通過 trace_id 查詢完整生命週期
 
@@ -379,9 +409,9 @@ redis-cli HGETALL agent:task:{trace_id}
 
 ---
 
-## 4. 錯誤復原策略（Auto-rollback）
+## 5. 錯誤復原策略（Auto-rollback）
 
-### 4.1 當前狀況
+### 5.1 當前狀況
 
 **問題**: 系統目前**沒有**自動回滾機制。
 
@@ -390,9 +420,9 @@ redis-cli HGETALL agent:task:{trace_id}
 - CI 檢查通過但 Post-deploy health check 失敗時，錯誤代碼已經部署
 - 手動回滾需要人工介入，違背全自動閉環目標
 
-### 4.2 提議的 Auto-rollback 策略
+### 5.2 提議的 Auto-rollback 策略
 
-#### 4.2.1 三層防護機制
+#### 5.2.1 三層防護機制
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -429,7 +459,7 @@ redis-cli HGETALL agent:task:{trace_id}
 └──────────────────────────────────────────────────────────┘
 ```
 
-#### 4.2.2 實作設計
+#### 5.2.2 實作設計
 
 ##### Workflow: `post-deploy-rollback.yml`
 
@@ -593,7 +623,7 @@ jobs:
           echo "Health check failed, rollback triggered"
 ```
 
-#### 4.2.3 回滾決策邏輯
+#### 5.2.3 回滾決策邏輯
 
 ```
 部署成功 (git push to main)
@@ -623,7 +653,7 @@ jobs:
    正常運行    回滾完成
 ```
 
-### 4.3 回滾性能目標
+### 5.3 回滾性能目標
 
 | 指標 | 目標值 | 說明 |
 |------|--------|------|
@@ -632,7 +662,7 @@ jobs:
 | 回滾執行 | ≤ 5 分鐘 | Revert + PR + Merge + Deploy |
 | **總回滾時間 (TRB)** | **≤ 8 分鐘** | 從偵測到問題恢復 |
 
-### 4.4 手動回滾流程（備用）
+### 5.4 手動回滾流程（備用）
 
 如果自動回滾失敗，提供手動流程：
 
@@ -658,11 +688,523 @@ gh pr merge <PR_NUMBER> --squash --delete-branch
 
 ---
 
-## 5. 成功指標：TTE ≤ 1 min、成功率 ≥ 99%
+## 6. e2e 測試情境（多輪 / 佇列壓力 / 超時）
 
-### 5.1 Time-to-Execute (TTE) 分解
+### 6.1 基礎功能測試
 
-#### 當前時間分配（估計）
+#### 6.1.1 單次 FAQ 生成流程
+```yaml
+# 測試目標: 驗證基本閉環流程
+scenario:
+  name: "Single FAQ Generation"
+  steps:
+    - POST /api/agent/faq {"question": "What is Phase 10?"}
+    - 驗證返回 202 + task_id
+    - 輪詢任務狀態 (最多 60 秒)
+    - 驗證 PR 建立成功
+    - 驗證 CI 全部通過
+    - 驗證 Auto-merge 執行
+    - 驗證 docs/FAQ.md 已更新
+  expected:
+    - TTE < 60s
+    - Status = "done"
+    - PR merged successfully
+```
+
+#### 6.1.2 重複請求（Idempotency）
+```yaml
+scenario:
+  name: "Duplicate Request Handling"
+  steps:
+    - POST 相同 question 兩次
+    - 第二次請求應返回相同 task_id
+    - 不應建立重複 PR
+  expected:
+    - 第二次返回 409 或重用 task_id
+    - Redis 1 小時 TTL 內去重
+```
+
+### 6.2 多輪 FAQ 請求測試
+
+#### 6.2.1 順序多輪請求
+```yaml
+scenario:
+  name: "Sequential Multiple Requests"
+  steps:
+    - 依序發送 5 個不同 FAQ 請求
+    - 每個請求間隔 2 秒
+  expected:
+    - 所有任務均成功完成
+    - 每個任務 TTE < 60s
+    - 5 個 PR 都成功合併
+    - 無任務互相干擾
+```
+
+#### 6.2.2 並發多輪請求
+```yaml
+scenario:
+  name: "Concurrent Multiple Requests"
+  steps:
+    - 同時發送 10 個不同 FAQ 請求
+    - 模擬高峰期流量
+  expected:
+    - 所有任務進入佇列
+    - Worker 依序處理（無崩潰）
+    - 成功率 ≥ 90% (允許部分失敗)
+    - 平均 TTE < 90s (可能排隊)
+```
+
+### 6.3 佇列壓力測試
+
+#### 6.3.1 Worker 容量測試
+```yaml
+scenario:
+  name: "Worker Capacity Test"
+  setup:
+    - 單一 Worker 實例
+  steps:
+    - 發送 20 個 FAQ 請求
+    - 監控 Worker 記憶體使用
+    - 監控 Redis 佇列長度
+  expected:
+    - Worker 不 crash
+    - 記憶體使用 < 512MB
+    - 佇列最大長度 < 20
+    - 所有任務最終完成
+```
+
+#### 6.3.2 佇列積壓恢復測試
+```yaml
+scenario:
+  name: "Queue Backlog Recovery"
+  setup:
+    - 停止 Worker
+    - 累積 10 個任務在佇列
+  steps:
+    - 重啟 Worker
+    - 觀察任務處理順序（FIFO）
+  expected:
+    - Worker 依序處理所有任務
+    - 無任務遺失
+    - 恢復時間 < 5 分鐘
+```
+
+### 6.4 超時情境測試
+
+#### 6.4.1 OpenAI API 超時
+```yaml
+scenario:
+  name: "OpenAI API Timeout"
+  setup:
+    - Mock OpenAI API 延遲 30 秒
+  steps:
+    - 發送 FAQ 請求
+    - 觀察 Worker 行為
+  expected:
+    - Orchestrator timeout 觸發 (10s)
+    - 任務標記為失敗
+    - Retry 機制觸發（最多 3 次）
+    - Sentry 記錄 timeout 事件
+```
+
+#### 6.4.2 GitHub API 超時
+```yaml
+scenario:
+  name: "GitHub API Timeout"
+  setup:
+    - Mock GitHub API 延遲
+  steps:
+    - 發送 FAQ 請求
+    - Orchestrator 嘗試建立 PR
+  expected:
+    - Exponential backoff retry
+    - 最多重試 3 次
+    - 失敗後標記任務為 error
+```
+
+#### 6.4.3 CI 執行超時
+```yaml
+scenario:
+  name: "CI Execution Timeout"
+  setup:
+    - Mock CI workflow 執行超過 10 分鐘
+  steps:
+    - PR 建立後觸發 CI
+    - E2E 測試輪詢超時（120 次 × 5 秒）
+  expected:
+    - E2E 測試失敗（但 PR 仍存在）
+    - Auto-merge 不會執行（CI 未完成）
+    - 人工介入處理
+```
+
+### 6.5 失敗情境測試
+
+#### 6.5.1 CI 失敗情境
+```yaml
+scenario:
+  name: "CI Failure Handling"
+  setup:
+    - 引入會導致 lint 失敗的代碼
+  steps:
+    - 發送 FAQ 請求
+    - PR 建立後 CI 執行
+  expected:
+    - CI 檢查失敗
+    - Auto-merge 不執行
+    - 任務狀態保持 "running" 或標記 "ci_failed"
+    - GitHub Issue 自動建立（可選）
+```
+
+#### 6.5.2 Auto-merge 權限失敗
+```yaml
+scenario:
+  name: "Auto-merge Permission Failure"
+  setup:
+    - 移除 GITHUB_TOKEN 的 pull-requests:write 權限
+  steps:
+    - 發送 FAQ 請求
+    - CI 全部通過
+    - Auto-merge workflow 執行
+  expected:
+    - Auto-merge 失敗（403 權限錯誤）
+    - Sentry 記錄錯誤
+    - 告警通知 #oncall
+```
+
+#### 6.5.3 Post-deploy Health Check 失敗
+```yaml
+scenario:
+  name: "Post-deploy Health Failure & Rollback"
+  setup:
+    - 引入會導致 /healthz 失敗的變更
+  steps:
+    - 發送 FAQ 請求
+    - PR 合併並部署
+    - Post-deploy health check 執行
+  expected:
+    - Health check 失敗
+    - Auto-rollback workflow 觸發
+    - Revert commit 建立
+    - Hotfix PR 自動合併
+    - 8 分鐘內完成回滾
+```
+
+### 6.6 測試自動化
+
+#### 6.6.1 整合到 CI
+```yaml
+# .github/workflows/agent-mvp-e2e-extended.yml
+name: Agent MVP E2E Extended Tests
+
+on:
+  pull_request:
+    paths:
+      - 'orchestrator/**'
+      - '.github/workflows/auto-merge-faq.yml'
+  schedule:
+    - cron: '0 2 * * *'  # 每日 2am 執行
+
+jobs:
+  e2e-scenarios:
+    strategy:
+      matrix:
+        scenario:
+          - single-faq
+          - duplicate-request
+          - sequential-5x
+          - concurrent-10x
+          - timeout-openai
+          - ci-failure
+    steps:
+      - name: Run ${{ matrix.scenario }}
+        run: |
+          python tests/e2e/${{ matrix.scenario }}.py
+```
+
+#### 6.6.2 測試資料管理
+```python
+# tests/e2e/test_data.py
+FAQ_TEST_QUESTIONS = [
+    "What is Phase 10?",
+    "How do I deploy to production?",
+    "What is the worker heartbeat mechanism?",
+    # ... more test questions
+]
+
+def generate_unique_question():
+    """生成唯一測試問題（避免 idempotency 衝突）"""
+    timestamp = int(time.time())
+    return f"Test FAQ at {timestamp}: What is the current system status?"
+```
+
+### 6.7 效能基準測試
+
+```yaml
+scenario:
+  name: "Performance Baseline"
+  frequency: "每週執行"
+  steps:
+    - 執行 100 個 FAQ 請求
+    - 記錄每個請求的 TTE
+    - 計算 P50, P95, P99
+  acceptance_criteria:
+    - P95 < 60s
+    - P99 < 120s
+    - 成功率 ≥ 99%
+  report:
+    - 生成效能趨勢圖表
+    - 與上週基準比較
+    - 標記效能回歸
+```
+
+---
+
+## 7. 指標與觀測（Sentry tags / APP_VERSION / heartbeat 關聯）
+
+### 7.1 Sentry Tags 設計
+
+#### 7.1.1 任務執行 Tags
+```python
+# orchestrator/redis_queue/worker.py
+def run_orchestrator_task(task_id, question, repo):
+    with sentry_sdk.configure_scope() as scope:
+        # 設定 tags
+        scope.set_tag("task_id", task_id)
+        scope.set_tag("trace_id", task_id)
+        scope.set_tag("task_type", "faq_generation")
+        scope.set_tag("environment", os.getenv("ENV", "production"))
+        scope.set_tag("worker_instance", os.getenv("RENDER_INSTANCE_ID", "local"))
+        
+        # 執行任務
+        start_time = time.time()
+        try:
+            result = execute(question, repo, trace_id=task_id)
+            elapsed_ms = (time.time() - start_time) * 1000
+            
+            # 成功時設定 tags
+            scope.set_tag("task_status", "done")
+            scope.set_tag("tte_ms", int(elapsed_ms))
+            scope.set_tag("success", "true")
+            scope.set_tag("pr_url", result.get("pr_url", ""))
+            
+        except Exception as e:
+            elapsed_ms = (time.time() - start_time) * 1000
+            
+            # 失敗時設定 tags
+            scope.set_tag("task_status", "error")
+            scope.set_tag("tte_ms", int(elapsed_ms))
+            scope.set_tag("success", "false")
+            scope.set_tag("error_type", type(e).__name__)
+            raise
+```
+
+#### 7.1.2 可用的 Sentry Tags 列表
+
+| Tag | 值範例 | 用途 |
+|-----|--------|------|
+| `task_id` | `550e8400-...` | 唯一任務識別碼 |
+| `trace_id` | `550e8400-...` | 與 task_id 相同，用於追蹤 |
+| `task_type` | `faq_generation` | 任務類型 |
+| `task_status` | `done`, `error`, `timeout` | 任務結果狀態 |
+| `tte_ms` | `45000` | 執行時間（毫秒） |
+| `success` | `true`, `false` | 是否成功 |
+| `error_type` | `OpenAITimeout`, `GitHubAPIError` | 錯誤類型 |
+| `pr_url` | `https://github.com/...` | PR 連結 |
+| `environment` | `production`, `staging` | 執行環境 |
+| `worker_instance` | `srv-abc123` | Worker 實例 ID |
+| `app_version` | `v1.2.3` | 應用版本號 |
+
+### 7.2 APP_VERSION 追蹤
+
+#### 7.2.1 版本號生成策略
+```bash
+# 使用 Git commit SHA 作為版本號
+APP_VERSION=$(git rev-parse --short HEAD)
+echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+```
+
+#### 7.2.2 Render 部署配置
+```yaml
+# render.yaml
+services:
+  - type: worker
+    name: morningai-worker
+    env: python
+    envVars:
+      - key: APP_VERSION
+        sync: false  # 每次部署時動態設定
+      - key: SENTRY_RELEASE
+        value: ${APP_VERSION}  # Sentry release tracking
+```
+
+#### 7.2.3 Worker 初始化時設定版本
+```python
+# orchestrator/redis_queue/worker.py
+import os
+import sentry_sdk
+
+APP_VERSION = os.getenv("APP_VERSION", os.getenv("RENDER_GIT_COMMIT", "unknown"))
+
+# 設定 Sentry release
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    environment=os.getenv("ENV", "production"),
+    release=f"morningai-worker@{APP_VERSION}",
+    traces_sample_rate=0.1
+)
+
+# 在每個任務中記錄版本
+def run_orchestrator_task(task_id, question, repo):
+    with sentry_sdk.configure_scope() as scope:
+        scope.set_tag("app_version", APP_VERSION)
+        scope.set_context("deployment", {
+            "version": APP_VERSION,
+            "instance_id": os.getenv("RENDER_INSTANCE_ID", "local"),
+            "deployed_at": os.getenv("RENDER_GIT_COMMIT_DATE", "unknown")
+        })
+```
+
+#### 7.2.4 Sentry Release 查詢
+```bash
+# 查詢特定版本的錯誤
+# Sentry UI: Filters → Release → morningai-worker@abc123
+
+# 查詢版本間的錯誤差異
+# 比較 v1.2.3 和 v1.2.4 的錯誤率變化
+```
+
+### 7.3 Worker Heartbeat 與任務執行關聯
+
+#### 7.3.1 Heartbeat + Task 資料結構
+```redis
+# Worker Heartbeat
+HGETALL worker:heartbeat:srv-abc123
+{
+  "last_heartbeat": "2025-10-08T16:00:00Z",
+  "status": "running",
+  "current_task_id": "550e8400-...",  # 新增：當前執行任務
+  "app_version": "abc123",             # 新增：版本號
+  "tasks_completed": 42,               # 新增：累計完成任務數
+  "uptime_seconds": 3600
+}
+
+# Task 資料中也記錄 Worker 資訊
+HGETALL agent:task:550e8400-...
+{
+  "status": "running",
+  "worker_instance": "srv-abc123",    # 新增：處理此任務的 Worker
+  "worker_version": "abc123",         # 新增：Worker 版本
+  "started_at": "2025-10-08T16:00:00Z",
+  "trace_id": "550e8400-..."
+}
+```
+
+#### 7.3.2 Heartbeat 更新邏輯
+```python
+# orchestrator/redis_queue/worker.py
+def update_heartbeat_with_task_info(redis, worker_id, current_task_id=None):
+    """更新 Heartbeat 並記錄當前任務"""
+    heartbeat_key = f"worker:heartbeat:{worker_id}"
+    
+    heartbeat_data = {
+        "last_heartbeat": datetime.now(timezone.utc).isoformat(),
+        "status": "running" if current_task_id else "idle",
+        "app_version": APP_VERSION,
+        "uptime_seconds": int(time.time() - worker_start_time)
+    }
+    
+    if current_task_id:
+        heartbeat_data["current_task_id"] = current_task_id
+        # 增加完成計數
+        redis.hincrby(heartbeat_key, "tasks_completed", 0)  # init if not exists
+    
+    redis.hset(heartbeat_key, mapping=heartbeat_data)
+    redis.expire(heartbeat_key, 300)  # 5 分鐘 TTL
+
+def run_orchestrator_task(task_id, question, repo):
+    """執行任務時更新 Heartbeat"""
+    worker_id = os.getenv("RENDER_INSTANCE_ID", "local")
+    
+    # 任務開始：更新 Heartbeat 記錄當前任務
+    update_heartbeat_with_task_info(redis, worker_id, current_task_id=task_id)
+    
+    # 更新任務資料記錄 Worker 資訊
+    redis.hset(
+        f"agent:task:{task_id}",
+        mapping={
+            "status": "running",
+            "worker_instance": worker_id,
+            "worker_version": APP_VERSION,
+            "started_at": datetime.now(timezone.utc).isoformat()
+        }
+    )
+    
+    try:
+        # 執行任務
+        result = execute(question, repo, trace_id=task_id)
+        
+        # 任務完成：增加完成計數
+        redis.hincrby(f"worker:heartbeat:{worker_id}", "tasks_completed", 1)
+        
+    finally:
+        # 清除當前任務
+        update_heartbeat_with_task_info(redis, worker_id, current_task_id=None)
+```
+
+#### 7.3.3 Heartbeat 監控 + Sentry 關聯
+```python
+# .github/workflows/worker-heartbeat-monitor.yml 增強版
+def check_worker_health_with_sentry():
+    """檢查 Worker 健康狀態並關聯 Sentry 事件"""
+    import redis
+    import sentry_sdk
+    
+    r = redis.from_url(os.getenv("REDIS_URL"))
+    now = time.time()
+    
+    for key in r.scan_iter(b"worker:heartbeat:*"):
+        worker_id = key.decode().split(":")[-1]
+        data = r.hgetall(key)
+        
+        last_heartbeat = data.get(b"last_heartbeat", b"").decode()
+        current_task = data.get(b"current_task_id", b"").decode()
+        app_version = data.get(b"app_version", b"").decode()
+        
+        # 檢查是否超過 2 分鐘無心跳
+        heartbeat_age = now - parse_timestamp(last_heartbeat)
+        
+        if heartbeat_age > 120:
+            # 發送 Sentry 事件
+            with sentry_sdk.configure_scope() as scope:
+                scope.set_tag("worker_id", worker_id)
+                scope.set_tag("app_version", app_version)
+                scope.set_tag("heartbeat_age_seconds", int(heartbeat_age))
+                if current_task:
+                    scope.set_tag("stuck_task_id", current_task)
+                
+                sentry_sdk.capture_message(
+                    f"Worker {worker_id} heartbeat stale (>2min)",
+                    level="error"
+                )
+            
+            # 如果 Worker 卡在某個任務上
+            if current_task:
+                task_data = r.hgetall(f"agent:task:{current_task}")
+                task_started = task_data.get(b"started_at", b"").decode()
+                task_age = now - parse_timestamp(task_started)
+                
+                if task_age > 600:  # 任務執行超過 10 分鐘
+                    sentry_sdk.capture_message(
+                        f"Task {current_task} stuck for {task_age}s on worker {worker_id}",
+                        level="critical"
+                    )
+```
+
+### 7.4 TTE 和成功率監控
+
+#### 7.4.1 Time-to-Execute (TTE) 分解
+
+#### 7.4.1.1 當前時間分配（估計）
 
 | 階段 | 當前時間 | 目標時間 | 優化策略 |
 |------|----------|----------|----------|
@@ -681,15 +1223,15 @@ gh pr merge <PR_NUMBER> --squash --delete-branch
 | Auto-merge 執行 | ~2-5s | 2s | ✓ 已優化 |
 | **總計** | **90-180s** | **≤60s** | **需優化 CI** |
 
-#### 關鍵瓶頸
+#### 7.4.1.2 關鍵瓶頸
 
 1. **CI 執行時間過長**（60-120s）- 占總時間 60-70%
 2. **OpenAI API 延遲**（10-20s）- 不可控，但可優化 prompt 減少 token
 3. **Worker 輪詢間隔**（1-5s）- RQ 預設輪詢，可優化為事件驅動
 
-### 5.2 TTE 優化方案
+#### 7.4.2 TTE 優化方案
 
-#### 5.2.1 CI 並行化（Phase 1 - 可立即實作）
+##### 7.4.2.1 CI 並行化（Phase 1 - 可立即實作）
 
 ```yaml
 # .github/workflows/agent-mvp-ci-fast.yml
@@ -736,7 +1278,7 @@ jobs:
 
 **預期效果**: CI 時間從 60s → 15s
 
-#### 5.2.2 OpenAI API 優化（Phase 2）
+##### 7.4.2.2 OpenAI API 優化（Phase 2）
 
 ```python
 # orchestrator/graph.py
@@ -760,7 +1302,7 @@ def generate_faq_content(question: str) -> str:
 
 **預期效果**: OpenAI API 時間從 15s → 5s
 
-#### 5.2.3 Git 操作優化（Phase 2）
+##### 7.4.2.3 Git 操作優化（Phase 2）
 
 ```python
 # orchestrator/tools/github_api.py
@@ -793,9 +1335,9 @@ def create_branch_fast(repo, base="main", new_branch="orchestrator/demo"):
 
 **預期效果**: Git 操作時間從 10s → 3s
 
-### 5.3 成功率監控
+#### 7.4.3 成功率監控
 
-#### 5.3.1 成功率定義
+##### 7.4.3.1 成功率定義
 
 ```
 成功率 = (成功完成的任務數 / 總任務數) × 100%
@@ -808,7 +1350,7 @@ def create_branch_fast(repo, base="main", new_branch="orchestrator/demo"):
   • Post-deploy health check 通過
 ```
 
-#### 5.3.2 失敗分類
+##### 7.4.3.2 失敗分類
 
 | 失敗類型 | 計入成功率 | 應對策略 |
 |----------|------------|----------|
@@ -819,7 +1361,7 @@ def create_branch_fast(repo, base="main", new_branch="orchestrator/demo"):
 | Auto-merge 失敗（權限） | 是 | 環境問題，需修復 |
 | Worker crash | 是 | 自動重啟，但該任務計入失敗 |
 
-#### 5.3.3 監控指標收集
+##### 7.4.3.3 監控指標收集
 
 ##### Redis 指標（即時）
 
@@ -866,7 +1408,7 @@ if SENTRY_DSN:
     )
 ```
 
-#### 5.3.4 指標查詢 API
+##### 7.4.3.4 指標查詢 API
 
 ```python
 # api-backend/src/routes/metrics.py (新增)
@@ -909,7 +1451,7 @@ def get_agent_metrics():
     })
 ```
 
-### 5.4 SLO（Service Level Objective）
+### 7.5 SLO（Service Level Objective）
 
 | 指標 | SLO | 測量週期 | 告警閾值 |
 |------|-----|----------|----------|
@@ -920,7 +1462,7 @@ def get_agent_metrics():
 | **Auto-merge 成功率** | ≥ 99% | 每日 | < 95% |
 | **Worker 可用性** | ≥ 99.5% | 每月 | < 99% |
 
-### 5.5 Dashboard 展示（建議）
+### 7.6 Dashboard 展示（建議）
 
 ```javascript
 // frontend-dashboard/src/components/AgentMetrics.jsx
@@ -997,41 +1539,79 @@ export function AgentMetricsDashboard() {
 }
 ```
 
+### 7.7 Sentry Dashboard 配置
+
+#### 7.7.1 推薦的 Sentry Discover 查詢
+
+**任務成功率（按版本）**
+```sql
+SELECT
+  tag[app_version] as version,
+  count() as total,
+  countIf(tag[success] = 'true') as success_count,
+  success_count / total * 100 as success_rate
+FROM events
+WHERE tag[task_type] = 'faq_generation'
+GROUP BY version
+ORDER BY version DESC
+```
+
+**TTE 分佈（P50/P95/P99）**
+```sql
+SELECT
+  quantile(0.5)(tag[tte_ms]) as p50,
+  quantile(0.95)(tag[tte_ms]) as p95,
+  quantile(0.99)(tag[tte_ms]) as p99
+FROM events
+WHERE tag[task_type] = 'faq_generation'
+  AND tag[success] = 'true'
+  AND timestamp > now() - 24h
+```
+
+**Worker 健康狀態**
+```sql
+SELECT
+  tag[worker_instance] as worker,
+  tag[app_version] as version,
+  count() as events,
+  max(timestamp) as last_seen
+FROM events
+WHERE message LIKE '%Worker%heartbeat%'
+GROUP BY worker, version
+ORDER BY last_seen DESC
+```
+
+#### 7.7.2 告警規則（基於 Sentry Tags）
+
+```yaml
+# Sentry Alert: TTE 超過 SLO
+alert:
+  name: "Agent TTE Exceeded SLO"
+  conditions:
+    - tag[task_type] = 'faq_generation'
+    - tag[tte_ms] > 90000  # P95 > 90s
+    - count > 5 in 10 minutes
+  actions:
+    - Slack #oncall
+    - Email on-call engineer
+
+# Sentry Alert: 成功率低於 SLO
+alert:
+  name: "Agent Success Rate Below SLO"
+  conditions:
+    - tag[task_type] = 'faq_generation'
+    - count(tag[success] = 'false') / count(*) > 0.05  # 失敗率 > 5%
+    - in 1 hour
+  actions:
+    - Slack #oncall
+    - Create GitHub Issue
+```
+
 ---
 
-## 6. 實作路徑（Roadmap）
+## 8. 風險與時程（里程碑與拆分 PR）
 
-### Phase 1: 基礎監控與快速 CI（1-2 週）
-- [ ] 實作 TTE 和成功率指標收集
-- [ ] 建立 `/api/metrics/agent` 端點
-- [ ] 優化 FAQ 專用 CI workflow（並行化）
-- [ ] 新增 Metrics Dashboard 頁面
-- **目標**: TTE P95 < 90s, 成功率 > 95%
-
-### Phase 2: TTE 優化（2-3 週）
-- [ ] OpenAI API 優化（使用 gpt-3.5-turbo）
-- [ ] Git 操作優化（淺複製）
-- [ ] Worker 事件驅動（減少輪詢延遲）
-- [ ] CI 快取優化（dependencies、test fixtures）
-- **目標**: TTE P95 < 60s
-
-### Phase 3: Auto-rollback 實作（2-3 週）
-- [ ] 實作 `post-deploy-health.yml` workflow
-- [ ] 實作 `post-deploy-rollback.yml` workflow
-- [ ] 整合 Slack/Email 通知
-- [ ] Runbook 與演練（Chaos Engineering）
-- **目標**: TRB (Time-to-Rollback) < 8 min
-
-### Phase 4: 達成 99% SLO（持續優化）
-- [ ] 持續監控與調整
-- [ ] A/B testing 不同優化方案
-- [ ] 容錯機制增強（Retry with backoff）
-- [ ] 定期 SLO review
-- **目標**: 成功率 ≥ 99%, TTE P95 ≤ 60s
-
----
-
-## 7. 風險與緩解措施
+### 8.1 風險與緩解措施
 
 | 風險 | 影響 | 緩解措施 |
 |------|------|----------|
@@ -1042,28 +1622,224 @@ export function AgentMetricsDashboard() {
 | Auto-rollback 誤觸發 | 不必要的回滾 | • 多重健康檢查<br>• 人工確認選項（可選）<br>• Rollback log 分析 |
 | Redis 連接中斷 | 任務狀態丟失 | • Redis 持久化（RDB + AOF）<br>• 連接 retry<br>• 降級模式（demo mode） |
 
+### 8.2 實作時程與里程碑
+
+**截止日期**: 草稿本週五 EOD；定稿下週三
+
+#### 8.2.1 Phase 1: 基礎監控與快速 CI（1-2 週）
+**里程碑 M1.1: 指標收集（3 天）**
+- [ ] 實作 TTE 和成功率指標收集到 Redis
+- [ ] 建立 `/api/metrics/agent` 端點
+- [ ] 新增 Sentry tags（task_status, tte_ms, success）
+- [ ] PR 拆分:
+  - PR #1: Redis 指標收集邏輯（`worker.py`）
+  - PR #2: Metrics API 端點（`api-backend/routes/metrics.py`）
+  - PR #3: Sentry tags 整合（`worker.py`, `logger_util.py`）
+
+**里程碑 M1.2: CI 優化（2 天）**
+- [ ] 建立 FAQ 專用快速 CI workflow
+- [ ] 實作並行化測試
+- [ ] 優化 Docker layer 快取
+- [ ] PR: PR #4: agent-mvp-ci-fast.yml
+
+**里程碑 M1.3: Dashboard（2 天）**
+- [ ] 新增 Metrics Dashboard 頁面（React）
+- [ ] 整合 Success Rate 和 TTE 圖表
+- [ ] 新增 Worker Health 狀態卡片
+- [ ] PR: PR #5: Metrics Dashboard (frontend)
+
+**驗收標準**:
+- TTE P95 < 90s
+- 成功率 > 95%
+- Metrics API 正常運作
+- Dashboard 可視化正確
+
+#### 8.2.2 Phase 2: TTE 優化（2-3 週）
+**里程碑 M2.1: OpenAI API 優化（3 天）**
+- [ ] 遷移到 gpt-3.5-turbo
+- [ ] 優化 prompt 減少 token
+- [ ] 實作 timeout 機制（10s）
+- [ ] PR: PR #6: OpenAI optimization
+
+**里程碑 M2.2: Git 操作優化（3 天）**
+- [ ] 實作淺複製（--depth 1）
+- [ ] 優化分支建立流程
+- [ ] 減少 PyGithub API 調用次數
+- [ ] PR: PR #7: Git operations optimization
+
+**里程碑 M2.3: Worker 事件驅動（5 天）**
+- [ ] 替換輪詢為事件驅動（Redis Pub/Sub）
+- [ ] 減少任務拉取延遲
+- [ ] 測試並發處理能力
+- [ ] PR: PR #8: Event-driven worker
+
+**里程碑 M2.4: CI 快取優化（2 天）**
+- [ ] 實作 dependencies 快取
+- [ ] 優化 test fixtures 載入
+- [ ] 減少重複 build 時間
+- [ ] PR: PR #9: CI cache optimization
+
+**驗收標準**:
+- TTE P95 < 60s ✓
+- OpenAI API 時間 < 8s
+- Git 操作 < 3s
+- CI 執行 < 25s
+
+#### 8.2.3 Phase 3: Auto-rollback 實作（2-3 週）
+**里程碑 M3.1: Post-deploy Health Check（3 天）**
+- [ ] 實作 post-deploy-health.yml workflow
+- [ ] 整合 Backend/Frontend/Worker 健康檢查
+- [ ] 實作失敗偵測邏輯
+- [ ] PR: PR #10: Post-deploy health check
+
+**里程碑 M3.2: Auto-rollback Workflow（5 天）**
+- [ ] 實作 post-deploy-rollback.yml workflow
+- [ ] Git revert 自動化
+- [ ] Hotfix PR 建立與合併
+- [ ] GitHub Issue 自動建立
+- [ ] PR: PR #11: Auto-rollback workflow
+
+**里程碑 M3.3: 通知整合（2 天）**
+- [ ] Slack webhook 整合
+- [ ] Email 通知配置
+- [ ] Runbook 文件撰寫
+- [ ] PR: PR #12: Notification integration
+
+**里程碑 M3.4: Chaos Engineering 演練（3 天）**
+- [ ] 模擬 health check 失敗
+- [ ] 驗證 rollback 流程完整性
+- [ ] 測量 TRB（Time-to-Rollback）
+- [ ] 文件化演練結果
+
+**驗收標準**:
+- TRB < 8 分鐘
+- Rollback 成功率 100%（測試環境）
+- 告警通知正常運作
+- Runbook 文件完整
+
+#### 8.2.4 Phase 4: 達成 99% SLO（持續優化）
+**里程碑 M4.1: 監控與調整（持續）**
+- [ ] 每週 SLO review
+- [ ] 識別並修復失敗案例
+- [ ] 優化 retry 邏輯
+- [ ] 定期更新 Runbook
+
+**里程碑 M4.2: A/B Testing（按需）**
+- [ ] 測試不同 OpenAI 模型
+- [ ] 測試不同 CI 配置
+- [ ] 測試不同 timeout 設定
+
+**里程碑 M4.3: 容錯增強（按需）**
+- [ ] 實作更智能的 retry 邏輯
+- [ ] 增加 circuit breaker
+- [ ] 優化錯誤恢復策略
+
+**驗收標準**:
+- 成功率 ≥ 99% ✓
+- TTE P95 ≤ 60s ✓
+- 持續 30 天達成 SLO
+
+### 8.3 PR 拆分策略
+
+#### 8.3.1 PR 大小指導原則
+- **小型 PR (<200 行)**:單一功能，快速審核（1 天內）
+- **中型 PR (200-500 行)**:相關功能組，審核時間 2-3 天
+- **大型 PR (>500 行)**:避免，若不可避免需拆分成多個子 PR
+
+#### 8.3.2 PR 依賴關係
+
+```
+Phase 1:
+  PR #1 (Redis metrics) → 獨立
+  PR #2 (Metrics API) → 依賴 PR #1
+  PR #3 (Sentry tags) → 獨立
+  PR #4 (CI fast) → 獨立
+  PR #5 (Dashboard) → 依賴 PR #2
+
+Phase 2:
+  PR #6 (OpenAI) → 獨立
+  PR #7 (Git ops) → 獨立
+  PR #8 (Event-driven) → 獨立（需大量測試）
+  PR #9 (CI cache) → 獨立
+
+Phase 3:
+  PR #10 (Health check) → 獨立
+  PR #11 (Rollback) → 依賴 PR #10
+  PR #12 (Notifications) → 依賴 PR #11
+```
+
+#### 8.3.3 PR Template
+```markdown
+# PR Title: [Phase X.Y] <Feature Name>
+
+## 目標
+- [ ] 實作 <功能描述>
+- [ ] 達成 <指標目標>
+
+## 變更摘要
+- 新增/修改檔案 X, Y, Z
+- 影響範圍: <描述>
+
+## 測試
+- [ ] Unit tests 通過
+- [ ] E2E tests 通過
+- [ ] Lint 通過
+- [ ] 本地驗證完成
+
+## 相關
+- RFC: docs/rfcs/agent-mvp-closed-loop.md
+- Issue: #54
+- 依賴 PR: #X (如有)
+
+## 驗收標準
+- [ ] <具體驗收條件>
+```
+
+### 8.4 時程風險管理
+
+| 風險 | 機率 | 影響 | 應對策略 |
+|------|------|------|----------|
+| OpenAI API 變更導致延遲 | 中 | 高 | 預留 buffer time，提早測試 |
+| Worker 事件驅動實作複雜 | 高 | 中 | Phase 2 最後實作，可延後到 Phase 4 |
+| Auto-rollback 測試不充分 | 中 | 高 | 增加 Chaos Engineering 時間 |
+| 人力資源不足 | 低 | 高 | PR 拆分策略允許並行開發 |
+| CI 優化效果不如預期 | 中 | 中 | 準備 Plan B（減少測試範圍） |
+
+### 8.5 進度追蹤
+
+**追蹤方式**:
+- GitHub Project Board: Agent MVP Closed Loop
+- 每週 Standup: 週三 10:00 AM
+- 月度 Review: 每月第一個週五
+
+**指標追蹤**:
+- Burndown chart (Story Points)
+- TTE 趨勢圖（每日更新）
+- 成功率趨勢圖（每日更新）
+- PR 合併速度（平均審核時間）
+
 ---
 
-## 8. 未來擴展
+## 9. 未來擴展
 
-### 8.1 多 Agent 支援
+### 9.1 多 Agent 支援
 - 支援多種類型的 Agent 任務（不僅限於 FAQ）
 - 統一的 trace_id 系統
 - 跨 Agent 的指標聚合
 
-### 8.2 進階監控
+### 9.2 進階監控
 - Distributed tracing（OpenTelemetry）
 - Real-time dashboard（WebSocket 更新）
 - 告警規則自動調整（基於歷史數據）
 
-### 8.3 智能優化
+### 9.3 智能優化
 - AI 預測任務執行時間
 - 動態調整資源分配
 - 自動化 A/B testing
 
 ---
 
-## 9. 總結
+## 10. 總結
 
 本 RFC 提出了一個完整的 Agent MVP 閉環流程設計，涵蓋：
 
