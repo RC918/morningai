@@ -19,7 +19,7 @@ jobs:
           import redis
           url=os.getenv("REDIS_URL","")
           if not url:
-              print("No REDIS_URL provided; skipping (neutral)."); sys.exit(78)
+              print("No REDIS_URL provided; skipping (neutral)."); sys.exit(0)
           r=redis.from_url(url)
           now=time.time()
           stale=[]
@@ -41,7 +41,7 @@ jobs:
               if now - t > 120:
                   stale.append(k.decode())
           if not found:
-              print("No heartbeat keys found; likely deploy window — skipping (neutral)."); sys.exit(78)
+              print("No heartbeat keys found; likely deploy window — skipping (neutral)."); sys.exit(0)
           if stale:
               print("Stale heartbeats (>120s):", stale); sys.exit(1)
           print("Heartbeats OK."); sys.exit(0)
