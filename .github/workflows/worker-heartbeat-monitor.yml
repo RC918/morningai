@@ -9,8 +9,12 @@ jobs:
   check-heartbeat:
     runs-on: ubuntu-latest
     steps:
+      - name: Install redis library
+        run: pip install redis
       
       - name: Check worker heartbeats
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
         run: |
           python - <<'PY'
           import os, sys, time
