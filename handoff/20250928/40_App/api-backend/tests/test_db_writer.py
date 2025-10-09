@@ -8,7 +8,7 @@ import os
 import sys
 from unittest.mock import patch, MagicMock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../orchestrator'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 def test_db_writer_module_imports():
     """Test that db_writer module can be imported"""
