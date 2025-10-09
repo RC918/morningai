@@ -5,7 +5,10 @@ Unit tests for agent_tasks database writer
 import pytest
 import uuid
 import os
+import sys
 from unittest.mock import patch, MagicMock
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../orchestrator'))
 
 def test_db_writer_module_imports():
     """Test that db_writer module can be imported"""
