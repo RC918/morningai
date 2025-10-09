@@ -332,6 +332,22 @@ create table if not exists agent_tasks (
 create index if not exists idx_agent_tasks_created_at on agent_tasks (created_at desc);
 create index if not exists idx_agent_tasks_status on agent_tasks (status);
 ```
+**資料表建立（Migration）**:
+
+完整的 SQL migration script 位於：`handoff/20250928/40_App/orchestrator/migrations/001_create_agent_tasks_table.sql`
+
+詳細執行步驟請參考：`handoff/20250928/40_App/orchestrator/migrations/README.md`
+
+**快速執行方式（Supabase Dashboard）**:
+1. 前往 https://supabase.com/dashboard
+2. 選擇專案 → SQL Editor
+3. 複製貼上 `001_create_agent_tasks_table.sql` 內容
+4. 點擊 "Run" 執行
+5. 驗證：`SELECT * FROM agent_tasks LIMIT 1;`
+
+**重要提醒**: 執行 migration 後，請在 Render dashboard 手動重新部署 backend 和 worker 服務，確保服務正確連接新資料表。
+
+
 
 **寫入流程（Write-through）**:
 
