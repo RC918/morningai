@@ -102,6 +102,28 @@ def create_faq_task():
         )
         redis_client.expire(f"agent:task:{task_id}", 3600)
         
+        try:
+            from orchestrator.persistence.db_writer import upsert_task_queued
+            upsert_task_queued(
+                task_id=task_id,
+                trace_id=task_id,
+                question=question,
+                job_id=job.id
+            )
+            
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task enqueued to DB',
+                    level='info',
+                    data={
+                        'task_id': task_id,
+                        'status': 'queued'
+                    }
+                )
+        except Exception as e:
+            logger.error(f"DB write failed for task {task_id}: {e}")
+        
         logger.info(f"enqueued task_id={task_id} job_id={job.id}")
         
         return jsonify({
@@ -150,7 +172,31 @@ def create_faq_task():
 
 @bp.get("/tasks/<task_id>")
 def get_task_status(task_id):
-    """Get task status by ID"""
+    """Get task status by ID - reads from DB first, Redis as fallback"""
+    try:
+        from orchestrator.persistence.db_client import get_client
+        client = get_client()
+        
+        response = client.table("agent_tasks").select("*").eq("task_id", task_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            task = response.data[0]
+            return jsonify({
+                "task_id": task["task_id"],
+                "status": task["status"],
+                "trace_id": task["trace_id"],
+                "question": task.get("question"),
+                "pr_url": task.get("pr_url"),
+                "error_msg": task.get("error_msg"),
+                "created_at": task.get("created_at"),
+                "started_at": task.get("started_at"),
+                "finished_at": task.get("finished_at"),
+                "updated_at": task.get("updated_at"),
+                "source": "database"
+            }), 200
+    except Exception as e:
+        logger.warning(f"DB read failed for task {task_id}, falling back to Redis: {e}")
+    
     try:
         key = f"agent:task:{task_id}"
         key_type = redis_client.type(key)
@@ -166,6 +212,7 @@ def get_task_status(task_id):
         if not task_data:
             return jsonify({"error": "Task not found"}), 404
         
+        task_data["source"] = "redis"
         return jsonify(task_data), 200
     except Exception as e:
         logger.error(f"Failed to get task status: {e}", extra={"task_id": task_id})

@@ -309,9 +309,69 @@ GET agent:faq:hash:a3f2e1d9c8b7
 # 相同問題 1 小時內只處理一次
 ```
 
-### 4.3 Sentry Breadcrumb 整合
+### 4.3 資料庫持久化（agent_tasks 表格）
 
-當前實作位置: `orchestrator/redis_queue/worker.py`
+**設計目標**: 除 Redis（1 小時 TTL）外，新增永久審計軌跡儲存於 PostgreSQL。
+
+**資料表結構**:
+```sql
+create table if not exists agent_tasks (
+  task_id uuid primary key,
+  trace_id uuid not null,
+  job_id text,
+  question text,
+  status text check (status in ('queued','running','done','error')),
+  pr_url text,
+  error_msg text,
+  created_at timestamptz not null default now(),
+  started_at timestamptz,
+  finished_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_agent_tasks_created_at on agent_tasks (created_at desc);
+create index if not exists idx_agent_tasks_status on agent_tasks (status);
+```
+
+**寫入流程（Write-through）**:
+
+| 狀態轉換 | 觸發點 | 更新欄位 |
+|---------|--------|---------|
+| → queued | API enqueue | task_id, trace_id, question, status='queued', job_id, created_at, updated_at |
+| → running | Worker 開始 | status='running', started_at, updated_at |
+| → done | Worker 成功 | status='done', pr_url, finished_at, updated_at |
+| → error | Worker 失敗 | status='error', error_msg, finished_at, updated_at |
+
+**讀取流程（DB-first with Redis fallback）**:
+```python
+# GET /api/agent/tasks/{task_id}
+# 1. 優先讀取 DB（永久儲存）
+task = supabase.table("agent_tasks").select("*").eq("task_id", task_id).execute()
+
+# 2. DB 無資料時回退 Redis（1 小時內的任務）
+if not task.data:
+    task = redis.get(f"agent:task:{task_id}")
+```
+
+**觀測性（Sentry Breadcrumbs）**:
+```python
+# 每次狀態轉換新增 breadcrumb
+sentry_sdk.add_breadcrumb(
+    category='agent_task',
+    message=f'Task {task_id} status → {status}',
+    level='info',
+    data={'task_id': task_id, 'status': status, 'pr_url': pr_url}
+)
+```
+
+**錯誤處理**:
+- DB 寫入失敗不影響 Redis 流程（graceful degradation）
+- 每次失敗記錄錯誤日誌但繼續執行
+- Sentry 追蹤所有 DB 操作錯誤
+
+### 4.4 Sentry Breadcrumb 整合
+
+當前實作位置: `orchestrator/redis_queue/worker.py`, `api-backend/src/routes/agent.py`
 
 ```python
 # 任務啟動
@@ -349,20 +409,20 @@ sentry_sdk.add_breadcrumb(
     }
 )
 
-# 任務完成
+# 任務完成（含 DB 持久化）
 sentry_sdk.add_breadcrumb(
-    category='redis',
-    message='Updating task status to done',
+    category='agent_task',
+    message='Task completed and persisted to DB',
     level='info',
     data={
-        'redis_key': redis_key,
         'task_id': task_id,
+        'status': 'done',
         'pr_url': pr_url
     }
 )
 ```
 
-### 4.4 pr_url 回寫流程
+### 4.5 pr_url 回寫流程
 
 ```python
 # orchestrator/graph.py:execute()
@@ -389,21 +449,24 @@ redis.hset(
 )
 ```
 
-### 4.5 端到端追蹤查詢
+### 4.6 端到端追蹤查詢
 
 #### 通過 trace_id 查詢完整生命週期
 
 ```bash
-# 1. Redis 查詢任務狀態
+# 1. DB 查詢任務狀態（永久儲存）
+psql -c "SELECT * FROM agent_tasks WHERE task_id = '{trace_id}'"
+
+# 2. Redis 查詢任務狀態（1 小時內）
 redis-cli HGETALL agent:task:{trace_id}
 
-# 2. Sentry 查詢錯誤事件
+# 3. Sentry 查詢錯誤事件
 # Search: trace_id:{trace_id}
 
-# 3. GitHub 查詢 PR
+# 4. GitHub 查詢 PR
 # Search in PR body: "trace-id: {trace_id}"
 
-# 4. Worker 日誌查詢（structured logs）
+# 5. Worker 日誌查詢（structured logs）
 # grep "trace_id.*{trace_id}" worker.log
 ```
 
