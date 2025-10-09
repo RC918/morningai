@@ -2,7 +2,7 @@ services:
   - type: web
     name: morningai-backend-v2
     env: python
-    runtime: python-3.11
+    runtime: python-3.12
     buildCommand: |
       cd handoff/20250928/40_App/api-backend &&
       pip install --upgrade pip &&
@@ -41,7 +41,7 @@ services:
   - type: worker
     name: morningai-agent-worker
     env: python
-    runtime: python-3.11
+    runtime: python-3.12
     buildCommand: |
       cd handoff/20250928/40_App/orchestrator &&
       pip install --upgrade pip &&
