@@ -1,0 +1,64 @@
+name: ops-agent-sandbox-e2e
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/orchestrator/sandbox/**'
+      - 'handoff/20250928/40_App/orchestrator/mcp/**'
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+      
+      - name: Install dependencies
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          pip install -r requirements.txt
+          pip install -e .
+      
+      - name: Build Ops_Agent sandbox Docker image
+        run: |
+          cd handoff/20250928/40_App/orchestrator/sandbox/ops_agent
+          docker build -t morningai-sandbox-ops_agent:latest .
+      
+      - name: Start MCP Server
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          python mcp/server.py &
+          sleep 5
+      
+      - name: Run E2E test
+        env:
+          REDIS_URL: redis://localhost:6379
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: RC918/morningai
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          python -m pytest tests/test_ops_agent_sandbox.py -v
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          docker ps -a | grep sandbox | awk '{print $1}' | xargs -r docker stop
+          docker ps -a | grep sandbox | awk '{print $1}' | xargs -r docker rm
