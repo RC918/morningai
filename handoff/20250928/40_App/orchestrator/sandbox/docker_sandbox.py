@@ -6,15 +6,21 @@ import asyncio
 import logging
 import docker
 from typing import Optional
+import os
 
 class DockerSandbox:
-    """Docker-based agent sandbox"""
+    """Docker-based agent sandbox with enhanced security"""
     
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.client = docker.from_env()
         self.container = None
+        
+        self.seccomp_profile_path = os.path.join(
+            os.path.dirname(__file__),
+            'ops_agent/seccomp-profile.json'
+        )
     
     async def create(self) -> str:
         """Create and start Docker container"""
@@ -34,13 +40,21 @@ class DockerSandbox:
                 
                 'security_opt': [
                     'no-new-privileges:true',
-                    'seccomp=default'
+                    f'seccomp={self.seccomp_profile_path}',
+                    'apparmor=docker-default'
                 ],
                 'cap_drop': ['ALL'],
                 'cap_add': ['NET_BIND_SERVICE'],
                 'read_only': True,
                 
-                'tmpfs': {'/tmp': 'size=1G,mode=1777'},
+                'tmpfs': {'/tmp': 'size=1G,mode=1777,noexec'},
+                
+                'ulimits': [
+                    docker.types.Ulimit(name='nproc', soft=100, hard=100),
+                    docker.types.Ulimit(name='nofile', soft=1024, hard=2048),
+                    docker.types.Ulimit(name='fsize', soft=10737418240, hard=10737418240),
+                    docker.types.Ulimit(name='cpu', soft=3600, hard=3600)
+                ],
                 'volumes': {
                     f'sandbox-{self.config.agent_id}-workspace': {
                         'bind': '/workspace',
