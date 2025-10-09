@@ -1,11 +1,3 @@
-# Note: Agent Sandbox functionality requires Docker-in-Docker support
-# which is not available on Render's standard plans.
-# For Phase 1 pilot, sandbox manager can be deployed separately on:
-# - Fly.io (supports Docker)
-# - AWS ECS/Fargate
-# - Self-hosted infrastructure
-# Future consideration: Migrate to Render Native Environment (Enterprise)
-
 services:
   - type: web
     name: morningai-backend-v2
