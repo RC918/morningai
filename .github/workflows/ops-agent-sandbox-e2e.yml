@@ -1,0 +1,65 @@
+name: Ops Agent Sandbox E2E
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/orchestrator/sandbox/**'
+      - 'handoff/20250928/40_App/orchestrator/mcp/**'
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          pip install -r requirements.txt
+          pip install -e .
+      
+      - name: Install Playwright browsers
+        run: |
+          npx playwright install --with-deps chromium
+      
+      - name: Start MCP Server
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          python mcp/server.py > /tmp/mcp-server.log 2>&1 &
+          sleep 5
+          echo "MCP Server started, checking logs..."
+          cat /tmp/mcp-server.log || true
+      
+      - name: Run E2E test
+        env:
+          SANDBOX_ENABLED: 'false'
+          REDIS_URL: redis://localhost:6379
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: RC918/morningai
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          python -m pytest tests/test_ops_agent_sandbox.py -v --tb=long --log-cli-level=INFO 2>&1 | tee /tmp/pytest-output.log
+      
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-logs
+          path: |
+            /tmp/pytest-output.log
+            /tmp/mcp-server.log
+          retention-days: 7
