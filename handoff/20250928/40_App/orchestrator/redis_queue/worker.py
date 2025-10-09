@@ -44,6 +44,11 @@ from rq.decorators import job
 from rq import Retry
 from rq.serializers import JSONSerializer
 import logging
+from persistence.db_writer import (
+    upsert_task_running,
+    upsert_task_done,
+    upsert_task_error
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -276,6 +281,18 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
         )
         redis.expire(redis_key, 3600)
         
+        try:
+            upsert_task_running(task_id=task_id, trace_id=task_id)
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task status updated to running in DB',
+                    level='info',
+                    data={'task_id': task_id, 'status': 'running'}
+                )
+        except Exception as e:
+            logger.error(f"DB write failed for task {task_id} (running): {e}")
+        
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
                 category='orchestrator',
@@ -307,6 +324,22 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
             }
         )
         redis.expire(redis_key, 3600)
+        
+        try:
+            upsert_task_done(task_id=task_id, trace_id=trace_id, pr_url=pr_url)
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task completed and persisted to DB',
+                    level='info',
+                    data={
+                        'task_id': task_id,
+                        'status': 'done',
+                        'pr_url': pr_url
+                    }
+                )
+        except Exception as e:
+            logger.error(f"DB write failed for task {task_id} (done): {e}")
         
         logger.info(f"Job OK", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": trace_id, "status": "done", "pr_url": pr_url})
         return {"pr_url": pr_url, "trace_id": trace_id, "state": state}
@@ -345,6 +378,23 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
             }
         )
         redis.expire(f"agent:task:{task_id}", 3600)
+        
+        try:
+            upsert_task_error(task_id=task_id, trace_id=task_id, error_msg=error_msg)
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task error persisted to DB',
+                    level='error',
+                    data={
+                        'task_id': task_id,
+                        'status': 'error',
+                        'error_msg': error_msg[:200]
+                    }
+                )
+        except Exception as db_error:
+            logger.error(f"DB write failed for task {task_id} (error): {db_error}")
+        
         raise
 
 if __name__ == "__main__":
