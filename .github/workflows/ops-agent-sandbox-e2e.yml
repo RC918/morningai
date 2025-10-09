@@ -1,4 +1,4 @@
-name: ops-agent-sandbox-e2e
+name: Ops Agent Sandbox E2E
 on:
   workflow_dispatch:
   push:
