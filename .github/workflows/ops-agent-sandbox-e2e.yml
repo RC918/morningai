@@ -6,11 +6,16 @@ on:
     paths:
       - 'handoff/20250928/40_App/orchestrator/sandbox/**'
       - 'handoff/20250928/40_App/orchestrator/mcp/**'
+  pull_request:
+    paths:
+      - 'handoff/20250928/40_App/orchestrator/sandbox/**'
+      - 'handoff/20250928/40_App/orchestrator/mcp/**'
 
 jobs:
   e2e-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
     
     services:
       redis:
@@ -26,6 +31,9 @@ jobs:
         with:
           python-version: '3.12.x'
       
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      
       - name: Install dependencies
         run: |
           cd handoff/20250928/40_App/orchestrator
@@ -35,6 +43,43 @@ jobs:
       - name: Install Playwright browsers
         run: |
           npx playwright install --with-deps chromium
+      
+      - name: Deploy ephemeral sandbox to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          export APP_NAME="morningai-sandbox-e2e-${{ github.run_id }}"
+          echo "Deploying ephemeral sandbox: $APP_NAME"
+          
+          cd handoff/20250928/40_App/orchestrator/sandbox/ops_agent
+          
+          flyctl apps create $APP_NAME --org personal || true
+          
+          flyctl deploy \
+            --app $APP_NAME \
+            --region sin \
+            --vm-size shared-cpu-1x \
+            --vm-memory 256 \
+            --wait-timeout 300
+          
+          echo "SANDBOX_APP_NAME=$APP_NAME" >> $GITHUB_ENV
+          
+          SANDBOX_URL=$(flyctl status --app $APP_NAME --json | jq -r '.Hostname')
+          echo "SANDBOX_URL=https://$SANDBOX_URL" >> $GITHUB_ENV
+          echo "Sandbox deployed at: https://$SANDBOX_URL"
+      
+      - name: Verify sandbox deployment
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Verifying sandbox deployment status..."
+          flyctl status --app ${{ env.SANDBOX_APP_NAME }}
+          
+          echo "Checking sandbox health..."
+          flyctl checks list --app ${{ env.SANDBOX_APP_NAME }}
+          
+          echo "Viewing recent logs..."
+          flyctl logs --app ${{ env.SANDBOX_APP_NAME }} --lines 50
       
       - name: Start MCP Server
         run: |
@@ -46,13 +91,24 @@ jobs:
       
       - name: Run E2E test
         env:
-          SANDBOX_ENABLED: 'false'
+          SANDBOX_ENABLED: 'true'
+          SANDBOX_URL: ${{ env.SANDBOX_URL }}
           REDIS_URL: redis://localhost:6379
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: RC918/morningai
         run: |
           cd handoff/20250928/40_App/orchestrator
           python -m pytest tests/test_ops_agent_sandbox.py -v --tb=long --log-cli-level=INFO 2>&1 | tee /tmp/pytest-output.log
+      
+      - name: Cleanup ephemeral sandbox
+        if: always()
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -n "${{ env.SANDBOX_APP_NAME }}" ]; then
+            echo "Destroying ephemeral sandbox: ${{ env.SANDBOX_APP_NAME }}"
+            flyctl apps destroy ${{ env.SANDBOX_APP_NAME }} --yes || true
+          fi
       
       - name: Upload test logs
         if: always()
