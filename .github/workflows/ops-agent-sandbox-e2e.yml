@@ -6,10 +6,14 @@ on:
     paths:
       - 'handoff/20250928/40_App/orchestrator/sandbox/**'
       - 'handoff/20250928/40_App/orchestrator/mcp/**'
+      - '.github/workflows/ops-agent-sandbox-e2e.yml'
+      - 'docs/DEPLOYMENT_PROOF.md'
   pull_request:
     paths:
       - 'handoff/20250928/40_App/orchestrator/sandbox/**'
       - 'handoff/20250928/40_App/orchestrator/mcp/**'
+      - '.github/workflows/ops-agent-sandbox-e2e.yml'
+      - 'docs/DEPLOYMENT_PROOF.md'
 
 jobs:
   e2e-test:
