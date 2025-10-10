@@ -1,0 +1,26 @@
+app = "morningai-web"
+primary_region = "nrt"
+
+[build]
+
+[env]
+
+[[services]]
+  internal_port = 3000
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.http_checks]]
+    interval = "15s"
+    timeout  = "2s"
+    method   = "GET"
+    path     = "/"
+    protocol = "http"
