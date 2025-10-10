@@ -32,7 +32,7 @@ jobs:
           python-version: '3.12.x'
       
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        uses: superfly/flyctl-actions/setup-flyctl@v1
       
       - name: Install dependencies
         run: |
@@ -57,7 +57,7 @@ jobs:
           
           flyctl deploy \
             --app $APP_NAME \
-            --region sin \
+            --primary-region sin \
             --vm-size shared-cpu-1x \
             --vm-memory 256 \
             --wait-timeout 300
