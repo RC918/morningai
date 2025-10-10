@@ -83,7 +83,7 @@ jobs:
           flyctl checks list --app ${{ env.SANDBOX_APP_NAME }}
           
           echo "Viewing recent logs..."
-          flyctl logs --app ${{ env.SANDBOX_APP_NAME }} --lines 50
+          flyctl logs --app ${{ env.SANDBOX_APP_NAME }} -n
       
       - name: Start MCP Server
         run: |
