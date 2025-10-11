@@ -23,6 +23,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY mcp_client.py .
 COPY ops_agent_sandbox.py .
 
+RUN mkdir -p /app
+COPY mcp /app/mcp
+
 USER agentuser
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

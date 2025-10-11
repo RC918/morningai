@@ -42,6 +42,7 @@ jobs:
         run: |
           cd handoff/20250928/40_App/orchestrator
           pip install -r requirements.txt
+          pip install -r requirements-test.txt
           pip install -e .
       
       - name: Install Playwright browsers
@@ -56,6 +57,9 @@ jobs:
           echo "Deploying ephemeral sandbox: $APP_NAME"
           
           cd handoff/20250928/40_App/orchestrator/sandbox/ops_agent
+          
+          echo "Copying mcp module into build context..."
+          cp -r ../../mcp .
           
           flyctl apps create $APP_NAME --org personal || true
           
