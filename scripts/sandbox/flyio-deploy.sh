@@ -53,7 +53,7 @@ start_sandbox() {
     flyctl deploy \
         --app "$APP_NAME" \
         --dockerfile "$DOCKERFILE_PATH" \
-        --region "$REGION" \
+        --primary-region "$REGION" \
         --vm-size shared-cpu-1x \
         --vm-memory 256 \
         --no-public-ips \

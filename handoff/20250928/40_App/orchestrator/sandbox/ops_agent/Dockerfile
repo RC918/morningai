@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-bookworm
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -9,8 +9,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install playwright==1.40.0 && \
-    playwright install chromium && \
-    playwright install-deps chromium
+    playwright install --with-deps chromium
 
 RUN useradd -m -u 1001 agentuser && \
     mkdir -p /workspace && \
@@ -23,6 +22,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY mcp_client.py .
 COPY ops_agent_sandbox.py .
+
+RUN mkdir -p /app
+COPY mcp /app/mcp
 
 USER agentuser
 
