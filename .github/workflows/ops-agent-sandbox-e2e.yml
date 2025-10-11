@@ -42,6 +42,7 @@ jobs:
         run: |
           cd handoff/20250928/40_App/orchestrator
           pip install -r requirements.txt
+          pip install -r requirements-test.txt
           pip install -e .
       
       - name: Install Playwright browsers
