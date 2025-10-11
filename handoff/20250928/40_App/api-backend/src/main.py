@@ -43,14 +43,17 @@ def before_send(event, hint):
 if SENTRY_DSN and SENTRY_DSN.strip():
     try:
         import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+        
         sentry_sdk.init(
             dsn=SENTRY_DSN,
             environment=os.getenv("ENVIRONMENT", "production"),
-            release=APP_VERSION,
+            release=f"morningai@{APP_VERSION}",
+            integrations=[FlaskIntegration()],
             traces_sample_rate=1.0,
             before_send=before_send,
         )
-        logger.info(f"Sentry initialized successfully with release {APP_VERSION}")
+        logger.info(f"Sentry initialized successfully with release morningai@{APP_VERSION}")
     except Exception as e:
         logger.warning(f"Failed to initialize Sentry: {e}. Continuing without Sentry integration.")
         SENTRY_DSN = None

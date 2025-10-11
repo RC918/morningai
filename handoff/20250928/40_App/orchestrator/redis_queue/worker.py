@@ -57,15 +57,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
+APP_VERSION = os.getenv("APP_VERSION", "8.0.0")
+
 if SENTRY_DSN and SENTRY_DSN.strip():
     try:
         import sentry_sdk
+        from sentry_sdk.integrations.rq import RqIntegration
+        
         sentry_sdk.init(
             dsn=SENTRY_DSN,
             environment=os.getenv("ENVIRONMENT", "production"),
+            release=f"morningai@{APP_VERSION}",
+            integrations=[RqIntegration()],
             traces_sample_rate=1.0,
         )
-        logger.info("Sentry initialized in worker")
+        logger.info(f"Sentry initialized in worker with release morningai@{APP_VERSION}")
     except Exception as e:
         logger.warning(f"Failed to initialize Sentry: {e}. Continuing without Sentry integration.")
         SENTRY_DSN = None
