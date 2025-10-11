@@ -6,6 +6,7 @@ on:
     paths:
       - 'handoff/20250928/40_App/orchestrator/sandbox/**'
       - 'handoff/20250928/40_App/orchestrator/mcp/**'
+  pull_request:
 
 jobs:
   e2e-test:
