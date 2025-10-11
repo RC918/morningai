@@ -41,7 +41,7 @@ class DockerSandbox:
                 'security_opt': [
                     'no-new-privileges:true',
                     f'seccomp={self.seccomp_profile_path}',
-                    'apparmor=docker-default'
+                    'apparmor=docker-ops-agent-sandbox'
                 ],
                 'cap_drop': ['ALL'],
                 'cap_add': ['NET_BIND_SERVICE'],

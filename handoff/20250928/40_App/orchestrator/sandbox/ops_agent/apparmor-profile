@@ -1,0 +1,31 @@
+#include <tunables/global>
+
+profile docker-ops-agent-sandbox flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network inet stream,
+  network inet6 stream,
+
+  /proc/cpuinfo r,
+  /proc/meminfo r,
+  /proc/stat r,
+  /sys/fs/cgroup/** r,
+
+  /workspace/** rw,
+  /tmp/** rw,
+
+  deny /etc/shadow r,
+  deny /etc/passwd w,
+  deny /root/** rw,
+  deny /home/** rw,
+
+  /bin/** ix,
+  /usr/bin/** ix,
+  /usr/local/bin/** ix,
+
+  /usr/lib/python3.*/** r,
+  /usr/local/lib/python3.*/** r,
+
+  deny /sys/module/** w,
+  deny /proc/sys/kernel/** w,
+}
