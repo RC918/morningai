@@ -58,6 +58,9 @@ jobs:
           
           cd handoff/20250928/40_App/orchestrator/sandbox/ops_agent
           
+          echo "Copying mcp module into build context..."
+          cp -r ../../mcp .
+          
           flyctl apps create $APP_NAME --org personal || true
           
           flyctl deploy \

@@ -24,7 +24,7 @@ COPY mcp_client.py .
 COPY ops_agent_sandbox.py .
 
 RUN mkdir -p /app
-COPY ../../mcp /app/mcp
+COPY mcp /app/mcp
 
 USER agentuser
 
