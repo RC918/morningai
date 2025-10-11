@@ -1,5 +1,8 @@
 name: orchestrator-e2e
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
 jobs:
   run:
     runs-on: ubuntu-latest
