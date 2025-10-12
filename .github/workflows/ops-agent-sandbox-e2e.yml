@@ -9,11 +9,6 @@ on:
       - '.github/workflows/ops-agent-sandbox-e2e.yml'
       - 'docs/DEPLOYMENT_PROOF.md'
   pull_request:
-    paths:
-      - 'handoff/20250928/40_App/orchestrator/sandbox/**'
-      - 'handoff/20250928/40_App/orchestrator/mcp/**'
-      - '.github/workflows/ops-agent-sandbox-e2e.yml'
-      - 'docs/DEPLOYMENT_PROOF.md'
 
 jobs:
   e2e-test:
@@ -29,16 +24,39 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check if sandbox files changed
+        id: changed
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch origin ${{ github.base_ref }}
+            CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^(handoff/20250928/40_App/orchestrator/(sandbox|mcp)/|\.github/workflows/ops-agent-sandbox-e2e\.yml|docs/DEPLOYMENT_PROOF\.md)' || true)
+            if [ -n "$CHANGED" ]; then
+              echo "run_tests=true" >> $GITHUB_OUTPUT
+              echo "Sandbox files changed, will run full E2E tests"
+            else
+              echo "run_tests=false" >> $GITHUB_OUTPUT
+              echo "No sandbox files changed, skipping E2E tests"
+            fi
+          else
+            echo "run_tests=true" >> $GITHUB_OUTPUT
+            echo "Push to main or manual trigger, will run full E2E tests"
+          fi
       
       - name: Setup Python
+        if: steps.changed.outputs.run_tests == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12.x'
       
       - name: Install flyctl
+        if: steps.changed.outputs.run_tests == 'true'
         uses: superfly/flyctl-actions/setup-flyctl@v1
       
       - name: Install dependencies
+        if: steps.changed.outputs.run_tests == 'true'
         run: |
           cd handoff/20250928/40_App/orchestrator
           pip install -r requirements.txt
@@ -46,10 +64,12 @@ jobs:
           pip install -e .
       
       - name: Install Playwright browsers
+        if: steps.changed.outputs.run_tests == 'true'
         run: |
           npx playwright install --with-deps chromium
       
       - name: Deploy ephemeral sandbox to Fly.io
+        if: steps.changed.outputs.run_tests == 'true'
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
@@ -77,6 +97,7 @@ jobs:
           echo "Sandbox deployed at: https://$SANDBOX_URL"
       
       - name: Verify sandbox deployment
+        if: steps.changed.outputs.run_tests == 'true'
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
@@ -90,6 +111,7 @@ jobs:
           flyctl logs --app ${{ env.SANDBOX_APP_NAME }} -n
       
       - name: Start MCP Server
+        if: steps.changed.outputs.run_tests == 'true'
         run: |
           cd handoff/20250928/40_App/orchestrator
           python mcp/server.py > /tmp/mcp-server.log 2>&1 &
@@ -98,6 +120,7 @@ jobs:
           cat /tmp/mcp-server.log || true
       
       - name: Run E2E test
+        if: steps.changed.outputs.run_tests == 'true'
         env:
           SANDBOX_ENABLED: 'true'
           SANDBOX_URL: ${{ env.SANDBOX_URL }}
@@ -108,8 +131,14 @@ jobs:
           cd handoff/20250928/40_App/orchestrator
           python -m pytest tests/test_ops_agent_sandbox.py -v --tb=long --log-cli-level=INFO 2>&1 | tee /tmp/pytest-output.log
       
+      - name: Skip E2E tests (no sandbox changes)
+        if: steps.changed.outputs.run_tests == 'false'
+        run: |
+          echo "✅ Sandbox files unchanged - skipping expensive Fly.io deployment"
+          echo "This check passes automatically for PRs that don't modify sandbox code"
+      
       - name: Cleanup ephemeral sandbox
-        if: always()
+        if: always() && steps.changed.outputs.run_tests == 'true'
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
@@ -119,7 +148,7 @@ jobs:
           fi
       
       - name: Upload test logs
-        if: always()
+        if: always() && steps.changed.outputs.run_tests == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: e2e-test-logs
