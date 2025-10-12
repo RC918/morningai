@@ -452,6 +452,43 @@ main 分支合併條件
 
 ---
 
+## 🛡️ Branch Protection：證據連結
+
+### Required Status Checks 配置
+
+根據 Branch Protection 規則，`main` 分支必須通過以下 4 個檢查才能合併 PR：
+
+1. **orchestrator-e2e / run** - Orchestrator 端到端測試
+2. **post-deploy-health / check** - 部署後健康檢查
+3. **post-deploy-health-assertions / validate** - 部署後斷言驗證
+4. **ops-agent-sandbox-e2e / e2e-test** - Ops Agent Sandbox E2E 測試
+
+### 驗證方式
+
+**API 查詢**（需要 repo admin 權限）:
+```bash
+gh api repos/RC918/morningai/branches/main/protection \
+  -H "Accept: application/vnd.github+json" \
+  --jq '.required_status_checks.checks'
+```
+
+**手動驗證**:
+前往 https://github.com/RC918/morningai/settings/branches 查看 `main` 分支的 Protection Rules。
+
+### 為何某些工作流非 Required？
+
+以下工作流雖然重要，但不設為 Required 的原因：
+
+- **openapi-verify / lint**: 用於 OpenAPI 規格驗證，但 lint 失敗不應阻擋緊急修復的合併
+- **post-deploy-health**: 已被 `post-deploy-health-assertions / validate` 取代為 Required
+- **frontend-ci / build**: 前端建置由 Vercel 自動執行，不需要在 GitHub Actions 再次驗證
+- **backend-ci / test**: 後端測試覆蓋率已達標（25%），但不設為 Required 以允許實驗性 PR
+- **agent-mvp-smoke / smoke**: 煙測用於快速驗證，但不應阻擋所有 PR
+- **fly-deploy / deploy**: 部署工作流不應作為 PR 合併的前置條件
+- **Vercel**: Vercel 自動部署預覽，但不應阻擋 PR 合併
+
+---
+
 ## 📝 版本歷史
 
 - **2025-10-12**: Phase 11 清債 - 所有工作流新增 `workflow_dispatch` 支援
