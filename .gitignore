@@ -14,7 +14,9 @@ __pycache__/
 .vscode/
 .vercel/
 .render/
-coverage/
+/coverage/
+handoff/**/coverage/
+!docs/coverage/
 tmp/
 # Local artifacts (ignore)
 Environment

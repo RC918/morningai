@@ -14,9 +14,9 @@ This report documents the test coverage improvements made in Phase 11 Task 3, es
 
 | Metric | Baseline (v9.0.0) | Current (Phase 11) | Target (Progressive) |
 |--------|-------------------|---------------------|----------------------|
-| **Overall Coverage** | 38% | 44% | 70% → 80% → 85% |
+| **Overall Coverage** | 38% | 42% | 70% → 80% → 85% |
 | **Total Statements** | 1007 | 1007 | 1007 |
-| **Covered Statements** | 383 | 443 | 705+ |
+| **Covered Statements** | 383 | 419 | 705+ |
 | **Test Files** | 7 | 11 (+4) | 15+ |
 | **Test Cases** | 44 | 67 (+23) | 120+ |
 
@@ -164,8 +164,8 @@ python -m pytest tests/test_worker_heartbeat.py -v
 ### Phase 11.1 - Current (Completed)
 - ✅ Establish coverage infrastructure (CI, artifacts, reporting)
 - ✅ Test 3 critical paths comprehensively
-- ✅ Achieve 44% overall coverage (+6pp from baseline)
-- ✅ Set realistic coverage gate (43%)
+- ✅ Achieve 42% overall coverage (+4pp from baseline)
+- ✅ Set realistic coverage gate (41%)
 
 ### Phase 11.2 - Next Sprint (Target: 65%)
 **Focus:** High-value routes in main.py
@@ -271,7 +271,7 @@ Coverage tests run automatically on:
 1. Added Redis service for integration tests
 2. Enabled XML coverage report generation
 3. Added coverage artifact upload (30-day retention)
-4. Set coverage threshold: `--cov-fail-under=55`
+4. Set coverage threshold: `--cov-fail-under=41`
 
 **Artifact Access:**
 ```bash
@@ -282,7 +282,7 @@ gh run download <run-id> -n coverage-report
 
 ### Coverage Trend Tracking
 - Baseline (v9.0.0): 38% - 25% gate
-- Phase 11 (current): 44% - 43% gate (+6pp)
+- Phase 11 (current): 42% - 41% gate (+4pp)
 - Next target: 50% - 48% gate
 - Medium-term: 60% - 58% gate  
 - Progressive goal: 70% → 80% → 85%
