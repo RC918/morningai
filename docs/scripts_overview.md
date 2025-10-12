@@ -51,11 +51,15 @@ bash scripts/release_main.sh
 - 如果 tag 已存在，會自動加上秒數後綴：`vYYYYMMDD-HHMM-SS`
 - 範例：`v20251012-1530` 或 `v20251012-1530-45`
 
+**標籤衝突迴避機制**：
+腳本使用 `git rev-parse -q --verify "refs/tags/$TAG"` 檢查標籤是否已存在。如果基礎標籤（如 `v20251012-1530`）已存在，會自動加上秒數後綴（如 `v20251012-1530-45`），確保不會覆蓋或衝突既有標籤。
+
 **安全注意事項**：
 - 🔴 **高風險操作**：會直接 push tag 到遠端並建立 public release
 - ⚠️ 需要 `gh` CLI 已登入並具有 repo 寫入權限
 - ⚠️ 會執行 `git reset --hard origin/main` 清理本地變更
 - ⚠️ Release 建立後無法直接刪除，只能標記為 Draft
+- ✅ **不使用 `--force`**：腳本絕不使用 `--force` 改寫既有 tag 或 release，確保版本歷史完整性
 
 **失敗處理**：
 - 如果沒有 push 權限，會報錯並終止

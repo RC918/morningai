@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+
+command -v gh >/dev/null || { echo "❌ need GitHub CLI (gh)"; exit 1; }
+gh auth status >/dev/null || { echo "❌ gh not authenticated"; exit 1; }
+
 gh repo set-default RC918/morningai
 
 BASE="v$(date +%Y%m%d-%H%M)"
