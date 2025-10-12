@@ -475,12 +475,27 @@ gh api repos/RC918/morningai/branches/main/protection \
 **手動驗證**:
 前往 https://github.com/RC918/morningai/settings/branches 查看 `main` 分支的 Protection Rules。
 
+### Required Checks 對應表
+
+以下表格列出 4 個 Required Status Checks 的完整對應關係：
+
+| Workflow 檔案 | 顯示名稱 | Job 名稱 | 觸發事件 | Branch Protection Context |
+|--------------|---------|---------|---------|---------------------------|
+| `.github/workflows/orchestrator-e2e.yml` | orchestrator-e2e | `run` | `workflow_dispatch`<br/>`push`<br/>`pull_request` | `orchestrator-e2e / run` |
+| `.github/workflows/post-deploy-health.yml` | post-deploy-health | `check` | `workflow_dispatch`<br/>`push: { branches: [ main ] }`<br/>`pull_request` | `post-deploy-health / check` |
+| `.github/workflows/post-deploy-health-assertions.yml` | Post-Deploy Health Assertions | `validate` | `workflow_dispatch`<br/>`push: { branches: [ main ] }`<br/>`pull_request: { branches: [ main ] }`<br/>`schedule` (cron) | `post-deploy-health-assertions / validate` |
+| `.github/workflows/ops-agent-sandbox-e2e.yml` | Ops Agent Sandbox E2E | `e2e-test` | `workflow_dispatch`<br/>`push: { branches: [main] }`<br/>`pull_request` | `ops-agent-sandbox-e2e / e2e-test` |
+
+**關鍵要點**：
+- ✅ 所有 4 個 Required workflows 都支援 `pull_request` 觸發器，確保能在 PR 上回報狀態
+- ✅ Job 名稱必須與 Branch Protection 設定中的 context 名稱完全匹配
+- ✅ `post-deploy-health-assertions` 在 2025-10-13 修復了缺少 `pull_request` 觸發器的問題（[PR #236](https://github.com/RC918/morningai/pull/236)）
+
 ### 為何某些工作流非 Required？
 
 以下工作流雖然重要，但不設為 Required 的原因：
 
 - **openapi-verify / lint**: 用於 OpenAPI 規格驗證，但 lint 失敗不應阻擋緊急修復的合併
-- **post-deploy-health**: 已被 `post-deploy-health-assertions / validate` 取代為 Required
 - **frontend-ci / build**: 前端建置由 Vercel 自動執行，不需要在 GitHub Actions 再次驗證
 - **backend-ci / test**: 後端測試覆蓋率已達標（25%），但不設為 Required 以允許實驗性 PR
 - **agent-mvp-smoke / smoke**: 煙測用於快速驗證，但不應阻擋所有 PR
@@ -491,6 +506,8 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ## 📝 版本歷史
 
+- **2025-10-13**: 修復 `post-deploy-health-assertions` 缺少 `pull_request` 觸發器問題
+- **2025-10-13**: 新增 Required Checks 對應表，記錄 workflow 檔案與 job 名稱對應關係
 - **2025-10-12**: Phase 11 清債 - 所有工作流新增 `workflow_dispatch` 支援
 - **2025-10-12**: Branch Protection 規則修正為 4 個 Required Checks
 - **2025-10-11**: 新增 `ops-agent-sandbox-e2e` 工作流
@@ -498,6 +515,6 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ---
 
-**最後更新**: 2025-10-12  
+**最後更新**: 2025-10-13  
 **維護者**: @RC918 (Ryan Chen)  
-**文件版本**: 1.0.0
+**文件版本**: 1.1.0
