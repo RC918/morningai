@@ -1,5 +1,6 @@
 FROM python:3.11-bookworm
 
+# Ops Agent Sandbox - Secure isolated environment for autonomous agent operations
 RUN apt-get update && apt-get install -y \
     curl \
     git \
