@@ -14,6 +14,13 @@ Testing Branch Protection Rules enforcement with required status checks.
 ## Status
 ![env-diagnose](https://github.com/RC918/morningai/actions/workflows/env-diagnose.yml/badge.svg)
 
+## 開發貢獻流程
+
+請參閱以下文件了解專案的開發規範與 CI/CD 流程：
+- [貢獻規則](docs/CONTRIBUTING.md) - 分工規則、API 變更流程、驗收標準
+- [CI 工作流矩陣](docs/ci_matrix.md) - 完整的 GitHub Actions 工作流說明、觸發條件、Branch Protection 規則
+- [管理腳本指南](docs/scripts_overview.md) - 標準化管理腳本的使用方式與安全注意事項
+
 ## Milestones
 - Phase 9 - Commercialization & PWA
 - Phase 10 - Governance & Compliance
