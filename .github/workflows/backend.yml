@@ -4,7 +4,51 @@ on:
   push:
   pull_request:
 jobs:
+  validate-env-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+      - name: Validate environment schema
+        run: |
+          python - <<'EOF'
+          import yaml
+          import sys
+          
+          with open('config/env.schema.yaml', 'r') as f:
+              schema = yaml.safe_load(f)
+          
+          required_keys = ['version', 'description', 'fields']
+          for key in required_keys:
+              if key not in schema:
+                  print(f"❌ Missing required key: {key}")
+                  sys.exit(1)
+          
+          errors = []
+          for var_name, var_config in schema['fields'].items():
+              if 'type' not in var_config:
+                  errors.append(f"{var_name}: missing 'type'")
+              if 'description' not in var_config or not var_config['description']:
+                  errors.append(f"{var_name}: missing 'description'")
+              if 'category' not in var_config:
+                  errors.append(f"{var_name}: missing 'category'")
+          
+          if errors:
+              print("❌ Schema validation errors:")
+              for error in errors:
+                  print(f"  - {error}")
+              sys.exit(1)
+          
+          print(f"✅ Schema valid: {len(schema['fields'])} variables defined")
+          EOF
   test:
+    needs: validate-env-schema
     runs-on: ubuntu-latest
     services:
       redis:
