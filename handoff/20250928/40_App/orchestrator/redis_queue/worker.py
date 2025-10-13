@@ -39,6 +39,8 @@ import atexit
 from datetime import datetime, timezone
 from typing import Optional, List
 from redis import Redis, ConnectionError as RedisConnectionError
+from redis.retry import Retry as RedisRetry
+from redis.backoff import ExponentialBackoff
 from rq import Queue
 from rq.decorators import job
 from rq import Retry
@@ -83,8 +85,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
 
-redis = Redis.from_url(redis_url, decode_responses=True)
-redis_client_rq = Redis.from_url(redis_url, decode_responses=False)
+redis_retry = RedisRetry(ExponentialBackoff(base=1, cap=10), retries=3)
+redis = Redis.from_url(
+    redis_url, 
+    decode_responses=True,
+    socket_connect_timeout=5,
+    socket_timeout=30,
+    retry=redis_retry,
+    retry_on_timeout=True
+)
+redis_client_rq = Redis.from_url(
+    redis_url, 
+    decode_responses=False,
+    socket_connect_timeout=5,
+    socket_timeout=30,
+    retry=redis_retry,
+    retry_on_timeout=True
+)
 q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
 WORKER_ID = os.getenv("RENDER_INSTANCE_ID", os.getenv("HOSTNAME", "worker-local"))
