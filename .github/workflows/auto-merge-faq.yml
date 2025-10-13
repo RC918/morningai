@@ -36,15 +36,6 @@ jobs:
             echo "only_faq=false" >> $GITHUB_OUTPUT
           fi
       
-      - name: Wait for CI checks
-        if: steps.check.outputs.only_faq == 'true'
-        run: |
-          echo "Waiting for CI checks to complete..."
-          sleep 10
-          gh pr checks ${{ github.event.pull_request.number }} --watch --interval 10
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
       - name: Enable auto-merge
         if: steps.check.outputs.only_faq == 'true'
         run: |
