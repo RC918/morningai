@@ -166,7 +166,99 @@ curl http://localhost:5000/api/mcp/whitelist \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
+## Sandbox Runner API
+
+### POST /api/sandbox/run
+Start a sandbox task using subprocess (MVP implementation).
+
+**Request:**
+```json
+{
+  "agent_id": "ops-agent-001",
+  "agent_type": "ops_agent",
+  "command": "python script.py",
+  "cpu_limit": 1.0,
+  "memory_limit_mb": 2048,
+  "timeout_seconds": 300
+}
+```
+
+**Response (202):**
+```json
+{
+  "sandbox_id": "uuid",
+  "status": "running",
+  "agent_id": "ops-agent-001",
+  "started_at": "2025-10-14T...",
+  "timeout_seconds": 300
+}
+```
+
+### POST /api/sandbox/stop/{sandbox_id}
+Stop a running sandbox task.
+
+**Response:**
+```json
+{
+  "sandbox_id": "uuid",
+  "status": "stopped",
+  "stopped_at": "2025-10-14T..."
+}
+```
+
+### GET /api/sandbox/logs/{sandbox_id}
+Get stdout/stderr logs from a sandbox task.
+
+**Response:**
+```json
+{
+  "sandbox_id": "uuid",
+  "status": "completed",
+  "return_code": 0,
+  "stdout": "Task completed\n...",
+  "stderr": "",
+  "trace_id": "uuid"
+}
+```
+
+### GET /api/sandbox/status/{sandbox_id}
+Get current status of a sandbox task.
+
+**Response:**
+```json
+{
+  "sandbox_id": "uuid",
+  "agent_id": "ops-agent-001",
+  "agent_type": "ops_agent",
+  "status": "running",
+  "return_code": null,
+  "started_at": "2025-10-14T...",
+  "stopped_at": null
+}
+```
+
+### GET /api/sandbox/list (Auth Required)
+List all sandbox tasks. Requires JWT authentication with analyst/admin role.
+
+**Response:**
+```json
+{
+  "sandboxes": [
+    {
+      "sandbox_id": "uuid",
+      "agent_id": "ops-agent-001",
+      "agent_type": "ops_agent",
+      "status": "running",
+      "return_code": null,
+      "started_at": "2025-10-14T..."
+    }
+  ],
+  "total_count": 1
+}
+```
+
 ## References
 - `handoff/20250928/40_App/orchestrator/mcp/server.py` - MCP Server Implementation
 - `handoff/20250928/40_App/orchestrator/mcp/client.py` - MCP Client Implementation
+- `handoff/20250928/40_App/orchestrator/sandbox/manager.py` - Sandbox Manager Implementation
 - `docs/sandbox-security-hardening-runbook.md` - Security Hardening Guide

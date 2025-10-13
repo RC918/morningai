@@ -6,6 +6,7 @@ Test suite for RQ worker integration
 import pytest
 import json
 import uuid
+import os
 import time
 from unittest.mock import patch, MagicMock
 from redis import Redis
@@ -28,7 +29,8 @@ def test_task_queuing():
         redis_client = Redis.from_url("redis://localhost:6379/0", decode_responses=True)
         redis_client.ping()
         
-        q = Queue("orchestrator", connection=redis_client)
+        RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
+        q = Queue(RQ_QUEUE_NAME, connection=redis_client)
         
         task_id = str(uuid.uuid4())
         job = q.enqueue(
