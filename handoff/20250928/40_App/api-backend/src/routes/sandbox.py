@@ -7,8 +7,6 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from src.middleware.auth_middleware import jwt_required, roles_required
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'orchestrator'))
-
 logging.basicConfig(
     level=logging.INFO,
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'

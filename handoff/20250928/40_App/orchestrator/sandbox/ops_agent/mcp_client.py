@@ -6,8 +6,6 @@ import asyncio
 import os
 import sys
 
-sys.path.append('/app')
-
 from mcp.client import MCPClient
 
 async def main():
