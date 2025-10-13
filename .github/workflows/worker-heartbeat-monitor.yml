@@ -15,7 +15,7 @@ jobs:
         run: |
           pip install redis
           python - <<'PY'
-          import os, sys, time
+          import os, sys, time, json
           import redis
           url=os.getenv("REDIS_URL","")
           if not url:
@@ -26,12 +26,21 @@ jobs:
           found=False
           for k in r.scan_iter(b"worker:heartbeat:*", count=100):
               found=True
-              m=r.hgetall(k)
-              ts=(m.get(b'last_heartbeat') or m.get(b'lastHeartbeat') or b'0').decode()
+              # Worker stores heartbeat as JSON string using redis.setex()
+              data = r.get(k)
+              if not data:
+                  continue
+              try:
+                  # Parse JSON string
+                  m = json.loads(data.decode() if isinstance(data, bytes) else data)
+                  ts = m.get('last_heartbeat', m.get('lastHeartbeat', '0'))
+              except (json.JSONDecodeError, AttributeError) as e:
+                  print(f"Warning: Failed to parse heartbeat data for {k.decode()}: {e}")
+                  continue
               try:
                   # 支援 ISO8601 或 epoch（若有）
                   t = time.time()
-                  if ts.replace(':','',1).isdigit():
+                  if isinstance(ts, str) and ts.replace(':','',1).replace('.','',1).isdigit():
                       t=float(ts)
                   else:
                       from datetime import datetime, timezone
