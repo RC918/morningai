@@ -10,6 +10,11 @@ on:
         description: 'Also check POST /api/agent/faq'
         required: false
         default: 'false'
+      test_sentry:
+        description: 'Test Sentry integration (send smoke message)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   smoke:
@@ -35,3 +40,48 @@ jobs:
                 "$BASE/api/agent/faq")
           echo "/api/agent/faq => $code"
           [ "$code" -eq 202 ] || (echo "::error::/api/agent/faq expected 202, got $code" && exit 1)
+      
+      - name: Setup Python (for Sentry test)
+        if: github.event.inputs.test_sentry == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.x'
+      
+      - name: Test Sentry Integration (Optional)
+        if: github.event.inputs.test_sentry == 'true'
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          pip install sentry-sdk==2.19.2
+          python - <<'EOF'
+          import os
+          import sys
+          
+          SENTRY_DSN = os.environ.get('SENTRY_DSN')
+          
+          if not SENTRY_DSN:
+              print("⚠️  SENTRY_DSN not configured, skipping Sentry test")
+              sys.exit(0)
+          
+          try:
+              import sentry_sdk
+              sentry_sdk.init(
+                  dsn=SENTRY_DSN,
+                  environment="ci-smoke-test",
+                  traces_sample_rate=1.0,
+              )
+              
+              event_id = sentry_sdk.capture_message(
+                  "Smoke Test - Sentry Integration",
+                  level="info"
+              )
+              sentry_sdk.flush(timeout=5)
+              
+              print(f"✅ Sentry smoke test successful")
+              print(f"   Event ID: {event_id}")
+              print(f"   Check Sentry dashboard for this event")
+              
+          except Exception as e:
+              print(f"❌ Sentry smoke test failed: {e}")
+              sys.exit(1)
+          EOF
