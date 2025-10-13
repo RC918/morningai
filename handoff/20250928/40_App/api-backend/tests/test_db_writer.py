@@ -11,7 +11,7 @@ from unittest.mock import patch, MagicMock
 def test_db_writer_module_imports():
     """Test that db_writer module can be imported"""
     try:
-        from orchestrator.persistence import db_writer
+        from persistence import db_writer
         
         assert hasattr(db_writer, 'upsert_task_queued')
         assert hasattr(db_writer, 'upsert_task_running')
@@ -22,10 +22,10 @@ def test_db_writer_module_imports():
     except ImportError as e:
         pytest.skip(f"db_writer module not available: {e}")
 
-@patch('orchestrator.persistence.db_writer.get_client')
+@patch('persistence.db_writer.get_client')
 def test_upsert_task_queued(mock_get_client):
     """Test queued task insertion"""
-    from orchestrator.persistence.db_writer import upsert_task_queued
+    from persistence.db_writer import upsert_task_queued
     
     mock_client = MagicMock()
     mock_table = MagicMock()
@@ -54,10 +54,10 @@ def test_upsert_task_queued(mock_get_client):
     
     print("✅ upsert_task_queued works correctly")
 
-@patch('orchestrator.persistence.db_writer.get_client')
+@patch('persistence.db_writer.get_client')
 def test_upsert_task_running(mock_get_client):
     """Test running task update"""
-    from orchestrator.persistence.db_writer import upsert_task_running
+    from persistence.db_writer import upsert_task_running
     
     mock_client = MagicMock()
     mock_table = MagicMock()
@@ -79,10 +79,10 @@ def test_upsert_task_running(mock_get_client):
     
     print("✅ upsert_task_running works correctly")
 
-@patch('orchestrator.persistence.db_writer.get_client')
+@patch('persistence.db_writer.get_client')
 def test_upsert_task_done(mock_get_client):
     """Test done task update with pr_url"""
-    from orchestrator.persistence.db_writer import upsert_task_done
+    from persistence.db_writer import upsert_task_done
     
     mock_client = MagicMock()
     mock_table = MagicMock()
@@ -106,10 +106,10 @@ def test_upsert_task_done(mock_get_client):
     
     print("✅ upsert_task_done works correctly")
 
-@patch('orchestrator.persistence.db_writer.get_client')
+@patch('persistence.db_writer.get_client')
 def test_upsert_task_error(mock_get_client):
     """Test error task update with error message"""
-    from orchestrator.persistence.db_writer import upsert_task_error
+    from persistence.db_writer import upsert_task_error
     
     mock_client = MagicMock()
     mock_table = MagicMock()
@@ -133,10 +133,10 @@ def test_upsert_task_error(mock_get_client):
     
     print("✅ upsert_task_error works correctly")
 
-@patch('orchestrator.persistence.db_writer.get_client')
+@patch('persistence.db_writer.get_client')
 def test_error_handling_graceful_failure(mock_get_client):
     """Test that DB write failures don't crash the app"""
-    from orchestrator.persistence.db_writer import upsert_task_queued
+    from persistence.db_writer import upsert_task_queued
     
     mock_get_client.side_effect = Exception("DB connection failed")
     
