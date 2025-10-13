@@ -54,7 +54,50 @@ jobs:
             echo "⚠️  Cloudflare credentials not configured"
             exit 0
           fi
-          curl -sS "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/dns_records?per_page=1" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" | head -n 1
+          
+          TOKEN=$(echo "$CLOUDFLARE_API_TOKEN" | tr -d '[:space:]')
+          ZONE_ID=$(echo "$CLOUDFLARE_ZONE_ID" | tr -d '[:space:]')
+          
+          echo "1. Verifying API token..."
+          TOKEN_VERIFY=$(curl -sS "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json")
+          echo "$TOKEN_VERIFY" | jq -r '.success'
+          
+          if [ "$(echo "$TOKEN_VERIFY" | jq -r '.success')" != "true" ]; then
+            echo "❌ Token verification failed"
+            echo "$TOKEN_VERIFY"
+            exit 1
+          fi
+          
+          echo "2. Fetching zone info for domain morningai.me..."
+          ZONE_INFO=$(curl -sS "https://api.cloudflare.com/client/v4/zones?name=morningai.me" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json")
+          
+          ACTUAL_ZONE_ID=$(echo "$ZONE_INFO" | jq -r '.result[0].id')
+          echo "Zone ID from API: $ACTUAL_ZONE_ID"
+          echo "Zone ID from secret: $ZONE_ID"
+          
+          if [ "$ACTUAL_ZONE_ID" != "$ZONE_ID" ]; then
+            echo "⚠️  Zone ID mismatch! Using zone from API..."
+            ZONE_ID="$ACTUAL_ZONE_ID"
+          fi
+          
+          echo "3. Querying DNS records..."
+          DNS_RESULT=$(curl -sS "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?per_page=1" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json")
+          
+          echo "$DNS_RESULT" | jq '{success, result_count: (.result | length), first_record: .result[0].name}'
+          
+          if [ "$(echo "$DNS_RESULT" | jq -r '.success')" != "true" ]; then
+            echo "❌ DNS query failed"
+            echo "$DNS_RESULT"
+            exit 1
+          fi
+          
+          echo "✅ Cloudflare API working correctly"
       - name: Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
