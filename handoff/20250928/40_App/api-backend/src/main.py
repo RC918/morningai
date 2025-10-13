@@ -7,12 +7,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
-<<<<<<< HEAD
 from src.routes.mcp import bp as mcp_bp
 from src.routes.sandbox import bp as sandbox_bp
-=======
 from src.routes.hitl import bp as hitl_bp
->>>>>>> origin/main
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
@@ -103,12 +100,9 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
-<<<<<<< HEAD
 app.register_blueprint(mcp_bp)
 app.register_blueprint(sandbox_bp)
-=======
 app.register_blueprint(hitl_bp)
->>>>>>> origin/main
 
 if BACKEND_SERVICES_AVAILABLE:
     try:
