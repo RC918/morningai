@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
+from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from redis_queue.worker import run_orchestrator_task
@@ -15,6 +16,12 @@ logging.basicConfig(
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
 )
 logger = logging.getLogger(__name__)
+
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN and SENTRY_DSN.strip():
+    import sentry_sdk
+else:
+    sentry_sdk = None
 
 class FAQRequest(BaseModel):
     """Request model for FAQ generation"""
@@ -30,25 +37,12 @@ class FAQRequest(BaseModel):
             raise ValueError('question cannot be empty or whitespace only')
         return v
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
-if SENTRY_DSN and SENTRY_DSN.strip():
-    try:
-        import sentry_sdk
-        sentry_sdk.init(
-            dsn=SENTRY_DSN,
-            environment=os.getenv("ENVIRONMENT", "production"),
-            traces_sample_rate=1.0,
-        )
-        logger.info("Sentry initialized successfully")
-    except Exception as e:
-        logger.warning(f"Failed to initialize Sentry: {e}. Continuing without Sentry integration.")
-        SENTRY_DSN = None
-
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
 redis_client_rq = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-q = Queue("orchestrator", connection=redis_client_rq)
+RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
+q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
 @bp.route("/faq", methods=["GET"])
 def faq_method_not_allowed():
@@ -78,6 +72,11 @@ def create_faq_task():
     try:
         repo = os.getenv("GITHUB_REPO", "RC918/morningai")
         task_id = str(uuid.uuid4())
+        
+        if sentry_sdk:
+            sentry_sdk.set_tag("trace_id", task_id)
+            sentry_sdk.set_tag("task_id", task_id)
+            sentry_sdk.set_tag("operation", "faq_create")
         
         job = q.enqueue(
             run_orchestrator_task,
@@ -111,13 +110,14 @@ def create_faq_task():
                 job_id=job.id
             )
             
-            if SENTRY_DSN:
+            if sentry_sdk:
                 sentry_sdk.add_breadcrumb(
                     category='agent_task',
                     message='Task enqueued to DB',
                     level='info',
                     data={
                         'task_id': task_id,
+                        'trace_id': task_id,
                         'status': 'queued'
                     }
                 )
@@ -138,12 +138,15 @@ def create_faq_task():
             "error_type": "redis_connection"
         })
         
-        if SENTRY_DSN and SENTRY_DSN.strip():
+        if sentry_sdk:
+            if 'task_id' in locals():
+                sentry_sdk.set_tag("trace_id", task_id)
+                sentry_sdk.set_tag("task_id", task_id)
             sentry_sdk.add_breadcrumb(
                 category='redis',
                 message='Redis connection failed during task creation',
                 level='error',
-                data={'task_id': task_id if 'task_id' in locals() else None, 'question': question}
+                data={'task_id': task_id if 'task_id' in locals() else None, 'trace_id': task_id if 'task_id' in locals() else None, 'question': question}
             )
             sentry_sdk.capture_exception(e)
         
@@ -160,7 +163,10 @@ def create_faq_task():
             "task_id": task_id if 'task_id' in locals() else None
         })
         
-        if SENTRY_DSN and SENTRY_DSN.strip():
+        if sentry_sdk:
+            if 'task_id' in locals():
+                sentry_sdk.set_tag("trace_id", task_id)
+                sentry_sdk.set_tag("task_id", task_id)
             sentry_sdk.capture_exception(e)
         
         return jsonify({
@@ -224,9 +230,9 @@ def get_task_status(task_id):
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
-        queue_length = redis_client_rq.llen("rq:queue:orchestrator")
+        queue_length = redis_client_rq.llen(f"rq:queue:{RQ_QUEUE_NAME}")
         
-        recent_jobs = redis_client_rq.lrange("rq:queue:orchestrator", 0, 4)
+        recent_jobs = redis_client_rq.lrange(f"rq:queue:{RQ_QUEUE_NAME}", 0, 4)
         
         task_keys = list(redis_client.scan_iter("agent:task:*", count=100))
         sample_task = None

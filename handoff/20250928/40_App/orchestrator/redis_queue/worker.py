@@ -258,11 +258,14 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     logger.info(f"Starting orchestrator task", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": task_id, "question": question[:50]})
     
     if SENTRY_DSN:
+        sentry_sdk.set_tag("trace_id", task_id)
+        sentry_sdk.set_tag("task_id", task_id)
+        sentry_sdk.set_tag("operation", "orchestrator_task")
         sentry_sdk.add_breadcrumb(
             category='task',
             message=f'Starting orchestrator task',
             level='info',
-            data={'task_id': task_id, 'job_id': job_id, 'question': question, 'repo': repo}
+            data={'task_id': task_id, 'job_id': job_id, 'trace_id': task_id, 'question': question, 'repo': repo}
         )
     
     try:
@@ -294,7 +297,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                     category='agent_task',
                     message='Task status updated to running in DB',
                     level='info',
-                    data={'task_id': task_id, 'status': 'running'}
+                    data={'task_id': task_id, 'trace_id': task_id, 'status': 'running'}
                 )
         except Exception as e:
             logger.error(f"DB write failed for task {task_id} (running): {e}")
@@ -340,6 +343,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                     level='info',
                     data={
                         'task_id': task_id,
+                        'trace_id': trace_id,
                         'status': 'done',
                         'pr_url': pr_url
                     }
@@ -394,6 +398,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                     level='error',
                     data={
                         'task_id': task_id,
+                        'trace_id': task_id,
                         'status': 'error',
                         'error_msg': error_msg[:200]
                     }
