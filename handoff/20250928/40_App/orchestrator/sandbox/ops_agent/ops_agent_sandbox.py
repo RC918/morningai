@@ -7,6 +7,7 @@ import asyncio
 import sys
 import os
 
+sys.path.append('/home/ubuntu/repos/morningai')
 from ops_agent import OpsAgent
 from mcp.client import MCPClient
 

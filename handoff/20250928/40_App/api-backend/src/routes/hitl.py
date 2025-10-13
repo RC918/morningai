@@ -5,6 +5,9 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request, g
 from src.middleware.auth_middleware import jwt_required, roles_required
 
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..'))
 from hitl_approval_system import HITLApprovalSystem, ApprovalChannel, ApprovalStatus
 
 logging.basicConfig(
