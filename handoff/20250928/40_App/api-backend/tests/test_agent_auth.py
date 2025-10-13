@@ -83,3 +83,39 @@ def test_debug_endpoint_admin_role(client, mock_redis):
     data = json.loads(response.data)
     assert 'queue_length' in data
     assert 'timestamp' in data
+
+def test_debug_endpoint_expired_token(client, mock_redis):
+    """Test debug endpoint with expired token returns 401"""
+    import jwt
+    import datetime
+    import os
+    
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    payload = {
+        'user_id': 2,
+        'username': 'analyst',
+        'role': 'analyst',
+        'exp': datetime.datetime.utcnow() - datetime.timedelta(hours=1),
+        'iat': datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+    }
+    expired_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+    
+    response = client.get(
+        '/api/agent/debug/queue',
+        headers={'Authorization': f'Bearer {expired_token}'}
+    )
+    assert response.status_code == 401
+    data = json.loads(response.data)
+    assert 'error' in data
+    assert data['error'] == 'Token expired'
+
+def test_debug_endpoint_malformed_token(client):
+    """Test debug endpoint with malformed token returns 401"""
+    response = client.get(
+        '/api/agent/debug/queue',
+        headers={'Authorization': 'Bearer malformed.token.here'}
+    )
+    assert response.status_code == 401
+    data = json.loads(response.data)
+    assert 'error' in data
+    assert 'Invalid token' in data['error']
