@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from rq import Queue
+from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from redis_queue.worker import run_orchestrator_task
@@ -40,7 +41,8 @@ bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
 redis_client_rq = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-q = Queue("orchestrator", connection=redis_client_rq)
+RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
+q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
 @bp.route("/faq", methods=["GET"])
 def faq_method_not_allowed():
@@ -228,9 +230,9 @@ def get_task_status(task_id):
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
-        queue_length = redis_client_rq.llen("rq:queue:orchestrator")
+        queue_length = redis_client_rq.llen(f"rq:queue:{RQ_QUEUE_NAME}")
         
-        recent_jobs = redis_client_rq.lrange("rq:queue:orchestrator", 0, 4)
+        recent_jobs = redis_client_rq.lrange(f"rq:queue:{RQ_QUEUE_NAME}", 0, 4)
         
         task_keys = list(redis_client.scan_iter("agent:task:*", count=100))
         sample_task = None
