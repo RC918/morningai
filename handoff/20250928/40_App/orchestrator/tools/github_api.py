@@ -1,7 +1,7 @@
 import os
 from github import Github
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_TOKEN = os.getenv("AGENT_GITHUB_TOKEN", os.getenv("GITHUB_TOKEN"))
 GITHUB_REPO = os.getenv("GITHUB_REPO", "RC918/morningai")
 
 def get_repo():

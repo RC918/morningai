@@ -27,6 +27,8 @@ services:
         generateValue: true
       - key: GITHUB_TOKEN
         sync: false
+      - key: AGENT_GITHUB_TOKEN
+        sync: false
       - key: GITHUB_REPO
         value: RC918/morningai
       - key: OPENAI_API_KEY
@@ -62,6 +64,8 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: GITHUB_TOKEN
+        sync: false
+      - key: AGENT_GITHUB_TOKEN
         sync: false
       - key: GITHUB_REPO
         value: RC918/morningai
