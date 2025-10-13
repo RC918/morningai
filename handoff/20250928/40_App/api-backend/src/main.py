@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
+from src.routes.mcp import bp as mcp_bp
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
@@ -97,6 +98,7 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
+app.register_blueprint(mcp_bp)
 
 if BACKEND_SERVICES_AVAILABLE:
     try:
