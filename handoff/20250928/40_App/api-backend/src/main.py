@@ -2,8 +2,6 @@ import os
 import sys
 import datetime
 import asyncio
-# DON'T CHANGE THIS !!!
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
@@ -63,7 +61,6 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 else:
     SENTRY_DSN = None
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 try:
     from security_manager import SecurityManager
     SECURITY_AVAILABLE = True
@@ -560,8 +557,6 @@ def get_report_history():
         return jsonify({'error': str(e)}), 500
 
 try:
-    morningai_root = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')
-    sys.path.insert(0, morningai_root)
     from phase4_meta_agent_api import (
         api_meta_agent_ooda_cycle,
         api_create_langgraph_workflow,

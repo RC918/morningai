@@ -11,7 +11,6 @@ import json
 import sys
 import os
 
-sys.path.append('/home/ubuntu/repos/morningai')
 from hitl_approval_system import HITLApprovalSystem, ApprovalPriority
 
 class MCPServer:
