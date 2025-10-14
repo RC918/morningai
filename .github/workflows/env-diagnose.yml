@@ -55,8 +55,15 @@ jobs:
             exit 0
           fi
           
-          TOKEN=$(echo "$CLOUDFLARE_API_TOKEN" | tr -d '[:space:]')
-          ZONE_ID=$(echo "$CLOUDFLARE_ZONE_ID" | tr -d '[:space:]')
+          # Clean the token - remove whitespace, quotes, and "Bearer" prefix if present
+          TOKEN=$(echo "$CLOUDFLARE_API_TOKEN" | tr -d '[:space:]' | sed 's/^["'\'']*//;s/["'\'']*$//' | sed 's/^Bearer[[:space:]]*//i')
+          ZONE_ID=$(echo "$CLOUDFLARE_ZONE_ID" | tr -d '[:space:]' | sed 's/^["'\'']*//;s/["'\'']*$//')
+          
+          echo "🔍 Token diagnostics:"
+          echo "  - Token length: ${#TOKEN}"
+          echo "  - First 8 chars: ${TOKEN:0:8}..."
+          echo "  - Zone ID length: ${#ZONE_ID}"
+          echo ""
           
           echo "1. Verifying API token..."
           TOKEN_VERIFY=$(curl -sS "https://api.cloudflare.com/client/v4/user/tokens/verify" \
@@ -67,8 +74,17 @@ jobs:
           if [ "$(echo "$TOKEN_VERIFY" | jq -r '.success')" != "true" ]; then
             echo "❌ Token verification failed"
             echo "$TOKEN_VERIFY"
+            echo ""
+            echo "💡 Common issues:"
+            echo "  - Token should be exactly 40 characters (found: ${#TOKEN})"
+            echo "  - Token should NOT include 'Bearer' prefix in the secret"
+            echo "  - Token should NOT have quotes around it"
+            echo "  - Get your token from: https://dash.cloudflare.com/profile/api-tokens"
             exit 1
           fi
+          
+          echo "✅ Token verification successful"
+          echo ""
           
           echo "2. Fetching zone info for domain morningai.me..."
           ZONE_INFO=$(curl -sS "https://api.cloudflare.com/client/v4/zones?name=morningai.me" \
@@ -76,13 +92,19 @@ jobs:
             -H "Content-Type: application/json")
           
           ACTUAL_ZONE_ID=$(echo "$ZONE_INFO" | jq -r '.result[0].id')
-          echo "Zone ID from API: $ACTUAL_ZONE_ID"
-          echo "Zone ID from secret: $ZONE_ID"
+          echo "  - Zone ID from API: $ACTUAL_ZONE_ID"
+          echo "  - Zone ID from secret: $ZONE_ID"
           
           if [ "$ACTUAL_ZONE_ID" != "$ZONE_ID" ]; then
-            echo "⚠️  Zone ID mismatch! Using zone from API..."
+            echo ""
+            echo "⚠️  Zone ID mismatch detected!"
+            echo "💡 Please update CLOUDFLARE_ZONE_ID secret to: $ACTUAL_ZONE_ID"
+            echo "   Using zone from API for this test..."
             ZONE_ID="$ACTUAL_ZONE_ID"
+          else
+            echo "  ✅ Zone ID matches"
           fi
+          echo ""
           
           echo "3. Querying DNS records..."
           DNS_RESULT=$(curl -sS "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?per_page=1" \
