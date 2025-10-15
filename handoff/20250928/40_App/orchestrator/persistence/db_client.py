@@ -5,16 +5,18 @@ Reuses pattern from pgvector_store.py
 """
 import os
 import logging
-from supabase import create_client, Client
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from supabase import Client
 
 logger = logging.getLogger(__name__)
 
-_supabase_client: Optional[Client] = None
+_supabase_client: Optional["Client"] = None
 
-def get_client() -> Client:
+def get_client() -> "Client":
     """
-    Get or create Supabase client using SERVICE_ROLE_KEY for RLS bypass.
+    Lazy initialization of Supabase client; avoids requiring external SDK at module load time.
     Returns cached client if available.
     """
     global _supabase_client
@@ -22,12 +24,20 @@ def get_client() -> Client:
     if _supabase_client is not None:
         return _supabase_client
     
+    try:
+        from supabase import create_client
+    except ImportError as e:
+        raise RuntimeError(
+            f"Supabase SDK unavailable at runtime: {e}. "
+            "Ensure dependency is installed and SUPABASE_URL/KEY are set."
+        ) from e
+    
     supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
     
     if not supabase_url or not supabase_key:
-        raise ValueError(
-            "Missing required environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+        raise RuntimeError(
+            "Supabase credentials missing (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)."
         )
     
     _supabase_client = create_client(supabase_url, supabase_key)
@@ -35,7 +45,7 @@ def get_client() -> Client:
     
     return _supabase_client
 
-def ensure_table_exists(client: Client) -> None:
+def ensure_table_exists(client: "Client") -> None:
     """
     Ensure agent_tasks table exists. Handles gracefully if already exists.
     """
