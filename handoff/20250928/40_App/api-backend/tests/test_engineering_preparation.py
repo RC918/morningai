@@ -9,8 +9,6 @@ import json
 import sys
 import os
 
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
-
 try:
     from routes.mock_api import mock_api
     from routes.dashboard import dashboard_bp
