@@ -1,0 +1,10 @@
+flask
+jwt
+psycopg2-binary
+redis
+requests
+aiohttp
+cryptography
+pyyaml
+pytest
+flake8
