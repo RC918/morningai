@@ -1,113 +1,23 @@
 name: Worker Heartbeat Monitor
-
 on:
-  schedule:
-    - cron: '*/5 * * * *'
+  schedule: [{ cron: '*/15 * * * *' }]
   workflow_dispatch:
-
 jobs:
   check-heartbeat:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install redis
       - name: Check worker heartbeats
         env:
           REDIS_URL: ${{ secrets.REDIS_URL }}
-        run: |
-          pip install redis
-          python - <<'PY'
-          import os, sys, time, json
-          import redis
-          url=os.getenv("REDIS_URL","")
-          if not url:
-              print("No REDIS_URL provided; skipping (neutral)."); sys.exit(0)
-          r=redis.from_url(url)
-          now=time.time()
-          stale=[]
-          found=False
-          for k in r.scan_iter(b"worker:heartbeat:*", count=100):
-              found=True
-              # Worker stores heartbeat as JSON string using redis.setex()
-              data = r.get(k)
-              if not data:
-                  continue
-              try:
-                  # Parse JSON string
-                  m = json.loads(data.decode() if isinstance(data, bytes) else data)
-                  ts = m.get('last_heartbeat', m.get('lastHeartbeat', '0'))
-                  state = m.get('state', 'unknown')
-              except (json.JSONDecodeError, AttributeError) as e:
-                  print(f"Warning: Failed to parse heartbeat data for {k.decode()}: {e}")
-                  continue
-              
-              # Skip workers in shutting_down state (graceful shutdown)
-              if state == 'shutting_down':
-                  print(f"Skipping {k.decode()} (state: shutting_down)")
-                  continue
-              
-              try:
-                  # 支援 ISO8601 或 epoch（若有）
-                  t = time.time()
-                  if isinstance(ts, str) and ts.replace(':','',1).replace('.','',1).isdigit():
-                      t=float(ts)
-                  else:
-                      from datetime import datetime, timezone
-                      t=datetime.fromisoformat(ts.replace('Z','+00:00')).timestamp()
-              except Exception:
-                  t=0
-              if now - t > 120:
-                  stale.append(k.decode())
-          if not found:
-              print("No heartbeat keys found; likely deploy window — skipping (neutral)."); sys.exit(0)
-          if stale:
-              print("Stale heartbeats (>120s):", stale); sys.exit(1)
-          print("Heartbeats OK."); sys.exit(0)
-          PY
-      
-      - name: Create issue on heartbeat failure
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        uses: actions/github-script@v7
+        run: python .github/scripts/check_heartbeat.py
+      - if: failure()
+        name: Create issue on heartbeat failure
+        uses: dacbd/create-issue-action@v2
         with:
-          script: |
-            const title = '⚠️ Worker Heartbeat Alert: Missing heartbeats detected';
-            const body = `## Worker Heartbeat Alert
-            
-            One or more workers have not sent heartbeats for >2 minutes.
-            
-            **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            **Time:** ${new Date().toISOString()}
-            
-            ### Action Required
-            - Check Render worker logs: https://dashboard.render.com
-            - Verify Redis connectivity
-            - Check for worker crashes or restarts
-            
-            ### Related
-            - Issue #162 - Worker hardening
-            - docs/ops/worker-shutdown-report.md
-            
-            cc @RC918`;
-            
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'worker-heartbeat-alert'
-            });
-            
-            if (issues.data.length === 0) {
-              await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: title,
-                body: body,
-                labels: ['worker-heartbeat-alert', 'oncall', 'P1']
-              });
-            } else {
-              console.log('Heartbeat alert issue already exists, skipping duplicate');
-            }
-
-permissions:
-  contents: read
-  issues: write
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "⚠️ Worker Heartbeat Alert: Missing heartbeats detected"
+          body: "Auto-opened by monitor. See run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
