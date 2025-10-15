@@ -34,9 +34,16 @@ jobs:
                   # Parse JSON string
                   m = json.loads(data.decode() if isinstance(data, bytes) else data)
                   ts = m.get('last_heartbeat', m.get('lastHeartbeat', '0'))
+                  state = m.get('state', 'unknown')
               except (json.JSONDecodeError, AttributeError) as e:
                   print(f"Warning: Failed to parse heartbeat data for {k.decode()}: {e}")
                   continue
+              
+              # Skip workers in shutting_down state (graceful shutdown)
+              if state == 'shutting_down':
+                  print(f"Skipping {k.decode()} (state: shutting_down)")
+                  continue
+              
               try:
                   # 支援 ISO8601 或 epoch（若有）
                   t = time.time()

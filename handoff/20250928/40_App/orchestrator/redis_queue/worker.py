@@ -89,6 +89,13 @@ redis = Redis.from_url(
     decode_responses=True,
     socket_connect_timeout=5,
     socket_timeout=30,
+    socket_keepalive=True,
+    socket_keepalive_options={
+        socket.TCP_KEEPIDLE: 60,
+        socket.TCP_KEEPINTVL: 10,
+        socket.TCP_KEEPCNT: 3
+    },
+    health_check_interval=30,
     retry=redis_retry,
     retry_on_timeout=True
 )
@@ -97,6 +104,13 @@ redis_client_rq = Redis.from_url(
     decode_responses=False,
     socket_connect_timeout=5,
     socket_timeout=30,
+    socket_keepalive=True,
+    socket_keepalive_options={
+        socket.TCP_KEEPIDLE: 60,
+        socket.TCP_KEEPINTVL: 10,
+        socket.TCP_KEEPCNT: 3
+    },
+    health_check_interval=30,
     retry=redis_retry,
     retry_on_timeout=True
 )
