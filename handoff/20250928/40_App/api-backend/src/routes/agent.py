@@ -5,6 +5,8 @@ import logging
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
+from redis.retry import Retry
+from redis.backoff import ExponentialBackoff
 from rq import Queue
 from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
@@ -39,8 +41,22 @@ class FAQRequest(BaseModel):
 
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
-redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
-redis_client_rq = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
+redis_client = Redis.from_url(
+    os.getenv("REDIS_URL", "redis://localhost:6379/0"), 
+    decode_responses=True,
+    socket_connect_timeout=5,
+    socket_timeout=30,
+    retry=retry,
+    retry_on_timeout=True
+)
+redis_client_rq = Redis.from_url(
+    os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    socket_connect_timeout=5,
+    socket_timeout=30,
+    retry=retry,
+    retry_on_timeout=True
+)
 RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
 q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
