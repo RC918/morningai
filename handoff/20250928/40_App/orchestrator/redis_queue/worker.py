@@ -442,9 +442,10 @@ if __name__ == "__main__":
             connection=redis_client_rq,
             name=WORKER_ID,
             default_worker_ttl=600,
-            default_result_ttl=86400
+            default_result_ttl=86400,
+            serializer=JSONSerializer()
         )
-        logger.info(f"Worker configuration complete", extra={"operation": "startup", "worker_id": WORKER_ID, "worker_ttl": 600, "result_ttl": 86400})
+        logger.info(f"Worker configuration complete", extra={"operation": "startup", "worker_id": WORKER_ID, "worker_ttl": 600, "result_ttl": 86400, "serializer": "JSONSerializer"})
         worker.work()
     except KeyboardInterrupt:
         logger.info(f"KeyboardInterrupt received", extra={"operation": "shutdown", "worker_id": WORKER_ID})
