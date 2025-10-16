@@ -10,3 +10,5 @@ pytest
 flake8
 langgraph
 langchain-core
+openai>=1.0.0
+pgvector
