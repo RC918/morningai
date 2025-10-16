@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""
+FileSystem Tool - Enhanced file operations for Dev Agent
+Provides comprehensive file system operations
+"""
+import logging
+from typing import Dict, Any, Optional, List
+import requests
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class FileSystemTool:
+    """File system operations tool"""
+    
+    def __init__(self, sandbox_endpoint: str):
+        self.sandbox_endpoint = sandbox_endpoint
+        
+    async def read_file(self, file_path: str) -> Dict[str, Any]:
+        """
+        Read file contents
+        
+        Args:
+            file_path: Path to file relative to workspace
+            
+        Returns:
+            Dict with success status and file content
+        """
+        try:
+            response = requests.post(
+                f"{self.sandbox_endpoint}/api/file/read",
+                json={'file_path': file_path}
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"Read file failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def write_file(self, file_path: str, content: str) -> Dict[str, Any]:
+        """
+        Write content to file
+        
+        Args:
+            file_path: Path to file relative to workspace
+            content: File content to write
+            
+        Returns:
+            Dict with success status
+        """
+        try:
+            response = requests.post(
+                f"{self.sandbox_endpoint}/api/file/write",
+                json={
+                    'file_path': file_path,
+                    'content': content
+                }
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"Write file failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def list_files(self, directory: str = '.', pattern: Optional[str] = None) -> Dict[str, Any]:
+        """
+        List files in directory
+        
+        Args:
+            directory: Directory path
+            pattern: Optional glob pattern to filter files
+            
+        Returns:
+            Dict with success status and file list
+        """
+        try:
+            if pattern:
+                command = f"find {directory} -name '{pattern}'"
+            else:
+                command = f"ls -la {directory}"
+            
+            response = requests.post(
+                f"{self.sandbox_endpoint}/api/shell",
+                json={'command': command}
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"List files failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def create_directory(self, directory_path: str) -> Dict[str, Any]:
+        """
+        Create directory
+        
+        Args:
+            directory_path: Path to directory to create
+            
+        Returns:
+            Dict with success status
+        """
+        try:
+            command = f"mkdir -p {directory_path}"
+            
+            response = requests.post(
+                f"{self.sandbox_endpoint}/api/shell",
+                json={'command': command}
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"Create directory failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def delete_file(self, file_path: str) -> Dict[str, Any]:
+        """
+        Delete file
+        
+        Args:
+            file_path: Path to file to delete
+            
+        Returns:
+            Dict with success status
+        """
+        try:
+            command = f"rm -f {file_path}"
+            
+            response = requests.post(
+                f"{self.sandbox_endpoint}/api/shell",
+                json={'command': command}
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"Delete file failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def copy_file(self, source: str, destination: str) -> Dict[str, Any]:
+        """
+        Copy file
+        
+        Args:
+            source: Source file path
+            destination: Destination file path
+            
+        Returns:
+            Dict with success status
+        """
+        try:
+            command = f"cp {source} {destination}"
+            
+            response = requests.post(
+                f"{self.sandbox_endpoint}/api/shell",
+                json={'command': command}
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"Copy file failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def move_file(self, source: str, destination: str) -> Dict[str, Any]:
+        """
+        Move/rename file
+        
+        Args:
+            source: Source file path
+            destination: Destination file path
+            
+        Returns:
+            Dict with success status
+        """
+        try:
+            command = f"mv {source} {destination}"
+            
+            response = requests.post(
+                f"{self.sandbox_endpoint}/api/shell",
+                json={'command': command}
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"Move file failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def search_files(self, query: str, directory: str = '.') -> Dict[str, Any]:
+        """
+        Search for text in files
+        
+        Args:
+            query: Search query
+            directory: Directory to search in
+            
+        Returns:
+            Dict with success status and search results
+        """
+        try:
+            command = f"grep -rn '{query}' {directory}"
+            
+            response = requests.post(
+                f"{self.sandbox_endpoint}/api/shell",
+                json={'command': command}
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"Search files failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def get_file_info(self, file_path: str) -> Dict[str, Any]:
+        """
+        Get file information
+        
+        Args:
+            file_path: Path to file
+            
+        Returns:
+            Dict with success status and file info
+        """
+        try:
+            command = f"stat {file_path}"
+            
+            response = requests.post(
+                f"{self.sandbox_endpoint}/api/shell",
+                json={'command': command}
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"Get file info failed: {e}")
+            return {'success': False, 'error': str(e)}
+
+
+def get_filesystem_tool(sandbox_endpoint: str) -> FileSystemTool:
+    """Factory function to create FileSystemTool instance"""
+    return FileSystemTool(sandbox_endpoint)

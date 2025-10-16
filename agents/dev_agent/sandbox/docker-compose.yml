@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  dev-agent-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dev-agent-sandbox
+    
+    # Resource limits
+    mem_limit: 2048m
+    cpus: 1.0
+    pids_limit: 100
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./seccomp-profile.json
+      - apparmor=docker-dev-agent-sandbox
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    
+    # Temporary filesystem
+    tmpfs:
+      - /tmp:size=1G,mode=1777,noexec
+    
+    # Volumes
+    volumes:
+      - dev-agent-workspace:/workspace
+      - ./mcp:/app/mcp:ro
+    
+    # Environment variables
+    environment:
+      - AGENT_ID=dev-agent-001
+      - AGENT_TYPE=dev
+      - WORKSPACE_PATH=/workspace
+      - MCP_SERVER_URL=http://host.docker.internal:8080
+    
+    # Network
+    networks:
+      - agent-network
+    
+    # Ports
+    ports:
+      - "8080:8080"
+      - "8443:8443"  # VSCode Server
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  dev-agent-workspace:
+    driver: local
+
+networks:
+  agent-network:
+    driver: bridge
