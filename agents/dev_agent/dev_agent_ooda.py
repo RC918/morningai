@@ -131,34 +131,58 @@ class DevAgentOODA:
 
     async def _observe_node(self, state: DevAgentState) -> DevAgentState:
         """
-        Observe phase: Explore codebase and identify relevant context (Week 4: added decision trace)
+        Observe phase: Explore codebase and identify relevant context (Week 4: improved data collection)
         """
         logger.info(f"[Observe] Starting observation for task: {state['task']}")
 
         observations = []
+        context_data = {}
 
         try:
             tree_result = await self.ide_tool.get_file_tree('.')
             if tree_result.get('success'):
-                observations.append(f"Codebase structure: {tree_result.get('stdout', '')[:500]}")
+                tree_output = tree_result.get('stdout', '')
+                observations.append(f"Codebase structure: {tree_output[:500]}")
+                context_data['file_tree'] = tree_output[:1000]
+            else:
+                logger.warning(f"[Observe] Failed to get file tree: {tree_result.get('error')}")
+
+            list_result = await self.fs_tool.list_files('.', pattern='*.py')
+            if list_result.get('success'):
+                files_output = list_result.get('stdout', '')
+                observations.append(f"Python files found: {files_output[:300]}")
+                context_data['python_files'] = files_output[:500]
+            else:
+                logger.warning(f"[Observe] Failed to list files: {list_result.get('error')}")
 
             keywords = self._extract_keywords(state['task'])
-            for keyword in keywords:
-                search_result = await self.ide_tool.search_code(keyword)
+            search_results = {}
+            for keyword in keywords[:3]:
+                search_result = await self.ide_tool.search_code(keyword, file_pattern='*.py')
                 if search_result.get('success'):
-                    observations.append(f"Found '{keyword}' in: {search_result.get('stdout', '')[:200]}")
+                    search_output = search_result.get('stdout', '')
+                    if search_output and search_output.strip():
+                        observations.append(f"Found '{keyword}' in: {search_output[:200]}")
+                        search_results[keyword] = search_output[:300]
+            context_data['search_results'] = search_results
 
             git_status = await self.git_tool.status()
             if git_status.get('success'):
-                observations.append(f"Git status: {git_status.get('stdout', '')[:200]}")
+                status_output = git_status.get('stdout', '')
+                observations.append(f"Git status: {status_output[:200]}")
+                context_data['git_status'] = status_output[:500]
+            else:
+                logger.warning(f"[Observe] Failed to get git status: {git_status.get('error')}")
 
             state['observations'] = observations
             state['context']['last_observe_time'] = datetime.now().isoformat()
+            state['context']['observation_data'] = context_data
 
             decision_entry = {
                 'phase': 'observe',
                 'observations_count': len(observations),
                 'keywords_searched': keywords,
+                'context_data_keys': list(context_data.keys()),
                 'timestamp': datetime.now().isoformat()
             }
             state['decision_trace'].append(decision_entry)
@@ -396,11 +420,13 @@ class DevAgentOODA:
         return "continue"
 
     async def _execute_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a single action using appropriate tool"""
+        """Execute a single action using appropriate tool (Week 4: added missing actions)"""
         action_type = action['type']
 
         try:
-            if action_type == 'git_clone':
+            if action_type == 'git_status':
+                return await self.git_tool.status()
+            elif action_type == 'git_clone':
                 return await self.git_tool.clone(action['repo_url'], action.get('destination'))
             elif action_type == 'git_commit':
                 return await self.git_tool.commit(action['message'], action.get('files'))
@@ -411,18 +437,41 @@ class DevAgentOODA:
                     action['repo'], action['title'], action['body'],
                     action['head'], action.get('base', 'main')
                 )
+            elif action_type == 'git_diff':
+                return await self.git_tool.diff(action.get('file_path'))
+            elif action_type == 'git_create_branch':
+                return await self.git_tool.create_branch(action['branch_name'], action.get('base'))
             elif action_type == 'read_file':
                 return await self.fs_tool.read_file(action['file_path'])
             elif action_type == 'write_file':
                 return await self.fs_tool.write_file(action['file_path'], action['content'])
+            elif action_type == 'list_files':
+                return await self.fs_tool.list_files(action.get('directory', '.'), action.get('pattern'))
+            elif action_type == 'search_files':
+                return await self.fs_tool.search_files(action['query'], action.get('directory', '.'))
+            elif action_type == 'search_code':
+                return await self.ide_tool.search_code(action['query'], action.get('file_pattern'))
+            elif action_type == 'get_file_tree':
+                return await self.ide_tool.get_file_tree(action.get('path', '.'))
             elif action_type == 'format_code':
                 return await self.ide_tool.format_code(action['file_path'], action.get('language', 'python'))
             elif action_type == 'run_linter':
                 return await self.ide_tool.run_linter(action['file_path'], action.get('language', 'python'))
+            elif action_type == 'open_file':
+                return await self.ide_tool.open_file(action['file_path'])
             else:
-                return {'success': False, 'error': f'Unknown action type: {action_type}'}
+                return create_error(
+                    ErrorCode.INVALID_ACTION,
+                    f'Unknown action type: {action_type}',
+                    hint="Check action type spelling and available actions"
+                )
         except Exception as e:
-            return {'success': False, 'error': str(e)}
+            logger.error(f"Action execution failed: {e}")
+            return create_error(
+                ErrorCode.TOOL_EXECUTION_FAILED,
+                f"Failed to execute {action_type}: {str(e)}",
+                hint="Check action parameters and tool availability"
+            )
 
     def _extract_keywords(self, task: str) -> List[str]:
         """Extract relevant keywords from task description"""
@@ -518,8 +567,10 @@ class DevAgentOODA:
         return max(strategies, key=lambda s: s.get('confidence', 0))
 
     def _create_action_plan(self, strategy: Dict[str, Any], task: str) -> List[Dict[str, Any]]:
-        """Create detailed action plan from strategy"""
+        """Create detailed action plan from strategy (Week 4: improved logic)"""
         actions = []
+        task_type = self._classify_task(task)
+        task_lower = task.lower()
 
         if 'git' in strategy.get('tools', []):
             actions.append({
@@ -528,14 +579,62 @@ class DevAgentOODA:
                 'critical': False
             })
 
-        task_type = self._classify_task(task)
-        if task_type == 'feature_addition':
+        if task_type == 'bug_fix':
+            if any(word in task_lower for word in ['file', 'module', 'class']):
+                actions.append({
+                    'type': 'search_code',
+                    'query': self._extract_keywords(task)[0] if self._extract_keywords(task) else 'error',
+                    'description': 'Search for bug location in code',
+                    'critical': True
+                })
             actions.append({
-                'type': 'write_file',
-                'file_path': 'new_feature.py',
-                'content': '# New feature placeholder (important-comment)\n',
-                'description': 'Create new feature file',
-                'critical': True
+                'type': 'list_files',
+                'directory': '.',
+                'pattern': '*.py',
+                'description': 'List relevant files',
+                'critical': False
+            })
+
+        elif task_type == 'feature_addition':
+            actions.append({
+                'type': 'get_file_tree',
+                'path': '.',
+                'description': 'Get codebase structure',
+                'critical': False
+            })
+            actions.append({
+                'type': 'list_files',
+                'directory': '.',
+                'pattern': '*.py',
+                'description': 'List existing Python files',
+                'critical': False
+            })
+
+        elif task_type == 'refactoring':
+            keywords = self._extract_keywords(task)
+            if keywords:
+                actions.append({
+                    'type': 'search_code',
+                    'query': keywords[0],
+                    'description': f"Search for '{keywords[0]}' in codebase",
+                    'critical': True
+                })
+
+        elif task_type == 'testing':
+            actions.append({
+                'type': 'list_files',
+                'directory': '.',
+                'pattern': 'test_*.py',
+                'description': 'List test files',
+                'critical': False
+            })
+
+        if not actions:
+            actions.append({
+                'type': 'get_file_tree',
+                'path': '.',
+                'description': 'Explore codebase structure',
+                'critical': False
             })
 
         return actions
