@@ -36,3 +36,22 @@ Testing Branch Protection Rules enforcement with required status checks.
 ## Release
 [v9.0.0](https://github.com/RC918/morningai/releases/tag/v9.0.0)
 
+## Agent Sandbox 部署狀態
+
+Morning AI 已部署兩個 AI Agent Sandbox 到 Fly.io，提供安全隔離的開發和運維能力：
+
+### Dev_Agent Sandbox
+- **URL**: https://morningai-sandbox-dev-agent.fly.dev/
+- **功能**: VSCode Server、LSP、Git、IDE、FileSystem 工具
+- **用途**: 自動化代碼開發、Bug 修復、PR 創建
+- **文檔**: [Dev_Agent README](agents/dev_agent/README.md)
+
+### Ops_Agent Sandbox
+- **URL**: https://morningai-sandbox-ops-agent.fly.dev/
+- **功能**: 性能監控、容量分析、系統運維
+- **用途**: 自動化運維、事件響應、性能優化
+- **文檔**: [Ops_Agent README](agents/ops_agent/)
+
+**架構文檔**: [Agent Sandbox Architecture](docs/agent-sandbox-architecture.md)  
+**總成本**: ~$4/月（閒置時自動縮放至 $0）
+
