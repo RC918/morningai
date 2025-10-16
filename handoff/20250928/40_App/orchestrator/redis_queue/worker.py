@@ -88,14 +88,12 @@ redis = Redis.from_url(
     redis_url, 
     decode_responses=True,
     socket_connect_timeout=10,
-    socket_timeout=300,
     socket_keepalive=True,
     socket_keepalive_options={
         socket.TCP_KEEPIDLE: 30,
         socket.TCP_KEEPINTVL: 10,
         socket.TCP_KEEPCNT: 6
     },
-    health_check_interval=60,
     retry=redis_retry,
     retry_on_timeout=True
 )
@@ -103,14 +101,12 @@ redis_client_rq = Redis.from_url(
     redis_url, 
     decode_responses=False,
     socket_connect_timeout=10,
-    socket_timeout=300,
     socket_keepalive=True,
     socket_keepalive_options={
         socket.TCP_KEEPIDLE: 30,
         socket.TCP_KEEPINTVL: 10,
         socket.TCP_KEEPCNT: 6
     },
-    health_check_interval=60,
     retry=redis_retry,
     retry_on_timeout=True
 )
