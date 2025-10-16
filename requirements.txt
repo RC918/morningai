@@ -10,3 +10,7 @@ pytest
 flake8
 langgraph
 langchain-core
+openai
+pgvector
+tiktoken
+pytest-asyncio
