@@ -1,0 +1,40 @@
+# Fly.io configuration for Ops Agent Sandbox
+# Secure isolated environment for autonomous operations
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SANDBOX_ENABLED = "true"
+  AGENT_TYPE = "ops"
+
+[[services]]
+  internal_port = 8000
+  protocol = "tcp"
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[metrics]
+  port = 9091
+  path = "/metrics"
