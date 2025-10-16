@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 Dev_Agent OODA Loop Implementation
-Phase 1 Week 3: Basic OODA cycle for development tasks
+Phase 1 Week 3-4: OODA cycle with session persistence
+Week 3: Basic OODA cycle
+Week 4: Session state, decision trace, error handling, path whitelist
 """
 import logging
 from typing import Dict, List, Any, Optional, TypedDict
@@ -13,6 +15,8 @@ from langgraph.graph import StateGraph, END
 from agents.dev_agent.tools.git_tool import GitTool
 from agents.dev_agent.tools.ide_tool import IDETool
 from agents.dev_agent.tools.filesystem_tool import FileSystemTool
+from agents.dev_agent.error_handler import ErrorCode, create_error
+from agents.dev_agent.persistence.session_state import SessionStateManager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +31,7 @@ class TaskPriority(Enum):
 
 
 class DevAgentState(TypedDict):
-    """State schema for Dev_Agent OODA loop"""
+    """State schema for Dev_Agent OODA loop (Week 4 enhanced)"""
     task: str
     task_priority: str
     context: Dict[str, Any]
@@ -40,6 +44,8 @@ class DevAgentState(TypedDict):
     error: Optional[str]
     iteration: int
     max_iterations: int
+    session_id: Optional[str]
+    decision_trace: List[Dict[str, Any]]
 
 
 @dataclass
@@ -74,17 +80,27 @@ class DecisionResult:
 
 
 class DevAgentOODA:
-    """Dev_Agent OODA Loop Implementation"""
+    """Dev_Agent OODA Loop Implementation (Week 4 enhanced)"""
 
-    def __init__(self, sandbox_endpoint: str, github_token: Optional[str] = None):
+    MAX_STEPS = 100
+
+    def __init__(
+        self,
+        sandbox_endpoint: str,
+        github_token: Optional[str] = None,
+        enable_persistence: bool = True,
+        session_manager: Optional[SessionStateManager] = None
+    ):
         self.sandbox_endpoint = sandbox_endpoint
         self.git_tool = GitTool(sandbox_endpoint, github_token)
         self.ide_tool = IDETool(sandbox_endpoint)
         self.fs_tool = FileSystemTool(sandbox_endpoint)
+        self.enable_persistence = enable_persistence
+        self.session_manager = session_manager if enable_persistence else None
         self.graph = self._create_graph()
 
     def _create_graph(self) -> StateGraph:
-        """Create LangGraph workflow for OODA cycle"""
+        """Create LangGraph workflow for OODA cycle (Week 4: added max_steps)"""
         workflow = StateGraph(DevAgentState)
 
         workflow.add_node("observe", self._observe_node)
@@ -106,11 +122,16 @@ class DevAgentOODA:
             }
         )
 
-        return workflow.compile()
+        return workflow.compile(
+            debug=False,
+            checkpointer=None,
+            interrupt_before=None,
+            interrupt_after=None
+        )
 
     async def _observe_node(self, state: DevAgentState) -> DevAgentState:
         """
-        Observe phase: Explore codebase and identify relevant context
+        Observe phase: Explore codebase and identify relevant context (Week 4: added decision trace)
         """
         logger.info(f"[Observe] Starting observation for task: {state['task']}")
 
@@ -134,17 +155,37 @@ class DevAgentOODA:
             state['observations'] = observations
             state['context']['last_observe_time'] = datetime.now().isoformat()
 
+            decision_entry = {
+                'phase': 'observe',
+                'observations_count': len(observations),
+                'keywords_searched': keywords,
+                'timestamp': datetime.now().isoformat()
+            }
+            state['decision_trace'].append(decision_entry)
+
+            if self.session_manager and state.get('session_id'):
+                self.session_manager.add_decision_trace(
+                    state['session_id'],
+                    'observe',
+                    decision_entry
+                )
+
             logger.info(f"[Observe] Collected {len(observations)} observations")
 
         except Exception as e:
             logger.error(f"[Observe] Error: {e}")
-            state['error'] = str(e)
+            error = create_error(
+                ErrorCode.TOOL_EXECUTION_FAILED,
+                f"Observe phase failed: {str(e)}",
+                hint="Check tool availability and network connectivity"
+            )
+            state['error'] = error['error']
 
         return state
 
     async def _orient_node(self, state: DevAgentState) -> DevAgentState:
         """
-        Orient phase: Analyze observations and formulate strategies
+        Orient phase: Analyze observations and formulate strategies (Week 4: added decision trace)
         """
         logger.info("[Orient] Analyzing observations and formulating strategies")
 
@@ -169,17 +210,38 @@ class DevAgentOODA:
             state['orientation'] = orientation
             state['context']['last_orient_time'] = datetime.now().isoformat()
 
+            decision_entry = {
+                'phase': 'orient',
+                'complexity': complexity,
+                'required_tools': required_tools,
+                'strategies_count': len(strategies),
+                'risk_factors': orientation['risk_factors'],
+                'timestamp': datetime.now().isoformat()
+            }
+            state['decision_trace'].append(decision_entry)
+
+            if self.session_manager and state.get('session_id'):
+                self.session_manager.add_decision_trace(
+                    state['session_id'],
+                    'orient',
+                    decision_entry
+                )
+
             logger.info(f"[Orient] Generated {len(strategies)} potential strategies")
 
         except Exception as e:
             logger.error(f"[Orient] Error: {e}")
-            state['error'] = str(e)
+            error = create_error(
+                ErrorCode.TOOL_EXECUTION_FAILED,
+                f"Orient phase failed: {str(e)}"
+            )
+            state['error'] = error['error']
 
         return state
 
     async def _decide_node(self, state: DevAgentState) -> DevAgentState:
         """
-        Decide phase: Select best strategy and create action plan
+        Decide phase: Select best strategy and create action plan (Week 4: added decision trace)
         """
         logger.info("[Decide] Selecting strategy and creating action plan")
 
@@ -195,18 +257,38 @@ class DevAgentOODA:
             state['actions'] = action_plan
             state['context']['last_decide_time'] = datetime.now().isoformat()
 
+            decision_entry = {
+                'phase': 'decide',
+                'selected_strategy': best_strategy['name'],
+                'strategy_confidence': best_strategy.get('confidence', 0),
+                'action_count': len(action_plan),
+                'timestamp': datetime.now().isoformat()
+            }
+            state['decision_trace'].append(decision_entry)
+
+            if self.session_manager and state.get('session_id'):
+                self.session_manager.add_decision_trace(
+                    state['session_id'],
+                    'decide',
+                    decision_entry
+                )
+
             logger.info(f"[Decide] Selected strategy: {best_strategy['name']}")
             logger.info(f"[Decide] Action plan has {len(action_plan)} steps")
 
         except Exception as e:
             logger.error(f"[Decide] Error: {e}")
-            state['error'] = str(e)
+            error = create_error(
+                ErrorCode.TOOL_EXECUTION_FAILED,
+                f"Decide phase failed: {str(e)}"
+            )
+            state['error'] = error['error']
 
         return state
 
     async def _act_node(self, state: DevAgentState) -> DevAgentState:
         """
-        Act phase: Execute action plan and collect results
+        Act phase: Execute action plan and collect results (Week 4: added decision trace)
         """
         logger.info("[Act] Executing action plan")
 
@@ -220,6 +302,17 @@ class DevAgentOODA:
 
                 result = await self._execute_action(action)
                 action_results.append(result)
+
+                if self.session_manager and state.get('session_id'):
+                    self.session_manager.add_to_context_window(
+                        state['session_id'],
+                        {
+                            'action_type': action['type'],
+                            'action_index': idx,
+                            'success': result.get('success', False),
+                            'result': result
+                        }
+                    )
 
                 if not result.get('success') and action.get('critical', False):
                     logger.error(f"[Act] Critical action failed: {action['type']}")
@@ -244,22 +337,60 @@ class DevAgentOODA:
                     'failures': failed_actions
                 }
 
+            decision_entry = {
+                'phase': 'act',
+                'actions_executed': len(action_results),
+                'success_count': sum(1 for r in action_results if r.get('success')),
+                'iteration': state['iteration'],
+                'timestamp': datetime.now().isoformat()
+            }
+            state['decision_trace'].append(decision_entry)
+
+            if self.session_manager and state.get('session_id'):
+                self.session_manager.add_decision_trace(
+                    state['session_id'],
+                    'act',
+                    decision_entry
+                )
+
             logger.info(f"[Act] Completed iteration {state['iteration']}")
 
         except Exception as e:
             logger.error(f"[Act] Error: {e}")
-            state['error'] = str(e)
-            state['result'] = {'success': False, 'error': str(e)}
+            error = create_error(
+                ErrorCode.TOOL_EXECUTION_FAILED,
+                f"Act phase failed: {str(e)}"
+            )
+            state['error'] = error['error']
+            state['result'] = {'success': False, 'error': error['error']}
 
         return state
 
     def _should_continue(self, state: DevAgentState) -> str:
-        """Determine whether to continue OODA loop or end"""
+        """Determine whether to continue OODA loop or end (Week 4: added max_steps check)"""
         if state.get('result', {}).get('success'):
             return "end"
         if state.get('error'):
             return "end"
         if state['iteration'] >= state['max_iterations']:
+            logger.warning(f"[OODA] Max iterations ({state['max_iterations']}) reached")
+            error = create_error(
+                ErrorCode.MAX_ITERATIONS_EXCEEDED,
+                f"Maximum iterations ({state['max_iterations']}) exceeded",
+                hint="Consider breaking down the task into smaller subtasks"
+            )
+            state['error'] = error['error']
+            return "end"
+
+        total_steps = state['iteration'] * 4
+        if total_steps >= self.MAX_STEPS:
+            logger.error(f"[OODA] Max steps ({self.MAX_STEPS}) exceeded")
+            error = create_error(
+                ErrorCode.MAX_ITERATIONS_EXCEEDED,
+                f"Maximum workflow steps ({self.MAX_STEPS}) exceeded",
+                hint="Workflow may be stuck in a loop"
+            )
+            state['error'] = error['error']
             return "end"
 
         return "continue"
@@ -409,18 +540,33 @@ class DevAgentOODA:
 
         return actions
 
-    async def execute_task(self, task: str, priority: str = "medium", max_iterations: int = 3) -> Dict[str, Any]:
+    async def execute_task(
+        self,
+        task: str,
+        priority: str = "medium",
+        max_iterations: int = 3,
+        session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Execute a development task using OODA loop
+        Execute a development task using OODA loop (Week 4: added session persistence)
 
         Args:
             task: Task description
             priority: Task priority (critical/high/medium/low)
             max_iterations: Maximum OODA iterations
+            session_id: Optional session ID for persistence
 
         Returns:
             Dict with task execution results
         """
+        if self.session_manager and not session_id:
+            session_result = self.session_manager.create_session(task, priority)
+            if session_result['success']:
+                session_id = session_result['session_id']
+                logger.info(f"[DevAgentOODA] Created session {session_id}")
+            else:
+                logger.warning("[DevAgentOODA] Failed to create session, continuing without persistence")
+
         initial_state = DevAgentState(
             task=task,
             task_priority=priority,
@@ -436,23 +582,69 @@ class DevAgentOODA:
             result=None,
             error=None,
             iteration=0,
-            max_iterations=max_iterations
+            max_iterations=max_iterations,
+            session_id=session_id,
+            decision_trace=[]
         )
 
         logger.info(f"[DevAgentOODA] Starting task execution: {task}")
 
         try:
             final_state = await self.graph.ainvoke(initial_state)
+
+            if self.session_manager and session_id:
+                self.session_manager.update_session(
+                    session_id,
+                    {
+                        'result': final_state.get('result'),
+                        'decision_trace': final_state.get('decision_trace', []),
+                        'completed_at': datetime.now().isoformat()
+                    }
+                )
+
             return final_state
         except Exception as e:
             logger.error(f"[DevAgentOODA] Task execution failed: {e}")
+            error = create_error(
+                ErrorCode.UNKNOWN_ERROR,
+                f"Task execution failed: {str(e)}",
+                hint="Check logs for more details",
+                task=task
+            )
             return {
                 'success': False,
-                'error': str(e),
-                'task': task
+                'error': error['error'],
+                'task': task,
+                'session_id': session_id
             }
 
 
-def create_dev_agent_ooda(sandbox_endpoint: str, github_token: Optional[str] = None) -> DevAgentOODA:
-    """Factory function to create Dev_Agent OODA instance"""
-    return DevAgentOODA(sandbox_endpoint, github_token)
+def create_dev_agent_ooda(
+    sandbox_endpoint: str,
+    github_token: Optional[str] = None,
+    enable_persistence: bool = False
+) -> DevAgentOODA:
+    """
+    Factory function to create Dev_Agent OODA instance (Week 4: added persistence support)
+
+    Args:
+        sandbox_endpoint: Sandbox API endpoint
+        github_token: Optional GitHub token for PR operations
+        enable_persistence: Enable Redis session persistence
+    """
+    session_manager = None
+    if enable_persistence:
+        try:
+            from agents.dev_agent.persistence import get_session_manager
+            session_manager = get_session_manager()
+            logger.info("Session persistence enabled")
+        except Exception as e:
+            logger.warning(f"Failed to initialize session manager: {e}")
+            logger.warning("Continuing without persistence")
+
+    return DevAgentOODA(
+        sandbox_endpoint,
+        github_token,
+        enable_persistence=enable_persistence,
+        session_manager=session_manager
+    )

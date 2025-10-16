@@ -163,12 +163,13 @@ Dev Agent 實施多層安全措施：
 
 可在 `docker-compose.yml` 中調整。
 
-## OODA Loop 整合 (Phase 1 Week 3)
+## OODA Loop 整合 (Phase 1 Week 3-4)
 
-Dev Agent 現在包含 OODA（Observe, Orient, Decide, Act）循環，用於自主任務執行：
+Dev Agent 包含增強的 OODA（Observe, Orient, Decide, Act）循環，支援會話持久化和決策追蹤：
 
 ### 使用方法
 
+**基本使用（Week 3）**:
 ```python
 import asyncio
 from agents.dev_agent.dev_agent_ooda import create_dev_agent_ooda
@@ -183,8 +184,26 @@ async def execute_dev_task():
     )
     
     print(f"任務完成: {result['result']}")
+    print(f"決策追蹤: {len(result['decision_trace'])} 條記錄")
 
 asyncio.run(execute_dev_task())
+```
+
+**會話持久化（Week 4）**:
+```python
+# 啟用 Redis 會話持久化 (important-comment)
+ooda = create_dev_agent_ooda(
+    'http://localhost:8080',
+    enable_persistence=True
+)
+
+result = await ooda.execute_task("任務描述", priority="high")
+
+# 獲取會話歷史 (important-comment)
+if result.get('session_id'):
+    session = ooda.session_manager.get_session(result['session_id'])
+    context_window = ooda.session_manager.get_context_window(result['session_id'])
+    decision_trace = ooda.session_manager.get_decision_trace(result['session_id'])
 ```
 
 ### OODA 階段
@@ -193,6 +212,46 @@ asyncio.run(execute_dev_task())
 2. **Orient（定位）**: 分析任務，評估複雜度，生成策略
 3. **Decide（決策）**: 選擇最佳策略，創建行動計劃
 4. **Act（行動）**: 使用 Git、IDE 和 FileSystem 工具執行操作
+
+### Week 4 新功能
+
+1. **決策追蹤（Decision Trace）**: 記錄每個 OODA 階段的決策過程
+2. **會話持久化**: 使用 Redis 緩存會話狀態，支援跨重啟恢復
+3. **上下文窗口**: 滑動窗口保留最近 50 個操作
+4. **路徑白名單**: 文件操作安全驗證（限制 /workspace 和 /tmp）
+5. **統一錯誤處理**: 標準化錯誤碼、訊息和提示
+6. **最大步數限制**: 防止無限循環（最多 100 步）
+
+### 安全功能
+
+**路徑白名單驗證**:
+```python
+from agents.dev_agent.tools.filesystem_tool import FileSystemTool
+
+fs_tool = FileSystemTool('http://localhost:8080')
+
+# ✓ 允許的路徑 (important-comment)
+result = await fs_tool.read_file('/workspace/src/main.py')
+
+# ✗ 禁止的路徑 (important-comment)
+result = await fs_tool.read_file('/etc/passwd')  # 返回 PATH_NOT_WHITELISTED 錯誤
+```
+
+### 錯誤處理
+
+所有錯誤採用統一格式：
+```python
+{
+    'success': False,
+    'error': {
+        'error_code': 'DEV_003',
+        'error_name': 'PATH_NOT_WHITELISTED',
+        'message': '路徑不在白名單中',
+        'hint': '使用 /workspace 目錄',
+        'context': {'path': '/forbidden/path'}
+    }
+}
+```
 
 ### 範例
 
@@ -206,16 +265,22 @@ asyncio.run(execute_dev_task())
 # 現有沙箱測試 (important-comment)
 pytest agents/dev_agent/tests/test_e2e.py -v
 
-# OODA 循環測試 (important-comment)
+# OODA 循環測試（Week 3-4）(important-comment)
 pytest agents/dev_agent/tests/test_ooda_e2e.py -v
 ```
 
 ### 配置
 
-環境變數：
+**環境變數**:
 - `DEV_AGENT_ENDPOINT`: 沙箱端點 URL（預設：http://localhost:8080）
 - `GITHUB_TOKEN`: GitHub API token（用於 PR 操作）
+- `UPSTASH_REDIS_REST_URL`: Upstash Redis REST API URL（可選，用於持久化）
+- `UPSTASH_REDIS_REST_TOKEN`: Upstash Redis REST API Token（可選，用於持久化）
+
+**OODA 參數**:
 - `max_iterations`: 最大 OODA 循環次數（預設：3）
+- `enable_persistence`: 啟用 Redis 持久化（預設：False）
+- `MAX_STEPS`: 最大工作流程步數限制（100 步，防止無限循環）
 
 ## 後續開發
 
