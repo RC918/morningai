@@ -206,12 +206,16 @@ def cleanup_heartbeat():
             logger.info(f"Heartbeat thread stopped successfully", extra={"operation": "shutdown", "worker_id": WORKER_ID})
     
     try:
+        if redis_client_rq:
+            redis_client_rq.srem('rq:workers', WORKER_ID)
+            logger.info(f"Removed worker from rq:workers set", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        
         if redis:
             heartbeat_key = f"worker:heartbeat:{WORKER_ID}"
             redis.delete(heartbeat_key)
             logger.info(f"Cleaned up heartbeat key", extra={"operation": "shutdown", "worker_id": WORKER_ID, "key": heartbeat_key})
     except Exception as e:
-        logger.exception(f"Failed to cleanup heartbeat key", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        logger.exception(f"Failed to cleanup Redis keys", extra={"operation": "shutdown", "worker_id": WORKER_ID})
         if SENTRY_DSN:
             sentry_sdk.capture_exception(e)
 
