@@ -2,6 +2,9 @@ name: Worker Heartbeat Monitor
 on:
   schedule: [{ cron: '*/15 * * * *' }]
   workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
 jobs:
   check-heartbeat:
     runs-on: ubuntu-latest
