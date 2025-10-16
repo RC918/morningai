@@ -163,6 +163,60 @@ Dev Agent 實施多層安全措施：
 
 可在 `docker-compose.yml` 中調整。
 
+## OODA Loop 整合 (Phase 1 Week 3)
+
+Dev Agent 現在包含 OODA（Observe, Orient, Decide, Act）循環，用於自主任務執行：
+
+### 使用方法
+
+```python
+import asyncio
+from agents.dev_agent.dev_agent_ooda import create_dev_agent_ooda
+
+async def execute_dev_task():
+    ooda = create_dev_agent_ooda('http://localhost:8080')
+    
+    result = await ooda.execute_task(
+        "修復身份驗證模組中的錯誤",
+        priority="high",
+        max_iterations=3
+    )
+    
+    print(f"任務完成: {result['result']}")
+
+asyncio.run(execute_dev_task())
+```
+
+### OODA 階段
+
+1. **Observe（觀察）**: 探索代碼庫，收集相關上下文
+2. **Orient（定位）**: 分析任務，評估複雜度，生成策略
+3. **Decide（決策）**: 選擇最佳策略，創建行動計劃
+4. **Act（行動）**: 使用 Git、IDE 和 FileSystem 工具執行操作
+
+### 範例
+
+查看 `agents/dev_agent/examples/ooda_example.py` 以獲取完整範例。
+
+### 測試
+
+運行 E2E 測試：
+
+```bash
+# 現有沙箱測試 (important-comment)
+pytest agents/dev_agent/tests/test_e2e.py -v
+
+# OODA 循環測試 (important-comment)
+pytest agents/dev_agent/tests/test_ooda_e2e.py -v
+```
+
+### 配置
+
+環境變數：
+- `DEV_AGENT_ENDPOINT`: 沙箱端點 URL（預設：http://localhost:8080）
+- `GITHUB_TOKEN`: GitHub API token（用於 PR 操作）
+- `max_iterations`: 最大 OODA 循環次數（預設：3）
+
 ## 後續開發
 
 根據 Phase 1 實作計畫，接下來將：
