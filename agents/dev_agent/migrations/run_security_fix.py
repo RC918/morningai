@@ -29,43 +29,21 @@ def get_db_connection():
     if not supabase_url or not supabase_password:
         print("ERROR: Missing SUPABASE_URL or SUPABASE_DB_PASSWORD")
         print("\nPlease set these in your .env file:")
-        print("  SUPABASE_URL=postgresql://...")
+        print("  SUPABASE_URL=https://your-project.supabase.co")
         print("  SUPABASE_DB_PASSWORD=your_password")
         sys.exit(1)
     
-    # Parse connection string
-    # Format: postgresql://postgres.PROJECT:[PASSWORD]@HOST:PORT/postgres
+    # Convert HTTPS URL to PostgreSQL connection string
     try:
-        # Extract components from URL
-        if '://' in supabase_url:
-            proto_rest = supabase_url.split('://', 1)[1]
-            # Extract user, host, port, dbname
-            if '@' in proto_rest:
-                user_pass, host_rest = proto_rest.split('@', 1)
-                user = user_pass.split(':')[0] if ':' in user_pass else user_pass
-                
-                if ':' in host_rest and '/' in host_rest:
-                    # Format: host:port/db
-                    host_port, dbname = host_rest.rsplit('/', 1)
-                    host = host_port.rsplit(':', 1)[0] if ':' in host_port else host_port
-                    port = host_port.rsplit(':', 1)[1] if ':' in host_port else '5432'
-                else:
-                    host = host_rest
-                    port = '5432'
-                    dbname = 'postgres'
+        db_url = supabase_url.replace('https://', 'postgresql://postgres:')
+        db_url = db_url.replace('.supabase.co', '.supabase.co:5432/postgres')
         
-        conn_params = {
-            'host': host,
-            'port': port,
-            'database': dbname,
-            'user': user,
-            'password': supabase_password,
-            'sslmode': 'require'
-        }
+        if supabase_password:
+            db_url = db_url.replace('postgres:', f'postgres:{supabase_password}@')
         
-        return psycopg2.connect(**conn_params)
+        return psycopg2.connect(db_url)
     except Exception as e:
-        print(f"ERROR: Failed to parse connection string: {e}")
+        print(f"ERROR: Failed to connect to database: {e}")
         print(f"URL format: {supabase_url[:50]}...")
         sys.exit(1)
 
