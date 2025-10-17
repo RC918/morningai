@@ -9,7 +9,7 @@ import time
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import psycopg2
-from psycopg2 import extras
+from psycopg2 import extras, pool
 import openai
 
 from agents.dev_agent.knowledge_graph.db_schema import QUERIES
@@ -88,7 +88,7 @@ class KnowledgeGraphManager:
                     'postgres:', f'postgres:{
                         self.supabase_password}@')
 
-            self.db_pool = psycopg2.pool.ThreadedConnectionPool(
+            self.db_pool = pool.ThreadedConnectionPool(
                 minconn=1,
                 maxconn=10,
                 dsn=db_url
