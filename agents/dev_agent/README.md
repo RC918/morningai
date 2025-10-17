@@ -304,12 +304,16 @@ Dev Agent 現在包含 Knowledge Graph 系統，提供代碼理解、語義搜�
 ### 快速開始
 
 **1. 運行 Migration**:
-```bash
-# 方法 1: 使用 psql 直接執行 (important-comment)
-psql $SUPABASE_URL < agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql
 
-# 方法 2: 使用 migration 助手腳本 (important-comment)
+**重要**: Migration 包含 Row Level Security (RLS) 策略，確保數據庫訪問安全。
+
+```bash
+# 推薦: 使用 migration 助手腳本（自動執行兩個 migration 文件）(important-comment)
 python agents/dev_agent/migrations/run_migration.py
+
+# 手動執行（需要兩個文件）(important-comment)
+psql $SUPABASE_URL < agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql
+psql $SUPABASE_URL < agents/dev_agent/migrations/002_add_rls_policies.sql
 ```
 
 **2. 配置環境變數**:

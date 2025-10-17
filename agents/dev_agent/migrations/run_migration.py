@@ -218,14 +218,18 @@ def main():
     logger.info("Phase 1 Week 5: Database Setup")
     logger.info("=" * 70)
 
-    migration_file = Path(__file__).parent / \
-        "001_create_knowledge_graph_tables.sql"
+    migrations_dir = Path(__file__).parent
+    migration_files = [
+        migrations_dir / "001_create_knowledge_graph_tables.sql",
+        migrations_dir / "002_add_rls_policies.sql"
+    ]
 
-    if not migration_file.exists():
-        logger.error(f"✗ Migration file not found: {migration_file}")
-        sys.exit(1)
+    for migration_file in migration_files:
+        if not migration_file.exists():
+            logger.error(f"✗ Migration file not found: {migration_file}")
+            sys.exit(1)
 
-    logger.info(f"\nMigration file: {migration_file}")
+    logger.info(f"\nFound {len(migration_files)} migration files")
 
     logger.info("\n--- Pre-flight Checks ---")
     conn = get_db_connection()
@@ -234,35 +238,49 @@ def main():
         check_migration_status(conn)
         check_pgvector_extension(conn)
 
-        logger.info("\n--- Ready to Execute Migration ---")
-        logger.info("This will create the following tables:")
-        logger.info("  1. code_embeddings (with pgvector support)")
-        logger.info("  2. code_patterns")
-        logger.info("  3. code_relationships")
-        logger.info("  4. embedding_cache_stats")
-        logger.info("\nAlong with indexes, triggers, and functions.")
+        logger.info("\n--- Ready to Execute Migrations ---")
+        logger.info("This will:")
+        logger.info("  1. Create tables (code_embeddings, code_patterns, etc.)")
+        logger.info("  2. Create indexes and triggers")
+        logger.info("  3. Enable Row Level Security (RLS) policies")
+        logger.info("\nRLS policies ensure proper access control for all tables.")
 
-        response = input("\nProceed with migration? (yes/no): ")
+        response = input("\nProceed with migrations? (yes/no): ")
 
         if response.lower() != 'yes':
             logger.info("Migration cancelled by user")
             sys.exit(0)
 
-        logger.info("\n--- Executing Migration ---")
-        run_migration(conn, migration_file)
+        logger.info("\n--- Executing Migrations ---")
+        for idx, migration_file in enumerate(migration_files, 1):
+            logger.info(f"\n[{idx}/{len(migration_files)}] Running: {migration_file.name}")
+            run_migration(conn, migration_file)
 
         logger.info("\n--- Verification ---")
         verify_migration(conn)
 
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT schemaname, tablename, rowsecurity
+            FROM pg_tables
+            WHERE tablename IN ('code_embeddings', 'code_patterns', 'code_relationships', 'embedding_cache_stats')
+            ORDER BY tablename;
+        """)
+        tables_rls = cursor.fetchall()
+        logger.info("\n✓ Row Level Security status:")
+        for schema, table, rls_enabled in tables_rls:
+            status = "✓ ENABLED" if rls_enabled else "✗ DISABLED"
+            logger.info(f"  - {table}: {status}")
+        cursor.close()
+
         logger.info("\n" + "=" * 70)
-        logger.info("✓ Migration completed successfully!")
+        logger.info("✓ All migrations completed successfully!")
         logger.info("=" * 70)
 
         logger.info("\nNext steps:")
         logger.info("  1. Set OPENAI_API_KEY for embedding generation")
         logger.info("  2. Set REDIS_URL for caching (optional)")
-        logger.info(
-            "  3. Run: python agents/dev_agent/examples/knowledge_graph_example.py")
+        logger.info("  3. Run: python agents/dev_agent/examples/knowledge_graph_example.py")
 
     except KeyboardInterrupt:
         logger.info("\n\nMigration cancelled by user")

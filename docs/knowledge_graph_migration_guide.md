@@ -4,6 +4,15 @@ This guide covers database setup, migration execution, and rollback procedures f
 
 ---
 
+## Security Note
+
+**Row Level Security (RLS)**: All Knowledge Graph tables have RLS enabled to ensure proper access control. The migration includes comprehensive RLS policies that:
+- Grant full access to the `service_role` (application backend)
+- Allow authenticated users to perform CRUD operations
+- Prevent unauthorized access to sensitive code data
+
+See `002_add_rls_policies.sql` for full policy details.
+
 ## Prerequisites
 
 ### 1. Database Requirements
@@ -66,8 +75,10 @@ The script will:
 2. ✅ Check for existing tables
 3. ✅ Show migration SQL preview
 4. ❓ Ask for confirmation
-5. ✅ Execute migration in transaction
-6. ✅ Verify tables and indexes created
+5. ✅ Execute migrations in transaction (2 files):
+   - `001_create_knowledge_graph_tables.sql` - Create tables, indexes, triggers
+   - `002_add_rls_policies.sql` - Enable RLS and create security policies
+6. ✅ Verify tables, indexes, and RLS are enabled
 
 **Sample Output**:
 ```
