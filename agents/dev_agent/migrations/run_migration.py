@@ -141,7 +141,7 @@ def run_migration(conn, migration_file):
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = 'public'
-            AND table_name IN ('code_embeddings', 'code_patterns', 'code_relationships', 'embedding_cache_stats')
+            AND table_name IN ('code_embeddings', 'code_patterns', 'code_relationships', 'embedding_cache_stats', 'bug_fix_history')
             ORDER BY table_name;
         """)
 
@@ -171,14 +171,14 @@ def verify_migration(conn):
                    (SELECT count(*) FROM information_schema.columns WHERE table_name = t.table_name) as column_count
             FROM information_schema.tables t
             WHERE table_schema = 'public'
-            AND table_name IN ('code_embeddings', 'code_patterns', 'code_relationships', 'embedding_cache_stats')
+            AND table_name IN ('code_embeddings', 'code_patterns', 'code_relationships', 'embedding_cache_stats', 'bug_fix_history')
             ORDER BY table_name;
         """)
 
         tables = cursor.fetchall()
 
-        if len(tables) != 4:
-            logger.error(f"✗ Expected 4 tables, found {len(tables)}")
+        if len(tables) != 5:
+            logger.error(f"✗ Expected 5 tables, found {len(tables)}")
             sys.exit(1)
 
         logger.info("✓ All tables created successfully:")
@@ -221,7 +221,8 @@ def main():
     migrations_dir = Path(__file__).parent
     migration_files = [
         migrations_dir / "001_create_knowledge_graph_tables.sql",
-        migrations_dir / "002_add_rls_policies.sql"
+        migrations_dir / "002_add_rls_policies.sql",
+        migrations_dir / "003_add_bug_fix_history.sql"
     ]
 
     for migration_file in migration_files:
@@ -240,7 +241,7 @@ def main():
 
         logger.info("\n--- Ready to Execute Migrations ---")
         logger.info("This will:")
-        logger.info("  1. Create tables (code_embeddings, code_patterns, etc.)")
+        logger.info("  1. Create tables (code_embeddings, code_patterns, bug_fix_history, etc.)")
         logger.info("  2. Create indexes and triggers")
         logger.info("  3. Enable Row Level Security (RLS) policies")
         logger.info("\nRLS policies ensure proper access control for all tables.")
@@ -263,7 +264,7 @@ def main():
         cursor.execute("""
             SELECT schemaname, tablename, rowsecurity
             FROM pg_tables
-            WHERE tablename IN ('code_embeddings', 'code_patterns', 'code_relationships', 'embedding_cache_stats')
+            WHERE tablename IN ('code_embeddings', 'code_patterns', 'code_relationships', 'embedding_cache_stats', 'bug_fix_history')
             ORDER BY tablename;
         """)
         tables_rls = cursor.fetchall()
