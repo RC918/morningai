@@ -1,3 +1,11 @@
+-- ⚠️ PHASE 1: RLS ENABLEMENT - ASSUMES TENANT_ID EXISTS
+--
+-- This migration assumes tenant_id columns already exist on:
+-- - tenants, users, platform_bindings, external_integrations, memory
+--
+-- If these tables/columns do not exist, this migration will FAIL.
+-- Comment out sections for non-existent tables before applying.
+--
 
 ALTER TABLE IF EXISTS tenants ENABLE ROW LEVEL SECURITY;
 

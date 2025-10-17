@@ -42,7 +42,7 @@ services:
       - key: RQ_QUEUE_NAME
         value: orchestrator
       - key: USE_LANGGRAPH
-        value: true
+        value: false
 
   - type: worker
     name: morningai-agent-worker
