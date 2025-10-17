@@ -489,6 +489,78 @@ print(f"Total calls: {stats['summary']['total_calls']}")
 print(f"Total cost: ${stats['summary']['total_cost']:.4f}")
 ```
 
+## Bug Fix Workflow (Phase 1 Week 6)
+
+**自動化 Bug 修復：從 GitHub Issue 到 Pull Request**
+
+Bug Fix Workflow 將完整的 bug 修復流程自動化：
+
+### 工作流程階段
+
+1. **Parse Issue** - 從 GitHub Issue 提取 bug 資訊
+2. **Reproduce Bug** - 運行測試確認 bug 存在
+3. **Analyze Root Cause** - 使用 LSP + Knowledge Graph 分析根因
+4. **Generate Fixes** - 使用學習的模式 + LLM 生成修復方案
+5. **Apply Fix** - 應用代碼修改
+6. **Run Tests** - 驗證修復有效
+7. **Create PR** - 創建 Pull Request
+8. **Request Approval** - HITL 審批（Telegram 整合）
+
+### 快速開始
+
+```python
+from agents.dev_agent.workflows.bug_fix_workflow import BugFixWorkflow
+from agents.dev_agent.dev_agent_wrapper import DevAgent
+
+agent = DevAgent()
+workflow = BugFixWorkflow(agent)
+
+github_issue = {
+    "number": 123,
+    "title": "Fix: TypeError in user_service.py",
+    "body": "Error when calling get_user(None)..."
+}
+
+result = await workflow.execute(github_issue)
+print(f"Workflow completed. PR: {result.get('pr_url')}")
+```
+
+### 數據庫設置
+
+運行 bug_fix_history migration：
+```bash
+python agents/dev_agent/migrations/run_migration.py
+```
+
+這將創建 `bug_fix_history` 表以及 Knowledge Graph 表。
+
+### 環境變數
+
+- `OPENAI_API_KEY` - LLM 修復生成（必需）
+- `SUPABASE_URL` - 模式存儲（必需）
+- `SUPABASE_DB_PASSWORD` - 數據庫密碼（必需）
+- `TELEGRAM_BOT_TOKEN` - HITL 審批（可選）
+- `TELEGRAM_ADMIN_CHAT_ID` - 管理員聊天 ID（可選）
+
+### 模式學習
+
+工作流程從成功的 bug 修復中學習：
+- Bug 模式存儲在 `code_patterns` 表（type='bug_pattern'）
+- Fix 模式存儲在 `code_patterns` 表（type='fix_pattern'）
+- Bug 修復歷史追蹤在 `bug_fix_history` 表
+- 模式被重用於類似 bug 以提高修復準確性
+
+### 測試
+
+```bash
+pytest agents/dev_agent/tests/test_bug_fix_workflow_e2e.py -v
+pytest agents/dev_agent/tests/test_bug_fix_pattern_learner.py -v
+```
+
+### 文檔
+
+完整指南請參閱 [Bug Fix Workflow Guide](../../docs/bug_fix_workflow_guide.md)
+
 ## 後續開發
 
 根據 Phase 1 實作計畫，接下來將：
@@ -496,7 +568,7 @@ print(f"Total cost: ${stats['summary']['total_cost']:.4f}")
 1. **Week 3**: ✅ 整合 Meta-Agent OODA 循環
 2. **Week 4**: ✅ 實現 Session State 管理
 3. **Week 5**: ✅ Knowledge Graph 系統
-4. **Week 6**: Bug Fix Workflow 整合
+4. **Week 6**: ✅ Bug Fix Workflow 整合
 5. 後續階段: 擴展到更多語言和工具
 
 ## 相關文檔
