@@ -14,7 +14,8 @@ def upsert_task_queued(
     task_id: str,
     trace_id: str,
     question: str,
-    job_id: Optional[str] = None
+    job_id: Optional[str] = None,
+    tenant_id: Optional[str] = None
 ) -> bool:
     """
     Insert or update task when queued by API.
@@ -24,6 +25,7 @@ def upsert_task_queued(
         trace_id: UUID trace identifier (typically same as task_id)
         question: FAQ question text
         job_id: RQ job ID (optional)
+        tenant_id: Tenant UUID for multi-tenant isolation (optional, defaults to default tenant)
     
     Returns:
         True if successful, False otherwise
@@ -44,9 +46,14 @@ def upsert_task_queued(
         if job_id:
             data["job_id"] = job_id
         
+        if tenant_id:
+            data["tenant_id"] = tenant_id
+        else:
+            data["tenant_id"] = "00000000-0000-0000-0000-000000000001"
+        
         client.table("agent_tasks").upsert(data, on_conflict="task_id").execute()
         
-        logger.info(f"DB write success: task {task_id} status=queued")
+        logger.info(f"DB write success: task {task_id} status=queued tenant_id={data.get('tenant_id')}")
         return True
         
     except Exception as e:
