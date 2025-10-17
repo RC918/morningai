@@ -277,6 +277,10 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     Execute orchestrator with retry logic (used by API for agent tasks)
     Configured with ttl=600, result_ttl=86400, failure_ttl=3600
     
+    Supports two modes:
+    - LangGraph mode (USE_LANGGRAPH=true): Full stateful workflow with retry logic
+    - Simple mode (default): Direct execution for faster response
+    
     Args:
         task_id: Unique task identifier (also used as trace_id)
         question: FAQ question or topic
@@ -285,7 +289,14 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     Returns:
         dict: {"pr_url": str, "trace_id": str, "state": str}
     """
-    from graph import execute
+    use_langgraph = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
+    
+    if use_langgraph:
+        from langgraph_orchestrator import run_orchestrator
+        logger.info(f"Using LangGraph orchestrator for task {task_id}")
+    else:
+        from graph import execute
+        logger.info(f"Using simple orchestrator for task {task_id}")
     
     job_id = task_id
     logger.info(f"Starting orchestrator task", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": task_id, "question": question[:50]})
@@ -340,10 +351,16 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 category='orchestrator',
                 message=f'Executing orchestrator',
                 level='info',
-                data={'task_id': task_id, 'trace_id': task_id}
+                data={'task_id': task_id, 'trace_id': task_id, 'use_langgraph': use_langgraph}
             )
         
-        pr_url, state, trace_id = execute(question, repo, trace_id=task_id)
+        if use_langgraph:
+            result = run_orchestrator(question, repo, task_id)
+            pr_url = result.get("pr_url", "")
+            state = result.get("ci_state", "unknown")
+            trace_id = result.get("trace_id", task_id)
+        else:
+            pr_url, state, trace_id = execute(question, repo, trace_id=task_id)
         
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
