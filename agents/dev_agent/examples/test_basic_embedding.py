@@ -43,17 +43,25 @@ def calculate_sum(numbers):
     
     print(f"\nAPI Response:")
     print(f"  - Success: {result.get('success')}")
+    print(f"  - Raw result keys: {list(result.keys())}")
     
     if result.get('success'):
         data = result.get('data', {})
+        print(f"  - Data keys: {list(data.keys())}")
         embedding = data.get('embedding', [])
+        print(f"  - Embedding type: {type(embedding)}")
+        print(f"  - Embedding is list: {isinstance(embedding, list)}")
+        
         print(f"\n✅ Embedding generated successfully!")
         print(f"  - Dimensions: {len(embedding)}")
         print(f"  - Tokens used: {data.get('tokens', 'N/A')}")
         print(f"  - Cost: ${data.get('cost', 0):.6f}")
         print(f"  - Cached: {data.get('cached', False)}")
-        print(f"  - First 5 values: {embedding[:5]}")
-        return True
+        if len(embedding) > 0:
+            print(f"  - First 5 values: {embedding[:5]}")
+        else:
+            print(f"  - ⚠️ Embedding is empty!")
+        return len(embedding) > 0
     else:
         error = result.get('error', {})
         print(f"\n❌ Failed to generate embedding")
