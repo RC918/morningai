@@ -194,7 +194,8 @@ class BugFixWorkflow:
 
         Unsafe paths (blacklist):
         - System files (/etc/, /bin/, /usr/, /sys/)
-        - User home root (~/, $HOME/)
+        - Relative path traversal (../, ../../, ../../../)
+        - User home directory (~/, $HOME, $HOME/file.txt)
         - Environment files (*.env, .env.*, credentials.*)
         - SSH keys (id_rsa, *.pem, *.key)
 
@@ -219,8 +220,10 @@ class BugFixWorkflow:
                 r'^/usr/',
                 r'^/sys/',
                 r'^/proc/',
+                r'\.\./\.\./\.\.',  # Block ../../../
+                r'\.\.[\\/]',        # Block ../ or ..\
                 r'^~/?$',
-                r'^\$HOME/?$',
+                r'\$HOME',  # Block any path containing $HOME
                 r'\.env',
                 r'credentials\.',
                 r'id_rsa',

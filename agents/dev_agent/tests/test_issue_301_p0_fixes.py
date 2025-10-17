@@ -164,6 +164,64 @@ print(result)
         assert result is not None
 
 
+class TestRelativePathTraversal:
+    """Tests for relative path traversal protection (Issue #305 Task 1)"""
+
+    def test_blocks_triple_dot_traversal(self, workflow):
+        """阻止 ../../../ 路徑遍歷"""
+        code = 'open("../../../etc/passwd", "w")'
+        assert workflow._is_safe_file_path(code) is False
+
+    def test_blocks_double_dot_traversal(self, workflow):
+        """阻止 ../../ 路徑遍歷"""
+        code = 'open("../../bin/sh", "w")'
+        assert workflow._is_safe_file_path(code) is False
+
+    def test_blocks_single_dot_slash_traversal(self, workflow):
+        """阻止 ../etc/ 路徑遍歷"""
+        code = 'open("../etc/passwd", "w")'
+        assert workflow._is_safe_file_path(code) is False
+
+    def test_blocks_backslash_traversal(self, workflow):
+        """阻止 ..\\  (Windows style) 路徑遍歷"""
+        code = 'open("..\\\\..\\\\etc\\\\passwd", "w")'
+        assert workflow._is_safe_file_path(code) is False
+
+    def test_allows_relative_safe_path(self, workflow):
+        """允許相對路徑但在安全目錄（如 ./config.json）"""
+        code = 'open("./config.json", "w")'
+        assert workflow._is_safe_file_path(code) is True
+
+    def test_allows_subdirectory_safe_path(self, workflow):
+        """允許子目錄中的安全文件"""
+        code = 'open("src/utils/helpers.py", "w")'
+        assert workflow._is_safe_file_path(code) is True
+
+
+class TestHomeDirectoryProtection:
+    """Tests for $HOME and home directory protection (Issue #305 Task 2)"""
+
+    def test_blocks_home_env_var(self, workflow):
+        """阻止 $HOME 環境變數"""
+        code = 'open("$HOME", "w")'
+        assert workflow._is_safe_file_path(code) is False
+
+    def test_blocks_home_with_file(self, workflow):
+        """阻止 $HOME/file.txt"""
+        code = 'open("$HOME/sensitive.txt", "w")'
+        assert workflow._is_safe_file_path(code) is False
+
+    def test_blocks_home_with_slash(self, workflow):
+        """阻止 $HOME/"""
+        code = 'open("$HOME/", "w")'
+        assert workflow._is_safe_file_path(code) is False
+
+    def test_blocks_home_with_subdirectory(self, workflow):
+        """阻止 $HOME/Documents/file.txt"""
+        code = 'open("$HOME/Documents/secret.txt", "w")'
+        assert workflow._is_safe_file_path(code) is False
+
+
 class TestRollbackMechanism:
     """Tests for _rollback_changes() and backup/rollback integration"""
 

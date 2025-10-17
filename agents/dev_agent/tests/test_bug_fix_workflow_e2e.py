@@ -124,7 +124,8 @@ async def test_parse_issue_stage():
         'approval_status': None,
         'error': None,
         'execution_start': 0.0,
-        'patterns_used': []
+        'patterns_used': [],
+        'file_backups': {}
     }
 
     result = await workflow.parse_issue(state)
