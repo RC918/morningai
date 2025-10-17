@@ -561,6 +561,108 @@ pytest agents/dev_agent/tests/test_bug_fix_pattern_learner.py -v
 
 完整指南請參閱 [Bug Fix Workflow Guide](../../docs/bug_fix_workflow_guide.md)
 
+### Week 6.5: P0 安全性修復 (Issue #301)
+
+**修復日期**: 2025-10-17
+
+針對 Week 6 實現中發現的兩個 P0 安全問題進行了修復：
+
+#### 1. 改進的代碼清理邏輯
+
+**問題**: 原始 `_sanitize_code()` 會阻止所有 `open(..., 'w')` 調用，包括合法的文件寫入操作。
+
+**修復**: 實現了 `_is_safe_file_path()` 白名單/黑名單驗證：
+
+**白名單（允許的文件類型）**:
+- 源代碼文件: *.py, *.js, *.ts, *.tsx, *.jsx
+- 測試文件: *_test.py, *_spec.js, *.test.ts
+- 配置文件: *.json, *.yaml, *.yml, *.toml, *.cfg, *.ini
+- 文檔文件: *.md, *.rst, *.txt
+
+**黑名單（禁止的路徑）**:
+- 系統文件: /etc/, /bin/, /usr/, /sys/, /proc/
+- 用戶根目錄: ~/, $HOME/
+- 環境配置: *.env, .env.*, credentials.*
+- SSH 密鑰: id_rsa, *.pem, *.key, /.ssh/
+
+**使用範例**:
+```python
+# ✅ 允許：寫入 Python 源文件
+code = 'open("src/app.py", "w").write("print(\'hello\')")'
+result = workflow._sanitize_code(code)  # 通過
+
+# ✅ 允許：寫入配置文件
+code = 'open("config.yaml", "w").write("key: value")'
+result = workflow._sanitize_code(code)  # 通過
+
+# ❌ 禁止：寫入 .env 文件
+code = 'open(".env", "w").write("SECRET=123")'
+result = workflow._sanitize_code(code)  # 返回 None
+
+# ❌ 禁止：寫入系統文件
+code = 'open("/etc/passwd", "w")'
+result = workflow._sanitize_code(code)  # 返回 None
+```
+
+#### 2. 自動回滾機制
+
+**問題**: 如果 `apply_fix()` 成功但 `run_tests()` 失敗，沒有自動回滾機制，可能留下損壞的代碼。
+
+**修復**: 實現了完整的 backup/rollback 系統：
+
+**工作流程**:
+1. `apply_fix()` 在修改文件前創建備份
+2. 備份存儲在 `state['file_backups']` 字典中
+3. `run_tests()` 檢查測試結果
+4. 測試失敗時自動調用 `_rollback_changes()`
+5. 恢復所有文件到修改前的狀態
+6. 測試成功時清空備份
+
+**內部實現**:
+```python
+# 在 apply_fix() 中創建備份
+state["file_backups"][file_path] = current_content
+logger.info(f"Backed up {file_path}")
+
+# 在 run_tests() 中自動回滾
+if not result.get("success") and state.get("file_backups"):
+    logger.info("Initiating automatic rollback due to test failure")
+    rollback_success = await self._rollback_changes(state)
+    if rollback_success:
+        logger.info("Rollback successful - codebase restored")
+        state["file_backups"] = {}
+```
+
+**回滾機制保證**:
+- ✅ 文件操作失敗時立即回滾
+- ✅ 測試失敗時自動回滾
+- ✅ 測試成功後清空備份
+- ✅ 異常處理時觸發回滾
+- ✅ 完整的錯誤日誌記錄
+
+#### 3. 測試覆蓋
+
+新增 24 個單元測試（`test_issue_301_p0_fixes.py`）：
+- 12 個 `_is_safe_file_path()` 測試（白名單/黑名單驗證）
+- 10 個 `_sanitize_code()` 測試（改進的安全檢查）
+- 2 個 `_rollback_changes()` 測試（備份/回滾機制）
+
+**運行測試**:
+```bash
+pytest agents/dev_agent/tests/test_issue_301_p0_fixes.py -v
+```
+
+#### 安全性改進總結
+
+| 功能 | Before | After |
+|------|--------|-------|
+| 文件寫入檢查 | 阻止所有 `open(..., 'w')` | 白名單/黑名單驗證 |
+| 系統文件保護 | 無 | 阻止 /etc/, /bin/ 等 |
+| 環境文件保護 | 無 | 阻止 .env, credentials.* |
+| 測試失敗處理 | 無回滾 | 自動回滾到備份 |
+| 文件操作失敗 | 無回滾 | 立即回滾 |
+| 備份管理 | 無 | 完整 backup/restore |
+
 ## 後續開發
 
 根據 Phase 1 實作計畫，接下來將：
