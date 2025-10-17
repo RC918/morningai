@@ -214,14 +214,26 @@ env:
 - Full API functionality
 - Cost: ~$7/month (Render Starter)
 
-### Phase 2: Hybrid (Render + Fly.io)
-**Status:** 🔄 Planned for Phase 12
+### Phase 2: Hybrid (Render + Fly.io) ✅ **已完成**
+**Status:** ✅ Deployed (2025-10-16)
 
 - Main application on Render (SANDBOX_ENABLED=false)
-- Sandbox execution on Fly.io (SANDBOX_ENABLED=true)
-- API gateway routes sandbox requests to Fly.io
-- Enhanced security with real container isolation
-- Cost: ~$9/month (Render $7 + Fly.io $2)
+- Dev_Agent sandbox on Fly.io (SANDBOX_ENABLED=true)
+  - URL: https://morningai-sandbox-dev-agent.fly.dev/
+  - Features: VSCode Server, LSP, Git, IDE, FileSystem tools
+- Ops_Agent sandbox on Fly.io (SANDBOX_ENABLED=true)
+  - URL: https://morningai-sandbox-ops-agent.fly.dev/
+  - Features: Performance monitoring, Shell, Browser, Render, Sentry tools
+- Enhanced security with real Docker container isolation
+- Cost: ~$11/month (Render $7 + Fly.io $4)
+- Auto-scaling: Fly.io machines scale to 0 when idle (effective cost: $7-11/month)
+
+**Verified Capabilities:**
+- ✅ Health checks passing on all endpoints
+- ✅ MCP tool invocations working correctly
+- ✅ Docker isolation active (seccomp, AppArmor)
+- ✅ Resource limits enforced
+- ✅ Auto-scaling functional
 
 **Implementation Steps:**
 1. Deploy sandbox service to Fly.io using existing `fly.toml`

@@ -157,21 +157,36 @@ The `ops-agent-sandbox-e2e.yml` workflow:
 
 ## Future Enhancements
 
-### Phase 1 (Current)
-- ✅ Ops_Agent sandbox with Shell, Browser, Render, Sentry tools
-- ✅ Docker-based isolation
+### Phase 1 (Current) ✅ **已完成基礎部署**
+- ✅ Dev_Agent sandbox deployed to Fly.io (https://morningai-sandbox-dev-agent.fly.dev/)
+  - VSCode Server (code-server) integrated
+  - LSP Servers (Python, TypeScript, YAML, Dockerfile)
+  - Git, IDE, FileSystem tools implemented
+  - Port 8080 (MCP server), Port 8443 (VSCode Server)
+- ✅ Ops_Agent sandbox deployed to Fly.io (https://morningai-sandbox-ops-agent.fly.dev/)
+  - Shell, Browser, Render, Sentry tools
+  - Performance monitoring (CPU, memory, disk)
+  - Port 8000 (MCP server)
+- ✅ Docker-based isolation with security profiles
 - ✅ MCP protocol implementation
-- ✅ Render compatibility via SANDBOX_ENABLED flag
+- ✅ Auto-scaling to 0 machines when idle ($0 cost)
+- 🔄 **Pending**: Session State management (Redis + PostgreSQL)
+- 🔄 **Pending**: OODA Loop integration with Meta-Agent
 
-### Phase 2 (Planned)
-- 🔄 Dev_Agent sandbox with IDE and Git integration
-- 🔄 Enhanced security auditing
-- 🔄 Resource usage monitoring
+### Phase 2 (Planned) 📋 **下一階段**
+- 📋 Ops_Agent enhancement: LogAnalysis, Incident, Prometheus tools
+- 📋 Root cause analysis algorithm
+- 📋 Predictive auto-scaling
+- 📋 Anomaly detection (ML-based)
+- 📋 Cost optimization engine
 
-### Phase 3 (Future)
-- 📋 Support for all 15 agent types
-- 📋 Multi-tenant isolation
-- 📋 Advanced cost optimization
+### Phase 3 (Partially Complete) ⚡ **安全與文檔**
+- ✅ Fly.io deployment (COMPLETED - both agents live)
+- 📋 OWASP security audit
+- 📋 Secrets management (Vault integration)
+- 📋 Disaster recovery runbook
+- 📋 Technical documentation
+- 📋 Team training materials
 
 ## Deployment Recommendations
 
@@ -213,3 +228,23 @@ For production deployment of Agent Sandbox:
 - [Platform POC Comparison](./sandbox-platform-poc.md)
 - [Security Hardening Runbook](./sandbox-security-hardening-runbook.md)
 - [MCP Protocol Specification](https://modelcontextprotocol.io/)
+
+## Deployment Summary
+
+### Current Production Status (2025-10-16)
+
+**Dev_Agent Sandbox**:
+- **URL**: https://morningai-sandbox-dev-agent.fly.dev/
+- **Region**: Singapore (sin)
+- **Cost**: ~$2/month (shared-cpu-1x, 1GB RAM), $0 when idle
+- **Features**: Full IDE, LSP, Git, Browser, Shell
+- **Status**: ✅ Production, all CI checks passing
+
+**Ops_Agent Sandbox**:
+- **URL**: https://morningai-sandbox-ops-agent.fly.dev/
+- **Region**: Singapore (sin)
+- **Cost**: ~$2/month (shared-cpu-1x, 1GB RAM), $0 when idle
+- **Features**: Performance monitoring, capacity analysis, system operations
+- **Status**: ✅ Production, all CI checks passing
+
+**Total Infrastructure Cost**: ~$4/month (auto-scales to $0 when idle)

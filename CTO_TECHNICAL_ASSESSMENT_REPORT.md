@@ -104,9 +104,14 @@ As the newly appointed CTO for Morning AI, I have conducted a comprehensive tech
 - ⏳ Multi-tenant dashboard extensions
 
 **Agent MVP:**
-- ⏳ Orchestrator → CodeWriter PR
-- ⏳ Auto-QA validation CI
-- ⏳ Deploy agent online
+- ✅ Dev_Agent sandbox deployed to Fly.io (https://morningai-sandbox-dev-agent.fly.dev/) ✨ **NEW**
+  - VSCode Server, LSP (Python/TypeScript), Git, IDE, FileSystem tools
+  - Docker isolation, auto-scaling, $2/month
+- ✅ Ops_Agent sandbox deployed to Fly.io (https://morningai-sandbox-ops-agent.fly.dev/) ✨ **NEW**
+  - Performance monitoring, Shell, Browser, Render, Sentry tools
+  - Docker isolation, auto-scaling, $2/month
+- ⏳ Session State management (Redis + PostgreSQL) - Phase 1 Week 3-4
+- ⏳ OODA Loop integration with Meta-Agent - Phase 1 Week 5-6
 - ⏳ FAQ → PR → CI → Deploy closed-loop (partial - FAQ only)
 
 **Phase 10: Governance & Compliance**
@@ -357,6 +362,35 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
 - ✅ Graceful degradation (demo mode when Redis/GitHub unavailable)
 
 **Critical Limitations:**
+
+#### Agent MVP Maturity Assessment
+
+**Current Status**: Foundation Complete (35% complete) ✨ **UPDATED**
+
+**Completed:**
+- ✅ Basic agent architecture defined
+- ✅ Orchestrator proof-of-concept
+- ✅ MCP protocol integration complete
+- ✅ Dev_Agent sandbox deployed to Fly.io (PR #278)
+- ✅ Ops_Agent sandbox deployed to Fly.io (PR #279)
+- ✅ Docker isolation with security profiles
+- ✅ VSCode Server integration
+- ✅ LSP servers (Python, TypeScript, YAML, Dockerfile)
+- ✅ 10+ MCP tools (Git, IDE, FileSystem, Shell, Browser, Render, Sentry)
+
+**In Progress:**
+- ⏳ Session state persistence (Phase 1 Week 3-4)
+- ⏳ OODA Loop integration with Meta-Agent (Phase 1 Week 5-6)
+- ⏳ Knowledge graph indexing (Phase 1 Week 4)
+
+**Pending:**
+- 📋 Ops_Agent enhancement (LogAnalysis, Incident tools) - Phase 2
+- 📋 Root cause analysis algorithm - Phase 2
+- 📋 Predictive auto-scaling - Phase 2
+- 📋 OWASP security audit - Phase 3
+- 📋 Production hardening - Phase 3
+
+
 1. **Hard-coded FAQ template** - Not truly AI-generated
 2. **No LangGraph integration** - Despite being listed in tech stack
 3. **Sandbox disabled in production** - Security isolation not active

@@ -1,0 +1,52 @@
+# Fly.io configuration for Dev Agent Sandbox
+# Secure isolated environment for autonomous development operations
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SANDBOX_ENABLED = "true"
+  AGENT_TYPE = "dev"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+# VSCode Server port (optional, for development access)
+[[services]]
+  internal_port = 8443
+  protocol = "tcp"
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    port = 8443
+    handlers = ["http"]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[metrics]
+  port = 9091
+  path = "/metrics"

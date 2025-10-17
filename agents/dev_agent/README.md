@@ -163,13 +163,515 @@ Dev Agent 實施多層安全措施：
 
 可在 `docker-compose.yml` 中調整。
 
+## OODA Loop 整合 (Phase 1 Week 3-4)
+
+Dev Agent 包含增強的 OODA（Observe, Orient, Decide, Act）循環，支援會話持久化和決策追蹤：
+
+### 使用方法
+
+**基本使用（Week 3）**:
+```python
+import asyncio
+from agents.dev_agent.dev_agent_ooda import create_dev_agent_ooda
+
+async def execute_dev_task():
+    ooda = create_dev_agent_ooda('http://localhost:8080')
+    
+    result = await ooda.execute_task(
+        "修復身份驗證模組中的錯誤",
+        priority="high",
+        max_iterations=3
+    )
+    
+    print(f"任務完成: {result['result']}")
+    print(f"決策追蹤: {len(result['decision_trace'])} 條記錄")
+
+asyncio.run(execute_dev_task())
+```
+
+**會話持久化（Week 4）**:
+```python
+# 啟用 Redis 會話持久化 (important-comment)
+ooda = create_dev_agent_ooda(
+    'http://localhost:8080',
+    enable_persistence=True
+)
+
+result = await ooda.execute_task("任務描述", priority="high")
+
+# 獲取會話歷史 (important-comment)
+if result.get('session_id'):
+    session = ooda.session_manager.get_session(result['session_id'])
+    context_window = ooda.session_manager.get_context_window(result['session_id'])
+    decision_trace = ooda.session_manager.get_decision_trace(result['session_id'])
+```
+
+### OODA 階段
+
+1. **Observe（觀察）**: 探索代碼庫，收集相關上下文
+2. **Orient（定位）**: 分析任務，評估複雜度，生成策略
+3. **Decide（決策）**: 選擇最佳策略，創建行動計劃
+4. **Act（行動）**: 使用 Git、IDE 和 FileSystem 工具執行操作
+
+### Week 4 新功能
+
+1. **決策追蹤（Decision Trace）**: 記錄每個 OODA 階段的決策過程
+2. **會話持久化**: 使用 Redis 緩存會話狀態，支援跨重啟恢復
+3. **上下文窗口**: 滑動窗口保留最近 50 個操作
+4. **路徑白名單**: 文件操作安全驗證（限制 /workspace 和 /tmp）
+5. **統一錯誤處理**: 標準化錯誤碼、訊息和提示
+6. **最大步數限制**: 防止無限循環（最多 100 步）
+
+### 安全功能
+
+**路徑白名單驗證**:
+```python
+from agents.dev_agent.tools.filesystem_tool import FileSystemTool
+
+fs_tool = FileSystemTool('http://localhost:8080')
+
+# ✓ 允許的路徑 (important-comment)
+result = await fs_tool.read_file('/workspace/src/main.py')
+
+# ✗ 禁止的路徑 (important-comment)
+result = await fs_tool.read_file('/etc/passwd')  # 返回 PATH_NOT_WHITELISTED 錯誤
+```
+
+### 錯誤處理
+
+所有錯誤採用統一格式：
+```python
+{
+    'success': False,
+    'error': {
+        'error_code': 'DEV_003',
+        'error_name': 'PATH_NOT_WHITELISTED',
+        'message': '路徑不在白名單中',
+        'hint': '使用 /workspace 目錄',
+        'context': {'path': '/forbidden/path'}
+    }
+}
+```
+
+### 範例
+
+查看 `agents/dev_agent/examples/ooda_example.py` 以獲取完整範例。
+
+### 測試
+
+運行 E2E 測試：
+
+```bash
+# 現有沙箱測試 (important-comment)
+pytest agents/dev_agent/tests/test_e2e.py -v
+
+# OODA 循環測試（Week 3-4）(important-comment)
+pytest agents/dev_agent/tests/test_ooda_e2e.py -v
+```
+
+### 配置
+
+**環境變數**:
+- `DEV_AGENT_ENDPOINT`: 沙箱端點 URL（預設：http://localhost:8080）
+- `GITHUB_TOKEN`: GitHub API token（用於 PR 操作）
+- `UPSTASH_REDIS_REST_URL`: Upstash Redis REST API URL（可選，用於持久化）
+- `UPSTASH_REDIS_REST_TOKEN`: Upstash Redis REST API Token（可選，用於持久化）
+
+**OODA 參數**:
+- `max_iterations`: 最大 OODA 循環次數（預設：3）
+- `enable_persistence`: 啟用 Redis 持久化（預設：False）
+- `MAX_STEPS`: 最大工作流程步數限制（100 步，防止無限循環）
+
+## Knowledge Graph 系統 (Phase 1 Week 5)
+
+Dev Agent 現在包含 Knowledge Graph 系統，提供代碼理解、語義搜索和模式學習能力：
+
+### 核心組件
+
+1. **Knowledge Graph Manager**: 管理代碼嵌入和知識圖譜
+2. **Code Indexer**: 並發代碼索引與 AST 解析
+3. **Pattern Learner**: 代碼模式檢測與學習
+4. **Embeddings Cache**: Redis 緩存減少 API 調用
+
+### 數據庫架構
+
+使用 PostgreSQL + pgvector 存儲：
+- `code_embeddings`: 代碼向量嵌入（1536 維）
+- `code_patterns`: 學習到的代碼模式
+- `code_relationships`: 代碼實體關係
+- `embedding_cache_stats`: API 使用統計
+
+### 快速開始
+
+**1. 運行 Migration**:
+
+**重要**: Migration 包含 Row Level Security (RLS) 策略，確保數據庫訪問安全。
+
+```bash
+# 推薦: 使用 migration 助手腳本（自動執行兩個 migration 文件）(important-comment)
+python agents/dev_agent/migrations/run_migration.py
+
+# 手動執行（需要兩個文件）(important-comment)
+psql $SUPABASE_URL < agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql
+psql $SUPABASE_URL < agents/dev_agent/migrations/002_add_rls_policies.sql
+```
+
+**2. 配置環境變數**:
+```bash
+export SUPABASE_URL="your-supabase-url"
+export SUPABASE_DB_PASSWORD="your-password"
+export OPENAI_API_KEY="your-openai-key"
+export REDIS_URL="your-redis-url"  # 可選，用於緩存
+```
+
+**3. 生成代碼嵌入**:
+```python
+from agents.dev_agent.knowledge_graph import get_knowledge_graph_manager
+
+kg_manager = get_knowledge_graph_manager()
+
+code = """
+def calculate_sum(numbers):
+    return sum(numbers)
+"""
+
+result = kg_manager.generate_embedding(code)
+if result['success']:
+    embedding = result['data']['embedding']
+    print(f"Generated {len(embedding)}-dim embedding")
+```
+
+**4. 索引代碼庫**:
+```python
+from agents.dev_agent.knowledge_graph import create_code_indexer
+
+indexer = create_code_indexer(kg_manager, max_workers=4)
+
+result = indexer.index_directory('/path/to/codebase')
+print(f"Indexed {result['data']['successful']} files")
+```
+
+**5. 學習代碼模式**:
+```python
+from agents.dev_agent.knowledge_graph import create_pattern_learner
+
+learner = create_pattern_learner()
+
+code_samples = [
+    {'code': 'import os\ntry:\n    pass\nexcept Exception:\n    pass', 'language': 'python'},
+    # ... more samples
+]
+
+result = learner.learn_patterns(code_samples)
+print(f"Learned {result['data']['patterns_learned']} patterns")
+```
+
+**6. 語義搜索**:
+```python
+# 搜索相似代碼 (important-comment)
+query_embedding = kg_manager.generate_embedding("def add(a, b): return a + b")
+results = kg_manager.search_similar_code(
+    query_embedding['data']['embedding'],
+    language='python',
+    limit=5
+)
+
+for match in results['data']['results']:
+    print(f"{match['file_path']}: {match['similarity']:.2%} similar")
+```
+
+### 性能指標
+
+Knowledge Graph 系統設計目標：
+- 嵌入生成: <200ms/文件
+- 模式匹配: <100ms
+- 知識檢索: <50ms
+- 緩存命中率: >80%
+
+### 支持的語言
+
+- Python (完整 AST 解析)
+- JavaScript/TypeScript (基於 regex)
+- Java, C/C++, Go, Rust, Ruby, PHP (基礎支持)
+
+### 範例
+
+查看完整範例：
+- `agents/dev_agent/examples/knowledge_graph_example.py`
+
+### 測試
+
+```bash
+# 運行 Knowledge Graph E2E 測試 (important-comment)
+pytest agents/dev_agent/tests/test_knowledge_graph_e2e.py -v
+
+# 運行所有測試 (important-comment)
+pytest agents/dev_agent/tests/ -v
+```
+
+### 成本控制
+
+Knowledge Graph 使用 OpenAI API 生成代碼嵌入，需要注意成本控制：
+
+#### 配置每日成本上限
+
+```bash
+# 設置每日最大成本（USD）
+export OPENAI_MAX_DAILY_COST=5.0
+
+# 或在 .env 文件中
+OPENAI_MAX_DAILY_COST=5.0
+```
+
+當達到每日成本上限時，API 調用將被阻擋並返回錯誤，直到隔天重置。
+
+#### 成本估算
+
+| 代碼庫規模 | 估算文件數 | 估算 Token | 估算成本 (USD) |
+|-----------|-----------|-----------|---------------|
+| 小型 (1K lines) | ~50 | ~25K | $0.0005 |
+| 中型 (10K lines) | ~500 | ~250K | $0.005 |
+| 大型 (100K lines) | ~5000 | ~2.5M | $0.05 |
+
+**成本優化措施**:
+- ✅ Redis 緩存（目標 >80% 命中率）
+- ✅ 文件哈希檢查（避免重複索引）
+- ✅ 速率限制（防止 API 過度使用）
+- ✅ 每日成本上限（預算控制）
+
+#### 查看成本報告
+
+```bash
+# 查看今日成本
+python scripts/kg_cost_report.py --daily
+
+# 查看本週成本
+python scripts/kg_cost_report.py --weekly
+
+# 檢查成本限制狀態
+python scripts/kg_cost_report.py --check-limit
+
+# 查看對比報告
+python scripts/kg_cost_report.py --compare
+```
+
+**範例輸出**:
+```
+======================================================================
+Knowledge Graph Cost Report - Today
+======================================================================
+
+📊 API Usage:
+   Total Calls: 150
+   Total Tokens: 75,000
+   Cache Hits: 100
+   Cache Misses: 50
+   Cache Hit Rate: 66.7%
+
+💰 Cost Breakdown:
+   Total Cost: $0.0015 USD
+   Avg Cost per Call: $0.000010 USD
+   Cost per Cache Miss: $0.000030 USD
+   Estimated Savings (caching): $0.0030 USD
+```
+
+#### API 使用追蹤
+
+```python
+# 查看緩存統計 (important-comment)
+from agents.dev_agent.knowledge_graph import get_embeddings_cache
+
+cache = get_embeddings_cache()
+stats = cache.get_stats(days=7)
+
+print(f"Cache hit rate: {stats['summary']['cache_hit_rate']:.1f}%")
+print(f"Total calls: {stats['summary']['total_calls']}")
+print(f"Total cost: ${stats['summary']['total_cost']:.4f}")
+```
+
+## Bug Fix Workflow (Phase 1 Week 6)
+
+**自動化 Bug 修復：從 GitHub Issue 到 Pull Request**
+
+Bug Fix Workflow 將完整的 bug 修復流程自動化：
+
+### 工作流程階段
+
+1. **Parse Issue** - 從 GitHub Issue 提取 bug 資訊
+2. **Reproduce Bug** - 運行測試確認 bug 存在
+3. **Analyze Root Cause** - 使用 LSP + Knowledge Graph 分析根因
+4. **Generate Fixes** - 使用學習的模式 + LLM 生成修復方案
+5. **Apply Fix** - 應用代碼修改
+6. **Run Tests** - 驗證修復有效
+7. **Create PR** - 創建 Pull Request
+8. **Request Approval** - HITL 審批（Telegram 整合）
+
+### 快速開始
+
+```python
+from agents.dev_agent.workflows.bug_fix_workflow import BugFixWorkflow
+from agents.dev_agent.dev_agent_wrapper import DevAgent
+
+agent = DevAgent()
+workflow = BugFixWorkflow(agent)
+
+github_issue = {
+    "number": 123,
+    "title": "Fix: TypeError in user_service.py",
+    "body": "Error when calling get_user(None)..."
+}
+
+result = await workflow.execute(github_issue)
+print(f"Workflow completed. PR: {result.get('pr_url')}")
+```
+
+### 數據庫設置
+
+運行 bug_fix_history migration：
+```bash
+python agents/dev_agent/migrations/run_migration.py
+```
+
+這將創建 `bug_fix_history` 表以及 Knowledge Graph 表。
+
+### 環境變數
+
+- `OPENAI_API_KEY` - LLM 修復生成（必需）
+- `SUPABASE_URL` - 模式存儲（必需）
+- `SUPABASE_DB_PASSWORD` - 數據庫密碼（必需）
+- `TELEGRAM_BOT_TOKEN` - HITL 審批（可選）
+- `TELEGRAM_ADMIN_CHAT_ID` - 管理員聊天 ID（可選）
+
+### 模式學習
+
+工作流程從成功的 bug 修復中學習：
+- Bug 模式存儲在 `code_patterns` 表（type='bug_pattern'）
+- Fix 模式存儲在 `code_patterns` 表（type='fix_pattern'）
+- Bug 修復歷史追蹤在 `bug_fix_history` 表
+- 模式被重用於類似 bug 以提高修復準確性
+
+### 測試
+
+```bash
+pytest agents/dev_agent/tests/test_bug_fix_workflow_e2e.py -v
+pytest agents/dev_agent/tests/test_bug_fix_pattern_learner.py -v
+```
+
+### 文檔
+
+完整指南請參閱 [Bug Fix Workflow Guide](../../docs/bug_fix_workflow_guide.md)
+
+### Week 6.5: P0 安全性修復 (Issue #301)
+
+**修復日期**: 2025-10-17
+
+針對 Week 6 實現中發現的兩個 P0 安全問題進行了修復：
+
+#### 1. 改進的代碼清理邏輯
+
+**問題**: 原始 `_sanitize_code()` 會阻止所有 `open(..., 'w')` 調用，包括合法的文件寫入操作。
+
+**修復**: 實現了 `_is_safe_file_path()` 白名單/黑名單驗證：
+
+**白名單（允許的文件類型）**:
+- 源代碼文件: *.py, *.js, *.ts, *.tsx, *.jsx
+- 測試文件: *_test.py, *_spec.js, *.test.ts
+- 配置文件: *.json, *.yaml, *.yml, *.toml, *.cfg, *.ini
+- 文檔文件: *.md, *.rst, *.txt
+
+**黑名單（禁止的路徑）**:
+- 系統文件: /etc/, /bin/, /usr/, /sys/, /proc/
+- 用戶根目錄: ~/, $HOME/
+- 環境配置: *.env, .env.*, credentials.*
+- SSH 密鑰: id_rsa, *.pem, *.key, /.ssh/
+
+**使用範例**:
+```python
+# ✅ 允許：寫入 Python 源文件
+code = 'open("src/app.py", "w").write("print(\'hello\')")'
+result = workflow._sanitize_code(code)  # 通過
+
+# ✅ 允許：寫入配置文件
+code = 'open("config.yaml", "w").write("key: value")'
+result = workflow._sanitize_code(code)  # 通過
+
+# ❌ 禁止：寫入 .env 文件
+code = 'open(".env", "w").write("SECRET=123")'
+result = workflow._sanitize_code(code)  # 返回 None
+
+# ❌ 禁止：寫入系統文件
+code = 'open("/etc/passwd", "w")'
+result = workflow._sanitize_code(code)  # 返回 None
+```
+
+#### 2. 自動回滾機制
+
+**問題**: 如果 `apply_fix()` 成功但 `run_tests()` 失敗，沒有自動回滾機制，可能留下損壞的代碼。
+
+**修復**: 實現了完整的 backup/rollback 系統：
+
+**工作流程**:
+1. `apply_fix()` 在修改文件前創建備份
+2. 備份存儲在 `state['file_backups']` 字典中
+3. `run_tests()` 檢查測試結果
+4. 測試失敗時自動調用 `_rollback_changes()`
+5. 恢復所有文件到修改前的狀態
+6. 測試成功時清空備份
+
+**內部實現**:
+```python
+# 在 apply_fix() 中創建備份
+state["file_backups"][file_path] = current_content
+logger.info(f"Backed up {file_path}")
+
+# 在 run_tests() 中自動回滾
+if not result.get("success") and state.get("file_backups"):
+    logger.info("Initiating automatic rollback due to test failure")
+    rollback_success = await self._rollback_changes(state)
+    if rollback_success:
+        logger.info("Rollback successful - codebase restored")
+        state["file_backups"] = {}
+```
+
+**回滾機制保證**:
+- ✅ 文件操作失敗時立即回滾
+- ✅ 測試失敗時自動回滾
+- ✅ 測試成功後清空備份
+- ✅ 異常處理時觸發回滾
+- ✅ 完整的錯誤日誌記錄
+
+#### 3. 測試覆蓋
+
+新增 24 個單元測試（`test_issue_301_p0_fixes.py`）：
+- 12 個 `_is_safe_file_path()` 測試（白名單/黑名單驗證）
+- 10 個 `_sanitize_code()` 測試（改進的安全檢查）
+- 2 個 `_rollback_changes()` 測試（備份/回滾機制）
+
+**運行測試**:
+```bash
+pytest agents/dev_agent/tests/test_issue_301_p0_fixes.py -v
+```
+
+#### 安全性改進總結
+
+| 功能 | Before | After |
+|------|--------|-------|
+| 文件寫入檢查 | 阻止所有 `open(..., 'w')` | 白名單/黑名單驗證 |
+| 系統文件保護 | 無 | 阻止 /etc/, /bin/ 等 |
+| 環境文件保護 | 無 | 阻止 .env, credentials.* |
+| 測試失敗處理 | 無回滾 | 自動回滾到備份 |
+| 文件操作失敗 | 無回滾 | 立即回滾 |
+| 備份管理 | 無 | 完整 backup/restore |
+
 ## 後續開發
 
 根據 Phase 1 實作計畫，接下來將：
 
-1. **Week 3**: 整合 Meta-Agent OODA 循環
-2. **Week 4**: 實現 Session State 管理
-3. 後續階段: 擴展到更多語言和工具
+1. **Week 3**: ✅ 整合 Meta-Agent OODA 循環
+2. **Week 4**: ✅ 實現 Session State 管理
+3. **Week 5**: ✅ Knowledge Graph 系統
+4. **Week 6**: ✅ Bug Fix Workflow 整合
+5. 後續階段: 擴展到更多語言和工具
 
 ## 相關文檔
 
