@@ -407,7 +407,72 @@ pytest agents/dev_agent/tests/ -v
 
 ### 成本控制
 
-OpenAI API 使用追蹤：
+Knowledge Graph 使用 OpenAI API 生成代碼嵌入，需要注意成本控制：
+
+#### 配置每日成本上限
+
+```bash
+# 設置每日最大成本（USD）
+export OPENAI_MAX_DAILY_COST=5.0
+
+# 或在 .env 文件中
+OPENAI_MAX_DAILY_COST=5.0
+```
+
+當達到每日成本上限時，API 調用將被阻擋並返回錯誤，直到隔天重置。
+
+#### 成本估算
+
+| 代碼庫規模 | 估算文件數 | 估算 Token | 估算成本 (USD) |
+|-----------|-----------|-----------|---------------|
+| 小型 (1K lines) | ~50 | ~25K | $0.0005 |
+| 中型 (10K lines) | ~500 | ~250K | $0.005 |
+| 大型 (100K lines) | ~5000 | ~2.5M | $0.05 |
+
+**成本優化措施**:
+- ✅ Redis 緩存（目標 >80% 命中率）
+- ✅ 文件哈希檢查（避免重複索引）
+- ✅ 速率限制（防止 API 過度使用）
+- ✅ 每日成本上限（預算控制）
+
+#### 查看成本報告
+
+```bash
+# 查看今日成本
+python scripts/kg_cost_report.py --daily
+
+# 查看本週成本
+python scripts/kg_cost_report.py --weekly
+
+# 檢查成本限制狀態
+python scripts/kg_cost_report.py --check-limit
+
+# 查看對比報告
+python scripts/kg_cost_report.py --compare
+```
+
+**範例輸出**:
+```
+======================================================================
+Knowledge Graph Cost Report - Today
+======================================================================
+
+📊 API Usage:
+   Total Calls: 150
+   Total Tokens: 75,000
+   Cache Hits: 100
+   Cache Misses: 50
+   Cache Hit Rate: 66.7%
+
+💰 Cost Breakdown:
+   Total Cost: $0.0015 USD
+   Avg Cost per Call: $0.000010 USD
+   Cost per Cache Miss: $0.000030 USD
+   Estimated Savings (caching): $0.0030 USD
+```
+
+#### API 使用追蹤
+
 ```python
 # 查看緩存統計 (important-comment)
 from agents.dev_agent.knowledge_graph import get_embeddings_cache
@@ -415,8 +480,8 @@ from agents.dev_agent.knowledge_graph import get_embeddings_cache
 cache = get_embeddings_cache()
 stats = cache.get_stats(days=7)
 
-print(f"Cache hit rate: {stats['summary']['average_hit_rate']:.2%}")
-print(f"Total API calls: {stats['summary']['total_api_calls']}")
+print(f"Cache hit rate: {stats['summary']['cache_hit_rate']:.1f}%")
+print(f"Total calls: {stats['summary']['total_calls']}")
 print(f"Total cost: ${stats['summary']['total_cost']:.4f}")
 ```
 

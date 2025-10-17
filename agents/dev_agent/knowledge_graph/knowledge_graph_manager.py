@@ -34,7 +34,8 @@ class KnowledgeGraphManager:
         supabase_url: Optional[str] = None,
         supabase_password: Optional[str] = None,
         openai_api_key: Optional[str] = None,
-        enable_cache: bool = True
+        enable_cache: bool = True,
+        max_daily_cost: Optional[float] = None
     ):
         """
         Initialize Knowledge Graph Manager
@@ -44,11 +45,16 @@ class KnowledgeGraphManager:
             supabase_password: Database password
             openai_api_key: OpenAI API key
             enable_cache: Whether to enable Redis cache
+            max_daily_cost: Maximum daily cost in USD (default from env or None)
         """
         self.supabase_url = supabase_url or os.getenv('SUPABASE_URL')
         self.supabase_password = supabase_password or os.getenv(
             'SUPABASE_DB_PASSWORD')
         self.openai_api_key = openai_api_key or os.getenv('OPENAI_API_KEY')
+
+        self.max_daily_cost = max_daily_cost or (
+            float(os.getenv('OPENAI_MAX_DAILY_COST', '0')) or None
+        )
 
         self.db_pool = None
         self.cache = EmbeddingsCache() if enable_cache else None
@@ -135,6 +141,27 @@ class KnowledgeGraphManager:
         if tokens > 0:
             self.token_usage.append((current_time, tokens))
 
+    def _check_daily_cost_limit(self) -> Optional[Dict[str, Any]]:
+        """Check if daily cost limit has been exceeded"""
+        if not self.max_daily_cost or not self.cache:
+            return None
+
+        stats = self.cache.get_stats(days=1)
+        if not stats.get('summary'):
+            return None
+
+        daily_cost = stats['summary'].get('total_cost', 0)
+
+        if daily_cost >= self.max_daily_cost:
+            return create_error(
+                ErrorCode.RATE_LIMIT_EXCEEDED,
+                f"Daily cost limit exceeded: ${
+                    daily_cost:.4f} >= ${
+                    self.max_daily_cost:.4f}",
+                hint="Wait until tomorrow or increase OPENAI_MAX_DAILY_COST")
+
+        return None
+
     def generate_embedding(
             self, content: str, max_retries: int = 3) -> Dict[str, Any]:
         """
@@ -153,6 +180,10 @@ class KnowledgeGraphManager:
                 "OpenAI API key not configured",
                 hint="Set OPENAI_API_KEY environment variable"
             )
+
+        cost_limit_error = self._check_daily_cost_limit()
+        if cost_limit_error:
+            return cost_limit_error
 
         if self.cache:
             cached_embedding = self.cache.get(content, self.EMBEDDING_MODEL)
