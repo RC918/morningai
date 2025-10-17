@@ -11,7 +11,12 @@ from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def _get_openai_client():
+    """Get or create OpenAI client lazily"""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable not set")
+    return OpenAI(api_key=api_key)
 
 SYSTEM_PROMPT = """You are a technical documentation expert helping to generate FAQ content for the MorningAI platform.
 
@@ -93,6 +98,7 @@ Keep it professional, technically accurate, and well-formatted in Markdown.
 """
     
     try:
+        client = _get_openai_client()
         response = client.chat.completions.create(
             model=model,
             messages=[
