@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import psycopg2
 from psycopg2 import extras, pool
-import openai
+from openai import OpenAI
 
 from agents.dev_agent.knowledge_graph.db_schema import QUERIES
 from agents.dev_agent.knowledge_graph.embeddings_cache import EmbeddingsCache
@@ -58,12 +58,13 @@ class KnowledgeGraphManager:
 
         self.db_pool = None
         self.cache = EmbeddingsCache() if enable_cache else None
+        self.openai_client = None
 
         self.request_times: List[float] = []
         self.token_usage: List[Tuple[float, int]] = []
 
         if self.openai_api_key:
-            openai.api_key = self.openai_api_key
+            self.openai_client = OpenAI(api_key=self.openai_api_key)
             logger.info("OpenAI API key configured")
         else:
             logger.warning(
@@ -203,7 +204,7 @@ class KnowledgeGraphManager:
             try:
                 self._check_rate_limit(token_count)
 
-                response = openai.embeddings.create(
+                response = self.openai_client.embeddings.create(
                     model=self.EMBEDDING_MODEL,
                     input=content,
                     encoding_format="float"
@@ -228,26 +229,30 @@ class KnowledgeGraphManager:
                     'cached': False
                 })
 
-            except openai.RateLimitError as e:
-                if attempt < max_retries - 1:
-                    sleep_time = 2 ** attempt
-                    logger.warning(
-                        f"Rate limit hit, retrying in {sleep_time}s...")
-                    time.sleep(sleep_time)
-                else:
-                    return create_error(
-                        ErrorCode.RATE_LIMIT_EXCEEDED,
-                        f"OpenAI rate limit exceeded: {str(e)}"
-                    )
             except Exception as e:
-                logger.error(f"Embedding generation failed: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(1)
+                error_str = str(e)
+                error_type = type(e).__name__
+                
+                if 'rate_limit' in error_str.lower() or 'RateLimitError' in error_type:
+                    if attempt < max_retries - 1:
+                        sleep_time = 2 ** attempt
+                        logger.warning(
+                            f"Rate limit hit, retrying in {sleep_time}s...")
+                        time.sleep(sleep_time)
+                    else:
+                        return create_error(
+                            ErrorCode.RATE_LIMIT_EXCEEDED,
+                            f"OpenAI rate limit exceeded: {error_str}"
+                        )
                 else:
-                    return create_error(
-                        ErrorCode.EXTERNAL_API_ERROR,
-                        f"Failed to generate embedding: {str(e)}"
-                    )
+                    logger.error(f"Embedding generation failed: {e}")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                    else:
+                        return create_error(
+                            ErrorCode.EXTERNAL_API_ERROR,
+                            f"Failed to generate embedding: {error_str}"
+                        )
 
         return create_error(
             ErrorCode.EXTERNAL_API_ERROR,
