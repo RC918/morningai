@@ -282,13 +282,222 @@ pytest agents/dev_agent/tests/test_ooda_e2e.py -v
 - `enable_persistence`: 啟用 Redis 持久化（預設：False）
 - `MAX_STEPS`: 最大工作流程步數限制（100 步，防止無限循環）
 
+## Knowledge Graph 系統 (Phase 1 Week 5)
+
+Dev Agent 現在包含 Knowledge Graph 系統，提供代碼理解、語義搜索和模式學習能力：
+
+### 核心組件
+
+1. **Knowledge Graph Manager**: 管理代碼嵌入和知識圖譜
+2. **Code Indexer**: 並發代碼索引與 AST 解析
+3. **Pattern Learner**: 代碼模式檢測與學習
+4. **Embeddings Cache**: Redis 緩存減少 API 調用
+
+### 數據庫架構
+
+使用 PostgreSQL + pgvector 存儲：
+- `code_embeddings`: 代碼向量嵌入（1536 維）
+- `code_patterns`: 學習到的代碼模式
+- `code_relationships`: 代碼實體關係
+- `embedding_cache_stats`: API 使用統計
+
+### 快速開始
+
+**1. 運行 Migration**:
+
+**重要**: Migration 包含 Row Level Security (RLS) 策略，確保數據庫訪問安全。
+
+```bash
+# 推薦: 使用 migration 助手腳本（自動執行兩個 migration 文件）(important-comment)
+python agents/dev_agent/migrations/run_migration.py
+
+# 手動執行（需要兩個文件）(important-comment)
+psql $SUPABASE_URL < agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql
+psql $SUPABASE_URL < agents/dev_agent/migrations/002_add_rls_policies.sql
+```
+
+**2. 配置環境變數**:
+```bash
+export SUPABASE_URL="your-supabase-url"
+export SUPABASE_DB_PASSWORD="your-password"
+export OPENAI_API_KEY="your-openai-key"
+export REDIS_URL="your-redis-url"  # 可選，用於緩存
+```
+
+**3. 生成代碼嵌入**:
+```python
+from agents.dev_agent.knowledge_graph import get_knowledge_graph_manager
+
+kg_manager = get_knowledge_graph_manager()
+
+code = """
+def calculate_sum(numbers):
+    return sum(numbers)
+"""
+
+result = kg_manager.generate_embedding(code)
+if result['success']:
+    embedding = result['data']['embedding']
+    print(f"Generated {len(embedding)}-dim embedding")
+```
+
+**4. 索引代碼庫**:
+```python
+from agents.dev_agent.knowledge_graph import create_code_indexer
+
+indexer = create_code_indexer(kg_manager, max_workers=4)
+
+result = indexer.index_directory('/path/to/codebase')
+print(f"Indexed {result['data']['successful']} files")
+```
+
+**5. 學習代碼模式**:
+```python
+from agents.dev_agent.knowledge_graph import create_pattern_learner
+
+learner = create_pattern_learner()
+
+code_samples = [
+    {'code': 'import os\ntry:\n    pass\nexcept Exception:\n    pass', 'language': 'python'},
+    # ... more samples
+]
+
+result = learner.learn_patterns(code_samples)
+print(f"Learned {result['data']['patterns_learned']} patterns")
+```
+
+**6. 語義搜索**:
+```python
+# 搜索相似代碼 (important-comment)
+query_embedding = kg_manager.generate_embedding("def add(a, b): return a + b")
+results = kg_manager.search_similar_code(
+    query_embedding['data']['embedding'],
+    language='python',
+    limit=5
+)
+
+for match in results['data']['results']:
+    print(f"{match['file_path']}: {match['similarity']:.2%} similar")
+```
+
+### 性能指標
+
+Knowledge Graph 系統設計目標：
+- 嵌入生成: <200ms/文件
+- 模式匹配: <100ms
+- 知識檢索: <50ms
+- 緩存命中率: >80%
+
+### 支持的語言
+
+- Python (完整 AST 解析)
+- JavaScript/TypeScript (基於 regex)
+- Java, C/C++, Go, Rust, Ruby, PHP (基礎支持)
+
+### 範例
+
+查看完整範例：
+- `agents/dev_agent/examples/knowledge_graph_example.py`
+
+### 測試
+
+```bash
+# 運行 Knowledge Graph E2E 測試 (important-comment)
+pytest agents/dev_agent/tests/test_knowledge_graph_e2e.py -v
+
+# 運行所有測試 (important-comment)
+pytest agents/dev_agent/tests/ -v
+```
+
+### 成本控制
+
+Knowledge Graph 使用 OpenAI API 生成代碼嵌入，需要注意成本控制：
+
+#### 配置每日成本上限
+
+```bash
+# 設置每日最大成本（USD）
+export OPENAI_MAX_DAILY_COST=5.0
+
+# 或在 .env 文件中
+OPENAI_MAX_DAILY_COST=5.0
+```
+
+當達到每日成本上限時，API 調用將被阻擋並返回錯誤，直到隔天重置。
+
+#### 成本估算
+
+| 代碼庫規模 | 估算文件數 | 估算 Token | 估算成本 (USD) |
+|-----------|-----------|-----------|---------------|
+| 小型 (1K lines) | ~50 | ~25K | $0.0005 |
+| 中型 (10K lines) | ~500 | ~250K | $0.005 |
+| 大型 (100K lines) | ~5000 | ~2.5M | $0.05 |
+
+**成本優化措施**:
+- ✅ Redis 緩存（目標 >80% 命中率）
+- ✅ 文件哈希檢查（避免重複索引）
+- ✅ 速率限制（防止 API 過度使用）
+- ✅ 每日成本上限（預算控制）
+
+#### 查看成本報告
+
+```bash
+# 查看今日成本
+python scripts/kg_cost_report.py --daily
+
+# 查看本週成本
+python scripts/kg_cost_report.py --weekly
+
+# 檢查成本限制狀態
+python scripts/kg_cost_report.py --check-limit
+
+# 查看對比報告
+python scripts/kg_cost_report.py --compare
+```
+
+**範例輸出**:
+```
+======================================================================
+Knowledge Graph Cost Report - Today
+======================================================================
+
+📊 API Usage:
+   Total Calls: 150
+   Total Tokens: 75,000
+   Cache Hits: 100
+   Cache Misses: 50
+   Cache Hit Rate: 66.7%
+
+💰 Cost Breakdown:
+   Total Cost: $0.0015 USD
+   Avg Cost per Call: $0.000010 USD
+   Cost per Cache Miss: $0.000030 USD
+   Estimated Savings (caching): $0.0030 USD
+```
+
+#### API 使用追蹤
+
+```python
+# 查看緩存統計 (important-comment)
+from agents.dev_agent.knowledge_graph import get_embeddings_cache
+
+cache = get_embeddings_cache()
+stats = cache.get_stats(days=7)
+
+print(f"Cache hit rate: {stats['summary']['cache_hit_rate']:.1f}%")
+print(f"Total calls: {stats['summary']['total_calls']}")
+print(f"Total cost: ${stats['summary']['total_cost']:.4f}")
+```
+
 ## 後續開發
 
 根據 Phase 1 實作計畫，接下來將：
 
-1. **Week 3**: 整合 Meta-Agent OODA 循環
-2. **Week 4**: 實現 Session State 管理
-3. 後續階段: 擴展到更多語言和工具
+1. **Week 3**: ✅ 整合 Meta-Agent OODA 循環
+2. **Week 4**: ✅ 實現 Session State 管理
+3. **Week 5**: ✅ Knowledge Graph 系統
+4. **Week 6**: Bug Fix Workflow 整合
+5. 後續階段: 擴展到更多語言和工具
 
 ## 相關文檔
 
