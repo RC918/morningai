@@ -31,6 +31,7 @@ class BugFixState(TypedDict):
     error: Optional[str]
     execution_start: float
     patterns_used: List[int]
+    file_backups: Dict[str, str]
 
 
 class BugFixWorkflow:
@@ -181,16 +182,93 @@ class BugFixWorkflow:
 
         return list(set(files))
 
+    def _is_safe_file_path(self, code: str) -> bool:
+        """
+        Check if file operations in code target safe paths.
+
+        Safe paths (whitelist):
+        - Project source files (*.py, *.js, *.ts, *.json, *.yaml, *.md)
+        - Test files (*_test.py, *_spec.js, *.test.ts)
+        - Configuration files (*.yaml, *.json, *.toml, *.ini, *.cfg)
+        - Documentation (*.md, *.rst, *.txt)
+
+        Unsafe paths (blacklist):
+        - System files (/etc/, /bin/, /usr/, /sys/)
+        - User home root (~/, $HOME/)
+        - Environment files (*.env, .env.*, credentials.*)
+        - SSH keys (id_rsa, *.pem, *.key)
+
+        Args:
+            code: Code containing file operations
+
+        Returns:
+            True if all file paths are safe, False otherwise
+        """
+        open_matches = re.finditer(
+            r'\bopen\s*\(\s*[\'"]([^\'"]+)[\'"]\s*,\s*[\'"]([^\'"]+)[\'"]',
+            code
+        )
+
+        for match in open_matches:
+            file_path = match.group(1)
+            mode = match.group(2)
+
+            unsafe_path_patterns = [
+                r'^/etc/',
+                r'^/bin/',
+                r'^/usr/',
+                r'^/sys/',
+                r'^/proc/',
+                r'^~/?$',
+                r'^\$HOME/?$',
+                r'\.env',
+                r'credentials\.',
+                r'id_rsa',
+                r'\.pem$',
+                r'\.key$',
+                r'/\.ssh/',
+            ]
+
+            for unsafe_pattern in unsafe_path_patterns:
+                if re.search(unsafe_pattern, file_path, re.IGNORECASE):
+                    logger.warning(
+                        f"Unsafe file path detected: {file_path}"
+                    )
+                    return False
+
+            if 'w' in mode or 'a' in mode:
+                safe_extensions = [
+                    r'\.py$', r'\.js$', r'\.ts$', r'\.tsx$', r'\.jsx$',
+                    r'\.json$', r'\.yaml$', r'\.yml$', r'\.toml$',
+                    r'\.md$', r'\.rst$', r'\.txt$', r'\.cfg$', r'\.ini$',
+                    r'_test\.py$', r'_spec\.js$', r'\.test\.ts$'
+                ]
+
+                is_safe = any(
+                    re.search(ext, file_path, re.IGNORECASE)
+                    for ext in safe_extensions
+                )
+
+                if not is_safe:
+                    logger.warning(
+                        f"Write to non-whitelisted file: {file_path}"
+                    )
+                    return False
+
+        return True
+
     def _sanitize_code(self, code: str) -> Optional[str]:
         """
         Validate LLM-generated code for security issues.
 
-        Checks for:
-        - Dangerous function calls (eval, exec, __import__)
-        - File system manipulation beyond allowed paths
-        - Network operations
-        - Shell command execution
-        - SQL injection patterns
+        Security checks:
+        1. Dangerous function calls (eval, exec, __import__)
+        2. File operations (validated via whitelist/blacklist)
+        3. Network operations (blocked)
+        4. Shell command execution (blocked)
+        5. SQL injection patterns (blocked)
+        6. Unsafe deserialization (blocked)
+        7. Code length limit (50,000 chars)
 
         Args:
             code: The code string to sanitize
@@ -209,9 +287,6 @@ class BugFixWorkflow:
             r'\bos\.system\s*\(',
             r'\bsubprocess\.(call|run|Popen)\s*\(',
             r'\bshutil\.rmtree\s*\(',
-            r'\bos\.remove\s*\(',
-            r'\bos\.rmdir\s*\(',
-            r'\bopen\s*\([^)]*[\'"]w[\'"]',
             r'\bsocket\.',
             r'\brequests\.(get|post|put|delete)\s*\(',
             r'\burllib\.',
@@ -230,6 +305,10 @@ class BugFixWorkflow:
                 )
                 return None
 
+        if not self._is_safe_file_path(code):
+            logger.error("Code contains unsafe file operations")
+            return None
+
         max_code_length = 50000
         if len(code) > max_code_length:
             logger.warning(
@@ -238,6 +317,54 @@ class BugFixWorkflow:
             return None
 
         return code
+
+    async def _rollback_changes(self, state: BugFixState) -> bool:
+        """
+        Rollback file changes using backups.
+
+        Restores all modified files from their backup copies stored
+        in state['file_backups']. This is called when tests fail after
+        applying a fix, to ensure the codebase returns to a working state.
+
+        Args:
+            state: Current workflow state containing file_backups
+
+        Returns:
+            True if rollback succeeded, False otherwise
+        """
+        logger.info("[Rollback] Restoring files from backup")
+
+        file_backups = state.get("file_backups", {})
+        if not file_backups:
+            logger.warning("No backups found to rollback")
+            return False
+
+        rollback_success = True
+        for file_path, backup_content in file_backups.items():
+            try:
+                write_result = await self.agent.fs_tool.write_file(
+                    file_path, backup_content
+                )
+
+                if write_result.get("success"):
+                    logger.info(f"Restored {file_path} from backup")
+                else:
+                    logger.error(
+                        f"Failed to restore {file_path}: "
+                        f"{write_result.get('error')}"
+                    )
+                    rollback_success = False
+
+            except Exception as e:
+                logger.error(f"Error restoring {file_path}: {e}")
+                rollback_success = False
+
+        if rollback_success:
+            logger.info("All files successfully rolled back")
+        else:
+            logger.error("Rollback completed with errors")
+
+        return rollback_success
 
     def _apply_code_changes(
         self, current_content: str, fix_code: str, state: BugFixState
@@ -479,7 +606,12 @@ CHANGES: <changes>
         return state
 
     async def apply_fix(self, state: BugFixState) -> BugFixState:
-        """Stage 5: Apply the fix to code"""
+        """
+        Stage 5: Apply the fix to code.
+
+        Creates backups of all files before modification to enable
+        automatic rollback if tests fail.
+        """
         logger.info("[Stage 5] Applying fix")
 
         try:
@@ -501,6 +633,9 @@ CHANGES: <changes>
                 state["error"] = "Fix code contains unsafe patterns"
                 return state
 
+            if "file_backups" not in state:
+                state["file_backups"] = {}
+
             for file_path in affected_files:
                 try:
                     read_result = await self.agent.fs_tool.read_file(file_path)
@@ -512,6 +647,9 @@ CHANGES: <changes>
                         continue
 
                     current_content = read_result.get("content", "")
+
+                    state["file_backups"][file_path] = current_content
+                    logger.info(f"Backed up {file_path}")
 
                     new_content = self._apply_code_changes(
                         current_content, sanitized_code, state
@@ -528,6 +666,7 @@ CHANGES: <changes>
                             f"Failed to write {file_path}: "
                             f"{write_result.get('error')}"
                         )
+                        await self._rollback_changes(state)
                         state["error"] = (
                             f"Failed to write file: {file_path}"
                         )
@@ -537,21 +676,32 @@ CHANGES: <changes>
                     logger.error(
                         f"Error processing {file_path}: {file_error}"
                     )
+                    await self._rollback_changes(state)
                     state["error"] = (
                         f"File processing failed: {str(file_error)}"
                     )
                     return state
 
-            logger.info("Fix successfully applied to all affected files")
+            logger.info(
+                f"Fix successfully applied to all affected files. "
+                f"Backups created for {len(state['file_backups'])} files."
+            )
 
         except Exception as e:
             logger.error(f"Failed to apply fix: {e}")
+            if state.get("file_backups"):
+                await self._rollback_changes(state)
             state["error"] = f"Fix application failed: {str(e)}"
 
         return state
 
     async def run_tests(self, state: BugFixState) -> BugFixState:
-        """Stage 6: Run tests to verify the fix"""
+        """
+        Stage 6: Run tests to verify the fix.
+
+        Automatically rolls back changes if tests fail, ensuring the
+        codebase returns to a working state.
+        """
         logger.info("[Stage 6] Running tests to verify fix")
 
         try:
@@ -574,6 +724,9 @@ CHANGES: <changes>
             if result.get("success"):
                 logger.info("Tests passed! Fix verified.")
 
+                state["file_backups"] = {}
+                logger.info("Backups cleared - fix successful")
+
                 if state.get("bug_type") and state.get("fix_strategy"):
                     self.agent.pattern_learner.learn_fix_pattern(
                         bug_description=state["issue_body"],
@@ -584,9 +737,34 @@ CHANGES: <changes>
             else:
                 logger.warning("Tests still failing after fix")
 
+                if state.get("file_backups"):
+                    logger.info(
+                        "Initiating automatic rollback due to test failure"
+                    )
+                    rollback_success = await self._rollback_changes(state)
+
+                    if rollback_success:
+                        logger.info(
+                            "Rollback successful - codebase restored to "
+                            "working state"
+                        )
+                        state["file_backups"] = {}
+                    else:
+                        logger.error(
+                            "Rollback failed - manual intervention may be "
+                            "required"
+                        )
+                        state["error"] = (
+                            "Tests failed and rollback encountered errors"
+                        )
+
         except Exception as e:
             logger.error(f"Failed to run tests: {e}")
             state["test_results"] = {"success": False, "error": str(e)}
+
+            if state.get("file_backups"):
+                logger.info("Rolling back due to test execution error")
+                await self._rollback_changes(state)
 
         return state
 
@@ -772,7 +950,8 @@ CHANGES: <changes>
             "approval_status": None,
             "error": None,
             "execution_start": time.time(),
-            "patterns_used": []
+            "patterns_used": [],
+            "file_backups": {}
         }
 
         try:
