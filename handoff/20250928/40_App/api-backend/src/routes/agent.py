@@ -91,19 +91,40 @@ def create_faq_task():
         task_id = str(uuid.uuid4())
         
         user_id = getattr(request, 'user_id', None)
-        tenant_id = None
         
-        if user_id:
-            try:
-                from orchestrator.persistence.db_writer import fetch_user_tenant_id
-                tenant_id = fetch_user_tenant_id(user_id)
-                logger.info(f"Task {task_id} assigned to tenant={tenant_id} for user={user_id}")
-            except Exception as e:
-                logger.warning(f"Failed to fetch tenant for user {user_id}: {e}")
-                tenant_id = "00000000-0000-0000-0000-000000000001"
-        else:
-            logger.warning(f"No user_id found in request for task {task_id}")
-            tenant_id = "00000000-0000-0000-0000-000000000001"
+        if not user_id:
+            logger.error(f"No user_id found in authenticated request for task {task_id}")
+            return jsonify({
+                "error": {
+                    "code": "authentication_error",
+                    "message": "User ID not found in authenticated request. Please re-authenticate."
+                }
+            }), 401
+        
+        try:
+            from orchestrator.persistence.db_writer import fetch_user_tenant_id
+            tenant_id = fetch_user_tenant_id(user_id)
+            
+            if not tenant_id:
+                logger.error(f"User {user_id} not assigned to any tenant for task {task_id}")
+                return jsonify({
+                    "error": {
+                        "code": "tenant_not_found",
+                        "message": "User is not assigned to any organization. Please contact support."
+                    }
+                }), 403
+            
+            logger.info(f"Task {task_id} assigned to tenant={tenant_id} for user={user_id}")
+        except Exception as e:
+            logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
+            if sentry_sdk:
+                sentry_sdk.capture_exception(e)
+            return jsonify({
+                "error": {
+                    "code": "tenant_resolution_failed",
+                    "message": "Unable to resolve organization membership. Please try again or contact support."
+                }
+            }), 500
         
         if sentry_sdk:
             sentry_sdk.set_tag("trace_id", task_id)
