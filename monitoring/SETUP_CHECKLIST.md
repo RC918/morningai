@@ -22,17 +22,17 @@
 - [ ] Navigate to `monitoring/` directory
 - [ ] Install Python dependencies:
   ```bash
-  pip install supabase sentry-sdk
+  pip install -r requirements.txt
+  # Or manually: pip install psycopg2-binary sentry-sdk
   ```
 - [ ] Set environment variables:
   ```bash
-  export SUPABASE_URL="https://[your-project].supabase.co"
-  export SUPABASE_SERVICE_ROLE_KEY="[your-key]"
+  export DATABASE_URL="postgresql://user:password@host:5432/database"
   export SENTRY_DSN="[your-dsn]"  # Optional
   ```
 - [ ] Test connection:
   ```bash
-  python -c "from supabase import create_client; print('✅ Supabase client OK')"
+  python -c "import psycopg2; print('✅ psycopg2 OK')"
   ```
 
 ---
@@ -162,10 +162,10 @@
         - uses: actions/checkout@v2
         - name: Run monitoring
           env:
-            SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-            SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            DATABASE_URL: ${{ secrets.DATABASE_URL }}
+            SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           run: |
-            pip install supabase sentry-sdk
+            pip install -r monitoring/requirements.txt
             python monitoring/scripts/daily_monitoring_report.py --time evening
   ```
 - [ ] Add secrets to GitHub repository settings

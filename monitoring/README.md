@@ -48,16 +48,19 @@ monitoring/
 ### 1. Install Dependencies
 
 ```bash
-pip install supabase sentry-sdk
+pip install -r monitoring/requirements.txt
+# Or manually:
+pip install psycopg2-binary sentry-sdk
 ```
 
 ### 2. Set Environment Variables
 
 ```bash
-export SUPABASE_URL="https://your-project.supabase.co"
-export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+export DATABASE_URL="postgresql://user:password@host:5432/database"
 export SENTRY_DSN="https://your-sentry-dsn@sentry.io/project-id"  # Optional
 ```
+
+**Important**: The script now uses direct PostgreSQL connection via `psycopg2` instead of the Supabase client. You need to provide a valid `DATABASE_URL` connection string.
 
 ### 3. Configure Supabase SQL Queries
 
@@ -274,17 +277,16 @@ If all criteria met → Reduce monitoring frequency to weekly
 
 ## 🔧 Troubleshooting
 
-### Script Fails: "SUPABASE_URL not set"
+### Script Fails: "DATABASE_URL not set"
 **Solution**:
 ```bash
-export SUPABASE_URL="https://your-project.supabase.co"
-export SUPABASE_SERVICE_ROLE_KEY="your-key"
+export DATABASE_URL="postgresql://user:password@host:5432/database"
 ```
 
-### Script Fails: "supabase module not found"
+### Script Fails: "psycopg2 module not found"
 **Solution**:
 ```bash
-pip install supabase sentry-sdk
+pip install psycopg2-binary sentry-sdk
 ```
 
 ### SQL Query Returns Error: "permission denied"

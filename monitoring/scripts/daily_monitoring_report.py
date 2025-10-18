@@ -28,9 +28,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 try:
-    from supabase import create_client, Client
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
 except ImportError:
-    logger.error("supabase-py not installed. Run: pip install supabase")
+    logger.error("psycopg2 not installed. Run: pip install psycopg2-binary")
     sys.exit(1)
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
@@ -49,16 +50,18 @@ class RLSMonitor:
     """RLS Monitoring System"""
     
     def __init__(self):
-        self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        self.database_url = os.getenv("DATABASE_URL")
         
-        if not self.supabase_url or not self.supabase_key:
-            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY required")
+        if not self.database_url:
+            raise ValueError("DATABASE_URL environment variable required")
         
-        self.client: Client = create_client(self.supabase_url, self.supabase_key)
         self.sql_queries_dir = Path(__file__).parent.parent / "sql_queries"
         self.results: Dict[str, any] = {}
         self.alerts: List[Dict] = []
+    
+    def get_connection(self):
+        """Create PostgreSQL connection"""
+        return psycopg2.connect(self.database_url, cursor_factory=RealDictCursor)
     
     def run_sql_query(self, query_file: Path) -> Tuple[bool, any]:
         """Execute SQL query from file"""
@@ -66,15 +69,31 @@ class RLSMonitor:
             with open(query_file, 'r') as f:
                 sql = f.read()
             
-            queries = [q.strip() for q in sql.split(';') if q.strip() and not q.strip().startswith('--')]
+            lines = [line for line in sql.split('\n') 
+                    if line.strip() and not line.strip().startswith('--')]
+            clean_sql = '\n'.join(lines)
             
+            queries = [q.strip() for q in clean_sql.split(';') if q.strip()]
+            
+            conn = self.get_connection()
             results = []
-            for query in queries:
-                if query:
-                    result = self.client.rpc('exec_sql', {'sql': query}).execute()
-                    results.append(result.data if result.data else [])
+            
+            try:
+                with conn.cursor() as cur:
+                    for query in queries:
+                        if query:
+                            cur.execute(query)
+                            if cur.description:
+                                results.append(cur.fetchall())
+                conn.commit()
+            finally:
+                conn.close()
             
             return True, results
+        
+        except psycopg2.Error as e:
+            logger.error(f"PostgreSQL error in {query_file.name}: {e}")
+            return False, str(e)
         except Exception as e:
             logger.error(f"Failed to execute {query_file.name}: {e}")
             return False, str(e)
