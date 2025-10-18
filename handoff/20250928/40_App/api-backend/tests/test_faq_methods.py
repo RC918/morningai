@@ -1,5 +1,6 @@
 import pytest
 from src.main import app
+from src.middleware import create_user_token
 
 
 def test_faq_get_returns_405():
@@ -19,7 +20,7 @@ def test_faq_get_returns_405():
 
 
 def test_faq_post_requires_auth():
-    """Test that POST /api/agent/faq without auth returns 401 or processes"""
+    """Test that POST /api/agent/faq without auth returns 401"""
     with app.test_client() as client:
         response = client.post(
             '/api/agent/faq',
@@ -27,16 +28,20 @@ def test_faq_post_requires_auth():
             headers={'Content-Type': 'application/json'}
         )
         
-        assert response.status_code in [202, 401, 503]
+        assert response.status_code == 401
 
 
 def test_faq_post_with_valid_payload():
-    """Test that POST /api/agent/faq with valid payload returns 202"""
+    """Test that POST /api/agent/faq with valid payload and JWT returns 202"""
+    token = create_user_token()
     with app.test_client() as client:
         response = client.post(
             '/api/agent/faq',
             json={'question': 'What is the system architecture?'},
-            headers={'Content-Type': 'application/json'}
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {token}'
+            }
         )
         
         assert response.status_code in [202, 503]
@@ -50,11 +55,15 @@ def test_faq_post_with_valid_payload():
 
 def test_faq_post_with_invalid_payload():
     """Test that POST /api/agent/faq with invalid payload returns 400"""
+    token = create_user_token()
     with app.test_client() as client:
         response = client.post(
             '/api/agent/faq',
             json={},
-            headers={'Content-Type': 'application/json'}
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {token}'
+            }
         )
         
         assert response.status_code == 400
@@ -64,11 +73,15 @@ def test_faq_post_with_invalid_payload():
 
 def test_faq_post_with_empty_question():
     """Test that POST /api/agent/faq with empty question returns 400"""
+    token = create_user_token()
     with app.test_client() as client:
         response = client.post(
             '/api/agent/faq',
             json={'question': ''},
-            headers={'Content-Type': 'application/json'}
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {token}'
+            }
         )
         
         assert response.status_code == 400
@@ -78,11 +91,15 @@ def test_faq_post_with_empty_question():
 
 def test_faq_post_with_whitespace_question():
     """Test that POST /api/agent/faq with whitespace-only question returns 400"""
+    token = create_user_token()
     with app.test_client() as client:
         response = client.post(
             '/api/agent/faq',
             json={'question': '   '},
-            headers={'Content-Type': 'application/json'}
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {token}'
+            }
         )
         
         assert response.status_code == 400
