@@ -1,12 +1,12 @@
 # RLS Phase 2 Monitoring System Requirements
 # Install with: pip install -r requirements.txt
 
-# Supabase Python Client
-supabase>=2.0.0
+# PostgreSQL adapter for Python (required)
+psycopg2-binary>=2.9.0
 
 # Sentry SDK for error tracking and alerts (optional)
 sentry-sdk>=1.40.0
 
 # Additional dependencies (usually already installed)
 # python-dotenv>=1.0.0  # For loading .env files
-# requests>=2.31.0      # HTTP client
+# requests>=2.31.0      # HTTP client (for Slack integration)
