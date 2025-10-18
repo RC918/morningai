@@ -10,11 +10,13 @@ import DecisionApproval from '@/components/DecisionApproval'
 import HistoryAnalysis from '@/components/HistoryAnalysis'
 import CostAnalysis from '@/components/CostAnalysis'
 import SystemSettings from '@/components/SystemSettings'
+import TenantSettings from '@/components/TenantSettings'
 import CheckoutPage from '@/components/CheckoutPage'
 import CheckoutSuccess from '@/components/CheckoutSuccess'
 import CheckoutCancel from '@/components/CheckoutCancel'
 import LoginPage from '@/components/LoginPage'
 import WIPPage from '@/components/WIPPage'
+import { TenantProvider } from '@/contexts/TenantContext'
 import { applyDesignTokens } from '@/lib/design-tokens'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import useAppStore from '@/stores/appStore'
@@ -135,12 +137,13 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <div className="flex h-screen bg-gray-100">
-          <Sidebar user={user} onLogout={handleLogout} />
-          
-          <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
-            <Routes>
+      <TenantProvider>
+        <Router>
+          <div className="flex h-screen bg-gray-100">
+            <Sidebar user={user} onLogout={handleLogout} />
+            
+            <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
+              <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
               {/* Feature-gated routes */}
@@ -172,6 +175,7 @@ function App() {
               ) : (
                 <Route path="/settings" element={<WIPPage title="系統設定開發中" />} />
               )}
+              <Route path="/tenant-settings" element={<TenantSettings />} />
               {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
                 <Route path="/checkout" element={<CheckoutPage />} />
               ) : (
@@ -190,9 +194,10 @@ function App() {
             </Routes>
           </main>
           
-          <Toaster />
-        </div>
-      </Router>
+            <Toaster />
+          </div>
+        </Router>
+      </TenantProvider>
     </ErrorBoundary>
   )
 }

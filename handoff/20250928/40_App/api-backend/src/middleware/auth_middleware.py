@@ -25,7 +25,7 @@ def jwt_required(f):
         
         try:
             jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
-            payload = jwt.decode(token, jwt_secret, algorithms=['HS256'], options={"verify_signature": False})
+            payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
             user_id = payload.get('sub') or payload.get('user_id')
             
