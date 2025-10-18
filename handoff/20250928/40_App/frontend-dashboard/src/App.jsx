@@ -17,16 +17,19 @@ import CheckoutCancel from '@/components/CheckoutCancel'
 import LoginPage from '@/components/LoginPage'
 import WIPPage from '@/components/WIPPage'
 import { TenantProvider } from '@/contexts/TenantContext'
+import { NotificationProvider, useNotification } from '@/contexts/NotificationContext'
+import { Phase3WelcomeModal } from '@/components/Phase3WelcomeModal'
 import { applyDesignTokens } from '@/lib/design-tokens'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
 import './App.css'
 
-function App() {
+function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
+  const { showPhase3Welcome, dismissWelcome } = useNotification()
 
   useEffect(() => {
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -139,6 +142,10 @@ function App() {
     <ErrorBoundary>
       <TenantProvider>
         <Router>
+          <Phase3WelcomeModal 
+            isOpen={showPhase3Welcome}
+            onClose={dismissWelcome}
+          />
           <div className="flex h-screen bg-gray-100">
             <Sidebar user={user} onLogout={handleLogout} />
             
@@ -199,6 +206,14 @@ function App() {
         </Router>
       </TenantProvider>
     </ErrorBoundary>
+  )
+}
+
+function App() {
+  return (
+    <NotificationProvider>
+      <AppContent />
+    </NotificationProvider>
   )
 }
 
