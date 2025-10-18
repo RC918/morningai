@@ -1,65 +1,66 @@
-# E2E Test FAQ for MorningAI
+# How to Use MorningAI for Code Generation
 
-End-to-End (E2E) testing is a critical component of the development process for MorningAI, ensuring that the application behaves as expected from the user's perspective. This FAQ aims to guide developers through the process of creating, running, and troubleshooting E2E tests within the MorningAI platform.
+MorningAI's autonomous agent system provides a powerful tool for developers looking to streamline their code generation processes. This guide will help you understand how to leverage MorningAI's capabilities effectively, ensuring you can integrate its features into your development workflow seamlessly.
 
-## Understanding E2E Testing in MorningAI
+## Getting Started with Code Generation
 
-E2E testing involves simulating real user scenarios to verify that the entire flow of MorningAI, from its front end to its back end and all integrated services, works as intended. For MorningAI, this encompasses testing interactions across its autonomous agent system, documentation management features, multi-platform integration, and more.
+MorningAI utilizes an advanced AI model to facilitate the creation of code based on user inputs. To begin using this feature, ensure you have access to the RC918/morningai repository and have followed the setup instructions located in the `README.md` file.
 
-### Code Example: Setting Up an E2E Test
+### Setting Up Your Environment
 
-Below is a basic example of setting up an E2E test in MorningAI using Python with Selenium for web UI testing:
+Before diving into code generation, confirm that your development environment meets the following requirements:
+
+- Python 3.8 or higher installed
+- Access to the MorningAI platform through Render.com with CI/CD configured
+- PostgreSQL database connection set up via Supabase
+
+Refer to the `setup/` directory for detailed setup instructions and environment configuration files.
+
+### Code Generation Example
+
+To generate code using MorningAI, use the following steps as a guideline:
+
+1. **Prepare Your Query**: Clearly define what you need the generated code to accomplish. For example, "Create a Flask endpoint for user registration."
+
+2. **Invoke the Autonomous Agent System**: Utilize the provided API endpoint or GUI tool within MorningAI to submit your query. 
 
 ```python
-from selenium import webdriver
+import requests
 
-def test_homepage_loads_correctly():
-    # Path to your WebDriver executable
-    driver = webdriver.Chrome('/path/to/chromedriver')
-    
-    # Target URL
-    driver.get('http://localhost:3000')
-    
-    assert "MorningAI" in driver.title
-    
-    # Cleanup
-    driver.quit()
+# Replace 'your_api_key_here' with your actual MorningAI API key
+headers = {'Authorization': 'Bearer your_api_key_here'}
+data = {'query': 'Create a Flask endpoint for user registration'}
+
+response = requests.post('https://api.morningai.com/generate-code', headers=headers, json=data)
+if response.status_code == 200:
+    generated_code = response.json()['code']
+    print(generated_code)
+else:
+    print("Error:", response.text)
 ```
 
-This code snippet launches a Chrome browser, loads the homepage of the MorningAI application running locally, checks if the title contains "MorningAI", and then closes the browser.
+3. **Review and Integrate Generated Code**: Evaluate the generated code snippet for accuracy and relevance before integrating it into your project.
 
-### Related Documentation Links
+### Related Documentation
 
-- Selenium Documentation: [https://selenium-python.readthedocs.io/](https://selenium-python.readthedocs.io/)
-- Flask Testing Documentation: [https://flask.palletsprojects.com/en/2.0.x/testing/](https://flask.palletsprojects.com/en/2.0.x/testing/)
-- React Testing Library: [https://testing-library.com/docs/react-testing-library/intro/](https://testing-library.com/docs/react-testing-library/intro/)
+For more detailed information on configuring and using various components of MorningAI, refer to these sections of our documentation:
 
-## Common Troubleshooting Tips
+- [Configuration Guide](/docs/configuration.md): Learn how to customize your MorningAI instance.
+- [API Reference](/docs/api_reference.md): Detailed descriptions of API endpoints and their usage.
+- [Integration Guide](/docs/integration_guide.md): Instructions on how to integrate MorningAI with Telegram, LINE, Messenger, and other platforms.
 
-### Test Fails to Find Elements
+### Common Troubleshooting Tips
 
-If your test fails because it cannot find elements on the page, ensure that:
+- **Issue**: Generated code does not compile or run as expected.
+  - **Solution**: Ensure that all prerequisites are met and that your query is as specific as possible. Review the generated code for any placeholders that need customization.
 
-- The page has fully loaded before attempting to find elements. Use explicit waits or assertions to confirm page load.
-- Your selectors are correct and specific enough to locate the element.
+- **Issue**: API calls to generate code fail with authentication errors.
+  - **Solution**: Verify that your API key is correct and has not expired. Check the `Authorization` header format in your request.
 
-### Flaky Tests Due to Timing Issues
+- **Issue**: Slow response times when generating code.
+  - **Solution**: Check the status of Redis Queue (RQ) workers and ensure they are running optimally. Consider scaling up workers if necessary.
 
-Flakiness in tests often results from timing issues where actions occur before the app is ready or in an inconsistent state. To mitigate this:
-
-- Use explicit waits rather than fixed sleep times.
-- Ensure consistent test data by resetting the database or mock data before each test run.
-
-### WebDriver Executable Not Found
-
-If you encounter errors stating that the WebDriver executable cannot be found, check that:
-
-- The path to your WebDriver executable is correct in your test script.
-- The WebDriver version matches your browser version.
-
-## Conclusion
-
-E2E testing is pivotal for maintaining high-quality standards in MorningAI. By following best practices and utilizing provided examples and documentation links, developers can effectively write and troubleshoot E2E tests, ensuring robustness and reliability across MorningAI's functionalities.
+For more support, visit our [Support Page](/docs/support.md) or reach out directly via our help desk.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -67,7 +68,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `3c64c4bd-8bcd-4ae1-9fd8-1f5aa5fc98df`
+- Task: Test question
+- Trace ID: `a5fc801d-3d89-4e41-9c2a-bf6c6df765b8`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
