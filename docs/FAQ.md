@@ -1,65 +1,83 @@
-# E2E Test FAQ for MorningAI
+# System Architecture of MorningAI
 
-End-to-End (E2E) testing is a critical component of the development process for MorningAI, ensuring that the application behaves as expected from the user's perspective. This FAQ aims to guide developers through the process of creating, running, and troubleshooting E2E tests within the MorningAI platform.
+MorningAI leverages a robust and scalable system architecture designed to provide seamless integration of autonomous agent systems for code generation, comprehensive FAQ generation, documentation management, and real-time task orchestration. This architecture supports multi-platform integration across Telegram, LINE, Messenger, and utilizes advanced technologies including Redis Queue for task management and pgvector/Supabase for vector memory storage.
 
-## Understanding E2E Testing in MorningAI
+## Overview
 
-E2E testing involves simulating real user scenarios to verify that the entire flow of MorningAI, from its front end to its back end and all integrated services, works as intended. For MorningAI, this encompasses testing interactions across its autonomous agent system, documentation management features, multi-platform integration, and more.
+The system architecture of MorningAI is built around a microservices framework, ensuring high availability and scalability. The platform employs a combination of cutting-edge technologies tailored for efficient data processing, AI-driven content generation, and seamless user experience across different platforms.
 
-### Code Example: Setting Up an E2E Test
+### Frontend
 
-Below is a basic example of setting up an E2E test in MorningAI using Python with Selenium for web UI testing:
+- **Technology Stack**: ReactJS with Vite for an efficient development experience and TailwindCSS for styling.
+- **Path**: `/frontend`
+- **Code Example**: Setting up the React environment.
+  ```javascript
+  import React from 'react';
+  import ReactDOM from 'react-dom';
+  import './index.css';
+  import App from './App';
 
-```python
-from selenium import webdriver
+  ReactDOM.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+    document.getElementById('root')
+  );
+  ```
 
-def test_homepage_loads_correctly():
-    # Path to your WebDriver executable
-    driver = webdriver.Chrome('/path/to/chromedriver')
-    
-    # Target URL
-    driver.get('http://localhost:3000')
-    
-    assert "MorningAI" in driver.title
-    
-    # Cleanup
-    driver.quit()
-```
+### Backend
 
-This code snippet launches a Chrome browser, loads the homepage of the MorningAI application running locally, checks if the title contains "MorningAI", and then closes the browser.
+- **Technology Stack**: Python with Flask as the web framework and Gunicorn serving as the WSGI HTTP server. Multi-worker support is enabled for handling concurrent requests efficiently.
+- **Database Integration**: PostgreSQL through Supabase with Row Level Security (RLS) for data integrity and security.
+- **Queue Management**: Redis Queue (RQ) is utilized for managing background tasks with worker heartbeat monitoring to ensure reliability.
+- **Orchestration & AI**: LangGraph orchestrates agent workflows while OpenAI's GPT-4 powers content generation.
+- **Path**: `/backend`
+- **Code Example**: Flask application setup.
+  ```python
+  from flask import Flask
+  app = Flask(__name__)
 
-### Related Documentation Links
+  @app.route('/')
+  def hello_world():
+      return 'Hello, World!'
+  
+  if __name__ == '__main__':
+      app.run()
+  ```
 
-- Selenium Documentation: [https://selenium-python.readthedocs.io/](https://selenium-python.readthedocs.io/)
-- Flask Testing Documentation: [https://flask.palletsprojects.com/en/2.0.x/testing/](https://flask.palletsprojects.com/en/2.0.x/testing/)
-- React Testing Library: [https://testing-library.com/docs/react-testing-library/intro/](https://testing-library.com/docs/react-testing-library/intro/)
+### Deployment
+
+- Deployed on Render.com with continuous integration and continuous deployment (CI/CD) pipeline setup to ensure smooth deployments and updates.
+- **Configuration Path**: `/render.yaml`
+
+## Related Documentation Links
+
+- [Flask Documentation](https://flask.palletsprojects.com/)
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [TailwindCSS Documentation](https://tailwindcss.com/docs)
+- [Supabase Documentation](https://supabase.com/docs)
+- [Redis Queue (RQ) Documentation](http://python-rq.org/docs/)
+- [Render Deployment Guides](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-### Test Fails to Find Elements
+1. **Frontend Not Loading Changes**:
+   - Ensure Vite is running in development mode. Check the console for any compilation errors.
+   - Clear browser cache or try incognito mode to avoid loading cached versions.
 
-If your test fails because it cannot find elements on the page, ensure that:
+2. **Backend Connection Issues**:
+   - Verify that Gunicorn workers are running properly. Use `gunicorn --workers=3 app:app` command to start Gunicorn with multiple workers.
+   - Check database connections in Supabase. Ensure that RLS policies do not unintentionally block access.
 
-- The page has fully loaded before attempting to find elements. Use explicit waits or assertions to confirm page load.
-- Your selectors are correct and specific enough to locate the element.
+3. **Task Queue Delays**:
+   - Monitor Redis Queue dashboard to check for stuck jobs or failed tasks.
+   - Increase the number of workers if the workload exceeds current capacity.
 
-### Flaky Tests Due to Timing Issues
+4. **Deployment Failures on Render.com**:
+   - Review build logs in Render Dashboard for specific error messages.
+   - Ensure `render.yaml` is correctly configured according to Render's documentation.
 
-Flakiness in tests often results from timing issues where actions occur before the app is ready or in an inconsistent state. To mitigate this:
-
-- Use explicit waits rather than fixed sleep times.
-- Ensure consistent test data by resetting the database or mock data before each test run.
-
-### WebDriver Executable Not Found
-
-If you encounter errors stating that the WebDriver executable cannot be found, check that:
-
-- The path to your WebDriver executable is correct in your test script.
-- The WebDriver version matches your browser version.
-
-## Conclusion
-
-E2E testing is pivotal for maintaining high-quality standards in MorningAI. By following best practices and utilizing provided examples and documentation links, developers can effectively write and troubleshoot E2E tests, ensuring robustness and reliability across MorningAI's functionalities.
+This architecture is designed to be modular and scalable, catering to developers' needs ranging from autonomous code generation to sophisticated AI-driven content production. By leveraging this structure, MorningAI aims to provide a comprehensive solution that enhances productivity and fosters innovation.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -67,7 +85,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `3c64c4bd-8bcd-4ae1-9fd8-1f5aa5fc98df`
+- Task: What is the system architecture?
+- Trace ID: `d65d7009-07d4-474f-a970-01f8f26a70aa`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
