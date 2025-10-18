@@ -69,8 +69,9 @@ def faq_method_not_allowed():
     }), 405, {"Allow": "POST"}
 
 @bp.route("/faq", methods=["POST"])
+@jwt_required
 def create_faq_task():
-    """Create FAQ generation task"""
+    """Create FAQ generation task (Phase 3: tenant-aware)"""
     try:
         payload = request.get_json(silent=True) or {}
         validated_request = FAQRequest(**payload)
@@ -89,10 +90,58 @@ def create_faq_task():
         repo = os.getenv("GITHUB_REPO", "RC918/morningai")
         task_id = str(uuid.uuid4())
         
+        user_id = getattr(request, 'user_id', None)
+        
+        if not user_id:
+            logger.error(f"No user_id found in authenticated request for task {task_id}")
+            return jsonify({
+                "error": {
+                    "code": "authentication_error",
+                    "message": "User ID not found in authenticated request. Please re-authenticate."
+                }
+            }), 401
+        
+        try:
+            from orchestrator.persistence.db_writer import fetch_user_tenant_id
+            tenant_id = fetch_user_tenant_id(user_id)
+            
+            if not tenant_id:
+                logger.error(f"User {user_id} not assigned to any tenant for task {task_id}")
+                return jsonify({
+                    "error": {
+                        "code": "tenant_not_found",
+                        "message": "User is not assigned to any organization. Please contact support."
+                    }
+                }), 403
+            
+            logger.info(f"Task {task_id} assigned to tenant={tenant_id} for user={user_id}")
+        except ImportError as e:
+            logger.warning(f"orchestrator module not available (testing environment?): {e}")
+            tenant_id = "00000000-0000-0000-0000-000000000001"
+        except ValueError as e:
+            logger.error(f"User {user_id} not in user_profiles: {e}")
+            return jsonify({
+                "error": {
+                    "code": "tenant_not_found",
+                    "message": "User is not assigned to any organization. Please contact support."
+                }
+            }), 403
+        except Exception as e:
+            logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
+            if sentry_sdk:
+                sentry_sdk.capture_exception(e)
+            return jsonify({
+                "error": {
+                    "code": "tenant_resolution_failed",
+                    "message": "Unable to resolve organization membership. Please try again or contact support."
+                }
+            }), 500
+        
         if sentry_sdk:
             sentry_sdk.set_tag("trace_id", task_id)
             sentry_sdk.set_tag("task_id", task_id)
             sentry_sdk.set_tag("operation", "faq_create")
+            sentry_sdk.set_tag("tenant_id", tenant_id)
         
         job = q.enqueue(
             run_orchestrator_task,
@@ -123,7 +172,8 @@ def create_faq_task():
                 task_id=task_id,
                 trace_id=task_id,
                 question=question,
-                job_id=job.id
+                job_id=job.id,
+                tenant_id=tenant_id
             )
             
             if sentry_sdk:

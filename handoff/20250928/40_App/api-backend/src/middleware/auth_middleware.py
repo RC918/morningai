@@ -4,7 +4,7 @@ from functools import wraps
 from flask import request, jsonify, current_app
 
 def jwt_required(f):
-    """JWT authentication decorator for protecting endpoints"""
+    """JWT authentication decorator for protecting endpoints (supports both Supabase and custom JWT)"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
@@ -27,11 +27,15 @@ def jwt_required(f):
             jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
+            user_id = payload.get('sub') or payload.get('user_id')
+            
             request.current_user = {
-                'user_id': payload.get('user_id'),
-                'username': payload.get('username'),
+                'user_id': user_id,
+                'username': payload.get('username') or payload.get('email'),
                 'role': payload.get('role', 'user')
             }
+            
+            request.user_id = user_id
             
             return f(*args, **kwargs)
             

@@ -3,6 +3,7 @@ import json
 import uuid
 from unittest.mock import patch, MagicMock
 from src.main import app
+from src.middleware import create_user_token
 
 @pytest.fixture
 def client():
@@ -45,11 +46,15 @@ def mock_redis_task_flow():
 def test_task_flow_enqueue_success(client, mock_redis_task_flow):
     """Test task enqueue creates task with queued status"""
     mock_client, tasks = mock_redis_task_flow
+    token = create_user_token()
     
     response = client.post(
         '/api/agent/faq',
         json={'question': 'What is the architecture?'},
-        headers={'Content-Type': 'application/json'}
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {token}'
+        }
     )
     
     assert response.status_code == 202
@@ -134,10 +139,14 @@ def test_task_flow_nonexistent_task(client, mock_redis_task_flow):
 
 def test_task_flow_invalid_question(client):
     """Test task creation with invalid question"""
+    token = create_user_token()
     response = client.post(
         '/api/agent/faq',
         json={'question': ''},
-        headers={'Content-Type': 'application/json'}
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {token}'
+        }
     )
     
     assert response.status_code == 400

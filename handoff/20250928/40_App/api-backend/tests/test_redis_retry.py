@@ -2,9 +2,11 @@ import pytest
 import os
 from unittest.mock import patch, MagicMock
 from redis import ConnectionError as RedisConnectionError
+from src.middleware import create_user_token
 
 def test_redis_unavailable_returns_503():
     """Test that API returns 503 when Redis is unavailable (Chaos test)"""
+    token = create_user_token()
     with patch('src.routes.agent.redis_client') as mock_redis:
         mock_redis.hset.side_effect = RedisConnectionError("Connection refused")
         
@@ -12,7 +14,7 @@ def test_redis_unavailable_returns_503():
         with app.test_client() as client:
             response = client.post('/api/agent/faq', json={
                 'question': 'Test question during Redis outage'
-            })
+            }, headers={'Authorization': f'Bearer {token}'})
             
             assert response.status_code in [503, 500]
             data = response.get_json()
@@ -20,6 +22,7 @@ def test_redis_unavailable_returns_503():
 
 def test_redis_retry_with_sentry_trace():
     """Test that Sentry captures trace_id during Redis failures"""
+    token = create_user_token()
     with patch('src.routes.agent.sentry_sdk') as mock_sentry:
         with patch('src.routes.agent.redis_client') as mock_redis:
             mock_redis.hset.side_effect = RedisConnectionError("Connection timeout")
@@ -28,7 +31,7 @@ def test_redis_retry_with_sentry_trace():
             with app.test_client() as client:
                 response = client.post('/api/agent/faq', json={
                     'question': 'Test Sentry trace_id'
-                })
+                }, headers={'Authorization': f'Bearer {token}'})
                 
                 if mock_sentry.set_tag.called:
                     tag_calls = [call for call in mock_sentry.set_tag.call_args_list 
@@ -37,6 +40,7 @@ def test_redis_retry_with_sentry_trace():
 
 def test_redis_connection_with_retry_succeeds():
     """Test that Redis retry logic works when connection is restored"""
+    token = create_user_token()
     attempt_count = {'count': 0}
     
     def intermittent_failure(*args, **kwargs):
@@ -53,6 +57,6 @@ def test_redis_connection_with_retry_succeeds():
         with app.test_client() as client:
             response = client.post('/api/agent/faq', json={
                 'question': 'Test retry success'
-            })
+            }, headers={'Authorization': f'Bearer {token}'})
             
             assert response.status_code in [202, 503, 500]

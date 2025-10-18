@@ -56,7 +56,6 @@
     "openapi-typescript": "^7.9.1",
     "orval": "^7.13.0",
     "react": "^19.1.0",
-    "react-day-picker": "8.10.1",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^19.1.0",
