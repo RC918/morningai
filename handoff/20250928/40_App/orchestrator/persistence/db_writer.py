@@ -60,13 +60,14 @@ def upsert_task_queued(
         logger.error(f"DB write failed for task {task_id} (queued): {e}")
         return False
 
-def upsert_task_running(task_id: str, trace_id: str) -> bool:
+def upsert_task_running(task_id: str, trace_id: str, tenant_id: Optional[str] = None) -> bool:
     """
     Update task when worker starts processing.
     
     Args:
         task_id: UUID task identifier
         trace_id: UUID trace identifier
+        tenant_id: Tenant UUID (optional, defaults to default tenant if not provided)
     
     Returns:
         True if successful, False otherwise
@@ -80,19 +81,20 @@ def upsert_task_running(task_id: str, trace_id: str) -> bool:
             "trace_id": trace_id,
             "status": "running",
             "started_at": now,
-            "updated_at": now
+            "updated_at": now,
+            "tenant_id": tenant_id or "00000000-0000-0000-0000-000000000001"
         }
         
         client.table("agent_tasks").upsert(data, on_conflict="task_id").execute()
         
-        logger.info(f"DB write success: task {task_id} status=running")
+        logger.info(f"DB write success: task {task_id} status=running tenant_id={data['tenant_id']}")
         return True
         
     except Exception as e:
         logger.error(f"DB write failed for task {task_id} (running): {e}")
         return False
 
-def upsert_task_done(task_id: str, trace_id: str, pr_url: str) -> bool:
+def upsert_task_done(task_id: str, trace_id: str, pr_url: str, tenant_id: Optional[str] = None) -> bool:
     """
     Update task when worker completes successfully.
     
@@ -100,6 +102,7 @@ def upsert_task_done(task_id: str, trace_id: str, pr_url: str) -> bool:
         task_id: UUID task identifier
         trace_id: UUID trace identifier
         pr_url: GitHub PR URL
+        tenant_id: Tenant UUID (optional, defaults to default tenant if not provided)
     
     Returns:
         True if successful, False otherwise
@@ -114,19 +117,20 @@ def upsert_task_done(task_id: str, trace_id: str, pr_url: str) -> bool:
             "status": "done",
             "pr_url": pr_url,
             "finished_at": now,
-            "updated_at": now
+            "updated_at": now,
+            "tenant_id": tenant_id or "00000000-0000-0000-0000-000000000001"
         }
         
         client.table("agent_tasks").upsert(data, on_conflict="task_id").execute()
         
-        logger.info(f"DB write success: task {task_id} status=done pr_url={pr_url}")
+        logger.info(f"DB write success: task {task_id} status=done pr_url={pr_url} tenant_id={data['tenant_id']}")
         return True
         
     except Exception as e:
         logger.error(f"DB write failed for task {task_id} (done): {e}")
         return False
 
-def upsert_task_error(task_id: str, trace_id: str, error_msg: str) -> bool:
+def upsert_task_error(task_id: str, trace_id: str, error_msg: str, tenant_id: Optional[str] = None) -> bool:
     """
     Update task when worker encounters an error.
     
@@ -134,6 +138,7 @@ def upsert_task_error(task_id: str, trace_id: str, error_msg: str) -> bool:
         task_id: UUID task identifier
         trace_id: UUID trace identifier
         error_msg: Error message text
+        tenant_id: Tenant UUID (optional, defaults to default tenant if not provided)
     
     Returns:
         True if successful, False otherwise
@@ -148,12 +153,13 @@ def upsert_task_error(task_id: str, trace_id: str, error_msg: str) -> bool:
             "status": "error",
             "error_msg": error_msg[:500],
             "finished_at": now,
-            "updated_at": now
+            "updated_at": now,
+            "tenant_id": tenant_id or "00000000-0000-0000-0000-000000000001"
         }
         
         client.table("agent_tasks").upsert(data, on_conflict="task_id").execute()
         
-        logger.info(f"DB write success: task {task_id} status=error")
+        logger.info(f"DB write success: task {task_id} status=error tenant_id={data['tenant_id']}")
         return True
         
     except Exception as e:
