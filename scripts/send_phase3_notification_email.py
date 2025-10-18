@@ -2,16 +2,32 @@
 """
 Phase 3 Deployment - User Notification Email Sender
 Sends email notifications to all Morning AI users via Mailtrap
+
+Features:
+- Batch processing (configurable batch size)
+- Rate limiting to avoid API throttling
+- Automatic retry mechanism with exponential backoff
+- Progress tracking and resumable sending
+- Detailed logging
 """
 import os
 import sys
 import json
 import requests
+import time
 from datetime import datetime
+from pathlib import Path
 
 MAILTRAP_API_TOKEN = os.getenv('Mailtrap_API_TOKEN')
 SUPABASE_URL = os.getenv('SUPABASE_URL', '').rstrip('/')
 SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+
+BATCH_SIZE = 10  # Send 10 emails per batch
+RATE_LIMIT_DELAY = 1.0  # 1 second delay between emails
+RETRY_ATTEMPTS = 3  # Retry failed emails up to 3 times
+RETRY_DELAY = 5  # Initial retry delay in seconds (exponential backoff)
+
+PROGRESS_FILE = Path(__file__).parent / '.email_progress.json'
 
 if not MAILTRAP_API_TOKEN:
     print("ERROR: Mailtrap_API_TOKEN not found in environment variables")
@@ -276,8 +292,22 @@ def fetch_user_emails():
         return []
 
 
-def send_email_via_mailtrap(to_email, subject, html_body, text_body):
-    """Send email using Mailtrap API"""
+def load_progress():
+    """Load sending progress from file"""
+    if PROGRESS_FILE.exists():
+        with open(PROGRESS_FILE, 'r') as f:
+            return json.load(f)
+    return {'sent': [], 'failed': []}
+
+
+def save_progress(progress):
+    """Save sending progress to file"""
+    with open(PROGRESS_FILE, 'w') as f:
+        json.dump(progress, f, indent=2)
+
+
+def send_email_via_mailtrap(to_email, subject, html_body, text_body, attempt=1):
+    """Send email using Mailtrap API with retry logic"""
     url = "https://send.api.mailtrap.io/api/send"
     
     headers = {
@@ -302,21 +332,45 @@ def send_email_via_mailtrap(to_email, subject, html_body, text_body):
     }
     
     try:
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
         
         if response.status_code in [200, 201, 202]:
             return True, "Success"
         else:
-            return False, f"Status {response.status_code}: {response.text[:100]}"
+            error_msg = f"Status {response.status_code}: {response.text[:100]}"
+            
+            if attempt < RETRY_ATTEMPTS:
+                delay = RETRY_DELAY * (2 ** (attempt - 1))
+                print(f"    Retry {attempt}/{RETRY_ATTEMPTS} in {delay}s...", end=" ")
+                time.sleep(delay)
+                return send_email_via_mailtrap(to_email, subject, html_body, text_body, attempt + 1)
+            
+            return False, error_msg
     except Exception as e:
-        return False, str(e)
+        error_msg = str(e)
+        
+        if attempt < RETRY_ATTEMPTS:
+            delay = RETRY_DELAY * (2 ** (attempt - 1))
+            print(f"    Retry {attempt}/{RETRY_ATTEMPTS} in {delay}s...", end=" ")
+            time.sleep(delay)
+            return send_email_via_mailtrap(to_email, subject, html_body, text_body, attempt + 1)
+        
+        return False, error_msg
 
 
 def main():
-    print("=" * 60)
-    print("Morning AI Phase 3 - Email Notification Sender")
-    print("=" * 60)
+    print("=" * 80)
+    print("Morning AI Phase 3 - Email Notification Sender (Enhanced)")
+    print("=" * 80)
     print()
+    print("Features:")
+    print(f"  ✓ Batch processing ({BATCH_SIZE} emails per batch)")
+    print(f"  ✓ Rate limiting ({RATE_LIMIT_DELAY}s delay between emails)")
+    print(f"  ✓ Automatic retry (up to {RETRY_ATTEMPTS} attempts)")
+    print(f"  ✓ Progress tracking (resumable)")
+    print()
+    
+    progress = load_progress()
     
     emails = fetch_user_emails()
     
@@ -324,21 +378,36 @@ def main():
         print("No user emails found. Using test email...")
         emails = ["ryan@morningai.com"]
     
-    print(f"\nPreparing to send emails to {len(emails)} recipients")
+    emails_to_send = [e for e in emails if e not in progress['sent']]
+    
+    if not emails_to_send:
+        print("All emails have already been sent!")
+        print(f"Total sent: {len(progress['sent'])}")
+        print(f"Total failed: {len(progress['failed'])}")
+        return
+    
+    print(f"\nTotal recipients: {len(emails)}")
+    print(f"Already sent: {len(progress['sent'])}")
+    print(f"Remaining: {len(emails_to_send)}")
     print(f"Subject: {EMAIL_SUBJECT}")
     print()
     
-    response = input(f"Send {len(emails)} emails? (yes/no): ").strip().lower()
+    response = input(f"Send {len(emails_to_send)} emails? (yes/no): ").strip().lower()
     
     if response != 'yes':
         print("Cancelled by user")
         return
     
+    print()
+    print("Starting email sending...")
+    print("=" * 80)
+    
     success_count = 0
     failed_count = 0
+    start_time = time.time()
     
-    for i, email in enumerate(emails, 1):
-        print(f"[{i}/{len(emails)}] Sending to {email}...", end=" ")
+    for i, email in enumerate(emails_to_send, 1):
+        print(f"[{i}/{len(emails_to_send)}] {email}...", end=" ")
         
         success, message = send_email_via_mailtrap(
             email,
@@ -348,18 +417,47 @@ def main():
         )
         
         if success:
-            print("✓ Success")
+            print("✓")
             success_count += 1
+            progress['sent'].append(email)
         else:
-            print(f"✗ Failed: {message}")
+            print(f"✗ {message}")
             failed_count += 1
+            progress['failed'].append({'email': email, 'error': message})
+        
+        save_progress(progress)
+        
+        if i % BATCH_SIZE == 0:
+            elapsed = time.time() - start_time
+            avg_time = elapsed / i
+            remaining = (len(emails_to_send) - i) * avg_time
+            print(f"    Batch complete. Estimated time remaining: {remaining:.1f}s")
+            print()
+        
+        if i < len(emails_to_send):
+            time.sleep(RATE_LIMIT_DELAY)
+    
+    elapsed = time.time() - start_time
     
     print()
-    print("=" * 60)
+    print("=" * 80)
     print(f"Email sending complete!")
+    print(f"Total time: {elapsed:.1f}s")
     print(f"Success: {success_count}")
     print(f"Failed: {failed_count}")
-    print("=" * 60)
+    print(f"Success rate: {success_count / len(emails_to_send) * 100:.1f}%")
+    
+    if failed_count > 0:
+        print()
+        print("Failed emails:")
+        for item in progress['failed']:
+            print(f"  - {item['email']}: {item['error']}")
+    
+    print("=" * 80)
+    
+    if failed_count == 0:
+        print("\n✅ Cleaning up progress file...")
+        PROGRESS_FILE.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
