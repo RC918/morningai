@@ -1,74 +1,65 @@
-# How to Use MorningAI for Code Generation
+# MorningAI 常見問題 (FAQ)
 
-MorningAI's autonomous agent system provides a powerful tool for developers looking to streamline their code generation processes. This guide will help you understand how to leverage MorningAI's capabilities effectively, ensuring you can integrate its features into your development workflow seamlessly.
+歡迎來到 MorningAI 的常見問題集！這裡收集了開發者和使用者最常詢問的問題及其詳細解答。
 
-## Getting Started with Code Generation
+## 📚 FAQ 主題索引
 
-MorningAI utilizes an advanced AI model to facilitate the creation of code based on user inputs. To begin using this feature, ensure you have access to the RC918/morningai repository and have followed the setup instructions located in the `README.md` file.
+### 系統與架構
 
-### Setting Up Your Environment
+- **[系統架構說明](./faq/system-architecture.md)**  
+  深入了解 MorningAI 的技術架構，包括前端（ReactJS + Vite）、後端（Flask + Gunicorn）、資料庫（PostgreSQL/Supabase）、任務隊列（Redis Queue）以及 AI 編排（LangGraph + GPT-4）等核心組件。
 
-Before diving into code generation, confirm that your development environment meets the following requirements:
+### 開發與使用
 
-- Python 3.8 or higher installed
-- Access to the MorningAI platform through Render.com with CI/CD configured
-- PostgreSQL database connection set up via Supabase
+- **[代碼生成使用指南](./faq/code-generation-guide.md)**  
+  學習如何使用 MorningAI 的自主代理系統進行代碼生成，包括環境設置、API 調用範例、以及最佳實踐。
 
-Refer to the `setup/` directory for detailed setup instructions and environment configuration files.
+- **[E2E 測試指南](./faq/e2e-testing.md)**  
+  端對端測試的完整指南，涵蓋測試創建、執行、除錯以及常見問題排查。
 
-### Code Generation Example
+## 🔍 快速搜尋
 
-To generate code using MorningAI, use the following steps as a guideline:
+**常見主題**：
+- 系統架構 → [系統架構說明](./faq/system-architecture.md)
+- 代碼生成 → [代碼生成使用指南](./faq/code-generation-guide.md)  
+- 測試相關 → [E2E 測試指南](./faq/e2e-testing.md)
+- 部署配置 → [系統架構說明 - 部署章節](./faq/system-architecture.md#deployment)
+- 故障排除 → 各主題的 Troubleshooting 部分
 
-1. **Prepare Your Query**: Clearly define what you need the generated code to accomplish. For example, "Create a Flask endpoint for user registration."
+## 🆕 最近更新
 
-2. **Invoke the Autonomous Agent System**: Utilize the provided API endpoint or GUI tool within MorningAI to submit your query. 
+- **2025-10-18**: 重構 FAQ 結構為多檔案模式，便於維護和擴展
+- **2025-10-18**: 新增系統架構詳細說明
+- **2025-10-18**: 更新代碼生成指南
 
-```python
-import requests
+## 💡 找不到答案？
 
-# Replace 'your_api_key_here' with your actual MorningAI API key
-headers = {'Authorization': 'Bearer your_api_key_here'}
-data = {'query': 'Create a Flask endpoint for user registration'}
+如果您的問題不在上述 FAQ 中，可以：
 
-response = requests.post('https://api.morningai.com/generate-code', headers=headers, json=data)
-if response.status_code == 200:
-    generated_code = response.json()['code']
-    print(generated_code)
-else:
-    print("Error:", response.text)
-```
+1. **查看相關文件**：
+   - [系統認證架構文件](./CURRENT_AUTH_ARCHITECTURE.md)
+   - [監控系統文件](../monitoring/README.md)
+   - [專案 README](../README.md)
 
-3. **Review and Integrate Generated Code**: Evaluate the generated code snippet for accuracy and relevance before integrating it into your project.
+2. **提交 Issue**：  
+   在 [GitHub Issues](https://github.com/RC918/morningai/issues) 提出您的問題
 
-### Related Documentation
-
-For more detailed information on configuring and using various components of MorningAI, refer to these sections of our documentation:
-
-- [Configuration Guide](/docs/configuration.md): Learn how to customize your MorningAI instance.
-- [API Reference](/docs/api_reference.md): Detailed descriptions of API endpoints and their usage.
-- [Integration Guide](/docs/integration_guide.md): Instructions on how to integrate MorningAI with Telegram, LINE, Messenger, and other platforms.
-
-### Common Troubleshooting Tips
-
-- **Issue**: Generated code does not compile or run as expected.
-  - **Solution**: Ensure that all prerequisites are met and that your query is as specific as possible. Review the generated code for any placeholders that need customization.
-
-- **Issue**: API calls to generate code fail with authentication errors.
-  - **Solution**: Verify that your API key is correct and has not expired. Check the `Authorization` header format in your request.
-
-- **Issue**: Slow response times when generating code.
-  - **Solution**: Check the status of Redis Queue (RQ) workers and ensure they are running optimally. Consider scaling up workers if necessary.
-
-For more support, visit our [Support Page](/docs/support.md) or reach out directly via our help desk.
-
----
-Generated by MorningAI Orchestrator using GPT-4
+3. **聯繫團隊**：  
+   透過專案的溝通管道與開發團隊聯繫
 
 ---
 
-**Metadata**:
-- Task: Test question
-- Trace ID: `a5fc801d-3d89-4e41-9c2a-bf6c6df765b8`
-- Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
-- Repository: RC918/morningai
+## 📝 貢獻 FAQ
+
+如果您想為 FAQ 貢獻內容：
+
+1. 在 `docs/faq/` 目錄下創建新的 Markdown 文件
+2. 在本頁面添加連結和簡短描述
+3. 提交 Pull Request
+
+**命名規範**：使用小寫和連字符（例如：`my-topic-name.md`）
+
+---
+
+**最後更新**: 2025-10-18  
+**維護者**: MorningAI Development Team
