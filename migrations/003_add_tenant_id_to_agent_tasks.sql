@@ -1,7 +1,3 @@
---
---
---
---
 
 CREATE TABLE IF NOT EXISTS tenants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -12,19 +8,25 @@ CREATE TABLE IF NOT EXISTS tenants (
 
 DO $$ 
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'tenant_id'
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'users'
     ) THEN
-        ALTER TABLE users ADD COLUMN tenant_id UUID;
-        ALTER TABLE users ADD CONSTRAINT fk_users_tenant 
-            FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-        CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id);
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'users' 
+            AND column_name = 'tenant_id'
+        ) THEN
+            ALTER TABLE users ADD COLUMN tenant_id UUID;
+            ALTER TABLE users ADD CONSTRAINT fk_users_tenant 
+                FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+            CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id);
+        END IF;
     END IF;
 END $$;
 
 ALTER TABLE agent_tasks ADD COLUMN IF NOT EXISTS tenant_id UUID;
-
 
 INSERT INTO tenants (id, name) 
 VALUES ('00000000-0000-0000-0000-000000000001', 'Default Tenant (Migration)')
@@ -42,7 +44,7 @@ ADD CONSTRAINT fk_agent_tasks_tenant
     REFERENCES tenants(id) 
     ON DELETE CASCADE;
 
-CREATE INDEX idx_agent_tasks_tenant_id ON agent_tasks(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_tenant_id ON agent_tasks(tenant_id);
 
 COMMENT ON COLUMN agent_tasks.tenant_id IS 
     'Tenant ID for multi-tenant isolation (Phase 2). Each task belongs to exactly one tenant.';
