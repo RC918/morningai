@@ -2,6 +2,8 @@
 """
 Database writer for agent_tasks table
 Implements write-through strategy for task state transitions
+
+Phase 3 Update: Automatic tenant_id resolution via user_profiles
 """
 import logging
 from datetime import datetime, timezone
@@ -9,6 +11,40 @@ from typing import Optional
 from .db_client import get_client
 
 logger = logging.getLogger(__name__)
+
+def fetch_user_tenant_id(user_id: str) -> Optional[str]:
+    """
+    Fetch user's tenant_id from user_profiles table.
+    
+    Phase 3: Used to automatically determine tenant for task operations.
+    Falls back to default tenant if user_profile not found.
+    
+    Args:
+        user_id: UUID of authenticated user (from auth.uid())
+    
+    Returns:
+        Tenant UUID string, or default tenant if not found
+    """
+    try:
+        client = get_client()
+        
+        response = client.table("user_profiles") \
+            .select("tenant_id") \
+            .eq("id", user_id) \
+            .single() \
+            .execute()
+        
+        if response.data and "tenant_id" in response.data:
+            tenant_id = response.data["tenant_id"]
+            logger.info(f"Fetched tenant_id={tenant_id} for user={user_id}")
+            return tenant_id
+        else:
+            logger.warning(f"No user_profile found for user={user_id}, using default tenant")
+            return "00000000-0000-0000-0000-000000000001"
+    
+    except Exception as e:
+        logger.error(f"Failed to fetch tenant_id for user={user_id}: {e}")
+        return "00000000-0000-0000-0000-000000000001"
 
 def upsert_task_queued(
     task_id: str,
