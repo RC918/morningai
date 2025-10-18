@@ -69,8 +69,9 @@ def faq_method_not_allowed():
     }), 405, {"Allow": "POST"}
 
 @bp.route("/faq", methods=["POST"])
+@jwt_required
 def create_faq_task():
-    """Create FAQ generation task"""
+    """Create FAQ generation task (Phase 3: tenant-aware)"""
     try:
         payload = request.get_json(silent=True) or {}
         validated_request = FAQRequest(**payload)
@@ -89,10 +90,26 @@ def create_faq_task():
         repo = os.getenv("GITHUB_REPO", "RC918/morningai")
         task_id = str(uuid.uuid4())
         
+        user_id = getattr(request, 'user_id', None)
+        tenant_id = None
+        
+        if user_id:
+            try:
+                from orchestrator.persistence.db_writer import fetch_user_tenant_id
+                tenant_id = fetch_user_tenant_id(user_id)
+                logger.info(f"Task {task_id} assigned to tenant={tenant_id} for user={user_id}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch tenant for user {user_id}: {e}")
+                tenant_id = "00000000-0000-0000-0000-000000000001"
+        else:
+            logger.warning(f"No user_id found in request for task {task_id}")
+            tenant_id = "00000000-0000-0000-0000-000000000001"
+        
         if sentry_sdk:
             sentry_sdk.set_tag("trace_id", task_id)
             sentry_sdk.set_tag("task_id", task_id)
             sentry_sdk.set_tag("operation", "faq_create")
+            sentry_sdk.set_tag("tenant_id", tenant_id)
         
         job = q.enqueue(
             run_orchestrator_task,
@@ -123,7 +140,8 @@ def create_faq_task():
                 task_id=task_id,
                 trace_id=task_id,
                 question=question,
-                job_id=job.id
+                job_id=job.id,
+                tenant_id=tenant_id
             )
             
             if sentry_sdk:
