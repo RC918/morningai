@@ -9,7 +9,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
-from agents.dev_agent.knowledge_graph import (
+from knowledge_graph import (
     get_knowledge_graph_manager,
     create_code_indexer,
     create_pattern_learner

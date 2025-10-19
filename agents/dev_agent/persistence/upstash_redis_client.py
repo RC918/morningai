@@ -6,6 +6,7 @@ Phase 1 Week 4: Redis-based session state caching
 import os
 import logging
 import json
+import base64
 from typing import Optional, Dict, Any, List
 import requests
 
@@ -28,6 +29,9 @@ class UpstashRedisClient:
                 "Upstash Redis credentials required: "
                 "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN"
             )
+
+        self.rest_url = self.rest_url.split('\u2028')[0].split('\u2029')[0].split()[0].strip()
+        self.rest_token = self.rest_token.split('\u2028')[0].split('\u2029')[0].split()[0].strip()
 
         self.headers = {
             'Authorization': f'Bearer {self.rest_token}',
@@ -53,19 +57,27 @@ class UpstashRedisClient:
     def set(self, key: str, value: str, ex: Optional[int] = None) -> bool:
         """Set key-value with optional expiration (seconds)"""
         try:
+            logger.debug(f"SET: key={key[:50]}, value_len={len(value)}, contains_u2028={chr(0x2028) in value}")
+            encoded_value = base64.b64encode(value.encode('utf-8')).decode('ascii')
+            logger.debug(f"SET: encoded_value_len={len(encoded_value)}, is_ascii={encoded_value.isascii()}")
             if ex:
-                self._request(['SET', key, value, 'EX', str(ex)])
+                self._request(['SET', key, encoded_value, 'EX', str(ex)])
             else:
-                self._request(['SET', key, value])
+                self._request(['SET', key, encoded_value])
             return True
         except Exception as e:
             logger.error(f"Redis SET failed: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def get(self, key: str) -> Optional[str]:
         """Get value by key"""
         try:
-            return self._request(['GET', key])
+            encoded_value = self._request(['GET', key])
+            if encoded_value is None:
+                return None
+            return base64.b64decode(encoded_value.encode('ascii')).decode('utf-8')
         except Exception as e:
             logger.error(f"Redis GET failed: {e}")
             return None
@@ -117,7 +129,8 @@ class UpstashRedisClient:
     def hset(self, key: str, field: str, value: str) -> bool:
         """Set hash field"""
         try:
-            self._request(['HSET', key, field, value])
+            encoded_value = base64.b64encode(value.encode('utf-8')).decode('ascii')
+            self._request(['HSET', key, field, encoded_value])
             return True
         except Exception as e:
             logger.error(f"Redis HSET failed: {e}")
@@ -126,7 +139,10 @@ class UpstashRedisClient:
     def hget(self, key: str, field: str) -> Optional[str]:
         """Get hash field"""
         try:
-            return self._request(['HGET', key, field])
+            encoded_value = self._request(['HGET', key, field])
+            if encoded_value is None:
+                return None
+            return base64.b64decode(encoded_value.encode('ascii')).decode('utf-8')
         except Exception as e:
             logger.error(f"Redis HGET failed: {e}")
             return None

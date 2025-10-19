@@ -17,6 +17,10 @@ from agents.dev_agent.tools.ide_tool import IDETool
 from agents.dev_agent.tools.filesystem_tool import FileSystemTool
 from agents.dev_agent.error_handler import ErrorCode, create_error
 from agents.dev_agent.persistence.session_state import SessionStateManager
+from agents.dev_agent.refactoring.refactoring_engine import RefactoringEngine
+from agents.dev_agent.testing.test_generator import TestGenerator
+from agents.dev_agent.error_diagnosis.error_diagnoser import ErrorDiagnoser
+from agents.dev_agent.performance.performance_analyzer import PerformanceAnalyzer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -97,6 +101,10 @@ class DevAgentOODA:
         self.fs_tool = FileSystemTool(sandbox_endpoint)
         self.enable_persistence = enable_persistence
         self.session_manager = session_manager if enable_persistence else None
+        self.refactoring_engine = RefactoringEngine()
+        self.test_generator = TestGenerator()
+        self.error_diagnoser = ErrorDiagnoser()
+        self.performance_analyzer = PerformanceAnalyzer()
         self.graph = self._create_graph()
 
     def _create_graph(self) -> StateGraph:
@@ -459,6 +467,55 @@ class DevAgentOODA:
                 return await self.ide_tool.run_linter(action['file_path'], action.get('language', 'python'))
             elif action_type == 'open_file':
                 return await self.ide_tool.open_file(action['file_path'])
+            elif action_type == 'analyze_code_quality':
+                return self.refactoring_engine.analyze_code(action['code'])
+            elif action_type == 'apply_refactoring':
+                from agents.dev_agent.refactoring.refactoring_engine import RefactoringSuggestion, RefactoringType
+                
+                suggestion = action['suggestion']
+                if isinstance(suggestion, dict):
+                    line = suggestion.get('line', 1)
+                    location = suggestion.get('location', {
+                        'start_line': line,
+                        'end_line': line,
+                        'column': 0
+                    })
+                    if 'start_line' not in location and 'line' in suggestion:
+                        location['start_line'] = suggestion['line']
+                        location['end_line'] = suggestion['line']
+                    
+                    suggestion = RefactoringSuggestion(
+                        type=RefactoringType(suggestion.get('type', 'rename')),
+                        severity=suggestion.get('severity', 'medium'),
+                        description=suggestion.get('description', ''),
+                        location=location,
+                        code_snippet=suggestion.get('original_code', ''),
+                        suggested_code=suggestion.get('suggested_code'),
+                        confidence=suggestion.get('confidence', 0.8),
+                        impact=suggestion.get('impact', 'medium')
+                    )
+                
+                return self.refactoring_engine.apply_refactoring(
+                    action['code'],
+                    suggestion
+                )
+            elif action_type == 'verify_refactoring':
+                return self.refactoring_engine.verify_refactoring(
+                    action['original_code'],
+                    action['refactored_code']
+                )
+            elif action_type == 'generate_tests':
+                return self.test_generator.generate_tests(
+                    action['code'],
+                    action.get('file_path', 'unknown')
+                )
+            elif action_type == 'diagnose_error':
+                return self.error_diagnoser.diagnose_error(
+                    action['error_message'],
+                    action.get('code_context')
+                )
+            elif action_type == 'analyze_performance':
+                return self.performance_analyzer.analyze_code(action['code'])
             else:
                 return create_error(
                     ErrorCode.INVALID_ACTION,
