@@ -10,7 +10,7 @@ Implements a stateful agent workflow using LangGraph for:
 import os
 import logging
 from typing import TypedDict, Annotated, Sequence
-from datetime import datetime
+from datetime import datetime, UTC
 import operator
 
 from langgraph.graph import StateGraph, END
@@ -248,7 +248,7 @@ def finalizer_node(state: AgentState) -> AgentState:
         "ci_state": ci_state,
         "status": "success" if not error else "error",
         "error": error,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }
     
     state["final_result"] = final_result
@@ -417,5 +417,5 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
             "ci_state": "error",
             "status": "error",
             "error": error_msg,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
