@@ -1,79 +1,111 @@
-# Test Retry Success in MorningAI
+# Handling Redis Outages in MorningAI
 
-Understanding and implementing test retries can significantly enhance the reliability of the MorningAI platform's CI/CD pipeline. This FAQ is designed to help developers comprehend the mechanism behind test retries, how to configure them, and troubleshoot common issues.
+Redis Queue (RQ) is a critical component of the MorningAI platform, enabling real-time task orchestration and efficient job processing. However, like any technology, it may occasionally experience outages or downtime. This FAQ aims to guide developers on how to manage and mitigate the effects of a Redis outage in the MorningAI environment.
 
-## Understanding Test Retries
+## Understanding the Impact of a Redis Outage
 
-Test retries are a mechanism used to automatically rerun failed tests before marking them as failures. This approach can be particularly useful in a complex, multi-tenant SaaS platform like MorningAI, where tests might fail due to transient issues such as network latency, dependency load times, or temporary resource unavailability rather than actual code defects.
+When Redis experiences an outage, it can significantly affect several aspects of the MorningAI platform, including:
 
-### Configuration
+- **Task Queuing:** Delay in processing or complete halt of new tasks.
+- **Real-time Orchestration:** Disruption in real-time task orchestration.
+- **Worker Heartbeat Monitoring:** Inability to monitor worker health.
 
-MorningAI utilizes a combination of testing frameworks and CI/CD tools that support test retries. The configuration for retries can usually be found in the specific tool's configuration file.
+## Preparing for a Redis Outage
 
-For instance, if you're using pytest with Flask applications:
+### Code Examples
 
-1. **pytest.ini** or **pyproject.toml**: You can configure retry attempts and delay between retries.
-
-```ini
-# pytest.ini example
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
-
-This snippet tells pytest to rerun failed tests up to 3 times with a 5-second delay between each attempt.
-
-2. **CI/CD Pipeline Configuration**: For GitLab CI, you can specify retry logic in `.gitlab-ci.yml`:
-
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when: runner_system_failure
-```
-
-This configuration retries the job up to 2 additional times if it fails due to system issues.
-
-### Implementation in MorningAI
-
-In the context of MorningAI's technology stack:
-
-- The backend Python services might use `pytest` along with its rerun plugin.
-- Frontend React applications could implement retries at the testing level with Jest by using `jest.retryTimes(numberOfRetries)`.
-- For integration tests involving Redis Queue (RQ) or Supabase, ensure your test framework is set up to handle asynchronous operations and potential transient failures gracefully.
-
-#### Code Example for RQ Job Retry
-
-When working with Redis Queue within MorningAI for task orchestration, ensuring tasks are retried upon failure is crucial. Below is an example of how you could define a job with retry mechanisms:
+To ensure resilience and continuity of service, consider implementing fallback mechanisms and error handling in your codebase. Here's an example in Python using Flask:
 
 ```python
-from rq import Retry
-from redis_queue import queue
+from redis.exceptions import RedisError
+from rq import Queue
+from worker import conn
 
-def example_task():
-    # Task implementation here
-    pass
+queue = Queue(connection=conn)
 
-job = queue.enqueue(example_task, retry=Retry(max=3, interval=[10, 30, 60]))
+def enqueue_task(task_func, *args, **kwargs):
+    try:
+        queue.enqueue(task_func, *args, **kwargs)
+    except RedisError as e:
+        # Implement your fallback logic here
+        # For example: Log the error and retry later or use a different queue/backend
+        print(f"Failed to enqueue task due to Redis error: {e}")
 ```
 
-This code snippet demonstrates enqueuing a task with automatic retries upon failure. The task will be retried up to three times with intervals of 10 seconds, 30 seconds, and then 60 seconds between attempts.
+### Configuration Tips
 
-## Troubleshooting Common Issues
+- **Connection Retries:** Configure your Redis client to automatically retry connections. This can be helpful for transient network issues or short outages.
+  
+  ```python
+  redis_conn = Redis(host='localhost', port=6379, db=0, retry_on_timeout=True, socket_connect_timeout=5)
+  ```
 
-1. **Excessive Retries Without Success**: Ensure that the conditions causing the initial failure are transient and not persistent logical errors in the code.
-2. **No Retries Happening**: Verify that your retry configurations are correctly set up in both your testing framework and CI/CD pipeline files.
-3. **Impact on Test Suite Performance**: While retries can improve reliability, they also increase test suite execution time. Monitor your CI/CD pipeline's performance metrics and adjust retry settings as needed.
+- **Health Checks:** Implement periodic health checks for your Redis instance to quickly detect and respond to outages.
 
-For more detailed information on configuring test retries specific to your development environment within MorningAI, refer to the official documentation of [pytest](https://docs.pytest.org/en/latest/how-to/retry.html), [Jest](https://jestjs.io/docs/en/jest-object#jestretrytimes), or your chosen CI/CD tool.
+## Related Documentation Links
+
+- Redis Queue (RQ) Documentation: [https://python-rq.org/](https://python-rq.org/)
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- Redis Client Retry Policy: [https://redis-py.readthedocs.io/en/stable/](https://redis-py.readthedocs.io/en/stable/)
+
+## Common Troubleshooting Tips
+
+### Verifying Redis Service Status
+
+First, check if the Redis service is running:
+
+```bash
+sudo systemctl status redis
+```
+
+If not running, attempt to restart it:
+
+```bash
+sudo systemctl restart redis
+```
+
+### Inspecting Logs for Errors
+
+Review the Redis logs for any error messages that could indicate why the service is down:
+
+```bash
+cat /var/log/redis/redis-server.log
+```
+
+### Network Connectivity Issues
+
+Ensure there are no network connectivity issues between your application server and the Redis server:
+
+```bash
+ping <REDIS_SERVER_IP>
+```
+
+### Memory Pressure
+
+High memory usage can cause issues with Redis performance or availability. Check system memory usage and consider configuring max memory limits in `redis.conf`.
+
+```bash
+free -m
+```
+
+Add or adjust this line in `redis.conf`:
+
+```conf
+maxmemory <size>
+```
+
+Replace `<size>` with an appropriate limit for your server.
 
 ---
+
+For further assistance or if you encounter persistent issues with Redis connectivity or performance within the MorningAI platform, please consult our support documentation or contact our technical support team.
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `c9fcf420-9b25-401a-bfb7-77bc465786eb`
+- Task: Test question during Redis outage
+- Trace ID: `8959b808-dad2-4313-ac80-46870e74b916`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
