@@ -1,71 +1,63 @@
 # Test Retry Success in MorningAI
 
-Understanding and implementing test retries can significantly enhance the reliability of the MorningAI platform's CI/CD pipeline. This FAQ is designed to help developers comprehend the mechanism behind test retries, how to configure them, and troubleshoot common issues.
+In the context of developing with MorningAI, ensuring the reliability and stability of your integrations and code is paramount. One of the mechanisms to achieve this is by implementing test retries to handle transient failures that can occur due to various reasons such as network issues, dependencies unavailability, or temporary service downtimes. This FAQ aims to guide developers on how to effectively implement and utilize test retries within the MorningAI platform.
 
 ## Understanding Test Retries
 
-Test retries are a mechanism used to automatically rerun failed tests before marking them as failures. This approach can be particularly useful in a complex, multi-tenant SaaS platform like MorningAI, where tests might fail due to transient issues such as network latency, dependency load times, or temporary resource unavailability rather than actual code defects.
-
-### Configuration
-
-MorningAI utilizes a combination of testing frameworks and CI/CD tools that support test retries. The configuration for retries can usually be found in the specific tool's configuration file.
-
-For instance, if you're using pytest with Flask applications:
-
-1. **pytest.ini** or **pyproject.toml**: You can configure retry attempts and delay between retries.
-
-```ini
-# pytest.ini example
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
-
-This snippet tells pytest to rerun failed tests up to 3 times with a 5-second delay between each attempt.
-
-2. **CI/CD Pipeline Configuration**: For GitLab CI, you can specify retry logic in `.gitlab-ci.yml`:
-
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when: runner_system_failure
-```
-
-This configuration retries the job up to 2 additional times if it fails due to system issues.
+Test retries are designed to automatically rerun failed tests before marking them as failures. This approach helps in distinguishing between flaky tests and genuinely broken functionality. Implementing retries can significantly improve your CI/CD pipeline's efficiency by reducing the need for manual intervention when encountering intermittent failures.
 
 ### Implementation in MorningAI
 
-In the context of MorningAI's technology stack:
+MorningAI leverages a combination of technologies including Python, Flask, and Redis Queue (RQ) for task orchestration. To implement test retries, particularly in asynchronous tasks or during integration testing, you can utilize the RQ's retry mechanism or pytest's retrying capabilities for synchronous test cases.
 
-- The backend Python services might use `pytest` along with its rerun plugin.
-- Frontend React applications could implement retries at the testing level with Jest by using `jest.retryTimes(numberOfRetries)`.
-- For integration tests involving Redis Queue (RQ) or Supabase, ensure your test framework is set up to handle asynchronous operations and potential transient failures gracefully.
+#### Using Redis Queue (RQ) for Asynchronous Tasks
 
-#### Code Example for RQ Job Retry
-
-When working with Redis Queue within MorningAI for task orchestration, ensuring tasks are retried upon failure is crucial. Below is an example of how you could define a job with retry mechanisms:
+For tasks that are enqueued with Redis Queue, you can specify retry parameters directly when you enqueue a job. Here's an example:
 
 ```python
-from rq import Retry
-from redis_queue import queue
+from redis import Redis
+from rq import Queue
+from my_module import my_task
 
-def example_task():
-    # Task implementation here
-    pass
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
 
-job = queue.enqueue(example_task, retry=Retry(max=3, interval=[10, 30, 60]))
+# Enqueue the task with retry support
+job = q.enqueue(my_task, failure_ttl=3600, retry={'max': 3, 'interval': [10, 30, 60]})
 ```
 
-This code snippet demonstrates enqueuing a task with automatic retries upon failure. The task will be retried up to three times with intervals of 10 seconds, 30 seconds, and then 60 seconds between attempts.
+In this example, `failure_ttl` specifies how long (in seconds) the failed job is kept, while `retry` defines the retry strategy. Here it will retry up to 3 times with an interval that increases after each attempt.
 
-## Troubleshooting Common Issues
+#### Using Pytest for Synchronous Testing
 
-1. **Excessive Retries Without Success**: Ensure that the conditions causing the initial failure are transient and not persistent logical errors in the code.
-2. **No Retries Happening**: Verify that your retry configurations are correctly set up in both your testing framework and CI/CD pipeline files.
-3. **Impact on Test Suite Performance**: While retries can improve reliability, they also increase test suite execution time. Monitor your CI/CD pipeline's performance metrics and adjust retry settings as needed.
+When dealing with synchronous tests, using pytest along with a plugin like `pytest-rerunfailures` can be effective:
 
-For more detailed information on configuring test retries specific to your development environment within MorningAI, refer to the official documentation of [pytest](https://docs.pytest.org/en/latest/how-to/retry.html), [Jest](https://jestjs.io/docs/en/jest-object#jestretrytimes), or your chosen CI/CD tool.
+Firstly, install the plugin if you haven't:
+
+```shell
+pip install pytest-rerunfailures
+```
+
+Then, you can specify the number of retries directly in your pytest command:
+
+```shell
+pytest --reruns 3 --reruns-delay 5
+```
+
+This command tells pytest to rerun failed tests up to 3 times with a delay of 5 seconds between each retry.
+
+### Related Documentation Links
+
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Pytest-RerunFailures Plugin](https://github.com/pytest-dev/pytest-rerunfailures)
+
+### Common Troubleshooting Tips
+
+- **Ensure Dependencies Are Available**: Before relying on retries, make sure that all external dependencies are stable and available during testing.
+- **Monitor Retry Patterns**: Consistent failures even after retries might indicate a deeper issue with your code or its dependencies.
+- **Avoid Overuse**: While useful, over-relying on test retries can mask problems that should be fixed directly in the codebase or its environment.
+
+Implementing test retries correctly can save time and resources while maintaining the robustness of your CI/CD pipeline. By following these guidelines within MorningAI's ecosystem, developers can ensure their applications remain resilient against transient issues.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,6 +66,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: Test retry success
-- Trace ID: `c9fcf420-9b25-401a-bfb7-77bc465786eb`
+- Trace ID: `fb6f9431-cd39-4c81-aee7-b9a26c2d2735`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
