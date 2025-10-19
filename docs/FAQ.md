@@ -1,71 +1,64 @@
 # Test Retry Success in MorningAI
 
-Understanding and implementing test retries can significantly enhance the reliability of the MorningAI platform's CI/CD pipeline. This FAQ is designed to help developers comprehend the mechanism behind test retries, how to configure them, and troubleshoot common issues.
+Ensuring the reliability and robustness of applications involves implementing mechanisms that can gracefully handle temporary failures or anomalies. In MorningAI, we have incorporated a retry mechanism that attempts to execute a failed task again before marking it as a failure. This FAQ aims to guide developers through understanding and utilizing the test retry success feature in the MorningAI platform.
 
-## Understanding Test Retries
+## Understanding Test Retry Mechanism
 
-Test retries are a mechanism used to automatically rerun failed tests before marking them as failures. This approach can be particularly useful in a complex, multi-tenant SaaS platform like MorningAI, where tests might fail due to transient issues such as network latency, dependency load times, or temporary resource unavailability rather than actual code defects.
+The test retry mechanism in MorningAI is designed to automatically re-attempt execution of tasks that fail during their initial run. This feature is crucial for handling transient issues such as network timeouts, temporary unavailability of external services, or intermittent resource constraints.
+
+### How It Works
+
+The retry logic is built into the task orchestration layer, leveraging Redis Queue (RQ) capabilities along with custom logic implemented in Python. When a task fails, the system checks if it meets the criteria for a retry (e.g., type of error, number of previous attempts) and schedules it for another attempt after a configurable delay.
 
 ### Configuration
 
-MorningAI utilizes a combination of testing frameworks and CI/CD tools that support test retries. The configuration for retries can usually be found in the specific tool's configuration file.
-
-For instance, if you're using pytest with Flask applications:
-
-1. **pytest.ini** or **pyproject.toml**: You can configure retry attempts and delay between retries.
-
-```ini
-# pytest.ini example
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
-
-This snippet tells pytest to rerun failed tests up to 3 times with a 5-second delay between each attempt.
-
-2. **CI/CD Pipeline Configuration**: For GitLab CI, you can specify retry logic in `.gitlab-ci.yml`:
-
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when: runner_system_failure
-```
-
-This configuration retries the job up to 2 additional times if it fails due to system issues.
-
-### Implementation in MorningAI
-
-In the context of MorningAI's technology stack:
-
-- The backend Python services might use `pytest` along with its rerun plugin.
-- Frontend React applications could implement retries at the testing level with Jest by using `jest.retryTimes(numberOfRetries)`.
-- For integration tests involving Redis Queue (RQ) or Supabase, ensure your test framework is set up to handle asynchronous operations and potential transient failures gracefully.
-
-#### Code Example for RQ Job Retry
-
-When working with Redis Queue within MorningAI for task orchestration, ensuring tasks are retried upon failure is crucial. Below is an example of how you could define a job with retry mechanisms:
+To configure the retry mechanism for your tasks, you need to adjust settings in your task definition files located at `task_definitions/`. Here's an example configuration:
 
 ```python
 from rq import Retry
-from redis_queue import queue
 
-def example_task():
-    # Task implementation here
-    pass
+# Define your task with retry parameters
+def my_task():
+    pass  # Task implementation here
 
-job = queue.enqueue(example_task, retry=Retry(max=3, interval=[10, 30, 60]))
+retry_params = Retry(max=3, interval=[10, 30, 60])  # Retry up to 3 times with specified intervals in seconds
 ```
 
-This code snippet demonstrates enqueuing a task with automatic retries upon failure. The task will be retried up to three times with intervals of 10 seconds, 30 seconds, and then 60 seconds between attempts.
+This configuration specifies that `my_task` should be retried up to three times if it fails, with retries occurring after 10, 30, and 60 seconds respectively.
 
-## Troubleshooting Common Issues
+## Implementation Example
 
-1. **Excessive Retries Without Success**: Ensure that the conditions causing the initial failure are transient and not persistent logical errors in the code.
-2. **No Retries Happening**: Verify that your retry configurations are correctly set up in both your testing framework and CI/CD pipeline files.
-3. **Impact on Test Suite Performance**: While retries can improve reliability, they also increase test suite execution time. Monitor your CI/CD pipeline's performance metrics and adjust retry settings as needed.
+Here's a basic example showing how to implement a retryable task within the MorningAI platform:
 
-For more detailed information on configuring test retries specific to your development environment within MorningAI, refer to the official documentation of [pytest](https://docs.pytest.org/en/latest/how-to/retry.html), [Jest](https://jestjs.io/docs/en/jest-object#jestretrytimes), or your chosen CI/CD tool.
+```python
+from redis_queue import RedisQueue
+from rq.decorators import job
+from rq import Retry
+
+@job('default', connection=RedisQueue.connection, retry=Retry(max=3, interval=[10, 20, 30]))
+def example_task():
+    # Your task implementation here
+    raise Exception("This is a simulated failure.")
+
+# Enqueueing the task
+example_task.delay()
+```
+
+In this example, `example_task` is defined with a decorator specifying that it belongs to the 'default' queue and should be retried according to the provided `Retry` configuration upon failure.
+
+## Related Documentation Links
+
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Supabase Documentation](https://supabase.com/docs)
+- [MorningAI Task Orchestration Guide](/docs/task_orchestration.md)
+
+## Common Troubleshooting Tips
+
+1. **Task Not Retrying**: Ensure that your tasks are correctly decorated with retry configurations and that they are enqueued properly.
+2. **Incorrect Retry Intervals**: Double-check your `Retry` parameters. Ensure intervals are set according to your requirements.
+3. **Max Retries Exceeded Without Success**: Investigate the root cause of failures. Consider increasing the number of retries or adjusting intervals if necessary.
+
+For more detailed troubleshooting guides and discussions on best practices for handling retries and ensuring task success in distributed systems, refer to our comprehensive documentation available at `/docs/troubleshooting.md`.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,6 +67,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: Test retry success
-- Trace ID: `c9fcf420-9b25-401a-bfb7-77bc465786eb`
+- Trace ID: `bd72188b-eb22-4d24-b4b5-bda652b4a631`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
