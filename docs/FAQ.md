@@ -1,71 +1,62 @@
 # Test Retry Success in MorningAI
 
-Understanding and implementing test retries can significantly enhance the reliability of the MorningAI platform's CI/CD pipeline. This FAQ is designed to help developers comprehend the mechanism behind test retries, how to configure them, and troubleshoot common issues.
+Understanding how to manage and ensure the success of test retries in the MorningAI platform is crucial for maintaining a high-quality, reliable codebase. This FAQ section provides a comprehensive guide on leveraging test retries within the MorningAI environment, ensuring that temporary issues do not hinder your development workflow.
 
 ## Understanding Test Retries
 
-Test retries are a mechanism used to automatically rerun failed tests before marking them as failures. This approach can be particularly useful in a complex, multi-tenant SaaS platform like MorningAI, where tests might fail due to transient issues such as network latency, dependency load times, or temporary resource unavailability rather than actual code defects.
+Test retries in MorningAI are designed to handle scenarios where tests might fail due to transient issues, such as network latency, dependencies on external services, or other flaky test conditions. By retrying a failed test, we can ascertain whether the failure was sporadic or indicative of a genuine bug in the code.
 
 ### Configuration
 
-MorningAI utilizes a combination of testing frameworks and CI/CD tools that support test retries. The configuration for retries can usually be found in the specific tool's configuration file.
+MorningAI utilizes pytest along with its retry mechanism to implement test retries. To configure test retries, you need to modify the `pytest.ini` file or pass parameters directly via the command line when initiating tests.
 
-For instance, if you're using pytest with Flask applications:
-
-1. **pytest.ini** or **pyproject.toml**: You can configure retry attempts and delay between retries.
+#### `pytest.ini` Configuration Example:
 
 ```ini
-# pytest.ini example
 [pytest]
 addopts = --reruns 3 --reruns-delay 5
 ```
 
-This snippet tells pytest to rerun failed tests up to 3 times with a 5-second delay between each attempt.
+This configuration instructs pytest to retry failed tests up to three times with a delay of five seconds between each attempt.
 
-2. **CI/CD Pipeline Configuration**: For GitLab CI, you can specify retry logic in `.gitlab-ci.yml`:
+#### Command Line Configuration Example:
 
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when: runner_system_failure
+```bash
+pytest --reruns 3 --reruns-delay 5
 ```
 
-This configuration retries the job up to 2 additional times if it fails due to system issues.
+### Code Example: Using pytest-rerunfailures
 
-### Implementation in MorningAI
+If you're not already using `pytest-rerunfailures`, you'll need to install it as part of your development environment. This plugin adds support for re-running failed tests in pytest.
 
-In the context of MorningAI's technology stack:
-
-- The backend Python services might use `pytest` along with its rerun plugin.
-- Frontend React applications could implement retries at the testing level with Jest by using `jest.retryTimes(numberOfRetries)`.
-- For integration tests involving Redis Queue (RQ) or Supabase, ensure your test framework is set up to handle asynchronous operations and potential transient failures gracefully.
-
-#### Code Example for RQ Job Retry
-
-When working with Redis Queue within MorningAI for task orchestration, ensuring tasks are retried upon failure is crucial. Below is an example of how you could define a job with retry mechanisms:
-
-```python
-from rq import Retry
-from redis_queue import queue
-
-def example_task():
-    # Task implementation here
-    pass
-
-job = queue.enqueue(example_task, retry=Retry(max=3, interval=[10, 30, 60]))
+```bash
+pip install pytest-rerunfailures
 ```
 
-This code snippet demonstrates enqueuing a task with automatic retries upon failure. The task will be retried up to three times with intervals of 10 seconds, 30 seconds, and then 60 seconds between attempts.
+Once installed, you can use it by adding the `--reruns` and `--reruns-delay` flags either in your `pytest.ini` file or directly in your command line invocation of pytest, as shown above.
 
-## Troubleshooting Common Issues
+## Related Documentation Links
 
-1. **Excessive Retries Without Success**: Ensure that the conditions causing the initial failure are transient and not persistent logical errors in the code.
-2. **No Retries Happening**: Verify that your retry configurations are correctly set up in both your testing framework and CI/CD pipeline files.
-3. **Impact on Test Suite Performance**: While retries can improve reliability, they also increase test suite execution time. Monitor your CI/CD pipeline's performance metrics and adjust retry settings as needed.
+- Pytest documentation: [https://docs.pytest.org/en/stable/](https://docs.pytest.org/en/stable/)
+- Pytest-rerunfailures plugin: [https://github.com/pytest-dev/pytest-rerunfailures](https://github.com/pytest-dev/pytest-rerunfailures)
 
-For more detailed information on configuring test retries specific to your development environment within MorningAI, refer to the official documentation of [pytest](https://docs.pytest.org/en/latest/how-to/retry.html), [Jest](https://jestjs.io/docs/en/jest-object#jestretrytimes), or your chosen CI/CD tool.
+## Common Troubleshooting Tips
+
+### Tests Still Fail After Retries
+
+If tests continue to fail even after retries, consider the following:
+- **Review Test Stability**: Ensure the test is stable and not inherently flaky.
+- **External Dependencies**: Verify that any external service or dependency is reliable during the test execution window.
+- **Increase Delay**: Sometimes increasing the delay between retries (`--reruns-delay`) can help, especially if the issue is related to temporal external service availability.
+
+### Plugin Installation Issues
+
+If you encounter problems installing `pytest-rerunfailures` or other related plugins:
+- Ensure your Python environment is correctly set up and activated.
+- Check for compatibility issues between your version of pytest and the plugin version.
+- Try clearing your pip cache (`pip cache purge`) and retrying the installation.
+
+For more detailed troubleshooting guidance and community support, refer to the official documentation and forums linked above.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,6 +65,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: Test retry success
-- Trace ID: `c9fcf420-9b25-401a-bfb7-77bc465786eb`
+- Trace ID: `3875fcb1-8dad-4499-abf4-19f621debb30`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
