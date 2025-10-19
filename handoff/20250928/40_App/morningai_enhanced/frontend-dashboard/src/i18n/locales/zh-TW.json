@@ -112,5 +112,57 @@
     "profile": "個人資料",
     "notifications": "通知",
     "language": "語言"
+  },
+  "settings": {
+    "title": "系統設定",
+    "description": "管理您的帳號與系統偏好設定",
+    "tabs": {
+      "profile": "個人資料",
+      "preferences": "偏好設定",
+      "notifications": "通知",
+      "security": "安全性"
+    },
+    "profile": {
+      "title": "個人資料",
+      "description": "管理您的個人資訊",
+      "avatar": "更換頭像",
+      "avatarHint": "JPG、PNG 或 GIF，最大 2MB",
+      "name": "姓名",
+      "email": "電子郵件",
+      "role": "帳號角色",
+      "saveChanges": "儲存變更",
+      "saving": "儲存中..."
+    },
+    "preferences": {
+      "title": "介面偏好",
+      "description": "自訂您的使用體驗",
+      "language": "語言",
+      "theme": "主題",
+      "themeLight": "淺色",
+      "themeDark": "深色",
+      "themeAuto": "自動"
+    },
+    "notifications": {
+      "title": "通知設定",
+      "description": "管理您希望接收的通知",
+      "email": "電子郵件通知",
+      "emailDescription": "接收重要更新的電子郵件",
+      "desktop": "桌面通知",
+      "desktopDescription": "在瀏覽器中顯示即時通知",
+      "aiSuggestions": "AI 建議通知",
+      "aiSuggestionsDescription": "接收 AI 的優化建議"
+    },
+    "security": {
+      "title": "安全性設定",
+      "description": "保護您的帳號安全",
+      "currentPassword": "當前密碼",
+      "newPassword": "新密碼",
+      "confirmPassword": "確認新密碼",
+      "twoFactor": "雙因素驗證 (2FA)",
+      "twoFactorDescription": "為您的帳號增加額外安全層",
+      "twoFactorEnabled": "已啟用",
+      "updatePassword": "更新密碼",
+      "updating": "更新中..."
+    }
   }
 }

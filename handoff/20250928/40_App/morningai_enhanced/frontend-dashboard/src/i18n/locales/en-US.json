@@ -112,5 +112,57 @@
     "profile": "Profile",
     "notifications": "Notifications",
     "language": "Language"
+  },
+  "settings": {
+    "title": "System Settings",
+    "description": "Manage your account and system preferences",
+    "tabs": {
+      "profile": "Profile",
+      "preferences": "Preferences",
+      "notifications": "Notifications",
+      "security": "Security"
+    },
+    "profile": {
+      "title": "Profile",
+      "description": "Manage your personal information",
+      "avatar": "Change Avatar",
+      "avatarHint": "JPG, PNG or GIF, max 2MB",
+      "name": "Name",
+      "email": "Email",
+      "role": "Account Role",
+      "saveChanges": "Save Changes",
+      "saving": "Saving..."
+    },
+    "preferences": {
+      "title": "Interface Preferences",
+      "description": "Customize your experience",
+      "language": "Language",
+      "theme": "Theme",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeAuto": "Auto"
+    },
+    "notifications": {
+      "title": "Notification Settings",
+      "description": "Manage the notifications you want to receive",
+      "email": "Email Notifications",
+      "emailDescription": "Receive important updates via email",
+      "desktop": "Desktop Notifications",
+      "desktopDescription": "Show real-time notifications in browser",
+      "aiSuggestions": "AI Suggestion Notifications",
+      "aiSuggestionsDescription": "Receive optimization suggestions from AI"
+    },
+    "security": {
+      "title": "Security Settings",
+      "description": "Protect your account security",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "twoFactor": "Two-Factor Authentication (2FA)",
+      "twoFactorDescription": "Add an extra layer of security to your account",
+      "twoFactorEnabled": "Enabled",
+      "updatePassword": "Update Password",
+      "updating": "Updating..."
+    }
   }
 }
