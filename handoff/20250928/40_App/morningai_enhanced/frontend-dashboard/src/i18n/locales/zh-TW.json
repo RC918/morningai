@@ -164,5 +164,55 @@
       "updatePassword": "更新密碼",
       "updating": "更新中..."
     }
+  },
+  "checkout": {
+    "title": "選擇您的方案",
+    "description": "升級到 Morning AI Pro，解鎖更多強大功能",
+    "useMockData": "使用測試資料",
+    "mockDataDescription": "切換使用測試資料或真實 API 資料",
+    "paymentMethods": "付款方式",
+    "paymentMethodsDescription": "選擇您偏好的付款方式",
+    "orderSummary": "訂單摘要",
+    "plan": "方案",
+    "price": "價格",
+    "perMonth": "/月",
+    "discountCode": "優惠代碼",
+    "discountPlaceholder": "輸入優惠代碼",
+    "apply": "套用",
+    "applyDiscount": "套用優惠代碼",
+    "availableDiscount": "可用優惠",
+    "total": "總計",
+    "secureCheckout": "安全結帳",
+    "secureCheckoutDescription": "進行安全結帳流程",
+    "sslProtection": "您的付款資訊受到 256 位元 SSL 加密保護",
+    "checkoutFailed": "結帳失敗，請稍後再試",
+    "mostPopular": "最受歡迎",
+    "comingSoon": "即將推出",
+    "features": {
+      "starter": {
+        "basic": "基礎 AI 助手功能",
+        "queries": "每月 100 次查詢",
+        "support": "標準客服支援",
+        "reports": "基礎報表功能"
+      },
+      "pro": {
+        "advanced": "進階 AI 助手功能",
+        "queries": "每月 1000 次查詢",
+        "support": "優先客服支援",
+        "reports": "進階報表與分析",
+        "workflows": "自訂工作流程",
+        "api": "API 存取權限"
+      },
+      "enterprise": {
+        "complete": "完整 AI 助手功能",
+        "queries": "無限制查詢",
+        "support": "專屬客服經理",
+        "reports": "完整報表與分析",
+        "workflows": "自訂工作流程",
+        "api": "完整 API 存取",
+        "sso": "單點登入 (SSO)",
+        "deployment": "專屬部署選項"
+      }
+    }
   }
 }

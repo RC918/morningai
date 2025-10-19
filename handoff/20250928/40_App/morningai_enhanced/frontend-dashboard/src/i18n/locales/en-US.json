@@ -164,5 +164,55 @@
       "updatePassword": "Update Password",
       "updating": "Updating..."
     }
+  },
+  "checkout": {
+    "title": "Choose Your Plan",
+    "description": "Upgrade to Morning AI Pro and unlock more powerful features",
+    "useMockData": "Use Test Data",
+    "mockDataDescription": "Toggle between test data and real API data",
+    "paymentMethods": "Payment Methods",
+    "paymentMethodsDescription": "Choose your preferred payment method",
+    "orderSummary": "Order Summary",
+    "plan": "Plan",
+    "price": "Price",
+    "perMonth": "/month",
+    "discountCode": "Discount Code",
+    "discountPlaceholder": "Enter discount code",
+    "apply": "Apply",
+    "applyDiscount": "Apply discount code",
+    "availableDiscount": "Available Discount",
+    "total": "Total",
+    "secureCheckout": "Secure Checkout",
+    "secureCheckoutDescription": "Proceed to secure checkout",
+    "sslProtection": "Your payment information is protected by 256-bit SSL encryption",
+    "checkoutFailed": "Checkout failed, please try again later",
+    "mostPopular": "Most Popular",
+    "comingSoon": "Coming Soon",
+    "features": {
+      "starter": {
+        "basic": "Basic AI Assistant Features",
+        "queries": "100 queries per month",
+        "support": "Standard customer support",
+        "reports": "Basic reporting features"
+      },
+      "pro": {
+        "advanced": "Advanced AI Assistant Features",
+        "queries": "1000 queries per month",
+        "support": "Priority customer support",
+        "reports": "Advanced reports and analytics",
+        "workflows": "Custom workflows",
+        "api": "API access"
+      },
+      "enterprise": {
+        "complete": "Complete AI Assistant Features",
+        "queries": "Unlimited queries",
+        "support": "Dedicated account manager",
+        "reports": "Complete reports and analytics",
+        "workflows": "Custom workflows",
+        "api": "Full API access",
+        "sso": "Single Sign-On (SSO)",
+        "deployment": "Dedicated deployment options"
+      }
+    }
   }
 }
