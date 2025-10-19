@@ -5,6 +5,7 @@ Unit tests for MCP Client using Mock MCP Server
 Tests MCP client functionality without requiring a real MCP server.
 """
 import pytest
+import pytest_asyncio
 import asyncio
 import sys
 import os
@@ -16,7 +17,7 @@ from tests.mock_mcp_server import MockMCPServer
 from exceptions import MCPConnectionError, MCPTimeoutError
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def mock_server():
     """Fixture to create and start mock MCP server"""
     server = MockMCPServer(host="localhost", port=8765)
@@ -98,7 +99,7 @@ async def test_mcp_client_not_connected():
     """Test error when calling without connection"""
     client = MCPClient("http://localhost:8765", "test-agent")
     
-    with pytest.raises(ConnectionError):
+    with pytest.raises(MCPConnectionError):
         await client.execute_shell('echo "test"')
 
 
@@ -113,7 +114,7 @@ async def test_mcp_client_manual_connect_disconnect(mock_server):
     
     await client.disconnect()
     
-    with pytest.raises(ConnectionError):
+    with pytest.raises(MCPConnectionError):
         await client.execute_shell('echo "test"')
 
 
@@ -124,7 +125,7 @@ async def test_mcp_client_timeout(mock_server):
     
     client = MCPClient("http://localhost:8765", "test-agent", timeout=1)
     
-    with pytest.raises((asyncio.TimeoutError, ConnectionError)):
+    with pytest.raises((asyncio.TimeoutError, MCPConnectionError)):
         async with client:
             await client.execute_shell('echo "test"')
 

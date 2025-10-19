@@ -7,7 +7,12 @@ import asyncio
 import aiohttp
 import logging
 import json
+import sys
+import os
 from typing import Dict, Any, Optional
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from exceptions import MCPConnectionError
 
 class MCPClient:
     """MCP client for agent-side tool access"""
@@ -62,12 +67,12 @@ class MCPClient:
         if not self.session or not self._connected:
             error_msg = "MCP client not connected. Call connect() first or use async context manager."
             self.logger.error(error_msg)
-            raise ConnectionError(error_msg)
+            raise MCPConnectionError(error_msg)
         
         if self.session.closed:
             error_msg = "MCP client session is closed"
             self.logger.error(error_msg)
-            raise ConnectionError(error_msg)
+            raise MCPConnectionError(error_msg)
         
         request = {
             "jsonrpc": "2.0",
@@ -101,7 +106,7 @@ class MCPClient:
         except aiohttp.ClientError as e:
             error_msg = f"Cannot connect to host localhost: {e}"
             self.logger.error(f"Failed to call tool {tool_name}: {error_msg}")
-            raise ConnectionError(error_msg) from e
+            raise MCPConnectionError(error_msg) from e
         except Exception as e:
             self.logger.error(f"Failed to call tool {tool_name}: {e}")
             raise
