@@ -67,13 +67,14 @@ except ImportError:
     SECURITY_AVAILABLE = False
 
 try:
-    from persistence.state_manager import PersistentStateManager
-    from services.monitoring_dashboard import monitoring_dashboard
-    from services.report_generator import report_generator
-    from utils.env_schema_validator import validate_environment
-    from routes.mock_api import mock_api
+    from src.persistence.state_manager import PersistentStateManager
+    from src.services.monitoring_dashboard import monitoring_dashboard
+    from src.services.report_generator import report_generator
+    from src.utils.env_schema_validator import validate_environment
+    from src.routes.mock_api import mock_api
     BACKEND_SERVICES_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    print(f"Warning: Backend services not available: {e}")
     BACKEND_SERVICES_AVAILABLE = False
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))

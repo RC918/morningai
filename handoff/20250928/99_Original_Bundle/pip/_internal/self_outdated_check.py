@@ -113,7 +113,7 @@ def pip_self_version_check(session: PipSession, options: optparse.Values) -> Non
     try:
         state = SelfCheckState(cache_dir=options.cache_dir)
 
-        current_time = datetime.datetime.utcnow()
+        current_time = datetime.datetime.now(datetime.UTC)
         # Determine if we need to refresh the state
         if "last_check" in state.state and "pypi_version" in state.state:
             last_check = datetime.datetime.strptime(

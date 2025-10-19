@@ -1,74 +1,47 @@
-# MorningAI E2E Testing FAQ
+# Test Retry Mechanism in MorningAI
 
-End-to-End (E2E) testing is a crucial component of the development process for MorningAI, ensuring that our multi-tenant SaaS platform operates efficiently and as expected from start to finish. This FAQ aims to guide developers through our E2E testing practices, providing insights into how tests are structured, executed, and how to troubleshoot common issues.
+The test retry mechanism in MorningAI is designed to enhance the reliability and robustness of the platform by automatically reattempting failed tests before marking them as failures. This feature is particularly useful in distributed systems where transient issues such as network latency, temporary service disruptions, or resource contention can cause tests to fail intermittently. Implementing a retry mechanism ensures that only genuinely failing tests are flagged, reducing noise and improving the accuracy of test results.
 
-## What is E2E Testing in MorningAI?
+## Understanding the Test Retry Mechanism
 
-E2E testing involves simulating real-user scenarios to validate the system under test and its components for integration and data integrity. In MorningAI, E2E tests cover the entire application flow, from autonomous agent system operations to multi-platform integration, ensuring that all parts of the system work together seamlessly.
+MorningAI utilizes a sophisticated retry logic that can be customized to fit various testing scenarios. The mechanism is built into the CI/CD pipeline, ensuring that any test failure triggers a retry based on predefined rules such as the maximum number of attempts and delay intervals between retries.
 
-## How are E2E Tests Implemented in MorningAI?
+### Code Example: Configuring Test Retries
 
-MorningAI utilizes a combination of technologies for E2E testing, primarily focusing on Cypress and Selenium for web-based interactions and PyTest for backend services. Tests are designed to mimic user interactions with the system, validating both the UI/UX aspects on platforms like Telegram, LINE, Messenger, and backend processes such as task orchestration with Redis Queue.
-
-### Code Example: PyTest Backend Test
+To configure test retries in MorningAI, you would typically adjust settings in your CI/CD configuration file or within your testing framework. Below is an example using Python's `unittest` framework with a hypothetical `retry` decorator that demonstrates how you might implement retries for a specific test:
 
 ```python
-import pytest
-from app import create_app
-from db import db
+import unittest
+from retrying import retry
 
-@pytest.fixture
-def app():
-    app = create_app('testing')
-    with app.app_context():
-        db.create_all()
-    yield app
-    with app.app_context():
-        db.session.remove()
-        db.drop_all()
+def retry_if_result_false(result):
+    return result is False
 
-def test_task_orchestration(app):
-    # Example test for task orchestration
-    client = app.test_client()
-    response = client.post('/orchestrate', json={'task': 'example_task'})
-    assert response.status_code == 200
-    assert response.json['status'] == 'success'
+class MyTestCase(unittest.TestCase):
+    @retry(retry_on_result=retry_if_result_false, stop_max_attempt_number=3, wait_fixed=2000)
+    def test_with_retry(self):
+        # Your test code here
+        result = perform_some_operation()
+        self.assertTrue(result)
 ```
 
-## Running E2E Tests
+This example uses the `retrying` library to add a retry mechanism to a test case, specifying that the test should be retried up to three times (with a two-second pause between attempts) if the result is not `True`.
 
-Before running any tests, ensure your environment is correctly set up. For frontend testing using Cypress:
+### Related Documentation Links
 
-1. Navigate to your project directory.
-2. Install Cypress via npm if not already installed: `npm install cypress`.
-3. Run Cypress with `npx cypress open` for UI mode or `npx cypress run` for headless mode.
-
-For backend tests:
-
-1. Ensure Python dependencies are installed: `pip install -r requirements.txt`.
-2. Run PyTest in the terminal: `pytest`.
-
-## Related Documentation Links
-
-- [Cypress Documentation](https://www.cypress.io/docs)
-- [Selenium Documentation](https://www.selenium.dev/documentation/)
-- [PyTest Documentation](https://docs.pytest.org/en/stable/)
+- [unittest — Unit testing framework](https://docs.python.org/3/library/unittest.html)
+- [retrying](https://pypi.org/project/retrying/)
 
 ## Common Troubleshooting Tips
 
-**Issue**: Tests fail due to environment misconfiguration.
-**Solution**: Verify your `.env` or configuration files for accuracy against the documentation.
+When implementing or debugging the test retry mechanism in MorningAI, consider these common issues:
 
-**Issue**: Selenium WebDriver errors.
-**Solution**: Ensure WebDriver versions match your browser version. Update or downgrade WebDriver as necessary.
+1. **Incorrect Configuration**: Ensure that your retry configurations (e.g., maximum attempts, delay intervals) are correctly set up in your CI/CD pipeline or testing framework.
+2. **Identifying Flaky Tests**: Use logging or reporting tools to identify tests that frequently require retries. Investigating these can uncover underlying instability in your application or environment.
+3. **Dependency on External Services**: If your tests depend on external services, ensure those services are reliable during testing or consider mocking them.
+4. **Resource Saturation**: Be aware that introducing retries without proper backoff strategies can lead to resource saturation (e.g., overwhelming APIs with requests), exacerbating the problem.
 
-**Issue**: Timeout errors during asynchronous task testing.
-**Solution**: Increase timeout settings in your test configurations or ensure background services like Redis Queue are running properly.
-
-**Issue**: Database state affecting tests.
-**Solution**: Use database transactions or fixtures to reset database state before each test. PyTest's fixture mechanism can be particularly useful here.
-
-For further assistance with specific issues not covered here, please refer to our detailed documentation or submit a ticket through our developer support channel.
+Remember, while retries can mitigate the impact of flaky tests, they are not a substitute for investigating and addressing the root causes of those failures.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -76,7 +49,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `de117206-615e-43d7-90e9-2e91d6fe612d`
+- Task: Test retry success
+- Trace ID: `a2901abe-63d3-4901-b5fb-758452759c79`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai

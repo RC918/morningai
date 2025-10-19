@@ -215,8 +215,8 @@ def generate_jwt_token(user_data, expires_hours=24):
         'user_id': user_data.get('id'),
         'username': user_data.get('username'),
         'role': normalized_role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=expires_hours),
-        'iat': datetime.datetime.utcnow()
+        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=expires_hours),
+        'iat': datetime.datetime.now(datetime.UTC)
     }
     
     return jwt.encode(payload, jwt_secret, algorithm='HS256')

@@ -1,0 +1,4 @@
+aiohttp==3.9.1
+psutil==5.9.6
+pytest==8.4.2
+pytest-asyncio==1.2.0
