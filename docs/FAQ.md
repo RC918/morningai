@@ -1,71 +1,64 @@
-# Test Retry Success in MorningAI
+# Handling MorningAI During a Redis Outage
 
-Understanding and implementing test retries can significantly enhance the reliability of the MorningAI platform's CI/CD pipeline. This FAQ is designed to help developers comprehend the mechanism behind test retries, how to configure them, and troubleshoot common issues.
+When using MorningAI, a Redis outage can significantly impact the real-time task orchestration feature of the platform, as it relies on Redis Queue (RQ) for managing background jobs. Understanding how to navigate and mitigate issues during such outages is crucial for maintaining operational stability. This FAQ provides guidance on how to manage your MorningAI instance during a Redis outage.
 
-## Understanding Test Retries
+## Comprehensive Explanation
 
-Test retries are a mechanism used to automatically rerun failed tests before marking them as failures. This approach can be particularly useful in a complex, multi-tenant SaaS platform like MorningAI, where tests might fail due to transient issues such as network latency, dependency load times, or temporary resource unavailability rather than actual code defects.
+Redis is an in-memory data structure store used by MorningAI for queuing tasks and managing worker processes. RQ, which is built on top of Redis, allows asynchronous execution of Python functions. During a Redis outage, queued tasks cannot be processed, leading to potential delays in task execution and system performance degradation.
 
-### Configuration
+### Immediate Actions During an Outage
 
-MorningAI utilizes a combination of testing frameworks and CI/CD tools that support test retries. The configuration for retries can usually be found in the specific tool's configuration file.
+1. **Identify the Scope of the Outage**: Determine if the outage is affecting all instances or specific to your deployment.
+2. **Pause Task Submission**: To prevent task backlog and potential data loss, temporarily pause or limit new task submissions.
+3. **Monitor the Situation**: Keep an eye on updates from your Redis hosting provider or internal monitoring tools to assess the outage's impact and expected resolution time.
 
-For instance, if you're using pytest with Flask applications:
+### Code Example: Pausing Task Submission
 
-1. **pytest.ini** or **pyproject.toml**: You can configure retry attempts and delay between retries.
-
-```ini
-# pytest.ini example
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
-
-This snippet tells pytest to rerun failed tests up to 3 times with a 5-second delay between each attempt.
-
-2. **CI/CD Pipeline Configuration**: For GitLab CI, you can specify retry logic in `.gitlab-ci.yml`:
-
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when: runner_system_failure
-```
-
-This configuration retries the job up to 2 additional times if it fails due to system issues.
-
-### Implementation in MorningAI
-
-In the context of MorningAI's technology stack:
-
-- The backend Python services might use `pytest` along with its rerun plugin.
-- Frontend React applications could implement retries at the testing level with Jest by using `jest.retryTimes(numberOfRetries)`.
-- For integration tests involving Redis Queue (RQ) or Supabase, ensure your test framework is set up to handle asynchronous operations and potential transient failures gracefully.
-
-#### Code Example for RQ Job Retry
-
-When working with Redis Queue within MorningAI for task orchestration, ensuring tasks are retried upon failure is crucial. Below is an example of how you could define a job with retry mechanisms:
+If you're using Flask with RQ in your backend, you might want to conditionally disable task queueing based on the Redis connection status:
 
 ```python
-from rq import Retry
-from redis_queue import queue
+from redis.exceptions import RedisError
+from rq import Queue
+from myapp import create_app, redis_conn
 
-def example_task():
-    # Task implementation here
-    pass
+app = create_app()
+queue = Queue(connection=redis_conn)
 
-job = queue.enqueue(example_task, retry=Retry(max=3, interval=[10, 30, 60]))
+def enqueue_task_if_redis_available(task, *args, **kwargs):
+    try:
+        # Attempt to enqueue a task
+        queue.enqueue(task, args=args, kwargs=kwargs)
+    except RedisError:
+        # Handle the situation when Redis is down
+        app.logger.error("Failed to enqueue task due to Redis outage.")
 ```
 
-This code snippet demonstrates enqueuing a task with automatic retries upon failure. The task will be retried up to three times with intervals of 10 seconds, 30 seconds, and then 60 seconds between attempts.
+### Related Documentation Links
 
-## Troubleshooting Common Issues
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [Flask Application Factories](https://flask.palletsprojects.com/en/2.0.x/patterns/appfactories/)
+- [Handling Failures in RQ](https://python-rq.org/docs/exceptions/)
 
-1. **Excessive Retries Without Success**: Ensure that the conditions causing the initial failure are transient and not persistent logical errors in the code.
-2. **No Retries Happening**: Verify that your retry configurations are correctly set up in both your testing framework and CI/CD pipeline files.
-3. **Impact on Test Suite Performance**: While retries can improve reliability, they also increase test suite execution time. Monitor your CI/CD pipeline's performance metrics and adjust retry settings as needed.
+### Common Troubleshooting Tips
 
-For more detailed information on configuring test retries specific to your development environment within MorningAI, refer to the official documentation of [pytest](https://docs.pytest.org/en/latest/how-to/retry.html), [Jest](https://jestjs.io/docs/en/jest-object#jestretrytimes), or your chosen CI/CD tool.
+**Issue**: Tasks are not being processed despite Redis being back online.
+
+**Solution**: Ensure that all RQ workers are restarted after the outage is resolved. Sometimes workers might not recover from a connection loss automatically.
+
+```bash
+# Example command to restart RQ workers
+$ rq worker --with-scheduler --burst
+```
+
+**Issue**: Lost tasks during the outage.
+
+**Solution**: Implement logging or a secondary queue mechanism to track tasks that failed to enqueue during the outage. This can help in re-queuing them once Redis service is restored.
+
+**Issue**: Performance degradation post-outage.
+
+**Solution**: Monitor system performance closely after an outage. You may need to scale up your Redis instance or adjust worker counts based on the backlog and operational needs.
+
+Understanding how to effectively manage a Redis outage can help minimize its impact on MorningAI's functionality and ensure that your application remains as stable as possible under adverse conditions.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -73,7 +66,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `c9fcf420-9b25-401a-bfb7-77bc465786eb`
+- Task: Test question during Redis outage
+- Trace ID: `6a4e4da9-6c69-44cf-802c-1cc99ec630f7`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
