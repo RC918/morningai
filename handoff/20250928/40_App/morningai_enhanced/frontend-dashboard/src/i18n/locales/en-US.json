@@ -1,0 +1,116 @@
+{
+  "app": {
+    "name": "Morning AI",
+    "tagline": "Intelligent Decision System Management Platform",
+    "copyright": "© 2024 Morning AI. All rights reserved",
+    "motto": "Smart Decisions, Autonomous Learning, Continuous Optimization"
+  },
+  "auth": {
+    "login": {
+      "title": "Login to System",
+      "description": "Please enter your credentials to access the management dashboard",
+      "username": "Username",
+      "password": "Password",
+      "usernamePlaceholder": "Enter your username",
+      "passwordPlaceholder": "Enter your password",
+      "loginButton": "Login",
+      "loggingIn": "Logging in...",
+      "loginFailed": "Login failed, please check your username and password",
+      "loginError": "Login failed: Invalid username or password",
+      "devAccount": "Development Test Account"
+    }
+  },
+  "dashboard": {
+    "title": "Self-Service Dashboard",
+    "description": "Customizable system monitoring and task tracking",
+    "customize": "Customize Dashboard",
+    "finishEditing": "Finish Editing",
+    "resetLayout": "Reset to Default Layout",
+    "editInstructions": "Drag widgets to rearrange, click trash icon to remove, or add new widgets",
+    "addWidget": "Add Widget",
+    "selectWidget": "Select Widget",
+    "removeWidget": "Remove Widget"
+  },
+  "reportCenter": {
+    "title": "Report Center",
+    "description": "Generate and manage system reports"
+  },
+  "metrics": {
+    "cpuUsage": "CPU Usage",
+    "memoryUsage": "Memory Usage",
+    "responseTime": "Response Time",
+    "errorRate": "Error Rate",
+    "activeStrategies": "Active Strategies",
+    "pendingApprovals": "Pending Approvals",
+    "costToday": "Cost Today",
+    "costSaved": "Cost Saved",
+    "performanceTrend": "Performance Trend",
+    "performanceDescription": "System performance metrics for the past 6 hours",
+    "responseTimeTrend": "Response Time Trend",
+    "responseTimeDescription": "System response time changes"
+  },
+  "decisions": {
+    "title": "Recent Decisions",
+    "description": "Recent decisions and strategies executed by the AI system",
+    "status": {
+      "executed": "Executed",
+      "pending": "Pending",
+      "failed": "Failed"
+    },
+    "confidence": "Confidence"
+  },
+  "loading": {
+    "default": "Loading...",
+    "processing": "Processing...",
+    "pleaseWait": "Please wait, the system is processing your request..."
+  },
+  "empty": {
+    "noData": "No Data",
+    "noDataDescription": "There is currently no data to display. Please try again later or add data.",
+    "noSearchResults": "No Results Found",
+    "noSearchResultsDescription": "Try using different keywords or adjusting your search criteria.",
+    "error": "An Error Occurred",
+    "errorDescription": "Sorry, the system encountered a problem. Please try again later or contact support.",
+    "success": "Operation Successful",
+    "successDescription": "Your operation has been completed successfully.",
+    "premiumFeature": "Premium Feature",
+    "premiumFeatureDescription": "This feature requires upgrading to the professional version."
+  },
+  "actions": {
+    "getStarted": "Get Started",
+    "learnMore": "Learn More",
+    "upgrade": "Upgrade Now",
+    "viewPlans": "View Plans",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "remove": "Remove",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "finish": "Finish",
+    "retry": "Retry",
+    "refresh": "Refresh"
+  },
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "export": "Export",
+    "import": "Import",
+    "settings": "Settings",
+    "help": "Help",
+    "about": "About",
+    "logout": "Logout",
+    "profile": "Profile",
+    "notifications": "Notifications",
+    "language": "Language"
+  }
+}

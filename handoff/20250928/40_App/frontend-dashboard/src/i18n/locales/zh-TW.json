@@ -1,0 +1,116 @@
+{
+  "app": {
+    "name": "Morning AI",
+    "tagline": "智能決策系統管理平台",
+    "copyright": "© 2024 Morning AI. 版權所有",
+    "motto": "智能決策，自主學習，持續優化"
+  },
+  "auth": {
+    "login": {
+      "title": "登錄到系統",
+      "description": "請輸入您的憑證以訪問管理儀表板",
+      "username": "用戶名",
+      "password": "密碼",
+      "usernamePlaceholder": "請輸入用戶名",
+      "passwordPlaceholder": "請輸入密碼",
+      "loginButton": "登錄",
+      "loggingIn": "登錄中...",
+      "loginFailed": "登錄失敗，請檢查用戶名和密碼",
+      "loginError": "登錄失敗：用戶名或密碼錯誤",
+      "devAccount": "開發環境測試帳號"
+    }
+  },
+  "dashboard": {
+    "title": "自助儀表板",
+    "description": "可自訂的系統監控與任務追蹤",
+    "customize": "自訂儀表板",
+    "finishEditing": "完成編輯",
+    "resetLayout": "重置為預設布局",
+    "editInstructions": "拖拽組件重新排列，點擊垃圾桶圖標刪除組件，或添加新的組件",
+    "addWidget": "添加組件",
+    "selectWidget": "選擇組件",
+    "removeWidget": "移除小工具"
+  },
+  "reportCenter": {
+    "title": "報表中心",
+    "description": "生成和管理系統報表"
+  },
+  "metrics": {
+    "cpuUsage": "CPU 使用率",
+    "memoryUsage": "內存使用率",
+    "responseTime": "響應時間",
+    "errorRate": "錯誤率",
+    "activeStrategies": "活躍策略",
+    "pendingApprovals": "待審批",
+    "costToday": "今日成本",
+    "costSaved": "節省成本",
+    "performanceTrend": "性能趨勢",
+    "performanceDescription": "過去6小時的系統性能指標",
+    "responseTimeTrend": "響應時間趨勢",
+    "responseTimeDescription": "系統響應時間變化"
+  },
+  "decisions": {
+    "title": "最近決策",
+    "description": "AI系統最近執行的決策和策略",
+    "status": {
+      "executed": "已執行",
+      "pending": "待審批",
+      "failed": "失敗"
+    },
+    "confidence": "信心度"
+  },
+  "loading": {
+    "default": "載入中...",
+    "processing": "處理中...",
+    "pleaseWait": "請稍候，系統正在處理您的請求..."
+  },
+  "empty": {
+    "noData": "暫無資料",
+    "noDataDescription": "目前沒有可顯示的資料，請稍後再試或新增資料。",
+    "noSearchResults": "找不到相關結果",
+    "noSearchResultsDescription": "請嘗試使用不同的關鍵字或調整搜尋條件。",
+    "error": "發生錯誤",
+    "errorDescription": "抱歉，系統遇到問題。請稍後再試或聯繫支援團隊。",
+    "success": "操作成功",
+    "successDescription": "您的操作已成功完成。",
+    "premiumFeature": "進階功能",
+    "premiumFeatureDescription": "此功能需要升級至專業版才能使用。"
+  },
+  "actions": {
+    "getStarted": "開始使用",
+    "learnMore": "了解更多",
+    "upgrade": "立即升級",
+    "viewPlans": "了解方案",
+    "save": "儲存",
+    "cancel": "取消",
+    "confirm": "確認",
+    "delete": "刪除",
+    "edit": "編輯",
+    "add": "新增",
+    "remove": "移除",
+    "close": "關閉",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "finish": "完成",
+    "retry": "重試",
+    "refresh": "重新整理"
+  },
+  "common": {
+    "yes": "是",
+    "no": "否",
+    "ok": "確定",
+    "search": "搜尋",
+    "filter": "篩選",
+    "sort": "排序",
+    "export": "匯出",
+    "import": "匯入",
+    "settings": "設定",
+    "help": "說明",
+    "about": "關於",
+    "logout": "登出",
+    "profile": "個人資料",
+    "notifications": "通知",
+    "language": "語言"
+  }
+}

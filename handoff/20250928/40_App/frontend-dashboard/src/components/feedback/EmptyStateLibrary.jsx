@@ -1,0 +1,264 @@
+import { motion } from 'framer-motion'
+import { Button } from '@/components/ui/button'
+import { 
+  FileText, 
+  Search, 
+  Inbox, 
+  Database, 
+  Users, 
+  Settings,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  TrendingUp,
+  Zap
+} from 'lucide-react'
+
+const emptyStateVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: {
+      duration: 0.5,
+      ease: "easeOut"
+    }
+  }
+}
+
+const iconVariants = {
+  hidden: { scale: 0, rotate: -180 },
+  visible: { 
+    scale: 1, 
+    rotate: 0,
+    transition: {
+      type: "spring",
+      stiffness: 200,
+      damping: 15,
+      delay: 0.2
+    }
+  }
+}
+
+const floatingVariants = {
+  animate: {
+    y: [-5, 5, -5],
+    transition: {
+      duration: 3,
+      repeat: Infinity,
+      ease: "easeInOut"
+    }
+  }
+}
+
+export const EmptyStateLibrary = ({
+  variant = 'default',
+  icon: CustomIcon,
+  title,
+  description,
+  primaryAction,
+  primaryActionLabel,
+  secondaryAction,
+  secondaryActionLabel,
+  illustration,
+  className = ''
+}) => {
+  const variants = {
+    default: {
+      icon: CustomIcon || Inbox,
+      bgColor: 'bg-gray-100',
+      iconColor: 'text-gray-400',
+      titleColor: 'text-gray-900',
+      descColor: 'text-gray-600'
+    },
+    search: {
+      icon: CustomIcon || Search,
+      bgColor: 'bg-blue-50',
+      iconColor: 'text-blue-500',
+      titleColor: 'text-blue-900',
+      descColor: 'text-blue-600'
+    },
+    noData: {
+      icon: CustomIcon || Database,
+      bgColor: 'bg-purple-50',
+      iconColor: 'text-purple-500',
+      titleColor: 'text-purple-900',
+      descColor: 'text-purple-600'
+    },
+    error: {
+      icon: CustomIcon || XCircle,
+      bgColor: 'bg-red-50',
+      iconColor: 'text-red-500',
+      titleColor: 'text-red-900',
+      descColor: 'text-red-600'
+    },
+    success: {
+      icon: CustomIcon || CheckCircle,
+      bgColor: 'bg-green-50',
+      iconColor: 'text-green-500',
+      titleColor: 'text-green-900',
+      descColor: 'text-green-600'
+    },
+    warning: {
+      icon: CustomIcon || AlertCircle,
+      bgColor: 'bg-yellow-50',
+      iconColor: 'text-yellow-500',
+      titleColor: 'text-yellow-900',
+      descColor: 'text-yellow-600'
+    },
+    loading: {
+      icon: CustomIcon || Clock,
+      bgColor: 'bg-indigo-50',
+      iconColor: 'text-indigo-500',
+      titleColor: 'text-indigo-900',
+      descColor: 'text-indigo-600'
+    },
+    premium: {
+      icon: CustomIcon || Zap,
+      bgColor: 'bg-gradient-to-br from-yellow-50 to-orange-50',
+      iconColor: 'text-orange-500',
+      titleColor: 'text-orange-900',
+      descColor: 'text-orange-600'
+    }
+  }
+
+  const currentVariant = variants[variant] || variants.default
+  const Icon = currentVariant.icon
+
+  return (
+    <motion.div
+      variants={emptyStateVariants}
+      initial="hidden"
+      animate="visible"
+      className={`flex flex-col items-center justify-center py-12 px-4 ${className}`}
+    >
+      {illustration ? (
+        <motion.img 
+          src={illustration} 
+          alt="" 
+          className="w-64 h-64 mb-6"
+          variants={floatingVariants}
+          animate="animate"
+        />
+      ) : (
+        <motion.div
+          variants={iconVariants}
+          initial="hidden"
+          animate="visible"
+          className={`w-24 h-24 ${currentVariant.bgColor} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}
+        >
+          <motion.div
+            variants={floatingVariants}
+            animate="animate"
+          >
+            <Icon className={`w-12 h-12 ${currentVariant.iconColor}`} />
+          </motion.div>
+        </motion.div>
+      )}
+      
+      <motion.h3 
+        className={`text-2xl font-bold ${currentVariant.titleColor} mb-3 text-center`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        {title}
+      </motion.h3>
+      
+      <motion.p 
+        className={`${currentVariant.descColor} text-center max-w-md mb-8 leading-relaxed`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+      >
+        {description}
+      </motion.p>
+      
+      <motion.div 
+        className="flex flex-col sm:flex-row gap-3"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        {primaryAction && (
+          <Button 
+            onClick={primaryAction} 
+            size="lg"
+            className="shadow-lg hover:shadow-xl transition-shadow"
+          >
+            {primaryActionLabel || '開始使用'}
+          </Button>
+        )}
+        {secondaryAction && (
+          <Button 
+            onClick={secondaryAction} 
+            variant="outline"
+            size="lg"
+          >
+            {secondaryActionLabel || '了解更多'}
+          </Button>
+        )}
+      </motion.div>
+    </motion.div>
+  )
+}
+
+export const NoDataState = (props) => (
+  <EmptyStateLibrary
+    variant="noData"
+    title="暫無資料"
+    description="目前沒有可顯示的資料，請稍後再試或新增資料。"
+    {...props}
+  />
+)
+
+export const NoSearchResults = (props) => (
+  <EmptyStateLibrary
+    variant="search"
+    title="找不到相關結果"
+    description="請嘗試使用不同的關鍵字或調整搜尋條件。"
+    {...props}
+  />
+)
+
+export const ErrorState = (props) => (
+  <EmptyStateLibrary
+    variant="error"
+    title="發生錯誤"
+    description="抱歉，系統遇到問題。請稍後再試或聯繫支援團隊。"
+    {...props}
+  />
+)
+
+export const SuccessState = (props) => (
+  <EmptyStateLibrary
+    variant="success"
+    title="操作成功"
+    description="您的操作已成功完成。"
+    {...props}
+  />
+)
+
+export const LoadingState = (props) => (
+  <EmptyStateLibrary
+    variant="loading"
+    title="處理中"
+    description="請稍候，系統正在處理您的請求..."
+    {...props}
+  />
+)
+
+export const PremiumFeatureState = (props) => (
+  <EmptyStateLibrary
+    variant="premium"
+    title="進階功能"
+    description="此功能需要升級至專業版才能使用。"
+    primaryActionLabel="立即升級"
+    secondaryActionLabel="了解方案"
+    {...props}
+  />
+)
+
+export default EmptyStateLibrary

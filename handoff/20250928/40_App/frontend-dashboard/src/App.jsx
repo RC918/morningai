@@ -25,6 +25,7 @@ import { applyDesignTokens } from '@/lib/design-tokens'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
+import '@/i18n/config'
 import './App.css'
 
 function AppContent() {
