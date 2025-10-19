@@ -2,7 +2,11 @@ name: orchestrator-e2e
 on:
   workflow_dispatch:
   push:
+    branches-ignore:
+      - 'orchestrator/**'
   pull_request:
+    branches-ignore:
+      - 'orchestrator/**'
 jobs:
   run:
     runs-on: ubuntu-latest

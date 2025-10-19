@@ -83,3 +83,5 @@ services:
         sync: false
       - key: SANDBOX_ENABLED
         value: false
+      - key: ORCHESTRATOR_TEST_MODE
+        value: false
