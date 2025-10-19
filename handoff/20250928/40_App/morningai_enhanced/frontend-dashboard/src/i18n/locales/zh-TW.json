@@ -20,6 +20,36 @@
       "devAccount": "開發環境測試帳號"
     }
   },
+  "hero": {
+    "badge": "全新推出 Morning AI",
+    "title": {
+      "line1": "智能決策",
+      "line2": "管理系統"
+    },
+    "subtitle": "透過 AI 驅動的洞察和自動化決策，賦能您的業務。體驗智能營運的未來。",
+    "cta": {
+      "primary": "開始使用",
+      "secondary": "觀看示範"
+    },
+    "features": {
+      "ai": {
+        "title": "AI 驅動",
+        "description": "智能決策制定"
+      },
+      "fast": {
+        "title": "極速響應",
+        "description": "即時優化"
+      },
+      "secure": {
+        "title": "企業級安全",
+        "description": "銀行級安全保障"
+      },
+      "growth": {
+        "title": "彈性擴展",
+        "description": "隨業務成長"
+      }
+    }
+  },
   "dashboard": {
     "title": "自助儀表板",
     "description": "可自訂的系統監控與任務追蹤",

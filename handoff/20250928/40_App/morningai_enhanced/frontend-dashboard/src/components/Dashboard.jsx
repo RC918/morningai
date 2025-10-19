@@ -17,6 +17,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'
 import { DashboardSkeleton } from '@/components/feedback/ContentSkeleton'
+import AppleHero from './AppleHero'
+import { AppleCard, AppleCardHeader, AppleCardTitle, AppleCardDescription, AppleCardContent } from './AppleCard'
 import apiClient from '@/lib/api'
 
 const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
@@ -325,9 +327,11 @@ const Dashboard = () => {
   if (showReportCenter) {
     return (
       <DndProvider backend={HTML5Backend}>
-        <div className="p-6 space-y-6">
-          <DashboardToolbar />
-          <ReportCenter />
+        <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12 space-y-12">
+            <DashboardToolbar />
+            <ReportCenter />
+          </div>
         </div>
       </DndProvider>
     )
@@ -335,8 +339,12 @@ const Dashboard = () => {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        <DashboardToolbar />
+      <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        {/* Apple-style Hero Section */}
+        <AppleHero />
+        
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12 space-y-12">
+          <DashboardToolbar />
 
         {/* Customizable Dashboard Widgets */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
@@ -494,6 +502,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         )}
+        </div>
       </div>
     </DndProvider>
   )

@@ -20,6 +20,36 @@
       "devAccount": "Development Test Account"
     }
   },
+  "hero": {
+    "badge": "Introducing Morning AI",
+    "title": {
+      "line1": "Intelligent Decision",
+      "line2": "Making System"
+    },
+    "subtitle": "Empower your business with AI-driven insights and automated decision-making. Experience the future of intelligent operations.",
+    "cta": {
+      "primary": "Get Started",
+      "secondary": "Watch Demo"
+    },
+    "features": {
+      "ai": {
+        "title": "AI-Powered",
+        "description": "Intelligent decision making"
+      },
+      "fast": {
+        "title": "Lightning Fast",
+        "description": "Real-time optimization"
+      },
+      "secure": {
+        "title": "Enterprise Secure",
+        "description": "Bank-level security"
+      },
+      "growth": {
+        "title": "Scalable",
+        "description": "Grows with your business"
+      }
+    }
+  },
   "dashboard": {
     "title": "Self-Service Dashboard",
     "description": "Customizable system monitoring and task tracking",
