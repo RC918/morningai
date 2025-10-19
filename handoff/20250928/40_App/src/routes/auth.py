@@ -42,7 +42,7 @@ def login():
         token = jwt.encode({
             'user_id': user_data['id'],
             'username': username,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
         }, 'your-secret-key', algorithm='HS256')
         
         # 返回用戶信息和token
