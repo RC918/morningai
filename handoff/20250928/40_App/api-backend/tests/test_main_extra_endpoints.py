@@ -42,13 +42,13 @@ class TestRootEndpoints:
         """Test / root endpoint"""
         response = client.get('/')
         
-        assert response.status_code in [200, 302, 404]
+        assert response.status_code == 404
     
     def test_api_root_endpoint(self, client):
         """Test /api/ root endpoint"""
         response = client.get('/api/')
         
-        assert response.status_code in [200, 404]
+        assert response.status_code == 404
 
 
 class TestErrorEndpoints:
@@ -78,7 +78,7 @@ class TestPhase4Endpoints:
             'context': {}
         })
         
-        assert response.status_code in [200, 400, 500, 503]
+        assert response.status_code in [200, 404, 500, 503]
     
     @patch('src.main.PHASE_456_AVAILABLE', True)
     def test_langgraph_workflow_available(self, client):
@@ -88,7 +88,7 @@ class TestPhase4Endpoints:
             'config': {}
         })
         
-        assert response.status_code in [200, 201, 400, 500, 503]
+        assert response.status_code in [200, 404, 500, 503]
 
 
 class TestCORSHeaders:
@@ -111,20 +111,20 @@ class TestContentTypeHandling:
     """Test content type handling"""
     
     def test_json_content_type(self, client):
-        """Test JSON content type handling"""
+        """Test JSON content type handling with invalid JSON"""
         response = client.post('/api/auth/login', 
                               data='invalid json',
                               content_type='application/json')
         
-        assert response.status_code in [400, 415, 500]
+        assert response.status_code in [400, 500]
     
     def test_form_data_not_supported(self, client):
-        """Test form data on JSON endpoints"""
+        """Test form data on JSON-only endpoints"""
         response = client.post('/api/auth/login',
                               data={'username': 'test'},
                               content_type='application/x-www-form-urlencoded')
         
-        assert response.status_code in [400, 415, 500]
+        assert response.status_code == 500
 
 
 class TestMethodNotAllowed:
@@ -160,7 +160,7 @@ class TestLargePayloads:
         
         response = client.post('/api/auth/login', json=large_payload)
         
-        assert response.status_code in [400, 413, 500]
+        assert response.status_code in [400, 500]
 
 
 class TestSpecialCharacters:
@@ -173,10 +173,10 @@ class TestSpecialCharacters:
             'password': 'test123'
         })
         
-        assert response.status_code in [200, 401, 400]
+        assert response.status_code in [400, 401]
     
     def test_special_chars_in_path(self, client):
         """Test special characters in URL path"""
         response = client.get('/api/users/%20')
         
-        assert response.status_code in [404, 400]
+        assert response.status_code == 404

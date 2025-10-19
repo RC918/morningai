@@ -38,7 +38,7 @@ class TestAdditionalEndpointCoverage:
         
         for endpoint in endpoints:
             response = client.options(endpoint)
-            assert response.status_code in [200, 204, 404]
+            assert response.status_code in [200, 204]
     
     def test_case_sensitivity_urls(self, client):
         """Test URL case sensitivity"""
@@ -46,15 +46,15 @@ class TestAdditionalEndpointCoverage:
         response2 = client.get('/Health')
         
         assert response1.status_code == 200
-        assert response2.status_code in [404, 200]
+        assert response2.status_code == 404
     
     def test_trailing_slash_handling(self, client):
         """Test trailing slash handling"""
         response1 = client.get('/health')
         response2 = client.get('/health/')
         
-        assert response1.status_code in [200, 308]
-        assert response2.status_code in [200, 404, 308]
+        assert response1.status_code == 200
+        assert response2.status_code in [200, 308, 404]
     
     def test_double_slash_handling(self, client):
         """Test double slash in URLs"""
@@ -198,7 +198,7 @@ class TestEmptyAndNullRequests:
         """Test POST with empty body"""
         response = client.post('/api/auth/login', data='')
         
-        assert response.status_code in [400, 415, 422, 500]
+        assert response.status_code in [400, 500]
     
     def test_whitespace_only_body(self, client):
         """Test POST with whitespace-only body"""
@@ -206,7 +206,7 @@ class TestEmptyAndNullRequests:
                               data='   \n  \t  ',
                               content_type='application/json')
         
-        assert response.status_code in [400, 415, 422, 500]
+        assert response.status_code in [400, 500]
 
 
 class TestPathParameters:
@@ -222,7 +222,7 @@ class TestPathParameters:
         """Test zero as path parameter"""
         response = client.get('/api/users/0')
         
-        assert response.status_code in [200, 404, 400]
+        assert response.status_code == 404
     
     def test_negative_path_param(self, client):
         """Test negative path parameter"""
