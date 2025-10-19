@@ -7,8 +7,8 @@ Tests for:
 3. _rollback_changes() automatic rollback mechanism
 """
 import pytest
-from agents.dev_agent.dev_agent_wrapper import DevAgent
-from agents.dev_agent.workflows.bug_fix_workflow import (
+from dev_agent_wrapper import DevAgent
+from workflows.bug_fix_workflow import (
     BugFixWorkflow,
     BugFixState
 )
