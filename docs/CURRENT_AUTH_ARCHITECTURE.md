@@ -387,7 +387,7 @@ def login():
         'username': username,
         'role': user_data['role'],
         'tenant_id': tenant_id,  # NEW
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
     }, jwt_secret, algorithm='HS256')
 ```
 
