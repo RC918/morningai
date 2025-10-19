@@ -3,5 +3,6 @@
   "framework": "vite",
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "rootDirectory": "handoff/20250928/40_App/frontend-dashboard"
 }
