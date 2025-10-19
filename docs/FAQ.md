@@ -1,105 +1,89 @@
 # MorningAI System Architecture
 
-The MorningAI platform is designed as a robust, scalable multi-tenant SaaS solution aimed at streamlining autonomous code generation, FAQ documentation management, and providing seamless integration across multiple messaging platforms. Its architecture is crafted to support real-time task orchestration and efficient memory storage for a seamless user experience.
+MorningAI leverages a modern, scalable, and efficient system architecture designed to provide a robust platform for autonomous code generation, FAQ generation, documentation management, and multi-platform integration. This architecture is built to handle real-time task orchestration and vector memory storage efficiently. Below is a detailed breakdown of MorningAI's system architecture components and how they interact within the ecosystem.
 
-## Overview
-
-MorningAI leverages a microservices architecture, with each component designed to operate both independently and in concert with others. This approach ensures scalability, reliability, and easy maintenance. Below is an outline of the key components and technologies that constitute the MorningAI system architecture:
+## Components
 
 ### Frontend
 
-- **Technology Stack**: The user interface is built using React for its reusable components and state management features, Vite for fast builds, and TailwindCSS for styling.
-- **Code Example**:
-  ```jsx
-  // src/App.jsx
-  import React from 'react';
-  import 'tailwindcss/tailwind.css';
-
-  function App() {
-    return <div className="app">Welcome to MorningAI</div>;
-  }
-
-  export default App;
-  ```
+- **Technology Stack**: The frontend is built using React, leveraging Vite for an optimized build toolchain and TailwindCSS for styling.
+- **Functionality**: It provides the user interface for interacting with the MorningAI platform, including code generation requests, managing documentation, and configuring integrations.
 
 ### Backend
 
-- **Technology Stack**: The server-side logic is handled by Python using the Flask framework for its simplicity and flexibility. Gunicorn serves as the WSGI HTTP Server for UNIX, supporting multi-worker connections.
-- **Configuration Example**:
-  ```python
-  # gunicorn_config.py
-  workers = 2
-  threads = 4
-  bind = "0.0.0.0:8000"
-  ```
-- **Running Gunicorn**:
-  ```bash
-  gunicorn -c gunicorn_config.py myapp:app
-  ```
+- **Technology Stack**: Python powers the backend with Flask serving as the web framework. Gunicorn is used as the WSGI HTTP server with multi-worker support to handle concurrent requests efficiently.
+- **Functionality**: Handles API requests, autonomous agent system logic, task orchestration, and interacts with the database and queue systems.
 
 ### Database
 
-- **Technology Stack**: PostgreSQL is utilized for data storage, augmented with Row Level Security (RLS) for enhanced data protection. Supabase extends PostgreSQL, offering additional features like pgvector for vector memory storage.
-- **Supabase Setup**:
-    - Create a new project on Supabase.io.
-    - Navigate to the SQL Editor and execute custom SQL commands to configure RLS and pgvector.
+- **Technology Stack**: PostgreSQL with Row Level Security (RLS) features, hosted on Supabase. This setup offers robust data storage with enhanced security measures.
+- **Functionality**: Stores user data, generated codes, FAQs content, and other necessary information. pgvector is used within PostgreSQL for vector memory storage capabilities.
 
 ### Queue System
 
-- **Redis Queue (RQ)**: Facilitates task queuing and worker management to handle background processes efficiently.
-- **Worker Configuration**:
-    ```python
-    # worker.py
-    from redis import Redis
-    from rq import Worker, Queue, Connection
+- **Technology Stack**: Redis Queue (RQ) is used for managing background tasks with worker heartbeat monitoring to ensure reliability.
+- **Functionality**: Facilitates asynchronous execution of heavy or time-consuming tasks such as code generation or batch processing without blocking the main application flow.
 
-    listen = ['high', 'default', 'low']
+### Orchestration
 
-    redis_conn = Redis()
+- **Technology Stack**: LangGraph is employed for agent workflows to manage complex task dependencies and execution sequences.
+- **Functionality**: Coordinates between different services and agents in the system to ensure smooth operation and efficient resource management.
 
-    if __name__ == '__main__':
-        with Connection(redis_conn):
-            worker = Worker(map(Queue, listen))
-            worker.work()
-    ```
+### AI
 
-### Orchestration & AI
+- **Technology Stack**: OpenAI's GPT-4 model is integrated for content generation tasks including FAQ content creation and code suggestions.
+- **Functionality**: Provides intelligent content generation capabilities making use of advanced natural language processing techniques.
 
-- **LangGraph**: Used for orchestrating agent workflows in a flexible manner.
-- **OpenAI GPT-4**: Powers content generation including code snippets and FAQ documentation.
-  
 ### Deployment
 
-- Deployed on Render.com with continuous integration and delivery (CI/CD), ensuring automatic updates from the repository `RC918/morningai` to production environments.
+- **Platform**: The entire stack is deployed on Render.com with Continuous Integration/Continuous Deployment (CI/CD) pipelines set up for automated testing and deployment.
+- **Functionality**: Ensures that new changes are automatically tested and deployed to production in a streamlined manner without manual intervention.
+
+## Example Code Snippet
+Below is an example snippet showing how a task might be enqueued in Redis Queue:
+
+```python
+from redis import Redis
+from rq import Queue
+from my_module import some_long_running_task
+
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+
+result = q.enqueue(some_long_running_task, 'my argument')
+```
 
 ## Related Documentation Links
-
-- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- Flask Documentation: [https://flask.palletsprojects.com/en/2.1.x/](https://flask.palletsprojects.com/en/2.1.x/)
-- PostgreSQL RLS: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-- Redis Queue Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
-- Render Deployment Guides: [https://render.com/docs](https://render.com/docs)
+For more detailed information on specific components or configurations:
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- RQ: [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- Supabase: [https://supabase.io/docs](https://supabase.io/docs)
+- Render: [https://render.com/docs](https://render.com/docs)
 
 ## Common Troubleshooting Tips
+1. **Failed Task Execution in RQ**:
+   - Check Redis server status.
+   - Ensure worker processes are running.
+   - Review task exception messages in worker logs.
 
-1. **Issue**: Flask application not starting under Gunicorn.
-   - **Solution**: Ensure that Gunicorn is correctly configured with the right number of workers and binds to the correct port as specified in your `gunicorn_config.py`.
+2. **Database Connection Issues**:
+   - Verify database credentials in your application configuration.
+   - Check network ACLs/firewall rules if connecting from an external network.
 
-2. **Issue**: Tasks not being processed by Redis Queue workers.
-   - **Solution**: Verify that Redis is running and accessible by your application. Also, ensure workers are correctly started with the right queues being listened to.
-
-3. **Issue**: Database migrations failing in Supabase.
-   - **Solution**: Review your SQL scripts for compatibility issues with PostgreSQL versions supported by Supabase. Ensure all foreign keys and relationships are correctly defined.
-
-For more detailed assistance or inquiries about specific issues not covered here, please refer to our detailed documentation or contact support.
+3. **Deployment Failures on Render**:
+   - Review build logs for specific error messages.
+   - Ensure all environment variables are correctly set up in Render dashboard.
+   - Validate your `render.yaml` configuration file for syntax errors or missing fields.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `62451685-9632-4d6a-8fcb-a42642c05a18`
+- Trace ID: `94800727-faf7-444d-b8b8-69f439a90817`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
