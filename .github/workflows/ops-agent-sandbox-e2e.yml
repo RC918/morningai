@@ -9,6 +9,7 @@ on:
       - '.github/workflows/ops-agent-sandbox-e2e.yml'
       - 'docs/DEPLOYMENT_PROOF.md'
   pull_request:
+    branches: [main]
 
 jobs:
   e2e-test:
