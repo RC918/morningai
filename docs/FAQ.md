@@ -1,67 +1,59 @@
-# How to Use the Autonomous Agent System for Code Generation in MorningAI
+# Testing Sentry `trace_id` in MorningAI
 
-The MorningAI platform offers a sophisticated autonomous agent system designed to streamline the code generation process. This feature leverages advanced AI algorithms to help developers automate coding tasks, reduce errors, and increase efficiency. Understanding how to utilize this system can significantly enhance your development workflow within the MorningAI ecosystem.
+## Overview
 
-## Comprehensive Explanation
+When developing and maintaining applications, monitoring and error tracking are crucial for identifying and solving issues efficiently. Sentry is a popular tool used for real-time error tracking, which helps developers monitor and fix crashes in real time. The `trace_id` is a unique identifier for each trace captured by Sentry, enabling developers to track specific issues or errors as they occur across the application's execution flow. This FAQ aims to guide MorningAI developers on how to test the `trace_id` functionality within the MorningAI platform, ensuring seamless integration with Sentry for error tracking and resolution.
 
-The autonomous agent system in MorningAI is built on top of OpenAI's GPT-4, providing a powerful tool for generating code across various programming languages and frameworks. It integrates seamlessly with the platform's multi-tenant SaaS architecture, offering a unique combination of flexibility, scalability, and intelligence in code generation.
+## How to Test Sentry `trace_id`
 
-### Key Features:
-- **Multi-language support**: Generate code in multiple programming languages including Python, JavaScript, TypeScript, and more.
-- **Context-aware generation**: The system understands the context of your project to provide relevant code snippets.
-- **Integration-friendly**: Easily integrate generated code with existing projects through MorningAI's multi-platform support.
+To ensure that the Sentry `trace_id` is correctly implemented in your MorningAI application, follow these steps:
 
-## Code Examples
+### Step 1: Configuration
 
-Here's how to initiate a simple code generation request using the autonomous agent system in a Python Flask application. Ensure you have Flask installed in your environment:
+Ensure that Sentry is properly configured in your MorningAI application. This involves setting up Sentry SDK with your DSN (Data Source Name) in the application's initialization code.
 
 ```python
-from flask import Flask, request, jsonify
-import morningai.agent as agent
-
-app = Flask(__name__)
-
-@app.route('/generate_code', methods=['POST'])
-def generate_code():
-    data = request.json
-    language = data.get('language')
-    prompt = data.get('prompt')
-    
-    generated_code = agent.generate_code(language=language, prompt=prompt)
-    
-    return jsonify({
-        'generated_code': generated_code
-    })
-
-if __name__ == '__main__':
-    app.run(debug=True)
+import sentry_sdk
+sentry_sdk.init(
+    dsn="your_sentry_dsn_here",
+    traces_sample_rate=1.0
+)
 ```
 
-### Setup Instructions:
+This code should be placed in a location that runs at the startup of your application, such as within the `app/__init__.py` file for Flask applications.
 
-1. **Clone the repository**: Start by cloning the RC918/morningai repository to your local machine.
-2. **Install dependencies**: Navigate into your cloned directory and install necessary dependencies using `pip install -r requirements.txt`.
-3. **Environment Configuration**: Ensure you have set up all required environment variables as documented in `docs/setup.md`.
-4. **Run the application**: Start your Flask application by running `flask run` from your terminal.
+### Step 2: Generating a Trace with an Error
 
-## Related Documentation Links
+To test if `trace_id` is working, intentionally generate an error in your code where you can easily identify it. For instance:
 
-- Autonomous Agent System Overview: [MorningAI/docs/agent_system.md](https://github.com/RC918/morningai/docs/agent_system.md)
-- Getting Started with MorningAI: [MorningAI/docs/getting_started.md](https://github.com/RC918/morningai/docs/getting_started.md)
-- API Reference: [MorningAI/docs/api_reference.md](https://github.com/RC918/morningai/docs/api_reference.md)
+```python
+@app.route('/trigger_error')
+def trigger_error():
+    division_by_zero = 1 / 0  # This will cause a ZeroDivisionError
+    return "This won't be executed due to the error above."
+```
+
+Accessing this route will generate an error that gets sent to Sentry.
+
+### Step 3: Locating the `trace_id`
+
+Once the error occurs, go to your Sentry dashboard. Locate the error event you generated; within its details, you'll find the `trace_id`. This ID can be used to correlate events and transactions across different services if your application spans multiple systems or microservices.
+
+### Related Documentation Links
+
+- Sentry Python SDK Documentation: [https://docs.sentry.io/platforms/python/](https://docs.sentry.io/platforms/python/)
+- Flask Integration with Sentry: [https://docs.sentry.io/platforms/python/guides/flask/](https://docs.sentry.io/platforms/python/guides/flask/)
 
 ## Common Troubleshooting Tips
 
-**Issue**: Failure to generate code or receiving irrelevant snippets.
-- **Solution**: Verify that your prompts are clear and contextually rich. Providing more details or specifying the programming language can improve results.
+- **Issue:** The error does not appear in Sentry.
+    - **Solution:** Ensure that your DSN is correctly configured and that there are no network issues blocking communication with Sentry's servers.
+- **Issue:** The `trace_id` is not visible.
+    - **Solution:** Make sure you're looking at an error or transaction event within Sentry. If viewing logs or metrics, `trace_id` might not be present.
+- **Issue:** Transactions are missing or incomplete.
+    - **Solution:** Review your sampling rate (`traces_sample_rate`). A low value could mean that not all transactions are being captured. Adjust this value according to your needs.
 
-**Issue**: Errors when integrating generated code into existing projects.
-- **Solution**: Ensure compatibility of the generated code with your project's existing framework and libraries. Reviewing the generated code for syntax or logical errors before integration is also recommended.
-
-**Issue**: Environment setup issues or dependency conflicts.
--**Solution**: Refer to `docs/setup.md` for a comprehensive setup guide. Ensure that all environmental variables are correctly configured according to your local or production environments.
-
-For more detailed troubleshooting guidance or if you encounter an issue not covered here, please consult our comprehensive FAQ section at [MorningAI/docs/FAQ.md](https://github.com/RC918/morningai/docs/FAQ.md) or submit an issue in the repository for community support.
+For further assistance with issues related to Sentry integration, refer to Sentry's official forums or contact their support team.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -69,7 +61,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test question
-- Trace ID: `28c2cbe7-54cc-49c3-bf3a-76bac0d45fd9`
+- Task: Test Sentry trace_id
+- Trace ID: `c6ef7ab6-c8df-4fad-800e-de8f68a35c2a`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
