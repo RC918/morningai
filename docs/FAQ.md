@@ -1,66 +1,71 @@
-# How to Use MorningAI for Code Generation
+# Test Retry Success in MorningAI
 
-MorningAI leverages an autonomous agent system to streamline code generation, making it easier for developers to produce high-quality code swiftly. This FAQ aims to guide developers through the process of utilizing MorningAI's code generation capabilities, ensuring an efficient and productive development experience.
+Understanding and implementing test retries can significantly enhance the reliability of the MorningAI platform's CI/CD pipeline. This FAQ is designed to help developers comprehend the mechanism behind test retries, how to configure them, and troubleshoot common issues.
 
-## Understanding MorningAI's Autonomous Agent System
+## Understanding Test Retries
 
-MorningAI's autonomous agent system is designed to facilitate automatic code generation based on user inputs or predefined templates. This system employs advanced AI algorithms, including OpenAI's GPT-4, to understand the context and requirements of the task at hand, generating code that is both efficient and tailored to your needs.
+Test retries are a mechanism used to automatically rerun failed tests before marking them as failures. This approach can be particularly useful in a complex, multi-tenant SaaS platform like MorningAI, where tests might fail due to transient issues such as network latency, dependency load times, or temporary resource unavailability rather than actual code defects.
 
-### Key Features:
+### Configuration
 
-- **Autonomous Code Generation**: Generate code snippets or entire modules autonomously.
-- **Customization and Templates**: Utilize built-in templates or create custom ones for repeated use.
-- **Multi-Language Support**: Supports various programming languages, enhancing versatility.
-- **Integration with Development Environments**: Easily integrates with popular IDEs and code repositories.
+MorningAI utilizes a combination of testing frameworks and CI/CD tools that support test retries. The configuration for retries can usually be found in the specific tool's configuration file.
 
-## Getting Started with Code Generation
+For instance, if you're using pytest with Flask applications:
 
-To start using MorningAI for code generation, follow these steps:
+1. **pytest.ini** or **pyproject.toml**: You can configure retry attempts and delay between retries.
 
-1. **Set Up Your MorningAI Account**:
-   - Ensure you have access to the `RC918/morningai` repository.
-   - Navigate to the `docs/FAQ.md` section for detailed setup instructions.
+```ini
+# pytest.ini example
+[pytest]
+addopts = --reruns 3 --reruns-delay 5
+```
 
-2. **Install Required Dependencies**:
-   Ensure your development environment has React, Python, Flask, and other dependencies listed in the technology stack installed. For installation commands, refer to the `README.md` file in the repository root.
+This snippet tells pytest to rerun failed tests up to 3 times with a 5-second delay between each attempt.
 
-3. **Initialize MorningAI**:
-   - In your project directory, import MorningAI's autonomous agent module.
-   ```python
-   from morningai.agent import AutonomousAgent
-   ```
+2. **CI/CD Pipeline Configuration**: For GitLab CI, you can specify retry logic in `.gitlab-ci.yml`:
 
-4. **Configure Your Agent**:
-   - Set up your agent with necessary parameters, including language preference and output format.
-   ```python
-   agent = AutonomousAgent(language='Python', template='web_app')
-   ```
+```yaml
+test_job:
+  script: pytest
+  retry:
+    max: 2
+    when: runner_system_failure
+```
 
-5. **Generate Code**:
-   - Invoke the `generate_code` method with your specifications.
-   ```python
-   generated_code = agent.generate_code(requirements='Create a REST API for a bookstore')
-   print(generated_code)
-   ```
+This configuration retries the job up to 2 additional times if it fails due to system issues.
 
-### Related Documentation Links
+### Implementation in MorningAI
 
-- [MorningAI Official Documentation](#)
-- [Setting Up Your Development Environment](#)
-- [Customizing Code Generation Templates](#)
+In the context of MorningAI's technology stack:
 
-## Common Troubleshooting Tips
+- The backend Python services might use `pytest` along with its rerun plugin.
+- Frontend React applications could implement retries at the testing level with Jest by using `jest.retryTimes(numberOfRetries)`.
+- For integration tests involving Redis Queue (RQ) or Supabase, ensure your test framework is set up to handle asynchronous operations and potential transient failures gracefully.
 
-- **Issue: Agent Not Generating Expected Output**
-  - Check if the requirements string is clear and specific.
-  - Verify that all necessary dependencies are correctly installed.
-  - Review the agent configuration for any incorrect parameters.
+#### Code Example for RQ Job Retry
 
-- **Issue: Installation Errors**
-  - Ensure you have the correct versions of Python, React, and other dependencies as per the `requirements.txt` file.
-  - If using a virtual environment, verify that it is activated before installing dependencies.
+When working with Redis Queue within MorningAI for task orchestration, ensuring tasks are retried upon failure is crucial. Below is an example of how you could define a job with retry mechanisms:
 
-For more detailed troubleshooting guides, refer to our comprehensive documentation or reach out to our support team through our community forum or help desk.
+```python
+from rq import Retry
+from redis_queue import queue
+
+def example_task():
+    # Task implementation here
+    pass
+
+job = queue.enqueue(example_task, retry=Retry(max=3, interval=[10, 30, 60]))
+```
+
+This code snippet demonstrates enqueuing a task with automatic retries upon failure. The task will be retried up to three times with intervals of 10 seconds, 30 seconds, and then 60 seconds between attempts.
+
+## Troubleshooting Common Issues
+
+1. **Excessive Retries Without Success**: Ensure that the conditions causing the initial failure are transient and not persistent logical errors in the code.
+2. **No Retries Happening**: Verify that your retry configurations are correctly set up in both your testing framework and CI/CD pipeline files.
+3. **Impact on Test Suite Performance**: While retries can improve reliability, they also increase test suite execution time. Monitor your CI/CD pipeline's performance metrics and adjust retry settings as needed.
+
+For more detailed information on configuring test retries specific to your development environment within MorningAI, refer to the official documentation of [pytest](https://docs.pytest.org/en/latest/how-to/retry.html), [Jest](https://jestjs.io/docs/en/jest-object#jestretrytimes), or your chosen CI/CD tool.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -68,7 +73,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test question
-- Trace ID: `779edbcf-dcc3-4a22-a917-c67579806e96`
+- Task: Test retry success
+- Trace ID: `c9fcf420-9b25-401a-bfb7-77bc465786eb`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
