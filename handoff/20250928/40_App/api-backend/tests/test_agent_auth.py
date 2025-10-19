@@ -1,6 +1,11 @@
 import pytest
 import json
+import os
+import sys
 from unittest.mock import patch, MagicMock
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 from src.main import app
 from src.middleware import create_admin_token, create_analyst_token, create_user_token
 
@@ -95,8 +100,8 @@ def test_debug_endpoint_expired_token(client, mock_redis):
         'user_id': 2,
         'username': 'analyst',
         'role': 'analyst',
-        'exp': datetime.datetime.utcnow() - datetime.timedelta(hours=1),
-        'iat': datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+        'exp': datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1),
+        'iat': datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=2)
     }
     expired_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
     

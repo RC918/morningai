@@ -1,7 +1,11 @@
 import pytest
-from src.middleware.auth_middleware import normalize_role, generate_jwt_token
 import jwt
 import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from src.middleware.auth_middleware import normalize_role, generate_jwt_token
 
 
 def test_normalize_role_operator_to_analyst():
@@ -169,8 +173,8 @@ def test_roles_required_decorator_with_operator_token():
         'user_id': 2,
         'username': 'operator',
         'role': 'operator',
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
-        'iat': datetime.datetime.utcnow()
+        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24),
+        'iat': datetime.datetime.now(datetime.UTC)
     }
     operator_token = jwt_lib.encode(payload, jwt_secret, algorithm='HS256')
     
@@ -203,8 +207,8 @@ def test_roles_required_decorator_with_viewer_token():
         'user_id': 3,
         'username': 'viewer',
         'role': 'viewer',
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
-        'iat': datetime.datetime.utcnow()
+        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24),
+        'iat': datetime.datetime.now(datetime.UTC)
     }
     viewer_token = jwt_lib.encode(payload, jwt_secret, algorithm='HS256')
     
