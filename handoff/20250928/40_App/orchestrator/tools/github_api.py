@@ -1,19 +1,71 @@
 import os
-from github import Github
+import logging
+import sys
+from github import Github, GithubException, RateLimitExceededException, UnknownObjectException, BadCredentialsException
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from exceptions import (
+    GitHubException as CustomGitHubException,
+    GitHubAuthenticationError,
+    GitHubRateLimitError,
+    GitHubResourceNotFoundError,
+    GitHubPermissionError
+)
+from utils.retry import retry_with_backoff, API_RETRY_CONFIG
+
+logger = logging.getLogger(__name__)
 
 GITHUB_TOKEN = os.getenv("AGENT_GITHUB_TOKEN", os.getenv("GITHUB_TOKEN"))
 GITHUB_REPO = os.getenv("GITHUB_REPO", "RC918/morningai")
 
+@retry_with_backoff(
+    max_retries=API_RETRY_CONFIG.max_retries,
+    initial_delay=API_RETRY_CONFIG.initial_delay,
+    backoff_factor=API_RETRY_CONFIG.backoff_factor,
+    exceptions=(RateLimitExceededException, ConnectionError, TimeoutError)
+)
 def get_repo():
+    """
+    Get GitHub repository object with retry logic
+    
+    Returns:
+        Repository object or None if unavailable
+    
+    Raises:
+        GitHubAuthenticationError: If token is invalid
+        GitHubResourceNotFoundError: If repository not found
+        GitHubRateLimitError: If rate limit exceeded (after retries)
+    """
     try:
         if not GITHUB_TOKEN:
-            print("[GitHub] GITHUB_TOKEN not set")
-            return None
+            error_msg = "GITHUB_TOKEN not set in environment"
+            logger.error(f"[GitHub] {error_msg}")
+            raise GitHubAuthenticationError(error_msg)
+        
         gh = Github(GITHUB_TOKEN)
-        return gh.get_repo(GITHUB_REPO)
+        repo = gh.get_repo(GITHUB_REPO)
+        logger.info(f"[GitHub] Successfully connected to {GITHUB_REPO}")
+        return repo
+        
+    except BadCredentialsException as e:
+        error_msg = f"Invalid GitHub token: {e}"
+        logger.error(f"[GitHub] {error_msg}")
+        raise GitHubAuthenticationError(error_msg) from e
+    
+    except UnknownObjectException as e:
+        error_msg = f"Repository {GITHUB_REPO} not found: {e}"
+        logger.error(f"[GitHub] {error_msg}")
+        raise GitHubResourceNotFoundError(error_msg) from e
+    
+    except RateLimitExceededException as e:
+        error_msg = f"GitHub API rate limit exceeded: {e}"
+        logger.error(f"[GitHub] {error_msg}")
+        raise GitHubRateLimitError(error_msg) from e
+    
     except Exception as e:
-        print(f"[GitHub] Failed to get repo: {e}")
-        return None
+        error_msg = f"Failed to get repo {GITHUB_REPO}: {e}"
+        logger.error(f"[GitHub] {error_msg}")
+        raise CustomGitHubException(error_msg) from e
 
 def create_branch(repo, base="main", new_branch="orchestrator/demo-branch"):
     try:
