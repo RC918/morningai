@@ -1,74 +1,62 @@
-# MorningAI E2E Testing FAQ
+# Testing Sentry Trace ID in MorningAI
 
-End-to-End (E2E) testing is a crucial component of the development process for MorningAI, ensuring that our multi-tenant SaaS platform operates efficiently and as expected from start to finish. This FAQ aims to guide developers through our E2E testing practices, providing insights into how tests are structured, executed, and how to troubleshoot common issues.
+When integrating Sentry into your applications for error tracking and performance monitoring, it's crucial to ensure that the Sentry `trace_id` is correctly generated and propagated through your system. This ensures that errors and performance issues can be accurately traced back to their source, making debugging and monitoring more effective. This FAQ aims to guide developers on how to test the Sentry `trace_id` within the MorningAI platform.
 
-## What is E2E Testing in MorningAI?
+## Understanding Sentry `trace_id`
 
-E2E testing involves simulating real-user scenarios to validate the system under test and its components for integration and data integrity. In MorningAI, E2E tests cover the entire application flow, from autonomous agent system operations to multi-platform integration, ensuring that all parts of the system work together seamlessly.
+The Sentry `trace_id` is a unique identifier for each request or operation within your system. It ties together events, transactions, and errors, allowing you to trace the path of a request across service boundaries. This is particularly useful in distributed systems where requests pass through multiple services.
 
-## How are E2E Tests Implemented in MorningAI?
+## How to Test Sentry `trace_id` in MorningAI
 
-MorningAI utilizes a combination of technologies for E2E testing, primarily focusing on Cypress and Selenium for web-based interactions and PyTest for backend services. Tests are designed to mimic user interactions with the system, validating both the UI/UX aspects on platforms like Telegram, LINE, Messenger, and backend processes such as task orchestration with Redis Queue.
+To test the generation and propagation of the Sentry `trace_id` in MorningAI, follow these steps:
 
-### Code Example: PyTest Backend Test
+### Step 1: Configuration
+
+Ensure that Sentry is correctly configured in your application. In a Flask application like MorningAI, this typically involves initializing the Sentry SDK with your DSN (Data Source Name) and configuring any relevant options.
 
 ```python
-import pytest
-from app import create_app
-from db import db
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
-@pytest.fixture
-def app():
-    app = create_app('testing')
-    with app.app_context():
-        db.create_all()
-    yield app
-    with app.app_context():
-        db.session.remove()
-        db.drop_all()
-
-def test_task_orchestration(app):
-    # Example test for task orchestration
-    client = app.test_client()
-    response = client.post('/orchestrate', json={'task': 'example_task'})
-    assert response.status_code == 200
-    assert response.json['status'] == 'success'
+sentry_sdk.init(
+    dsn="your_sentry_dsn_here",
+    integrations=[FlaskIntegration()],
+    traces_sample_rate=1.0 # Adjust sampling rate as needed
+)
 ```
 
-## Running E2E Tests
+### Step 2: Generating Transactions
 
-Before running any tests, ensure your environment is correctly set up. For frontend testing using Cypress:
+In MorningAI, when you want to test tracing, you can manually create a transaction. This can be done around an operation or request handler where you wish to monitor performance or trace errors.
 
-1. Navigate to your project directory.
-2. Install Cypress via npm if not already installed: `npm install cypress`.
-3. Run Cypress with `npx cypress open` for UI mode or `npx cypress run` for headless mode.
+```python
+from sentry_sdk import start_transaction
 
-For backend tests:
+@app.route("/some_endpoint")
+def some_view_function():
+    with start_transaction(op="task", name="Some Task"):
+        # Your code here
+        pass
+```
 
-1. Ensure Python dependencies are installed: `pip install -r requirements.txt`.
-2. Run PyTest in the terminal: `pytest`.
+This manually creates a transaction for the given block of code, which will include a `trace_id`.
 
-## Related Documentation Links
+### Step 3: Verifying Trace ID
 
-- [Cypress Documentation](https://www.cypress.io/docs)
-- [Selenium Documentation](https://www.selenium.dev/documentation/)
-- [PyTest Documentation](https://docs.pytest.org/en/stable/)
+After configuring Sentry and wrapping your code with transactions, perform operations that trigger these pieces of code. Then, check your Sentry dashboard for incoming transactions and errors. Each transaction/error will have a `trace_id` associated with it.
+
+### Related Documentation Links
+
+- [Sentry Documentation](https://docs.sentry.io/platforms/python/guides/flask/)
+- [Distributed Tracing in Sentry](https://docs.sentry.io/product/sentry-basics/tracing/distributed-tracing/)
 
 ## Common Troubleshooting Tips
 
-**Issue**: Tests fail due to environment misconfiguration.
-**Solution**: Verify your `.env` or configuration files for accuracy against the documentation.
+- **Transactions not appearing**: Ensure that the `traces_sample_rate` is set to a value greater than 0. Also, check network issues that might prevent data from being sent to Sentry.
+- **Incorrect `trace_id` association**: Make sure that manual transactions are correctly wrapped around the code blocks you wish to trace. Incorrect nesting can lead to misleading traces.
+- **Performance overhead**: While testing, setting `traces_sample_rate` to 1.0 captures all transactions but might introduce overhead. Adjust this value based on your production needs.
 
-**Issue**: Selenium WebDriver errors.
-**Solution**: Ensure WebDriver versions match your browser version. Update or downgrade WebDriver as necessary.
-
-**Issue**: Timeout errors during asynchronous task testing.
-**Solution**: Increase timeout settings in your test configurations or ensure background services like Redis Queue are running properly.
-
-**Issue**: Database state affecting tests.
-**Solution**: Use database transactions or fixtures to reset database state before each test. PyTest's fixture mechanism can be particularly useful here.
-
-For further assistance with specific issues not covered here, please refer to our detailed documentation or submit a ticket through our developer support channel.
+Testing the Sentry `trace_id` functionality within MorningAI involves configuring Sentry correctly, wrapping key operations within transactions, and verifying through the Sentry dashboard that these transactions are correctly reported with their unique trace identifiers.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -76,7 +64,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `de117206-615e-43d7-90e9-2e91d6fe612d`
+- Task: Test Sentry trace_id
+- Trace ID: `13749758-0c8d-4680-9864-91496c8bbf81`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
