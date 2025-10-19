@@ -1,79 +1,86 @@
-# Test Retry Success in MorningAI
+# Handling Redis Outages in MorningAI
 
-Understanding and implementing test retries can significantly enhance the reliability of the MorningAI platform's CI/CD pipeline. This FAQ is designed to help developers comprehend the mechanism behind test retries, how to configure them, and troubleshoot common issues.
+When MorningAI encounters a Redis outage, the real-time task orchestration and worker heartbeat monitoring features may be temporarily disrupted. This FAQ aims to guide developers through understanding the implications of a Redis outage and how to manage it effectively.
 
-## Understanding Test Retries
+## Understanding the Impact of a Redis Outage
 
-Test retries are a mechanism used to automatically rerun failed tests before marking them as failures. This approach can be particularly useful in a complex, multi-tenant SaaS platform like MorningAI, where tests might fail due to transient issues such as network latency, dependency load times, or temporary resource unavailability rather than actual code defects.
+Redis Queue (RQ) is a critical component in MorningAI's architecture, used for managing background tasks and ensuring that these tasks are processed efficiently. During an outage, tasks may not be enqueued or processed, which could lead to delays in operations dependent on real-time task execution.
 
-### Configuration
+### Code Example: Checking Redis Connection Status
 
-MorningAI utilizes a combination of testing frameworks and CI/CD tools that support test retries. The configuration for retries can usually be found in the specific tool's configuration file.
-
-For instance, if you're using pytest with Flask applications:
-
-1. **pytest.ini** or **pyproject.toml**: You can configure retry attempts and delay between retries.
-
-```ini
-# pytest.ini example
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
-
-This snippet tells pytest to rerun failed tests up to 3 times with a 5-second delay between each attempt.
-
-2. **CI/CD Pipeline Configuration**: For GitLab CI, you can specify retry logic in `.gitlab-ci.yml`:
-
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when: runner_system_failure
-```
-
-This configuration retries the job up to 2 additional times if it fails due to system issues.
-
-### Implementation in MorningAI
-
-In the context of MorningAI's technology stack:
-
-- The backend Python services might use `pytest` along with its rerun plugin.
-- Frontend React applications could implement retries at the testing level with Jest by using `jest.retryTimes(numberOfRetries)`.
-- For integration tests involving Redis Queue (RQ) or Supabase, ensure your test framework is set up to handle asynchronous operations and potential transient failures gracefully.
-
-#### Code Example for RQ Job Retry
-
-When working with Redis Queue within MorningAI for task orchestration, ensuring tasks are retried upon failure is crucial. Below is an example of how you could define a job with retry mechanisms:
+Before diving into troubleshooting steps, it's essential to verify the connection status with Redis. Here's how you can check it using Python:
 
 ```python
-from rq import Retry
-from redis_queue import queue
+import redis
+from rq import Connection, Worker
 
-def example_task():
-    # Task implementation here
-    pass
+def check_redis_connection():
+    try:
+        r = redis.Redis(host='localhost', port=6379, db=0)
+        if r.ping():
+            print("Connected to Redis")
+        else:
+            print("Redis connection failed")
+    except redis.ConnectionError:
+        print("Redis connection exception occurred")
 
-job = queue.enqueue(example_task, retry=Retry(max=3, interval=[10, 30, 60]))
+check_redis_connection()
 ```
 
-This code snippet demonstrates enqueuing a task with automatic retries upon failure. The task will be retried up to three times with intervals of 10 seconds, 30 seconds, and then 60 seconds between attempts.
+Replace `'localhost'`, `6379`, and `db=0` with your actual Redis configuration.
 
-## Troubleshooting Common Issues
+## Related Documentation Links
 
-1. **Excessive Retries Without Success**: Ensure that the conditions causing the initial failure are transient and not persistent logical errors in the code.
-2. **No Retries Happening**: Verify that your retry configurations are correctly set up in both your testing framework and CI/CD pipeline files.
-3. **Impact on Test Suite Performance**: While retries can improve reliability, they also increase test suite execution time. Monitor your CI/CD pipeline's performance metrics and adjust retry settings as needed.
+- [Redis Queue (RQ) Documentation](http://python-rq.org/docs/)
+- [MorningAI Architecture Overview](https://github.com/RC918/morningai/docs/architecture.md)
+- [Supabase Official Documentation for Backend Integration](https://supabase.io/docs)
 
-For more detailed information on configuring test retries specific to your development environment within MorningAI, refer to the official documentation of [pytest](https://docs.pytest.org/en/latest/how-to/retry.html), [Jest](https://jestjs.io/docs/en/jest-object#jestretrytimes), or your chosen CI/CD tool.
+## Common Troubleshooting Tips
+
+### 1. Verify Redis Service Status
+
+Ensure that the Redis service is running on your server. You can check the service status using:
+
+```bash
+sudo systemctl status redis
+```
+
+If Redis is not running, start it with:
+
+```bash
+sudo systemctl start redis
+```
+
+### 2. Check Network Connectivity
+
+Redis outages can sometimes be attributed to network issues. Ensure there are no firewalls blocking the connection between your application server and the Redis server.
+
+### 3. Monitor Redis Logs
+
+Reviewing the Redis logs can provide insights into what caused the outage. The log files are typically located at `/var/log/redis/redis-server.log`.
+
+### 4. Reconnecting Workers
+
+After resolving the connectivity issue with Redis, you might need to restart your workers to re-establish their connection to the queue:
+
+```bash
+rq worker --url redis://localhost:6379
+```
+
+Replace `redis://localhost:6379` with your actual Redis URL.
+
+### 5. Contact Support
+
+If you've gone through these steps and still experience issues, consider reaching out to MorningAI support or consult the community forums for additional assistance.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `c9fcf420-9b25-401a-bfb7-77bc465786eb`
+- Task: Test question during Redis outage
+- Trace ID: `e9a0cfd8-f005-48a7-8e2f-6b47da7d6eae`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
