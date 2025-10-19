@@ -1,67 +1,83 @@
-# Test Retry Success in MorningAI
+# System Architecture of MorningAI
 
-In the context of the MorningAI platform, ensuring the reliability and robustness of autonomous agent systems and real-time task orchestration is crucial. One way to achieve this is through implementing test retries for operations that may fail due to transient issues. This section aims to provide developers with a comprehensive understanding of how to implement and utilize test retries within the MorningAI infrastructure.
+The MorningAI platform is designed to facilitate autonomous code generation, FAQ generation, documentation management, and multi-platform integration. Its architecture is built to support scalable, efficient, and real-time operations for a wide range of tasks. Below is a comprehensive overview of the system architecture, highlighting its core components, technology stack, and how they interact within the ecosystem.
 
-## Understanding Test Retries
+## Core Components
 
-Test retries are mechanisms that allow a failed test or operation to be attempted again a specified number of times before it is considered a definitive failure. This is particularly useful in distributed systems like MorningAI, where network issues, temporary service unavailability, or other transient problems can cause tasks to fail intermittently.
+### Frontend
+- **Technology Stack**: React with Vite for bundling and TailwindCSS for styling.
+- **Purpose**: Provides the user interface for interaction with MorningAI's features.
+- **Path**: `/frontend`
 
-### Why Use Test Retries?
+### Backend
+- **Technology Stack**: Python with Flask as the web framework, Gunicorn serving as the WSGI HTTP Server with multi-worker support for handling concurrent requests.
+- **Purpose**: Manages API requests, task orchestration, and serves as the intermediary between the frontend and database.
+- **Path**: `/backend`
 
-- **Resilience**: Enhances the platform's ability to handle transient failures gracefully.
-- **Reliability**: Increases confidence in the system's stability by reducing false negatives in tests.
-- **Efficiency**: Saves time and resources by avoiding manual intervention for issues that can resolve themselves upon retry.
+### Database
+- **Technology Stack**: PostgreSQL, enhanced with Row Level Security (RLS) via Supabase for user data isolation in a multi-tenant environment.
+- **Purpose**: Stores all persistent data including user accounts, code generation tasks, FAQs, and documentation content.
+- **Path**: `/supabase`
 
-## Implementing Test Retries in MorningAI
+### Queue System
+- **Technology Stack**: Redis Queue (RQ) utilized for managing background tasks with worker heartbeat monitoring to ensure reliability.
+- **Purpose**: Handles asynchronous task execution such as code generation requests or batch processing for efficiency and scalability.
+- **Path**: `/redis_queue`
 
-MorningAI utilizes Redis Queue (RQ) for task management, which supports retry mechanisms. Below is an example of how you can implement a retry strategy for a task that may fail due to transient errors:
+### Orchestration
+- **Technology Stack**: LangGraph is used for defining agent workflows in a versatile and scalable manner.
+- **Purpose**: Coordinates complex processes between different components of the system to ensure smooth operation and task management.
+- **Path**: `/orchestration`
 
-```python
-from redis import Redis
-from rq import Queue
-from rq.job import Job
-from my_module import my_task_function
+### AI Integration
+- **Technology Stack**: OpenAI GPT-4 powers the content generation including FAQs and documentation through natural language understanding and generation capabilities.
+- **Purpose**: Automates content creation and provides intelligent responses to user queries.
+- **Path**: `/ai`
 
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
+### Deployment
+- **Platform**: Render.com with continuous integration/continuous deployment (CI/CD) pipelines set up for streamlined updates and maintenance.
+- **Purpose**: Hosts all parts of MorningAI ensuring availability, scalability, and security of the service.
 
-# Define your retry strategy
-retry_strategy = {
-    'max_retries': 3,  # Maximum number of retries
-    'interval_start': 60,  # Start interval between tries in seconds
-    'interval_step': 60,  # Increase in interval for each try after the first
-    'interval_max': 180,  # Maximum interval between retries
-}
+## Code Examples
 
-# Enqueue the job with retry strategy
-job = q.enqueue_call(
-    func=my_task_function,
-    retry=retry_strategy
-)
+Due to the nature of this topic, direct code examples are not applicable. However, developers looking to understand specific implementations can refer to:
 
-print(f"Job {job.id} added to queue with retry strategy.")
+```plaintext
+/frontend/src/App.js  // Entry point for React application
+/backend/app.py       // Main Flask application setup
+/supabase/migrations  // Database schema migrations
+/redis_queue/tasks.py // Example task definitions for RQ
 ```
 
-### Related Documentation Links:
+## Related Documentation Links
 
-- Redis Queue Documentation: [RQ Docs](https://python-rq.org/docs/)
-- PostgreSQL (Supabase) Retry Logic: [Supabase Docs](https://supabase.com/docs)
+For more detailed information about each component:
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Gunicorn Documentation](https://docs.gunicorn.org/en/stable/)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [OpenAI API Documentation](https://beta.openai.com/docs/)
 
 ## Common Troubleshooting Tips
 
-1. **Job Fails Without Retrying**: Ensure that your Redis Queue workers are running and configured correctly. Verify your retry strategy parameters for any misconfigurations.
-2. **Retries Happening Too Quickly**: Adjust your `interval_start` and `interval_step` settings within the retry strategy to increase the delay between retries.
-3. **Excessive Load Due to Retries**: Consider implementing exponential backoff in your retry strategy (increasing `interval_step`) and setting a sensible `max_retries` limit to prevent overwhelming your system.
+**Issue:** Frontend not updating after backend changes.  
+**Solution:** Ensure that the frontend build process is triggered after backend updates. In development mode, use `vite`'s hot module replacement (HMR).
 
-For more advanced troubleshooting or if you encounter persistent issues not addressed here, please refer to the official RQ documentation or reach out on our developer community forums.
+**Issue:** Tasks stuck in Redis Queue without being processed.  
+**Solution:** Check that RQ workers are running and there are no network issues preventing them from accessing Redis. Monitor the worker's heartbeat logs for any anomalies.
+
+**Issue:** Database migrations fail during deployment.  
+**Solution:** Review migration scripts for errors or conflicts with existing schema. Ensure that CI/CD pipelines have appropriate credentials to execute migrations on Supabase.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `30e20da4-70d5-42f8-ba3e-3d76d7df2fa1`
+- Task: What is the system architecture?
+- Trace ID: `5782b173-70de-4e7d-a79e-bd592c5600ec`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
