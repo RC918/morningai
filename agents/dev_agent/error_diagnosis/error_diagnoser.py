@@ -44,7 +44,7 @@ class ErrorDiagnoser:
                 ]
             },
             'KeyError': {
-                'pattern': r"KeyError: ['\"](\w+)['\"]",
+                'pattern': r"KeyError:",
                 'fix_template': 'Use .get() method: dict.get("key", default_value) or check if key exists',
                 'code_examples': [
                     'value = my_dict.get("key", None)',

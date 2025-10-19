@@ -470,9 +470,34 @@ class DevAgentOODA:
             elif action_type == 'analyze_code_quality':
                 return self.refactoring_engine.analyze_code(action['code'])
             elif action_type == 'apply_refactoring':
+                from agents.dev_agent.refactoring.refactoring_engine import RefactoringSuggestion, RefactoringType
+                
+                suggestion = action['suggestion']
+                if isinstance(suggestion, dict):
+                    line = suggestion.get('line', 1)
+                    location = suggestion.get('location', {
+                        'start_line': line,
+                        'end_line': line,
+                        'column': 0
+                    })
+                    if 'start_line' not in location and 'line' in suggestion:
+                        location['start_line'] = suggestion['line']
+                        location['end_line'] = suggestion['line']
+                    
+                    suggestion = RefactoringSuggestion(
+                        type=RefactoringType(suggestion.get('type', 'rename')),
+                        severity=suggestion.get('severity', 'medium'),
+                        description=suggestion.get('description', ''),
+                        location=location,
+                        code_snippet=suggestion.get('original_code', ''),
+                        suggested_code=suggestion.get('suggested_code'),
+                        confidence=suggestion.get('confidence', 0.8),
+                        impact=suggestion.get('impact', 'medium')
+                    )
+                
                 return self.refactoring_engine.apply_refactoring(
                     action['code'],
-                    action['suggestion']
+                    suggestion
                 )
             elif action_type == 'verify_refactoring':
                 return self.refactoring_engine.verify_refactoring(

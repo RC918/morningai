@@ -137,7 +137,7 @@ def MyFunction():
 """
         
         suggestion = {
-            'type': 'naming',
+            'type': 'improve_naming',
             'description': 'Function name should use snake_case',
             'original_code': original_code,
             'suggested_code': 'def my_function():\n    return 42\n',
@@ -169,8 +169,10 @@ def MyFunction():
         result = await ooda_agent._execute_action(action)
         
         assert result.get('success') is True
-        assert 'is_valid' in result
-        assert 'checks' in result
+        assert 'syntax_valid' in result
+        assert 'functions_preserved' in result
+        assert 'added_symbols' in result
+        assert 'removed_symbols' in result
     
     async def test_invalid_action_type(self, ooda_agent):
         """Test handling of invalid action type"""
@@ -233,7 +235,7 @@ def VeryLongFunctionName():
         if analyze_result.get('suggestions'):
             suggestion = analyze_result['suggestions'][0]
             
-            if suggestion['type'] == 'naming':
+            if suggestion['type'] in ['improve_naming', 'rename']:
                 apply_action = {
                     'type': 'apply_refactoring',
                     'code': test_code,
