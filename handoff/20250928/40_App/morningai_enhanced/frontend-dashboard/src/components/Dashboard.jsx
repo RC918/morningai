@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { 
@@ -18,6 +19,8 @@ import { DashboardSkeleton } from '@/components/feedback/ContentSkeleton'
 import apiClient from '@/lib/api'
 
 const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
+  const { t } = useTranslation()
+  
   const [{ isDragging }, drag] = useDrag({
     type: 'widget',
     item: { index },
@@ -47,7 +50,7 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) =>
           size="sm"
           className="absolute top-2 right-2 z-10"
           onClick={() => onRemove(index)}
-          aria-label="移除小工具"
+          aria-label={t('dashboard.removeWidget')}
         >
           <Trash2 className="w-4 h-4" aria-hidden="true" />
         </Button>
@@ -58,6 +61,8 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) =>
 }
 
 const Dashboard = () => {
+  const { t } = useTranslation()
+  
   const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
   const [showReportCenter, setShowReportCenter] = useState(false)
@@ -79,25 +84,25 @@ const Dashboard = () => {
     {
       id: 1,
       timestamp: '2024-01-01T14:30:00Z',
-      strategy: 'CPU優化策略',
+      strategy: 'CPU Optimization Strategy',
       status: 'executed',
-      impact: '+15% 性能提升',
+      impact: '+15% Performance Improvement',
       confidence: 0.87
     },
     {
       id: 2,
       timestamp: '2024-01-01T14:15:00Z',
-      strategy: '緩存優化',
+      strategy: 'Cache Optimization',
       status: 'pending',
-      impact: '預計 +20% 響應速度',
+      impact: 'Expected +20% Response Speed',
       confidence: 0.92
     },
     {
       id: 3,
       timestamp: '2024-01-01T14:00:00Z',
-      strategy: '自動擴容',
+      strategy: 'Auto Scaling',
       status: 'executed',
-      impact: '處理能力 +50%',
+      impact: 'Processing Capacity +50%',
       confidence: 0.78
     }
   ])
@@ -245,10 +250,10 @@ const Dashboard = () => {
     <div className="flex justify-between items-center mb-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">
-          {showReportCenter ? '報表中心' : '自助儀表板'}
+          {showReportCenter ? t('reportCenter.title') : t('dashboard.title')}
         </h1>
         <p className="text-gray-600 mt-2">
-          {showReportCenter ? '生成和管理系統報表' : '可自訂的系統監控與任務追蹤'}
+          {showReportCenter ? t('reportCenter.description') : t('dashboard.description')}
         </p>
       </div>
       <div className="flex space-x-2">
@@ -257,7 +262,7 @@ const Dashboard = () => {
           onClick={() => setShowReportCenter(!showReportCenter)}
         >
           <FileText className="w-4 h-4 mr-2" />
-          報表中心
+          {t('reportCenter.title')}
         </Button>
         {!showReportCenter && (
           <Button
@@ -268,7 +273,7 @@ const Dashboard = () => {
             }}
           >
             <Settings className="w-4 h-4 mr-2" />
-            {isEditMode ? '完成編輯' : '自訂儀表板'}
+            {isEditMode ? t('dashboard.finishEditing') : t('dashboard.customize')}
           </Button>
         )}
       </div>
@@ -280,12 +285,12 @@ const Dashboard = () => {
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full h-32 border-dashed">
           <Plus className="w-8 h-8 mb-2" />
-          <span>添加組件</span>
+          <span>{t('dashboard.addWidget')}</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>選擇組件</DialogTitle>
+          <DialogTitle>{t('dashboard.selectWidget')}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
           {availableWidgets.map((widget) => (
@@ -295,7 +300,7 @@ const Dashboard = () => {
               className="h-20 flex-col"
               onClick={() => {
                 addWidget(widget.id)
-                document.querySelector('[data-state="open"]')?.click() // Close dialog
+                document.querySelector('[data-state="open"]')?.click()
               }}
             >
               <Grid3X3 className="w-6 h-6 mb-2" />
@@ -356,11 +361,10 @@ const Dashboard = () => {
         {/* Performance Charts - Always visible */}
         {!isEditMode && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 性能趨勢圖 */}
             <Card>
               <CardHeader>
-                <CardTitle>性能趨勢</CardTitle>
-                <CardDescription>過去6小時的系統性能指標</CardDescription>
+                <CardTitle>{t('metrics.performanceTrend')}</CardTitle>
+                <CardDescription>{t('metrics.performanceDescription')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -381,18 +385,17 @@ const Dashboard = () => {
                       dataKey="memory" 
                       stroke="#10b981" 
                       strokeWidth={2}
-                      name="內存 (%)"
+                      name={t('metrics.memoryUsage') + ' (%)'}
                     />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            {/* 響應時間圖 */}
             <Card>
               <CardHeader>
-                <CardTitle>響應時間趨勢</CardTitle>
-                <CardDescription>系統響應時間變化</CardDescription>
+                <CardTitle>{t('metrics.responseTimeTrend')}</CardTitle>
+                <CardDescription>{t('metrics.responseTimeDescription')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -406,7 +409,7 @@ const Dashboard = () => {
                       dataKey="response_time" 
                       stroke="#f59e0b" 
                       fill="#fef3c7"
-                      name="響應時間 (ms)"
+                      name={t('metrics.responseTime') + ' (ms)'}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -419,8 +422,8 @@ const Dashboard = () => {
         {!isEditMode && (
           <Card>
             <CardHeader>
-              <CardTitle>最近決策</CardTitle>
-              <CardDescription>AI系統最近執行的決策和策略</CardDescription>
+              <CardTitle>{t('decisions.title')}</CardTitle>
+              <CardDescription>{t('decisions.description')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -440,11 +443,10 @@ const Dashboard = () => {
                     </div>
                     <div className="text-right">
                       <Badge variant="outline" className={getStatusColor(decision.status)}>
-                        {decision.status === 'executed' ? '已執行' : 
-                         decision.status === 'pending' ? '待審批' : '失敗'}
+                        {t(`decisions.status.${decision.status}`)}
                       </Badge>
                       <p className="text-sm text-gray-600 mt-1">
-                        信心度: {(decision.confidence * 100).toFixed(0)}%
+                        {t('decisions.confidence')}: {(decision.confidence * 100).toFixed(0)}%
                       </p>
                     </div>
                   </div>
@@ -459,13 +461,13 @@ const Dashboard = () => {
           <Card className="border-dashed border-2">
             <CardContent className="p-6 text-center">
               <Edit3 className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium mb-2">自訂儀表板</h3>
+              <h3 className="text-lg font-medium mb-2">{t('dashboard.customize')}</h3>
               <p className="text-gray-600 mb-4">
-                拖拽組件重新排列，點擊垃圾桶圖標刪除組件，或添加新的組件
+                {t('dashboard.editInstructions')}
               </p>
               <div className="flex justify-center space-x-2">
                 <Button onClick={() => setDashboardLayout(getDefaultWidgets())}>
-                  重置為預設布局
+                  {t('dashboard.resetLayout')}
                 </Button>
               </div>
             </CardContent>
