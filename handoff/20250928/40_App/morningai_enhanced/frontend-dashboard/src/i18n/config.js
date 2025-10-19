@@ -14,24 +14,74 @@ const resources = {
   }
 }
 
+const isLocalStorageAvailable = () => {
+  try {
+    const test = '__i18n_test__'
+    localStorage.setItem(test, test)
+    localStorage.removeItem(test)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+const isBrowser = () => typeof window !== 'undefined'
+
 const customLanguageDetector = {
   name: 'customDetector',
   lookup() {
-    const savedLang = localStorage.getItem('i18nextLng')
-    if (savedLang && (savedLang === 'zh-TW' || savedLang === 'en-US')) {
-      return savedLang
+    if (!isBrowser()) {
+      return 'en-US'
     }
 
-    const browserLang = navigator.language || navigator.userLanguage
-    
-    if (browserLang.toLowerCase().startsWith('zh')) {
-      return 'zh-TW'
+    if (isLocalStorageAvailable()) {
+      try {
+        const savedLang = localStorage.getItem('i18nextLng')
+        if (savedLang && (savedLang === 'zh-TW' || savedLang === 'en-US')) {
+          return savedLang
+        }
+      } catch (e) {
+        console.warn('Failed to read from localStorage:', e)
+      }
     }
-    
-    return 'en-US'
+
+    try {
+      const browserLang = navigator.language || navigator.userLanguage
+      
+      if (!browserLang) {
+        return 'en-US'
+      }
+
+      const langLower = browserLang.toLowerCase()
+      
+      if (langLower === 'zh-tw' || langLower === 'zh-hant' || langLower.startsWith('zh-tw') || langLower.startsWith('zh-hant')) {
+        return 'zh-TW'
+      }
+      
+      if (langLower === 'zh-cn' || langLower === 'zh-hans' || langLower.startsWith('zh-cn') || langLower.startsWith('zh-hans')) {
+        return 'zh-TW'
+      }
+      
+      if (langLower === 'zh' || langLower.startsWith('zh-')) {
+        return 'zh-TW'
+      }
+      
+      return 'en-US'
+    } catch (e) {
+      console.warn('Failed to detect browser language:', e)
+      return 'en-US'
+    }
   },
   cacheUserLanguage(lng) {
-    localStorage.setItem('i18nextLng', lng)
+    if (!isBrowser() || !isLocalStorageAvailable()) {
+      return
+    }
+
+    try {
+      localStorage.setItem('i18nextLng', lng)
+    } catch (e) {
+      console.warn('Failed to cache language preference:', e)
+    }
   }
 }
 
@@ -60,3 +110,4 @@ i18n
   })
 
 export default i18n
+export { customLanguageDetector, isLocalStorageAvailable, isBrowser }
