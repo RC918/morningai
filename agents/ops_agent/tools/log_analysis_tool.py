@@ -6,7 +6,7 @@ import logging
 import re
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from collections import defaultdict
 
@@ -169,7 +169,7 @@ class LogAnalysisTool:
             Dict with anomalies
         """
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             last_hour = now - timedelta(hours=1)
             last_day = now - timedelta(days=1)
             
@@ -229,7 +229,7 @@ class LogAnalysisTool:
         """
         try:
             log_entry = LogEntry(
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 level=LogLevel(level),
                 message=message,
                 source=source,
@@ -268,7 +268,7 @@ class LogAnalysisTool:
         else:
             raise ValueError(f"Invalid time unit: {unit}")
         
-        return datetime.utcnow() - delta
+        return datetime.now(timezone.utc) - delta
     
     def _extract_error_pattern(self, message: str) -> str:
         """Extract error pattern from message"""
