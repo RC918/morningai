@@ -1,67 +1,86 @@
-# How to Use the Autonomous Agent System for Code Generation in MorningAI
+# System Architecture of MorningAI
 
-The MorningAI platform offers a sophisticated autonomous agent system designed to streamline the code generation process. This feature leverages advanced AI algorithms to help developers automate coding tasks, reduce errors, and increase efficiency. Understanding how to utilize this system can significantly enhance your development workflow within the MorningAI ecosystem.
+MorningAI leverages a modern, scalable, and robust architecture designed to provide efficient autonomous agent system functionalities for code generation, FAQ generation, documentation management, and multi-platform integration. Below is a detailed explanation of the system architecture, including its components and how they interact within the MorningAI ecosystem.
 
-## Comprehensive Explanation
+## Overview
 
-The autonomous agent system in MorningAI is built on top of OpenAI's GPT-4, providing a powerful tool for generating code across various programming languages and frameworks. It integrates seamlessly with the platform's multi-tenant SaaS architecture, offering a unique combination of flexibility, scalability, and intelligence in code generation.
+The MorningAI platform is structured around a microservices architecture, utilizing various technologies to ensure high performance, scalability, and reliability. The primary components of the system include:
 
-### Key Features:
-- **Multi-language support**: Generate code in multiple programming languages including Python, JavaScript, TypeScript, and more.
-- **Context-aware generation**: The system understands the context of your project to provide relevant code snippets.
-- **Integration-friendly**: Easily integrate generated code with existing projects through MorningAI's multi-platform support.
+- **Frontend:** Developed with React, utilizing Vite as the build tool and TailwindCSS for styling.
+- **Backend:** The server-side logic is handled by Python with Flask serving as the web framework. Gunicorn is used as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
+- **Database:** PostgreSQL is used for data storage, with Supabase adding additional functionalities such as row-level security to enhance data access controls.
+- **Queue System:** Redis Queue (RQ) is employed for managing background tasks and real-time task orchestration.
+- **Orchestration:** LangGraph is utilized for managing agent workflows within the platform.
+- **AI Integration:** OpenAI's GPT-4 model is integrated for content generation tasks including FAQ generation and code suggestions.
+- **Deployment:** The entire infrastructure is deployed on Render.com, leveraging its capabilities for continuous integration and continuous deployment (CI/CD).
 
-## Code Examples
+## Detailed Architecture
 
-Here's how to initiate a simple code generation request using the autonomous agent system in a Python Flask application. Ensure you have Flask installed in your environment:
+### Frontend
 
-```python
-from flask import Flask, request, jsonify
-import morningai.agent as agent
-
-app = Flask(__name__)
-
-@app.route('/generate_code', methods=['POST'])
-def generate_code():
-    data = request.json
-    language = data.get('language')
-    prompt = data.get('prompt')
-    
-    generated_code = agent.generate_code(language=language, prompt=prompt)
-    
-    return jsonify({
-        'generated_code': generated_code
-    })
-
-if __name__ == '__main__':
-    app.run(debug=True)
+```plaintext
+src/
+├── components/     # Reusable UI components
+├── pages/          # Application pages
+├── styles/         # TailwindCSS configuration
+└── main.jsx        # Entry point
 ```
 
-### Setup Instructions:
+The frontend application communicates with the backend via RESTful APIs or WebSocket connections for real-time interactions. It's built for responsiveness across devices and optimized for performance.
 
-1. **Clone the repository**: Start by cloning the RC918/morningai repository to your local machine.
-2. **Install dependencies**: Navigate into your cloned directory and install necessary dependencies using `pip install -r requirements.txt`.
-3. **Environment Configuration**: Ensure you have set up all required environment variables as documented in `docs/setup.md`.
-4. **Run the application**: Start your Flask application by running `flask run` from your terminal.
+### Backend
+
+```python
+from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app)
+
+if __name__ == "__main__":
+    app.run()
+```
+
+The backend handles API requests, interacts with the database through Supabase services, manages task queues with Redis Queue, and orchestrates AI-driven operations.
+
+### Database Configuration
+
+```sql
+-- Enable Row Level Security for a table
+ALTER TABLE your_table ENABLE ROW LEVEL SECURITY;
+```
+
+Supabase enhances PostgreSQL with additional features like authentication services, real-time subscriptions, and row-level security to fine-tune access controls.
+
+### Task Orchestration
+
+Tasks are managed using Redis Queue (RQ), which allows efficient processing of background tasks. The worker heartbeat monitoring ensures reliability in task execution.
+
+### AI Integration
+
+The integration with OpenAI's GPT-4 enables MorningAI to generate accurate and contextually relevant content. This component interacts closely with the backend to provide dynamic content generation capabilities.
+
+### Deployment
+
+Deployed on Render.com, the platform benefits from easy scaling options and automated deployments through CI/CD pipelines. This ensures that updates are smoothly rolled out without disrupting service availability.
 
 ## Related Documentation Links
 
-- Autonomous Agent System Overview: [MorningAI/docs/agent_system.md](https://github.com/RC918/morningai/docs/agent_system.md)
-- Getting Started with MorningAI: [MorningAI/docs/getting_started.md](https://github.com/RC918/morningai/docs/getting_started.md)
-- API Reference: [MorningAI/docs/api_reference.md](https://github.com/RC918/morningai/docs/api_reference.md)
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [Render.com Documentation](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-**Issue**: Failure to generate code or receiving irrelevant snippets.
-- **Solution**: Verify that your prompts are clear and contextually rich. Providing more details or specifying the programming language can improve results.
+1. **Frontend Build Issues**: Ensure all node dependencies are up-to-date. Clearing cache (`npm cache clean --force`) can sometimes resolve mysterious issues.
+2. **Backend Connection Errors**: Verify that Gunicorn workers are correctly configured and not overwhelmed by requests. Scaling up workers or optimizing code can help mitigate these issues.
+3. **Database Access Control**: If facing permission issues with Supabase/PostgreSQL, check that row-level security policies are correctly defined.
+4. **Task Queue Delays**: Ensure Redis Queue workers are alive and monitoring tools are set up correctly to alert on worker heartbeats failure.
+5. **Deployment Failures**: Review Render.com deployment logs for any errors during build or deployment processes; often these logs provide direct hints towards what needs fixing.
 
-**Issue**: Errors when integrating generated code into existing projects.
-- **Solution**: Ensure compatibility of the generated code with your project's existing framework and libraries. Reviewing the generated code for syntax or logical errors before integration is also recommended.
-
-**Issue**: Environment setup issues or dependency conflicts.
--**Solution**: Refer to `docs/setup.md` for a comprehensive setup guide. Ensure that all environmental variables are correctly configured according to your local or production environments.
-
-For more detailed troubleshooting guidance or if you encounter an issue not covered here, please consult our comprehensive FAQ section at [MorningAI/docs/FAQ.md](https://github.com/RC918/morningai/docs/FAQ.md) or submit an issue in the repository for community support.
+For more in-depth troubleshooting guides and community support, visiting respective technology forums or documentation sites is recommended.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -69,7 +88,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test question
-- Trace ID: `28c2cbe7-54cc-49c3-bf3a-76bac0d45fd9`
+- Task: What is the system architecture?
+- Trace ID: `a0b434fc-a953-4e9a-bf51-e99e335a1ff3`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
