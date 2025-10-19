@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 import asyncio
+from .notification_service import NotificationService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -67,12 +68,27 @@ class Alert:
 class AlertManagementTool:
     """Tool for managing alerts and notifications"""
     
-    def __init__(self):
-        """Initialize Alert Management Tool"""
+    def __init__(
+        self,
+        notification_service: Optional[NotificationService] = None,
+        default_email_recipient: Optional[str] = None,
+        default_slack_channel: Optional[str] = None
+    ):
+        """
+        Initialize Alert Management Tool
+        
+        Args:
+            notification_service: NotificationService instance
+            default_email_recipient: Default email for notifications
+            default_slack_channel: Default Slack channel
+        """
         self.alert_rules: Dict[str, AlertRule] = {}
         self.alerts: Dict[str, Alert] = {}
         self.alert_counter = 0
         self.rule_counter = 0
+        self.notification_service = notification_service
+        self.default_email_recipient = default_email_recipient
+        self.default_slack_channel = default_slack_channel
     
     async def create_alert_rule(
         self,
@@ -473,16 +489,81 @@ class AlertManagementTool:
         """Send notification via specific channel"""
         logger.info(f"Sending {alert.severity.value} alert via {channel.value}: {alert.message}")
         
-        if channel == NotificationChannel.EMAIL:
-            logger.info(f"Email notification: {alert.message}")
-        elif channel == NotificationChannel.SLACK:
-            logger.info(f"Slack notification: {alert.message}")
-        elif channel == NotificationChannel.WEBHOOK:
-            logger.info(f"Webhook notification: {alert.message}")
-        elif channel == NotificationChannel.SMS:
-            logger.info(f"SMS notification: {alert.message}")
+        if not self.notification_service:
+            logger.warning(f"Notification service not configured, skipping {channel.value} notification")
+            return
+        
+        severity_emoji = {
+            AlertSeverity.CRITICAL: "🔴",
+            AlertSeverity.HIGH: "🟠",
+            AlertSeverity.MEDIUM: "🟡",
+            AlertSeverity.LOW: "🟢"
+        }
+        
+        emoji = severity_emoji.get(alert.severity, "⚠️")
+        formatted_message = f"{emoji} [{alert.severity.value.upper()}] {rule.name}\n\n{alert.message}"
+        
+        try:
+            if channel == NotificationChannel.EMAIL:
+                result = await self.notification_service.send_notification(
+                    channel="email",
+                    message=formatted_message,
+                    to=self.default_email_recipient or "admin@morningai.com",
+                    subject=f"[{alert.severity.value.upper()}] Ops Agent Alert: {rule.name}"
+                )
+                if result['success']:
+                    logger.info(f"✅ Email notification sent successfully")
+                else:
+                    logger.error(f"❌ Email notification failed: {result.get('error')}")
+            
+            elif channel == NotificationChannel.SLACK:
+                result = await self.notification_service.send_notification(
+                    channel="slack",
+                    message=formatted_message,
+                    slack_channel=self.default_slack_channel
+                )
+                if result['success']:
+                    logger.info(f"✅ Slack notification sent successfully")
+                else:
+                    logger.error(f"❌ Slack notification failed: {result.get('error')}")
+            
+            elif channel == NotificationChannel.WEBHOOK:
+                webhook_url = alert.metadata.get('webhook_url') if alert.metadata else None
+                if webhook_url:
+                    result = await self.notification_service.send_notification(
+                        channel="webhook",
+                        message=formatted_message,
+                        url=webhook_url,
+                        payload={
+                            'alert_id': alert.id,
+                            'rule_id': alert.rule_id,
+                            'severity': alert.severity.value,
+                            'message': alert.message,
+                            'triggered_at': alert.triggered_at.isoformat()
+                        }
+                    )
+                    if result['success']:
+                        logger.info(f"✅ Webhook notification sent successfully")
+                    else:
+                        logger.error(f"❌ Webhook notification failed: {result.get('error')}")
+                else:
+                    logger.warning("Webhook URL not provided in alert metadata")
+            
+            elif channel == NotificationChannel.SMS:
+                logger.warning("SMS notifications not yet implemented")
+        
+        except Exception as e:
+            logger.error(f"Exception during notification: {e}")
 
 
-def create_alert_management_tool() -> AlertManagementTool:
+def create_alert_management_tool(
+    notification_service: Optional[NotificationService] = None,
+    default_email_recipient: Optional[str] = None,
+    default_slack_channel: Optional[str] = None
+) -> AlertManagementTool:
     """Factory function to create AlertManagementTool instance"""
-    return AlertManagementTool()
+    return AlertManagementTool(
+        notification_service=notification_service,
+        default_email_recipient=default_email_recipient,
+        default_slack_channel=default_slack_channel
+    )

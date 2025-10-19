@@ -10,12 +10,14 @@ Ops Agent is responsible for automated operations, deployment management, system
 ops_agent/
 ├── README.md                          # This file
 ├── ops_agent_ooda.py                  # Main OODA Loop implementation
+├── config.example.yaml                # Configuration example
 ├── tools/                             # Core tools
 │   ├── __init__.py
 │   ├── deployment_tool.py             # Vercel deployment management
 │   ├── monitoring_tool.py             # System monitoring
 │   ├── log_analysis_tool.py           # Log analysis
-│   └── alert_management_tool.py       # Alert management
+│   ├── alert_management_tool.py       # Alert management
+│   └── notification_service.py        # Notification service (Email, Slack, Webhook)
 ├── sandbox/                           # Sandbox environment
 │   ├── ops_agent_sandbox.py          # Existing sandbox
 │   └── mcp/                          # MCP tools
@@ -24,6 +26,8 @@ ops_agent/
 │   ├── test_monitoring_tool.py
 │   ├── test_log_analysis_tool.py
 │   ├── test_alert_management_tool.py
+│   ├── test_notification_service.py
+│   ├── test_vercel_integration.py    # Real Vercel API tests
 │   └── test_ops_agent_e2e.py
 └── docs/                             # Documentation
     ├── DEPLOYMENT_GUIDE.md
@@ -60,6 +64,14 @@ ops_agent/
 - **Alert Prioritization**: Critical, high, medium, low
 - **Alert History**: Track all triggered alerts
 - **Auto-remediation**: Automatic issue resolution
+
+### 5. Notification Service
+- **Email via Mailtrap**: Production-ready email sending via Mailtrap API
+- **Email via SMTP**: Alternative SMTP email delivery
+- **Slack Integration**: Send notifications to Slack channels via webhooks
+- **Webhook Support**: Generic webhook notifications for custom integrations
+- **Multi-channel**: Send to multiple channels simultaneously
+- **Configurable**: Environment-based configuration
 
 ## Success Metrics
 
@@ -138,7 +150,20 @@ anomalies = await log_tool.detect_anomalies()
 
 ### Alert Management Tool API
 ```python
-alert_tool = AlertManagementTool()
+from tools.notification_service import NotificationService
+
+# Initialize notification service
+notification_service = NotificationService(
+    mailtrap_token=os.getenv("Mailtrap_API_TOKEN"),
+    slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL")
+)
+
+# Initialize alert tool with notification service
+alert_tool = AlertManagementTool(
+    notification_service=notification_service,
+    default_email_recipient="ops-alerts@yourcompany.com",
+    default_slack_channel="#ops-alerts"
+)
 
 # Create alert rule
 rule = await alert_tool.create_alert_rule(
@@ -153,6 +178,48 @@ alerts = await alert_tool.get_active_alerts()
 
 # Acknowledge alert
 await alert_tool.acknowledge_alert(alert_id)
+```
+
+### Notification Service API
+```python
+from tools.notification_service import NotificationService
+
+# Initialize service
+notification_service = NotificationService(
+    mailtrap_token=os.getenv("Mailtrap_API_TOKEN"),
+    slack_webhook_url="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+)
+
+# Send email via Mailtrap
+result = await notification_service.send_email_mailtrap(
+    to="admin@example.com",
+    subject="Critical Alert",
+    body="CPU usage exceeded 90%"
+)
+
+# Send Slack message
+result = await notification_service.send_slack_message(
+    message="🔴 [CRITICAL] CPU usage exceeded 90%",
+    channel="#ops-alerts"
+)
+
+# Send webhook
+result = await notification_service.send_webhook(
+    url="https://your-webhook-url.com/alerts",
+    payload={
+        "severity": "critical",
+        "message": "CPU usage exceeded 90%",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+)
+
+# Unified send_notification (recommended)
+result = await notification_service.send_notification(
+    channel="email",
+    message="Alert message",
+    to="admin@example.com",
+    subject="Alert Subject"
+)
 ```
 
 ## Development Plan
