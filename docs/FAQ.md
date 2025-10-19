@@ -1,71 +1,48 @@
-# Test Retry Success in MorningAI
+# Testing Sentry Trace ID in MorningAI
 
-Understanding and implementing test retries can significantly enhance the reliability of the MorningAI platform's CI/CD pipeline. This FAQ is designed to help developers comprehend the mechanism behind test retries, how to configure them, and troubleshoot common issues.
+This FAQ provides guidance on how to test and work with Sentry's `trace_id` within the MorningAI platform. Sentry is an application monitoring platform that helps developers identify, triage, and resolve issues. The `trace_id` is a crucial part of Sentry's tracing system, allowing developers to track the flow of requests and tasks through the application, making debugging and performance monitoring more efficient.
 
-## Understanding Test Retries
+## Understanding Sentry `trace_id`
 
-Test retries are a mechanism used to automatically rerun failed tests before marking them as failures. This approach can be particularly useful in a complex, multi-tenant SaaS platform like MorningAI, where tests might fail due to transient issues such as network latency, dependency load times, or temporary resource unavailability rather than actual code defects.
+In the context of MorningAI, the `trace_id` is used to correlate logging information across different services and components within the platform. This ensures that developers can trace the path of a request or task across multiple systems and identify where errors or bottlenecks occur.
 
-### Configuration
+### Code Example: Generating and Logging `trace_id`
 
-MorningAI utilizes a combination of testing frameworks and CI/CD tools that support test retries. The configuration for retries can usually be found in the specific tool's configuration file.
-
-For instance, if you're using pytest with Flask applications:
-
-1. **pytest.ini** or **pyproject.toml**: You can configure retry attempts and delay between retries.
-
-```ini
-# pytest.ini example
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
-
-This snippet tells pytest to rerun failed tests up to 3 times with a 5-second delay between each attempt.
-
-2. **CI/CD Pipeline Configuration**: For GitLab CI, you can specify retry logic in `.gitlab-ci.yml`:
-
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when: runner_system_failure
-```
-
-This configuration retries the job up to 2 additional times if it fails due to system issues.
-
-### Implementation in MorningAI
-
-In the context of MorningAI's technology stack:
-
-- The backend Python services might use `pytest` along with its rerun plugin.
-- Frontend React applications could implement retries at the testing level with Jest by using `jest.retryTimes(numberOfRetries)`.
-- For integration tests involving Redis Queue (RQ) or Supabase, ensure your test framework is set up to handle asynchronous operations and potential transient failures gracefully.
-
-#### Code Example for RQ Job Retry
-
-When working with Redis Queue within MorningAI for task orchestration, ensuring tasks are retried upon failure is crucial. Below is an example of how you could define a job with retry mechanisms:
+When integrating Sentry with MorningAI, each incoming request or task should generate a unique `trace_id`. This ID should then be logged at key points within your codebase.
 
 ```python
-from rq import Retry
-from redis_queue import queue
+import sentry_sdk
 
-def example_task():
-    # Task implementation here
-    pass
+# Assuming Flask app context
+from flask import request
 
-job = queue.enqueue(example_task, retry=Retry(max=3, interval=[10, 30, 60]))
+sentry_sdk.init(dsn="your_sentry_dsn_here")
+
+def log_trace_id():
+    with sentry_sdk.configure_scope() as scope:
+        trace_id = request.headers.get('sentry-trace-id')
+        if trace_id:
+            scope.set_tag("trace_id", trace_id)
+            app.logger.info(f"Processing request with trace ID: {trace_id}")
 ```
 
-This code snippet demonstrates enqueuing a task with automatic retries upon failure. The task will be retried up to three times with intervals of 10 seconds, 30 seconds, and then 60 seconds between attempts.
+### Integrating with MorningAI
 
-## Troubleshooting Common Issues
+To integrate this functionality within the MorningAI platform, ensure that your Flask application (typically found under `/backend`) is correctly set up to generate and log `trace_id`s as shown above. This setup helps in maintaining consistent tracking across all requests handled by MorningAI's backend services.
 
-1. **Excessive Retries Without Success**: Ensure that the conditions causing the initial failure are transient and not persistent logical errors in the code.
-2. **No Retries Happening**: Verify that your retry configurations are correctly set up in both your testing framework and CI/CD pipeline files.
-3. **Impact on Test Suite Performance**: While retries can improve reliability, they also increase test suite execution time. Monitor your CI/CD pipeline's performance metrics and adjust retry settings as needed.
+## Related Documentation Links
 
-For more detailed information on configuring test retries specific to your development environment within MorningAI, refer to the official documentation of [pytest](https://docs.pytest.org/en/latest/how-to/retry.html), [Jest](https://jestjs.io/docs/en/jest-object#jestretrytimes), or your chosen CI/CD tool.
+- Sentry Official Documentation: [https://docs.sentry.io/](https://docs.sentry.io/)
+- Flask Integration with Sentry: [https://docs.sentry.io/platforms/python/guides/flask/](https://docs.sentry.io/platforms/python/guides/flask/)
+
+## Common Troubleshooting Tips
+
+1. **Missing `trace_id`s**: Ensure that Sentry is correctly initialized in your Flask application. The DSN (Data Source Name) should be properly configured.
+2. **Incorrect Logging**: Verify that the logging of `trace_id` occurs at strategic points within your code to capture relevant data throughout the request or task lifecycle.
+3. **Performance Issues**: Over-logging can lead to performance bottlenecks. Ensure you're only logging essential information.
+4. **Sentry Configuration**: Double-check your Sentry project settings to ensure they're aligned with your current environment (development, staging, production).
+
+Remember, effectively using `trace_id` within Sentry can significantly enhance your ability to monitor, debug, and improve the MorningAI platform's performance and reliability.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -73,7 +50,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `c9fcf420-9b25-401a-bfb7-77bc465786eb`
+- Task: Test Sentry trace_id
+- Trace ID: `b860a232-8024-445f-aec6-aed12894b980`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
