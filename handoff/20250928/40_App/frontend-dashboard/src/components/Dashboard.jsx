@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'
+import { DashboardSkeleton } from '@/components/feedback/ContentSkeleton'
 import apiClient from '@/lib/api'
 
 const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
@@ -57,6 +58,7 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) =>
 }
 
 const Dashboard = () => {
+  const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
   const [showReportCenter, setShowReportCenter] = useState(false)
   const [availableWidgets, setAvailableWidgets] = useState([])
@@ -147,9 +149,11 @@ const Dashboard = () => {
 
   useEffect(() => {
     const initializeDashboard = async () => {
+      setIsLoading(true)
       await loadDashboardLayout()
       await loadAvailableWidgets()
       await loadDashboardData()
+      setIsLoading(false)
     }
     initializeDashboard()
   }, [loadDashboardLayout, loadAvailableWidgets, loadDashboardData])
@@ -302,6 +306,10 @@ const Dashboard = () => {
       </DialogContent>
     </Dialog>
   )
+
+  if (isLoading) {
+    return <DashboardSkeleton />
+  }
 
   if (showReportCenter) {
     return (

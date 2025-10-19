@@ -69,7 +69,7 @@ class TestEmbeddingSpeedBenchmark:
                         i +
                         1}: {
                         elapsed:.1f}ms (cached: {
-                        result['data']['cached']})")
+                        result.get('cached', False)})")
 
             if times:
                 avg = statistics.mean(times)
@@ -151,7 +151,7 @@ class TestEmbeddingSpeedBenchmark:
         result2 = kg_manager.generate_embedding(test_code)
         cached_time = (time.time() - start) * 1000
 
-        if result2['data']['cached']:
+        if result2.get('cached', False):
             print(f"   Cached: {cached_time:.1f}ms")
 
             speedup = uncached_time / \

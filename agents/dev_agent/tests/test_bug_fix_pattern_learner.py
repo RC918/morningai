@@ -7,10 +7,10 @@ import pytest
 import os
 from unittest.mock import Mock, MagicMock
 
-from agents.dev_agent.knowledge_graph.bug_fix_pattern_learner import (
+from knowledge_graph.bug_fix_pattern_learner import (
     BugFixPatternLearner
 )
-from agents.dev_agent.knowledge_graph.knowledge_graph_manager import (
+from knowledge_graph.knowledge_graph_manager import (
     KnowledgeGraphManager
 )
 
