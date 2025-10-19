@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Brain, Lock, User, AlertCircle } from 'lucide-react'
+import { Brain, Lock, User, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { motion } from 'framer-motion'
+import apiClient from '@/lib/api'
 
 const LoginPage = ({ onLogin }) => {
   const [credentials, setCredentials] = useState({
@@ -20,21 +22,12 @@ const LoginPage = ({ onLogin }) => {
     setError('')
 
     try {
-      // 模擬API調用
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials)
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        onLogin(data.user, data.token)
+      const result = await apiClient.login(credentials)
+      
+      if (result.user && result.token) {
+        onLogin(result.user, result.token)
       } else {
-        const errorData = await response.json()
-        setError(errorData.message || '登錄失敗，請檢查用戶名和密碼')
+        setError(result.message || '登錄失敗，請檢查用戶名和密碼')
       }
     } catch (error) {
       // 開發環境下的模擬登錄
@@ -65,12 +58,22 @@ const LoginPage = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
         {/* Logo和標題 */}
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4">
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4"
+          >
             <Brain className="w-8 h-8 text-white" />
-          </div>
+          </motion.div>
           <h1 className="text-3xl font-bold text-gray-900">Morning AI</h1>
           <p className="text-gray-600 mt-2">智能決策系統管理平台</p>
         </div>
@@ -132,10 +135,10 @@ const LoginPage = ({ onLogin }) => {
                 disabled={loading}
               >
                 {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     登錄中...
-                  </div>
+                  </>
                 ) : (
                   '登錄'
                 )}
@@ -158,7 +161,7 @@ const LoginPage = ({ onLogin }) => {
           <p>© 2024 Morning AI. 版權所有</p>
           <p className="mt-1">智能決策，自主學習，持續優化</p>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

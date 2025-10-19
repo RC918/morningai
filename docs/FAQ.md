@@ -1,74 +1,82 @@
-# MorningAI E2E Testing FAQ
+# System Architecture of MorningAI
 
-End-to-End (E2E) testing is a crucial component of the development process for MorningAI, ensuring that our multi-tenant SaaS platform operates efficiently and as expected from start to finish. This FAQ aims to guide developers through our E2E testing practices, providing insights into how tests are structured, executed, and how to troubleshoot common issues.
+The MorningAI platform is designed as a multi-tenant Software as a Service (SaaS) solution, offering a suite of features including autonomous agent systems for code generation, FAQ generation, documentation management, and multi-platform integration. Its architecture is built to support real-time task orchestration and vector memory storage, ensuring high performance and scalability. Below is a detailed overview of the system architecture, relevant code examples, documentation links, and troubleshooting tips.
 
-## What is E2E Testing in MorningAI?
+## Overview
 
-E2E testing involves simulating real-user scenarios to validate the system under test and its components for integration and data integrity. In MorningAI, E2E tests cover the entire application flow, from autonomous agent system operations to multi-platform integration, ensuring that all parts of the system work together seamlessly.
+MorningAI leverages a modern tech stack and architectural principles to offer efficient, scalable services:
 
-## How are E2E Tests Implemented in MorningAI?
+- **Frontend**: Developed with React, utilizing Vite for build optimization and TailwindCSS for styling. This choice ensures a fast, responsive user interface adaptable to multiple devices.
+  
+- **Backend**: The server-side logic is handled by Python with Flask, utilizing Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
+  
+- **Database**: PostgreSQL is used for data persistence, with Supabase adding additional features like Row Level Security (RLS) for enhanced data protection and pgvector for vector memory storage capabilities.
+  
+- **Queue System**: Redis Queue (RQ) is used for task queue management, enabling asynchronous task processing to keep the application responsive. Worker heartbeat monitoring ensures that tasks are processed reliably.
+  
+- **Orchestration**: LangGraph manages agent workflows within the platform, coordinating between different services and tasks in real-time.
 
-MorningAI utilizes a combination of technologies for E2E testing, primarily focusing on Cypress and Selenium for web-based interactions and PyTest for backend services. Tests are designed to mimic user interactions with the system, validating both the UI/UX aspects on platforms like Telegram, LINE, Messenger, and backend processes such as task orchestration with Redis Queue.
+- **AI Integration**: OpenAI's GPT-4 powers content generation features such as FAQ generation and code suggestions, providing accurate and contextually relevant outputs.
 
-### Code Example: PyTest Backend Test
+- **Deployment**: The platform is hosted on Render.com, benefiting from its CI/CD pipelines for streamlined updates and maintenance.
+
+## Code Examples
+
+### Flask Application Initialization
 
 ```python
-import pytest
-from app import create_app
-from db import db
+from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-@pytest.fixture
-def app():
-    app = create_app('testing')
-    with app.app_context():
-        db.create_all()
-    yield app
-    with app.app_context():
-        db.session.remove()
-        db.drop_all()
+app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app)
 
-def test_task_orchestration(app):
-    # Example test for task orchestration
-    client = app.test_client()
-    response = client.post('/orchestrate', json={'task': 'example_task'})
-    assert response.status_code == 200
-    assert response.json['status'] == 'success'
+if __name__ == "__main__":
+    app.run()
 ```
 
-## Running E2E Tests
+### Redis Queue Setup
 
-Before running any tests, ensure your environment is correctly set up. For frontend testing using Cypress:
+```python
+import redis
+from rq import Queue
 
-1. Navigate to your project directory.
-2. Install Cypress via npm if not already installed: `npm install cypress`.
-3. Run Cypress with `npx cypress open` for UI mode or `npx cypress run` for headless mode.
+r = redis.Redis()
+q = Queue(connection=r)
 
-For backend tests:
+def background_task():
+    # Task implementation
+    pass
 
-1. Ensure Python dependencies are installed: `pip install -r requirements.txt`.
-2. Run PyTest in the terminal: `pytest`.
+job = q.enqueue(background_task)
+```
 
-## Related Documentation Links
+## Documentation Links
 
-- [Cypress Documentation](https://www.cypress.io/docs)
-- [Selenium Documentation](https://www.selenium.dev/documentation/)
-- [PyTest Documentation](https://docs.pytest.org/en/stable/)
+For more detailed information on each component of our system architecture:
 
-## Common Troubleshooting Tips
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
+- [PostgreSQL & Supabase](https://supabase.io/docs)
+- [Redis Queue (RQ)](http://python-rq.org/docs/)
+- [Render.com CI/CD](https://render.com/docs)
 
-**Issue**: Tests fail due to environment misconfiguration.
-**Solution**: Verify your `.env` or configuration files for accuracy against the documentation.
+## Troubleshooting Tips
 
-**Issue**: Selenium WebDriver errors.
-**Solution**: Ensure WebDriver versions match your browser version. Update or downgrade WebDriver as necessary.
+### Database Connection Issues
+Ensure that your database URL in the environment variables matches your Supabase instance's credentials. Double-check the use of Row Level Security if you're encountering permission errors.
 
-**Issue**: Timeout errors during asynchronous task testing.
-**Solution**: Increase timeout settings in your test configurations or ensure background services like Redis Queue are running properly.
+### Task Queue Delays
+If tasks in Redis Queue are taking too long or not being processed:
+1. Verify that RQ workers are running (`rq worker` command).
+2. Check for any uncaught exceptions in task functions.
+3. Ensure Redis server availability.
 
-**Issue**: Database state affecting tests.
-**Solution**: Use database transactions or fixtures to reset database state before each test. PyTest's fixture mechanism can be particularly useful here.
+### Deployment Failures on Render.com
+Make sure your `render.yaml` file correctly specifies the build and deploy commands according to the Render.com documentation. Log files can provide insights into any errors during the deployment process.
 
-For further assistance with specific issues not covered here, please refer to our detailed documentation or submit a ticket through our developer support channel.
+For further assistance, refer to specific component documentation or consult community forums related to the technology stack.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -76,7 +84,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `de117206-615e-43d7-90e9-2e91d6fe612d`
+- Task: What is the system architecture?
+- Trace ID: `ca35b651-bef7-4f6c-84b1-264a6d16097d`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
