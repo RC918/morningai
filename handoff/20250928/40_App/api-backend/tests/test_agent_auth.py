@@ -88,6 +88,7 @@ def test_debug_endpoint_expired_token(client, mock_redis):
     """Test debug endpoint with expired token returns 401"""
     import jwt
     import datetime
+    from datetime import UTC
     import os
     
     jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
@@ -95,8 +96,8 @@ def test_debug_endpoint_expired_token(client, mock_redis):
         'user_id': 2,
         'username': 'analyst',
         'role': 'analyst',
-        'exp': datetime.datetime.utcnow() - datetime.timedelta(hours=1),
-        'iat': datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+        'exp': datetime.datetime.now(UTC) - datetime.timedelta(hours=1),
+        'iat': datetime.datetime.now(UTC) - datetime.timedelta(hours=2)
     }
     expired_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
     

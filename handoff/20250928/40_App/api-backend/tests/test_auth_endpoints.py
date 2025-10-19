@@ -86,13 +86,14 @@ def test_verify_token_expired(client):
     """Test token verification with expired token"""
     import jwt
     import datetime
+    from datetime import UTC
     
     jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
     payload = {
         'user_id': 1,
         'username': 'admin',
         'role': 'admin',
-        'exp': datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+        'exp': datetime.datetime.now(UTC) - datetime.timedelta(hours=1)
     }
     expired_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
     

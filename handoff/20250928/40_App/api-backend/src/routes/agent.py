@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, UTC
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
 from redis.retry import Retry
@@ -111,8 +111,8 @@ def create_faq_task():
                 "status": "queued",
                 "question": question,
                 "job_id": job.id,
-                "created_at": datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(UTC).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat()
             }
         )
         redis_client.expire(f"agent:task:{task_id}", 3600)
@@ -278,7 +278,7 @@ def debug_queue_status():
             "queue_length": queue_length,
             "recent_job_ids": [job.decode() if isinstance(job, bytes) else job for job in recent_jobs[:5]],
             "sample_task": sample_task,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }), 200
     except Exception as e:
         logger.error(f"Failed to get debug status: {e}")

@@ -164,13 +164,14 @@ def test_roles_required_decorator_with_operator_token():
     def test_endpoint():
         return jsonify({"message": "success"})
     
+    from datetime import UTC
     jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
     payload = {
         'user_id': 2,
         'username': 'operator',
         'role': 'operator',
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
-        'iat': datetime.datetime.utcnow()
+        'exp': datetime.datetime.now(UTC) + datetime.timedelta(hours=24),
+        'iat': datetime.datetime.now(UTC)
     }
     operator_token = jwt_lib.encode(payload, jwt_secret, algorithm='HS256')
     
@@ -198,13 +199,14 @@ def test_roles_required_decorator_with_viewer_token():
     def test_endpoint():
         return jsonify({"message": "success"})
     
+    from datetime import UTC
     jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
     payload = {
         'user_id': 3,
         'username': 'viewer',
         'role': 'viewer',
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
-        'iat': datetime.datetime.utcnow()
+        'exp': datetime.datetime.now(UTC) + datetime.timedelta(hours=24),
+        'iat': datetime.datetime.now(UTC)
     }
     viewer_token = jwt_lib.encode(payload, jwt_secret, algorithm='HS256')
     

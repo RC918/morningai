@@ -201,6 +201,7 @@ def normalize_role(role):
 def generate_jwt_token(user_data, expires_hours=24):
     """Generate JWT token for user authentication"""
     import datetime
+    from datetime import UTC
     
     jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
     
@@ -211,8 +212,8 @@ def generate_jwt_token(user_data, expires_hours=24):
         'user_id': user_data.get('id'),
         'username': user_data.get('username'),
         'role': normalized_role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=expires_hours),
-        'iat': datetime.datetime.utcnow()
+        'exp': datetime.datetime.now(UTC) + datetime.timedelta(hours=expires_hours),
+        'iat': datetime.datetime.now(UTC)
     }
     
     return jwt.encode(payload, jwt_secret, algorithm='HS256')

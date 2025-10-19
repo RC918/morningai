@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 import jwt
 import datetime
+from datetime import UTC
 from src.models.user import db, User
 
 auth_bp = Blueprint('auth', __name__)
@@ -61,7 +62,7 @@ def login():
             'user_id': user_data['id'],
             'username': username,
             'role': user_data['role'],
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+            'exp': datetime.datetime.now(UTC) + datetime.timedelta(hours=24)
         }, jwt_secret, algorithm='HS256')
         
         # 返回用戶信息和token
