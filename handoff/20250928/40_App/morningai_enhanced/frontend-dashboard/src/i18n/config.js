@@ -14,18 +14,40 @@ const resources = {
   }
 }
 
+const customLanguageDetector = {
+  name: 'customDetector',
+  lookup() {
+    const savedLang = localStorage.getItem('i18nextLng')
+    if (savedLang && (savedLang === 'zh-TW' || savedLang === 'en-US')) {
+      return savedLang
+    }
+
+    const browserLang = navigator.language || navigator.userLanguage
+    
+    if (browserLang.toLowerCase().startsWith('zh')) {
+      return 'zh-TW'
+    }
+    
+    return 'en-US'
+  },
+  cacheUserLanguage(lng) {
+    localStorage.setItem('i18nextLng', lng)
+  }
+}
+
+const languageDetector = new LanguageDetector()
+languageDetector.addDetector(customLanguageDetector)
+
 i18n
-  .use(LanguageDetector)
+  .use(languageDetector)
   .use(initReactI18next)
   .init({
     resources,
     fallbackLng: 'en-US',
-    lng: 'en-US',
     
     detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage'],
-      lookupLocalStorage: 'i18nextLng'
+      order: ['customDetector'],
+      caches: ['localStorage']
     },
 
     interpolation: {
