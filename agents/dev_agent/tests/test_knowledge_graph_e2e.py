@@ -7,14 +7,12 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from agents.dev_agent.knowledge_graph import (
+from knowledge_graph import (
     get_knowledge_graph_manager,
     create_code_indexer,
     create_pattern_learner,
     get_embeddings_cache
 )
-
-pytestmark = pytest.mark.asyncio
 
 
 class TestEmbeddingsCache:
@@ -91,8 +89,8 @@ class TestKnowledgeGraphManager:
             print("✓ Correctly handles missing OpenAI API key")
         else:
             if result.get('success'):
-                assert 'embedding' in result['data']
-                assert len(result['data']['embedding']) == 1536
+                assert 'embedding' in result
+                assert len(result['embedding']) == 1536
                 print("✓ Embedding generation works")
             else:
                 print(
@@ -275,12 +273,12 @@ logging.debug("Debug message")
         result = learner.learn_patterns(samples)
 
         assert result.get('success')
-        assert result['data']['patterns_learned'] > 0
-        assert result['data']['total_samples'] == 3
+        assert result['patterns_learned'] > 0
+        assert result['total_samples'] == 3
 
         print(
             f"✓ Learned {
-                result['data']['patterns_learned']} patterns from samples")
+                result['patterns_learned']} patterns from samples")
 
     def test_find_pattern_matches(self, learner):
         """Test finding pattern matches"""
@@ -295,8 +293,8 @@ logging.debug("Debug message")
         result = learner.find_pattern_matches(test_code, 'python')
 
         assert result.get('success')
-        if result['data']['matches_found'] > 0:
-            print(f"✓ Found {result['data']['matches_found']} pattern matches")
+        if result['matches_found'] > 0:
+            print(f"✓ Found {result['matches_found']} pattern matches")
         else:
             print("⚠ No pattern matches found (expected with minimal samples)")
 

@@ -7,7 +7,7 @@ import pytest
 import os
 import time
 
-from agents.dev_agent.knowledge_graph import get_knowledge_graph_manager
+from knowledge_graph import get_knowledge_graph_manager
 
 pytestmark = pytest.mark.e2e
 
