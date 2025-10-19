@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Brain, Lock, User, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,9 +7,11 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { motion } from 'framer-motion'
+import { LanguageSwitcher } from './LanguageSwitcher'
 import apiClient from '@/lib/api'
 
 const LoginPage = ({ onLogin }) => {
+  const { t } = useTranslation()
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
@@ -27,7 +30,7 @@ const LoginPage = ({ onLogin }) => {
       if (result.user && result.token) {
         onLogin(result.user, result.token)
       } else {
-        setError(result.message || '登錄失敗，請檢查用戶名和密碼')
+        setError(result.message || t('auth.login.loginFailed'))
       }
     } catch (error) {
       // 開發環境下的模擬登錄
@@ -42,7 +45,7 @@ const LoginPage = ({ onLogin }) => {
         const mockToken = 'mock-jwt-token-' + Date.now()
         onLogin(mockUser, mockToken)
       } else {
-        setError('登錄失敗：用戶名或密碼錯誤')
+        setError(t('auth.login.loginError'))
       }
     } finally {
       setLoading(false)
@@ -58,7 +61,11 @@ const LoginPage = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <motion.div 
+      <div style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}>
+        <LanguageSwitcher variant="compact" />
+      </div>
+      
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -74,16 +81,16 @@ const LoginPage = ({ onLogin }) => {
           >
             <Brain className="w-8 h-8 text-white" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-gray-900">Morning AI</h1>
-          <p className="text-gray-600 mt-2">智能決策系統管理平台</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('app.name')}</h1>
+          <p className="text-gray-600 mt-2">{t('app.tagline')}</p>
         </div>
 
         {/* 登錄表單 */}
         <Card>
           <CardHeader>
-            <CardTitle>登錄到系統</CardTitle>
+            <CardTitle>{t('auth.login.title')}</CardTitle>
             <CardDescription>
-              請輸入您的憑證以訪問管理儀表板
+              {t('auth.login.description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -96,14 +103,14 @@ const LoginPage = ({ onLogin }) => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="username">用戶名</Label>
+                <Label htmlFor="username">{t('auth.login.username')}</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="username"
                     name="username"
                     type="text"
-                    placeholder="請輸入用戶名"
+                    placeholder={t('auth.login.usernamePlaceholder')}
                     value={credentials.username}
                     onChange={handleChange}
                     className="pl-10"
@@ -113,14 +120,14 @@ const LoginPage = ({ onLogin }) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">密碼</Label>
+                <Label htmlFor="password">{t('auth.login.password')}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="password"
                     name="password"
                     type="password"
-                    placeholder="請輸入密碼"
+                    placeholder={t('auth.login.passwordPlaceholder')}
                     value={credentials.password}
                     onChange={handleChange}
                     className="pl-10"
@@ -137,20 +144,20 @@ const LoginPage = ({ onLogin }) => {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    登錄中...
+                    {t('auth.login.loggingIn')}
                   </>
                 ) : (
-                  '登錄'
+                  t('auth.login.loginButton')
                 )}
               </Button>
             </form>
 
             {/* 開發環境提示 */}
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">開發環境測試帳號</h4>
+              <h4 className="text-sm font-medium text-blue-900 mb-2">{t('auth.login.devAccount')}</h4>
               <div className="text-sm text-blue-700 space-y-1">
-                <p>用戶名: <code className="bg-blue-100 px-1 rounded">admin</code></p>
-                <p>密碼: <code className="bg-blue-100 px-1 rounded">admin123</code></p>
+                <p>{t('auth.login.username')}: <code className="bg-blue-100 px-1 rounded">admin</code></p>
+                <p>{t('auth.login.password')}: <code className="bg-blue-100 px-1 rounded">admin123</code></p>
               </div>
             </div>
           </CardContent>
@@ -158,8 +165,8 @@ const LoginPage = ({ onLogin }) => {
 
         {/* 底部信息 */}
         <div className="text-center mt-8 text-sm text-gray-500">
-          <p>© 2024 Morning AI. 版權所有</p>
-          <p className="mt-1">智能決策，自主學習，持續優化</p>
+          <p>{t('app.copyright')}</p>
+          <p className="mt-1">{t('app.motto')}</p>
         </div>
       </motion.div>
     </div>

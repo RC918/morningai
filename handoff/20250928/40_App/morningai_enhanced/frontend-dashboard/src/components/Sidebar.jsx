@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 const Sidebar = ({ user, onLogout }) => {
   const [collapsed, setCollapsed] = useState(false)
@@ -180,7 +181,12 @@ const Sidebar = ({ user, onLogout }) => {
       </nav>
 
       {/* 底部操作 */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 space-y-2">
+        {!collapsed && (
+          <div className="mb-2">
+            <LanguageSwitcher variant="default" className="w-full" />
+          </div>
+        )}
         <Button
           variant="ghost"
           size="sm"
