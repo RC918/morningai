@@ -1,10 +1,6 @@
 import pytest
 import json
-import os
-import sys
 from unittest.mock import patch, MagicMock
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from src.main import app
 from src.middleware import create_admin_token, create_analyst_token, create_user_token

@@ -3,12 +3,10 @@ End-to-End Integration Tests
 Tests real workflows across multiple components without excessive mocking
 """
 import pytest
-import os
 import sys
+import os
 import json
 from unittest.mock import patch, MagicMock
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
 @pytest.fixture
@@ -54,9 +52,14 @@ class TestHealthCheckE2E:
             assert result['status_code'] in [200, 500]
             assert 'status' in result['data']
             assert 'database' in result['data']
+            
+            if result['status_code'] == 200:
+                assert result['data']['status'] in ['healthy', 'degraded']
+            elif result['status_code'] == 500:
+                assert result['data']['status'] in ['error', 'degraded']
         
         statuses = [r['data']['status'] for r in results]
-        assert len(set(statuses)) == 1  # All same status
+        assert len(set(statuses)) == 1
     
     def test_health_check_database_connection(self, client):
         """Test health check reflects actual database status"""
@@ -346,6 +349,12 @@ class TestConcurrentRequests:
             assert response.status_code in [200, 500]
             data = response.get_json()
             assert 'status' in data
+            assert 'database' in data
+            
+            if response.status_code == 200:
+                assert data['status'] in ['healthy', 'degraded']
+            elif response.status_code == 500:
+                assert data['status'] in ['error', 'degraded']
     
     def test_concurrent_dashboard_requests(self, client):
         """Test handling concurrent dashboard data requests"""
@@ -370,10 +379,14 @@ class TestEndToEndScenarios:
         
         health_response = client.get('/health')
         assert health_response.status_code in [200, 500]
+        health_data = health_response.get_json()
+        assert 'status' in health_data
         
         widgets_response = client.get('/api/dashboard/widgets/available')
         assert widgets_response.status_code == 200
         widgets = widgets_response.get_json()
+        assert isinstance(widgets, list)
+        assert len(widgets) > 0
         
         layout = {
             'user_id': user_id,
@@ -385,8 +398,16 @@ class TestEndToEndScenarios:
         layout_response = client.post('/api/dashboard/layouts', json=layout)
         assert layout_response.status_code in [200, 500]
         
+        if layout_response.status_code == 200:
+            layout_data = layout_response.get_json()
+            assert layout_data.get('status') == 'success' or 'message' in layout_data
+        
         data_response = client.get(f'/api/dashboard/data?user_id={user_id}')
         assert data_response.status_code in [200, 500]
+        
+        if data_response.status_code == 200:
+            dashboard_data = data_response.get_json()
+            assert isinstance(dashboard_data, dict)
     
     def test_monitoring_alert_workflow(self, client):
         """Test complete monitoring and alert checking workflow"""

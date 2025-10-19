@@ -2,12 +2,10 @@
 Additional tests for main.py to improve coverage to 50%+
 """
 import pytest
-import os
 import sys
+import os
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
 @pytest.fixture

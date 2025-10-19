@@ -1,9 +1,6 @@
 import pytest
 import jwt
 import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from src.middleware.auth_middleware import normalize_role, generate_jwt_token
 
