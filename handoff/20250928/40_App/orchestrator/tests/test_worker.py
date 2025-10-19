@@ -125,7 +125,7 @@ class TestRunOrchestratorTask:
         assert mock_redis.expire.call_count >= 2
     
     @patch('redis_queue.worker.redis')
-    @patch('redis_queue.worker.run_orchestrator')
+    @patch('langgraph_orchestrator.run_orchestrator')
     @patch.dict(os.environ, {"USE_LANGGRAPH": "true"})
     def test_run_orchestrator_langgraph_mode_success(self, mock_run_orch, mock_redis):
         """Test orchestrator task in LangGraph mode"""

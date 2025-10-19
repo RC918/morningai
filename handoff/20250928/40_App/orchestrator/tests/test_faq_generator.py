@@ -6,7 +6,7 @@ import os
 import sys
 from unittest.mock import Mock, patch, MagicMock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'llm'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from llm.faq_generator import (
     _get_openai_client,
