@@ -1,95 +1,54 @@
-# MorningAI System Architecture
+# Test Retry Success in MorningAI
 
-MorningAI's system architecture is designed to offer a scalable, efficient, and flexible platform for autonomous agent system code generation, FAQ generation, documentation management, and multi-platform integration. It leverages a modern tech stack and follows best practices for cloud-native applications. Below is an overview of the key components and how they interact within the MorningAI ecosystem.
+Ensuring the reliability and resilience of applications is a critical aspect of software development. In MorningAI, the capability to retry tests upon failure is an essential feature that aids developers in identifying flaky tests and ensuring that transient issues do not lead to false negatives in test results. This document aims to guide developers through the process of utilizing test retries within the MorningAI platform, helping to improve the stability and accuracy of their testing processes.
 
-## Overview
+## Understanding Test Retries
 
-The MorningAI platform is built on a microservices architecture, utilizing various technologies such as React, Python with Flask, PostgreSQL via Supabase, Redis Queue (RQ), and OpenAI's GPT-4 for AI-driven features. This architecture enables MorningAI to handle complex workflows, manage large volumes of data efficiently, and integrate seamlessly with multiple platforms like Telegram, LINE, and Messenger.
+Test retries are a mechanism that allows test executions to be automatically repeated in case of failures. This can be particularly useful in distributed systems where network latency, temporary unavailability of services, or other ephemeral issues can cause tests to fail intermittently. By retrying a failed test, we can distinguish between persistent failures caused by actual bugs and transient failures that do not indicate a real problem with the code.
 
-### Frontend
+### Configuration
 
-- **Technology**: React + Vite + TailwindCSS
-- **Path**: `/frontend`
-- **Description**: The frontend is developed using React for building the user interface, Vite as the build tool for faster development and optimized production builds, and TailwindCSS for styling. The user interface is designed to be responsive and intuitive across devices.
-
-### Backend
-
-- **Technology**: Python + Flask + Gunicorn
-- **Path**: `/backend`
-- **Description**: The backend API is built with Flask, a lightweight WSGI web application framework in Python, providing the necessary endpoints for the frontend. Gunicorn is used as the WSGI HTTP Server to manage multiple worker processes for handling requests concurrently.
-
-### Database
-
-- **Technology**: PostgreSQL (Supabase) with Row Level Security
-- **Path**: Not applicable (configured on Supabase)
-- **Description**: PostgreSQL serves as the primary database, hosted on Supabase which adds additional features such as real-time subscriptions and row-level security to enhance data access control. Supabase simplifies database management and accelerates development.
-
-### Queue System
-
-- **Technology**: Redis Queue (RQ)
-- **Path**: `/queue`
-- **Description**: RQ is utilized for managing background tasks such as long-running computations or external API calls. It allows the application to remain responsive by offloading tasks that would otherwise block the main execution flow.
-
-### Orchestration
-
-- **Technology**: LangGraph
-- **Path**: `/orchestration`
-- **Description**: LangGraph orchestrates complex workflows among autonomous agents within the platform. It ensures tasks are executed in a coordinated manner based on predefined logic.
-
-### AI Component
-
-- **Technology**: OpenAI GPT-4
-- **Integration Point**: `/backend/services/gpt_service.py`
-- **Description**: GPT-4 powers the autonomous agent system for code generation and FAQ content creation. It enables sophisticated natural language understanding and generation capabilities within MorningAI.
-
-### Deployment
-
-- **Platform**: Render.com
-- **CI/CD Integration**: Configured via Render dashboard
-- **Description**: Render.com hosts both frontend and backend components of MorningAI. Continuous Integration/Continuous Deployment (CI/CD) pipelines are set up through Render's dashboard to automate deployments from the repository.
-
-## Code Example: Integrating RQ with Flask
-
-Here's an example of how you might set up Redis Queue with Flask:
+To enable test retries in MorningAI, you will need to modify your test configuration files. Depending on the test framework you are using (e.g., pytest, unittest), this process may vary. Here is an example using pytest with the `pytest-rerunfailures` plugin:
 
 ```python
-from redis import Redis
-from rq import Queue
-from flask import Flask
-
-app = Flask(__name__)
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
-
-@app.route('/start-task')
-def start_task():
-    result = q.enqueue('my_background_task')
-    return f"Task {result.id} added to queue at {result.enqueued_at}"
-
-if __name__ == '__main__':
-    app.run()
+# pytest.ini file
+[pytest]
+addopts = --reruns 3 --reruns-delay 5
 ```
 
-Replace `'my_background_task'` with your actual background task function name.
+This configuration tells pytest to rerun failed tests up to three times with a delay of five seconds between each attempt.
 
-## Related Documentation Links
+### Implementation Example
 
-For more detailed information on each component:
-- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
-- PostgreSQL & Supabase: [https://supabase.io/docs](https://supabase.io/docs)
-- Redis Queue: [https://python-rq.org/docs/](https://python-rq.org/docs/)
-- OpenAI GPT: [https://beta.openai.com/docs/](https://beta.openai.com/docs/)
+Assuming you are using Flask for your backend and pytest for testing, here's how you can set up a basic retry mechanism for a simple API endpoint test:
+
+```python
+import requests
+
+def test_get_user_retry():
+    max_retries = 3
+    for _ in range(max_retries):
+        response = requests.get("http://localhost:5000/api/user/1")
+        if response.status_code == 200:
+            break
+    assert response.status_code == 200
+```
+
+While this example uses a simple loop for retries, integrating with a testing framework's retry mechanism (as shown in the configuration section) is recommended for more sophisticated scenarios.
+
+### Related Documentation
+
+- Pytest-RerunFailures: [https://github.com/pytest-dev/pytest-rerunfailures](https://github.com/pytest-dev/pytest-rerunfailures)
+- Flask Testing: [https://flask.palletsprojects.com/en/latest/testing/](https://flask.palletsprojects.com/en/latest/testing/)
 
 ## Common Troubleshooting Tips
 
-**Issue:** Backend service fails to connect to PostgreSQL.
-**Solution:** Verify that database credentials in your `.env` file match those provided by Supabase. Ensure that your IP address has access permissions in Supabase's settings if required.
+- **Ensure Correct Configuration**: Double-check your testing framework's documentation to ensure your retry configuration is correct.
+- **Network Stability**: In cases where tests interact with external services, ensure network stability to minimize transient errors.
+- **Dependency Mocking**: For external service calls, consider mocking these dependencies in your tests to avoid failures due to issues outside your control.
+- **Logging**: Implement detailed logging within both your application and tests to help identify why tests might be flaky or failing intermittently.
 
-**Issue:** Tasks not being processed by Redis Queue workers.
-**Solution:** Check that RQ workers are running by executing `rq worker`. Ensure Redis server is accessible and that there are no network connectivity issues between your application server and Redis.
-
-For further assistance or if you encounter specific problems not covered here, please refer to our detailed documentation or reach out through our support channels.
+By carefully implementing and configuring test retries within MorningAI, developers can significantly reduce the impact of flaky tests on their CI/CD pipeline, leading to more reliable software delivery processes.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -97,7 +56,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `cbba6c86-c72e-40d3-a9d2-c84f91195bad`
+- Task: Test retry success
+- Trace ID: `71643dd0-7548-4e2f-bffc-00005f4fb207`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
