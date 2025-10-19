@@ -55,6 +55,7 @@ function PaginationLink({
         variant: isActive ? "outline" : "ghost",
         size,
       }), className)}
+      aria-label={isActive ? "當前頁面" : "前往頁面"}
       {...props} />
   );
 }

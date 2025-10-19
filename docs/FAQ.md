@@ -1,74 +1,67 @@
-# MorningAI E2E Testing FAQ
+# How to Use the Autonomous Agent System for Code Generation in MorningAI
 
-End-to-End (E2E) testing is a crucial component of the development process for MorningAI, ensuring that our multi-tenant SaaS platform operates efficiently and as expected from start to finish. This FAQ aims to guide developers through our E2E testing practices, providing insights into how tests are structured, executed, and how to troubleshoot common issues.
+The MorningAI platform offers a sophisticated autonomous agent system designed to streamline the code generation process. This feature leverages advanced AI algorithms to help developers automate coding tasks, reduce errors, and increase efficiency. Understanding how to utilize this system can significantly enhance your development workflow within the MorningAI ecosystem.
 
-## What is E2E Testing in MorningAI?
+## Comprehensive Explanation
 
-E2E testing involves simulating real-user scenarios to validate the system under test and its components for integration and data integrity. In MorningAI, E2E tests cover the entire application flow, from autonomous agent system operations to multi-platform integration, ensuring that all parts of the system work together seamlessly.
+The autonomous agent system in MorningAI is built on top of OpenAI's GPT-4, providing a powerful tool for generating code across various programming languages and frameworks. It integrates seamlessly with the platform's multi-tenant SaaS architecture, offering a unique combination of flexibility, scalability, and intelligence in code generation.
 
-## How are E2E Tests Implemented in MorningAI?
+### Key Features:
+- **Multi-language support**: Generate code in multiple programming languages including Python, JavaScript, TypeScript, and more.
+- **Context-aware generation**: The system understands the context of your project to provide relevant code snippets.
+- **Integration-friendly**: Easily integrate generated code with existing projects through MorningAI's multi-platform support.
 
-MorningAI utilizes a combination of technologies for E2E testing, primarily focusing on Cypress and Selenium for web-based interactions and PyTest for backend services. Tests are designed to mimic user interactions with the system, validating both the UI/UX aspects on platforms like Telegram, LINE, Messenger, and backend processes such as task orchestration with Redis Queue.
+## Code Examples
 
-### Code Example: PyTest Backend Test
+Here's how to initiate a simple code generation request using the autonomous agent system in a Python Flask application. Ensure you have Flask installed in your environment:
 
 ```python
-import pytest
-from app import create_app
-from db import db
+from flask import Flask, request, jsonify
+import morningai.agent as agent
 
-@pytest.fixture
-def app():
-    app = create_app('testing')
-    with app.app_context():
-        db.create_all()
-    yield app
-    with app.app_context():
-        db.session.remove()
-        db.drop_all()
+app = Flask(__name__)
 
-def test_task_orchestration(app):
-    # Example test for task orchestration
-    client = app.test_client()
-    response = client.post('/orchestrate', json={'task': 'example_task'})
-    assert response.status_code == 200
-    assert response.json['status'] == 'success'
+@app.route('/generate_code', methods=['POST'])
+def generate_code():
+    data = request.json
+    language = data.get('language')
+    prompt = data.get('prompt')
+    
+    generated_code = agent.generate_code(language=language, prompt=prompt)
+    
+    return jsonify({
+        'generated_code': generated_code
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True)
 ```
 
-## Running E2E Tests
+### Setup Instructions:
 
-Before running any tests, ensure your environment is correctly set up. For frontend testing using Cypress:
-
-1. Navigate to your project directory.
-2. Install Cypress via npm if not already installed: `npm install cypress`.
-3. Run Cypress with `npx cypress open` for UI mode or `npx cypress run` for headless mode.
-
-For backend tests:
-
-1. Ensure Python dependencies are installed: `pip install -r requirements.txt`.
-2. Run PyTest in the terminal: `pytest`.
+1. **Clone the repository**: Start by cloning the RC918/morningai repository to your local machine.
+2. **Install dependencies**: Navigate into your cloned directory and install necessary dependencies using `pip install -r requirements.txt`.
+3. **Environment Configuration**: Ensure you have set up all required environment variables as documented in `docs/setup.md`.
+4. **Run the application**: Start your Flask application by running `flask run` from your terminal.
 
 ## Related Documentation Links
 
-- [Cypress Documentation](https://www.cypress.io/docs)
-- [Selenium Documentation](https://www.selenium.dev/documentation/)
-- [PyTest Documentation](https://docs.pytest.org/en/stable/)
+- Autonomous Agent System Overview: [MorningAI/docs/agent_system.md](https://github.com/RC918/morningai/docs/agent_system.md)
+- Getting Started with MorningAI: [MorningAI/docs/getting_started.md](https://github.com/RC918/morningai/docs/getting_started.md)
+- API Reference: [MorningAI/docs/api_reference.md](https://github.com/RC918/morningai/docs/api_reference.md)
 
 ## Common Troubleshooting Tips
 
-**Issue**: Tests fail due to environment misconfiguration.
-**Solution**: Verify your `.env` or configuration files for accuracy against the documentation.
+**Issue**: Failure to generate code or receiving irrelevant snippets.
+- **Solution**: Verify that your prompts are clear and contextually rich. Providing more details or specifying the programming language can improve results.
 
-**Issue**: Selenium WebDriver errors.
-**Solution**: Ensure WebDriver versions match your browser version. Update or downgrade WebDriver as necessary.
+**Issue**: Errors when integrating generated code into existing projects.
+- **Solution**: Ensure compatibility of the generated code with your project's existing framework and libraries. Reviewing the generated code for syntax or logical errors before integration is also recommended.
 
-**Issue**: Timeout errors during asynchronous task testing.
-**Solution**: Increase timeout settings in your test configurations or ensure background services like Redis Queue are running properly.
+**Issue**: Environment setup issues or dependency conflicts.
+-**Solution**: Refer to `docs/setup.md` for a comprehensive setup guide. Ensure that all environmental variables are correctly configured according to your local or production environments.
 
-**Issue**: Database state affecting tests.
-**Solution**: Use database transactions or fixtures to reset database state before each test. PyTest's fixture mechanism can be particularly useful here.
-
-For further assistance with specific issues not covered here, please refer to our detailed documentation or submit a ticket through our developer support channel.
+For more detailed troubleshooting guidance or if you encounter an issue not covered here, please consult our comprehensive FAQ section at [MorningAI/docs/FAQ.md](https://github.com/RC918/morningai/docs/FAQ.md) or submit an issue in the repository for community support.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -76,7 +69,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `de117206-615e-43d7-90e9-2e91d6fe612d`
+- Task: Test question
+- Trace ID: `28c2cbe7-54cc-49c3-bf3a-76bac0d45fd9`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
