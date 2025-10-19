@@ -101,10 +101,12 @@ class TestGenerator:
         if args:
             test_inputs = self._generate_test_inputs(args)
             test_code_lines.append(f"    result = {func_name}({', '.join(test_inputs.values())})")
-            test_code_lines.append("    assert result is not None")
         else:
             test_code_lines.append(f"    result = {func_name}()")
-            test_code_lines.append("    assert result is not None")
+        
+        assertions = self._generate_assertions(func, func_name, args)
+        for assertion in assertions:
+            test_code_lines.append(f"    {assertion}")
 
         return GeneratedTest(
             test_name=test_name,
@@ -132,6 +134,71 @@ class TestGenerator:
                 test_inputs[arg] = 'None'
         
         return test_inputs
+    
+    def _generate_assertions(self, func: ast.FunctionDef, func_name: str, args: List[str]) -> List[str]:
+        """Generate meaningful assertions based on function characteristics"""
+        assertions = []
+        
+        has_return_hint = func.returns is not None
+        
+        if 'get' in func_name.lower() or 'fetch' in func_name.lower() or 'retrieve' in func_name.lower():
+            assertions.append("assert result is not None")
+            if 'list' in func_name.lower() or 'all' in func_name.lower():
+                assertions.append("assert isinstance(result, list)")
+            elif 'dict' in func_name.lower():
+                assertions.append("assert isinstance(result, dict)")
+        
+        elif 'is_' in func_name.lower() or 'has_' in func_name.lower() or 'can_' in func_name.lower():
+            assertions.append("assert isinstance(result, bool)")
+        
+        elif 'count' in func_name.lower() or 'len' in func_name.lower() or 'size' in func_name.lower():
+            assertions.append("assert isinstance(result, int)")
+            assertions.append("assert result >= 0")
+        
+        elif 'calculate' in func_name.lower() or 'compute' in func_name.lower():
+            assertions.append("assert result is not None")
+            assertions.append("assert isinstance(result, (int, float))")
+        
+        elif 'create' in func_name.lower() or 'build' in func_name.lower():
+            assertions.append("assert result is not None")
+        
+        elif 'delete' in func_name.lower() or 'remove' in func_name.lower():
+            assertions.append("assert result is not None")
+            if has_return_hint:
+                if func.returns and hasattr(func.returns, 'id') and func.returns.id == 'bool':
+                    assertions.append("assert isinstance(result, bool)")
+        
+        elif 'validate' in func_name.lower() or 'check' in func_name.lower():
+            assertions.append("assert isinstance(result, bool)")
+        
+        elif 'find' in func_name.lower() or 'search' in func_name.lower():
+            assertions.append("assert result is not None")
+        
+        elif has_return_hint:
+            if hasattr(func.returns, 'id'):
+                return_type = func.returns.id
+                if return_type == 'bool':
+                    assertions.append("assert isinstance(result, bool)")
+                elif return_type == 'str':
+                    assertions.append("assert isinstance(result, str)")
+                    assertions.append("assert len(result) >= 0")
+                elif return_type == 'int':
+                    assertions.append("assert isinstance(result, int)")
+                elif return_type == 'float':
+                    assertions.append("assert isinstance(result, float)")
+                elif return_type == 'list':
+                    assertions.append("assert isinstance(result, list)")
+                elif return_type == 'dict':
+                    assertions.append("assert isinstance(result, dict)")
+                else:
+                    assertions.append("assert result is not None")
+            else:
+                assertions.append("assert result is not None")
+        
+        if not assertions:
+            assertions.append("assert result is not None")
+        
+        return assertions
 
     def _format_test_file(self, tests: List[GeneratedTest], source_file: str) -> str:
         """Format generated tests into a complete test file"""
