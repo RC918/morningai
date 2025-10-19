@@ -12,26 +12,62 @@ from typing import Dict, Any, Optional
 class MCPClient:
     """MCP client for agent-side tool access"""
     
-    def __init__(self, server_url: str, agent_id: str):
+    def __init__(self, server_url: str, agent_id: str, timeout: int = 30):
         self.server_url = server_url
         self.agent_id = agent_id
+        self.timeout = timeout
         self.logger = logging.getLogger(__name__)
         self.session: Optional[aiohttp.ClientSession] = None
+        self._connected = False
+    
+    async def __aenter__(self):
+        """Async context manager entry"""
+        await self.connect()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit - ensures session is closed"""
+        await self.disconnect()
+        return False
     
     async def connect(self):
         """Connect to MCP server"""
-        self.session = aiohttp.ClientSession()
-        self.logger.info(f"MCP client connected to {self.server_url}")
+        if self._connected:
+            self.logger.warning("MCP client already connected")
+            return
+        
+        try:
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            self.session = aiohttp.ClientSession(timeout=timeout)
+            self._connected = True
+            self.logger.info(f"MCP client connected to {self.server_url}")
+        except Exception as e:
+            self.logger.error(f"Failed to create MCP client session: {e}")
+            raise
     
     async def disconnect(self):
-        """Disconnect from MCP server"""
-        if self.session:
-            await self.session.close()
+        """Disconnect from MCP server and ensure session is closed"""
+        if self.session and not self.session.closed:
+            try:
+                await self.session.close()
+                self.logger.info("MCP client session closed")
+            except Exception as e:
+                self.logger.error(f"Error closing MCP client session: {e}")
+            finally:
+                self.session = None
+                self._connected = False
     
     async def call_tool(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Call a tool via MCP protocol"""
-        if not self.session:
-            raise Exception("MCP client not connected")
+        if not self.session or not self._connected:
+            error_msg = "MCP client not connected. Call connect() first or use async context manager."
+            self.logger.error(error_msg)
+            raise ConnectionError(error_msg)
+        
+        if self.session.closed:
+            error_msg = "MCP client session is closed"
+            self.logger.error(error_msg)
+            raise ConnectionError(error_msg)
         
         request = {
             "jsonrpc": "2.0",
@@ -49,14 +85,23 @@ class MCPClient:
                 json=request,
                 headers={"Content-Type": "application/json"}
             ) as response:
+                if response.status >= 400:
+                    error_text = await response.text()
+                    raise Exception(f"HTTP {response.status}: {error_text}")
+                
                 result = await response.json()
                 
                 if "error" in result:
-                    self.logger.error(f"MCP tool call failed: {result['error']}")
-                    raise Exception(result['error']['message'])
+                    error_msg = result['error'].get('message', 'Unknown error')
+                    self.logger.error(f"MCP tool call failed: {error_msg}")
+                    raise Exception(f"MCP tool error: {error_msg}")
                 
                 return result.get("result", {})
                 
+        except aiohttp.ClientError as e:
+            error_msg = f"Cannot connect to host localhost: {e}"
+            self.logger.error(f"Failed to call tool {tool_name}: {error_msg}")
+            raise ConnectionError(error_msg) from e
         except Exception as e:
             self.logger.error(f"Failed to call tool {tool_name}: {e}")
             raise
