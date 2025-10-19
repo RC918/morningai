@@ -9,6 +9,16 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 from .db_client import get_client
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from exceptions import (
+    DatabaseConnectionError,
+    DatabaseWriteError,
+    DatabaseReadError,
+    TenantResolutionError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,23 +36,37 @@ def fetch_user_tenant_id(user_id: str) -> Optional[str]:
         Tenant UUID string
         
     Raises:
-        ValueError: If user_profile not found for the user
-        Exception: If database query fails
+        TenantResolutionError: If user_profile not found for the user
+        DatabaseConnectionError: If database connection fails
+        DatabaseReadError: If database query fails
     """
-    client = get_client()
-    
-    response = client.table("user_profiles") \
-        .select("tenant_id") \
-        .eq("id", user_id) \
-        .single() \
-        .execute()
-    
-    if not response.data or "tenant_id" not in response.data:
-        raise ValueError(f"No user_profile found for user={user_id}. User must be assigned to a tenant first.")
-    
-    tenant_id = response.data["tenant_id"]
-    logger.info(f"Fetched tenant_id={tenant_id} for user={user_id}")
-    return tenant_id
+    try:
+        client = get_client()
+        
+        if client is None:
+            raise DatabaseConnectionError("Failed to get database client")
+        
+        response = client.table("user_profiles") \
+            .select("tenant_id") \
+            .eq("id", user_id) \
+            .single() \
+            .execute()
+        
+        if not response.data or "tenant_id" not in response.data:
+            raise TenantResolutionError(
+                f"No user_profile found for user={user_id}. User must be assigned to a tenant first."
+            )
+        
+        tenant_id = response.data["tenant_id"]
+        logger.info(f"Fetched tenant_id={tenant_id} for user={user_id}")
+        return tenant_id
+        
+    except TenantResolutionError:
+        raise
+    except Exception as e:
+        error_msg = f"Failed to fetch tenant_id for user={user_id}: {e}"
+        logger.error(error_msg)
+        raise DatabaseReadError(error_msg) from e
 
 def upsert_task_queued(
     task_id: str,
