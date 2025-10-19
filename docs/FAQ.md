@@ -1,59 +1,73 @@
-# Test Retry Success in MorningAI
+# Testing Sentry `trace_id` in MorningAI
 
-In the context of the MorningAI platform, ensuring the reliability and robustness of autonomous agent systems and real-time task orchestration is crucial. One way to achieve this is through implementing test retries for operations that may fail due to transient issues. This section aims to provide developers with a comprehensive understanding of how to implement and utilize test retries within the MorningAI infrastructure.
+Sentry is an error tracking and performance monitoring tool that is crucial for identifying, triaging, and fixing issues in production environments. In MorningAI, integrating Sentry provides valuable insights into the application's health and helps developers pinpoint problems efficiently. One essential feature of Sentry is its `trace_id`, which links errors and performance issues to specific web requests or background jobs, enabling developers to trace the origins of an issue through the system.
 
-## Understanding Test Retries
+## Understanding `trace_id`
 
-Test retries are mechanisms that allow a failed test or operation to be attempted again a specified number of times before it is considered a definitive failure. This is particularly useful in distributed systems like MorningAI, where network issues, temporary service unavailability, or other transient problems can cause tasks to fail intermittently.
+The `trace_id` is a unique identifier associated with each transaction (or request) that flows through your application. It allows developers to connect logs, error reports, and performance data back to the original request or job that generated them. This connection makes it easier to diagnose issues by providing a complete picture of what happened before an error occurred or performance degraded.
 
-### Why Use Test Retries?
+### How to Use `trace_id` in MorningAI
 
-- **Resilience**: Enhances the platform's ability to handle transient failures gracefully.
-- **Reliability**: Increases confidence in the system's stability by reducing false negatives in tests.
-- **Efficiency**: Saves time and resources by avoiding manual intervention for issues that can resolve themselves upon retry.
+In MorningAI's Python backend, Sentry integration involves capturing `trace_id` within Flask routes or background tasks managed by Redis Queue (RQ). Below are examples demonstrating how to implement this functionality.
 
-## Implementing Test Retries in MorningAI
+#### Flask Application Example
 
-MorningAI utilizes Redis Queue (RQ) for task management, which supports retry mechanisms. Below is an example of how you can implement a retry strategy for a task that may fail due to transient errors:
+When a request hits a Flask route, you can capture the `trace_id` like so:
 
 ```python
-from redis import Redis
+from flask import Flask, request
+from sentry_sdk import capture_message
+
+app = Flask(__name__)
+
+@app.route('/example')
+def example_route():
+    trace_id = request.headers.get('X-Trace-ID')
+    if not trace_id:
+        # Generate or fetch a new trace_id if not present
+        trace_id = generate_trace_id()
+    capture_message('Example route accessed', extra={'trace_id': trace_id})
+    return "Example response", 200
+
+def generate_trace_id():
+    # Implement your logic here to generate a unique trace_id
+    return "some_unique_trace_id"
+```
+
+#### Redis Queue (RQ) Task Example
+
+For background tasks managed by Redis Queue, you can include the `trace_id` when enqueuing the task and within the task itself:
+
+```python
 from rq import Queue
-from rq.job import Job
-from my_module import my_task_function
+from redis import Redis
+import sentry_sdk
 
 redis_conn = Redis()
 q = Queue(connection=redis_conn)
 
-# Define your retry strategy
-retry_strategy = {
-    'max_retries': 3,  # Maximum number of retries
-    'interval_start': 60,  # Start interval between tries in seconds
-    'interval_step': 60,  # Increase in interval for each try after the first
-    'interval_max': 180,  # Maximum interval between retries
-}
+def background_task(trace_id):
+    sentry_sdk.capture_message("Background task executed", extra={'trace_id': trace_id})
 
-# Enqueue the job with retry strategy
-job = q.enqueue_call(
-    func=my_task_function,
-    retry=retry_strategy
-)
-
-print(f"Job {job.id} added to queue with retry strategy.")
+# When enqueuing the task
+trace_id = "your_generated_trace_id"
+q.enqueue(background_task, trace_id)
 ```
 
-### Related Documentation Links:
+### Related Documentation Links
 
-- Redis Queue Documentation: [RQ Docs](https://python-rq.org/docs/)
-- PostgreSQL (Supabase) Retry Logic: [Supabase Docs](https://supabase.com/docs)
+- Sentry Documentation: [https://docs.sentry.io/](https://docs.sentry.io/)
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- RQ Documentation: [http://python-rq.org/](http://python-rq.org/)
 
-## Common Troubleshooting Tips
+### Common Troubleshooting Tips
 
-1. **Job Fails Without Retrying**: Ensure that your Redis Queue workers are running and configured correctly. Verify your retry strategy parameters for any misconfigurations.
-2. **Retries Happening Too Quickly**: Adjust your `interval_start` and `interval_step` settings within the retry strategy to increase the delay between retries.
-3. **Excessive Load Due to Retries**: Consider implementing exponential backoff in your retry strategy (increasing `interval_step`) and setting a sensible `max_retries` limit to prevent overwhelming your system.
+1. **Missing `trace_id`**: Ensure that all incoming requests have a unique `trace_id`, either provided by an upstream service or generated at the entry point of your application.
+2. **Incorrectly Captured Context**: Verify that the context in which you log messages or capture errors includes the relevant `trace_id`. This might involve ensuring middleware or request handlers correctly pass this information.
+3. **Visibility in Sentry**: If `trace_ids` are not visible in Sentry issues or transactions, check your Sentry project settings and ensure that your SDK initialization code is correctly configured to send this data.
+4. **Performance Overhead**: Capturing extensive diagnostic data can introduce overhead. Monitor your application's performance and adjust your logging level and data capturing accordingly.
 
-For more advanced troubleshooting or if you encounter persistent issues not addressed here, please refer to the official RQ documentation or reach out on our developer community forums.
+For further assistance with specific Sentry configurations or troubleshooting within MorningAI, refer to our detailed documentation or contact support.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -61,7 +75,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `30e20da4-70d5-42f8-ba3e-3d76d7df2fa1`
+- Task: Test Sentry trace_id
+- Trace ID: `8c3e965d-7815-48af-9040-d3dfaa3cc3b6`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
