@@ -47,12 +47,36 @@ def commit_file(repo, branch, path, content, message):
             except Exception as create_error:
                 print(f"[GitHub] Failed to commit file: {create_error}")
 
-def open_pr(repo, branch, title, body="", base="main"):
+def open_pr(repo, branch, title, body="", base="main", draft=False, labels=None):
+    """
+    Create a pull request
+    
+    Args:
+        repo: GitHub repository object
+        branch: Source branch name
+        title: PR title
+        body: PR description
+        base: Target branch (default: main)
+        draft: Create as draft PR (default: False)
+        labels: List of label names to add (default: None)
+    
+    Returns:
+        tuple: (pr_url, pr_number)
+    """
     try:
         if repo is None:
             print("[GitHub] Repository not available")
             return "demo-pr-url", 0
-        pr = repo.create_pull(title=title, body=body, head=branch, base=base)
+        
+        pr = repo.create_pull(title=title, body=body, head=branch, base=base, draft=draft)
+        
+        if labels:
+            try:
+                pr.add_to_labels(*labels)
+                print(f"[GitHub] Added labels: {labels}")
+            except Exception as e:
+                print(f"[GitHub] Failed to add labels: {e}")
+        
         return pr.html_url, pr.number
     except Exception as e:
         print(f"[GitHub] Failed to open PR: {e}")
@@ -69,3 +93,59 @@ def get_pr_checks(repo, pr_number:int):
     except Exception as e:
         print(f"[GitHub] Failed to get PR checks: {e}")
         return "demo", []
+
+def close_pr(repo, pr_number: int, comment: str = None):
+    """
+    Close a pull request
+    
+    Args:
+        repo: GitHub repository object
+        pr_number: PR number to close
+        comment: Optional comment to add before closing
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        if repo is None:
+            print("[GitHub] Repository not available")
+            return False
+        
+        pr = repo.get_pull(pr_number)
+        
+        if comment:
+            pr.create_issue_comment(comment)
+            print(f"[GitHub] Added comment to PR #{pr_number}")
+        
+        pr.edit(state="closed")
+        print(f"[GitHub] Closed PR #{pr_number}")
+        
+        return True
+    except Exception as e:
+        print(f"[GitHub] Failed to close PR: {e}")
+        return False
+
+def delete_branch(repo, branch: str):
+    """
+    Delete a branch
+    
+    Args:
+        repo: GitHub repository object
+        branch: Branch name to delete
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        if repo is None:
+            print("[GitHub] Repository not available")
+            return False
+        
+        ref = repo.get_git_ref(f"heads/{branch}")
+        ref.delete()
+        print(f"[GitHub] Deleted branch: {branch}")
+        
+        return True
+    except Exception as e:
+        print(f"[GitHub] Failed to delete branch: {e}")
+        return False

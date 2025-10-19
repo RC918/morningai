@@ -153,7 +153,7 @@ class TestFileSystemPathValidation:
     @pytest.mark.asyncio
     async def test_whitelisted_path_accepted(self, fs_tool):
         """Test that whitelisted paths are accepted"""
-        result = await fs_tool._validate_path('/workspace/test.py')
+        result = fs_tool._validate_path('/workspace/test.py')
 
         assert result['success'] is True
 

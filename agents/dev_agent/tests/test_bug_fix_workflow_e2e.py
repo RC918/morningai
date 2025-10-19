@@ -7,10 +7,10 @@ import pytest
 import os
 from unittest.mock import Mock, AsyncMock
 
-from agents.dev_agent.workflows.bug_fix_workflow import (
+from workflows.bug_fix_workflow import (
     BugFixWorkflow, BugFixState
 )
-from agents.dev_agent.dev_agent_wrapper import DevAgent
+from dev_agent_wrapper import DevAgent
 
 
 @pytest.mark.asyncio
