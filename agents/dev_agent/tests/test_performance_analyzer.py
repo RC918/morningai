@@ -4,7 +4,7 @@ Tests for PerformanceAnalyzer
 Priority 5: Performance Analysis
 """
 import pytest
-from agents.dev_agent.performance.performance_analyzer import PerformanceAnalyzer, PerformanceIssue
+from performance import PerformanceAnalyzer, PerformanceIssue
 
 
 class TestPerformanceAnalyzer:

@@ -10,7 +10,10 @@ from typing import List, Dict, Any, Optional, Set
 from dataclasses import dataclass
 from enum import Enum
 
-from agents.dev_agent.error_handler import create_success, create_error, ErrorCode
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from error_handler import create_success, create_error, ErrorCode
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

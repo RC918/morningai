@@ -3,7 +3,7 @@
 Testing Module
 Provides automatic test generation capabilities
 """
-from agents.dev_agent.testing.test_generator import (
+from .test_generator import (
     TestGenerator,
     create_test_generator
 )

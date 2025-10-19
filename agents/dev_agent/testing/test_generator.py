@@ -8,7 +8,10 @@ import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
-from agents.dev_agent.error_handler import create_success, create_error, ErrorCode
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from error_handler import create_success, create_error, ErrorCode
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -120,16 +123,28 @@ class TestGenerator:
         test_inputs = {}
         
         for arg in args:
-            if 'count' in arg.lower() or 'num' in arg.lower() or 'id' in arg.lower():
+            arg_lower = arg.lower()
+            
+            if 'count' in arg_lower or 'num' in arg_lower or 'id' in arg_lower or 'index' in arg_lower:
                 test_inputs[arg] = '1'
-            elif 'name' in arg.lower() or 'text' in arg.lower() or 'str' in arg.lower():
+            elif 'name' in arg_lower or 'text' in arg_lower or 'str' in arg_lower or 'message' in arg_lower:
                 test_inputs[arg] = '"test"'
-            elif 'list' in arg.lower() or 'items' in arg.lower():
-                test_inputs[arg] = '[]'
-            elif 'dict' in arg.lower() or 'data' in arg.lower():
-                test_inputs[arg] = '{}'
-            elif 'bool' in arg.lower() or 'flag' in arg.lower():
+            elif 'list' in arg_lower or 'items' in arg_lower or 'array' in arg_lower:
+                test_inputs[arg] = '[1, 2, 3]'
+            elif 'dict' in arg_lower or 'data' in arg_lower or 'config' in arg_lower or 'params' in arg_lower:
+                test_inputs[arg] = '{"key": "value"}'
+            elif 'bool' in arg_lower or 'flag' in arg_lower or 'enabled' in arg_lower or 'active' in arg_lower:
                 test_inputs[arg] = 'True'
+            elif 'url' in arg_lower or 'path' in arg_lower or 'file' in arg_lower:
+                test_inputs[arg] = '"/test/path"'
+            elif 'email' in arg_lower:
+                test_inputs[arg] = '"test@example.com"'
+            elif 'user' in arg_lower:
+                test_inputs[arg] = '{"id": 1, "name": "test_user"}'
+            elif 'date' in arg_lower or 'time' in arg_lower:
+                test_inputs[arg] = '"2024-01-01"'
+            elif 'price' in arg_lower or 'amount' in arg_lower or 'value' in arg_lower:
+                test_inputs[arg] = '100.0'
             else:
                 test_inputs[arg] = 'None'
         

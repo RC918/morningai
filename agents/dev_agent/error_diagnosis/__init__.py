@@ -3,12 +3,14 @@
 Error Diagnosis Module
 Provides error diagnosis and auto-fix capabilities
 """
-from agents.dev_agent.error_diagnosis.error_diagnoser import (
+from .error_diagnoser import (
     ErrorDiagnoser,
+    FixSuggestion,
     create_error_diagnoser
 )
 
 __all__ = [
     'ErrorDiagnoser',
+    'FixSuggestion',
     'create_error_diagnoser'
 ]

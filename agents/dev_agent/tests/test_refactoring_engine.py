@@ -3,7 +3,7 @@
 Tests for Refactoring Engine
 """
 import pytest
-from agents.dev_agent.refactoring import (
+from refactoring import (
     create_refactoring_engine,
     RefactoringType
 )
@@ -207,7 +207,7 @@ class Calculator:
         if suggestions:
             suggestion_dict = suggestions[0]
 
-            from agents.dev_agent.refactoring import RefactoringSuggestion
+            from refactoring import RefactoringSuggestion
             suggestion = RefactoringSuggestion(
                 type=RefactoringType.IMPROVE_NAMING,
                 severity=suggestion_dict['severity'],

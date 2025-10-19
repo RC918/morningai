@@ -3,7 +3,7 @@
 Tests for Test Generator
 """
 import pytest
-from agents.dev_agent.testing import create_test_generator
+from testing import create_test_generator
 
 
 class TestTestGenerator:

@@ -7,7 +7,10 @@ import logging
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
-from agents.dev_agent.error_handler import create_success, create_error, ErrorCode
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from error_handler import create_success, create_error, ErrorCode
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -58,6 +61,9 @@ class PerformanceAnalyzer:
 
         issues.extend(self._check_nested_loops(tree))
         issues.extend(self._check_repeated_calculations(tree, code))
+        issues.extend(self._check_global_lookups(tree))
+        issues.extend(self._check_inefficient_operations(tree))
+        issues.extend(self._check_memory_issues(tree))
 
         return create_success(
             total_issues=len(issues),
@@ -136,6 +142,122 @@ class PerformanceAnalyzer:
                         ))
         
         return issues
+    
+    def _check_global_lookups(self, tree: ast.AST) -> List[PerformanceIssue]:
+        """Check for excessive global variable lookups in loops"""
+        issues = []
+        
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.For, ast.While)):
+                global_accesses = []
+                
+                for child in ast.walk(node):
+                    if isinstance(child, ast.Global):
+                        for name in child.names:
+                            global_accesses.append((name, child.lineno))
+                
+                if global_accesses:
+                    issues.append(PerformanceIssue(
+                        issue_type='global_lookup',
+                        severity='low',
+                        description=f'Global variable accesses in loop (count: {len(global_accesses)})',
+                        location={'line': node.lineno},
+                        suggestion='Consider using local variable to cache global value'
+                    ))
+        
+        return issues
+    
+    def _check_inefficient_operations(self, tree: ast.AST) -> List[PerformanceIssue]:
+        """Check for inefficient operations"""
+        issues = []
+        
+        for node in ast.walk(tree):
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+                if isinstance(node.left, ast.Str) or isinstance(node.right, ast.Str):
+                    parent_loop = self._find_parent_loop(tree, node)
+                    if parent_loop:
+                        issues.append(PerformanceIssue(
+                            issue_type='inefficient_operation',
+                            severity='medium',
+                            description='String concatenation in loop (use list + join instead)',
+                            location={'line': getattr(node, 'lineno', 0)},
+                            suggestion='Use list.append() and "".join(list) instead of += for strings in loops'
+                        ))
+            
+            if isinstance(node, ast.ListComp):
+                for generator in node.generators:
+                    if len(generator.ifs) > 1:
+                        issues.append(PerformanceIssue(
+                            issue_type='inefficient_operation',
+                            severity='low',
+                            description='Multiple filters in list comprehension',
+                            location={'line': node.lineno},
+                            suggestion='Consider combining filters with "and" or using generator expression for large datasets'
+                        ))
+        
+        return issues
+    
+    def _check_memory_issues(self, tree: ast.AST) -> List[PerformanceIssue]:
+        """Check for potential memory issues"""
+        issues = []
+        
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                if hasattr(node.func, 'id'):
+                    if node.func.id in ('list', 'dict', 'set'):
+                        if len(node.args) > 0:
+                            if isinstance(node.args[0], ast.ListComp):
+                                issues.append(PerformanceIssue(
+                                    issue_type='memory_issue',
+                                    severity='low',
+                                    description=f'Unnecessary {node.func.id}() wrapper around comprehension',
+                                    location={'line': node.lineno},
+                                    suggestion=f'Remove {node.func.id}() wrapper - comprehensions already create the collection'
+                                ))
+            
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        if isinstance(node.value, ast.List):
+                            if len(node.value.elts) > 100:
+                                issues.append(PerformanceIssue(
+                                    issue_type='memory_issue',
+                                    severity='low',
+                                    description='Large list literal - consider generator or lazy loading',
+                                    location={'line': node.lineno},
+                                    suggestion='Use generator expressions for large datasets to reduce memory usage'
+                                ))
+        
+        return issues
+    
+    def _find_parent_loop(self, tree: ast.AST, target_node: ast.AST) -> bool:
+        """Check if a node is inside a loop"""
+        class LoopChecker(ast.NodeVisitor):
+            def __init__(self):
+                self.in_loop = False
+                self.target = target_node
+                self.found = False
+            
+            def visit_For(self, node):
+                old_in_loop = self.in_loop
+                self.in_loop = True
+                self.generic_visit(node)
+                self.in_loop = old_in_loop
+            
+            def visit_While(self, node):
+                old_in_loop = self.in_loop
+                self.in_loop = True
+                self.generic_visit(node)
+                self.in_loop = old_in_loop
+            
+            def generic_visit(self, node):
+                if node is self.target and self.in_loop:
+                    self.found = True
+                super().generic_visit(node)
+        
+        checker = LoopChecker()
+        checker.visit(tree)
+        return checker.found
 
 
 def create_performance_analyzer() -> PerformanceAnalyzer:
