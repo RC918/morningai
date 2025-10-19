@@ -1,67 +1,66 @@
-# Handling Redis Outage in MorningAI
+# Test Retry Success in MorningAI
 
-MorningAI relies on Redis Queue (RQ) for managing real-time task orchestration. A Redis outage can significantly impact the platform's ability to process tasks, affecting both the autonomous agent system and real-time task orchestration. This guide provides insights into understanding, mitigating, and recovering from a Redis outage within the context of MorningAI.
+## Overview
 
-## Understanding the Impact of a Redis Outage
+In MorningAI, ensuring the reliability and robustness of your automated tasks is crucial. One of the mechanisms provided to enhance reliability is the ability to retry tests upon failure. This feature is particularly useful when dealing with operations that may fail due to transient issues such as network latency, temporary service downtime, or rate limits. Implementing test retries can significantly improve the success rate of your tasks without manual intervention.
 
-When Redis experiences an outage, MorningAI's task queue becomes unresponsive. This means:
+## How Test Retries Work
 
-- Task submissions will either fail or remain pending, causing delays in code generation and documentation management.
-- Real-time updates and notifications across integrated platforms (Telegram, LINE, Messenger) may not be dispatched.
-- Worker heartbeat monitoring via RQ is disrupted, complicating the oversight of active processes.
+Test retries in MorningAI are managed through a combination of Redis Queue (RQ) configurations and custom logic within your task definitions. When a task fails, the system can automatically re-queue it for another attempt based on predefined criteria such as the number of retries and delay between attempts.
 
-## Mitigation Strategies
+### Setting Up Test Retries
 
-### 1. Immediate Action Plan
-Upon detecting a Redis outage, follow these steps:
+To configure test retries, you need to adjust the settings within your task queue setup in `app/queue.py` and implement retry logic in your task definitions.
 
-1. **Pause Incoming Tasks**: Temporarily halt new task submissions to prevent a backlog.
-2. **Notify Users**: Use your communication channels to inform users about the issue and the expected timeline for resolution.
+#### Configuring RQ for Retries
 
-### 2. Code Example: Pausing Task Submissions
-To programmatically pause new tasks, you might set a global flag in your Flask application that checks the status of Redis before accepting new tasks:
+First, ensure that your RQ worker is configured to support retries. You can specify the default number of retries and delay intervals in your RQ worker setup:
 
 ```python
-from flask import Flask, jsonify
-import redis
+from rq import Queue
+from redis import Redis
+import datetime
 
-app = Flask(__name__)
-redis_conn = None
+redis_conn = Redis()
+q = Queue(connection=redis_conn, default_retry={
+    'max': 3,  # Maximum number of retries
+    'interval': [10, 30, 60],  # Seconds to wait before each retry: 1st retry after 10s, 2nd after 30s, etc.
+})
 
-try:
-    redis_conn = redis.Redis(host='localhost', port=6379)
-except redis.RedisError:
-    pass  # Handle connection error
+def my_task():
+    # Your task implementation here
+    pass
 
-@app.route('/submit_task', methods=['POST'])
-def submit_task():
-    if redis_conn is None or not redis_conn.ping():
-        return jsonify({"error": "Task submission is temporarily paused due to backend issues."}), 503
-    # Task submission logic here
-
-if __name__ == '__main__':
-    app.run()
+job = q.enqueue(my_task)
 ```
 
-### 3. Recovery and Restoration
-Once Redis is back online:
+### Implementing Retry Logic in Tasks
 
-1. **Clear Task Backlog**: Prioritize tasks that were pending during the outage.
-2. **System Health Check**: Ensure all components are functioning correctly with Redis Queue.
+Within your task definition, implement logic to handle failures and trigger a retry. Here's an example using a simple try-except block:
 
-## Related Documentation Links
+```python
+def my_task_with_retry():
+    try:
+        # Attempt some operation that might fail
+        potentially_failing_operation()
+    except Exception as e:
+        raise self.retry(exc=e)  # Use self.retry() for Flask tasks with built-in retry support or customize as needed
+```
 
-- [Redis Queue (RQ) Documentation](https://python-rq.org/)
-- [Flask Documentation for Creating APIs](https://flask.palletsprojects.com/en/2.0.x/)
-- [Supabase Documentation](https://supabase.io/docs)
+Note: Ensure you have error handling that differentiates between retryable errors and critical failures that should not trigger a retry.
+
+### Documentation Links
+
+- For more details on configuring RQ: [Redis Queue Documentation](https://python-rq.org/docs/)
+- Understanding retries in Flask tasks: [Flask Documentation](https://flask.palletsprojects.com/en/latest/patterns/tasks/)
 
 ## Common Troubleshooting Tips
 
-- **Redis Connection Issues**: Verify that your Redis instance is running and accessible. Check firewall settings and network connectivity.
-- **Monitoring Worker Health**: Use RQ Dashboard to monitor worker status. In case of failures, restart workers after ensuring Redis is fully operational.
-- **Data Persistence**: After an outage, ensure data persistence settings in Redis are correctly configured to prevent data loss.
+- **Retry Limit Reached**: If tasks consistently fail even after retries, investigate the root cause by logging error messages and examining stack traces.
+- **Resource Exhaustion**: Be cautious with retry intervals and backoff strategies to prevent overwhelming your system or external services.
+- **Improper Error Handling**: Ensure that only transient errors trigger retries. Permanent errors should be handled differently to avoid unnecessary retry attempts.
 
-For any unresolved issues or further assistance, refer to the [MorningAI GitHub Repository Issues](https://github.com/RC918/morningai/issues) section or contact support.
+By carefully implementing and configuring test retries, you can improve the resilience and reliability of your MorningAI tasks against transient failures.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -69,7 +68,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test question during Redis outage
-- Trace ID: `bf155dae-a337-432c-8eb2-787be9a4e920`
+- Task: Test retry success
+- Trace ID: `f4ce1b62-4557-4895-9c3c-e237e48ec5ea`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
