@@ -18,15 +18,11 @@ async def test_ops_agent_shell_execution():
     sandbox = await sandbox_manager.create_sandbox(config)
     
     try:
-        client = MCPClient(sandbox.mcp_endpoint, sandbox.agent_id)
-        await client.connect()
-        
-        result = await client.execute_shell('echo "Hello from sandbox"')
-        
-        assert result['status'] == 'success'
-        assert 'Hello from sandbox' in result['result']['stdout']
-        
-        await client.disconnect()
+        async with MCPClient(sandbox.mcp_endpoint, sandbox.agent_id) as client:
+            result = await client.execute_shell('echo "Hello from sandbox"')
+            
+            assert result['status'] == 'success'
+            assert 'Hello from sandbox' in result['result']['stdout']
     finally:
         await sandbox_manager.destroy_sandbox(sandbox.sandbox_id)
 
@@ -41,15 +37,11 @@ async def test_ops_agent_browser_automation():
     sandbox = await sandbox_manager.create_sandbox(config)
     
     try:
-        client = MCPClient(sandbox.mcp_endpoint, sandbox.agent_id)
-        await client.connect()
-        
-        result = await client.browse_url('https://example.com')
-        
-        assert result['status'] == 'success'
-        assert 'title' in result['result']
-        
-        await client.disconnect()
+        async with MCPClient(sandbox.mcp_endpoint, sandbox.agent_id) as client:
+            result = await client.browse_url('https://example.com')
+            
+            assert result['status'] == 'success'
+            assert 'title' in result['result']
     finally:
         await sandbox_manager.destroy_sandbox(sandbox.sandbox_id)
 
@@ -64,14 +56,10 @@ async def test_ops_agent_hitl_approval():
     sandbox = await sandbox_manager.create_sandbox(config)
     
     try:
-        client = MCPClient(sandbox.mcp_endpoint, sandbox.agent_id)
-        await client.connect()
-        
-        result = await client.execute_shell('rm -rf /tmp/test')
-        
-        assert result['status'] == 'pending_approval'
-        assert 'approval_request_id' in result
-        
-        await client.disconnect()
+        async with MCPClient(sandbox.mcp_endpoint, sandbox.agent_id) as client:
+            result = await client.execute_shell('rm -rf /tmp/test')
+            
+            assert result['status'] == 'pending_approval'
+            assert 'approval_request_id' in result
     finally:
         await sandbox_manager.destroy_sandbox(sandbox.sandbox_id)
