@@ -19,6 +19,8 @@ import WIPPage from '@/components/WIPPage'
 import { TenantProvider } from '@/contexts/TenantContext'
 import { NotificationProvider, useNotification } from '@/contexts/NotificationContext'
 import { Phase3WelcomeModal } from '@/components/Phase3WelcomeModal'
+import { PageLoader } from '@/components/feedback/PageLoader'
+import { OfflineIndicator } from '@/components/feedback/OfflineIndicator'
 import { applyDesignTokens } from '@/lib/design-tokens'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import useAppStore from '@/stores/appStore'
@@ -123,15 +125,7 @@ function AppContent() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div 
-          className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"
-          aria-label="載入中"
-          role="status"
-        ></div>
-      </div>
-    )
+    return <PageLoader message="正在載入應用程式..." />
   }
 
   if (!isAuthenticated) {
@@ -142,6 +136,7 @@ function AppContent() {
     <ErrorBoundary>
       <TenantProvider>
         <Router>
+          <OfflineIndicator />
           <Phase3WelcomeModal 
             isOpen={showPhase3Welcome}
             onClose={dismissWelcome}
