@@ -1,65 +1,82 @@
-# MorningAI 常見問題 (FAQ)
+# MorningAI E2E Testing FAQ
 
-歡迎來到 MorningAI 的常見問題集！這裡收集了開發者和使用者最常詢問的問題及其詳細解答。
+End-to-End (E2E) testing is a crucial component of the development process for MorningAI, ensuring that our multi-tenant SaaS platform operates efficiently and as expected from start to finish. This FAQ aims to guide developers through our E2E testing practices, providing insights into how tests are structured, executed, and how to troubleshoot common issues.
 
-## 📚 FAQ 主題索引
+## What is E2E Testing in MorningAI?
 
-### 系統與架構
+E2E testing involves simulating real-user scenarios to validate the system under test and its components for integration and data integrity. In MorningAI, E2E tests cover the entire application flow, from autonomous agent system operations to multi-platform integration, ensuring that all parts of the system work together seamlessly.
 
-- **[系統架構說明](./faq/system-architecture.md)**  
-  深入了解 MorningAI 的技術架構，包括前端（ReactJS + Vite）、後端（Flask + Gunicorn）、資料庫（PostgreSQL/Supabase）、任務隊列（Redis Queue）以及 AI 編排（LangGraph + GPT-4）等核心組件。
+## How are E2E Tests Implemented in MorningAI?
 
-### 開發與使用
+MorningAI utilizes a combination of technologies for E2E testing, primarily focusing on Cypress and Selenium for web-based interactions and PyTest for backend services. Tests are designed to mimic user interactions with the system, validating both the UI/UX aspects on platforms like Telegram, LINE, Messenger, and backend processes such as task orchestration with Redis Queue.
 
-- **[代碼生成使用指南](./faq/code-generation-guide.md)**  
-  學習如何使用 MorningAI 的自主代理系統進行代碼生成，包括環境設置、API 調用範例、以及最佳實踐。
+### Code Example: PyTest Backend Test
 
-- **[E2E 測試指南](./faq/e2e-testing.md)**  
-  端對端測試的完整指南，涵蓋測試創建、執行、除錯以及常見問題排查。
+```python
+import pytest
+from app import create_app
+from db import db
 
-## 🔍 快速搜尋
+@pytest.fixture
+def app():
+    app = create_app('testing')
+    with app.app_context():
+        db.create_all()
+    yield app
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
 
-**常見主題**：
-- 系統架構 → [系統架構說明](./faq/system-architecture.md)
-- 代碼生成 → [代碼生成使用指南](./faq/code-generation-guide.md)  
-- 測試相關 → [E2E 測試指南](./faq/e2e-testing.md)
-- 部署配置 → [系統架構說明 - 部署章節](./faq/system-architecture.md#deployment)
-- 故障排除 → 各主題的 Troubleshooting 部分
+def test_task_orchestration(app):
+    # Example test for task orchestration
+    client = app.test_client()
+    response = client.post('/orchestrate', json={'task': 'example_task'})
+    assert response.status_code == 200
+    assert response.json['status'] == 'success'
+```
 
-## 🆕 最近更新
+## Running E2E Tests
 
-- **2025-10-18**: 重構 FAQ 結構為多檔案模式，便於維護和擴展
-- **2025-10-18**: 新增系統架構詳細說明
-- **2025-10-18**: 更新代碼生成指南
+Before running any tests, ensure your environment is correctly set up. For frontend testing using Cypress:
 
-## 💡 找不到答案？
+1. Navigate to your project directory.
+2. Install Cypress via npm if not already installed: `npm install cypress`.
+3. Run Cypress with `npx cypress open` for UI mode or `npx cypress run` for headless mode.
 
-如果您的問題不在上述 FAQ 中，可以：
+For backend tests:
 
-1. **查看相關文件**：
-   - [系統認證架構文件](./CURRENT_AUTH_ARCHITECTURE.md)
-   - [監控系統文件](../monitoring/README.md)
-   - [專案 README](../README.md)
+1. Ensure Python dependencies are installed: `pip install -r requirements.txt`.
+2. Run PyTest in the terminal: `pytest`.
 
-2. **提交 Issue**：  
-   在 [GitHub Issues](https://github.com/RC918/morningai/issues) 提出您的問題
+## Related Documentation Links
 
-3. **聯繫團隊**：  
-   透過專案的溝通管道與開發團隊聯繫
+- [Cypress Documentation](https://www.cypress.io/docs)
+- [Selenium Documentation](https://www.selenium.dev/documentation/)
+- [PyTest Documentation](https://docs.pytest.org/en/stable/)
+
+## Common Troubleshooting Tips
+
+**Issue**: Tests fail due to environment misconfiguration.
+**Solution**: Verify your `.env` or configuration files for accuracy against the documentation.
+
+**Issue**: Selenium WebDriver errors.
+**Solution**: Ensure WebDriver versions match your browser version. Update or downgrade WebDriver as necessary.
+
+**Issue**: Timeout errors during asynchronous task testing.
+**Solution**: Increase timeout settings in your test configurations or ensure background services like Redis Queue are running properly.
+
+**Issue**: Database state affecting tests.
+**Solution**: Use database transactions or fixtures to reset database state before each test. PyTest's fixture mechanism can be particularly useful here.
+
+For further assistance with specific issues not covered here, please refer to our detailed documentation or submit a ticket through our developer support channel.
+
+---
+Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
-## 📝 貢獻 FAQ
-
-如果您想為 FAQ 貢獻內容：
-
-1. 在 `docs/faq/` 目錄下創建新的 Markdown 文件
-2. 在本頁面添加連結和簡短描述
-3. 提交 Pull Request
-
-**命名規範**：使用小寫和連字符（例如：`my-topic-name.md`）
-
----
-
-**最後更新**: 2025-10-18  
-**維護者**: MorningAI Development Team
+**Metadata**:
+- Task: E2E test FAQ update
+- Trace ID: `de117206-615e-43d7-90e9-2e91d6fe612d`
+- Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
+- Repository: RC918/morningai
