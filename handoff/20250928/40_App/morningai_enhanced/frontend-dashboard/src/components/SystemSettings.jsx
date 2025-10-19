@@ -50,13 +50,13 @@ const SystemSettings = () => {
   }, [preferences.theme])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">{t('settings.title')}</h1>
-        <p className="text-gray-600 mt-1">{t('settings.description')}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('settings.title')}</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">{t('settings.description')}</p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-4 lg:w-auto">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="w-4 h-4" />
