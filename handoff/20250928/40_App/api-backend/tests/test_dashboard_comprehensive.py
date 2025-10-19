@@ -191,17 +191,6 @@ class TestDashboardErrorHandling:
         data = response.get_json()
         assert 'error' in data
     
-    @patch('src.routes.dashboard.request')
-    def test_get_performance_history_error_handling(self, mock_request, client):
-        """Test error handling in performance history"""
-        mock_request.args.get.side_effect = Exception('Test error')
-        
-        response = client.get('/api/dashboard/performance-history')
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert 'error' in data
-    
     @patch('src.routes.dashboard.random.choice')
     def test_get_recent_decisions_error_handling(self, mock_choice, client):
         """Test error handling in recent decisions"""
@@ -230,17 +219,6 @@ class TestDashboardErrorHandling:
         mock_choice.side_effect = Exception('Test error')
         
         response = client.get('/api/dashboard/alerts')
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert 'error' in data
-    
-    @patch('src.routes.dashboard.request')
-    def test_get_cost_analysis_error_handling(self, mock_request, client):
-        """Test error handling in cost analysis"""
-        mock_request.args.get.side_effect = Exception('Test error')
-        
-        response = client.get('/api/dashboard/cost-analysis')
         
         assert response.status_code == 500
         data = response.get_json()

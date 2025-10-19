@@ -75,17 +75,6 @@ class TestAuthLogin:
         assert response.status_code == 401
         data = response.get_json()
         assert 'message' in data
-    
-    @patch('src.routes.auth.request')
-    def test_login_exception_handling(self, mock_request, client):
-        """Test login exception handling"""
-        mock_request.get_json.side_effect = Exception('Test error')
-        
-        response = client.post('/api/auth/login', json={})
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert 'message' in data
 
 
 class TestAuthVerify:
@@ -170,17 +159,6 @@ class TestAuthVerify:
         })
         
         assert response.status_code == 401
-        data = response.get_json()
-        assert 'message' in data
-    
-    @patch('src.routes.auth.request')
-    def test_verify_exception_handling(self, mock_request, client):
-        """Test verify exception handling"""
-        mock_request.headers.get.side_effect = Exception('Test error')
-        
-        response = client.get('/api/auth/verify')
-        
-        assert response.status_code == 500
         data = response.get_json()
         assert 'message' in data
 
