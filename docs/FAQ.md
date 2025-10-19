@@ -1,71 +1,73 @@
-# Test Retry Success in MorningAI
+# Test Retry Mechanism in MorningAI
 
-Understanding and implementing test retries can significantly enhance the reliability of the MorningAI platform's CI/CD pipeline. This FAQ is designed to help developers comprehend the mechanism behind test retries, how to configure them, and troubleshoot common issues.
+Understanding and effectively utilizing the test retry mechanism in MorningAI is crucial for enhancing the reliability of your application by ensuring that transient issues do not lead to test failures. This FAQ aims to provide comprehensive insights into how the test retry mechanism works within the MorningAI platform, including configuration tips, code examples, and troubleshooting advice.
 
-## Understanding Test Retries
+## How Test Retry Mechanism Works
 
-Test retries are a mechanism used to automatically rerun failed tests before marking them as failures. This approach can be particularly useful in a complex, multi-tenant SaaS platform like MorningAI, where tests might fail due to transient issues such as network latency, dependency load times, or temporary resource unavailability rather than actual code defects.
+MorningAI's test retry mechanism is designed to automatically rerun failed tests before marking them as failures. This feature is particularly useful for handling tests that may fail due to temporary issues such as network latency, dependent services downtime, or flaky test cases.
+
+The mechanism can be configured at both the suite and individual test levels, providing flexibility in addressing specific needs of your testing strategy.
 
 ### Configuration
 
-MorningAI utilizes a combination of testing frameworks and CI/CD tools that support test retries. The configuration for retries can usually be found in the specific tool's configuration file.
+To configure test retries, you need to modify your test suite configuration files. MorningAI uses a Python-based setup, typically with testing frameworks like pytest or unittest. Here’s how you can configure it:
 
-For instance, if you're using pytest with Flask applications:
+#### Pytest Example
 
-1. **pytest.ini** or **pyproject.toml**: You can configure retry attempts and delay between retries.
+If you're using pytest, you can use the `pytest-rerunfailures` plugin. First, ensure it's installed:
+
+```shell
+pip install pytest-rerunfailures
+```
+
+Then, modify your pytest configuration (`pytest.ini`, `tox.ini`, or `setup.cfg`) to include the retry count:
 
 ```ini
-# pytest.ini example
 [pytest]
-addopts = --reruns 3 --reruns-delay 5
+addopts = --reruns 3
 ```
 
-This snippet tells pytest to rerun failed tests up to 3 times with a 5-second delay between each attempt.
+This configuration tells pytest to rerun each failed test up to 3 times.
 
-2. **CI/CD Pipeline Configuration**: For GitLab CI, you can specify retry logic in `.gitlab-ci.yml`:
+#### Unittest Example
 
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when: runner_system_failure
-```
-
-This configuration retries the job up to 2 additional times if it fails due to system issues.
-
-### Implementation in MorningAI
-
-In the context of MorningAI's technology stack:
-
-- The backend Python services might use `pytest` along with its rerun plugin.
-- Frontend React applications could implement retries at the testing level with Jest by using `jest.retryTimes(numberOfRetries)`.
-- For integration tests involving Redis Queue (RQ) or Supabase, ensure your test framework is set up to handle asynchronous operations and potential transient failures gracefully.
-
-#### Code Example for RQ Job Retry
-
-When working with Redis Queue within MorningAI for task orchestration, ensuring tasks are retried upon failure is crucial. Below is an example of how you could define a job with retry mechanisms:
+For unittest, there isn't a built-in retry mechanism as in pytest. You would typically implement a retry logic in your test runner or use decorators on unstable tests. Here's a simple decorator example for retries:
 
 ```python
-from rq import Retry
-from redis_queue import queue
+import unittest
+from time import sleep
 
-def example_task():
-    # Task implementation here
-    pass
+def retry(test_func):
+    def wrapper(*args, **kwargs):
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                return test_func(*args, **kwargs)
+            except AssertionError as e:
+                print(f"Retrying {test_func.__name__}, attempt {attempt+1}/{max_attempts}")
+                if attempt == max_attempts - 1:
+                    raise
+                sleep(1) # Optional: wait between retries
+    return wrapper
 
-job = queue.enqueue(example_task, retry=Retry(max=3, interval=[10, 30, 60]))
+class MyTestCase(unittest.TestCase):
+    @retry
+    def test_example(self):
+        self.assertEqual(1, 2) # Example of a failing test
 ```
 
-This code snippet demonstrates enqueuing a task with automatic retries upon failure. The task will be retried up to three times with intervals of 10 seconds, 30 seconds, and then 60 seconds between attempts.
+### Related Documentation Links
 
-## Troubleshooting Common Issues
+- Pytest Reruns: [https://pytest-rerunfailures.readthedocs.io/](https://pytest-rerunfailures.readthedocs.io/)
+- Unittest Documentation: [https://docs.python.org/3/library/unittest.html](https://docs.python.org/3/library/unittest.html)
 
-1. **Excessive Retries Without Success**: Ensure that the conditions causing the initial failure are transient and not persistent logical errors in the code.
-2. **No Retries Happening**: Verify that your retry configurations are correctly set up in both your testing framework and CI/CD pipeline files.
-3. **Impact on Test Suite Performance**: While retries can improve reliability, they also increase test suite execution time. Monitor your CI/CD pipeline's performance metrics and adjust retry settings as needed.
+## Common Troubleshooting Tips
 
-For more detailed information on configuring test retries specific to your development environment within MorningAI, refer to the official documentation of [pytest](https://docs.pytest.org/en/latest/how-to/retry.html), [Jest](https://jestjs.io/docs/en/jest-object#jestretrytimes), or your chosen CI/CD tool.
+1. **Tests Still Failing After Retries**: If tests continue to fail even after retries, investigate if the issue is indeed transient. Look into logs and consider increasing wait times between retries if it’s related to timing issues.
+2. **Incorrect Configuration**: Ensure that your retry configurations are correctly placed in your project settings. Misplaced configurations might not be recognized by the testing framework.
+3. **Performance Impacts**: Be mindful of how retries might affect the total runtime of your test suite. Excessive use of retries on numerous tests could significantly increase feedback time during development.
+
+By understanding and implementing the test retry mechanism within MorningAI projects, developers can significantly improve the robustness and reliability of their automated testing processes.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,6 +76,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: Test retry success
-- Trace ID: `c9fcf420-9b25-401a-bfb7-77bc465786eb`
+- Trace ID: `9f9494a6-6021-41db-b026-bf3de7a514b2`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
