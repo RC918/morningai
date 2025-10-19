@@ -1,62 +1,115 @@
-# Testing Sentry Trace ID in MorningAI
+# MorningAI System Architecture
 
-When integrating Sentry into your applications for error tracking and performance monitoring, it's crucial to ensure that the Sentry `trace_id` is correctly generated and propagated through your system. This ensures that errors and performance issues can be accurately traced back to their source, making debugging and monitoring more effective. This FAQ aims to guide developers on how to test the Sentry `trace_id` within the MorningAI platform.
+MorningAI's system architecture is designed to support a scalable, efficient, and robust service for autonomous agent code generation, FAQ generation, documentation management, and multi-platform integration. At its core, the platform utilizes a modern tech stack that includes React, Vite, TailwindCSS for the frontend, Python with Flask and Gunicorn for the backend, PostgreSQL (Supabase) for the database, Redis Queue (RQ) for task queuing, LangGraph for orchestration, OpenAI GPT-4 for AI-driven content generation, and is deployed on Render.com with CI/CD practices.
 
-## Understanding Sentry `trace_id`
+## Overview
 
-The Sentry `trace_id` is a unique identifier for each request or operation within your system. It ties together events, transactions, and errors, allowing you to trace the path of a request across service boundaries. This is particularly useful in distributed systems where requests pass through multiple services.
+The architecture of MorningAI is built to handle real-time task orchestration with Redis Queue (RQ), vector memory storage using pgvector/Supabase, and seamless multi-tenant SaaS operations. It emphasizes efficiency in code execution, security with Row Level Security in PostgreSQL, and scalability across multiple platforms including Telegram, LINE, Messenger.
 
-## How to Test Sentry `trace_id` in MorningAI
+### Frontend
 
-To test the generation and propagation of the Sentry `trace_id` in MorningAI, follow these steps:
+The frontend is developed using React along with Vite as the build tool and TailwindCSS for styling. This combination allows for a fast development experience with hot module replacement (HMR) and a utility-first CSS framework that enables responsive design.
 
-### Step 1: Configuration
+- **React**: Handles the UI components.
+- **Vite**: Offers an optimized build tool with out-of-the-box features.
+- **TailwindCSS**: Provides utility classes for styling.
 
-Ensure that Sentry is correctly configured in your application. In a Flask application like MorningAI, this typically involves initializing the Sentry SDK with your DSN (Data Source Name) and configuring any relevant options.
+```javascript
+// Sample React component with TailwindCSS
+import React from 'react';
 
-```python
-import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration
+const HelloWorld = () => {
+  return <div className="text-center p-4 m-4 bg-blue-500 text-white">Hello World</div>;
+};
 
-sentry_sdk.init(
-    dsn="your_sentry_dsn_here",
-    integrations=[FlaskIntegration()],
-    traces_sample_rate=1.0 # Adjust sampling rate as needed
-)
+export default HelloWorld;
 ```
 
-### Step 2: Generating Transactions
+### Backend
 
-In MorningAI, when you want to test tracing, you can manually create a transaction. This can be done around an operation or request handler where you wish to monitor performance or trace errors.
+The backend uses Python with Flask as the web framework and Gunicorn as the WSGI HTTP server. This setup supports multi-worker configurations which enhance the platform's ability to handle multiple requests concurrently.
+
+- **Flask**: A lightweight WSGI web application framework.
+- **Gunicorn**: A Python WSGI HTTP Server for UNIX.
+- **Python**: The primary programming language.
 
 ```python
-from sentry_sdk import start_transaction
+# Sample Flask app
+from flask import Flask
+app = Flask(__name__)
 
-@app.route("/some_endpoint")
-def some_view_function():
-    with start_transaction(op="task", name="Some Task"):
-        # Your code here
-        pass
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
+
+if __name__ == '__main__':
+    app.run()
 ```
 
-This manually creates a transaction for the given block of code, which will include a `trace_id`.
+### Database
 
-### Step 3: Verifying Trace ID
+MorningAI uses PostgreSQL managed by Supabase which adds powerful features like Row Level Security (RLS) ensuring data isolation and security across tenants.
 
-After configuring Sentry and wrapping your code with transactions, perform operations that trigger these pieces of code. Then, check your Sentry dashboard for incoming transactions and errors. Each transaction/error will have a `trace_id` associated with it.
+```sql
+-- Example PostgreSQL query with RLS
+CREATE TABLE documents (
+    doc_id serial PRIMARY KEY,
+    content text NOT NULL,
+    tenant_id uuid NOT NULL
+);
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+```
 
-### Related Documentation Links
+### Queue System
 
-- [Sentry Documentation](https://docs.sentry.io/platforms/python/guides/flask/)
-- [Distributed Tracing in Sentry](https://docs.sentry.io/product/sentry-basics/tracing/distributed-tracing/)
+Redis Queue (RQ) is utilized for real-time task orchestration. It allows tasks to be processed asynchronously outside of the web request/response cycle.
+
+```python
+# Enqueuing a job in Redis Queue
+from redis import Redis
+from rq import Queue
+
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+
+result = q.enqueue('my_function', arg1, arg2)
+```
+
+### AI Content Generation
+
+OpenAI's GPT-4 powers MorningAI's content generation features. Integration with GPT-4 enables sophisticated AI-driven document and FAQ generation.
+
+### Deployment
+
+Deployment is handled through Render.com with continuous integration and continuous deployment (CI/CD), ensuring seamless updates to the platform.
+
+## Related Documentation Links
+
+For more detailed information on each component of our system architecture:
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Vite Documentation](https://vitejs.dev/guide/)
+- [TailwindCSS Documentation](https://tailwindcss.com/docs)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Gunicorn Documentation](https://gunicorn.org/#docs)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/current/)
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Render.com CI/CD](https://render.com/docs/ci-cd)
 
 ## Common Troubleshooting Tips
 
-- **Transactions not appearing**: Ensure that the `traces_sample_rate` is set to a value greater than 0. Also, check network issues that might prevent data from being sent to Sentry.
-- **Incorrect `trace_id` association**: Make sure that manual transactions are correctly wrapped around the code blocks you wish to trace. Incorrect nesting can lead to misleading traces.
-- **Performance overhead**: While testing, setting `traces_sample_rate` to 1.0 captures all transactions but might introduce overhead. Adjust this value based on your production needs.
+### Database Connection Issues
 
-Testing the Sentry `trace_id` functionality within MorningAI involves configuring Sentry correctly, wrapping key operations within transactions, and verifying through the Sentry dashboard that these transactions are correctly reported with their unique trace identifiers.
+Ensure that your environment variables are correctly set up for connecting to Supabase/PostgreSQL. Check if your Supabase project keys and URLs are accurate.
+
+### Task Queuing Failures
+
+If tasks fail to enqueue or process:
+1. Verify that your Redis server is running and accessible.
+2. Check the logs for any error messages related to Redis Queue (RQ).
+3. Ensure workers are running correctly by inspecting their heartbeat in your monitoring setup.
+
+For further assistance on specific issues or more detailed explanations of any part of MorningAI's system architecture, please refer to the documentation links provided above or reach out through our community support channels.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -64,7 +117,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test Sentry trace_id
-- Trace ID: `13749758-0c8d-4680-9864-91496c8bbf81`
+- Task: What is the system architecture?
+- Trace ID: `a56137bf-06e7-4579-8877-0f195fe6e99f`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
