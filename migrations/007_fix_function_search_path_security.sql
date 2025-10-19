@@ -9,19 +9,21 @@
 
 DROP FUNCTION IF EXISTS is_tenant_admin() CASCADE;
 
-CREATE OR REPLACE FUNCTION is_tenant_admin()
+CREATE OR REPLACE FUNCTION public.is_tenant_admin()
 RETURNS BOOLEAN 
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path TO public, pg_temp
+STABLE
 AS $$
 BEGIN
     RETURN EXISTS (
-        SELECT 1 FROM user_profiles
+        SELECT 1 FROM public.user_profiles
         WHERE id = auth.uid()
         AND role IN ('admin', 'owner')
     );
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$;
 
 COMMENT ON FUNCTION is_tenant_admin() IS 
     'Helper function: Check if current user is a tenant administrator (owner or admin). SECURITY DEFINER with explicit search_path for security.';
@@ -31,20 +33,21 @@ COMMENT ON FUNCTION is_tenant_admin() IS
 
 DROP FUNCTION IF EXISTS current_user_tenant_id() CASCADE;
 
-CREATE OR REPLACE FUNCTION current_user_tenant_id()
+CREATE OR REPLACE FUNCTION public.current_user_tenant_id()
 RETURNS UUID 
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path TO public, pg_temp
 STABLE
 AS $$
 BEGIN
     RETURN (
         SELECT tenant_id 
-        FROM user_profiles 
+        FROM public.user_profiles 
         WHERE id = auth.uid()
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 COMMENT ON FUNCTION current_user_tenant_id() IS 
     'Helper function: Returns the tenant_id for the currently authenticated user. Used in RLS policies and queries. SECURITY DEFINER with explicit search_path.';
@@ -54,21 +57,23 @@ COMMENT ON FUNCTION current_user_tenant_id() IS
 
 DROP FUNCTION IF EXISTS get_user_tenant_id(UUID) CASCADE;
 
-CREATE OR REPLACE FUNCTION get_user_tenant_id(user_id UUID)
+CREATE OR REPLACE FUNCTION public.get_user_tenant_id(user_id UUID)
 RETURNS UUID 
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path TO public, pg_temp
+STABLE
 AS $$
 DECLARE
     tenant_uuid UUID;
 BEGIN
     SELECT tenant_id INTO tenant_uuid
-    FROM user_profiles
+    FROM public.user_profiles
     WHERE id = user_id;
     
     RETURN tenant_uuid;
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$;
 
 COMMENT ON FUNCTION get_user_tenant_id(UUID) IS 
     'Helper function: Returns the tenant_id for a given user_id. Used in backend code for tenant resolution. SECURITY DEFINER with explicit search_path.';
@@ -78,16 +83,17 @@ COMMENT ON FUNCTION get_user_tenant_id(UUID) IS
 
 DROP FUNCTION IF EXISTS update_user_profiles_updated_at() CASCADE;
 
-CREATE OR REPLACE FUNCTION update_user_profiles_updated_at()
+CREATE OR REPLACE FUNCTION public.update_user_profiles_updated_at()
 RETURNS TRIGGER 
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path TO public, pg_temp
 AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 COMMENT ON FUNCTION update_user_profiles_updated_at() IS 
     'Trigger function: Automatically updates updated_at column on user_profiles. SECURITY DEFINER with explicit search_path for security.';
@@ -137,7 +143,9 @@ END $$;
 -- ============================================================================
 -- ============================================================================
 
-RAISE NOTICE '
+DO $$
+BEGIN
+    RAISE NOTICE '
 ╔════════════════════════════════════════════════════════════╗
 ║  Migration 007: Function search_path Security - COMPLETE  ║
 ╠════════════════════════════════════════════════════════════╣
@@ -154,3 +162,4 @@ RAISE NOTICE '
 ║  - Supabase Security Advisor warnings resolved             ║
 ╚════════════════════════════════════════════════════════════╝
 ';
+END $$;
