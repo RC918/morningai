@@ -1,6 +1,7 @@
 import pytest
 import json
 import os
+
 from src.main import app
 
 @pytest.fixture
@@ -92,7 +93,7 @@ def test_verify_token_expired(client):
         'user_id': 1,
         'username': 'admin',
         'role': 'admin',
-        'exp': datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+        'exp': datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1)
     }
     expired_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
     

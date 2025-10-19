@@ -5,6 +5,7 @@ from tools.github_api import get_repo, create_branch, commit_file, open_pr, get_
 from redis_queue.worker import enqueue
 from memory.pgvector_store import save_text, recall_top
 from llm.faq_generator import generate_faq_content
+from utils.rate_limit import check_pr_rate_limit
 
 def planner(goal:str):
     steps = ["analyze", "patch", "open PR", "check CI"]
@@ -14,6 +15,11 @@ def planner(goal:str):
 def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     if trace_id is None:
         trace_id = str(uuid.uuid4())
+    
+    allowed, count = check_pr_rate_limit(trace_id, max_per_hour=10, redis_url=os.getenv("REDIS_URL"))
+    if not allowed:
+        print(f"[Rate Limit] BLOCKED - Already created {count} PRs this hour")
+        return None, "rate_limited", trace_id
     
     repo = get_repo()
     timestamp = int(time.time())
@@ -29,7 +35,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     
     commit_file(repo, branch, "docs/FAQ.md", faq_content, f"docs: add FAQ.md (trace-id: {trace_id})")
     
-    is_test_mode = os.getenv("ORCHESTRATOR_TEST_MODE", "true").lower() == "true"
+    is_test_mode = os.getenv("ORCHESTRATOR_TEST_MODE", "false").lower() == "true"
     
     pr_body = f"""## Automated FAQ Update
 
@@ -60,15 +66,19 @@ Requested by: @RC918
     )
     print(f"[PR] {pr_url} (trace-id: {trace_id})")
     
-    try:
-        import subprocess
-        subprocess.run([
-            "gh", "pr", "merge", str(pr_num),
-            "--auto", "--squash",
-            "--repo", repo_full
-        ], check=False)
-    except Exception as e:
-        print(f"[GitHub] Could not enable auto-merge: {e}")
+    if not is_test_mode:
+        try:
+            import subprocess
+            subprocess.run([
+                "gh", "pr", "merge", str(pr_num),
+                "--auto", "--squash",
+                "--repo", repo_full
+            ], check=False)
+            print(f"[GitHub] Auto-merge enabled for production PR")
+        except Exception as e:
+            print(f"[GitHub] Could not enable auto-merge: {e}")
+    else:
+        print(f"[Test Mode] Skipping auto-merge for draft PR")
     
     state, checks = get_pr_checks(repo, pr_num)
     print(f"[CI] state={state} checks={checks}")
