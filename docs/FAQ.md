@@ -1,18 +1,20 @@
-# Testing Sentry Trace ID in MorningAI
+# Testing Sentry `trace_id` in MorningAI
 
-When integrating Sentry into your applications for error tracking and performance monitoring, it's crucial to ensure that the Sentry `trace_id` is correctly generated and propagated through your system. This ensures that errors and performance issues can be accurately traced back to their source, making debugging and monitoring more effective. This FAQ aims to guide developers on how to test the Sentry `trace_id` within the MorningAI platform.
+This FAQ aims to guide developers through the process of testing and using Sentry's `trace_id` within the MorningAI platform. The `trace_id` is crucial for tracing errors and performance issues across distributed systems, ensuring efficient debugging and system monitoring.
 
-## Understanding Sentry `trace_id`
+## What is Sentry `trace_id`?
 
-The Sentry `trace_id` is a unique identifier for each request or operation within your system. It ties together events, transactions, and errors, allowing you to trace the path of a request across service boundaries. This is particularly useful in distributed systems where requests pass through multiple services.
+Sentry uses `trace_id` as part of its distributed tracing system to monitor and troubleshoot issues across microservices or other distributed systems. It helps in identifying the path taken by a request or a job through various services, making it easier to pinpoint where failures or performance bottlenecks occur.
 
 ## How to Test Sentry `trace_id` in MorningAI
 
-To test the generation and propagation of the Sentry `trace_id` in MorningAI, follow these steps:
+To test the Sentry `trace_id` within the MorningAI platform, you need to follow these steps:
 
 ### Step 1: Configuration
 
-Ensure that Sentry is correctly configured in your application. In a Flask application like MorningAI, this typically involves initializing the Sentry SDK with your DSN (Data Source Name) and configuring any relevant options.
+Ensure that Sentry is properly configured in your MorningAI application. This typically involves setting up the Sentry DSN (Data Source Name) in your environment variables and initializing Sentry in your application code.
+
+**Example Initialization (Python with Flask):**
 
 ```python
 import sentry_sdk
@@ -25,38 +27,37 @@ sentry_sdk.init(
 )
 ```
 
-### Step 2: Generating Transactions
+### Step 2: Generating a `trace_id`
 
-In MorningAI, when you want to test tracing, you can manually create a transaction. This can be done around an operation or request handler where you wish to monitor performance or trace errors.
+When implementing a new feature or service within MorningAI, use Sentry's API to generate a `trace_id`. This ID should be passed along with any requests or jobs being processed.
+
+**Example Code Snippet:**
 
 ```python
 from sentry_sdk import start_transaction
 
-@app.route("/some_endpoint")
-def some_view_function():
-    with start_transaction(op="task", name="Some Task"):
-        # Your code here
-        pass
+with start_transaction(op="task", name="YourTaskName") as transaction:
+    # Your code here
+    # Optionally, modify transaction context or set custom tags as needed
+    transaction.set_tag("key", "value")
 ```
 
-This manually creates a transaction for the given block of code, which will include a `trace_id`.
+### Step 3: Testing and Verification
 
-### Step 3: Verifying Trace ID
+To test if the `trace_id` is being correctly used and monitored, trigger the functionality where the tracing is implemented. You can then go to your Sentry dashboard to verify that the traces are appearing as expected. Look for transactions or traces with your specified operation (`op`) and name (`name`) tags.
 
-After configuring Sentry and wrapping your code with transactions, perform operations that trigger these pieces of code. Then, check your Sentry dashboard for incoming transactions and errors. Each transaction/error will have a `trace_id` associated with it.
+## Related Documentation Links
 
-### Related Documentation Links
-
-- [Sentry Documentation](https://docs.sentry.io/platforms/python/guides/flask/)
-- [Distributed Tracing in Sentry](https://docs.sentry.io/product/sentry-basics/tracing/distributed-tracing/)
+- [Sentry Distributed Tracing](https://docs.sentry.io/product/sentry-basics/tracing/distributed-tracing/)
+- [Sentry Python Integration](https://docs.sentry.io/platforms/python/)
 
 ## Common Troubleshooting Tips
 
-- **Transactions not appearing**: Ensure that the `traces_sample_rate` is set to a value greater than 0. Also, check network issues that might prevent data from being sent to Sentry.
-- **Incorrect `trace_id` association**: Make sure that manual transactions are correctly wrapped around the code blocks you wish to trace. Incorrect nesting can lead to misleading traces.
-- **Performance overhead**: While testing, setting `traces_sample_rate` to 1.0 captures all transactions but might introduce overhead. Adjust this value based on your production needs.
+- **Traces Not Appearing**: If traces are not appearing in Sentry, check that your DSN is correctly configured and that your sampling rate is not set too low.
+- **Incorrect Trace Data**: Ensure that each part of your application generating traces has unique operation names (`op`) and descriptive names to avoid confusion.
+- **Performance Issues**: High sampling rates can impact application performance. Adjust your sampling rate based on production traffic and necessity.
 
-Testing the Sentry `trace_id` functionality within MorningAI involves configuring Sentry correctly, wrapping key operations within transactions, and verifying through the Sentry dashboard that these transactions are correctly reported with their unique trace identifiers.
+Remember, effective use of Sentry's tracing system can significantly improve the observability of your application, helping you quickly diagnose and resolve issues.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -65,6 +66,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: Test Sentry trace_id
-- Trace ID: `13749758-0c8d-4680-9864-91496c8bbf81`
+- Trace ID: `729a23e8-701b-4789-b239-7662fff3bb18`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
