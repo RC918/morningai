@@ -1,54 +1,62 @@
-# Test Retry Success in MorningAI
+# Testing Sentry Trace ID in MorningAI
 
-Ensuring the reliability and resilience of applications is a critical aspect of software development. In MorningAI, the capability to retry tests upon failure is an essential feature that aids developers in identifying flaky tests and ensuring that transient issues do not lead to false negatives in test results. This document aims to guide developers through the process of utilizing test retries within the MorningAI platform, helping to improve the stability and accuracy of their testing processes.
+When integrating Sentry into your applications for error tracking and performance monitoring, it's crucial to ensure that the Sentry `trace_id` is correctly generated and propagated through your system. This ensures that errors and performance issues can be accurately traced back to their source, making debugging and monitoring more effective. This FAQ aims to guide developers on how to test the Sentry `trace_id` within the MorningAI platform.
 
-## Understanding Test Retries
+## Understanding Sentry `trace_id`
 
-Test retries are a mechanism that allows test executions to be automatically repeated in case of failures. This can be particularly useful in distributed systems where network latency, temporary unavailability of services, or other ephemeral issues can cause tests to fail intermittently. By retrying a failed test, we can distinguish between persistent failures caused by actual bugs and transient failures that do not indicate a real problem with the code.
+The Sentry `trace_id` is a unique identifier for each request or operation within your system. It ties together events, transactions, and errors, allowing you to trace the path of a request across service boundaries. This is particularly useful in distributed systems where requests pass through multiple services.
 
-### Configuration
+## How to Test Sentry `trace_id` in MorningAI
 
-To enable test retries in MorningAI, you will need to modify your test configuration files. Depending on the test framework you are using (e.g., pytest, unittest), this process may vary. Here is an example using pytest with the `pytest-rerunfailures` plugin:
+To test the generation and propagation of the Sentry `trace_id` in MorningAI, follow these steps:
 
-```python
-# pytest.ini file
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
+### Step 1: Configuration
 
-This configuration tells pytest to rerun failed tests up to three times with a delay of five seconds between each attempt.
-
-### Implementation Example
-
-Assuming you are using Flask for your backend and pytest for testing, here's how you can set up a basic retry mechanism for a simple API endpoint test:
+Ensure that Sentry is correctly configured in your application. In a Flask application like MorningAI, this typically involves initializing the Sentry SDK with your DSN (Data Source Name) and configuring any relevant options.
 
 ```python
-import requests
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
-def test_get_user_retry():
-    max_retries = 3
-    for _ in range(max_retries):
-        response = requests.get("http://localhost:5000/api/user/1")
-        if response.status_code == 200:
-            break
-    assert response.status_code == 200
+sentry_sdk.init(
+    dsn="your_sentry_dsn_here",
+    integrations=[FlaskIntegration()],
+    traces_sample_rate=1.0 # Adjust sampling rate as needed
+)
 ```
 
-While this example uses a simple loop for retries, integrating with a testing framework's retry mechanism (as shown in the configuration section) is recommended for more sophisticated scenarios.
+### Step 2: Generating Transactions
 
-### Related Documentation
+In MorningAI, when you want to test tracing, you can manually create a transaction. This can be done around an operation or request handler where you wish to monitor performance or trace errors.
 
-- Pytest-RerunFailures: [https://github.com/pytest-dev/pytest-rerunfailures](https://github.com/pytest-dev/pytest-rerunfailures)
-- Flask Testing: [https://flask.palletsprojects.com/en/latest/testing/](https://flask.palletsprojects.com/en/latest/testing/)
+```python
+from sentry_sdk import start_transaction
+
+@app.route("/some_endpoint")
+def some_view_function():
+    with start_transaction(op="task", name="Some Task"):
+        # Your code here
+        pass
+```
+
+This manually creates a transaction for the given block of code, which will include a `trace_id`.
+
+### Step 3: Verifying Trace ID
+
+After configuring Sentry and wrapping your code with transactions, perform operations that trigger these pieces of code. Then, check your Sentry dashboard for incoming transactions and errors. Each transaction/error will have a `trace_id` associated with it.
+
+### Related Documentation Links
+
+- [Sentry Documentation](https://docs.sentry.io/platforms/python/guides/flask/)
+- [Distributed Tracing in Sentry](https://docs.sentry.io/product/sentry-basics/tracing/distributed-tracing/)
 
 ## Common Troubleshooting Tips
 
-- **Ensure Correct Configuration**: Double-check your testing framework's documentation to ensure your retry configuration is correct.
-- **Network Stability**: In cases where tests interact with external services, ensure network stability to minimize transient errors.
-- **Dependency Mocking**: For external service calls, consider mocking these dependencies in your tests to avoid failures due to issues outside your control.
-- **Logging**: Implement detailed logging within both your application and tests to help identify why tests might be flaky or failing intermittently.
+- **Transactions not appearing**: Ensure that the `traces_sample_rate` is set to a value greater than 0. Also, check network issues that might prevent data from being sent to Sentry.
+- **Incorrect `trace_id` association**: Make sure that manual transactions are correctly wrapped around the code blocks you wish to trace. Incorrect nesting can lead to misleading traces.
+- **Performance overhead**: While testing, setting `traces_sample_rate` to 1.0 captures all transactions but might introduce overhead. Adjust this value based on your production needs.
 
-By carefully implementing and configuring test retries within MorningAI, developers can significantly reduce the impact of flaky tests on their CI/CD pipeline, leading to more reliable software delivery processes.
+Testing the Sentry `trace_id` functionality within MorningAI involves configuring Sentry correctly, wrapping key operations within transactions, and verifying through the Sentry dashboard that these transactions are correctly reported with their unique trace identifiers.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -56,7 +64,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `71643dd0-7548-4e2f-bffc-00005f4fb207`
+- Task: Test Sentry trace_id
+- Trace ID: `13749758-0c8d-4680-9864-91496c8bbf81`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
