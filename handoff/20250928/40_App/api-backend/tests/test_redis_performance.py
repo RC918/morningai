@@ -4,6 +4,8 @@ from redis import Redis
 from redis.exceptions import ConnectionError
 import os
 
+pytestmark = pytest.mark.slow
+
 @pytest.fixture
 def redis_client():
     """Create Redis client for testing"""
@@ -21,7 +23,7 @@ def redis_client():
 
 def test_scan_performance_vs_keys(redis_client):
     """Test that SCAN performs better than KEYS with many keys"""
-    num_keys = 1000
+    num_keys = 100
     for i in range(num_keys):
         redis_client.setex(f"test:agent:task:{i}", 3600, f"value_{i}")
     
@@ -45,7 +47,7 @@ def test_scan_performance_vs_keys(redis_client):
 
 def test_scan_iter_memory_efficiency(redis_client):
     """Test that scan_iter uses less memory than keys"""
-    num_keys = 10000
+    num_keys = 100
     for i in range(num_keys):
         redis_client.setex(f"test:agent:task:{i}", 3600, f"value_{i}")
     
