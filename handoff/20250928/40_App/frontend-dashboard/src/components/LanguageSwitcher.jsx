@@ -11,8 +11,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 
 const languages = [
-  { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' },
-  { code: 'en-US', name: 'English', flag: '🇺🇸' }
+  { code: 'en-US', name: 'English', flag: '🇺🇸' },
+  { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' }
 ]
 
 export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
@@ -30,8 +30,12 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
     return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className={className}>
-            <Globe className="w-4 h-4" />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={`${className} bg-white hover:bg-gray-50 shadow-md`}
+          >
+            <Globe className="w-5 h-5" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">

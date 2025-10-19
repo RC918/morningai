@@ -19,8 +19,8 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'zh-TW',
-    lng: 'zh-TW',
+    fallbackLng: 'en-US',
+    lng: 'en-US',
     
     detection: {
       order: ['localStorage', 'navigator'],
