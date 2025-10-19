@@ -1,67 +1,97 @@
-# Handling Redis Outage in MorningAI
+# MorningAI System Architecture
 
-MorningAI relies on Redis Queue (RQ) for managing real-time task orchestration. A Redis outage can significantly impact the platform's ability to process tasks, affecting both the autonomous agent system and real-time task orchestration. This guide provides insights into understanding, mitigating, and recovering from a Redis outage within the context of MorningAI.
+The MorningAI platform is designed as a robust, scalable multi-tenant SaaS solution aimed at streamlining autonomous code generation, FAQ documentation management, and providing seamless integration across multiple messaging platforms. Its architecture is crafted to support real-time task orchestration and efficient memory storage for a seamless user experience.
 
-## Understanding the Impact of a Redis Outage
+## Overview
 
-When Redis experiences an outage, MorningAI's task queue becomes unresponsive. This means:
+MorningAI leverages a microservices architecture, with each component designed to operate both independently and in concert with others. This approach ensures scalability, reliability, and easy maintenance. Below is an outline of the key components and technologies that constitute the MorningAI system architecture:
 
-- Task submissions will either fail or remain pending, causing delays in code generation and documentation management.
-- Real-time updates and notifications across integrated platforms (Telegram, LINE, Messenger) may not be dispatched.
-- Worker heartbeat monitoring via RQ is disrupted, complicating the oversight of active processes.
+### Frontend
 
-## Mitigation Strategies
+- **Technology Stack**: The user interface is built using React for its reusable components and state management features, Vite for fast builds, and TailwindCSS for styling.
+- **Code Example**:
+  ```jsx
+  // src/App.jsx
+  import React from 'react';
+  import 'tailwindcss/tailwind.css';
 
-### 1. Immediate Action Plan
-Upon detecting a Redis outage, follow these steps:
+  function App() {
+    return <div className="app">Welcome to MorningAI</div>;
+  }
 
-1. **Pause Incoming Tasks**: Temporarily halt new task submissions to prevent a backlog.
-2. **Notify Users**: Use your communication channels to inform users about the issue and the expected timeline for resolution.
+  export default App;
+  ```
 
-### 2. Code Example: Pausing Task Submissions
-To programmatically pause new tasks, you might set a global flag in your Flask application that checks the status of Redis before accepting new tasks:
+### Backend
 
-```python
-from flask import Flask, jsonify
-import redis
+- **Technology Stack**: The server-side logic is handled by Python using the Flask framework for its simplicity and flexibility. Gunicorn serves as the WSGI HTTP Server for UNIX, supporting multi-worker connections.
+- **Configuration Example**:
+  ```python
+  # gunicorn_config.py
+  workers = 2
+  threads = 4
+  bind = "0.0.0.0:8000"
+  ```
+- **Running Gunicorn**:
+  ```bash
+  gunicorn -c gunicorn_config.py myapp:app
+  ```
 
-app = Flask(__name__)
-redis_conn = None
+### Database
 
-try:
-    redis_conn = redis.Redis(host='localhost', port=6379)
-except redis.RedisError:
-    pass  # Handle connection error
+- **Technology Stack**: PostgreSQL is utilized for data storage, augmented with Row Level Security (RLS) for enhanced data protection. Supabase extends PostgreSQL, offering additional features like pgvector for vector memory storage.
+- **Supabase Setup**:
+    - Create a new project on Supabase.io.
+    - Navigate to the SQL Editor and execute custom SQL commands to configure RLS and pgvector.
 
-@app.route('/submit_task', methods=['POST'])
-def submit_task():
-    if redis_conn is None or not redis_conn.ping():
-        return jsonify({"error": "Task submission is temporarily paused due to backend issues."}), 503
-    # Task submission logic here
+### Queue System
 
-if __name__ == '__main__':
-    app.run()
-```
+- **Redis Queue (RQ)**: Facilitates task queuing and worker management to handle background processes efficiently.
+- **Worker Configuration**:
+    ```python
+    # worker.py
+    from redis import Redis
+    from rq import Worker, Queue, Connection
 
-### 3. Recovery and Restoration
-Once Redis is back online:
+    listen = ['high', 'default', 'low']
 
-1. **Clear Task Backlog**: Prioritize tasks that were pending during the outage.
-2. **System Health Check**: Ensure all components are functioning correctly with Redis Queue.
+    redis_conn = Redis()
+
+    if __name__ == '__main__':
+        with Connection(redis_conn):
+            worker = Worker(map(Queue, listen))
+            worker.work()
+    ```
+
+### Orchestration & AI
+
+- **LangGraph**: Used for orchestrating agent workflows in a flexible manner.
+- **OpenAI GPT-4**: Powers content generation including code snippets and FAQ documentation.
+  
+### Deployment
+
+- Deployed on Render.com with continuous integration and delivery (CI/CD), ensuring automatic updates from the repository `RC918/morningai` to production environments.
 
 ## Related Documentation Links
 
-- [Redis Queue (RQ) Documentation](https://python-rq.org/)
-- [Flask Documentation for Creating APIs](https://flask.palletsprojects.com/en/2.0.x/)
-- [Supabase Documentation](https://supabase.io/docs)
+- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask Documentation: [https://flask.palletsprojects.com/en/2.1.x/](https://flask.palletsprojects.com/en/2.1.x/)
+- PostgreSQL RLS: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+- Redis Queue Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- Render Deployment Guides: [https://render.com/docs](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-- **Redis Connection Issues**: Verify that your Redis instance is running and accessible. Check firewall settings and network connectivity.
-- **Monitoring Worker Health**: Use RQ Dashboard to monitor worker status. In case of failures, restart workers after ensuring Redis is fully operational.
-- **Data Persistence**: After an outage, ensure data persistence settings in Redis are correctly configured to prevent data loss.
+1. **Issue**: Flask application not starting under Gunicorn.
+   - **Solution**: Ensure that Gunicorn is correctly configured with the right number of workers and binds to the correct port as specified in your `gunicorn_config.py`.
 
-For any unresolved issues or further assistance, refer to the [MorningAI GitHub Repository Issues](https://github.com/RC918/morningai/issues) section or contact support.
+2. **Issue**: Tasks not being processed by Redis Queue workers.
+   - **Solution**: Verify that Redis is running and accessible by your application. Also, ensure workers are correctly started with the right queues being listened to.
+
+3. **Issue**: Database migrations failing in Supabase.
+   - **Solution**: Review your SQL scripts for compatibility issues with PostgreSQL versions supported by Supabase. Ensure all foreign keys and relationships are correctly defined.
+
+For more detailed assistance or inquiries about specific issues not covered here, please refer to our detailed documentation or contact support.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -69,7 +99,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test question during Redis outage
-- Trace ID: `bf155dae-a337-432c-8eb2-787be9a4e920`
+- Task: What is the system architecture?
+- Trace ID: `62451685-9632-4d6a-8fcb-a42642c05a18`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
