@@ -2,7 +2,9 @@ name: backend-ci
 on:
   workflow_dispatch:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
 jobs:
   validate-env-schema:
     runs-on: ubuntu-latest
