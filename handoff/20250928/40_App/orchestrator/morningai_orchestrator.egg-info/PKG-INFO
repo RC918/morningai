@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: morningai-orchestrator
+Version: 0.1.0
+Summary: Morning AI orchestrator for agent workflows
+Author: Morning AI
+Requires-Python: >=3.12
+Requires-Dist: langchain-community>=0.2.16
+Requires-Dist: langchain-openai>=0.1.23
+Requires-Dist: langgraph>=0.2.4
+Requires-Dist: PyGithub==2.4.0
+Requires-Dist: supabase==2.6.0
+Requires-Dist: openai==1.52.2
+Requires-Dist: requests==2.32.3
+Requires-Dist: sentry-sdk==2.19.2
+Requires-Dist: redis
+Requires-Dist: rq
+Requires-Dist: python-dotenv==1.0.1
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
