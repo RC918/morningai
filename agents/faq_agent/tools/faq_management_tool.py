@@ -4,7 +4,7 @@ FAQ Management Tool - Create, update, and delete FAQs
 
 import os
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from supabase import create_client, Client
 from .embedding_tool import EmbeddingTool
 
@@ -75,8 +75,8 @@ class FAQManagementTool:
                 'question': question,
                 'answer': answer,
                 'embedding': emb_result['embedding'],
-                'created_at': datetime.utcnow().isoformat(),
-                'updated_at': datetime.utcnow().isoformat()
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.now(timezone.utc).isoformat()
             }
             
             if category:
@@ -131,7 +131,7 @@ class FAQManagementTool:
         """
         try:
             update_data = {
-                'updated_at': datetime.utcnow().isoformat()
+                'updated_at': datetime.now(timezone.utc).isoformat()
             }
             
             if question:
@@ -265,8 +265,8 @@ class FAQManagementTool:
                     'question': faq['question'],
                     'answer': faq['answer'],
                     'embedding': emb_result['embeddings'][i],
-                    'created_at': datetime.utcnow().isoformat(),
-                    'updated_at': datetime.utcnow().isoformat()
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    'updated_at': datetime.now(timezone.utc).isoformat()
                 }
                 
                 if 'category' in faq:
@@ -358,7 +358,7 @@ class FAQManagementTool:
         try:
             category_data = {
                 'name': name,
-                'created_at': datetime.utcnow().isoformat()
+                'created_at': datetime.now(timezone.utc).isoformat()
             }
             
             if description:
