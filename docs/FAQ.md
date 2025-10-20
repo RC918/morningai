@@ -1,62 +1,61 @@
-# Test Retry Mechanism in MorningAI
+# MorningAI System Architecture
 
-In the context of developing and maintaining robust applications, ensuring that transient errors do not disrupt the overall functionality is crucial. The MorningAI platform employs a test retry mechanism to handle such scenarios gracefully, enhancing reliability and stability during testing phases. This section aims to provide a comprehensive understanding of how test retries are implemented within the MorningAI platform, including practical code examples, related documentation, and troubleshooting tips.
+The MorningAI platform is designed as a multi-tenant Software as a Service (SaaS) solution, leveraging a robust and scalable architecture to support autonomous code generation, FAQ generation, documentation management, and multi-platform integration. This comprehensive overview will help developers understand the underlying architecture of MorningAI, how it operates, and how they can effectively interact with it.
 
-## Understanding Test Retries
+## Overview
 
-Test retries in MorningAI are designed to automatically re-execute tests that fail due to transient issues such as temporary network glitches, dependency downtime, or flaky test cases. This mechanism helps in distinguishing between transient and consistent failures, ensuring that the latter can be addressed by developers promptly.
+MorningAI's architecture is built to facilitate efficient real-time task orchestration and vector memory storage, ensuring high performance and scalability. The system integrates several key technologies and frameworks to achieve its goals:
 
-### Configuration
+- **Frontend**: Utilizes React along with Vite for bundling and TailwindCSS for styling. This combination offers a fast and responsive user interface that adapts seamlessly across devices.
+  
+- **Backend**: Built on Python with Flask serving as the web framework, and Gunicorn configured with multi-worker support for handling multiple requests concurrently.
 
-MorningAI utilizes a flexible configuration system for test retries, allowing developers to specify the number of retry attempts and criteria for retries (e.g., specific error types). This configuration is typically defined in the test framework settings or annotations within test cases.
+- **Database**: PostgreSQL is used for data storage, enhanced with Row Level Security (RLS) for improved data integrity and privacy. Supabase is integrated to augment PostgreSQL capabilities, providing additional functionalities like authentication and real-time subscriptions.
 
-#### Example Configuration
+- **Queue**: Redis Queue (RQ) is employed for managing background tasks, supported by worker heartbeat monitoring to ensure reliability in task execution.
 
-Suppose you're using Pytest with the `pytest-rerunfailures` plugin for Python testing in MorningAI. You could configure retries as follows:
+- **Orchestration**: LangGraph orchestrates agent workflows, facilitating complex operations and interactions within the system.
 
-```python
-# In pytest.ini or conftest.py
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
+- **AI**: OpenAI's GPT-4 drives the content generation capabilities of MorningAI, enabling sophisticated document and FAQ generation.
 
-This configuration instructs Pytest to rerun failed tests up to three times with a delay of 5 seconds between attempts.
+- **Deployment**: Render.com is used for hosting with Continuous Integration/Continuous Deployment (CI/CD), ensuring smooth updates and maintenance.
 
-### Code Example: Implementing Retry Logic
-
-For tasks beyond testing scenarios, such as operations in task queues or database transactions, implementing custom retry logic might be necessary. Here’s a simple example using Python's `retrying` package:
+### Code Example: Worker Initialization
 
 ```python
-from retrying import retry
+from rq import Worker, Queue, Connection
+import redis
 
-@retry(wait_fixed=2000, stop_max_attempt_number=3)
-def perform_sensitive_operation():
-    # Code that might fail transiently, e.g., network request or DB operation
-    pass
+redis_url = "redis://localhost:6379"
+conn = redis.from_url(redis_url)
 
-try:
-    perform_sensitive_operation()
-except RetryError:
-    # Handle the case where all retries have failed
-    pass
+if __name__ == '__main__':
+    with Connection(conn):
+        worker = Worker(map(Queue, ['default']))
+        worker.work()
 ```
 
-This snippet retries the `perform_sensitive_operation` function up to three times with a 2-second wait between attempts.
+This example demonstrates initializing a worker for Redis Queue (RQ), which listens to the default queue for tasks to process in the background.
 
-## Related Documentation Links
+### Related Documentation Links
 
-- Pytest RerunFailures Plugin: [https://pypi.org/project/pytest-rerunfailures/](https://pypi.org/project/pytest-rerunfailures/)
-- Retrying Package: [https://pypi.org/project/retrying/](https://pypi.org/project/retrying/)
-- MorningAI Developer Guide: Please refer to `/docs/developer_guide.md` in the RC918/morningai repository for more detailed information on configuring and utilizing various development tools and practices within MorningAI.
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- Gunicorn: [https://docs.gunicorn.org/en/stable/](https://docs.gunicorn.org/en/stable/)
+- PostgreSQL: [https://www.postgresql.org/docs/](https://www.postgresql.org/docs/)
+- Supabase: [https://supabase.io/docs](https://supabase.io/docs)
+- Redis Queue (RQ): [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- OpenAI GPT: [https://beta.openai.com/docs/](https://beta.openai.com/docs/)
+- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
 
 ## Troubleshooting Tips
 
-1. **Tests Still Failing After Maximum Retries**: Investigate if the issue is indeed transient. Review logs and consider increasing the wait time between retries.
-2. **Retry Configuration Not Taking Effect**: Ensure that your test framework supports retries natively or through plugins. Verify that configuration files are correctly placed and syntax is accurate.
-3. **Performance Impact Due to Retries**: Analyze whether retries are causing significant delays in your CI pipeline. Adjust retry count and delay timings as needed.
-4. **Determining Whether to Retry**: For custom implementations, carefully select conditions under which retries should occur to avoid masking persistent issues.
+1. **Gunicorn Workers Not Starting**: Ensure you have set the correct number of workers in your `gunicorn.conf.py`. Also, check system logs for any errors related to port binding or permissions.
+2. **Redis Queue Job Stuck**: Verify the Redis server's health and connectivity. Ensure workers are running and listening to the correct queues. Use RQ Dashboard or command-line tools to inspect job statuses.
+3. **Database Connectivity Issues**: For PostgreSQL connection issues, confirm your database URL and credentials are correctly set in your environment variables or configuration files. Check if RLS policies are interfering with expected operations.
+4. **Failed Deployments on Render.com**: Review deployment logs on Render.com for specific error messages. Common issues include exceeded build times or failed health checks post-deployment.
 
-Test retries are an essential part of maintaining high-quality software by ensuring that temporary problems do not lead to false negatives in testing outcomes. Properly configuring and managing this mechanism can save significant time and resources while keeping your application stable and reliable.
+For further assistance or to report bugs, please visit the project repository issue tracker at `RC918/morningai`.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -64,7 +63,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `a82d35d3-1b5b-4122-9ed1-8e3694f8e21b`
+- Task: What is the system architecture?
+- Trace ID: `07eebd1a-72d9-4bed-ba2b-80a056bbb58a`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
