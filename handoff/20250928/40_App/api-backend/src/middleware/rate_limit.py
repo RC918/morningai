@@ -74,14 +74,21 @@ def rate_limit(f):
                 response.headers['X-RateLimit-Reset'] = str(reset_time)
                 return response
             
-            response = f(*args, **kwargs)
+            result = f(*args, **kwargs)
             
-            if hasattr(response, 'headers'):
-                response.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
-                response.headers['X-RateLimit-Remaining'] = str(remaining)
-                response.headers['X-RateLimit-Reset'] = str(reset_time)
+            if isinstance(result, tuple):
+                response_obj, status_code = result[0], result[1] if len(result) > 1 else 200
+                if hasattr(response_obj, 'headers'):
+                    response_obj.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
+                    response_obj.headers['X-RateLimit-Remaining'] = str(remaining)
+                    response_obj.headers['X-RateLimit-Reset'] = str(reset_time)
+                return response_obj, status_code
+            elif hasattr(result, 'headers'):
+                result.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
+                result.headers['X-RateLimit-Remaining'] = str(remaining)
+                result.headers['X-RateLimit-Reset'] = str(reset_time)
             
-            return response
+            return result
             
         except RedisConnectionError as e:
             logger.warning(f"Rate limit Redis error, allowing request: {e}")
