@@ -7,7 +7,8 @@ import {
   TrendingUp, 
   DollarSign,
   Zap,
-  Info
+  Info,
+  Inbox
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +18,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/hooks/use-toast'
+import { EmptyState } from '@/components/feedback/EmptyState'
 
 const DecisionApproval = () => {
   const { toast } = useToast()
@@ -286,13 +288,11 @@ const DecisionApproval = () => {
       {/* 待審批決策列表 */}
       <div className="space-y-4">
         {pendingDecisions.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">沒有待審批的決策</h3>
-              <p className="text-gray-600">所有決策都已處理完畢，系統運行正常</p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Inbox}
+            title="尚無待審批任務"
+            description="當有新的 AI 決策需要審批時,會顯示在這裡。所有決策都已處理完畢，系統運行正常。"
+          />
         ) : (
           pendingDecisions.map((decision) => (
             <Card key={decision.id} className="border-l-4 border-l-orange-400">
