@@ -1,80 +1,80 @@
-# E2E Test FAQ for MorningAI
+# Handling Redis Outage in MorningAI
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+Redis plays a crucial role in MorningAI's real-time task orchestration, particularly with the Redis Queue (RQ) managing background tasks efficiently. An outage or disruption in Redis connectivity can significantly impact the platform's performance and reliability. This FAQ aims to provide developers with guidance on how to handle and mitigate issues arising from a Redis outage within the MorningAI platform.
 
-## What is E2E Testing?
+## Understanding the Impact of a Redis Outage
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+When Redis becomes unavailable, MorningAI may experience delays or failures in task processing. This is because the platform relies on Redis Queue (RQ) for queuing tasks and worker heartbeat monitoring. Tasks that cannot be queued will either fail immediately or timeout, depending on their configuration.
 
-## How to Setup E2E Tests in MorningAI?
+### Key Components Affected:
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+- **Real-time Task Orchestration**: Task scheduling and execution may be halted.
+- **Worker Heartbeat Monitoring**: The ability to monitor the health and status of background workers is compromised.
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+## Steps to Mitigate Redis Outage Issues
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+### 1. Immediate Actions During an Outage
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+- **Monitor the System**: Use logging and monitoring tools to assess the impact. Monitor `logs/redis_outage.log` for real-time errors and system alerts.
+- **Fallback Mechanisms**: Implement a fallback mechanism where critical tasks can either be retried later or handled through an alternative pathway.
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+```python
+# Example of a fallback mechanism in Flask app
+from flask import current_app
+from rq import get_current_job
+from redis.exceptions import RedisError
+
+def handle_task():
+    try:
+        job = get_current_job()
+        # Task logic here
+    except RedisError as e:
+        current_app.logger.error(f'Redis error encountered: {e}')
+        # Fallback logic here
+```
+
+### 2. Post-Outage Recovery
+
+- **Data Consistency Checks**: Ensure that data processed during the outage is consistent with your application's state.
+- **Review and Retry Failed Tasks**: Examine `failed_jobs` queue and consider manually retrying critical tasks if necessary.
+
+```python
+# Example of retrying failed jobs in RQ
+from redis import Redis
+from rq import Connection, Queue
+
+redis_conn = Redis()
+with Connection(redis_conn):
+    failed_queue = Queue('failed', connection=redis_conn)
+    for job in failed_queue.jobs:
+        job.retry()
+```
+
+### 3. Preventive Measures
+
+- **High Availability Setup**: Consider setting up a high availability (HA) configuration for Redis to minimize downtime.
+- **Implement Caching Strategies**: Use caching mechanisms to temporarily store critical data that might be needed during an outage.
 
 ## Related Documentation Links
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Redis High Availability](https://redis.io/topics/sentinel)
 
 ## Common Troubleshooting Tips
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
-   
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
-   
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
-
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
-
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+- **Connection Errors**: Ensure your application correctly handles connection errors by implementing retries with exponential backoff.
+- **Task Timeouts**: Adjust task timeout settings to account for temporary network or service interruptions.
+- **Monitor Redis Health**: Regularly monitor Redis health and performance metrics to anticipate potential issues before they result in outages.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: Test question during Redis outage
+- Trace ID: `67a666aa-7b8f-4c48-8ace-78a0e75d9570`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
