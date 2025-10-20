@@ -20,6 +20,81 @@
       "devAccount": "開發環境測試帳號"
     }
   },
+  "landing": {
+    "nav": {
+      "login": "登入",
+      "getStarted": "開始使用"
+    },
+    "hero": {
+      "ariaLabel": "主視覺區塊",
+      "badge": "全新推出 Morning AI",
+      "title": {
+        "line1": "智能決策",
+        "line2": "管理系統"
+      },
+      "subtitle": "透過 AI 驅動的洞察和自動化決策，賦能您的業務。體驗智能營運的未來。",
+      "cta": {
+        "primary": "開始使用",
+        "secondary": "了解更多"
+      },
+      "features": {
+        "ai": {
+          "title": "AI 驅動",
+          "description": "先進的機器學習演算法，實現智能決策"
+        },
+        "analytics": {
+          "title": "即時分析",
+          "description": "即時監控和分析您的業務指標"
+        },
+        "security": {
+          "title": "企業級安全",
+          "description": "銀行級安全保障，端到端加密"
+        },
+        "performance": {
+          "title": "高效能",
+          "description": "極速處理與優化"
+        }
+      }
+    },
+    "sso": {
+      "title": "開始使用 Morning AI",
+      "subtitle": "使用您偏好的帳號登入平台",
+      "google": "使用 Google 繼續",
+      "apple": "使用 Apple 繼續",
+      "github": "使用 GitHub 繼續",
+      "or": "或",
+      "emailLogin": "使用電子郵件登入",
+      "terms": "繼續即表示您同意我們的服務條款和隱私政策"
+    },
+    "features": {
+      "title": "為什麼選擇 Morning AI？",
+      "subtitle": "強大的功能，幫助您更快做出更好的決策",
+      "realtime": {
+        "title": "即時監控",
+        "description": "透過即時儀表板追蹤您的業務指標和 KPI"
+      },
+      "intelligent": {
+        "title": "智能自動化",
+        "description": "讓 AI 處理日常決策，您專注於策略規劃"
+      },
+      "secure": {
+        "title": "企業級安全",
+        "description": "您的資料受到業界領先的安全標準保護"
+      },
+      "scalable": {
+        "title": "彈性擴展",
+        "description": "從新創到企業，隨著您的業務成長"
+      },
+      "collaborative": {
+        "title": "團隊協作",
+        "description": "內建協作工具，無縫團隊合作"
+      },
+      "insights": {
+        "title": "可行動洞察",
+        "description": "獲得數據驅動的建議，優化您的營運"
+      }
+    }
+  },
   "dashboard": {
     "title": "自助儀表板",
     "description": "可自訂的系統監控與任務追蹤",
