@@ -7,7 +7,7 @@ import asyncio
 import psutil
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 logging.basicConfig(level=logging.INFO)
@@ -108,7 +108,7 @@ class MonitoringTool:
                         'packets_sent': network.packets_sent,
                         'packets_recv': network.packets_recv
                     },
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 }
             }
         
@@ -140,7 +140,7 @@ class MonitoringTool:
                 'success': True,
                 'service': service,
                 'status': HealthStatus.HEALTHY.value if is_healthy else HealthStatus.UNHEALTHY.value,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
         
         except Exception as e:
@@ -177,7 +177,7 @@ class MonitoringTool:
                 value=value,
                 type=MetricType(metric_type),
                 labels=labels or {},
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
             
             self.custom_metrics[name] = metric

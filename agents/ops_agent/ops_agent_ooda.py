@@ -6,7 +6,7 @@ Implements the Observe-Orient-Decide-Act decision-making cycle for operations ta
 import logging
 import asyncio
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from tools.deployment_tool import DeploymentTool
@@ -72,7 +72,7 @@ class OpsAgentOODA:
         """
         try:
             task_id = len(self.task_history) + 1
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
             
             logger.info(f"Task {task_id}: {task} (Priority: {priority})")
             
@@ -89,7 +89,7 @@ class OpsAgentOODA:
                 'task': task,
                 'priority': priority,
                 'start_time': start_time.isoformat(),
-                'end_time': datetime.utcnow().isoformat(),
+                'end_time': datetime.now(timezone.utc).isoformat(),
                 'result': result
             }
             self.task_history.append(task_record)

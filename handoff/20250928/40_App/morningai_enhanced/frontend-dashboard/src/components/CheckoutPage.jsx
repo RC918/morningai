@@ -157,8 +157,8 @@ const CheckoutPage = () => {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
           <div className="lg:col-span-2 space-y-6">
             <Skeleton className="h-8 w-48" aria-busy="true" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -176,9 +176,9 @@ const CheckoutPage = () => {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('checkout.title')}</h1>
             <p className="text-gray-600">{t('checkout.description')}</p>
@@ -201,10 +201,10 @@ const CheckoutPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
         {/* Pricing Plans */}
         <div className="lg:col-span-2">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
             {checkoutData?.pricing_tiers?.map((plan) => (
               <Card 
                 key={plan.id}
@@ -284,7 +284,7 @@ const CheckoutPage = () => {
 
         {/* Order Summary */}
         <div>
-          <Card className="sticky top-6">
+          <Card className="lg:sticky lg:top-6">
             <CardHeader>
               <CardTitle>{t('checkout.orderSummary')}</CardTitle>
             </CardHeader>

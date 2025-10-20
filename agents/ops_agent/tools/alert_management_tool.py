@@ -5,7 +5,7 @@ Alert Management Tool - Alert Rules and Notifications
 import logging
 from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import asyncio
 from .notification_service import NotificationService
@@ -128,7 +128,7 @@ class AlertManagementTool:
                 severity=AlertSeverity(severity),
                 channels=channel_list,
                 enabled=True,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 threshold=threshold,
                 check_func=check_func
             )
@@ -195,7 +195,7 @@ class AlertManagementTool:
                 severity=rule.severity,
                 status=AlertStatus.ACTIVE,
                 message=message,
-                triggered_at=datetime.utcnow(),
+                triggered_at=datetime.now(timezone.utc),
                 metadata=metadata
             )
             
@@ -285,7 +285,7 @@ class AlertManagementTool:
             
             alert = self.alerts[alert_id]
             alert.status = AlertStatus.ACKNOWLEDGED
-            alert.acknowledged_at = datetime.utcnow()
+            alert.acknowledged_at = datetime.now(timezone.utc)
             
             return {
                 'success': True,
@@ -320,7 +320,7 @@ class AlertManagementTool:
             
             alert = self.alerts[alert_id]
             alert.status = AlertStatus.RESOLVED
-            alert.resolved_at = datetime.utcnow()
+            alert.resolved_at = datetime.now(timezone.utc)
             
             return {
                 'success': True,
