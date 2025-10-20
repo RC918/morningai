@@ -2,6 +2,7 @@
  * Motion Utilities - Issue #470
  * Provides motion governance with reduced-motion support and IntersectionObserver
  */
+import React from 'react'
 
 export const prefersReducedMotion = () => {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
