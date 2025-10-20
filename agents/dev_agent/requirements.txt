@@ -1,0 +1,45 @@
+# Dev Agent Dependencies
+
+# Core dependencies
+aiohttp==3.9.1
+requests==2.31.0
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+
+# Git operations
+gitpython==3.1.40
+pygit2==1.13.3
+
+# IDE & LSP
+python-lsp-server[all]==1.10.0
+tree-sitter>=0.21.1
+
+# Browser automation (for sandbox)
+playwright==1.40.0
+
+# LLM & AI
+openai>=1.0.0
+tiktoken>=0.5.0
+
+# Database (for Knowledge Graph)
+psycopg2-binary>=2.9.0
+pgvector>=0.2.0
+
+# Caching & State
+redis>=5.0.0
+upstash-redis>=0.15.0
+
+# LangGraph (for OODA & workflows)
+langgraph>=0.0.20
+langchain-core>=0.1.0
+
+# Code analysis
+ast-grep-py>=0.1.0; platform_system != "Windows"
+
+# Testing & Coverage
+pytest-cov>=4.1.0
+pytest-timeout>=2.2.0
+
+# Utilities
+pyyaml>=6.0
+python-dotenv>=1.0.0
