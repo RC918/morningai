@@ -15,6 +15,7 @@ import CheckoutPage from '@/components/CheckoutPage'
 import CheckoutSuccess from '@/components/CheckoutSuccess'
 import CheckoutCancel from '@/components/CheckoutCancel'
 import LoginPage from '@/components/LoginPage'
+import LandingPage from '@/components/LandingPage'
 import WIPPage from '@/components/WIPPage'
 import { TenantProvider } from '@/contexts/TenantContext'
 import { NotificationProvider, useNotification } from '@/contexts/NotificationContext'
@@ -27,6 +28,8 @@ import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
 import '@/i18n/config'
 import './App.css'
+import './styles/mobile-optimizations.css'
+import './styles/motion-governance.css'
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -129,8 +132,12 @@ function AppContent() {
     return <PageLoader message="正在載入應用程式..." />
   }
 
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />
+  const handleNavigateToLogin = () => {
+    window.location.href = '/login'
+  }
+
+  const handleSSOLogin = (provider) => {
+    console.log(`SSO Login with ${provider}`)
   }
 
   return (
@@ -142,12 +149,20 @@ function AppContent() {
             isOpen={showPhase3Welcome}
             onClose={dismissWelcome}
           />
-          <div className="flex h-screen bg-gray-100">
-            <Sidebar user={user} onLogout={handleLogout} />
-            
-            <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
-              <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {!isAuthenticated ? (
+            <Routes>
+              <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
+              <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          ) : (
+            <div className="flex h-screen bg-gray-100">
+              <Sidebar user={user} onLogout={handleLogout} />
+              
+              <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
+                <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
               {/* Feature-gated routes */}
               {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
@@ -194,11 +209,12 @@ function AppContent() {
               {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
                 <Route path="/dashboard" element={<WIPPage title="儀表板開發中" />} />
               )}
-            </Routes>
-          </main>
-          
-            <Toaster />
-          </div>
+                </Routes>
+              </main>
+              
+              <Toaster />
+            </div>
+          )}
         </Router>
       </TenantProvider>
     </ErrorBoundary>
