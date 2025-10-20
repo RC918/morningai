@@ -4,7 +4,7 @@ Tests for ErrorDiagnoser
 Priority 4: Error Diagnosis & Auto-Fix
 """
 import pytest
-from error_diagnosis import ErrorDiagnoser, FixSuggestion
+from error_diagnosis.error_diagnoser import ErrorDiagnoser, FixSuggestion
 
 
 class TestErrorDiagnoser:

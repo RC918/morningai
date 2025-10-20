@@ -147,7 +147,7 @@ class TestDevAgentTools:
     
     def test_git_tool_interface(self):
         """Test Git Tool has correct interface"""
-        from agents.dev_agent.tools import GitTool
+        from tools import GitTool
         
         git_tool = GitTool(SANDBOX_ENDPOINT)
         
@@ -162,7 +162,7 @@ class TestDevAgentTools:
     
     def test_ide_tool_interface(self):
         """Test IDE Tool has correct interface"""
-        from agents.dev_agent.tools import IDETool
+        from tools import IDETool
         
         ide_tool = IDETool(SANDBOX_ENDPOINT)
         
@@ -176,7 +176,7 @@ class TestDevAgentTools:
     
     def test_filesystem_tool_interface(self):
         """Test FileSystem Tool has correct interface"""
-        from agents.dev_agent.tools import FileSystemTool
+        from tools import FileSystemTool
         
         fs_tool = FileSystemTool(SANDBOX_ENDPOINT)
         

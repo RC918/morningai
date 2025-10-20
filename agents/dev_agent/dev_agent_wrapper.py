@@ -8,15 +8,24 @@ import logging
 import subprocess
 from typing import Optional, Dict, Any
 
-from agents.dev_agent.knowledge_graph.knowledge_graph_manager import (
+from knowledge_graph.knowledge_graph_manager import (
     KnowledgeGraphManager
 )
-from agents.dev_agent.knowledge_graph.bug_fix_pattern_learner import (
+from knowledge_graph.bug_fix_pattern_learner import (
     BugFixPatternLearner
 )
-from hitl_approval_system import HITLApprovalSystem
 
 logger = logging.getLogger(__name__)
+
+
+class HITLApprovalSystem:
+    """Stub for Human-in-the-Loop approval system."""
+    
+    def __init__(self, telegram_bot_token=None, admin_chat_id=None):
+        """Initialize HITL approval system (stub)."""
+        self.telegram_bot_token = telegram_bot_token
+        self.admin_chat_id = admin_chat_id
+        logger.warning("Using stub HITLApprovalSystem - real implementation not available")
 
 
 class SimpleGitTool:

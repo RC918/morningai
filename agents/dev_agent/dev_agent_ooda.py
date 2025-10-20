@@ -12,15 +12,15 @@ from datetime import datetime
 from enum import Enum
 
 from langgraph.graph import StateGraph, END
-from agents.dev_agent.tools.git_tool import GitTool
-from agents.dev_agent.tools.ide_tool import IDETool
-from agents.dev_agent.tools.filesystem_tool import FileSystemTool
-from agents.dev_agent.error_handler import ErrorCode, create_error
-from agents.dev_agent.persistence.session_state import SessionStateManager
-from agents.dev_agent.refactoring.refactoring_engine import RefactoringEngine
-from agents.dev_agent.testing.test_generator import TestGenerator
-from agents.dev_agent.error_diagnosis.error_diagnoser import ErrorDiagnoser
-from agents.dev_agent.performance.performance_analyzer import PerformanceAnalyzer
+from tools.git_tool import GitTool
+from tools.ide_tool import IDETool
+from tools.filesystem_tool import FileSystemTool
+from error_handler import ErrorCode, create_error
+from persistence.session_state import SessionStateManager
+from refactoring.refactoring_engine import RefactoringEngine
+from testing.test_generator import TestGenerator
+from error_diagnosis.error_diagnoser import ErrorDiagnoser
+from performance.performance_analyzer import PerformanceAnalyzer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -470,7 +470,7 @@ class DevAgentOODA:
             elif action_type == 'analyze_code_quality':
                 return self.refactoring_engine.analyze_code(action['code'])
             elif action_type == 'apply_refactoring':
-                from agents.dev_agent.refactoring.refactoring_engine import RefactoringSuggestion, RefactoringType
+                from refactoring.refactoring_engine import RefactoringSuggestion, RefactoringType
                 
                 suggestion = action['suggestion']
                 if isinstance(suggestion, dict):
@@ -791,7 +791,7 @@ def create_dev_agent_ooda(
     session_manager = None
     if enable_persistence:
         try:
-            from agents.dev_agent.persistence import get_session_manager
+            from persistence import get_session_manager
             session_manager = get_session_manager()
             logger.info("Session persistence enabled")
         except Exception as e:

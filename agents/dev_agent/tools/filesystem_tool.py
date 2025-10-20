@@ -9,7 +9,7 @@ import os
 from typing import Dict, Any, Optional, Set
 import requests
 
-from agents.dev_agent.error_handler import ErrorCode, create_error, create_success
+from error_handler import ErrorCode, create_error, create_success
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from agents.dev_agent.dev_agent_ooda import create_dev_agent_ooda, DevAgentState
+from dev_agent_ooda import create_dev_agent_ooda, DevAgentState
 
 
 class ManualReviewTests:
@@ -283,7 +283,7 @@ class ManualReviewTests:
             
             print("\n檢查 OODA 模組導入...")
             try:
-                from agents.dev_agent.dev_agent_ooda import create_dev_agent_ooda
+                from dev_agent_ooda import create_dev_agent_ooda
                 print(f"  ✓ dev_agent_ooda 模組導入成功")
                 module_import_ok = True
             except ImportError as e:
