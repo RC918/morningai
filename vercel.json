@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "buildCommand": "cd handoff/20250928/40_App/morningai_enhanced/frontend-dashboard && npx vite build",
-  "installCommand": "cd handoff/20250928/40_App/morningai_enhanced/frontend-dashboard && npm install --legacy-peer-deps",
+  "installCommand": "cd handoff/20250928/40_App/morningai_enhanced/frontend-dashboard && npm install --include=dev --legacy-peer-deps",
   "outputDirectory": "handoff/20250928/40_App/morningai_enhanced/frontend-dashboard/dist",
   "rewrites": [
     {
