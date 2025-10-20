@@ -1,47 +1,72 @@
-# Test Retry Mechanism in MorningAI
+# E2E Test FAQ for MorningAI
 
-The test retry mechanism in MorningAI is designed to enhance the reliability and robustness of the platform by automatically reattempting failed tests before marking them as failures. This feature is particularly useful in distributed systems where transient issues such as network latency, temporary service disruptions, or resource contention can cause tests to fail intermittently. Implementing a retry mechanism ensures that only genuinely failing tests are flagged, reducing noise and improving the accuracy of test results.
+End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
 
-## Understanding the Test Retry Mechanism
+## What is E2E Testing?
 
-MorningAI utilizes a sophisticated retry logic that can be customized to fit various testing scenarios. The mechanism is built into the CI/CD pipeline, ensuring that any test failure triggers a retry based on predefined rules such as the maximum number of attempts and delay intervals between retries.
+E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
 
-### Code Example: Configuring Test Retries
+## How to Setup E2E Tests in MorningAI?
 
-To configure test retries in MorningAI, you would typically adjust settings in your CI/CD configuration file or within your testing framework. Below is an example using Python's `unittest` framework with a hypothetical `retry` decorator that demonstrates how you might implement retries for a specific test:
+MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
 
-```python
-import unittest
-from retrying import retry
+1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
+   ```bash
+   npm install cypress --save-dev
+   ```
 
-def retry_if_result_false(result):
-    return result is False
+2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
+   ```json
+   {
+     "baseUrl": "http://localhost:3000",
+     "integrationFolder": "cypress/integration"
+   }
+   ```
 
-class MyTestCase(unittest.TestCase):
-    @retry(retry_on_result=retry_if_result_false, stop_max_attempt_number=3, wait_fixed=2000)
-    def test_with_retry(self):
-        # Your test code here
-        result = perform_some_operation()
-        self.assertTrue(result)
-```
+3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
+   ```javascript
+   describe('Login Test', () => {
+     it('Visits the login page and logs in', () => {
+       cy.visit('/login');
+       cy.get('input[name="username"]').type('testuser');
+       cy.get('input[name="password"]').type('password123');
+       cy.get('button[type="submit"]').click();
+       cy.url().should('include', '/dashboard');
+     });
+   });
+   ```
 
-This example uses the `retrying` library to add a retry mechanism to a test case, specifying that the test should be retried up to three times (with a two-second pause between attempts) if the result is not `True`.
+4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
+   ```bash
+   npx cypress open
+   ```
+   or
+   ```bash
+   npx cypress run
+   ```
 
-### Related Documentation Links
+## Related Documentation Links
 
-- [unittest — Unit testing framework](https://docs.python.org/3/library/unittest.html)
-- [retrying](https://pypi.org/project/retrying/)
+- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
+- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
+- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
 
 ## Common Troubleshooting Tips
 
-When implementing or debugging the test retry mechanism in MorningAI, consider these common issues:
+1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
+   
+2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
+   ```json
+   {
+     "defaultCommandTimeout": 10000
+   }
+   ```
+   
+3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
 
-1. **Incorrect Configuration**: Ensure that your retry configurations (e.g., maximum attempts, delay intervals) are correctly set up in your CI/CD pipeline or testing framework.
-2. **Identifying Flaky Tests**: Use logging or reporting tools to identify tests that frequently require retries. Investigating these can uncover underlying instability in your application or environment.
-3. **Dependency on External Services**: If your tests depend on external services, ensure those services are reliable during testing or consider mocking them.
-4. **Resource Saturation**: Be aware that introducing retries without proper backoff strategies can lead to resource saturation (e.g., overwhelming APIs with requests), exacerbating the problem.
+4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
 
-Remember, while retries can mitigate the impact of flaky tests, they are not a substitute for investigating and addressing the root causes of those failures.
+For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -49,7 +74,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `a2901abe-63d3-4901-b5fb-758452759c79`
+- Task: E2E test FAQ update
+- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
