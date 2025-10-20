@@ -1,72 +1,71 @@
-# E2E Test FAQ for MorningAI
+# Test Retry Success in MorningAI
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+Understanding and implementing test retries can be crucial for improving the stability and reliability of automated tests within the MorningAI platform. This FAQ aims to provide a comprehensive overview of how to configure and utilize test retry mechanisms effectively.
 
-## What is E2E Testing?
+## Explanation of Test Retries
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+Test retries are a mechanism that allows failing tests to be automatically rerun a specified number of times before being marked as failed. This feature is particularly useful in continuous integration (CI) environments where tests might fail sporadically due to temporary issues such as network latency or resource contention. By enabling retries, you can reduce the likelihood of false negatives affecting your build process.
 
-## How to Setup E2E Tests in MorningAI?
+MorningAI utilizes a robust testing framework that supports test retries, ensuring that transient failures do not hinder development velocity.
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+## Configuring Test Retries
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+To configure test retries within the MorningAI platform, you'll need to modify your test configuration file. Here's an example using Python's `unittest` framework adjusted for use with Flask and Gunicorn, which are part of MorningAI's backend stack:
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+```python
+import unittest
+from flask_testing import LiveServerTestCase
+from myapp import create_app, db
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+class MyTest(LiveServerTestCase):
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+    def create_app(self):
+        app = create_app('testing')
+        app.config['LIVESERVER_PORT'] = 8943
+        return app
+
+    @classmethod
+    def setUpClass(cls):
+        # Setup code here
+
+    @classmethod
+    def tearDownClass(cls):
+        # Teardown code here
+
+    def test_something(self):
+        # Your test code here
+        self.assertTrue(True)
+
+if __name__ == '__main__':
+    from retrying import retry
+
+    def retry_if_error(exception):
+        return isinstance(exception, AssertionError)
+
+    @retry(retry_on_exception=retry_if_error, stop_max_attempt_number=3)
+    def run_test():
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(MyTest)
+        unittest.TextTestRunner().run(suite)
+
+    run_test()
+```
+
+This example demonstrates how to wrap your test runner in a retry mechanism using the `retrying` library. The `retry_if_error` function specifies that retries should occur in case of an `AssertionError`, which typically indicates a test failure. The `stop_max_attempt_number=3` parameter means the test will be retried up to two additional times after the initial failure.
 
 ## Related Documentation Links
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+- Flask Testing: [Flask Testing Documentation](https://flask.palletsprojects.com/en/2.0.x/testing/)
+- unittest Documentation: [Python unittest Library](https://docs.python.org/3/library/unittest.html)
+- retrying Library: [retrying on PyPI](https://pypi.org/project/retrying/)
 
 ## Common Troubleshooting Tips
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
-   
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
-   
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
+1. **Ensure Consistent Environment**: Make sure that your testing environment is as consistent as possible between runs to avoid introducing variability that could affect the outcome of retried tests.
+2. **Isolate Tests**: Ensure that tests are isolated and do not depend on the side effects of other tests. Dependencies between tests can lead to flakiness and unpredictable results.
+3. **Review Logs Carefully**: When a test fails but succeeds upon retry, it's essential to review the logs carefully to understand why it failed initially. This can help identify and fix underlying issues that could cause future failures.
+4. **Adjust Retry Settings**: If you notice that tests frequently need multiple retries before passing, consider adjusting your retry settings or investigating potential stability issues in your application or testing environment.
 
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
-
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+Remember, while test retries can help mitigate the impact of flaky tests, they should not be used as a substitute for addressing underlying issues that cause test instability.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +73,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: Test retry success
+- Trace ID: `409d2788-7388-48e3-a044-b8d41e817ce7`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
