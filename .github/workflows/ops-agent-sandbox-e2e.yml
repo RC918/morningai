@@ -9,10 +9,13 @@ on:
       - '.github/workflows/ops-agent-sandbox-e2e.yml'
   pull_request:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
-      - '*.md'
+    # No paths filter - all PRs trigger this workflow
+    # Decision to run heavy E2E or fast-pass is made in the job
+
+# Prevent concurrent E2E runs for the same PR
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   e2e-test:
