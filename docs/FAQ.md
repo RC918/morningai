@@ -1,72 +1,74 @@
-# E2E Test FAQ for MorningAI
+# System Architecture of MorningAI
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+MorningAI is designed as a robust, multi-tenant SaaS platform that leverages modern technologies to provide an autonomous agent system for code generation, FAQ generation, documentation management, multi-platform integration, real-time task orchestration with Redis Queue, and vector memory storage with pgvector/Supabase. This section aims to give developers a comprehensive understanding of MorningAI's architecture.
 
-## What is E2E Testing?
+## Overview
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+The architecture of MorningAI is built to be scalable, efficient, and modular. It consists of several key components:
 
-## How to Setup E2E Tests in MorningAI?
+- **Frontend**: Developed with React, leveraging Vite for build optimization and TailwindCSS for styling.
+- **Backend**: The server-side logic is handled by Python using the Flask framework and Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests.
+- **Database**: PostgreSQL is used for data persistence, enhanced by Supabase for added functionalities like Row Level Security (RLS) and real-time capabilities.
+- **Queue System**: Redis Queue (RQ) is utilized for managing background tasks and job queues, ensuring efficient task processing.
+- **Orchestration**: LangGraph orchestrates the agent workflows within the system.
+- **AI Model**: OpenAI's GPT-4 powers the content generation features, including FAQ generation and code suggestions.
+- **Deployment**: The application is deployed on Render.com with continuous integration and continuous deployment (CI/CD) practices.
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+## Code Examples
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+Below are snippets showcasing key parts of the MorningAI architecture:
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+### Flask App Initialization
+```python
+from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app)
+```
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+### Gunicorn Configuration
+```shell
+gunicorn -w 4 -b 0.0.0.0:5000 "morningai:create_app()"
+```
+This command starts Gunicorn with 4 worker processes.
+
+### RQ Worker Invocation
+```shell
+rq worker --url redis://localhost:6379/0 morningai-tasks
+```
+This command starts an RQ worker listening to the `morningai-tasks` queue.
+
+### Supabase Integration Example
+```python
+from supabase import create_client, Client
+
+url: str = "your-supabase-url"
+key: str = "your-supabase-anon-key"
+supabase: Client = create_client(url, key)
+```
 
 ## Related Documentation Links
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Render Deployment Guide](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
-   
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
-   
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
+### Database Connection Issues
+Ensure your Supabase credentials are correct and that you have configured the necessary firewall rules to allow connections from your application environment.
 
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
+### Worker Timeout or Overload
+If workers frequently timeout or seem overloaded, consider increasing the number of workers in your Gunicorn configuration or optimizing task execution times in your RQ workers.
 
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+### CI/CD Pipeline Failures
+For CI/CD issues on Render.com, verify your `render.yaml` file for any syntax errors or misconfigurations. Ensure all necessary environment variables are correctly set up in your Render dashboard.
+
+For further assistance or more detailed inquiries regarding MorningAI's system architecture, please refer to the official repository documentation at `RC918/morningai/docs`.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +76,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: What is the system architecture?
+- Trace ID: `7df85b4a-5bfc-420f-af17-16af45ce18fc`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
