@@ -121,7 +121,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
           </motion.div>
 
           <motion.h1
-            className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight"
+            className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight"
             {...animationProps}
           >
             <span className="block text-gray-900 dark:text-white">
