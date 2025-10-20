@@ -1,108 +1,52 @@
-# System Architecture of MorningAI
+# Test Retry Mechanism in MorningAI
 
-MorningAI is a comprehensive multi-tenant SaaS platform designed to offer a wide array of features including autonomous agent systems for code generation, FAQ generation, documentation management, multi-platform integration, real-time task orchestration, and vector memory storage capabilities. This section aims to provide developers with an in-depth understanding of the system architecture, facilitating better utilization and customization.
+MorningAI incorporates a robust test retry mechanism designed to enhance the reliability and stability of its autonomous agent system and overall platform functionality. This feature is particularly beneficial for managing flaky tests or external dependencies that might occasionally fail due to transient issues. Understanding how to implement and utilize this mechanism can significantly improve your development workflow within the MorningAI ecosystem.
 
-## Overview
+## Understanding Test Retries
 
-The architecture of MorningAI is built to be robust, scalable, and efficient, leveraging modern technologies across its stack. Here's a breakdown of its core components:
+Test retries provide a way to automatically rerun failed tests before marking them as failures. This capability is crucial for mitigating the impact of nondeterministic errors, such as network instability or temporary service outages, on your continuous integration (CI) pipeline.
 
-### Frontend
+### How It Works
 
-- **Technology**: React.js with Vite and TailwindCSS for rapid development and stylish design.
-- **Path**: The frontend codebase can be found under `/frontend` in the repository.
-- **Functionality**: Provides the user interface for interaction with MorningAI's features.
+The retry mechanism in MorningAI is integrated into the test framework used by the platform, typically via configuration settings or decorators that specify the number of retry attempts for a given test. When a test fails, the system will automatically attempt to rerun it based on the defined criteria before conclusively determining its failure.
 
-#### Example:
-```jsx
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
+### Configuration
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-);
-```
+To configure test retries in MorningAI, you need to modify the testing configuration file, usually located at `tests/config.py` or directly within your test suite using decorators. Here's an example using Python's unittest framework:
 
-### Backend
-
-- **Technology**: Python with Flask and Gunicorn serving as the application server with multi-worker support.
-- **Path**: Backend source code resides in `/backend`.
-- **Functionality**: Handles API requests, integrates with databases and third-party services.
-
-#### Example:
 ```python
-from flask import Flask
-app = Flask(__name__)
+import unittest
+from morningai.retry import retry_on_failure
 
-@app.route('/')
-def hello_world():
-    return 'Hello, World!'
+@retry_on_failure(retries=3)
+class MyTestCase(unittest.TestCase):
+    def test_example(self):
+        # Your test code here
+        self.assertEqual('foo'.upper(), 'FOO')
 ```
 
-### Database
+In this example, `retry_on_failure` is a hypothetical decorator provided by MorningAI to enable retry logic. The `retries=3` parameter indicates that the test should be rerun up to three times if it fails before finally being marked as failed.
 
-- **Technology**: PostgreSQL hosted on Supabase with Row Level Security (RLS) for data integrity and security.
-- **Path**: Database schemas and migrations are managed within `/database`.
-- **Functionality**: Stores user data, session information, generated content, etc.
+### Related Documentation
 
-### Queue
+- For more detailed information on configuring your tests and implementing retries, refer to our Testing Guide: [MorningAI Testing Guide](https://docs.morningai.com/testing-guide).
+- Understanding decorators in Python: [Python Decorators](https://docs.python.org/3/glossary.html#term-decorator).
 
-- **Technology**: Redis Queue (RQ) for managing background tasks with worker heartbeat monitoring.
-- **Path**: Configuration and queue management scripts are located in `/queue`.
-- **Functionality**: Enables asynchronous task processing for improved performance.
+## Troubleshooting Common Issues
 
-### Orchestration
+### Test Still Fails After Maximum Retries
 
-- **Technology**: LangGraph for managing agent workflows efficiently.
-- **Functionality**: Coordinates complex operations between different components of the system.
+If a test continues to fail even after the maximum number of retries:
+1. **Investigate Persistent Issues**: Consider whether the test is uncovering a consistent bug or issue with the application.
+2. **Review Test Stability**: Evaluate if the test itself is flaky and needs refinement.
+3. **External Dependencies**: Check any external services or APIs for ongoing issues.
 
-### AI
+### Incorrect Retry Behavior
 
-- **Technology**: Utilizes OpenAI's GPT-4 for state-of-the-art content generation.
-- **Integration Point**: Integrated within backend services for dynamic content creation tasks.
+- **Configuration Mistakes**: Ensure that the retry decorator is correctly applied and configured.
+- **Interference from Other Decorators/Test Framework Features**: Some testing frameworks or additional decorators might interfere with retry logic. Review documentation and implementation details for compatibility notes.
 
-### Deployment
-
-- **Service**: Render.com is used for hosting with continuous integration/continuous deployment (CI/CD) pipelines.
-- **Configuration Path**: Deployment configurations are specified in `render.yaml` at the root of the repository.
-
-## Related Documentation Links
-
-For more detailed information on each component:
-
-1. [React Documentation](https://reactjs.org/docs/getting-started.html)
-2. [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
-3. [Supabase Documentation](https://supabase.io/docs)
-4. [Redis Queue Documentation](https://python-rq.org/docs/)
-5. [OpenAI API Documentation](https://beta.openai.com/docs/)
-
-## Common Troubleshooting Tips
-
-1. **Frontend Issues**:
-   - Ensure all dependencies are up to date with `npm install` or `yarn install`.
-   - Check browser console for errors that may indicate issues with React components or API calls.
-
-2. **Backend & API Connectivity**:
-   - Verify Flask application is running and accessible.
-   - Use Postman or similar tools to test API endpoints directly.
-
-3. **Database Access**:
-   - Ensure correct RLS policies are applied if facing access restrictions.
-   - Check Supabase dashboard logs for any errors during query execution.
-
-4. **Queue Worker Failures**:
-   - Monitor worker health via Redis Queue Dashboard.
-   - Review logs for specific job failures which often include exception details.
-
-5. **Deployment Errors**:
-   - Refer to Render.com documentation for common CI/CD pipeline issues.
-   - Check build logs in Render dashboard to identify any deployment errors.
-
-By familiarizing yourself with MorningAI's system architecture and utilizing the provided resources effectively, you can harness the full potential of this platform to build powerful applications.
+For further assistance, consult our troubleshooting guide or reach out through our developer community forums.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -110,7 +54,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `87522861-8494-4602-9bee-2062268623a5`
+- Task: Test retry success
+- Trace ID: `3a4186b9-4db4-44f8-a11b-b8cda3af6f9d`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
