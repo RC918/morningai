@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Progress } from '@/components/ui/progress'
 import { motion } from 'framer-motion'
+import { safeInterval } from '@/utils/safeInterval'
 
 export const ProgressLoader = ({ 
   steps = [],
@@ -10,14 +11,14 @@ export const ProgressLoader = ({
   const [progress, setProgress] = useState(0)
   
   useEffect(() => {
-    const interval = setInterval(() => {
+    const stop = safeInterval(() => {
       setProgress(prev => {
         const target = ((currentStep + 1) / steps.length) * 100
         return Math.min(prev + 2, target)
       })
     }, 100)
     
-    return () => clearInterval(interval)
+    return stop
   }, [currentStep, steps.length])
   
   return (
