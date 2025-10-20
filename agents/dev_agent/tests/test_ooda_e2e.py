@@ -7,7 +7,7 @@ Week 4: Session persistence, decision trace, error handling
 import pytest
 import os
 
-from agents.dev_agent.dev_agent_ooda import create_dev_agent_ooda
+from dev_agent_ooda import create_dev_agent_ooda
 
 SANDBOX_ENDPOINT = os.getenv('DEV_AGENT_ENDPOINT', 'http://localhost:8080')
 TEST_TIMEOUT = 60
@@ -136,7 +136,7 @@ class TestFileSystemPathValidation:
     @pytest.fixture
     def fs_tool(self):
         """Create filesystem tool"""
-        from agents.dev_agent.tools.filesystem_tool import FileSystemTool
+        from tools.filesystem_tool import FileSystemTool
         return FileSystemTool(SANDBOX_ENDPOINT)
 
     @pytest.mark.asyncio
