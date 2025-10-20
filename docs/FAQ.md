@@ -1,72 +1,76 @@
-# E2E Test FAQ for MorningAI
+# MorningAI System Architecture
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+MorningAI employs a modern, scalable, and robust system architecture designed to facilitate rapid development, efficient operation, and easy maintenance. This architecture supports autonomous agent systems for code generation, FAQ generation, documentation management, multi-platform integration, real-time task orchestration with Redis Queue, and vector memory storage with pgvector/Supabase.
 
-## What is E2E Testing?
+## Overview
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+At its core, MorningAI leverages a microservices architecture pattern which is split across several key components:
 
-## How to Setup E2E Tests in MorningAI?
+- **Frontend**: Developed with React and styled using TailwindCSS. The project utilizes Vite for an optimized development experience and faster build times.
+- **Backend**: The server-side logic is handled by Flask (a Python web framework) running on Gunicorn with multi-worker support for handling concurrent requests efficiently.
+- **Database**: PostgreSQL is used as the primary data store, enhanced with Row Level Security (RLS) on Supabase for added data protection. pgvector is utilized within Supabase for vector memory storage capabilities.
+- **Queue System**: Redis Queue (RQ) is integrated for managing background jobs and real-time task orchestration. Worker heartbeat monitoring ensures system reliability and fault tolerance.
+- **Orchestration**: LangGraph is employed for defining and executing agent workflows within the system.
+- **AI Integration**: OpenAI's GPT-4 model powers the content generation features, including FAQ generation.
+- **Deployment**: The entire stack is deployed on Render.com, benefiting from its Continuous Integration/Continuous Deployment (CI/CD) pipelines for seamless updates.
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+### Code Example: Flask Application Setup
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+Below is an example of how to set up a basic Flask application within this architecture:
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+```python
+from flask import Flask
+from flask_cors import CORS
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+app = Flask(__name__)
+CORS(app)
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+@app.route('/')
+def hello_world():
+    return 'Hello, MorningAI!'
 
-## Related Documentation Links
+if __name__ == '__main__':
+    app.run(debug=True)
+```
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+This code snippet illustrates creating a simple Flask application that responds to root URL requests with "Hello, MorningAI!".
+
+### Related Documentation Links
+
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [TailwindCSS Documentation](https://tailwindcss.com/docs)
+- [Vite Documentation](https://vitejs.dev/guide/)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [Render.com CI/CD](https://render.com/docs/ci-cd)
 
 ## Common Troubleshooting Tips
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
-   
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
-   
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
+### Issue: Flask Application Not Starting
 
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
+Ensure Gunicorn is correctly configured with workers and threads. A common start command may look like this:
 
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+```shell
+gunicorn -w 4 -k gthread app:app
+```
+
+### Issue: Database Connection Errors
+
+Verify the database connection strings in your environment variables. Ensure Supabase access tokens are up-to-date and have the necessary permissions.
+
+### Issue: Redis Queue Jobs Not Processing
+
+Check if Redis workers are running. You can start a worker with:
+
+```shell
+rq worker
+```
+
+Ensure your RQ worker has access to your environment variables and the correct Redis URL.
+
+For any specific issues or more detailed examples related to the MorningAI platform's architecture or operational guidance, please refer to the project repository at `RC918/morningai`.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +78,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: What is the system architecture?
+- Trace ID: `b7c105be-dc49-4d5b-94d0-295f6bae1688`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
