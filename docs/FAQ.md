@@ -1,62 +1,70 @@
-# Test Retry Mechanism in MorningAI
+# Handling MorningAI Operations During a Redis Outage
 
-In the context of developing and maintaining robust applications, ensuring that transient errors do not disrupt the overall functionality is crucial. The MorningAI platform employs a test retry mechanism to handle such scenarios gracefully, enhancing reliability and stability during testing phases. This section aims to provide a comprehensive understanding of how test retries are implemented within the MorningAI platform, including practical code examples, related documentation, and troubleshooting tips.
+When working with MorningAI, it's crucial to understand how to maintain operational continuity during a Redis outage. Redis Queue (RQ) is a key component in task orchestration within MorningAI, facilitating real-time task management. An outage can disrupt these operations significantly. This FAQ aims to guide developers on how to navigate such scenarios effectively.
 
-## Understanding Test Retries
+## Understanding the Impact of a Redis Outage
 
-Test retries in MorningAI are designed to automatically re-execute tests that fail due to transient issues such as temporary network glitches, dependency downtime, or flaky test cases. This mechanism helps in distinguishing between transient and consistent failures, ensuring that the latter can be addressed by developers promptly.
+Redis, being an in-memory data structure store, is used for queuing jobs in MorningAI via Redis Queue (RQ). It enables asynchronous task processing, which is vital for maintaining the responsiveness and scalability of the platform. During an outage, queued jobs cannot be processed, leading to potential delays or failures in task execution.
 
-### Configuration
+### Key Impacted Areas:
+- **Real-Time Task Orchestration**: Tasks queued for execution may be stalled.
+- **Vector Memory Storage Access**: Temporary inability to access or update vector memory storage might occur if integrated with Redis functionalities.
+- **Worker Heartbeat Monitoring**: The monitoring of worker heartbeats via RQ will be interrupted.
 
-MorningAI utilizes a flexible configuration system for test retries, allowing developers to specify the number of retry attempts and criteria for retries (e.g., specific error types). This configuration is typically defined in the test framework settings or annotations within test cases.
+## Mitigation Strategies
 
-#### Example Configuration
+While a complete mitigation of the impact depends on the duration and extent of the outage, several strategies can help maintain partial functionality and prepare for quick recovery.
 
-Suppose you're using Pytest with the `pytest-rerunfailures` plugin for Python testing in MorningAI. You could configure retries as follows:
-
-```python
-# In pytest.ini or conftest.py
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
-
-This configuration instructs Pytest to rerun failed tests up to three times with a delay of 5 seconds between attempts.
-
-### Code Example: Implementing Retry Logic
-
-For tasks beyond testing scenarios, such as operations in task queues or database transactions, implementing custom retry logic might be necessary. Here’s a simple example using Python's `retrying` package:
+### 1. Fallback Mechanisms
+Implementing fallback mechanisms for critical tasks can help maintain core functionalities. For example, consider having a backup job queue mechanism that can temporarily take over some of Redis Queue's responsibilities.
 
 ```python
-from retrying import retry
-
-@retry(wait_fixed=2000, stop_max_attempt_number=3)
-def perform_sensitive_operation():
-    # Code that might fail transiently, e.g., network request or DB operation
-    pass
-
+# Example of a simple fallback mechanism
 try:
-    perform_sensitive_operation()
-except RetryError:
-    # Handle the case where all retries have failed
-    pass
+    queue.enqueue('my_task', args=(arg1,))
+except RedisConnectionError:
+    # Fallback job processing logic here
+    fallback_queue.enqueue('my_task', args=(arg1,))
 ```
 
-This snippet retries the `perform_sensitive_operation` function up to three times with a 2-second wait between attempts.
+### 2. Monitoring and Alerts
+Ensure you have robust monitoring and alert systems in place. Immediate notification of an outage can significantly reduce response times.
+
+```shell
+# Example using a simple monitoring script with alerts
+if ! redis-cli ping; then
+    echo "Redis is down" | mail -s "Redis Outage Alert" admin@example.com
+fi
+```
+
+### 3. Manual Intervention Procedures
+Document and establish manual intervention procedures for critical tasks that cannot be delayed until recovery. This might involve temporary manual processing or using alternative resources.
+
+### 4. Post-Outage Recovery Plan
+Develop a clear post-outage recovery plan that includes:
+- Verifying data integrity for tasks processed via fallback mechanisms.
+- Catching up on tasks queued during the outage.
+- Analyzing the root cause and implementing preventive measures.
 
 ## Related Documentation Links
 
-- Pytest RerunFailures Plugin: [https://pypi.org/project/pytest-rerunfailures/](https://pypi.org/project/pytest-rerunfailures/)
-- Retrying Package: [https://pypi.org/project/retrying/](https://pypi.org/project/retrying/)
-- MorningAI Developer Guide: Please refer to `/docs/developer_guide.md` in the RC918/morningai repository for more detailed information on configuring and utilizing various development tools and practices within MorningAI.
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Supabase Documentation for Row Level Security](https://supabase.io/docs/guides/auth/row-level-security)
+- [MorningAI Task Orchestration Guide](/docs/task_orchestration.md)
 
-## Troubleshooting Tips
+## Common Troubleshooting Tips
 
-1. **Tests Still Failing After Maximum Retries**: Investigate if the issue is indeed transient. Review logs and consider increasing the wait time between retries.
-2. **Retry Configuration Not Taking Effect**: Ensure that your test framework supports retries natively or through plugins. Verify that configuration files are correctly placed and syntax is accurate.
-3. **Performance Impact Due to Retries**: Analyze whether retries are causing significant delays in your CI pipeline. Adjust retry count and delay timings as needed.
-4. **Determining Whether to Retry**: For custom implementations, carefully select conditions under which retries should occur to avoid masking persistent issues.
+**Issue**: Tasks not being picked up after Redis recovery  
+**Solution**: Ensure all RQ workers are restarted after the outage is resolved. Sometimes, workers fail to reconnect automatically.
 
-Test retries are an essential part of maintaining high-quality software by ensuring that temporary problems do not lead to false negatives in testing outcomes. Properly configuring and managing this mechanism can save significant time and resources while keeping your application stable and reliable.
+```shell
+rq worker --with-scheduler
+```
+
+**Issue**: Inconsistent data states between Redis and PostgreSQL  
+**Solution**: Perform a thorough audit of tasks executed through fallback mechanisms versus those queued in Redis prior to the outage. Adjustments may need to be made manually to ensure consistency.
+
+For more detailed troubleshooting guides and support, please visit our [support page](/support).
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -64,7 +72,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `a82d35d3-1b5b-4122-9ed1-8e3694f8e21b`
+- Task: Test question during Redis outage
+- Trace ID: `94964ea2-8e61-4e89-b38f-7a6dcf036a6a`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
