@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import * as Sentry from '@sentry/react'
@@ -14,6 +14,7 @@ import TenantSettings from '@/components/TenantSettings'
 import CheckoutPage from '@/components/CheckoutPage'
 import CheckoutSuccess from '@/components/CheckoutSuccess'
 import CheckoutCancel from '@/components/CheckoutCancel'
+import LandingPage from '@/components/LandingPage'
 import LoginPage from '@/components/LoginPage'
 import WIPPage from '@/components/WIPPage'
 import { TenantProvider } from '@/contexts/TenantContext'
@@ -28,11 +29,190 @@ import apiClient from '@/lib/api'
 import '@/i18n/config'
 import './App.css'
 
-function AppContent() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [loading, setLoading] = useState(true)
+function ProtectedRoute({ children }) {
+  const { user } = useAppStore()
+  const location = useLocation()
+  
+  if (!user || !user.id) {
+    return <Navigate to="/" state={{ from: location }} replace />
+  }
+  
+  return children
+}
+
+function PublicRoute({ children }) {
+  const { user } = useAppStore()
+  
+  if (user && user.id) {
+    return <Navigate to="/dashboard" replace />
+  }
+  
+  return children
+}
+
+function AppRoutes() {
+  const navigate = useNavigate()
   const { user, setUser, addToast } = useAppStore()
   const { showPhase3Welcome, dismissWelcome } = useNotification()
+
+  const handleLogin = (userData, token) => {
+    setUser(userData)
+    localStorage.setItem('auth_token', token)
+    addToast({
+      title: "登入成功",
+      description: `歡迎回來，${userData.name}！`,
+      variant: "default"
+    })
+    navigate('/dashboard')
+  }
+
+  const handleSSOLogin = (provider) => {
+    console.log(`SSO Login with ${provider}`)
+    addToast({
+      title: "SSO 登入",
+      description: `正在使用 ${provider} 登入...`,
+      variant: "default"
+    })
+  }
+
+  const handleLogout = () => {
+    setUser({
+      id: null,
+      name: null,
+      email: null,
+      avatar: null,
+      role: null,
+      tenant_id: null
+    })
+    localStorage.removeItem('auth_token')
+    addToast({
+      title: "已登出",
+      description: "您已成功登出系統",
+      variant: "default"
+    })
+    navigate('/')
+  }
+
+  const handleNavigateToLogin = () => {
+    navigate('/login')
+  }
+
+  return (
+    <>
+      <OfflineIndicator />
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            <PublicRoute>
+              <LandingPage 
+                onNavigateToLogin={handleNavigateToLogin}
+                onSSOLogin={handleSSOLogin}
+              />
+            </PublicRoute>
+          } 
+        />
+        
+        <Route 
+          path="/login" 
+          element={
+            <PublicRoute>
+              <LoginPage onLogin={handleLogin} />
+            </PublicRoute>
+          } 
+        />
+
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <Phase3WelcomeModal 
+                isOpen={showPhase3Welcome}
+                onClose={dismissWelcome}
+              />
+              <div className="flex h-screen bg-gray-100">
+                <Sidebar user={user} onLogout={handleLogout} />
+                
+                <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
+                  <Routes>
+                    <Route path="/dashboard" element={
+                      isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) ? (
+                        <Dashboard />
+                      ) : (
+                        <WIPPage title="儀表板開發中" />
+                      )
+                    } />
+                    
+                    <Route path="/strategies" element={
+                      isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
+                        <StrategyManagement />
+                      ) : (
+                        <WIPPage title="策略管理開發中" />
+                      )
+                    } />
+                    
+                    <Route path="/approvals" element={
+                      isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
+                        <DecisionApproval />
+                      ) : (
+                        <WIPPage title="決策審批開發中" />
+                      )
+                    } />
+                    
+                    <Route path="/history" element={
+                      isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
+                        <HistoryAnalysis />
+                      ) : (
+                        <WIPPage title="歷史分析開發中" />
+                      )
+                    } />
+                    
+                    <Route path="/costs" element={
+                      isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
+                        <CostAnalysis />
+                      ) : (
+                        <WIPPage title="成本分析開發中" />
+                      )
+                    } />
+                    
+                    <Route path="/settings" element={
+                      isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
+                        <SystemSettings />
+                      ) : (
+                        <WIPPage title="系統設定開發中" />
+                      )
+                    } />
+                    
+                    <Route path="/tenant-settings" element={<TenantSettings />} />
+                    
+                    <Route path="/checkout" element={
+                      isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
+                        <CheckoutPage />
+                      ) : (
+                        <WIPPage title="結帳頁面開發中" />
+                      )
+                    } />
+                    
+                    <Route path="/checkout/success" element={<CheckoutSuccess />} />
+                    <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+                    <Route path="/wip" element={<WIPPage />} />
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </main>
+                
+                <Toaster />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </>
+  )
+}
+
+function AppContent() {
+  const [loading, setLoading] = useState(true)
+  const { setUser, addToast } = useAppStore()
 
   useEffect(() => {
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -62,14 +242,12 @@ function AppContent() {
 
     window.addEventListener('api-error', handleApiError)
 
-    // 檢查用戶認證狀態
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token')
         if (token) {
           const userData = await apiClient.verifyAuth()
           setUser(userData)
-          setIsAuthenticated(true)
         }
       } catch (error) {
         console.error('認證檢查失敗:', error)
@@ -82,7 +260,6 @@ function AppContent() {
           role: 'Owner',
           tenant_id: 'tenant_001'
         })
-        setIsAuthenticated(true)
       } finally {
         setLoading(false)
       }
@@ -96,109 +273,15 @@ function AppContent() {
     }
   }, [addToast, setUser])
 
-  const handleLogin = (userData, token) => {
-    setUser(userData)
-    setIsAuthenticated(true)
-    localStorage.setItem('auth_token', token)
-    addToast({
-      title: "登入成功",
-      description: `歡迎回來，${userData.name}！`,
-      variant: "default"
-    })
-  }
-
-  const handleLogout = () => {
-    setUser({
-      id: null,
-      name: 'Ryan Chen',
-      email: 'ryan@morningai.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
-      role: 'Owner',
-      tenant_id: 'tenant_001'
-    })
-    setIsAuthenticated(false)
-    localStorage.removeItem('auth_token')
-    addToast({
-      title: "已登出",
-      description: "您已成功登出系統",
-      variant: "default"
-    })
-  }
-
   if (loading) {
     return <PageLoader message="正在載入應用程式..." />
-  }
-
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />
   }
 
   return (
     <ErrorBoundary>
       <TenantProvider>
         <Router>
-          <OfflineIndicator />
-          <Phase3WelcomeModal 
-            isOpen={showPhase3Welcome}
-            onClose={dismissWelcome}
-          />
-          <div className="flex h-screen bg-gray-100">
-            <Sidebar user={user} onLogout={handleLogout} />
-            
-            <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
-              <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              
-              {/* Feature-gated routes */}
-              {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<Dashboard />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
-                <Route path="/strategies" element={<StrategyManagement />} />
-              ) : (
-                <Route path="/strategies" element={<WIPPage title="策略管理開發中" />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
-                <Route path="/approvals" element={<DecisionApproval />} />
-              ) : (
-                <Route path="/approvals" element={<WIPPage title="決策審批開發中" />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
-                <Route path="/history" element={<HistoryAnalysis />} />
-              ) : (
-                <Route path="/history" element={<WIPPage title="歷史分析開發中" />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
-                <Route path="/costs" element={<CostAnalysis />} />
-              ) : (
-                <Route path="/costs" element={<WIPPage title="成本分析開發中" />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
-                <Route path="/settings" element={<SystemSettings />} />
-              ) : (
-                <Route path="/settings" element={<WIPPage title="系統設定開發中" />} />
-              )}
-              <Route path="/tenant-settings" element={<TenantSettings />} />
-              {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
-                <Route path="/checkout" element={<CheckoutPage />} />
-              ) : (
-                <Route path="/checkout" element={<WIPPage title="結帳頁面開發中" />} />
-              )}
-              <Route path="/checkout/success" element={<CheckoutSuccess />} />
-              <Route path="/checkout/cancel" element={<CheckoutCancel />} />
-
-              {/* WIP pages for disabled features */}
-              <Route path="/wip" element={<WIPPage />} />
-              
-              {/* Fallback to dashboard if no dashboard feature enabled */}
-              {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<WIPPage title="儀表板開發中" />} />
-              )}
-            </Routes>
-          </main>
-          
-            <Toaster />
-          </div>
+          <AppRoutes />
         </Router>
       </TenantProvider>
     </ErrorBoundary>
@@ -214,4 +297,3 @@ function App() {
 }
 
 export default App
-
