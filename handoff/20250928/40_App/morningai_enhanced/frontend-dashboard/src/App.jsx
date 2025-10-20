@@ -50,6 +50,26 @@ function PublicRoute({ children }) {
   return children
 }
 
+function ProtectedLayout({ children, user, onLogout, showPhase3Welcome, dismissWelcome }) {
+  return (
+    <>
+      <Phase3WelcomeModal 
+        isOpen={showPhase3Welcome}
+        onClose={dismissWelcome}
+      />
+      <div className="flex h-screen bg-gray-100">
+        <Sidebar user={user} onLogout={onLogout} />
+        
+        <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
+          {children}
+        </main>
+        
+        <Toaster />
+      </div>
+    </>
+  )
+}
+
 function AppRoutes() {
   const navigate = useNavigate()
   const { user, setUser, addToast } = useAppStore()
@@ -122,89 +142,131 @@ function AppRoutes() {
           } 
         />
 
-        <Route
-          path="/*"
-          element={
-            <ProtectedRoute>
-              <Phase3WelcomeModal 
-                isOpen={showPhase3Welcome}
-                onClose={dismissWelcome}
-              />
-              <div className="flex h-screen bg-gray-100">
-                <Sidebar user={user} onLogout={handleLogout} />
-                
-                <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
-                  <Routes>
-                    <Route path="/dashboard" element={
-                      isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) ? (
-                        <Dashboard />
-                      ) : (
-                        <WIPPage title="儀表板開發中" />
-                      )
-                    } />
-                    
-                    <Route path="/strategies" element={
-                      isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
-                        <StrategyManagement />
-                      ) : (
-                        <WIPPage title="策略管理開發中" />
-                      )
-                    } />
-                    
-                    <Route path="/approvals" element={
-                      isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
-                        <DecisionApproval />
-                      ) : (
-                        <WIPPage title="決策審批開發中" />
-                      )
-                    } />
-                    
-                    <Route path="/history" element={
-                      isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
-                        <HistoryAnalysis />
-                      ) : (
-                        <WIPPage title="歷史分析開發中" />
-                      )
-                    } />
-                    
-                    <Route path="/costs" element={
-                      isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
-                        <CostAnalysis />
-                      ) : (
-                        <WIPPage title="成本分析開發中" />
-                      )
-                    } />
-                    
-                    <Route path="/settings" element={
-                      isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
-                        <SystemSettings />
-                      ) : (
-                        <WIPPage title="系統設定開發中" />
-                      )
-                    } />
-                    
-                    <Route path="/tenant-settings" element={<TenantSettings />} />
-                    
-                    <Route path="/checkout" element={
-                      isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
-                        <CheckoutPage />
-                      ) : (
-                        <WIPPage title="結帳頁面開發中" />
-                      )
-                    } />
-                    
-                    <Route path="/checkout/success" element={<CheckoutSuccess />} />
-                    <Route path="/checkout/cancel" element={<CheckoutCancel />} />
-                    <Route path="/wip" element={<WIPPage />} />
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
-                </main>
-                
-                <Toaster />
-              </div>
-            </ProtectedRoute>
-          }
-        />
+        {/* Protected Routes - All routes that require authentication */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) ? (
+                <Dashboard />
+              ) : (
+                <WIPPage title="儀表板開發中" />
+              )}
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/strategies" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
+                <StrategyManagement />
+              ) : (
+                <WIPPage title="策略管理開發中" />
+              )}
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/approvals" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
+                <DecisionApproval />
+              ) : (
+                <WIPPage title="決策審批開發中" />
+              )}
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/history" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
+                <HistoryAnalysis />
+              ) : (
+                <WIPPage title="歷史分析開發中" />
+              )}
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/costs" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
+                <CostAnalysis />
+              ) : (
+                <WIPPage title="成本分析開發中" />
+              )}
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
+                <SystemSettings />
+              ) : (
+                <WIPPage title="系統設定開發中" />
+              )}
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/tenant-settings" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              <TenantSettings />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/checkout" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
+                <CheckoutPage />
+              ) : (
+                <WIPPage title="結帳頁面開發中" />
+              )}
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/checkout/success" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              <CheckoutSuccess />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/checkout/cancel" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              <CheckoutCancel />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/wip" element={
+          <ProtectedRoute>
+            <ProtectedLayout user={user} onLogout={handleLogout} showPhase3Welcome={showPhase3Welcome} dismissWelcome={dismissWelcome}>
+              <WIPPage />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        } />
+        
+        {/* Catch-all route - redirect to dashboard if authenticated, otherwise to landing page */}
+        <Route path="*" element={
+          user && user.id ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } />
       </Routes>
     </>
   )
@@ -297,3 +359,4 @@ function App() {
 }
 
 export default App
+
