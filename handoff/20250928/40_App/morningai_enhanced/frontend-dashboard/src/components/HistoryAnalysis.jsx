@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,8 +11,14 @@ import {
   BarChart3,
   Clock
 } from 'lucide-react'
+import { EmptyState, ErrorRecovery } from '@/components/feedback'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const HistoryAnalysis = () => {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [history, setHistory] = useState([])
+  
   const mockHistory = [
     {
       id: 1,
@@ -63,17 +70,86 @@ const HistoryAnalysis = () => {
         return 'bg-gray-100 text-gray-800'
     }
   }
+  
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        setHistory(mockHistory)
+      } catch (err) {
+        setError(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadHistory()
+  }, [])
+  
+  const handleRetry = () => {
+    setError(null)
+    setLoading(true)
+    setTimeout(() => {
+      setHistory(mockHistory)
+      setLoading(false)
+    }, 500)
+  }
+  
+  if (loading) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="w-full">
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <Skeleton className="h-10 w-full sm:w-[180px]" />
+            <Skeleton className="h-10 w-full sm:w-32" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-96" />
+      </div>
+    )
+  }
+  
+  if (error) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <ErrorRecovery error={error} onRetry={handleRetry} />
+      </div>
+    )
+  }
+  
+  if (history.length === 0) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <EmptyState
+          icon={Activity}
+          title="尚無歷史記錄"
+          description="系統還沒有任何歷史事件記錄。當系統開始運行後，您將在這裡看到所有的歷史分析數據。"
+        />
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">歷史分析</h1>
-          <p className="text-gray-600 mt-1">查看系統運行歷史與趨勢分析</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">歷史分析</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">查看系統運行歷史與趨勢分析</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <Select defaultValue="7d">
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -83,14 +159,14 @@ const HistoryAnalysis = () => {
               <SelectItem value="90d">過去 90 天</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Calendar className="w-4 h-4 mr-2" />
             自訂範圍
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -155,7 +231,7 @@ const HistoryAnalysis = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockHistory.map((event) => (
+            {history.map((event) => (
               <div
                 key={event.id}
                 className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"

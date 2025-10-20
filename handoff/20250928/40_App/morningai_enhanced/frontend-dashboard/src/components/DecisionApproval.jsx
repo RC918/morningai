@@ -217,17 +217,17 @@ const DecisionApproval = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* 頁面標題 */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">決策審批中心</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">決策審批中心</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-2">
           審核AI系統提出的決策建議，確保系統安全穩定運行
         </p>
       </div>
 
       {/* 統計摘要 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -297,39 +297,39 @@ const DecisionApproval = () => {
           pendingDecisions.map((decision) => (
             <Card key={decision.id} className="border-l-4 border-l-orange-400">
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <CardTitle className="text-lg">{decision.strategy.name}</CardTitle>
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                  <div className="flex-1 w-full">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <CardTitle className="text-base sm:text-lg">{decision.strategy.name}</CardTitle>
                       <Badge className={getPriorityColor(decision.priority)}>
                         {decision.priority === 'critical' ? '緊急' :
                          decision.priority === 'high' ? '高' :
                          decision.priority === 'medium' ? '中' : '低'}
                       </Badge>
                     </div>
-                    <CardDescription>{decision.strategy.description}</CardDescription>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <CardDescription className="text-sm">{decision.strategy.description}</CardDescription>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-2">
                       觸發時間: {new Date(decision.timestamp).toLocaleString()}
                     </p>
                   </div>
                   
-                  <div className="text-right">
-                    <div className="text-sm text-gray-600 mb-2">
+                  <div className="text-left sm:text-right w-full sm:w-auto">
+                    <div className="text-xs sm:text-sm text-gray-600 mb-2">
                       自動批准倒計時
                     </div>
-                    <div className="text-lg font-mono text-orange-600">
+                    <div className="text-base sm:text-lg font-mono text-orange-600">
                       {formatTimeRemaining(decision.auto_approve_in)}
                     </div>
                     <Progress 
                       value={(300 - decision.auto_approve_in) / 300 * 100} 
-                      className="w-20 mt-2"
+                      className="w-full sm:w-20 mt-2"
                     />
                   </div>
                 </div>
               </CardHeader>
               
               <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {/* 觸發條件 */}
                   <div>
                     <h4 className="font-medium mb-2">觸發條件</h4>
@@ -403,10 +403,10 @@ const DecisionApproval = () => {
                 </div>
                 
                 {/* 操作按鈕 */}
-                <div className="flex items-center justify-end space-x-3 mt-6">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 mt-6">
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" onClick={() => setSelectedDecision(decision)}>
+                      <Button variant="outline" onClick={() => setSelectedDecision(decision)} className="w-full sm:w-auto">
                         <Info className="w-4 h-4 mr-2" />
                         詳細信息
                       </Button>
@@ -453,6 +453,7 @@ const DecisionApproval = () => {
                   <Button
                     variant="outline"
                     onClick={() => handleReject(decision.id, '手動拒絕')}
+                    className="w-full sm:w-auto"
                   >
                     <XCircle className="w-4 h-4 mr-2" />
                     拒絕
@@ -460,6 +461,7 @@ const DecisionApproval = () => {
                   
                   <Button
                     onClick={() => handleApprove(decision.id)}
+                    className="w-full sm:w-auto"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
                     批准
