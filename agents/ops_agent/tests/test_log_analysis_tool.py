@@ -3,7 +3,7 @@
 Tests for Log Analysis Tool
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import sys
 import os
 
@@ -110,7 +110,7 @@ class TestLogAnalysisTool:
         """Test parsing time range in hours"""
         cutoff = log_tool._parse_time_range("2h")
         
-        expected = datetime.utcnow() - timedelta(hours=2)
+        expected = datetime.now(timezone.utc) - timedelta(hours=2)
         assert abs((cutoff - expected).total_seconds()) < 2
     
     @pytest.mark.asyncio
@@ -118,7 +118,7 @@ class TestLogAnalysisTool:
         """Test parsing time range in days"""
         cutoff = log_tool._parse_time_range("7d")
         
-        expected = datetime.utcnow() - timedelta(days=7)
+        expected = datetime.now(timezone.utc) - timedelta(days=7)
         assert abs((cutoff - expected).total_seconds()) < 2
     
     @pytest.mark.asyncio
