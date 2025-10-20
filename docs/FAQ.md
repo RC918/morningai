@@ -1,72 +1,107 @@
-# E2E Test FAQ for MorningAI
+# System Architecture of MorningAI
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+MorningAI is built on a modern, scalable, and flexible architecture designed to handle the complexities of autonomous agent system operations, FAQ generation, documentation management, and multi-platform integration. Our system leverages a combination of cutting-edge technologies and methodologies to ensure high performance, reliability, and ease of use.
 
-## What is E2E Testing?
+## Overview
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+The core components of MorningAI's architecture include:
 
-## How to Setup E2E Tests in MorningAI?
+- **Frontend**: Developed with React, utilizing Vite as the build tool and TailwindCSS for styling. This setup offers a fast development experience and a responsive user interface.
+- **Backend**: Powered by Python with Flask as the web framework and Gunicorn serving as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
+- **Database**: PostgreSQL is used for data storage, augmented with Supabase for added functionalities like Row Level Security (RLS), providing robust data access controls.
+- **Queue System**: Redis Queue (RQ) is employed for task queuing to manage background jobs effectively, with worker heartbeat monitoring to ensure reliability.
+- **Orchestration**: LangGraph is used for orchestrating agent workflows, enabling complex task management and execution flows.
+- **AI Integration**: OpenAI's GPT-4 is integrated for generating content dynamically, powering our FAQ generation and autonomous code generation features.
+- **Deployment**: Hosted on Render.com with continuous integration and continuous deployment (CI/CD) pipelines set up for streamlined updates.
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+### Frontend Architecture
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+```jsx
+// Example: src/App.jsx
+import React from 'react';
+import 'tailwindcss/tailwind.css';
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+function App() {
+  return (
+    <div className="App">
+      <header className="bg-blue-500 text-white p-4">MorningAI Dashboard</header>
+      {/* Content goes here */}
+    </div>
+  );
+}
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+export default App;
+```
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+### Backend Setup
+
+```python
+# Example: app.py
+from flask import Flask
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route('/')
+def hello_world():
+    return 'Hello, World from MorningAI!'
+
+if __name__ == '__main__':
+    app.run()
+```
+
+### Database Configuration
+
+To integrate PostgreSQL with Row Level Security via Supabase:
+
+```sql
+-- Enable RLS on a table
+ALTER TABLE your_table ENABLE ROW LEVEL SECURITY;
+
+-- Add policies as needed
+CREATE POLICY your_policy ON your_table FOR SELECT USING (user_id = current_user_id());
+```
+
+### Task Queuing with Redis Queue
+
+```python
+# Example: task_queue.py
+from redis import Redis
+from rq import Queue
+
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+
+def background_task(args):
+    # Task implementation here
+    pass
+
+# Enqueueing a task
+job = q.enqueue(background_task, args=(your_args,))
+```
 
 ## Related Documentation Links
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- PostgreSQL (Supabase): [https://supabase.io/docs](https://supabase.io/docs)
+- Redis Queue (RQ): [http://python-rq.org/](http://python-rq.org/)
+- Render Deployment: [https://render.com/docs](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
-   
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
-   
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
+**1. Frontend Build Issues**: Ensure all node modules are correctly installed (`npm install`) and check for version compatibility in `package.json`.
 
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
+**2. Backend Server Errors**: Verify environment variables are correctly set up for database connections and third-party integrations.
 
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+**3. Database Connection Failures**: Check the database URL and credentials in the `.env` file or Supabase dashboard. Ensure network rules allow connections from your application's IP address.
+
+**4. Task Queuing Delays or Failures**: Monitor Redis server health and queue dashboards. Ensure workers are running and have network access to the Redis server.
+
+**5. Deployment Failures on Render.com**: Review build logs on Render.com for specific error messages. Ensure `render.yaml` configuration matches your project's requirements.
+
+For more detailed troubleshooting tips, please refer to our comprehensive developer documentation or reach out to our support team.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +109,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: What is the system architecture?
+- Trace ID: `45241296-c4b7-4b32-9f56-e5bd48bc3a2a`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
