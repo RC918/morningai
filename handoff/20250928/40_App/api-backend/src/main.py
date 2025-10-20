@@ -2,6 +2,7 @@ import os
 import sys
 import datetime
 import asyncio
+import re
 
 from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
@@ -82,8 +83,6 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 
 cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
 cors_origins = [origin.strip() for origin in cors_origins]
-
-import re
 
 def is_vercel_preview(origin):
     """Check if origin is a Vercel preview URL"""
