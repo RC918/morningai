@@ -1,20 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import * as Sentry from '@sentry/react'
 import Sidebar from '@/components/Sidebar'
-import Dashboard from '@/components/Dashboard'
-import StrategyManagement from '@/components/StrategyManagement'
-import DecisionApproval from '@/components/DecisionApproval'
-import HistoryAnalysis from '@/components/HistoryAnalysis'
-import CostAnalysis from '@/components/CostAnalysis'
-import SystemSettings from '@/components/SystemSettings'
-import TenantSettings from '@/components/TenantSettings'
-import CheckoutPage from '@/components/CheckoutPage'
-import CheckoutSuccess from '@/components/CheckoutSuccess'
-import CheckoutCancel from '@/components/CheckoutCancel'
 import LoginPage from '@/components/LoginPage'
+import LandingPage from '@/components/LandingPage'
 import WIPPage from '@/components/WIPPage'
 import { TenantProvider } from '@/contexts/TenantContext'
 import { NotificationProvider, useNotification } from '@/contexts/NotificationContext'
@@ -27,6 +17,19 @@ import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
 import '@/i18n/config'
 import './App.css'
+import './styles/mobile-optimizations.css'
+import './styles/motion-governance.css'
+
+const Dashboard = lazy(() => import('@/components/Dashboard'))
+const StrategyManagement = lazy(() => import('@/components/StrategyManagement'))
+const DecisionApproval = lazy(() => import('@/components/DecisionApproval'))
+const HistoryAnalysis = lazy(() => import('@/components/HistoryAnalysis'))
+const CostAnalysis = lazy(() => import('@/components/CostAnalysis'))
+const SystemSettings = lazy(() => import('@/components/SystemSettings'))
+const TenantSettings = lazy(() => import('@/components/TenantSettings'))
+const CheckoutPage = lazy(() => import('@/components/CheckoutPage'))
+const CheckoutSuccess = lazy(() => import('@/components/CheckoutSuccess'))
+const CheckoutCancel = lazy(() => import('@/components/CheckoutCancel'))
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -37,18 +40,20 @@ function AppContent() {
   useEffect(() => {
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
     if (sentryDsn && !window.Sentry) {
-      Sentry.init({
-        dsn: sentryDsn,
-        environment: import.meta.env.MODE,
-        integrations: [
-          Sentry.browserTracingIntegration(),
-          Sentry.replayIntegration()
-        ],
-        tracesSampleRate: 1.0,
-        replaysSessionSampleRate: 0.1,
-        replaysOnErrorSampleRate: 1.0,
+      import('@sentry/react').then((Sentry) => {
+        Sentry.init({
+          dsn: sentryDsn,
+          environment: import.meta.env.MODE,
+          integrations: [
+            Sentry.browserTracingIntegration(),
+            Sentry.replayIntegration()
+          ],
+          tracesSampleRate: 1.0,
+          replaysSessionSampleRate: 0.1,
+          replaysOnErrorSampleRate: 1.0,
+        })
+        window.Sentry = Sentry
       })
-      window.Sentry = Sentry
     }
 
     const handleApiError = (event) => {
@@ -129,8 +134,12 @@ function AppContent() {
     return <PageLoader message="正在載入應用程式..." />
   }
 
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />
+  const handleNavigateToLogin = () => {
+    window.location.href = '/login'
+  }
+
+  const handleSSOLogin = (provider) => {
+    console.log(`SSO Login with ${provider}`)
   }
 
   return (
@@ -142,12 +151,21 @@ function AppContent() {
             isOpen={showPhase3Welcome}
             onClose={dismissWelcome}
           />
-          <div className="flex h-screen bg-gray-100">
-            <Sidebar user={user} onLogout={handleLogout} />
-            
-            <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
-              <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {!isAuthenticated ? (
+            <Routes>
+              <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
+              <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          ) : (
+            <div className="flex h-screen bg-gray-100">
+              <Sidebar user={user} onLogout={handleLogout} />
+              
+              <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
+                <Suspense fallback={<PageLoader message="正在載入頁面..." />}>
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
               {/* Feature-gated routes */}
               {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
@@ -194,11 +212,13 @@ function AppContent() {
               {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
                 <Route path="/dashboard" element={<WIPPage title="儀表板開發中" />} />
               )}
-            </Routes>
-          </main>
-          
-            <Toaster />
-          </div>
+                  </Routes>
+                </Suspense>
+              </main>
+              
+              <Toaster />
+            </div>
+          )}
         </Router>
       </TenantProvider>
     </ErrorBoundary>
