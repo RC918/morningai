@@ -410,6 +410,18 @@ Rate limiting is implemented using Redis sliding window algorithm:
 - **60 requests per minute per IP** (configurable via `RATE_LIMIT_REQUESTS`)
 - **60-second window** (configurable via `RATE_LIMIT_WINDOW`)
 
+### Rate Limit Headers
+
+All responses include rate limit headers for observability:
+
+```
+X-RateLimit-Limit: 60          # Maximum requests allowed in window
+X-RateLimit-Remaining: 45       # Remaining requests in current window
+X-RateLimit-Reset: 1737380400   # Unix timestamp when limit resets
+```
+
+### 429 Response Example
+
 **Response when rate limit exceeded:**
 ```json
 {
@@ -421,6 +433,53 @@ Rate limiting is implemented using Redis sliding window algorithm:
 ```
 
 **Status Code:** `429 Too Many Requests`
+
+**Headers:**
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1737380460
+```
+
+**Example:**
+```bash
+# Check rate limit status
+curl -i -H "Authorization: Bearer $JWT_TOKEN" \
+  "https://api.example.com/api/faq/categories"
+
+# Response headers:
+# X-RateLimit-Limit: 60
+# X-RateLimit-Remaining: 59
+# X-RateLimit-Reset: 1737380460
+
+# After 60 requests in 1 minute:
+# HTTP/1.1 429 Too Many Requests
+# X-RateLimit-Limit: 60
+# X-RateLimit-Remaining: 0
+# X-RateLimit-Reset: 1737380520
+```
+
+**Frontend Integration:**
+```javascript
+// Monitor rate limit in frontend
+fetch('/api/faq/search?q=test', {
+  headers: { 'Authorization': `Bearer ${token}` }
+})
+.then(response => {
+  const limit = response.headers.get('X-RateLimit-Limit');
+  const remaining = response.headers.get('X-RateLimit-Remaining');
+  const reset = response.headers.get('X-RateLimit-Reset');
+  
+  console.log(`Rate limit: ${remaining}/${limit} remaining`);
+  
+  if (response.status === 429) {
+    const resetDate = new Date(reset * 1000);
+    alert(`Rate limit exceeded. Try again after ${resetDate}`);
+  }
+  
+  return response.json();
+});
+```
 
 ---
 
