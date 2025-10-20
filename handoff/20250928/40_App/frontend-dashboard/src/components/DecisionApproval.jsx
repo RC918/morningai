@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/hooks/use-toast'
+import { safeInterval } from '@/lib/safeInterval'
 
 const DecisionApproval = () => {
   const { toast } = useToast()
@@ -116,17 +117,17 @@ const DecisionApproval = () => {
   const [approvalComment, setApprovalComment] = useState('')
 
   useEffect(() => {
-    // 模擬自動倒計時
-    const interval = setInterval(() => {
+    // 模擬自動倒計時 - 使用 safeInterval
+    const cleanup = safeInterval(() => {
       setPendingDecisions(prev => 
         prev.map(decision => ({
           ...decision,
           auto_approve_in: Math.max(0, decision.auto_approve_in - 1)
         }))
       )
-    }, 1000)
+    }, 1000, 120)
 
-    return () => clearInterval(interval)
+    return cleanup
   }, [])
 
   const handleApprove = async (decisionId, comment = '') => {

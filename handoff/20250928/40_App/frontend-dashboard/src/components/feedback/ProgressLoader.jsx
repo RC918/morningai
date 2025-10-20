@@ -10,15 +10,24 @@ export const ProgressLoader = ({
   const [progress, setProgress] = useState(0)
   
   useEffect(() => {
-    const interval = setInterval(() => {
+    let raf, mounted = true
+    const tick = () => {
+      if (!mounted) return
       setProgress(prev => {
         const target = ((currentStep + 1) / steps.length) * 100
-        return Math.min(prev + 2, target)
+        return Math.min(prev + 1, target)
       })
-    }, 100)
+      if (mounted && progress < 100) {
+        raf = requestAnimationFrame(tick)
+      }
+    }
+    raf = requestAnimationFrame(tick)
     
-    return () => clearInterval(interval)
-  }, [currentStep, steps.length])
+    return () => {
+      mounted = false
+      cancelAnimationFrame(raf)
+    }
+  }, [currentStep, steps.length, progress])
   
   return (
     <div className="max-w-md mx-auto p-6">

@@ -16,6 +16,7 @@ import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'
 import { DashboardSkeleton } from '@/components/feedback/ContentSkeleton'
 import apiClient from '@/lib/api'
+import { safeInterval } from '@/lib/safeInterval'
 
 const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
   const [{ isDragging }, drag] = useDrag({
@@ -159,8 +160,8 @@ const Dashboard = () => {
   }, [loadDashboardLayout, loadAvailableWidgets, loadDashboardData])
 
   useEffect(() => {
-    // 模擬實時數據更新
-    const interval = setInterval(() => {
+    // 模擬實時數據更新 - 使用 safeInterval
+    const cleanup = safeInterval(() => {
       setSystemMetrics(prev => ({
         ...prev,
         cpu_usage: Math.max(50, Math.min(90, prev.cpu_usage + (Math.random() - 0.5) * 10)),
@@ -171,9 +172,9 @@ const Dashboard = () => {
       if (!isEditMode) {
         loadDashboardData()
       }
-    }, 5000)
+    }, 5000, 120)
 
-    return () => clearInterval(interval)
+    return cleanup
   }, [isEditMode, loadDashboardData])
 
 
