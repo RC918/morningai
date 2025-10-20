@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 import sys
 import asyncio
 from functools import wraps
+from ..middleware.auth_middleware import jwt_required
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..'))
 
@@ -54,7 +55,8 @@ OPENAI_MAX_DAILY_COST = float(os.getenv("OPENAI_MAX_DAILY_COST", "20.0"))
 class FAQSearchRequest(BaseModel):
     """Request model for FAQ search"""
     q: str = Field(..., description="Search query")
-    limit: int = Field(10, description="Maximum number of results", ge=1, le=100)
+    page: int = Field(1, description="Page number (1-indexed)", ge=1)
+    page_size: int = Field(10, description="Items per page", ge=1, le=100)
     category: str = Field(None, description="Filter by category")
     
     @field_validator('q')
@@ -143,18 +145,24 @@ def invalidate_cache_pattern(pattern: str):
         logger.error(f"Cache invalidation error: {e}")
 
 @bp.route("/search", methods=["GET"])
+@jwt_required
 @async_route
 async def search_faqs():
     """Search FAQs with semantic and keyword search
     
+    Headers:
+        Authorization: Bearer <token> (required)
+    
     Query Parameters:
         q (str): Search query (required)
-        limit (int): Maximum results (default: 10, max: 100)
+        page (int): Page number (default: 1)
+        page_size (int): Items per page (default: 10, max: 100)
         category (str): Filter by category (optional)
     
     Returns:
-        200: Search results with FAQs
+        200: {"data": {...}, "cached": bool}
         400: Invalid request parameters
+        401: Unauthorized
         500: Server error
         503: Service unavailable
     """
@@ -168,10 +176,11 @@ async def search_faqs():
     
     try:
         query = request.args.get('q', '').strip()
-        limit = int(request.args.get('limit', 10))
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 10))
         category = request.args.get('category')
         
-        validated = FAQSearchRequest(q=query, limit=limit, category=category)
+        validated = FAQSearchRequest(q=query, page=page, page_size=page_size, category=category)
         
     except ValidationError as e:
         error_details = json.loads(e.json())
@@ -190,18 +199,22 @@ async def search_faqs():
             }
         }), 400
     
-    cache_key = generate_cache_key("search", q=validated.q, limit=validated.limit, category=validated.category)
+    cache_key = generate_cache_key("search", q=validated.q, page=validated.page, page_size=validated.page_size, category=validated.category)
     cached_result = get_cached_result(cache_key)
     
     if cached_result:
-        cached_result['cached'] = True
-        return jsonify(cached_result), 200
+        return jsonify({
+            "data": cached_result,
+            "cached": True
+        }), 200
     
     try:
         search_tool = FAQSearchTool()
+        offset = (validated.page - 1) * validated.page_size
         result = await search_tool.search(
             query=validated.q,
-            limit=validated.limit,
+            limit=validated.page_size,
+            offset=offset,
             category=validated.category
         )
         
@@ -213,25 +226,30 @@ async def search_faqs():
                 }
             }), 500
         
-        response = {
+        data = {
             "query": validated.q,
             "results": result.get('results', []),
             "count": result.get('count', 0),
-            "cached": False,
+            "page": validated.page,
+            "page_size": validated.page_size,
+            "total_pages": (result.get('count', 0) + validated.page_size - 1) // validated.page_size,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
-        set_cached_result(cache_key, response)
+        set_cached_result(cache_key, data)
         
         if sentry_sdk:
             sentry_sdk.add_breadcrumb(
                 category='faq',
                 message='FAQ search completed',
                 level='info',
-                data={'query': validated.q, 'count': response['count']}
+                data={'query': validated.q, 'count': data['count'], 'user_id': request.current_user.get('user_id')}
             )
         
-        return jsonify(response), 200
+        return jsonify({
+            "data": data,
+            "cached": False
+        }), 200
         
     except Exception as e:
         logger.exception(f"FAQ search error: {e}")
@@ -245,15 +263,20 @@ async def search_faqs():
         }), 500
 
 @bp.route("/<faq_id>", methods=["GET"])
+@jwt_required
 @async_route
 async def get_faq(faq_id):
     """Get FAQ by ID
+    
+    Headers:
+        Authorization: Bearer <token> (required)
     
     Args:
         faq_id (str): FAQ UUID
     
     Returns:
-        200: FAQ details
+        200: {"data": {...}, "cached": bool}
+        401: Unauthorized
         404: FAQ not found
         500: Server error
         503: Service unavailable
@@ -270,8 +293,10 @@ async def get_faq(faq_id):
     cached_result = get_cached_result(cache_key)
     
     if cached_result:
-        cached_result['cached'] = True
-        return jsonify(cached_result), 200
+        return jsonify({
+            "data": cached_result,
+            "cached": True
+        }), 200
     
     try:
         mgmt_tool = FAQManagementTool()
@@ -294,15 +319,17 @@ async def get_faq(faq_id):
                     }
                 }), 500
         
-        response = {
+        data = {
             "faq": result.get('faq'),
-            "cached": False,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
-        set_cached_result(cache_key, response)
+        set_cached_result(cache_key, data)
         
-        return jsonify(response), 200
+        return jsonify({
+            "data": data,
+            "cached": False
+        }), 200
         
     except Exception as e:
         logger.exception(f"Get FAQ error: {e}")
@@ -316,9 +343,13 @@ async def get_faq(faq_id):
         }), 500
 
 @bp.route("", methods=["POST"])
+@jwt_required
 @async_route
 async def create_faq():
     """Create new FAQ
+    
+    Headers:
+        Authorization: Bearer <token> (required)
     
     Request Body:
         question (str): FAQ question (required)
@@ -327,8 +358,9 @@ async def create_faq():
         tags (list): FAQ tags (optional)
     
     Returns:
-        201: FAQ created
+        201: {"data": {...}, "cached": false}
         400: Invalid request
+        401: Unauthorized
         500: Server error
         503: Service unavailable
     """
@@ -377,7 +409,7 @@ async def create_faq():
         faq = result.get('faq', {})
         faq_id = faq.get('id') if faq else None
         
-        response = {
+        data = {
             "faq_id": faq_id,
             "message": "FAQ created successfully",
             "timestamp": datetime.now(timezone.utc).isoformat()
@@ -388,10 +420,13 @@ async def create_faq():
                 category='faq',
                 message='FAQ created',
                 level='info',
-                data={'faq_id': response['faq_id']}
+                data={'faq_id': data['faq_id'], 'user_id': request.current_user.get('user_id')}
             )
         
-        return jsonify(response), 201
+        return jsonify({
+            "data": data,
+            "cached": False
+        }), 201
         
     except Exception as e:
         logger.exception(f"Create FAQ error: {e}")
@@ -405,9 +440,13 @@ async def create_faq():
         }), 500
 
 @bp.route("/<faq_id>", methods=["PUT"])
+@jwt_required
 @async_route
 async def update_faq(faq_id):
     """Update FAQ
+    
+    Headers:
+        Authorization: Bearer <token> (required)
     
     Args:
         faq_id (str): FAQ UUID
@@ -419,8 +458,9 @@ async def update_faq(faq_id):
         tags (list): FAQ tags (optional)
     
     Returns:
-        200: FAQ updated
+        200: {"data": {...}, "cached": false}
         400: Invalid request
+        401: Unauthorized
         404: FAQ not found
         500: Server error
         503: Service unavailable
@@ -489,7 +529,7 @@ async def update_faq(faq_id):
         invalidate_cache_pattern("search")
         invalidate_cache_pattern(f"faq")
         
-        response = {
+        data = {
             "faq_id": faq_id,
             "message": "FAQ updated successfully",
             "timestamp": datetime.now(timezone.utc).isoformat()
@@ -500,10 +540,13 @@ async def update_faq(faq_id):
                 category='faq',
                 message='FAQ updated',
                 level='info',
-                data={'faq_id': faq_id}
+                data={'faq_id': faq_id, 'user_id': request.current_user.get('user_id')}
             )
         
-        return jsonify(response), 200
+        return jsonify({
+            "data": data,
+            "cached": False
+        }), 200
         
     except Exception as e:
         logger.exception(f"Update FAQ error: {e}")
@@ -517,15 +560,20 @@ async def update_faq(faq_id):
         }), 500
 
 @bp.route("/<faq_id>", methods=["DELETE"])
+@jwt_required
 @async_route
 async def delete_faq(faq_id):
     """Delete FAQ
+    
+    Headers:
+        Authorization: Bearer <token> (required)
     
     Args:
         faq_id (str): FAQ UUID
     
     Returns:
-        200: FAQ deleted
+        200: {"data": {...}, "cached": false}
+        401: Unauthorized
         404: FAQ not found
         500: Server error
         503: Service unavailable
@@ -562,7 +610,7 @@ async def delete_faq(faq_id):
         invalidate_cache_pattern("search")
         invalidate_cache_pattern(f"faq")
         
-        response = {
+        data = {
             "faq_id": faq_id,
             "message": "FAQ deleted successfully",
             "timestamp": datetime.now(timezone.utc).isoformat()
@@ -573,10 +621,13 @@ async def delete_faq(faq_id):
                 category='faq',
                 message='FAQ deleted',
                 level='info',
-                data={'faq_id': faq_id}
+                data={'faq_id': faq_id, 'user_id': request.current_user.get('user_id')}
             )
         
-        return jsonify(response), 200
+        return jsonify({
+            "data": data,
+            "cached": False
+        }), 200
         
     except Exception as e:
         logger.exception(f"Delete FAQ error: {e}")
@@ -590,12 +641,17 @@ async def delete_faq(faq_id):
         }), 500
 
 @bp.route("/categories", methods=["GET"])
+@jwt_required
 @async_route
 async def get_categories():
     """Get all FAQ categories
     
+    Headers:
+        Authorization: Bearer <token> (required)
+    
     Returns:
-        200: List of categories
+        200: {"data": {...}, "cached": bool}
+        401: Unauthorized
         500: Server error
         503: Service unavailable
     """
@@ -611,8 +667,10 @@ async def get_categories():
     cached_result = get_cached_result(cache_key)
     
     if cached_result:
-        cached_result['cached'] = True
-        return jsonify(cached_result), 200
+        return jsonify({
+            "data": cached_result,
+            "cached": True
+        }), 200
     
     try:
         mgmt_tool = FAQManagementTool()
@@ -626,16 +684,18 @@ async def get_categories():
                 }
             }), 500
         
-        response = {
+        data = {
             "categories": result.get('categories', []),
             "count": result.get('count', 0),
-            "cached": False,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
-        set_cached_result(cache_key, response, ttl=600)
+        set_cached_result(cache_key, data, ttl=600)
         
-        return jsonify(response), 200
+        return jsonify({
+            "data": data,
+            "cached": False
+        }), 200
         
     except Exception as e:
         logger.exception(f"Get categories error: {e}")
@@ -649,12 +709,17 @@ async def get_categories():
         }), 500
 
 @bp.route("/stats", methods=["GET"])
+@jwt_required
 @async_route
 async def get_stats():
     """Get FAQ statistics
     
+    Headers:
+        Authorization: Bearer <token> (required)
+    
     Returns:
-        200: FAQ statistics
+        200: {"data": {...}, "cached": bool}
+        401: Unauthorized
         500: Server error
         503: Service unavailable
     """
@@ -670,8 +735,10 @@ async def get_stats():
     cached_result = get_cached_result(cache_key)
     
     if cached_result:
-        cached_result['cached'] = True
-        return jsonify(cached_result), 200
+        return jsonify({
+            "data": cached_result,
+            "cached": True
+        }), 200
     
     try:
         mgmt_tool = FAQManagementTool()
@@ -685,15 +752,17 @@ async def get_stats():
                 }
             }), 500
         
-        response = {
+        data = {
             "stats": result.get('stats', {}),
-            "cached": False,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
-        set_cached_result(cache_key, response, ttl=60)
+        set_cached_result(cache_key, data, ttl=60)
         
-        return jsonify(response), 200
+        return jsonify({
+            "data": data,
+            "cached": False
+        }), 200
         
     except Exception as e:
         logger.exception(f"Get stats error: {e}")
