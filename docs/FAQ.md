@@ -1,72 +1,82 @@
-# E2E Test FAQ for MorningAI
+# Testing Sentry Trace ID in MorningAI
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+When developing and maintaining applications, especially those as intricate as MorningAI, efficient error tracking and performance monitoring are crucial. Sentry is an open-source error tracking tool that helps developers monitor and fix crashes in real time. The `trace_id` feature of Sentry is particularly useful for tracing errors and performance issues across different services in a distributed system. This FAQ aims to guide developers on how to test the Sentry `trace_id` within the MorningAI platform.
 
-## What is E2E Testing?
+## Understanding Sentry `trace_id`
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+The `trace_id` is a unique identifier used by Sentry to trace a series of related events or transactions across multiple systems, services, or microservices. It is an essential part of distributed tracing, allowing developers to follow the path of a request through various microservices and pinpoint where failures or performance bottlenecks occur.
 
-## How to Setup E2E Tests in MorningAI?
+### How to Implement and Test Sentry `trace_id` in MorningAI
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+#### Prerequisites
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+Ensure you have:
+- Access to the RC918/morningai repository.
+- The Sentry SDK installed and configured in your MorningAI project.
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+#### Step 1: Configuration
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+1. In your Flask app initialization within the MorningAI platform (`/backend/app/__init__.py`), ensure you have Sentry SDK set up with tracing enabled:
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+```python
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
-## Related Documentation Links
+sentry_sdk.init(
+    dsn="your_sentry_dsn_here",
+    integrations=[FlaskIntegration()],
+    traces_sample_rate=1.0 # Adjust based on your needs
+)
+```
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+2. Configure your frontend application (if applicable) similarly, ensuring you enable tracing:
 
-## Common Troubleshooting Tips
+```javascript
+import * as Sentry from "@sentry/react";
+import { Integrations } from "@sentry/tracing";
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
-   
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
-   
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
+Sentry.init({
+  dsn: "your_sentry_dsn_here",
+  integrations: [new Integrations.BrowserTracing()],
+  tracesSampleRate: 1.0, // Adjust based on your needs
+});
+```
 
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
+#### Step 2: Generating and Testing `trace_id`
 
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+To generate and test a `trace_id`, simulate or trigger an event that would cause an error or a transaction trace. For instance, in a backend Python route:
+
+```python
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/trigger_error')
+def trigger_error():
+    division_by_zero = 1 / 0 # This will generate an error
+    return "This should not appear"
+
+if __name__ == "__main__":
+    app.run()
+```
+
+When this endpoint is hit, Sentry captures the error along with a `trace_id`. You can find this `trace_id` within the Sentry issue interface under the "Tags" section of the detailed view of the reported issue.
+
+### Related Documentation Links
+
+- Sentry official documentation: [https://docs.sentry.io/](https://docs.sentry.io/)
+- Flask integration with Sentry: [https://docs.sentry.io/platforms/python/guides/flask/](https://docs.sentry.io/platforms/python/guides/flask/)
+- React integration with Sentry: [https://docs.sentry.io/platforms/javascript/guides/react/](https://docs.sentry.io/platforms/javascript/guides/react/)
+
+### Common Troubleshooting Tips
+
+- **Issue**: Missing `trace_id` in reported issues.
+  - **Solution**: Ensure that tracing is enabled both in backend and frontend configurations with a proper sample rate.
+- **Issue**: Errors not showing up in Sentry dashboard.
+  - **Solution**: Verify that your DSN (Data Source Name) is correctly configured in both backend and frontend applications.
+- **Issue**: Performance bottlenecks not being traced accurately.
+  - **Solution**: Review your sampling rate; too low of a rate might miss critical transactions, while too high of a rate might overwhelm your dashboard with too much data.
+
+For more assistance on troubleshooting specific issues with Sentry within MorningAI, refer to the [Sentry Forums](https://forum.sentry.io/) or contact your system administrator for further guidance.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +84,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: Test Sentry trace_id
+- Trace ID: `2079cad2-f925-4b13-aa56-847f97d7acc7`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
