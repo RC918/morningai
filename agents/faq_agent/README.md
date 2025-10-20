@@ -19,10 +19,12 @@ FAQ Agent 是 Morning AI 生態系統中的智能問答代理，專門處理常�
 - 搜索優化
 
 ### 3. 整合能力
-- Supabase 數據存儲
-- OpenAI Embeddings
-- Redis 緩存
-- Slack/Email 通知
+- **Supabase 數據存儲**: PostgreSQL with pgvector
+- **OpenAI Embeddings**: text-embedding-3-small (1536 dimensions)
+- **Redis 緩存**: 自動緩存失效，可配置 TTL
+- **OODA Loop**: 智能決策循環
+- **REST API**: 完整的 CRUD 操作端點
+- **成本控制**: OpenAI 用量限制（$20/日）
 
 ## 架構設計
 
@@ -121,52 +123,83 @@ CREATE TABLE faq_categories (
 );
 ```
 
-## API 端點
+## REST API 端點
 
 ### 搜索 FAQ
 
-```python
-POST /api/faq/search
-Body: {
-    "query": "如何使用 Ops Agent？",
-    "limit": 5,
-    "threshold": 0.7
-}
+```bash
+GET /api/faq/search?q=如何使用+Ops+Agent&limit=5
+```
 
-Response: {
-    "success": true,
-    "results": [
-        {
-            "question": "如何使用 Ops Agent 監控系統？",
-            "answer": "...",
-            "similarity": 0.95,
-            "category": "ops_agent"
-        }
-    ]
+**Response:**
+```json
+{
+  "query": "如何使用 Ops Agent",
+  "results": [
+    {
+      "id": "uuid",
+      "question": "如何使用 Ops Agent 監控系統？",
+      "answer": "...",
+      "score": 0.95,
+      "category": "ops_agent"
+    }
+  ],
+  "count": 1,
+  "cached": false
 }
+```
+
+### 獲取單個 FAQ
+
+```bash
+GET /api/faq/{id}
 ```
 
 ### 創建 FAQ
 
-```python
-POST /api/faq/create
-Body: {
-    "question": "問題",
-    "answer": "答案",
-    "category": "分類",
-    "tags": ["標籤1", "標籤2"]
+```bash
+POST /api/faq
+Content-Type: application/json
+
+{
+  "question": "問題",
+  "answer": "答案",
+  "category": "分類",
+  "tags": ["標籤1", "標籤2"]
 }
 ```
 
 ### 更新 FAQ
 
-```python
+```bash
 PUT /api/faq/{id}
-Body: {
-    "question": "更新的問題",
-    "answer": "更新的答案"
+Content-Type: application/json
+
+{
+  "question": "更新的問題",
+  "answer": "更新的答案"
 }
 ```
+
+### 刪除 FAQ
+
+```bash
+DELETE /api/faq/{id}
+```
+
+### 獲取分類列表
+
+```bash
+GET /api/faq/categories
+```
+
+### 獲取統計數據
+
+```bash
+GET /api/faq/stats
+```
+
+**完整 API 文檔**: 請參閱 [`API_DOCUMENTATION.md`](./API_DOCUMENTATION.md)
 
 ## 工具說明
 
@@ -272,10 +305,22 @@ print(f"來源: {result['source_faq_id']}")
 
 ### 優化策略
 
-1. **緩存**: Redis 緩存常見問題嵌入
-2. **批量處理**: 批量生成嵌入
-3. **索引優化**: pgvector 索引優化
-4. **預計算**: 預計算常見問題嵌入
+1. **Redis 緩存系統**:
+   - 搜索結果緩存 (TTL: 300s)
+   - 分類緩存 (TTL: 600s)
+   - 統計數據緩存 (TTL: 60s)
+   - 自動緩存失效（創建/更新/刪除時）
+   
+2. **批量處理**: 批量生成嵌入，降低 API 調用次數
+
+3. **索引優化**: pgvector HNSW 索引優化向量搜索
+
+4. **OODA Loop 智能決策**:
+   - **Observe**: 收集 FAQ 系統狀態和指標
+   - **Orient**: 分析並制定策略
+   - **Decide**: 選擇最佳策略和創建行動計劃
+   - **Act**: 執行行動並收集結果
+   - 支援決策追蹤和錯誤處理
 
 ## 測試
 
@@ -367,23 +412,28 @@ docker run -p 8000:8000 faq-agent
 
 ## 路線圖
 
-### Phase 1 (當前)
+### Phase 1 (✅ 已完成)
 - ✅ 基本架構設計
-- 🔄 核心工具實現
-- 🔄 OODA Loop 整合
-- 🔄 測試和文檔
+- ✅ 核心工具實現
+- ✅ OODA Loop 整合
+- ✅ REST API 端點實現
+- ✅ Redis 緩存整合
+- ✅ 測試和文檔
 
-### Phase 2 (下週)
-- ⬜ 自動分類
+### Phase 2 (🔄 進行中)
+- ✅ REST API endpoints (GET/POST/PUT/DELETE)
+- ✅ Redis caching with auto-invalidation
+- ✅ OODA Loop decision tracing
+- ⬜ 自動分類優化
 - ⬜ 多語言支持增強
 - ⬜ A/B 測試框架
-- ⬜ 用戶反饋分析
 
-### Phase 3 (下個月)
+### Phase 3 (⬜ 規劃中)
 - ⬜ 知識圖譜整合
 - ⬜ 主動推薦
 - ⬜ 對話式問答
 - ⬜ 多輪對話支持
+- ⬜ 用戶反饋分析系統
 
 ## 常見問題
 
