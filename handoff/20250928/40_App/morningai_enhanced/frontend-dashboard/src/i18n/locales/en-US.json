@@ -112,5 +112,107 @@
     "profile": "Profile",
     "notifications": "Notifications",
     "language": "Language"
+  },
+  "settings": {
+    "title": "System Settings",
+    "description": "Manage your account and system preferences",
+    "tabs": {
+      "profile": "Profile",
+      "preferences": "Preferences",
+      "notifications": "Notifications",
+      "security": "Security"
+    },
+    "profile": {
+      "title": "Profile",
+      "description": "Manage your personal information",
+      "avatar": "Change Avatar",
+      "avatarHint": "JPG, PNG or GIF, max 2MB",
+      "name": "Name",
+      "email": "Email",
+      "role": "Account Role",
+      "saveChanges": "Save Changes",
+      "saving": "Saving..."
+    },
+    "preferences": {
+      "title": "Interface Preferences",
+      "description": "Customize your experience",
+      "language": "Language",
+      "theme": "Theme",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeAuto": "Auto"
+    },
+    "notifications": {
+      "title": "Notification Settings",
+      "description": "Manage the notifications you want to receive",
+      "email": "Email Notifications",
+      "emailDescription": "Receive important updates via email",
+      "desktop": "Desktop Notifications",
+      "desktopDescription": "Show real-time notifications in browser",
+      "aiSuggestions": "AI Suggestion Notifications",
+      "aiSuggestionsDescription": "Receive optimization suggestions from AI"
+    },
+    "security": {
+      "title": "Security Settings",
+      "description": "Protect your account security",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "twoFactor": "Two-Factor Authentication (2FA)",
+      "twoFactorDescription": "Add an extra layer of security to your account",
+      "twoFactorEnabled": "Enabled",
+      "updatePassword": "Update Password",
+      "updating": "Updating..."
+    }
+  },
+  "checkout": {
+    "title": "Choose Your Plan",
+    "description": "Upgrade to Morning AI Pro and unlock more powerful features",
+    "useMockData": "Use Test Data",
+    "mockDataDescription": "Toggle between test data and real API data",
+    "paymentMethods": "Payment Methods",
+    "paymentMethodsDescription": "Choose your preferred payment method",
+    "orderSummary": "Order Summary",
+    "plan": "Plan",
+    "price": "Price",
+    "perMonth": "/month",
+    "discountCode": "Discount Code",
+    "discountPlaceholder": "Enter discount code",
+    "apply": "Apply",
+    "applyDiscount": "Apply discount code",
+    "availableDiscount": "Available Discount",
+    "total": "Total",
+    "secureCheckout": "Secure Checkout",
+    "secureCheckoutDescription": "Proceed to secure checkout",
+    "sslProtection": "Your payment information is protected by 256-bit SSL encryption",
+    "checkoutFailed": "Checkout failed, please try again later",
+    "mostPopular": "Most Popular",
+    "comingSoon": "Coming Soon",
+    "features": {
+      "starter": {
+        "basic": "Basic AI Assistant Features",
+        "queries": "100 queries per month",
+        "support": "Standard customer support",
+        "reports": "Basic reporting features"
+      },
+      "pro": {
+        "advanced": "Advanced AI Assistant Features",
+        "queries": "1000 queries per month",
+        "support": "Priority customer support",
+        "reports": "Advanced reports and analytics",
+        "workflows": "Custom workflows",
+        "api": "API access"
+      },
+      "enterprise": {
+        "complete": "Complete AI Assistant Features",
+        "queries": "Unlimited queries",
+        "support": "Dedicated account manager",
+        "reports": "Complete reports and analytics",
+        "workflows": "Custom workflows",
+        "api": "Full API access",
+        "sso": "Single Sign-On (SSO)",
+        "deployment": "Dedicated deployment options"
+      }
+    }
   }
 }

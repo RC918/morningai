@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
@@ -19,6 +20,8 @@ import {
 import useSettingsStore from '@/stores/settingsStore'
 
 const SystemSettings = () => {
+  const { t } = useTranslation()
+  
   const {
     profile,
     preferences,
@@ -47,53 +50,55 @@ const SystemSettings = () => {
   }, [preferences.theme])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">系統設定</h1>
-        <p className="text-gray-600 mt-1">管理您的帳號與系統偏好設定</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('settings.title')}</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">{t('settings.description')}</p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-4 lg:w-auto">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="w-4 h-4" />
-            <span className="hidden sm:inline">個人資料</span>
+            <span className="hidden sm:inline">{t('settings.tabs.profile')}</span>
           </TabsTrigger>
           <TabsTrigger value="preferences" className="flex items-center gap-2">
             <Palette className="w-4 h-4" />
-            <span className="hidden sm:inline">偏好設定</span>
+            <span className="hidden sm:inline">{t('settings.tabs.preferences')}</span>
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Bell className="w-4 h-4" />
-            <span className="hidden sm:inline">通知</span>
+            <span className="hidden sm:inline">{t('settings.tabs.notifications')}</span>
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
-            <span className="hidden sm:inline">安全性</span>
+            <span className="hidden sm:inline">{t('settings.tabs.security')}</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>個人資料</CardTitle>
-              <CardDescription>管理您的個人資訊</CardDescription>
+              <CardTitle>{t('settings.profile.title')}</CardTitle>
+              <CardDescription>{t('settings.profile.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
                 <Avatar className="w-20 h-20">
-                  <AvatarImage src={profile.avatar} alt={`${profile.name} 的頭像`} />
+                  <AvatarImage src={profile.avatar} alt={`${profile.name} avatar`} />
                   <AvatarFallback>RC</AvatarFallback>
                 </Avatar>
                 <div>
-                  <Button variant="outline" size="sm" aria-label="更換頭像">更換頭像</Button>
-                  <p className="text-sm text-gray-600 mt-1">JPG、PNG 或 GIF，最大 2MB</p>
+                  <Button variant="outline" size="sm" aria-label={t('settings.profile.avatar')}>
+                    {t('settings.profile.avatar')}
+                  </Button>
+                  <p className="text-sm text-gray-600 mt-1">{t('settings.profile.avatarHint')}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">姓名</Label>
+                  <Label htmlFor="name">{t('settings.profile.name')}</Label>
                   <Input
                     id="name"
                     value={profile.name}
@@ -102,7 +107,7 @@ const SystemSettings = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">電子郵件</Label>
+                  <Label htmlFor="email">{t('settings.profile.email')}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -115,7 +120,7 @@ const SystemSettings = () => {
 
               <div className="flex items-center gap-2">
                 <Badge>{profile.role}</Badge>
-                <span className="text-sm text-gray-600">帳號角色</span>
+                <span className="text-sm text-gray-600">{t('settings.profile.role')}</span>
               </div>
 
               {error && (
@@ -125,8 +130,8 @@ const SystemSettings = () => {
               )}
 
               <div className="flex justify-end">
-                <Button onClick={saveToAPI} disabled={loading} aria-label="儲存個人資料變更">
-                  {loading ? '儲存中...' : '儲存變更'}
+                <Button onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                  {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
                 </Button>
               </div>
             </CardContent>
@@ -136,14 +141,14 @@ const SystemSettings = () => {
         <TabsContent value="preferences" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>介面偏好</CardTitle>
-              <CardDescription>自訂您的使用體驗</CardDescription>
+              <CardTitle>{t('settings.preferences.title')}</CardTitle>
+              <CardDescription>{t('settings.preferences.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="language" className="flex items-center gap-2">
                   <Globe className="w-4 h-4" />
-                  語言
+                  {t('settings.preferences.language')}
                 </Label>
                 <Select value={preferences.language} onValueChange={setLanguage}>
                   <SelectTrigger id="language">
@@ -161,16 +166,16 @@ const SystemSettings = () => {
               <div className="space-y-2">
                 <Label htmlFor="theme" className="flex items-center gap-2">
                   <Palette className="w-4 h-4" />
-                  主題
+                  {t('settings.preferences.theme')}
                 </Label>
                 <Select value={preferences.theme} onValueChange={setTheme}>
                   <SelectTrigger id="theme">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="light">淺色</SelectItem>
-                    <SelectItem value="dark">深色</SelectItem>
-                    <SelectItem value="auto">自動</SelectItem>
+                    <SelectItem value="light">{t('settings.preferences.themeLight')}</SelectItem>
+                    <SelectItem value="dark">{t('settings.preferences.themeDark')}</SelectItem>
+                    <SelectItem value="auto">{t('settings.preferences.themeAuto')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -182,8 +187,8 @@ const SystemSettings = () => {
               )}
 
               <div className="flex justify-end">
-                <Button onClick={saveToAPI} disabled={loading} aria-label="儲存變更">
-                  {loading ? '儲存中...' : '儲存變更'}
+                <Button onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                  {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
                 </Button>
               </div>
             </CardContent>
@@ -193,14 +198,14 @@ const SystemSettings = () => {
         <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>通知設定</CardTitle>
-              <CardDescription>管理您希望接收的通知</CardDescription>
+              <CardTitle>{t('settings.notifications.title')}</CardTitle>
+              <CardDescription>{t('settings.notifications.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>電子郵件通知</Label>
-                  <p className="text-sm text-gray-600">接收重要更新的電子郵件</p>
+                  <Label>{t('settings.notifications.email')}</Label>
+                  <p className="text-sm text-gray-600">{t('settings.notifications.emailDescription')}</p>
                 </div>
                 <Switch
                   checked={preferences.notifications.email}
@@ -212,8 +217,8 @@ const SystemSettings = () => {
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>桌面通知</Label>
-                  <p className="text-sm text-gray-600">在瀏覽器中顯示即時通知</p>
+                  <Label>{t('settings.notifications.desktop')}</Label>
+                  <p className="text-sm text-gray-600">{t('settings.notifications.desktopDescription')}</p>
                 </div>
                 <Switch
                   checked={preferences.notifications.desktop}
@@ -225,8 +230,8 @@ const SystemSettings = () => {
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>AI 建議通知</Label>
-                  <p className="text-sm text-gray-600">接收 AI 的優化建議</p>
+                  <Label>{t('settings.notifications.aiSuggestions')}</Label>
+                  <p className="text-sm text-gray-600">{t('settings.notifications.aiSuggestionsDescription')}</p>
                 </div>
                 <Switch
                   checked={preferences.notifications.aiSuggestions}
@@ -243,8 +248,8 @@ const SystemSettings = () => {
               )}
 
               <div className="flex justify-end">
-                <Button onClick={saveToAPI} disabled={loading} aria-label="儲存變更">
-                  {loading ? '儲存中...' : '儲存變更'}
+                <Button onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                  {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
                 </Button>
               </div>
             </CardContent>
@@ -254,21 +259,21 @@ const SystemSettings = () => {
         <TabsContent value="security" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>安全性設定</CardTitle>
-              <CardDescription>保護您的帳號安全</CardDescription>
+              <CardTitle>{t('settings.security.title')}</CardTitle>
+              <CardDescription>{t('settings.security.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="current-password">當前密碼</Label>
+                  <Label htmlFor="current-password">{t('settings.security.currentPassword')}</Label>
                   <Input id="current-password" type="password" className="mt-2" />
                 </div>
                 <div>
-                  <Label htmlFor="new-password">新密碼</Label>
+                  <Label htmlFor="new-password">{t('settings.security.newPassword')}</Label>
                   <Input id="new-password" type="password" className="mt-2" />
                 </div>
                 <div>
-                  <Label htmlFor="confirm-password">確認新密碼</Label>
+                  <Label htmlFor="confirm-password">{t('settings.security.confirmPassword')}</Label>
                   <Input id="confirm-password" type="password" className="mt-2" />
                 </div>
               </div>
@@ -277,17 +282,17 @@ const SystemSettings = () => {
                 <div className="space-y-0.5">
                   <Label className="flex items-center gap-2">
                     <Key className="w-4 h-4" />
-                    雙因素驗證 (2FA)
+                    {t('settings.security.twoFactor')}
                   </Label>
-                  <p className="text-sm text-gray-600">為您的帳號增加額外安全層</p>
+                  <p className="text-sm text-gray-600">{t('settings.security.twoFactorDescription')}</p>
                 </div>
-                <Badge className="bg-green-100 text-green-800">已啟用</Badge>
+                <Badge className="bg-green-100 text-green-800">{t('settings.security.twoFactorEnabled')}</Badge>
               </div>
 
               <div className="flex justify-end gap-3">
-                <Button variant="outline">取消</Button>
+                <Button variant="outline">{t('actions.cancel')}</Button>
                 <Button onClick={saveToAPI} disabled={loading}>
-                  {loading ? '更新中...' : '更新密碼'}
+                  {loading ? t('settings.security.updating') : t('settings.security.updatePassword')}
                 </Button>
               </div>
             </CardContent>

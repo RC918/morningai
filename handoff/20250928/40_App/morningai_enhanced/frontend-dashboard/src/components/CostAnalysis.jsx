@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,8 +12,14 @@ import {
   Calendar,
   Download
 } from 'lucide-react'
+import { EmptyState, ErrorRecovery } from '@/components/feedback'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const CostAnalysis = () => {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [costData, setCostData] = useState(null)
+  
   const mockCostData = {
     currentMonth: 1245.50,
     lastMonth: 980.30,
@@ -40,19 +47,90 @@ const CostAnalysis = () => {
         return <span className="text-gray-600 text-sm">→</span>
     }
   }
+  
+  useEffect(() => {
+    const loadCostData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        setCostData(mockCostData)
+      } catch (err) {
+        setError(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadCostData()
+  }, [])
+  
+  const handleRetry = () => {
+    setError(null)
+    setLoading(true)
+    setTimeout(() => {
+      setCostData(mockCostData)
+      setLoading(false)
+    }, 500)
+  }
+  
+  if (loading) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="w-full">
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <Skeleton className="h-10 w-full sm:w-[180px]" />
+            <Skeleton className="h-10 w-full sm:w-32" />
+          </div>
+        </div>
+        <Skeleton className="h-24" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <Skeleton className="h-64" />
+        <Skeleton className="h-48" />
+      </div>
+    )
+  }
+  
+  if (error) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <ErrorRecovery error={error} onRetry={handleRetry} />
+      </div>
+    )
+  }
+  
+  if (!costData) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <EmptyState
+          icon={DollarSign}
+          title="尚無成本數據"
+          description="系統還沒有任何成本分析數據。當系統開始運行後，您將在這裡看到詳細的成本分析報告。"
+        />
+      </div>
+    )
+  }
 
-  const budgetUsagePercentage = (mockCostData.currentMonth / mockCostData.budget) * 100
+  const budgetUsagePercentage = (costData.currentMonth / costData.budget) * 100
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">成本分析</h1>
-          <p className="text-gray-600 mt-1">追蹤與分析 AI 服務成本</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">成本分析</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">追蹤與分析 AI 服務成本</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <Select defaultValue="current">
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -62,18 +140,18 @@ const CostAnalysis = () => {
               <SelectItem value="year">本年</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Download className="w-4 h-4 mr-2" />
             導出報表
           </Button>
         </div>
       </div>
 
-      {mockCostData.alerts.length > 0 && (
+      {costData.alerts.length > 0 && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="pt-6">
             <div className="space-y-2">
-              {mockCostData.alerts.map((alert, index) => (
+              {costData.alerts.map((alert, index) => (
                 <div key={index} className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
                   <p className="text-sm text-yellow-800">{alert.message}</p>
@@ -84,7 +162,7 @@ const CostAnalysis = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
@@ -94,12 +172,12 @@ const CostAnalysis = () => {
               </div>
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              ${mockCostData.currentMonth.toFixed(2)}
+              ${costData.currentMonth.toFixed(2)}
             </p>
             <div className="flex items-center gap-2 mt-2">
-              {getTrendIcon(mockCostData.trend)}
-              <span className={`text-sm ${mockCostData.trend === 'up' ? 'text-red-600' : 'text-green-600'}`}>
-                {((mockCostData.currentMonth / mockCostData.lastMonth - 1) * 100).toFixed(1)}% 較上月
+              {getTrendIcon(costData.trend)}
+              <span className={`text-sm ${costData.trend === 'up' ? 'text-red-600' : 'text-green-600'}`}>
+                {((costData.currentMonth / costData.lastMonth - 1) * 100).toFixed(1)}% 較上月
               </span>
             </div>
           </CardContent>
@@ -114,7 +192,7 @@ const CostAnalysis = () => {
               </div>
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              ${mockCostData.budget.toFixed(2)}
+              ${costData.budget.toFixed(2)}
             </p>
             <div className="mt-2">
               <Progress value={budgetUsagePercentage} className="h-2" />
@@ -134,7 +212,7 @@ const CostAnalysis = () => {
               </div>
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              ${(mockCostData.currentMonth * 1.15).toFixed(2)}
+              ${(costData.currentMonth * 1.15).toFixed(2)}
             </p>
             <p className="text-sm text-gray-600 mt-2">
               基於當前使用趨勢
@@ -150,7 +228,7 @@ const CostAnalysis = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockCostData.breakdown.map((item, index) => (
+            {costData.breakdown.map((item, index) => (
               <div key={index}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
