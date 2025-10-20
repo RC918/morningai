@@ -11,6 +11,20 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['lucide-react', 'recharts', 'framer-motion'],
+          'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'i18n-vendor': ['i18next', 'react-i18next'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
   server: {
     proxy: {
       '/api': {
