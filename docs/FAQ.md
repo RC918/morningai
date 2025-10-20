@@ -1,72 +1,81 @@
-# E2E Test FAQ for MorningAI
+# Handling Redis Outage in MorningAI
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+In the event of a Redis outage, MorningAI's real-time task orchestration and queue management capabilities may be impacted. Redis Queue (RQ) is integral to managing background jobs that power autonomous agent systems, multi-platform integrations, and other asynchronous tasks within MorningAI. This FAQ aims to guide developers through understanding the implications of a Redis outage and how to effectively respond to ensure minimal disruption to the MorningAI platform.
 
-## What is E2E Testing?
+## Understanding the Impact of a Redis Outage
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+A Redis outage can affect various parts of the MorningAI platform, including:
 
-## How to Setup E2E Tests in MorningAI?
+- Delay in execution or complete halt of background tasks queued via RQ.
+- Disruption in real-time task orchestration.
+- Potential loss of non-persistent data if not properly backed up.
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+### Code Example: Checking Redis Connection Health
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+To monitor and check the health of your Redis connection, you can use the following Python snippet:
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+```python
+import redis
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+def check_redis_connection():
+    try:
+        r = redis.Redis(host='localhost', port=6379, db=0)
+        r.ping()
+        print("Redis connection is healthy.")
+    except redis.ConnectionError:
+        print("Failed to connect to Redis.")
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+check_redis_connection()
+```
+
+This code attempts to establish a connection with Redis and sends a ping. If successful, it confirms the health of the connection; otherwise, it catches and prints an error message.
 
 ## Related Documentation Links
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [Supabase Documentation for Integration](https://supabase.com/docs)
+- [MorningAI Repository Architecture](https://github.com/RC918/morningai/tree/main/docs)
 
 ## Common Troubleshooting Tips
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
-   
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
-   
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
+**1. Verify Redis Server Status**: Ensure that the Redis server is up and running. Use `redis-cli ping` command to check if the server responds with `PONG`.
 
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
+**2. Check Network Configuration**: Ensure there are no network issues blocking communication between MorningAI services and Redis.
 
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+**3. Monitor Logs for Errors**: Check both MorningAI application logs and Redis server logs for any error messages or warnings that could indicate the source of the problem.
+
+**4. Reconnect Logic Implementation**: Ensure your application has logic to attempt reconnection or switch over to a standby Redis server in case of connectivity issues.
+
+**5. Backup and Recovery Plan**: Regularly backup your Redis data and have a recovery plan in place to minimize data loss in case of an outage.
+
+### Example Reconnection Logic
+
+Here's an example snippet showing how you might implement reconnection logic with exponential backoff:
+
+```python
+import redis
+from time import sleep
+
+def reconnect_with_backoff():
+    max_attempts = 5
+    attempt = 0
+    
+    while attempt < max_attempts:
+        try:
+            r = redis.Redis(host='localhost', port=6379, db=0)
+            r.ping()
+            print("Successfully reconnected to Redis.")
+            break
+        except redis.ConnectionError as e:
+            wait = 2 ** attempt
+            print(f"Connection failed. Retrying in {wait} seconds...")
+            sleep(wait)
+            attempt += 1
+
+reconnect_with_backoff()
+```
+
+By following these guidelines and implementing robust error handling and recovery procedures, developers can mitigate the impact of a Redis outage on MorningAI's operations.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +83,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: Test question during Redis outage
+- Trace ID: `11e29c4a-3f35-46f6-8bc8-c37002a8f3c2`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
