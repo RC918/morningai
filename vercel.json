@@ -3,5 +3,11 @@
   "framework": "vite",
   "buildCommand": "cd handoff/20250928/40_App/frontend-dashboard && npm run build",
   "installCommand": "cd handoff/20250928/40_App/frontend-dashboard && npm install --include=dev",
-  "outputDirectory": "handoff/20250928/40_App/frontend-dashboard/dist"
+  "outputDirectory": "handoff/20250928/40_App/frontend-dashboard/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
