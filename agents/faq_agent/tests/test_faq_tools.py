@@ -43,11 +43,14 @@ class TestEmbeddingTool:
             tool = EmbeddingTool()
             
             mock_embedding = [0.1] * 1536
-            mock_response = {
-                'data': [{'embedding': mock_embedding}]
-            }
             
-            with patch('openai.Embedding.acreate', new=AsyncMock(return_value=mock_response)):
+            mock_data_item = Mock()
+            mock_data_item.embedding = mock_embedding
+            
+            mock_response = Mock()
+            mock_response.data = [mock_data_item]
+            
+            with patch.object(tool.client.embeddings, 'create', new=AsyncMock(return_value=mock_response)):
                 result = await tool.generate_embedding("test question")
                 
                 assert result['success'] is True
@@ -74,11 +77,17 @@ class TestEmbeddingTool:
             tool = EmbeddingTool()
             
             mock_embeddings = [[0.1] * 1536, [0.2] * 1536, [0.3] * 1536]
-            mock_response = {
-                'data': [{'embedding': emb} for emb in mock_embeddings]
-            }
             
-            with patch('openai.Embedding.acreate', new=AsyncMock(return_value=mock_response)):
+            mock_data_items = []
+            for emb in mock_embeddings:
+                item = Mock()
+                item.embedding = emb
+                mock_data_items.append(item)
+            
+            mock_response = Mock()
+            mock_response.data = mock_data_items
+            
+            with patch.object(tool.client.embeddings, 'create', new=AsyncMock(return_value=mock_response)):
                 result = await tool.generate_embeddings_batch([
                     "question 1",
                     "question 2",

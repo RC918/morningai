@@ -4,7 +4,7 @@ Embedding Tool - Generate embeddings for FAQ questions
 
 import os
 from typing import Dict, Any, List
-import openai
+from openai import AsyncOpenAI
 
 
 class EmbeddingTool:
@@ -24,7 +24,7 @@ class EmbeddingTool:
         if not self.api_key:
             raise ValueError("OpenAI API key is required")
         
-        openai.api_key = self.api_key
+        self.client = AsyncOpenAI(api_key=self.api_key)
     
     async def generate_embedding(self, text: str) -> Dict[str, Any]:
         """
@@ -48,12 +48,12 @@ class EmbeddingTool:
                     'error': 'Empty text provided'
                 }
             
-            response = await openai.Embedding.acreate(
+            response = await self.client.embeddings.create(
                 model=self.model,
                 input=text
             )
             
-            embedding = response['data'][0]['embedding']
+            embedding = response.data[0].embedding
             
             return {
                 'success': True,
@@ -104,12 +104,12 @@ class EmbeddingTool:
                 batch = texts[i:i + batch_size]
                 
                 try:
-                    response = await openai.Embedding.acreate(
+                    response = await self.client.embeddings.create(
                         model=self.model,
                         input=batch
                     )
                     
-                    batch_embeddings = [item['embedding'] for item in response['data']]
+                    batch_embeddings = [item.embedding for item in response.data]
                     embeddings.extend(batch_embeddings)
                     
                 except Exception as e:
