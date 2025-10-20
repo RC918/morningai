@@ -1,72 +1,54 @@
-# E2E Test FAQ for MorningAI
+# Test Retry Success in MorningAI
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+Understanding and implementing test retries in MorningAI is crucial for ensuring the reliability and robustness of your application. This guide provides comprehensive insights into the test retry mechanism, helping developers effectively utilize this feature within the MorningAI platform.
 
-## What is E2E Testing?
+## Understanding Test Retries
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+Test retries are a mechanism that allows a test that has failed to be automatically re-executed a certain number of times before being marked as a definitive failure. This is particularly useful in scenarios where tests might fail intermittently due to external dependencies or transient issues such as network latency or resource contention.
 
-## How to Setup E2E Tests in MorningAI?
+In MorningAI, test retries can be configured at various levels including individual tests, suites, or globally across all tests. This flexibility ensures that critical tests can be given more retry attempts to mitigate the impact of flaky failures on your CI/CD pipeline's stability.
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+### Configuration
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+To configure test retries in MorningAI, you will need to modify your test runner configuration. Assuming you're using pytest with Flask, here's an example of how you might set up retries:
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+```python
+# In your conftest.py or a dedicated config file
+def pytest_addoption(parser):
+    parser.addoption("--retry", action="store", default=1, help="Number of times to retry failing tests")
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+def pytest_runtest_setup(item):
+    retry_count = item.config.getoption("--retry")
+    if retry_count > 1:
+        plugin = item.config.pluginmanager.getplugin("flaky")
+        plugin.add_flaky_marker(item.nodeid, max_runs=retry_count)
+```
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+This example adds a command-line option `--retry` to control the number of retries for failing tests. The `pytest_runtest_setup` function checks for this option and applies the necessary configuration to each test.
 
-## Related Documentation Links
+### Usage
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+To use test retries with the above configuration, run your pytest command as follows:
 
-## Common Troubleshooting Tips
+```bash
+pytest --retry=3
+```
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
-   
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
-   
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
+This command tells pytest to retry any failing tests up to 3 times before marking them as failures.
 
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
+### Related Documentation
 
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+For more detailed information on configuring and using pytest, refer to the [pytest documentation](https://docs.pytest.org/en/latest/).
+
+## Troubleshooting Common Issues
+
+When implementing test retries, several common issues may arise:
+
+- **Flaky Tests Becoming Invisible**: Over-relying on retries can mask issues with flaky tests. Ensure that retries are used judiciously and that flaky tests are ultimately fixed rather than ignored.
+- **Incorrect Configuration**: Ensure that your configuration changes are correctly applied. Double-check `conftest.py` or wherever your retry logic is defined.
+- **Dependency on Test Order**: If your tests have dependencies on the order they are run (which should be avoided), retries might introduce unexpected behavior. Make sure each test is independent.
+
+By understanding how to configure and use test retries within MorningAI, developers can improve their testing strategy's resilience against transient failures, leading to more stable builds and deployments.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +56,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: Test retry success
+- Trace ID: `33481e7b-a811-47b3-8041-3d7eabf8b48c`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
