@@ -16,6 +16,7 @@ import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'
 import { DashboardSkeleton } from '@/components/feedback/ContentSkeleton'
 import apiClient from '@/lib/api'
+import { safeInterval } from '@/lib/safeInterval'
 
 const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
   const [{ isDragging }, drag] = useDrag({
@@ -159,9 +160,8 @@ const Dashboard = () => {
   }, [loadDashboardLayout, loadAvailableWidgets, loadDashboardData])
 
   useEffect(() => {
-    // 模擬實時數據更新 - 有限次數 + 可見性暫停
-    let n = 0, id
-    const step = () => {
+    // 模擬實時數據更新 - 使用 safeInterval
+    const cleanup = safeInterval(() => {
       setSystemMetrics(prev => ({
         ...prev,
         cpu_usage: Math.max(50, Math.min(90, prev.cpu_usage + (Math.random() - 0.5) * 10)),
@@ -172,25 +172,9 @@ const Dashboard = () => {
       if (!isEditMode) {
         loadDashboardData()
       }
-      
-      if (++n >= 120) {
-        clearInterval(id)
-      }
-    }
-    const vis = () => {
-      if (document.hidden) {
-        clearInterval(id)
-      } else {
-        id = setInterval(step, 5000)
-      }
-    }
-    document.addEventListener("visibilitychange", vis)
-    vis()
+    }, 5000, 120)
 
-    return () => {
-      clearInterval(id)
-      document.removeEventListener("visibilitychange", vis)
-    }
+    return cleanup
   }, [isEditMode, loadDashboardData])
 
 

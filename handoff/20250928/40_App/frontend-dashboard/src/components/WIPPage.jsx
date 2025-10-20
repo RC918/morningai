@@ -4,6 +4,7 @@ import { Clock, ArrowLeft, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { safeInterval } from '@/lib/safeInterval'
 
 const WIPPage = ({ 
   title = "功能開發中", 
@@ -15,8 +16,7 @@ const WIPPage = ({
   const [countdown, setCountdown] = useState(redirectSeconds)
 
   useEffect(() => {
-    let n = 0, id
-    const step = () => {
+    const cleanup = safeInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
           navigate('/dashboard')
@@ -24,24 +24,9 @@ const WIPPage = ({
         }
         return prev - 1
       })
-      if (++n >= 120) {
-        clearInterval(id)
-      }
-    }
-    const vis = () => {
-      if (document.hidden) {
-        clearInterval(id)
-      } else {
-        id = setInterval(step, 1000)
-      }
-    }
-    document.addEventListener("visibilitychange", vis)
-    vis()
+    }, 1000, 120)
 
-    return () => {
-      clearInterval(id)
-      document.removeEventListener("visibilitychange", vis)
-    }
+    return cleanup
   }, [navigate])
 
   const defaultMilestones = [

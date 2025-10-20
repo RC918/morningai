@@ -2,7 +2,6 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import * as Sentry from '@sentry/react'
 import Sidebar from '@/components/Sidebar'
 import LoginPage from '@/components/LoginPage'
 import LandingPage from '@/components/LandingPage'
@@ -41,18 +40,20 @@ function AppContent() {
   useEffect(() => {
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
     if (sentryDsn && !window.Sentry) {
-      Sentry.init({
-        dsn: sentryDsn,
-        environment: import.meta.env.MODE,
-        integrations: [
-          Sentry.browserTracingIntegration(),
-          Sentry.replayIntegration()
-        ],
-        tracesSampleRate: 1.0,
-        replaysSessionSampleRate: 0.1,
-        replaysOnErrorSampleRate: 1.0,
+      import('@sentry/react').then((Sentry) => {
+        Sentry.init({
+          dsn: sentryDsn,
+          environment: import.meta.env.MODE,
+          integrations: [
+            Sentry.browserTracingIntegration(),
+            Sentry.replayIntegration()
+          ],
+          tracesSampleRate: 1.0,
+          replaysSessionSampleRate: 0.1,
+          replaysOnErrorSampleRate: 1.0,
+        })
+        window.Sentry = Sentry
       })
-      window.Sentry = Sentry
     }
 
     const handleApiError = (event) => {
