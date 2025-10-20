@@ -15,7 +15,8 @@ const WIPPage = ({
   const [countdown, setCountdown] = useState(redirectSeconds)
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    let n = 0, id
+    const step = () => {
       setCountdown(prev => {
         if (prev <= 1) {
           navigate('/dashboard')
@@ -23,9 +24,24 @@ const WIPPage = ({
         }
         return prev - 1
       })
-    }, 1000)
+      if (++n >= 120) {
+        clearInterval(id)
+      }
+    }
+    const vis = () => {
+      if (document.hidden) {
+        clearInterval(id)
+      } else {
+        id = setInterval(step, 1000)
+      }
+    }
+    document.addEventListener("visibilitychange", vis)
+    vis()
 
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener("visibilitychange", vis)
+    }
   }, [navigate])
 
   const defaultMilestones = [

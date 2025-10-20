@@ -116,17 +116,33 @@ const DecisionApproval = () => {
   const [approvalComment, setApprovalComment] = useState('')
 
   useEffect(() => {
-    // 模擬自動倒計時
-    const interval = setInterval(() => {
+    // 模擬自動倒計時 - 有限次數 + 可見性暫停
+    let n = 0, id
+    const step = () => {
       setPendingDecisions(prev => 
         prev.map(decision => ({
           ...decision,
           auto_approve_in: Math.max(0, decision.auto_approve_in - 1)
         }))
       )
-    }, 1000)
+      if (++n >= 120) {
+        clearInterval(id)
+      }
+    }
+    const vis = () => {
+      if (document.hidden) {
+        clearInterval(id)
+      } else {
+        id = setInterval(step, 1000)
+      }
+    }
+    document.addEventListener("visibilitychange", vis)
+    vis()
 
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener("visibilitychange", vis)
+    }
   }, [])
 
   const handleApprove = async (decisionId, comment = '') => {

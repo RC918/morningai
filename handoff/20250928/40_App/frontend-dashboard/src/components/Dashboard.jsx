@@ -159,8 +159,9 @@ const Dashboard = () => {
   }, [loadDashboardLayout, loadAvailableWidgets, loadDashboardData])
 
   useEffect(() => {
-    // 模擬實時數據更新
-    const interval = setInterval(() => {
+    // 模擬實時數據更新 - 有限次數 + 可見性暫停
+    let n = 0, id
+    const step = () => {
       setSystemMetrics(prev => ({
         ...prev,
         cpu_usage: Math.max(50, Math.min(90, prev.cpu_usage + (Math.random() - 0.5) * 10)),
@@ -171,9 +172,25 @@ const Dashboard = () => {
       if (!isEditMode) {
         loadDashboardData()
       }
-    }, 5000)
+      
+      if (++n >= 120) {
+        clearInterval(id)
+      }
+    }
+    const vis = () => {
+      if (document.hidden) {
+        clearInterval(id)
+      } else {
+        id = setInterval(step, 5000)
+      }
+    }
+    document.addEventListener("visibilitychange", vis)
+    vis()
 
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener("visibilitychange", vis)
+    }
   }, [isEditMode, loadDashboardData])
 
 

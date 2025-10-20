@@ -1,19 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import * as Sentry from '@sentry/react'
 import Sidebar from '@/components/Sidebar'
-import Dashboard from '@/components/Dashboard'
-import StrategyManagement from '@/components/StrategyManagement'
-import DecisionApproval from '@/components/DecisionApproval'
-import HistoryAnalysis from '@/components/HistoryAnalysis'
-import CostAnalysis from '@/components/CostAnalysis'
-import SystemSettings from '@/components/SystemSettings'
-import TenantSettings from '@/components/TenantSettings'
-import CheckoutPage from '@/components/CheckoutPage'
-import CheckoutSuccess from '@/components/CheckoutSuccess'
-import CheckoutCancel from '@/components/CheckoutCancel'
 import LoginPage from '@/components/LoginPage'
 import LandingPage from '@/components/LandingPage'
 import WIPPage from '@/components/WIPPage'
@@ -30,6 +20,17 @@ import '@/i18n/config'
 import './App.css'
 import './styles/mobile-optimizations.css'
 import './styles/motion-governance.css'
+
+const Dashboard = lazy(() => import('@/components/Dashboard'))
+const StrategyManagement = lazy(() => import('@/components/StrategyManagement'))
+const DecisionApproval = lazy(() => import('@/components/DecisionApproval'))
+const HistoryAnalysis = lazy(() => import('@/components/HistoryAnalysis'))
+const CostAnalysis = lazy(() => import('@/components/CostAnalysis'))
+const SystemSettings = lazy(() => import('@/components/SystemSettings'))
+const TenantSettings = lazy(() => import('@/components/TenantSettings'))
+const CheckoutPage = lazy(() => import('@/components/CheckoutPage'))
+const CheckoutSuccess = lazy(() => import('@/components/CheckoutSuccess'))
+const CheckoutCancel = lazy(() => import('@/components/CheckoutCancel'))
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -161,8 +162,9 @@ function AppContent() {
               <Sidebar user={user} onLogout={handleLogout} />
               
               <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
-                <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Suspense fallback={<PageLoader message="正在載入頁面..." />}>
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
               {/* Feature-gated routes */}
               {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
@@ -209,7 +211,8 @@ function AppContent() {
               {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
                 <Route path="/dashboard" element={<WIPPage title="儀表板開發中" />} />
               )}
-                </Routes>
+                  </Routes>
+                </Suspense>
               </main>
               
               <Toaster />

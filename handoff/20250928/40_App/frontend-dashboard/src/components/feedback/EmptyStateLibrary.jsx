@@ -137,7 +137,9 @@ export const EmptyStateLibrary = ({
       {illustration ? (
         <motion.img 
           src={illustration} 
-          alt="" 
+          alt=""
+          aria-hidden="true"
+          role="presentation"
           className="w-64 h-64 mb-6"
           variants={floatingVariants}
           animate="animate"
