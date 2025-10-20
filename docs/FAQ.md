@@ -1,72 +1,69 @@
-# E2E Test FAQ for MorningAI
+# Test Retry Mechanism in MorningAI
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+In the context of software development, especially within a SaaS platform like MorningAI, ensuring the reliability and robustness of the system is crucial. One way to achieve this is by implementing a test retry mechanism. This FAQ aims to help developers understand and use the test retry functionality in the MorningAI platform, specifically within the RC918/morningai repository.
 
-## What is E2E Testing?
+## Understanding Test Retry Mechanism
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+The test retry mechanism is designed to automatically rerun failed tests before marking them as failures. This approach helps in mitigating issues caused by transient conditions such as network latency, temporary service unavailability, or random test order dependencies.
 
-## How to Setup E2E Tests in MorningAI?
+MorningAI utilizes this mechanism to enhance its CI/CD pipeline's reliability, ensuring that only genuine failures are reported. This approach significantly reduces manual intervention for flaky tests and improves overall development efficiency.
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+### How It Works
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+When a test fails during the CI/CD process, the test retry mechanism triggers a predefined number of retries before marking the test as failed. Each retry involves rerunning the entire test or a specific part of it under the same conditions.
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+### Configuration
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+To configure the test retry mechanism in MorningAI's CI/CD pipeline, you can modify the `ci-cd-config.yml` file located at `/config/ci-cd-config.yml` within the RC918/morningai repository. Below is an example configuration for integrating test retries:
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+```yaml
+test:
+  override:
+    - command: "pytest --reruns 3"
+      description: "Running tests with retry mechanism"
+```
+
+In this example, `--reruns 3` specifies that each test should be retried up to 3 times if it fails.
+
+## Code Example
+
+Here's a simple code snippet demonstrating how to integrate pytest's rerun functionality in a Python testing script:
+
+```python
+# test_example.py
+import pytest
+import requests
+
+def check_external_service():
+    response = requests.get("https://api.external-service.com")
+    assert response.status_code == 200
+
+def test_external_service():
+    check_external_service()
+```
+
+Running this with pytest and rerun flags:
+
+```bash
+pytest test_example.py --reruns 3
+```
+
+This command will rerun `test_external_service` up to three times if it fails initially.
 
 ## Related Documentation Links
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+- Pytest RerunFailures Plugin: [https://pytest-rerunfailures.readthedocs.io/en/latest/](https://pytest-rerunfailures.readthedocs.io/en/latest/)
+- GitHub Actions Documentation for Retries: [https://docs.github.com/en/actions](https://docs.github.com/en/actions)
 
-## Common Troubleshooting Tips
+## Troubleshooting Common Issues
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
+1. **Excessive Reruns**: If you notice that tests are consistently needing multiple reruns to pass, it might be indicative of underlying stability issues with your code or external dependencies. Review your code and dependencies for potential improvements.
    
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
+2. **Misconfiguration**: Ensure that your CI/CD pipeline configuration files are correctly set up for retries. A common mistake is misplacing or incorrectly formatting the `--reruns` flag.
    
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
+3. **Dependencies on External Services**: Tests dependent on external services can be more prone to flakiness due to factors outside your control. Consider mocking these services during tests when possible.
 
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
-
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+By understanding and properly configuring the test retry mechanism in MorningAI's development workflow, teams can significantly improve their productivity and focus on delivering high-quality features without being bogged down by flaky tests.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +71,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: Test retry success
+- Trace ID: `3eb61eb8-66a2-49e2-ba03-561dc547bbb2`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
