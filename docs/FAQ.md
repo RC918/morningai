@@ -1,52 +1,75 @@
-# Test Retry Mechanism in MorningAI
+# Testing Sentry Trace ID in MorningAI
 
-MorningAI incorporates a robust test retry mechanism designed to enhance the reliability and stability of its autonomous agent system and overall platform functionality. This feature is particularly beneficial for managing flaky tests or external dependencies that might occasionally fail due to transient issues. Understanding how to implement and utilize this mechanism can significantly improve your development workflow within the MorningAI ecosystem.
+Sentry is a powerful error tracking tool that helps developers monitor and fix crashes in real-time. In the context of MorningAI, Sentry is integrated to enhance the reliability of the platform by quickly identifying, tracking, and resolving issues. A key component of Sentry's utility is the `trace_id`, which uniquely identifies a set of events or transactions across the system. This FAQ aims to guide developers on how to test and utilize Sentry's `trace_id` within the MorningAI platform.
 
-## Understanding Test Retries
+## Understanding Trace ID
 
-Test retries provide a way to automatically rerun failed tests before marking them as failures. This capability is crucial for mitigating the impact of nondeterministic errors, such as network instability or temporary service outages, on your continuous integration (CI) pipeline.
+The `trace_id` is a unique identifier used by Sentry to link together a series of events or transactions. This allows developers to trace the path of an issue through the system, understanding its impact and root cause.
 
-### How It Works
+### How Trace ID Works in MorningAI
 
-The retry mechanism in MorningAI is integrated into the test framework used by the platform, typically via configuration settings or decorators that specify the number of retry attempts for a given test. When a test fails, the system will automatically attempt to rerun it based on the defined criteria before conclusively determining its failure.
+In MorningAI, each task or process that might fail or produce an error generates a `trace_id`. This ID can be used to track the specific flow of execution that led to an error, making it easier to diagnose and resolve issues.
 
-### Configuration
+## Implementing and Testing Trace ID
 
-To configure test retries in MorningAI, you need to modify the testing configuration file, usually located at `tests/config.py` or directly within your test suite using decorators. Here's an example using Python's unittest framework:
+To implement and test Sentry's `trace_id` functionality in MorningAI, follow these steps:
+
+### Step 1: Configuration
+
+Ensure Sentry is configured correctly in your environment. In your Flask app setup (typically found in `app/__init__.py`), ensure you have something like:
 
 ```python
-import unittest
-from morningai.retry import retry_on_failure
+from sentry_sdk import init
+from sentry_sdk.integrations.flask import FlaskIntegration
 
-@retry_on_failure(retries=3)
-class MyTestCase(unittest.TestCase):
-    def test_example(self):
-        # Your test code here
-        self.assertEqual('foo'.upper(), 'FOO')
+sentry_sdk.init(
+    dsn="your_sentry_dsn_here",
+    integrations=[FlaskIntegration()]
+)
 ```
 
-In this example, `retry_on_failure` is a hypothetical decorator provided by MorningAI to enable retry logic. The `retries=3` parameter indicates that the test should be rerun up to three times if it fails before finally being marked as failed.
+Replace `"your_sentry_dsn_here"` with your actual Sentry DSN.
 
-### Related Documentation
+### Step 2: Generating and Logging Trace ID
 
-- For more detailed information on configuring your tests and implementing retries, refer to our Testing Guide: [MorningAI Testing Guide](https://docs.morningai.com/testing-guide).
-- Understanding decorators in Python: [Python Decorators](https://docs.python.org/3/glossary.html#term-decorator).
+When initializing a task or process that should be tracked, generate a `trace_id`:
 
-## Troubleshooting Common Issues
+```python
+import uuid
+from sentry_sdk import set_context
 
-### Test Still Fails After Maximum Retries
+def start_task():
+    trace_id = uuid.uuid4()
+    set_context("trace", {"id": str(trace_id)})
+    # Proceed with your task logic
+```
 
-If a test continues to fail even after the maximum number of retries:
-1. **Investigate Persistent Issues**: Consider whether the test is uncovering a consistent bug or issue with the application.
-2. **Review Test Stability**: Evaluate if the test itself is flaky and needs refinement.
-3. **External Dependencies**: Check any external services or APIs for ongoing issues.
+### Step 3: Testing
 
-### Incorrect Retry Behavior
+To test, intentionally produce an error in a task where you've implemented the trace ID logic:
 
-- **Configuration Mistakes**: Ensure that the retry decorator is correctly applied and configured.
-- **Interference from Other Decorators/Test Framework Features**: Some testing frameworks or additional decorators might interfere with retry logic. Review documentation and implementation details for compatibility notes.
+```python
+def start_task():
+    trace_id = uuid.uuid4()
+    set_context("trace", {"id": str(trace_id)})
+    # Intentional error for testing
+    raise ValueError("This is a test error")
+```
 
-For further assistance, consult our troubleshooting guide or reach out through our developer community forums.
+Check your Sentry dashboard for the reported error. You should be able to find the `trace_id` associated with this error in the event's details.
+
+## Related Documentation Links
+
+- [Sentry Documentation](https://docs.sentry.io)
+- [Python SDK for Sentry](https://docs.sentry.io/platforms/python/)
+
+## Common Troubleshooting Tips
+
+- **Missing Errors**: If errors are not appearing in Sentry, check that your DSN is correctly configured and that your internet connection allows communication with Sentry's servers.
+- **Trace ID Not Found**: Ensure that `set_context` is being called before any potential error or exception could occur in your code path.
+- **Performance Issues**: Overuse of tracing or generating excessive logs can impact application performance. Use trace IDs judiciously.
+
+Remember, proper integration and testing of Sentry's trace ID functionality can significantly improve the maintainability and reliability of MorningAI by providing detailed insights into errors and system behavior.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -54,7 +77,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `3a4186b9-4db4-44f8-a11b-b8cda3af6f9d`
+- Task: Test Sentry trace_id
+- Trace ID: `5308d24e-ace7-4eaf-9f30-4efc06eac39f`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
