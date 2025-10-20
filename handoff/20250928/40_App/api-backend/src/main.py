@@ -2,6 +2,7 @@ import os
 import sys
 import datetime
 import asyncio
+import re
 
 from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
@@ -81,7 +82,34 @@ app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'sta
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 
 cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
-CORS(app, resources={r"/*": {"origins": cors_origins}})
+cors_origins = [origin.strip() for origin in cors_origins]
+
+def is_vercel_preview(origin):
+    """Check if origin is a Vercel preview URL"""
+    return origin and re.match(r'https://.*\.vercel\.app$', origin)
+
+@app.after_request
+def add_cors_headers(response):
+    """Add CORS headers for allowed origins including Vercel preview URLs"""
+    origin = request.headers.get('Origin')
+    
+    if origin in cors_origins or is_vercel_preview(origin):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+    
+    return response
+
+cors_config = {
+    "origins": cors_origins,
+    "supports_credentials": True,
+    "allow_headers": ["Content-Type", "Authorization"],
+    "expose_headers": ["Content-Type", "Authorization"],
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+}
+
+CORS(app, resources={r"/*": cors_config})
 
 if SECURITY_AVAILABLE:
     security_config = {
