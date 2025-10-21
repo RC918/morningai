@@ -46,6 +46,8 @@
     "@sentry/react": "^10.17.0",
     "@sentry/vite-plugin": "^4.3.0",
     "@tailwindcss/vite": "^4.1.7",
+    "@tolgee/i18next": "^6.2.7",
+    "@tolgee/react": "^6.2.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

@@ -1,6 +1,7 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
+import tolgee from './tolgee'
 
 import zhTW from './locales/zh-TW.json'
 import enUS from './locales/en-US.json'
@@ -110,4 +111,4 @@ i18n
   })
 
 export default i18n
-export { customLanguageDetector, isLocalStorageAvailable, isBrowser }
+export { customLanguageDetector, isLocalStorageAvailable, isBrowser, tolgee }

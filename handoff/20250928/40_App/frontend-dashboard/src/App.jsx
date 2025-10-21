@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { TolgeeProvider } from '@tolgee/react'
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
@@ -17,6 +18,7 @@ import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
 import '@/i18n/config'
+import { tolgee } from '@/i18n/config'
 import './App.css'
 import './styles/mobile-optimizations.css'
 import './styles/motion-governance.css'
@@ -232,9 +234,11 @@ function AppContent() {
 
 function App() {
   return (
-    <NotificationProvider>
-      <AppContent />
-    </NotificationProvider>
+    <TolgeeProvider tolgee={tolgee} fallback={<PageLoader message="Loading translations..." />}>
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
+    </TolgeeProvider>
   )
 }
 
