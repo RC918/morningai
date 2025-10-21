@@ -41,6 +41,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
               src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
               alt="Morning AI" 
               className="w-10 h-10 rounded-lg shadow-sm"
+              style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
             />
             <span className="text-xl font-bold text-gray-900 dark:text-white">
               {t('app.name')}
@@ -247,6 +248,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                   src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
                   alt="Morning AI" 
                   className="w-10 h-10 rounded-lg shadow-sm"
+                  style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
                 />
                 <span className="text-lg font-bold text-gray-900 dark:text-white">
                   {t('app.name')}

@@ -83,6 +83,7 @@ const LoginPage = ({ onLogin }) => {
               src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
               alt="Morning AI" 
               className="w-full h-full rounded-2xl"
+              style={{ width: '64px', height: '64px', maxWidth: '64px', maxHeight: '64px' }}
             />
           </motion.div>
           <h1 className="text-3xl font-bold text-gray-900">{t('app.name')}</h1>
