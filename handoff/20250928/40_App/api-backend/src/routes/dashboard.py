@@ -1,7 +1,15 @@
 from flask import Blueprint, jsonify, request
 import random
 import datetime
+import logging
 from typing import Dict, List
+from src.middleware.auth_middleware import jwt_required
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
+)
+logger = logging.getLogger(__name__)
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -200,10 +208,12 @@ def get_cost_analysis():
         return jsonify({'error': '獲取成本分析失敗'}), 500
 
 @dashboard_bp.route('/layouts', methods=['GET'])
+@jwt_required
 def get_dashboard_layout():
     """獲取用戶的 Dashboard 佈局"""
     try:
-        user_id = request.args.get('user_id', 'default')
+        user_id = request.user_id
+        logger.info(f"Fetching dashboard layout for user_id={user_id}")
         
         default_layout = {
             'user_id': user_id,
@@ -222,16 +232,23 @@ def get_dashboard_layout():
         return jsonify(default_layout)
         
     except Exception as e:
+        logger.error(f"Failed to fetch dashboard layout: {e}", extra={"user_id": getattr(request, 'user_id', None)})
         return jsonify({'error': '獲取佈局失敗'}), 500
 
 @dashboard_bp.route('/layouts', methods=['POST'])
+@jwt_required
 def save_dashboard_layout():
     """儲存用戶的 Dashboard 佈局"""
     try:
+        user_id = request.user_id
         data = request.get_json()
-        user_id = data.get('user_id', 'default')
-        layout = data.get('layout', {})
         
+        if not data:
+            logger.warning(f"Empty request body for save_dashboard_layout, user_id={user_id}")
+            return jsonify({'error': '請求數據不能為空'}), 400
+        
+        layout = data.get('layout', {})
+        logger.info(f"Saving dashboard layout for user_id={user_id}, widgets_count={len(layout.get('widgets', []))}")
         
         return jsonify({
             'status': 'success',
@@ -241,12 +258,17 @@ def save_dashboard_layout():
         })
         
     except Exception as e:
+        logger.error(f"Failed to save dashboard layout: {e}", extra={"user_id": getattr(request, 'user_id', None)})
         return jsonify({'error': '儲存佈局失敗'}), 500
 
 @dashboard_bp.route('/widgets', methods=['GET'])
+@jwt_required
 def get_available_widgets():
     """獲取可用的 Dashboard 小工具列表"""
     try:
+        user_id = request.user_id
+        logger.info(f"Fetching available widgets for user_id={user_id}")
+        
         widgets = [
             {
                 'id': 'cpu_usage',
@@ -322,8 +344,10 @@ def get_available_widgets():
             }
         ]
         
+        logger.info(f"Returning {len(widgets)} widgets for user_id={user_id}")
         return jsonify({'widgets': widgets})
         
     except Exception as e:
+        logger.error(f"Failed to fetch available widgets: {e}", extra={"user_id": getattr(request, 'user_id', None)})
         return jsonify({'error': '獲取小工具列表失敗'}), 500
 

@@ -1,6 +1,7 @@
 import pytest
 from flask import Flask
 from src.routes.dashboard import dashboard_bp
+from src.middleware.auth_middleware import create_user_token
 
 
 @pytest.fixture
@@ -15,6 +16,13 @@ def app():
 def client(app):
     """Create test client"""
     return app.test_client()
+
+
+@pytest.fixture
+def auth_headers():
+    """Create authentication headers with JWT token"""
+    token = create_user_token()
+    return {'Authorization': f'Bearer {token}'}
 
 
 def test_get_system_metrics(client):
@@ -120,9 +128,9 @@ def test_get_cost_analysis_month(client):
     assert 'total_cost' in data
 
 
-def test_get_dashboard_layout(client):
+def test_get_dashboard_layout(client, auth_headers):
     """Test GET /api/dashboard/layouts"""
-    response = client.get('/api/dashboard/layouts?user_id=test_user')
+    response = client.get('/api/dashboard/layouts', headers=auth_headers)
     
     assert response.status_code == 200
     data = response.get_json()
@@ -132,17 +140,25 @@ def test_get_dashboard_layout(client):
     assert isinstance(data['widgets'], list)
 
 
-def test_save_dashboard_layout(client):
+def test_get_dashboard_layout_no_auth(client):
+    """Test GET /api/dashboard/layouts without authentication"""
+    response = client.get('/api/dashboard/layouts')
+    
+    assert response.status_code == 401
+    data = response.get_json()
+    assert 'error' in data
+
+
+def test_save_dashboard_layout(client, auth_headers):
     """Test POST /api/dashboard/layouts"""
     layout_data = {
-        'user_id': 'test_user',
         'layout': {
             'widgets': [
                 {'id': 'cpu_usage', 'position': {'x': 0, 'y': 0, 'w': 6, 'h': 4}}
             ]
         }
     }
-    response = client.post('/api/dashboard/layouts', json=layout_data)
+    response = client.post('/api/dashboard/layouts', json=layout_data, headers=auth_headers)
     
     assert response.status_code == 200
     data = response.get_json()
@@ -151,9 +167,25 @@ def test_save_dashboard_layout(client):
     assert 'updated_at' in data
 
 
-def test_get_available_widgets(client):
+def test_save_dashboard_layout_no_auth(client):
+    """Test POST /api/dashboard/layouts without authentication"""
+    layout_data = {
+        'layout': {
+            'widgets': [
+                {'id': 'cpu_usage', 'position': {'x': 0, 'y': 0, 'w': 6, 'h': 4}}
+            ]
+        }
+    }
+    response = client.post('/api/dashboard/layouts', json=layout_data)
+    
+    assert response.status_code == 401
+    data = response.get_json()
+    assert 'error' in data
+
+
+def test_get_available_widgets(client, auth_headers):
     """Test GET /api/dashboard/widgets"""
-    response = client.get('/api/dashboard/widgets')
+    response = client.get('/api/dashboard/widgets', headers=auth_headers)
     
     assert response.status_code == 200
     data = response.get_json()
@@ -168,3 +200,12 @@ def test_get_available_widgets(client):
     assert 'category' in widget
     assert 'icon' in widget
     assert 'size' in widget
+
+
+def test_get_available_widgets_no_auth(client):
+    """Test GET /api/dashboard/widgets without authentication"""
+    response = client.get('/api/dashboard/widgets')
+    
+    assert response.status_code == 401
+    data = response.get_json()
+    assert 'error' in data
