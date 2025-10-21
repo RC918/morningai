@@ -1,72 +1,52 @@
-# E2E Test FAQ for MorningAI
+# Testing Sentry Trace ID in MorningAI
 
-End-to-End (E2E) testing is crucial in ensuring that MorningAI functions seamlessly from start to finish, simulating real-user scenarios and interactions. This section provides comprehensive insights into E2E testing within the MorningAI platform, including setup, execution, and troubleshooting common issues.
+Sentry is an error tracking tool that helps developers monitor and fix crashes in real time. The `trace_id` is a unique identifier for each transaction or error, allowing developers to trace the source of an issue across services and components within the MorningAI platform.
 
-## What is E2E Testing?
+## Understanding Sentry `trace_id`
 
-E2E testing involves testing the entire software application to validate the integration and flow from start to end. It ensures that the application behaves as expected in a real-world scenario, including interaction with databases, network calls, and other external interfaces and services.
+Each transaction or error captured by Sentry is assigned a `trace_id`. This ID is critical for debugging purposes as it helps in identifying and tracing back the exact sequence of events leading to an error. In a multi-service architecture like MorningAI, where different components interact through network calls, having a `trace_id` simplifies pinpointing where things went wrong.
 
-## How to Setup E2E Tests in MorningAI?
+### How to Use `trace_id` in MorningAI
 
-MorningAI utilizes Cypress for E2E testing due to its powerful browser automation and testing capabilities. To set up E2E tests:
+MorningAI integrates Sentry for its robust error tracking and monitoring capabilities. To utilize the `trace_id`, follow these steps:
 
-1. **Install Cypress**: Ensure you have Node.js installed on your system. In your project directory (`RC918/morningai`), run:
-   ```bash
-   npm install cypress --save-dev
-   ```
+1. **Integration Setup**: Ensure Sentry SDK is properly integrated into your service. For Flask applications within MorningAI (e.g., located at `/backend`), you might have something like this:
 
-2. **Configure Cypress**: Create a `cypress.json` file in your project root for configuration options:
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration"
-   }
-   ```
+    ```python
+    import sentry_sdk
+    from sentry_sdk.integrations.flask import FlaskIntegration
+    
+    sentry_sdk.init(
+        dsn="your_sentry_dsn_here",
+        integrations=[FlaskIntegration()]
+    )
+    ```
 
-3. **Write Tests**: Inside the `cypress/integration` directory, create new `.js` files for your tests. Here's a simple example to test the login functionality:
-   ```javascript
-   describe('Login Test', () => {
-     it('Visits the login page and logs in', () => {
-       cy.visit('/login');
-       cy.get('input[name="username"]').type('testuser');
-       cy.get('input[name="password"]').type('password123');
-       cy.get('button[type="submit"]').click();
-       cy.url().should('include', '/dashboard');
-     });
-   });
-   ```
+2. **Capturing Errors with Trace ID**: When an exception occurs, Sentry automatically captures the error along with its `trace_id`. This can be viewed in the Sentry dashboard under the specific project for MorningAI.
 
-4. **Run Tests**: Execute your tests using the Cypress Test Runner or CLI:
-   ```bash
-   npx cypress open
-   ```
-   or
-   ```bash
-   npx cypress run
-   ```
+3. **Logging with Trace ID**: For more granular tracking, especially for debugging complex workflows, you can manually log messages with trace IDs:
 
-## Related Documentation Links
+    ```python
+    from sentry_sdk import capture_message
+    
+    capture_message('Something important happened!', level='info')
+    ```
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Node.js: [https://nodejs.org/en/docs/](https://nodejs.org/en/docs/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+   To include a `trace_id`, you may need to extract it from the current context and add it as part of your log message or as an additional tag/context.
 
-## Common Troubleshooting Tips
+### Related Documentation Links
 
-1. **Tests Fail to Launch**: Ensure your application server is running before executing tests. Check if `baseUrl` in `cypress.json` matches your local development environment.
-   
-2. **Timeout Errors**: Increase default command timeout in `cypress.json` for slower applications or network calls:
-   ```json
-   {
-     "defaultCommandTimeout": 10000
-   }
-   ```
-   
-3. **Element Not Found Errors**: Ensure selectors match your application's current state or elements. Use `cy.wait()` judiciously to wait for elements or responses if necessary.
+- Sentry Python SDK: [https://docs.sentry.io/platforms/python/](https://docs.sentry.io/platforms/python/)
+- Flask Integration with Sentry: [https://docs.sentry.io/platforms/python/guides/flask/](https://docs.sentry.io/platforms/python/guides/flask/)
 
-4. **Cross-Origin Errors**: Configure CORS settings properly if your tests involve interacting with APIs or third-party services.
+### Common Troubleshooting Tips
 
-For more detailed troubleshooting advice, consult the [Cypress documentation](https://docs.cypress.io/guides/references/error-messages).
+- **Missing Trace IDs**: Ensure that the Sentry SDK is initialized early in your application's startup sequence. Late initialization can lead to missing context and trace IDs for early errors.
+- **Incorrect DSN Configuration**: Verify that your DSN (Data Source Name) is correctly configured in your environment variables or application configuration file. An incorrect DSN will prevent errors from being reported to Sentry.
+- **Network Issues**: Sentry requires a stable internet connection to send error reports. Ensure your deployment environment has reliable connectivity.
+- **Sentry Rate Limits**: Be aware of any rate limits on your Sentry account which might be causing some errors not to be reported.
+
+For more detailed information on configuring and using Sentry within MorningAI, refer to the official documentation and ensure your setup aligns with best practices for monitoring and error tracking in a multi-service architecture.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +54,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `433bddfa-df73-48b0-89ff-5745d1205c4b`
+- Task: Test Sentry trace_id
+- Trace ID: `e3fddfd6-e88c-432e-a4c5-7021155a2eb5`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai

@@ -179,6 +179,44 @@ class FAQManagementTool:
                 'faq_id': faq_id
             }
     
+    async def get_faq(self, faq_id: str) -> Dict[str, Any]:
+        """
+        Get a single FAQ by ID
+        
+        Args:
+            faq_id: UUID of the FAQ
+        
+        Returns:
+            {
+                'success': bool,
+                'faq': Dict,  # FAQ data
+                'error': str
+            }
+        """
+        try:
+            response = self.client.table('faqs') \
+                .select('*') \
+                .eq('id', faq_id) \
+                .execute()
+            
+            if not response.data:
+                return {
+                    'success': False,
+                    'error': f'FAQ with ID {faq_id} not found'
+                }
+            
+            return {
+                'success': True,
+                'faq': response.data[0]
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'faq_id': faq_id
+            }
+    
     async def delete_faq(self, faq_id: str) -> Dict[str, Any]:
         """
         Delete a FAQ
