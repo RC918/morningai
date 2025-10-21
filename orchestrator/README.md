@@ -2,6 +2,29 @@
 
 Multi-Agent Task Orchestration and Event Bus for MorningAI platform.
 
+## ⚠️ Status: Experimental / Alpha
+
+**This module is currently in alpha state and NOT production-ready.**
+
+### Known Limitations
+
+- **No Authentication/Authorization**: API endpoints are completely open without any security
+- **CORS set to `*`**: Allows requests from any origin (security vulnerability)
+- **In-Memory HITL State**: Approval requests stored in memory will be lost on restart
+- **API Endpoints Not Tested**: 0% test coverage on FastAPI routes (behavior unverified)
+- **No Production Deployment Config**: Missing Docker, CI/CD, monitoring setup
+- **No Rate Limiting**: API can be abused without throttling
+
+### DO NOT use in production until these issues are resolved.
+
+For production deployment tracking, see:
+- Issue #XXX: Implement API Authentication
+- Issue #XXX: Persist HITL Approval State to Redis
+- Issue #XXX: Add API Integration Tests
+- Issue #XXX: Create Production Deployment Configuration
+
+---
+
 ## Features
 
 - **Unified Task Schema**: Standard format for inter-agent communication
