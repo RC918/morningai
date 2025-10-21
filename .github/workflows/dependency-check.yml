@@ -1,0 +1,243 @@
+name: Dependency Management Check
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
+      - 'yarn.lock'
+      - '.github/workflows/**'
+      - 'vercel.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
+      - 'yarn.lock'
+
+jobs:
+  check-package-manager:
+    name: Verify Package Manager Consistency
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for forbidden lockfiles
+        id: check-lockfiles
+        run: |
+          echo "Checking for forbidden lockfiles..."
+          
+          FORBIDDEN_FILES=""
+          
+          # Check for pnpm-lock.yaml
+          if [ -f "pnpm-lock.yaml" ]; then
+            FORBIDDEN_FILES="${FORBIDDEN_FILES}\n- pnpm-lock.yaml"
+          fi
+          
+          # Check for yarn.lock
+          if [ -f "yarn.lock" ]; then
+            FORBIDDEN_FILES="${FORBIDDEN_FILES}\n- yarn.lock"
+          fi
+          
+          if [ -n "$FORBIDDEN_FILES" ]; then
+            echo "forbidden=true" >> $GITHUB_OUTPUT
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$FORBIDDEN_FILES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "forbidden=false" >> $GITHUB_OUTPUT
+            echo "✅ No forbidden lockfiles found"
+          fi
+
+      - name: Verify package-lock.json exists
+        id: check-npm-lock
+        run: |
+          if [ ! -f "package-lock.json" ]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "❌ package-lock.json not found!"
+            exit 1
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ package-lock.json exists"
+          fi
+
+      - name: Check vercel.json for correct installCommand
+        id: check-vercel
+        if: always()
+        run: |
+          if [ -f "vercel.json" ]; then
+            echo "Checking vercel.json configuration..."
+            
+            # Check if installCommand uses npm
+            if grep -q '"installCommand"' vercel.json; then
+              INSTALL_CMD=$(grep '"installCommand"' vercel.json)
+              
+              if echo "$INSTALL_CMD" | grep -q "pnpm"; then
+                echo "vercel_uses_pnpm=true" >> $GITHUB_OUTPUT
+                echo "❌ vercel.json uses pnpm in installCommand"
+                exit 1
+              elif echo "$INSTALL_CMD" | grep -q "yarn"; then
+                echo "vercel_uses_yarn=true" >> $GITHUB_OUTPUT
+                echo "❌ vercel.json uses yarn in installCommand"
+                exit 1
+              elif echo "$INSTALL_CMD" | grep -q "npm"; then
+                echo "vercel_uses_npm=true" >> $GITHUB_OUTPUT
+                echo "✅ vercel.json correctly uses npm"
+              fi
+            else
+              echo "⚠️ vercel.json does not specify installCommand"
+            fi
+            
+            # Check if rootDirectory is used (forbidden)
+            if grep -q '"rootDirectory"' vercel.json; then
+              echo "vercel_has_rootdir=true" >> $GITHUB_OUTPUT
+              echo "❌ vercel.json uses rootDirectory (forbidden)"
+              exit 1
+            else
+              echo "vercel_has_rootdir=false" >> $GITHUB_OUTPUT
+              echo "✅ vercel.json does not use rootDirectory"
+            fi
+          else
+            echo "⚠️ vercel.json not found"
+          fi
+
+      - name: Check GitHub Actions workflows
+        id: check-workflows
+        if: always()
+        run: |
+          echo "Checking GitHub Actions workflows..."
+          
+          WORKFLOWS_WITH_PNPM=""
+          WORKFLOWS_WITH_YARN=""
+          
+          for workflow in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$workflow" ]; then
+              if grep -q "pnpm" "$workflow"; then
+                WORKFLOWS_WITH_PNPM="${WORKFLOWS_WITH_PNPM}\n- $(basename $workflow)"
+              fi
+              if grep -q "yarn" "$workflow"; then
+                WORKFLOWS_WITH_YARN="${WORKFLOWS_WITH_YARN}\n- $(basename $workflow)"
+              fi
+            fi
+          done
+          
+          if [ -n "$WORKFLOWS_WITH_PNPM" ]; then
+            echo "workflows_pnpm<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$WORKFLOWS_WITH_PNPM" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "⚠️ Found workflows using pnpm"
+          fi
+          
+          if [ -n "$WORKFLOWS_WITH_YARN" ]; then
+            echo "workflows_yarn<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$WORKFLOWS_WITH_YARN" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "⚠️ Found workflows using yarn"
+          fi
+          
+          if [ -z "$WORKFLOWS_WITH_PNPM" ] && [ -z "$WORKFLOWS_WITH_YARN" ]; then
+            echo "✅ All workflows use npm"
+          fi
+
+      - name: Comment on PR with results
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let comment = '## ❌ Dependency Management Check Failed\n\n';
+            comment += 'This PR violates the dependency management policy. Please review the following issues:\n\n';
+            
+            // Check forbidden lockfiles
+            const forbiddenFiles = process.env.FORBIDDEN_FILES;
+            if (forbiddenFiles) {
+              comment += '### 🚫 Forbidden Lockfiles Detected\n\n';
+              comment += 'The following lockfiles should be removed:\n';
+              comment += forbiddenFiles + '\n\n';
+              comment += '**Action Required:**\n';
+              comment += '```bash\n';
+              comment += 'rm -f pnpm-lock.yaml yarn.lock\n';
+              comment += 'npm install\n';
+              comment += 'git add package-lock.json\n';
+              comment += 'git commit -m "chore: 統一使用 npm，移除非 npm lockfile"\n';
+              comment += '```\n\n';
+            }
+            
+            // Check package-lock.json
+            const npmLockExists = process.env.NPM_LOCK_EXISTS;
+            if (npmLockExists === 'false') {
+              comment += '### ❌ Missing package-lock.json\n\n';
+              comment += 'package-lock.json is required for consistent dependency management.\n\n';
+              comment += '**Action Required:**\n';
+              comment += '```bash\n';
+              comment += 'npm install\n';
+              comment += 'git add package-lock.json\n';
+              comment += 'git commit -m "chore: 新增 package-lock.json"\n';
+              comment += '```\n\n';
+            }
+            
+            // Check vercel.json
+            const vercelUsesPnpm = process.env.VERCEL_USES_PNPM;
+            const vercelUsesYarn = process.env.VERCEL_USES_YARN;
+            if (vercelUsesPnpm === 'true' || vercelUsesYarn === 'true') {
+              comment += '### ⚠️ Vercel Configuration Issue\n\n';
+              comment += 'vercel.json should use npm for installCommand.\n\n';
+              comment += '**Correct Configuration:**\n';
+              comment += '```json\n';
+              comment += '{\n';
+              comment += '  "installCommand": "cd path/to/frontend && npm install --include=dev"\n';
+              comment += '}\n';
+              comment += '```\n\n';
+            }
+            
+            comment += '---\n\n';
+            comment += '📚 **Documentation:**\n';
+            comment += '- [Dependency Management Guidelines](../blob/main/docs/DEPENDENCY_MANAGEMENT.md)\n';
+            comment += '- [Vercel Deployment Guide](../blob/main/docs/VERCEL_DEPLOYMENT_GUIDE.md)\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+        env:
+          FORBIDDEN_FILES: ${{ steps.check-lockfiles.outputs.files }}
+          NPM_LOCK_EXISTS: ${{ steps.check-npm-lock.outputs.exists }}
+          VERCEL_USES_PNPM: ${{ steps.check-vercel.outputs.vercel_uses_pnpm }}
+          VERCEL_USES_YARN: ${{ steps.check-vercel.outputs.vercel_uses_yarn }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Dependency Management Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.check-lockfiles.outputs.forbidden }}" == "true" ]; then
+            echo "❌ Forbidden lockfiles found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No forbidden lockfiles" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ steps.check-npm-lock.outputs.exists }}" == "true" ]; then
+            echo "✅ package-lock.json exists" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ package-lock.json missing" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ steps.check-vercel.outputs.vercel_uses_npm }}" == "true" ]; then
+            echo "✅ vercel.json uses npm" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ steps.check-vercel.outputs.vercel_has_rootdir }}" == "true" ]; then
+            echo "⚠️ vercel.json uses rootDirectory (not recommended)" >> $GITHUB_STEP_SUMMARY
+          fi
