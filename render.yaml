@@ -2,7 +2,7 @@ services:
   - type: web
     name: morningai-backend-v2
     env: python
-    runtime: python-3.12
+    runtime: python
     buildCommand: |
       cd handoff/20250928/40_App/api-backend &&
       pip install --upgrade pip &&
@@ -51,7 +51,7 @@ services:
   - type: worker
     name: morningai-agent-worker
     env: python
-    runtime: python-3.12
+    runtime: python
     buildCommand: |
       cd handoff/20250928/40_App/orchestrator &&
       pip install --upgrade pip &&
@@ -87,3 +87,20 @@ services:
         value: false
       - key: ORCHESTRATOR_TEST_MODE
         value: false
+
+  - type: web
+    name: braintrust-processor
+    runtime: docker
+    dockerfilePath: ./monitoring/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: COST_ALERT_THRESHOLD
+        value: "10.0"
+      - key: LATENCY_ALERT_THRESHOLD
+        value: "500.0"
+    healthCheckPath: /health
+    autoDeploy: true

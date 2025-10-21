@@ -1,6 +1,6 @@
 """Dev Agent Persistence Layer"""
-from persistence.upstash_redis_client import UpstashRedisClient, get_redis_client
-from persistence.session_state import SessionStateManager, SessionState, get_session_manager
+from .upstash_redis_client import UpstashRedisClient, get_redis_client
+from .session_state import SessionStateManager, SessionState, get_session_manager
 
 __all__ = [
     'UpstashRedisClient',
