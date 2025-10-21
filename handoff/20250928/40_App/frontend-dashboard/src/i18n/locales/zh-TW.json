@@ -242,12 +242,20 @@
   },
   "settings": {
     "title": "系統設定",
-    "description": "管理您的帳號與系統偏好設定",
+    "description": "管理您的帳戶偏好設定和系統配置",
+    "saveChanges": "儲存變更",
+    "saving": "儲存中...",
+    "loadingTitle": "載入頁面標題",
+    "loadingDescription": "載入頁面描述",
+    "loadingMainSettings": "載入主要設定區域",
+    "loadingSecondarySettings": "載入次要設定區域",
     "tabs": {
       "profile": "個人資料",
       "preferences": "偏好設定",
-      "notifications": "通知",
-      "security": "安全性"
+      "notifications": "通知設定",
+      "security": "安全設定",
+      "system": "系統配置",
+      "billing": "帳單資訊"
     },
     "profile": {
       "title": "個人資料",
@@ -261,35 +269,77 @@
       "saving": "儲存中..."
     },
     "preferences": {
-      "title": "介面偏好",
-      "description": "自訂您的使用體驗",
+      "title": "外觀設定",
+      "description": "自訂您的介面外觀和體驗",
       "language": "語言",
       "theme": "主題",
-      "themeLight": "淺色",
-      "themeDark": "深色",
-      "themeAuto": "自動"
+      "themeLight": "淺色主題",
+      "themeDark": "深色主題",
+      "themeAuto": "自動",
+      "timezone": "時區",
+      "autoRefresh": "自動重新整理間隔 (秒)"
     },
     "notifications": {
-      "title": "通知設定",
-      "description": "管理您希望接收的通知",
+      "title": "通知偏好設定",
+      "description": "選擇您希望接收通知的方式",
       "email": "電子郵件通知",
-      "emailDescription": "接收重要更新的電子郵件",
+      "emailDescription": "接收重要系統更新和警報",
+      "push": "推播通知",
+      "pushDescription": "瀏覽器推播通知",
+      "sms": "簡訊通知",
+      "smsDescription": "緊急事件簡訊通知",
+      "slack": "Slack 通知",
+      "slackDescription": "團隊協作通知",
       "desktop": "桌面通知",
       "desktopDescription": "在瀏覽器中顯示即時通知",
       "aiSuggestions": "AI 建議通知",
       "aiSuggestionsDescription": "接收 AI 的優化建議"
     },
     "security": {
-      "title": "安全性設定",
-      "description": "保護您的帳號安全",
+      "title": "安全設定",
+      "description": "管理您的帳戶安全和存取控制",
       "currentPassword": "當前密碼",
       "newPassword": "新密碼",
       "confirmPassword": "確認新密碼",
-      "twoFactor": "雙因素驗證 (2FA)",
-      "twoFactorDescription": "為您的帳號增加額外安全層",
+      "twoFactor": "雙重驗證",
+      "twoFactorDescription": "為您的帳戶增加額外的安全層",
       "twoFactorEnabled": "已啟用",
+      "sessionTimeout": "工作階段逾時 (秒)",
+      "auditLogging": "稽核日誌",
+      "auditLoggingDescription": "記錄所有系統存取和操作",
       "updatePassword": "更新密碼",
       "updating": "更新中..."
+    },
+    "system": {
+      "title": "系統配置",
+      "description": "調整系統行為和效能設定",
+      "autoApproval": "自動審批",
+      "autoApprovalDescription": "低風險決策自動審批",
+      "riskThreshold": "風險閾值",
+      "monitoringInterval": "監控間隔 (秒)",
+      "apiRateLimit": "API 速率限制 (每小時)"
+    },
+    "billing": {
+      "title": "帳單資訊",
+      "description": "管理您的訂閱和付款方式",
+      "currentPlan": "目前方案",
+      "billingCycle": "計費週期",
+      "billingCycleMonthly": "每月",
+      "billingCycleYearly": "每年",
+      "nextBillingDate": "下次計費日期",
+      "paymentMethod": "付款方式",
+      "updatePaymentMethod": "更新付款方式",
+      "viewBillingHistory": "查看帳單歷史"
+    },
+    "timezones": {
+      "taipei": "台北 (UTC+8)",
+      "tokyo": "東京 (UTC+9)",
+      "utc": "UTC (UTC+0)"
+    },
+    "languages": {
+      "zhTW": "繁體中文",
+      "enUS": "English",
+      "jaJP": "日本語"
     }
   },
   "checkout": {

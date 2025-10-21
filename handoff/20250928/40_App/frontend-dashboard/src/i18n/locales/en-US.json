@@ -242,12 +242,20 @@
   },
   "settings": {
     "title": "System Settings",
-    "description": "Manage your account and system preferences",
+    "description": "Manage your account preferences and system configuration",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "loadingTitle": "Loading page title",
+    "loadingDescription": "Loading page description",
+    "loadingMainSettings": "Loading main settings area",
+    "loadingSecondarySettings": "Loading secondary settings area",
     "tabs": {
       "profile": "Profile",
       "preferences": "Preferences",
       "notifications": "Notifications",
-      "security": "Security"
+      "security": "Security",
+      "system": "System",
+      "billing": "Billing"
     },
     "profile": {
       "title": "Profile",
@@ -261,19 +269,27 @@
       "saving": "Saving..."
     },
     "preferences": {
-      "title": "Interface Preferences",
-      "description": "Customize your experience",
+      "title": "Appearance Settings",
+      "description": "Customize your interface appearance and experience",
       "language": "Language",
       "theme": "Theme",
-      "themeLight": "Light",
-      "themeDark": "Dark",
-      "themeAuto": "Auto"
+      "themeLight": "Light Theme",
+      "themeDark": "Dark Theme",
+      "themeAuto": "Auto",
+      "timezone": "Timezone",
+      "autoRefresh": "Auto Refresh Interval (seconds)"
     },
     "notifications": {
-      "title": "Notification Settings",
-      "description": "Manage the notifications you want to receive",
+      "title": "Notification Preferences",
+      "description": "Choose how you want to receive notifications",
       "email": "Email Notifications",
-      "emailDescription": "Receive important updates via email",
+      "emailDescription": "Receive important system updates and alerts",
+      "push": "Push Notifications",
+      "pushDescription": "Browser push notifications",
+      "sms": "SMS Notifications",
+      "smsDescription": "Emergency event SMS notifications",
+      "slack": "Slack Notifications",
+      "slackDescription": "Team collaboration notifications",
       "desktop": "Desktop Notifications",
       "desktopDescription": "Show real-time notifications in browser",
       "aiSuggestions": "AI Suggestion Notifications",
@@ -281,15 +297,49 @@
     },
     "security": {
       "title": "Security Settings",
-      "description": "Protect your account security",
+      "description": "Manage your account security and access control",
       "currentPassword": "Current Password",
       "newPassword": "New Password",
       "confirmPassword": "Confirm New Password",
-      "twoFactor": "Two-Factor Authentication (2FA)",
+      "twoFactor": "Two-Factor Authentication",
       "twoFactorDescription": "Add an extra layer of security to your account",
       "twoFactorEnabled": "Enabled",
+      "sessionTimeout": "Session Timeout (seconds)",
+      "auditLogging": "Audit Logging",
+      "auditLoggingDescription": "Record all system access and operations",
       "updatePassword": "Update Password",
       "updating": "Updating..."
+    },
+    "system": {
+      "title": "System Configuration",
+      "description": "Adjust system behavior and performance settings",
+      "autoApproval": "Auto Approval",
+      "autoApprovalDescription": "Automatically approve low-risk decisions",
+      "riskThreshold": "Risk Threshold",
+      "monitoringInterval": "Monitoring Interval (seconds)",
+      "apiRateLimit": "API Rate Limit (per hour)"
+    },
+    "billing": {
+      "title": "Billing Information",
+      "description": "Manage your subscription and payment methods",
+      "currentPlan": "Current Plan",
+      "billingCycle": "Billing Cycle",
+      "billingCycleMonthly": "Monthly",
+      "billingCycleYearly": "Yearly",
+      "nextBillingDate": "Next Billing Date",
+      "paymentMethod": "Payment Method",
+      "updatePaymentMethod": "Update Payment Method",
+      "viewBillingHistory": "View Billing History"
+    },
+    "timezones": {
+      "taipei": "Taipei (UTC+8)",
+      "tokyo": "Tokyo (UTC+9)",
+      "utc": "UTC (UTC+0)"
+    },
+    "languages": {
+      "zhTW": "繁體中文",
+      "enUS": "English",
+      "jaJP": "日本語"
     }
   },
   "checkout": {
