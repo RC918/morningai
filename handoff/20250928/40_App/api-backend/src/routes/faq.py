@@ -8,6 +8,7 @@ from redis import Redis, ConnectionError as RedisConnectionError
 from redis.retry import Retry
 from redis.backoff import ExponentialBackoff
 from pydantic import BaseModel, Field, ValidationError, field_validator
+from typing import Optional
 import sys
 import asyncio
 from functools import wraps
@@ -58,8 +59,8 @@ class FAQSearchRequest(BaseModel):
     q: str = Field(..., description="Search query")
     page: int = Field(1, description="Page number", ge=1)
     page_size: int = Field(10, description="Results per page", ge=1, le=100)
-    category: str = Field(None, description="Filter by category")
-    sort_by: str = Field(None, description="Sort field (created_at, updated_at)")
+    category: Optional[str] = Field(None, description="Filter by category")
+    sort_by: Optional[str] = Field(None, description="Sort field (created_at, updated_at)")
     sort_order: str = Field("desc", description="Sort order (asc, desc)")
     
     @field_validator('q')
