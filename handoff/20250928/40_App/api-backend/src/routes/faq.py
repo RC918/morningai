@@ -8,6 +8,7 @@ from redis import Redis, ConnectionError as RedisConnectionError
 from redis.retry import Retry
 from redis.backoff import ExponentialBackoff
 from pydantic import BaseModel, Field, ValidationError, field_validator
+from typing import Optional
 import sys
 import asyncio
 from functools import wraps
@@ -58,8 +59,8 @@ class FAQSearchRequest(BaseModel):
     q: str = Field(..., description="Search query")
     page: int = Field(1, description="Page number", ge=1)
     page_size: int = Field(10, description="Results per page", ge=1, le=100)
-    category: str = Field(None, description="Filter by category")
-    sort_by: str = Field(None, description="Sort field (created_at, updated_at)")
+    category: Optional[str] = Field(None, description="Filter by category")
+    sort_by: Optional[str] = Field(None, description="Sort field (created_at, updated_at)")
     sort_order: str = Field("desc", description="Sort order (asc, desc)")
     
     @field_validator('q')
@@ -311,13 +312,36 @@ async def search_faqs():
         return jsonify({"data": response_data, "cached": False}), 200
         
     except Exception as e:
-        logger.exception(f"FAQ search error: {e}")
+        error_type = type(e).__name__
+        error_msg = str(e)
+        
+        logger.exception(
+            f"FAQ search error [{error_type}]: {error_msg}",
+            extra={
+                'query': validated.q,
+                'page': validated.page,
+                'category': validated.category,
+                'error_type': error_type,
+                'error_details': error_msg
+            }
+        )
+        
         if sentry_sdk:
+            sentry_sdk.set_context("faq_search", {
+                "query": validated.q,
+                "page": validated.page,
+                "page_size": validated.page_size,
+                "category": validated.category,
+                "sort_by": validated.sort_by,
+                "error_type": error_type
+            })
             sentry_sdk.capture_exception(e)
+        
         return jsonify({
             "error": {
                 "code": "internal_error",
-                "message": "An error occurred while searching FAQs"
+                "message": "An error occurred while searching FAQs",
+                "details": error_msg if os.getenv('DEBUG') == 'true' else None
             }
         }), 500
 
@@ -732,6 +756,84 @@ async def get_categories():
                 "message": "An error occurred while fetching categories"
             }
         }), 500
+
+@bp.route("/health", methods=["GET"])
+@jwt_required
+@async_route
+async def health_check():
+    """Database health check endpoint
+    
+    Returns:
+        200: Health check passed
+        503: Health check failed
+    """
+    health_status = {
+        "service": "faq",
+        "status": "unknown",
+        "checks": {},
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    
+    health_status["checks"]["faq_agent"] = {
+        "available": FAQ_AGENT_AVAILABLE,
+        "status": "ok" if FAQ_AGENT_AVAILABLE else "unavailable"
+    }
+    
+    try:
+        redis_client.ping()
+        health_status["checks"]["redis"] = {"status": "ok"}
+    except Exception as e:
+        health_status["checks"]["redis"] = {
+            "status": "error",
+            "error": str(e)
+        }
+    
+    if FAQ_AGENT_AVAILABLE:
+        try:
+            from agents.faq_agent.tools import FAQSearchTool
+            search_tool = FAQSearchTool()
+            
+            test_result = await search_tool.search(query="test", limit=1, threshold=0.0)
+            
+            if test_result.get('success'):
+                health_status["checks"]["database"] = {
+                    "status": "ok",
+                    "table_accessible": True,
+                    "rpc_function": "match_faqs"
+                }
+            else:
+                error_msg = test_result.get('error', 'Unknown error')
+                health_status["checks"]["database"] = {
+                    "status": "error",
+                    "table_accessible": False,
+                    "error": error_msg,
+                    "hint": "Check if 'match_faqs' RPC function and 'faqs' table exist in Supabase"
+                }
+        except Exception as e:
+            health_status["checks"]["database"] = {
+                "status": "error",
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "hint": "Check Supabase connection string and pgvector extension"
+            }
+    
+    all_ok = all(
+        check.get("status") == "ok" 
+        for check in health_status["checks"].values()
+    )
+    health_status["status"] = "healthy" if all_ok else "degraded"
+    
+    status_code = 200 if all_ok else 503
+    
+    if sentry_sdk and not all_ok:
+        sentry_sdk.add_breadcrumb(
+            category='health',
+            message='FAQ service health check failed',
+            level='warning',
+            data=health_status["checks"]
+        )
+    
+    return jsonify(health_status), status_code
 
 @bp.route("/stats", methods=["GET"])
 @rate_limit
