@@ -162,7 +162,6 @@ const Dashboard = () => {
   }, [loadDashboardLayout, loadAvailableWidgets, loadDashboardData])
 
   useEffect(() => {
-    // 模擬實時數據更新 - 使用 safeInterval
     const cleanup = safeInterval(() => {
       setSystemMetrics(prev => ({
         ...prev,
