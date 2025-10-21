@@ -32,6 +32,14 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture
+def auth_headers():
+    """Create authentication headers with JWT token"""
+    from src.middleware.auth_middleware import create_user_token
+    token = create_user_token()
+    return {'Authorization': f'Bearer {token}'}
+
+
 class TestHealthCheckE2E:
     """E2E tests for health check endpoints"""
     
@@ -85,7 +93,7 @@ class TestHealthCheckE2E:
 class TestDashboardWorkflowE2E:
     """E2E tests for complete dashboard workflow"""
     
-    def test_dashboard_complete_workflow(self, client):
+    def test_dashboard_complete_workflow(self, client, auth_headers):
         """Test complete dashboard workflow: widgets -> layout -> data"""
         response1 = client.get('/api/dashboard/widgets/available')
         assert response1.status_code == 200
@@ -93,7 +101,7 @@ class TestDashboardWorkflowE2E:
         assert isinstance(widgets, list)
         assert len(widgets) > 0
         
-        response2 = client.get('/api/dashboard/layouts?user_id=e2e-test')
+        response2 = client.get('/api/dashboard/layouts', headers=auth_headers)
         assert response2.status_code in [200, 500]
         
         if response2.status_code == 200:
@@ -103,12 +111,9 @@ class TestDashboardWorkflowE2E:
         response3 = client.get('/api/dashboard/data?hours=1')
         assert response3.status_code in [200, 500]
     
-    def test_dashboard_layout_crud(self, client):
+    def test_dashboard_layout_crud(self, client, auth_headers):
         """Test CRUD operations on dashboard layouts"""
-        user_id = 'e2e-crud-test'
-        
         new_layout = {
-            'user_id': user_id,
             'layout': {
                 'widgets': [
                     {'id': 'cpu_usage', 'position': {'x': 0, 'y': 0, 'w': 6, 'h': 4}},
@@ -117,11 +122,11 @@ class TestDashboardWorkflowE2E:
             }
         }
         
-        save_response = client.post('/api/dashboard/layouts', json=new_layout)
+        save_response = client.post('/api/dashboard/layouts', json=new_layout, headers=auth_headers)
         assert save_response.status_code in [200, 500]
         
         if save_response.status_code == 200:
-            get_response = client.get(f'/api/dashboard/layouts?user_id={user_id}')
+            get_response = client.get('/api/dashboard/layouts', headers=auth_headers)
             if get_response.status_code == 200:
                 retrieved_layout = get_response.get_json()
                 assert 'widgets' in retrieved_layout or isinstance(retrieved_layout, dict)
@@ -217,9 +222,9 @@ class TestErrorHandlingE2E:
         
         assert response.status_code in [400, 500]
     
-    def test_missing_required_fields(self, client):
+    def test_missing_required_fields(self, client, auth_headers):
         """Test error handling when required fields are missing"""
-        response = client.post('/api/dashboard/layouts', json={})
+        response = client.post('/api/dashboard/layouts', json={}, headers=auth_headers)
         
         assert response.status_code in [200, 400, 500]
 
@@ -373,10 +378,8 @@ class TestConcurrentRequests:
 class TestEndToEndScenarios:
     """Complete end-to-end user scenarios"""
     
-    def test_new_user_dashboard_setup(self, client):
+    def test_new_user_dashboard_setup(self, client, auth_headers):
         """Test complete new user dashboard setup scenario"""
-        user_id = 'new-e2e-user'
-        
         health_response = client.get('/health')
         assert health_response.status_code in [200, 500]
         health_data = health_response.get_json()
@@ -389,20 +392,19 @@ class TestEndToEndScenarios:
         assert len(widgets) > 0
         
         layout = {
-            'user_id': user_id,
             'layout': {
                 'widgets': [widgets[0], widgets[1]] if len(widgets) >= 2 else widgets
             }
         }
         
-        layout_response = client.post('/api/dashboard/layouts', json=layout)
+        layout_response = client.post('/api/dashboard/layouts', json=layout, headers=auth_headers)
         assert layout_response.status_code in [200, 500]
         
         if layout_response.status_code == 200:
             layout_data = layout_response.get_json()
             assert layout_data.get('status') == 'success' or 'message' in layout_data
         
-        data_response = client.get(f'/api/dashboard/data?user_id={user_id}')
+        data_response = client.get('/api/dashboard/data')
         assert data_response.status_code in [200, 500]
         
         if data_response.status_code == 200:

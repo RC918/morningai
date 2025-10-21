@@ -27,6 +27,14 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture
+def auth_headers():
+    """Create authentication headers with JWT token"""
+    from src.middleware.auth_middleware import create_user_token
+    token = create_user_token()
+    return {'Authorization': f'Bearer {token}'}
+
+
 class TestHealthEndpoints:
     """Test health check endpoints"""
     
@@ -299,19 +307,19 @@ class TestEnvironmentValidation:
 class TestDashboardLayouts:
     """Test dashboard layout management"""
     
-    def test_dashboard_layouts_endpoints(self, client):
+    def test_dashboard_layouts_endpoints(self, client, auth_headers):
         """Test dashboard layouts endpoints"""
-        response_get = client.get('/api/dashboard/layouts?user_id=test-user')
+        response_get = client.get('/api/dashboard/layouts', headers=auth_headers)
         assert response_get.status_code in [200, 500]
         
         layout_data = {
-            'user_id': 'test-user',
             'layout': {'widgets': []}
         }
         response_post = client.post(
             '/api/dashboard/layouts',
             data=json.dumps(layout_data),
-            content_type='application/json'
+            content_type='application/json',
+            headers=auth_headers
         )
         assert response_post.status_code in [200, 500]
 

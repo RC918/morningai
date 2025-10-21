@@ -13,8 +13,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 import time
 
-from knowledge_graph.knowledge_graph_manager import KnowledgeGraphManager
-from error_handler import ErrorCode, create_error, create_success
+from .knowledge_graph_manager import KnowledgeGraphManager
+from agents.dev_agent.error_handler import ErrorCode, create_error, create_success
 
 logger = logging.getLogger(__name__)
 
