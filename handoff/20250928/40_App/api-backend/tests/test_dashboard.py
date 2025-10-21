@@ -146,7 +146,7 @@ def test_save_dashboard_layout(client):
     
     assert response.status_code == 200
     data = response.get_json()
-    assert data['success'] is True
+    assert data['status'] == 'success'
     assert 'user_id' in data
     assert 'updated_at' in data
 

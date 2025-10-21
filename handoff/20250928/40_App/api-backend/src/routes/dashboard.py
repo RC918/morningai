@@ -234,7 +234,8 @@ def save_dashboard_layout():
         
         
         return jsonify({
-            'success': True,
+            'status': 'success',
+            'message': 'Dashboard layout saved successfully',
             'user_id': user_id,
             'updated_at': datetime.datetime.now().isoformat()
         })
