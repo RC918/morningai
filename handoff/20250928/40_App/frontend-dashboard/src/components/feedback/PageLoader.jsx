@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 
-export const PageLoader = ({ message = '載入中...' }) => {
+export const PageLoader = ({ message }) => {
+  const { t } = useTranslation()
+  const displayMessage = message || t('feedback.loading')
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <motion.div
@@ -29,7 +32,7 @@ export const PageLoader = ({ message = '載入中...' }) => {
         className="text-center"
       >
         <h2 className="text-xl font-semibold text-gray-900 mb-2">
-          {message}
+          {displayMessage}
         </h2>
         <div className="flex space-x-1 justify-center">
           {[0, 1, 2].map((i) => (
