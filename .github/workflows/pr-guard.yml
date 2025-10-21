@@ -98,23 +98,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## ❌ Design PR Violation Detected
-
-This PR is marked as a Design PR but contains changes to backend/API files.
-
-**Design PRs are only allowed to modify:**
-- \`docs/UX/**\`
-- \`docs/UX/tokens.json\`
-- \`docs/**.md\`
-- Frontend styles and content
-
-**Forbidden changes detected:**
-Please check the workflow logs for the list of violating files.
-
-**Next steps:**
-1. Remove backend/API changes from this PR
-2. Create a separate Engineering PR for backend changes
-3. Follow RFC process for API/schema changes
-
-See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for details.`
+              body: '## ❌ Design PR Violation Detected\n\nThis PR is marked as a Design PR but contains changes to backend/API files.\n\n**Design PRs are only allowed to modify:**\n- `docs/UX/**`\n- `docs/UX/tokens.json`\n- `docs/**.md`\n- Frontend styles and content\n\n**Forbidden changes detected:**\nPlease check the workflow logs for the list of violating files.\n\n**Next steps:**\n1. Remove backend/API changes from this PR\n2. Create a separate Engineering PR for backend changes\n3. Follow RFC process for API/schema changes\n\nSee [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for details.'
             })
