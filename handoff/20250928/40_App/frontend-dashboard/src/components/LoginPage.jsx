@@ -33,13 +33,12 @@ const LoginPage = ({ onLogin }) => {
         setError(result.message || t('auth.login.loginFailed'))
       }
     } catch (error) {
-      // 開發環境下的模擬登錄
       if (credentials.username === 'admin' && credentials.password === 'admin123') {
         const mockUser = {
           id: 1,
-          name: '系統管理員',
+          name: t('sidebar.user.defaultName'),
           username: 'admin',
-          role: '超級管理員',
+          role: t('sidebar.user.defaultRole'),
           avatar: null
         }
         const mockToken = 'mock-jwt-token-' + Date.now()

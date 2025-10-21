@@ -110,7 +110,15 @@
     "editInstructions": "拖拽組件重新排列，點擊垃圾桶圖標刪除組件，或添加新的組件",
     "addWidget": "添加組件",
     "selectWidget": "選擇組件",
-    "removeWidget": "移除小工具"
+    "removeWidget": "移除小工具",
+    "decisions": {
+      "cpuOptimization": "CPU優化策略",
+      "cacheOptimization": "緩存優化",
+      "autoScaling": "自動擴容",
+      "performanceIncrease": "+{{percent}}% 性能提升",
+      "expectedResponseSpeed": "預計 +{{percent}}% 響應速度",
+      "capacityIncrease": "處理能力 +{{percent}}%"
+    }
   },
   "reportCenter": {
     "title": "報表中心",

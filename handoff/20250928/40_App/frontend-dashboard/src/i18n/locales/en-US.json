@@ -110,7 +110,15 @@
     "editInstructions": "Drag widgets to rearrange, click trash icon to remove, or add new widgets",
     "addWidget": "Add Widget",
     "selectWidget": "Select Widget",
-    "removeWidget": "Remove Widget"
+    "removeWidget": "Remove Widget",
+    "decisions": {
+      "cpuOptimization": "CPU Optimization Strategy",
+      "cacheOptimization": "Cache Optimization",
+      "autoScaling": "Auto Scaling",
+      "performanceIncrease": "+{{percent}}% Performance Improvement",
+      "expectedResponseSpeed": "Expected +{{percent}}% Response Speed",
+      "capacityIncrease": "Processing Capacity +{{percent}}%"
+    }
   },
   "reportCenter": {
     "title": "Report Center",
