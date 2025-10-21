@@ -636,7 +636,40 @@
   },
   "cost": {
     "title": "成本分析",
-    "description": "監控和優化 AI 服務成本"
+    "description": "追蹤與分析 AI 服務成本",
+    "currentMonth": "本月支出",
+    "monthlyBudget": "月度預算",
+    "estimatedEndOfMonth": "預估月底",
+    "basedOnCurrentTrend": "基於當前使用趨勢",
+    "comparedToLastMonth": "較上月",
+    "usedPercentage": "已使用",
+    "exportReport": "導出報表",
+    "costBreakdown": "成本分類",
+    "costBreakdownDescription": "按服務類別查看成本分布",
+    "optimizationSuggestions": "成本優化建議",
+    "optimizationSuggestionsDescription": "AI 自動分析的節省機會",
+    "periods": {
+      "current": "本月",
+      "last": "上月",
+      "quarter": "本季",
+      "year": "本年"
+    },
+    "categories": {
+      "aiService": "AI 服務",
+      "compute": "計算資源",
+      "storage": "儲存空間",
+      "network": "網路流量"
+    },
+    "alerts": {
+      "aiServiceIncrease": "AI 服務成本較上月增加 35%",
+      "budgetExceeded": "預計本月總成本將超出預算 10%"
+    },
+    "suggestions": {
+      "optimizeAiUsage": "優化 AI 服務使用時段",
+      "optimizeAiUsageDescription": "在離峰時段執行批次任務，預計每月可節省 $120",
+      "adjustStorageStrategy": "調整儲存策略",
+      "adjustStorageStrategyDescription": "將冷數據遷移至低成本儲存，預計每月可節省 $45"
+    }
   },
   "errors": {
     "networkError": {

@@ -636,7 +636,40 @@
   },
   "cost": {
     "title": "Cost Analysis",
-    "description": "Monitor and optimize AI service costs"
+    "description": "Track and analyze AI service costs",
+    "currentMonth": "Current Month",
+    "monthlyBudget": "Monthly Budget",
+    "estimatedEndOfMonth": "Estimated End of Month",
+    "basedOnCurrentTrend": "Based on current usage trend",
+    "comparedToLastMonth": "compared to last month",
+    "usedPercentage": "Used",
+    "exportReport": "Export Report",
+    "costBreakdown": "Cost Breakdown",
+    "costBreakdownDescription": "View cost distribution by service category",
+    "optimizationSuggestions": "Cost Optimization Suggestions",
+    "optimizationSuggestionsDescription": "AI-analyzed savings opportunities",
+    "periods": {
+      "current": "This Month",
+      "last": "Last Month",
+      "quarter": "This Quarter",
+      "year": "This Year"
+    },
+    "categories": {
+      "aiService": "AI Services",
+      "compute": "Compute Resources",
+      "storage": "Storage",
+      "network": "Network Traffic"
+    },
+    "alerts": {
+      "aiServiceIncrease": "AI service costs increased 35% compared to last month",
+      "budgetExceeded": "Estimated total cost will exceed budget by 10%"
+    },
+    "suggestions": {
+      "optimizeAiUsage": "Optimize AI Service Usage Schedule",
+      "optimizeAiUsageDescription": "Run batch tasks during off-peak hours, estimated savings of $120 per month",
+      "adjustStorageStrategy": "Adjust Storage Strategy",
+      "adjustStorageStrategyDescription": "Migrate cold data to low-cost storage, estimated savings of $45 per month"
+    }
   },
   "errors": {
     "networkError": {
