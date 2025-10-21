@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +27,7 @@ import { colors, spacing, typography } from '@/lib/design-tokens'
 import apiClient from '@/lib/api'
 
 const SettingsPageSkeleton = () => {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState(null)
   const [hasChanges, setHasChanges] = useState(false)
