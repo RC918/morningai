@@ -1,87 +1,60 @@
-# E2E Test FAQ Update for MorningAI
+# Testing Sentry `trace_id` in MorningAI
 
-End-to-end (E2E) testing is a crucial part of the software development lifecycle, ensuring that the application behaves as expected from the user's perspective. This FAQ aims to guide developers through the process of setting up, running, and troubleshooting E2E tests in the MorningAI platform.
+## What is Sentry `trace_id`?
 
-## What are E2E Tests?
+In the context of MorningAI, Sentry is utilized for real-time error tracking and monitoring, which helps in identifying, diagnosing, and fixing issues efficiently. The `trace_id` is a unique identifier for tracing errors and performance issues across the system. It enables developers to track a single transaction or error through all the logs and systems it touches, providing a cohesive view of what happened during an incident.
 
-E2E tests simulate real user scenarios, verifying that the entire flow of an application from start to finish works as intended. In the context of MorningAI, these tests ensure that all components of the platform, including autonomous agent systems, documentation management, multi-platform integration, and real-time task orchestration, work together seamlessly.
+## How to Test Sentry `trace_id`?
 
-## Setting Up E2E Tests
+Testing the Sentry `trace_id` involves generating an error or a trace in a controlled environment and then locating that specific error or trace using its unique `trace_id` within the Sentry dashboard.
 
-Before running E2E tests on MorningAI, ensure you have the following prerequisites:
+### Step 1: Configuration
 
-1. **Node.js and npm**: Make sure you have Node.js and npm installed on your machine. These are required to run JavaScript-based testing frameworks like Cypress or Puppeteer.
-2. **Test Framework**: Choose a testing framework suitable for your project needs. For MorningAI, we recommend Cypress for its easy setup and powerful testing capabilities.
+Ensure Sentry is properly configured in your MorningAI application. This typically involves setting up your Sentry DSN (Data Source Name) in your application's configuration files.
 
-### Installation Steps
+For Flask applications within MorningAI (`/backend` directory), you would usually set up Sentry like this:
 
-1. **Install Cypress**:
-    ```bash
-    npm install cypress --save-dev
-    ```
+```python
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
-2. **Configure Cypress**:
-   After installation, configure Cypress to suit your testing needs. You can modify `cypress.json` in your project root for global configurations.
-
-3. **Write Your First Test**:
-   Create a new test file under `cypress/integration/morningai_spec.js`. Here's a simple example that tests if the MorningAI homepage loads correctly:
-
-    ```javascript
-    describe('MorningAI Homepage', () => {
-      it('successfully loads', () => {
-        cy.visit('https://morningai.example.com') // Change this URL to your app's URL
-      })
-    })
-    ```
-
-## Running E2E Tests
-
-To run your E2E tests with Cypress:
-
-```bash
-./node_modules/.bin/cypress open
+sentry_sdk.init(
+    dsn="your_sentry_dsn_here",
+    integrations=[FlaskIntegration()],
+    traces_sample_rate=1.0 # Adjust sample rate as needed
+)
 ```
 
-This command opens the Cypress Test Runner, where you can select and run individual test files.
+### Step 2: Generating an Error or Trace
 
-## Troubleshooting Common Issues
+To test the `trace_id`, deliberately generate an error or a trace. For example, you can add a route that triggers an error:
 
-### 1. Tests Timing Out
-
-If your tests frequently time out, consider increasing the default timeout in `cypress.json`:
-
-```json
-{
-  "defaultCommandTimeout": 10000,
-  "pageLoadTimeout": 30000
-}
+```python
+@app.route('/trigger-error')
+def trigger_error():
+    division_by_zero = 1 / 0  # This will cause a ZeroDivisionError
+    return "This won't be executed due to the error above."
 ```
 
-### 2. Element Not Found
+### Step 3: Locating the Error in Sentry
 
-Ensure that dynamic content has fully loaded before attempting to interact with it. Use `.wait()` or `.should()` functions to wait for elements to appear:
+After triggering the error:
+1. Go to your project's dashboard on the Sentry website.
+2. Locate the error event you just generated; it should appear shortly after the error occurs.
+3. Click on the event to view its details, including the `trace_id`.
 
-```javascript
-cy.get('.dynamic-element', { timeout: 10000 }).should('be.visible');
-```
+## Related Documentation Links
 
-### 3. Cross-Origin Errors
+- [Sentry Documentation](https://docs.sentry.io)
+- [Sentry Python Integration](https://docs.sentry.io/platforms/python/)
 
-Cypress can run into cross-origin issues when testing applications with multiple domains. Use the `chromeWebSecurity` configuration option to disable Chrome Web Security:
+## Common Troubleshooting Tips
 
-```json
-{
-  "chromeWebSecurity": false
-}
-```
+- **Error not appearing in Sentry:** Check if your DSN is correctly configured and ensure your network allows communication with Sentry's servers.
+- **`trace_id` not visible:** Ensure that your sample rate for traces is correctly set (not too low), as a very low sample rate might prevent some traces from being sent to Sentry.
+- **Performance issues after integrating Sentry:** Adjust your sampling rate if you notice performance degradation. A high traces sample rate can increase overhead.
 
-## Related Documentation
-
-- [Cypress Documentation](https://docs.cypress.io)
-- [MorningAI Repository](https://github.com/RC918/morningai)
-- [Supabase Documentation](https://supabase.io/docs)
-
-Remember, thorough E2E testing is key to ensuring a high-quality user experience on the MorningAI platform. By following these guidelines and leveraging the recommended tools and practices, developers can effectively test complex workflows and interactions within their applications.
+Remember to replace `"your_sentry_dsn_here"` with your actual DSN from Sentry and adjust the `traces_sample_rate` as needed based on your application's requirements and traffic.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -89,7 +62,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `45762758-11db-4e22-8996-c715e4d8d961`
+- Task: Test Sentry trace_id
+- Trace ID: `5edf2fa0-db67-49ae-9572-30720d163aa4`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
