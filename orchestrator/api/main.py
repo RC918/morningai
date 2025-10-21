@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from orchestrator.queue.redis_queue import RedisQueue, create_redis_queue
+from orchestrator.task_queue.redis_queue import RedisQueue, create_redis_queue
 from orchestrator.schemas.task_schema import (
     UnifiedTask, TaskType, TaskPriority, TaskSource, TaskStatus, create_task
 )

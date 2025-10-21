@@ -146,6 +146,37 @@ pytest tests/ -v --cov=. --cov-report=term-missing
 
 ## Integration Examples
 
+### Recommended Import Pattern
+
+**✅ Use top-level imports (recommended)**:
+```python
+from orchestrator import RedisQueue, create_redis_queue, UnifiedTask, create_task
+```
+
+**⚠️ Direct module imports (not recommended)**:
+```python
+# This will work but is not recommended
+from orchestrator.task_queue.redis_queue import RedisQueue
+```
+
+### Migration Guide (v1.0.0 → v1.1.0)
+
+**Breaking Change**: The `queue` module has been renamed to `task_queue` to avoid conflicts with Python's built-in `queue` module.
+
+**If you were using**:
+```python
+from orchestrator.queue.redis_queue import RedisQueue  # ❌ Old (will fail)
+```
+
+**Update to**:
+```python
+from orchestrator import RedisQueue  # ✅ Recommended
+# OR
+from orchestrator.task_queue.redis_queue import RedisQueue  # ✅ Also works
+```
+
+**Impact**: Since Orchestrator has not been deployed to production yet, there are no external dependencies affected by this change.
+
 ### Dev Agent Integration
 
 ```python

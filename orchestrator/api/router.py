@@ -6,7 +6,7 @@ import logging
 from typing import Dict, Any
 
 from orchestrator.schemas.task_schema import UnifiedTask, TaskType
-from orchestrator.queue.redis_queue import RedisQueue
+from orchestrator.task_queue.redis_queue import RedisQueue
 
 logger = logging.getLogger(__name__)
 
