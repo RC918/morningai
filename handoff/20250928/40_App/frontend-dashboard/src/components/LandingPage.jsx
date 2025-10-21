@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import AppleHero from './AppleHero'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { ThemeToggle } from './ThemeToggle'
 
 const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
   const { t } = useTranslation()
@@ -47,6 +48,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
           </div>
           
           <div className="flex items-center gap-4">
+            <ThemeToggle variant="compact" />
             <LanguageSwitcher variant="compact" />
             <Button
               variant="ghost"
