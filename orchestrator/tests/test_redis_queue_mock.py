@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 import json
 
-from orchestrator.queue.redis_queue import RedisQueue
+from orchestrator.task_queue.redis_queue import RedisQueue
 from orchestrator.schemas.task_schema import UnifiedTask, TaskType, TaskPriority, TaskStatus
 from orchestrator.schemas.event_schema import AgentEvent, EventType
 
