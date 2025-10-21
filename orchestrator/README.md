@@ -2,24 +2,25 @@
 
 Multi-Agent Task Orchestration and Event Bus for MorningAI platform.
 
-## ⚠️ Status: Experimental / Alpha
+## ⚠️ Status: Beta
 
-**This module is currently in alpha state and NOT production-ready.**
+**This module is in beta state. Security features implemented, testing in progress.**
 
-### Known Limitations
+### ✅ Implemented Security Features
 
-- **No Authentication/Authorization**: API endpoints are completely open without any security
-- **CORS set to `*`**: Allows requests from any origin (security vulnerability)
-- **In-Memory HITL State**: Approval requests stored in memory will be lost on restart
-- **API Endpoints Not Tested**: 0% test coverage on FastAPI routes (behavior unverified)
-- **No Production Deployment Config**: Missing Docker, CI/CD, monitoring setup
-- **No Rate Limiting**: API can be abused without throttling
+- **✅ Authentication/Authorization**: JWT and API Key authentication with role-based access control (RBAC)
+- **✅ CORS Configuration**: Restricted to specific origins (configurable via `CORS_ORIGINS` env var)
+- **✅ Redis-Persisted HITL State**: Approval requests and history stored in Redis with 30-day retention
+- **✅ Rate Limiting**: Redis-based distributed rate limiting with per-endpoint limits
 
-### DO NOT use in production until these issues are resolved.
+### Remaining Work
+
+- **API Endpoints Testing**: Integration tests needed for FastAPI routes (Issue #560)
+- **Production Deployment Config**: Docker, CI/CD, monitoring setup needed (Issue #561)
 
 For production deployment tracking, see:
-- Issue #558: Implement API Authentication
-- Issue #559: Persist HITL Approval State to Redis
+- ~~Issue #558: Implement API Authentication~~ ✅ COMPLETED
+- ~~Issue #559: Persist HITL Approval State to Redis~~ ✅ COMPLETED
 - Issue #560: Add API Integration Tests
 - Issue #561: Create Production Deployment Configuration
 
@@ -178,9 +179,96 @@ await queue.start_event_listener()
 Set environment variables:
 
 ```bash
+# Redis connection
 REDIS_URL=redis://localhost:6379
 ORCHESTRATOR_PORT=8000
+
+# CORS configuration (comma-separated origins)
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173,https://yourdomain.com
+
+# JWT Authentication
+ORCHESTRATOR_JWT_SECRET=your-secret-key-here
+
+# API Keys (format: KEY_NAME=key_value:role)
+ORCHESTRATOR_API_KEY_DEV=dev-key-123:agent
+ORCHESTRATOR_API_KEY_ADMIN=admin-key-456:admin
 ```
+
+## Authentication
+
+The Orchestrator API supports two authentication methods:
+
+### 1. JWT (Bearer Token)
+
+```bash
+# Get a JWT token (implement your own token generation)
+TOKEN=$(python -c "from orchestrator.api.auth import create_jwt_token, Role; print(create_jwt_token('user123', Role.AGENT))")
+
+# Use the token
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/tasks
+```
+
+### 2. API Key
+
+```bash
+# Use API key in header
+curl -H "X-API-Key: dev-key-123" http://localhost:8000/tasks
+```
+
+### Roles
+
+- **admin**: Full access to all endpoints
+- **agent**: Can create tasks, publish events, manage approvals
+- **user**: Read-only access to tasks and approvals
+
+## HITL Approval Endpoints
+
+### Get Pending Approvals
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/approvals/pending
+```
+
+### Get Approval Status
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/approvals/{approval_id}
+```
+
+### Approve Request
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/approvals/{approval_id}/approve
+```
+
+### Reject Request
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/approvals/{approval_id}/reject?reason=Not+ready
+```
+
+### Get Approval History
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/approvals/history?limit=50
+```
+
+## Rate Limiting
+
+Rate limits are enforced per IP address and endpoint:
+
+- Default: 60 requests/minute
+- `/tasks`: 30 requests/minute
+- `/events/publish`: 100 requests/minute
+- `/health`: 300 requests/minute
+
+Rate limit headers are included in responses:
+- `X-RateLimit-Limit`: Maximum requests allowed
+- `X-RateLimit-Remaining`: Requests remaining in current window
+- `X-RateLimit-Reset`: Unix timestamp when limit resets
 
 ## License
 

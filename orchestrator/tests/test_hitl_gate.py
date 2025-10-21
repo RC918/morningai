@@ -6,13 +6,14 @@ from orchestrator.api.hitl_gate import HITLGate, ApprovalStatus
 from orchestrator.schemas.task_schema import UnifiedTask, TaskType, TaskPriority
 
 
+@pytest.mark.asyncio
 class TestHITLGate:
     """Test HITLGate"""
     
     @pytest.fixture
     def gate(self):
-        """Create HITL gate instance"""
-        return HITLGate()
+        """Create HITL gate instance (without Redis for unit tests)"""
+        return HITLGate(redis_queue=None)
     
     def test_requires_approval_p0(self, gate):
         """Test P0 task requires approval"""
@@ -65,11 +66,11 @@ class TestHITLGate:
         )
         assert gate.requires_approval(task)
     
-    def test_request_approval(self, gate):
+    async def test_request_approval(self, gate):
         """Test requesting approval"""
         task = UnifiedTask(type=TaskType.DEPLOY, priority=TaskPriority.P0)
         
-        approval_id = gate.request_approval(
+        approval_id = await gate.request_approval(
             task=task,
             reason="P0 production deployment",
             approver="admin"
@@ -82,12 +83,12 @@ class TestHITLGate:
         assert approval["task_id"] == task.task_id
         assert approval["status"] == ApprovalStatus.PENDING.value
     
-    def test_approve_request(self, gate):
+    async def test_approve_request(self, gate):
         """Test approving a request"""
         task = UnifiedTask(type=TaskType.DEPLOY, priority=TaskPriority.P0)
-        approval_id = gate.request_approval(task, "Test approval")
+        approval_id = await gate.request_approval(task, "Test approval")
         
-        result = gate.approve(approval_id, "admin@example.com")
+        result = await gate.approve(approval_id, "admin@example.com")
         
         assert result is True
         assert approval_id not in gate.pending_approvals
@@ -97,12 +98,12 @@ class TestHITLGate:
         assert approval["status"] == ApprovalStatus.APPROVED.value
         assert approval["approved_by"] == "admin@example.com"
     
-    def test_reject_request(self, gate):
+    async def test_reject_request(self, gate):
         """Test rejecting a request"""
         task = UnifiedTask(type=TaskType.DEPLOY, priority=TaskPriority.P0)
-        approval_id = gate.request_approval(task, "Test approval")
+        approval_id = await gate.request_approval(task, "Test approval")
         
-        result = gate.reject(approval_id, "admin@example.com", "Not ready")
+        result = await gate.reject(approval_id, "admin@example.com", "Not ready")
         
         assert result is True
         assert approval_id not in gate.pending_approvals
@@ -111,41 +112,41 @@ class TestHITLGate:
         assert approval["status"] == ApprovalStatus.REJECTED.value
         assert approval["rejection_reason"] == "Not ready"
     
-    def test_approve_nonexistent(self, gate):
+    async def test_approve_nonexistent(self, gate):
         """Test approving non-existent request"""
-        result = gate.approve("invalid-id", "admin")
+        result = await gate.approve("invalid-id", "admin")
         assert result is False
     
-    def test_get_approval_status_pending(self, gate):
+    async def test_get_approval_status_pending(self, gate):
         """Test getting approval status for pending request"""
         task = UnifiedTask(type=TaskType.DEPLOY, priority=TaskPriority.P0)
-        approval_id = gate.request_approval(task, "Test")
+        approval_id = await gate.request_approval(task, "Test")
         
-        status = gate.get_approval_status(approval_id)
+        status = await gate.get_approval_status(approval_id)
         
         assert status is not None
         assert status["status"] == ApprovalStatus.PENDING.value
     
-    def test_get_approval_status_approved(self, gate):
+    async def test_get_approval_status_approved(self, gate):
         """Test getting approval status for approved request"""
         task = UnifiedTask(type=TaskType.DEPLOY, priority=TaskPriority.P0)
-        approval_id = gate.request_approval(task, "Test")
-        gate.approve(approval_id, "admin")
+        approval_id = await gate.request_approval(task, "Test")
+        await gate.approve(approval_id, "admin")
         
-        status = gate.get_approval_status(approval_id)
+        status = await gate.get_approval_status(approval_id)
         
         assert status is not None
         assert status["status"] == ApprovalStatus.APPROVED.value
     
-    def test_get_pending_approvals(self, gate):
+    async def test_get_pending_approvals(self, gate):
         """Test getting all pending approvals"""
         task1 = UnifiedTask(type=TaskType.DEPLOY, priority=TaskPriority.P0)
         task2 = UnifiedTask(type=TaskType.FEATURE, priority=TaskPriority.P1)
         
-        gate.request_approval(task1, "Deploy approval")
-        gate.request_approval(task2, "Feature approval")
+        await gate.request_approval(task1, "Deploy approval")
+        await gate.request_approval(task2, "Feature approval")
         
-        pending = gate.get_pending_approvals()
+        pending = await gate.get_pending_approvals()
         
         assert len(pending) == 2
         assert all(a["status"] == ApprovalStatus.PENDING.value for a in pending)
