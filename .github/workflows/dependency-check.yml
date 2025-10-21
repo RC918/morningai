@@ -60,6 +60,13 @@ jobs:
       - name: Verify package-lock.json exists
         id: check-npm-lock
         run: |
+          # Only check if package.json exists at root (skip if no root package.json)
+          if [ ! -f "package.json" ]; then
+            echo "exists=skip" >> $GITHUB_OUTPUT
+            echo "⏭️ No root package.json, skipping lockfile check"
+            exit 0
+          fi
+          
           if [ ! -f "package-lock.json" ]; then
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "❌ package-lock.json not found!"
@@ -237,6 +244,8 @@ jobs:
           
           if [ "${{ steps.check-npm-lock.outputs.exists }}" == "true" ]; then
             echo "✅ package-lock.json exists" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.check-npm-lock.outputs.exists }}" == "skip" ]; then
+            echo "⏭️ No root package.json (skipped)" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ package-lock.json missing" >> $GITHUB_STEP_SUMMARY
           fi
