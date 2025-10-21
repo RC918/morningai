@@ -789,6 +789,8 @@
     "errorId": "錯誤 ID: {{id}}",
     "switchToLightMode": "切換到淺色模式",
     "switchToDarkMode": "切換到深色模式",
+    "currentPage": "當前頁面",
+    "goToPage": "前往頁面",
     "emptyState": {
       "defaultPrimaryAction": "開始使用",
       "defaultSecondaryAction": "了解更多",

@@ -789,6 +789,8 @@
     "errorId": "Error ID: {{id}}",
     "switchToLightMode": "Switch to light mode",
     "switchToDarkMode": "Switch to dark mode",
+    "currentPage": "Current page",
+    "goToPage": "Go to page",
     "emptyState": {
       "defaultPrimaryAction": "Get Started",
       "defaultSecondaryAction": "Learn More",
