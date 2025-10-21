@@ -853,5 +853,24 @@
       "planned": "Planned",
       "pending": "Pending"
     }
+  },
+  "phase3Welcome": {
+    "title": "🎉 Welcome to the New Morning AI!",
+    "subtitle": "Team Collaboration Features Now Available",
+    "teamManagement": {
+      "title": "Team Management",
+      "description": "View and manage your team members in System Settings"
+    },
+    "enhancedSecurity": {
+      "title": "Enhanced Security",
+      "description": "Enterprise-grade data isolation ensures your data security"
+    },
+    "rolePermissions": {
+      "title": "Role Permissions",
+      "description": "Flexible member role management: Owner, Admin, Member, Viewer"
+    },
+    "migrationNotice": "ℹ️ Your historical data has been safely migrated, no action needed to continue using",
+    "laterButton": "Later",
+    "settingsButton": "View Team Settings"
   }
 }
