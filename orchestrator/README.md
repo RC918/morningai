@@ -18,10 +18,10 @@ Multi-Agent Task Orchestration and Event Bus for MorningAI platform.
 ### DO NOT use in production until these issues are resolved.
 
 For production deployment tracking, see:
-- Issue #XXX: Implement API Authentication
-- Issue #XXX: Persist HITL Approval State to Redis
-- Issue #XXX: Add API Integration Tests
-- Issue #XXX: Create Production Deployment Configuration
+- Issue #558: Implement API Authentication
+- Issue #559: Persist HITL Approval State to Redis
+- Issue #560: Add API Integration Tests
+- Issue #561: Create Production Deployment Configuration
 
 ---
 
