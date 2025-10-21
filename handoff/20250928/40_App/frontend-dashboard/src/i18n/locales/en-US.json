@@ -822,5 +822,16 @@
         "secondaryAction": "View Plans"
       }
     }
+  },
+  "errorBoundary": {
+    "title": "Application Error",
+    "description": "We're sorry, the application encountered an unexpected error. We have logged this issue.",
+    "errorDetailsTitle": "Error Details",
+    "errorIdLabel": "Error ID:",
+    "reloadButton": "Reload",
+    "reloadAriaLabel": "Reload page",
+    "homeButton": "Go Home",
+    "homeAriaLabel": "Go to home page",
+    "supportMessage": "If the problem persists, please contact technical support."
   }
 }
