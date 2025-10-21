@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from 'next-themes'
+import { useTranslation } from 'react-i18next'
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
@@ -34,6 +35,7 @@ const CheckoutSuccess = lazy(() => import('@/components/CheckoutSuccess'))
 const CheckoutCancel = lazy(() => import('@/components/CheckoutCancel'))
 
 function AppContent() {
+  const { t } = useTranslation()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
@@ -61,7 +63,7 @@ function AppContent() {
     const handleApiError = (event) => {
       const { endpoint, error, status, requestId } = event.detail
       addToast({
-        title: "API 錯誤",
+        title: t('errors.apiError'),
         description: `${endpoint}: ${error} (ID: ${requestId})`,
         variant: "destructive"
       })
@@ -69,7 +71,6 @@ function AppContent() {
 
     window.addEventListener('api-error', handleApiError)
 
-    // 檢查用戶認證狀態
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token')
@@ -79,7 +80,7 @@ function AppContent() {
           setIsAuthenticated(true)
         }
       } catch (error) {
-        console.error('認證檢查失敗:', error)
+        console.error('Auth check failed:', error)
         localStorage.removeItem('auth_token')
         setUser({
           id: 'dev_user',
@@ -108,8 +109,8 @@ function AppContent() {
     setIsAuthenticated(true)
     localStorage.setItem('auth_token', token)
     addToast({
-      title: "登入成功",
-      description: `歡迎回來，${userData.name}！`,
+      title: t('auth.loginSuccess'),
+      description: t('auth.welcomeBack', { name: userData.name }),
       variant: "default"
     })
   }
@@ -126,14 +127,14 @@ function AppContent() {
     setIsAuthenticated(false)
     localStorage.removeItem('auth_token')
     addToast({
-      title: "已登出",
-      description: "您已成功登出系統",
+      title: t('auth.loggedOut'),
+      description: t('auth.logoutSuccess'),
       variant: "default"
     })
   }
 
   if (loading) {
-    return <PageLoader message="正在載入應用程式..." />
+    return <PageLoader message={t('loading.app')} />
   }
 
   const handleNavigateToLogin = () => {
@@ -165,8 +166,8 @@ function AppContent() {
               <div className="flex h-screen bg-gray-100">
               <Sidebar user={user} onLogout={handleLogout} />
               
-              <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
-                <Suspense fallback={<PageLoader message="正在載入頁面..." />}>
+              <main className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContent')}>
+                <Suspense fallback={<PageLoader message={t('loading.page')} />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
@@ -177,33 +178,33 @@ function AppContent() {
               {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
                 <Route path="/strategies" element={<StrategyManagement />} />
               ) : (
-                <Route path="/strategies" element={<WIPPage title="策略管理開發中" />} />
+                <Route path="/strategies" element={<WIPPage title={t('wip.strategies')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
                 <Route path="/approvals" element={<DecisionApproval />} />
               ) : (
-                <Route path="/approvals" element={<WIPPage title="決策審批開發中" />} />
+                <Route path="/approvals" element={<WIPPage title={t('wip.approvals')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
                 <Route path="/history" element={<HistoryAnalysis />} />
               ) : (
-                <Route path="/history" element={<WIPPage title="歷史分析開發中" />} />
+                <Route path="/history" element={<WIPPage title={t('wip.history')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
                 <Route path="/costs" element={<CostAnalysis />} />
               ) : (
-                <Route path="/costs" element={<WIPPage title="成本分析開發中" />} />
+                <Route path="/costs" element={<WIPPage title={t('wip.costs')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
                 <Route path="/settings" element={<SystemSettings />} />
               ) : (
-                <Route path="/settings" element={<WIPPage title="系統設定開發中" />} />
+                <Route path="/settings" element={<WIPPage title={t('wip.settings')} />} />
               )}
               <Route path="/tenant-settings" element={<TenantSettings />} />
               {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
                 <Route path="/checkout" element={<CheckoutPage />} />
               ) : (
-                <Route path="/checkout" element={<WIPPage title="結帳頁面開發中" />} />
+                <Route path="/checkout" element={<WIPPage title={t('wip.checkout')} />} />
               )}
               <Route path="/checkout/success" element={<CheckoutSuccess />} />
               <Route path="/checkout/cancel" element={<CheckoutCancel />} />
@@ -213,7 +214,7 @@ function AppContent() {
               
               {/* Fallback to dashboard if no dashboard feature enabled */}
               {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<WIPPage title="儀表板開發中" />} />
+                <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
               )}
                   </Routes>
                 </Suspense>

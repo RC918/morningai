@@ -289,5 +289,126 @@
         "deployment": "Dedicated deployment options"
       }
     }
+  },
+  "errors": {
+    "apiError": "API Error",
+    "networkError": {
+      "title": "Network Connection Problem",
+      "description": "Unable to connect to server, please check your network connection",
+      "action": "Retry"
+    },
+    "unauthorized": {
+      "title": "Unauthorized Access",
+      "description": "Your login has expired, please log in again",
+      "action": "Log In Again"
+    },
+    "forbidden": {
+      "title": "Insufficient Permissions",
+      "description": "You do not have permission to perform this operation",
+      "action": "Go Back"
+    },
+    "notFound": {
+      "title": "Resource Not Found",
+      "description": "The requested resource does not exist or has been removed",
+      "action": "Return to Home"
+    },
+    "validationError": {
+      "title": "Data Validation Failed",
+      "description": "Please check if your input data is correct",
+      "action": "Go Back to Modify"
+    },
+    "serverError": {
+      "title": "Server Error",
+      "description": "The server is temporarily unable to process your request, we are working on it",
+      "action": "Retry Later"
+    },
+    "timeoutError": {
+      "title": "Request Timeout",
+      "description": "Server response time is too long, please try again later",
+      "action": "Retry"
+    },
+    "rateLimit": {
+      "title": "Too Many Requests",
+      "description": "You have reached the request limit, please try again later",
+      "action": "Retry Later"
+    },
+    "unknownError": {
+      "title": "An Error Occurred",
+      "description": "An unknown error occurred, please try again later",
+      "action": "Retry"
+    }
+  },
+  "sidebar": {
+    "dashboard": {
+      "label": "Monitoring Dashboard",
+      "description": "System status overview"
+    },
+    "strategies": {
+      "label": "Strategy Management",
+      "description": "Manage AI strategies"
+    },
+    "approvals": {
+      "label": "Decision Approval",
+      "description": "Manual review pending"
+    },
+    "history": {
+      "label": "History Analysis",
+      "description": "Decision history review"
+    },
+    "costs": {
+      "label": "Cost Analysis",
+      "description": "AI service costs"
+    },
+    "settings": {
+      "label": "System Settings",
+      "description": "Configuration management"
+    },
+    "checkout": {
+      "label": "Subscription Plans",
+      "description": "Choose payment plan"
+    },
+    "defaultUser": "Administrator",
+    "defaultRole": "System Administrator"
+  },
+  "wip": {
+    "defaultTitle": "Feature Under Development",
+    "defaultDescription": "This feature is actively being developed, stay tuned!",
+    "redirectCountdown": "{{seconds}} seconds until automatic return to dashboard",
+    "progressTitle": "Development Progress",
+    "overallProgress": "Overall Progress",
+    "returnToDashboard": "Return to Dashboard Now",
+    "dashboard": "Dashboard Under Development",
+    "strategies": "Strategy Management Under Development",
+    "approvals": "Decision Approval Under Development",
+    "history": "History Analysis Under Development",
+    "costs": "Cost Analysis Under Development",
+    "settings": "System Settings Under Development",
+    "checkout": "Checkout Page Under Development",
+    "milestones": {
+      "requirements": "Requirements Analysis",
+      "design": "UI/UX Design",
+      "backend": "Backend API",
+      "frontend": "Frontend Implementation",
+      "testing": "Testing Verification"
+    },
+    "status": {
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "planned": "Planned",
+      "pending": "Pending"
+    }
+  },
+  "auth": {
+    "loginSuccess": "Login Successful",
+    "welcomeBack": "Welcome back, {{name}}!",
+    "loggedOut": "Logged Out",
+    "logoutSuccess": "You have successfully logged out of the system"
+  },
+  "loading": {
+    "app": "Loading application...",
+    "page": "Loading page..."
+  },
+  "common": {
+    "mainContent": "Main content area"
   }
 }

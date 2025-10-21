@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Clock, ArrowLeft, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,11 +8,12 @@ import { Progress } from '@/components/ui/progress'
 import { safeInterval } from '@/lib/safeInterval'
 
 const WIPPage = ({ 
-  title = "功能開發中", 
-  description = "此功能正在積極開發中，敬請期待！",
+  title, 
+  description,
   redirectSeconds = 3,
   milestones = []
 }) => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [countdown, setCountdown] = useState(redirectSeconds)
 
@@ -30,11 +32,11 @@ const WIPPage = ({
   }, [navigate])
 
   const defaultMilestones = [
-    { name: "需求分析", completed: true, date: "已完成" },
-    { name: "UI/UX 設計", completed: true, date: "已完成" },
-    { name: "後端 API", completed: false, date: "開發中" },
-    { name: "前端實作", completed: false, date: "規劃中" },
-    { name: "測試驗證", completed: false, date: "待開始" }
+    { name: t('wip.milestones.requirements'), completed: true, date: t('wip.status.completed') },
+    { name: t('wip.milestones.design'), completed: true, date: t('wip.status.completed') },
+    { name: t('wip.milestones.backend'), completed: false, date: t('wip.status.inProgress') },
+    { name: t('wip.milestones.frontend'), completed: false, date: t('wip.status.planned') },
+    { name: t('wip.milestones.testing'), completed: false, date: t('wip.status.pending') }
   ]
 
   const displayMilestones = milestones.length > 0 ? milestones : defaultMilestones
@@ -48,16 +50,16 @@ const WIPPage = ({
           <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
             <Clock className="w-8 h-8 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">{title}</CardTitle>
+          <CardTitle className="text-2xl font-bold text-gray-900">{title || t('wip.defaultTitle')}</CardTitle>
           <CardDescription className="text-lg text-gray-600 mt-2">
-            {description}
+            {description || t('wip.defaultDescription')}
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-6">
           <div className="text-center">
             <div className="text-sm text-gray-500 mb-2">
-              {countdown} 秒後自動返回儀表板
+              {t('wip.redirectCountdown', { seconds: countdown })}
             </div>
             <Progress value={((redirectSeconds - countdown) / redirectSeconds) * 100} className="w-full" />
           </div>
@@ -65,7 +67,7 @@ const WIPPage = ({
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold text-gray-900">開發進度</h3>
+              <h3 className="font-semibold text-gray-900">{t('wip.progressTitle')}</h3>
             </div>
             
             <div className="space-y-3">
@@ -92,7 +94,7 @@ const WIPPage = ({
             
             <div className="mt-4">
               <div className="flex justify-between text-sm text-gray-600 mb-1">
-                <span>整體進度</span>
+                <span>{t('wip.overallProgress')}</span>
                 <span>{Math.round(progressPercentage)}%</span>
               </div>
               <Progress value={progressPercentage} className="w-full" />
@@ -103,10 +105,10 @@ const WIPPage = ({
             <Button 
               onClick={() => navigate('/dashboard')} 
               className="flex items-center gap-2"
-              aria-label="立即返回儀表板"
+              aria-label={t('wip.returnToDashboard')}
             >
               <ArrowLeft className="w-4 h-4" />
-              立即返回儀表板
+              {t('wip.returnToDashboard')}
             </Button>
           </div>
         </CardContent>

@@ -289,5 +289,126 @@
         "deployment": "專屬部署選項"
       }
     }
+  },
+  "errors": {
+    "apiError": "API 錯誤",
+    "networkError": {
+      "title": "網路連線問題",
+      "description": "無法連接到伺服器，請檢查您的網路連線",
+      "action": "重試"
+    },
+    "unauthorized": {
+      "title": "未授權訪問",
+      "description": "您的登入已過期，請重新登入",
+      "action": "重新登入"
+    },
+    "forbidden": {
+      "title": "權限不足",
+      "description": "您沒有權限執行此操作",
+      "action": "返回"
+    },
+    "notFound": {
+      "title": "找不到資源",
+      "description": "您請求的資源不存在或已被移除",
+      "action": "返回首頁"
+    },
+    "validationError": {
+      "title": "資料驗證失敗",
+      "description": "請檢查您輸入的資料是否正確",
+      "action": "返回修改"
+    },
+    "serverError": {
+      "title": "伺服器錯誤",
+      "description": "伺服器暫時無法處理您的請求，我們正在處理",
+      "action": "稍後重試"
+    },
+    "timeoutError": {
+      "title": "請求超時",
+      "description": "伺服器響應時間過長，請稍後再試",
+      "action": "重試"
+    },
+    "rateLimit": {
+      "title": "請求過於頻繁",
+      "description": "您的請求次數已達上限，請稍後再試",
+      "action": "稍後重試"
+    },
+    "unknownError": {
+      "title": "發生錯誤",
+      "description": "發生未知錯誤，請稍後再試",
+      "action": "重試"
+    }
+  },
+  "sidebar": {
+    "dashboard": {
+      "label": "監控儀表板",
+      "description": "系統狀態總覽"
+    },
+    "strategies": {
+      "label": "策略管理",
+      "description": "管理AI策略"
+    },
+    "approvals": {
+      "label": "決策審批",
+      "description": "人工審核待辦"
+    },
+    "history": {
+      "label": "歷史分析",
+      "description": "決策歷史回顧"
+    },
+    "costs": {
+      "label": "成本分析",
+      "description": "AI服務成本"
+    },
+    "settings": {
+      "label": "系統設置",
+      "description": "配置管理"
+    },
+    "checkout": {
+      "label": "訂閱方案",
+      "description": "選擇付費方案"
+    },
+    "defaultUser": "管理員",
+    "defaultRole": "系統管理員"
+  },
+  "wip": {
+    "defaultTitle": "功能開發中",
+    "defaultDescription": "此功能正在積極開發中，敬請期待！",
+    "redirectCountdown": "{{seconds}} 秒後自動返回儀表板",
+    "progressTitle": "開發進度",
+    "overallProgress": "整體進度",
+    "returnToDashboard": "立即返回儀表板",
+    "dashboard": "儀表板開發中",
+    "strategies": "策略管理開發中",
+    "approvals": "決策審批開發中",
+    "history": "歷史分析開發中",
+    "costs": "成本分析開發中",
+    "settings": "系統設定開發中",
+    "checkout": "結帳頁面開發中",
+    "milestones": {
+      "requirements": "需求分析",
+      "design": "UI/UX 設計",
+      "backend": "後端 API",
+      "frontend": "前端實作",
+      "testing": "測試驗證"
+    },
+    "status": {
+      "completed": "已完成",
+      "inProgress": "開發中",
+      "planned": "規劃中",
+      "pending": "待開始"
+    }
+  },
+  "auth": {
+    "loginSuccess": "登入成功",
+    "welcomeBack": "歡迎回來，{{name}}！",
+    "loggedOut": "已登出",
+    "logoutSuccess": "您已成功登出系統"
+  },
+  "loading": {
+    "app": "正在載入應用程式...",
+    "page": "正在載入頁面..."
+  },
+  "common": {
+    "mainContent": "主要內容區域"
   }
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { 
   LayoutDashboard, 
   Settings, 
@@ -19,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 
 const Sidebar = ({ user, onLogout }) => {
+  const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
 
@@ -26,51 +28,51 @@ const Sidebar = ({ user, onLogout }) => {
     {
       path: '/dashboard',
       icon: LayoutDashboard,
-      label: '監控儀表板',
-      description: '系統狀態總覽',
+      label: t('sidebar.dashboard.label'),
+      description: t('sidebar.dashboard.description'),
       feature: AVAILABLE_FEATURES.DASHBOARD
     },
     {
       path: '/strategies',
       icon: Sparkles,
-      label: '策略管理',
-      description: '管理AI策略',
+      label: t('sidebar.strategies.label'),
+      description: t('sidebar.strategies.description'),
       feature: AVAILABLE_FEATURES.STRATEGIES
     },
     {
       path: '/approvals',
       icon: CheckCircle,
-      label: '決策審批',
-      description: '人工審核待辦',
+      label: t('sidebar.approvals.label'),
+      description: t('sidebar.approvals.description'),
       badge: '3',
       feature: AVAILABLE_FEATURES.APPROVALS
     },
     {
       path: '/history',
       icon: History,
-      label: '歷史分析',
-      description: '決策歷史回顧',
+      label: t('sidebar.history.label'),
+      description: t('sidebar.history.description'),
       feature: AVAILABLE_FEATURES.HISTORY
     },
     {
       path: '/costs',
       icon: DollarSign,
-      label: '成本分析',
-      description: 'AI服務成本',
+      label: t('sidebar.costs.label'),
+      description: t('sidebar.costs.description'),
       feature: AVAILABLE_FEATURES.COSTS
     },
     {
       path: '/settings',
       icon: Settings,
-      label: '系統設置',
-      description: '配置管理',
+      label: t('sidebar.settings.label'),
+      description: t('sidebar.settings.description'),
       feature: AVAILABLE_FEATURES.SETTINGS
     },
     {
       path: '/checkout',
       icon: CreditCard,
-      label: '訂閱方案',
-      description: '選擇付費方案',
+      label: t('sidebar.checkout.label'),
+      description: t('sidebar.checkout.description'),
       feature: AVAILABLE_FEATURES.CHECKOUT
     }
   ]
@@ -83,7 +85,6 @@ const Sidebar = ({ user, onLogout }) => {
     <div className={`bg-white shadow-lg transition-all duration-300 ${
       collapsed ? 'w-16' : 'w-64'
     }`}>
-      {/* 頭部 */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           {!collapsed && (
@@ -95,7 +96,7 @@ const Sidebar = ({ user, onLogout }) => {
               />
               <div>
                 <h1 className="text-lg font-bold text-gray-900">Morning AI</h1>
-                <p className="text-xs text-gray-500">智能決策系統</p>
+                <p className="text-xs text-gray-500">{t('app.tagline')}</p>
               </div>
             </div>
           )}
@@ -115,7 +116,6 @@ const Sidebar = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* 用戶信息 */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
           <Avatar className="w-10 h-10">
@@ -128,17 +128,16 @@ const Sidebar = ({ user, onLogout }) => {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.name || '管理員'}
+                {user?.name || t('sidebar.defaultUser')}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {user?.role || '系統管理員'}
+                {user?.role || t('sidebar.defaultRole')}
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* 導航菜單 */}
       <nav className="flex-1 p-4">
         <ul className="space-y-2">
           {menuItems.map((item) => {
@@ -181,7 +180,6 @@ const Sidebar = ({ user, onLogout }) => {
         </ul>
       </nav>
 
-      {/* 底部操作 */}
       <div className="p-4 border-t border-gray-200">
         <Button
           variant="ghost"
@@ -190,7 +188,7 @@ const Sidebar = ({ user, onLogout }) => {
           className={`w-full ${collapsed ? 'px-2' : 'justify-start'}`}
         >
           <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />
-          {!collapsed && '登出'}
+          {!collapsed && t('common.logout')}
         </Button>
       </div>
     </div>

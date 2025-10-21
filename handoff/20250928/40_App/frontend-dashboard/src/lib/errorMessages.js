@@ -1,64 +1,66 @@
+import i18n from '@/i18n/config'
+
 export const ERROR_MESSAGES = {
   NETWORK_ERROR: {
-    title: '網路連線問題',
-    description: '無法連接到伺服器，請檢查您的網路連線',
-    action: '重試',
+    titleKey: 'errors.networkError.title',
+    descriptionKey: 'errors.networkError.description',
+    actionKey: 'errors.networkError.action',
     icon: 'WifiOff'
   },
   
   UNAUTHORIZED: {
-    title: '未授權訪問',
-    description: '您的登入已過期，請重新登入',
-    action: '重新登入',
+    titleKey: 'errors.unauthorized.title',
+    descriptionKey: 'errors.unauthorized.description',
+    actionKey: 'errors.unauthorized.action',
     icon: 'Lock'
   },
   
   FORBIDDEN: {
-    title: '權限不足',
-    description: '您沒有權限執行此操作',
-    action: '返回',
+    titleKey: 'errors.forbidden.title',
+    descriptionKey: 'errors.forbidden.description',
+    actionKey: 'errors.forbidden.action',
     icon: 'ShieldAlert'
   },
   
   NOT_FOUND: {
-    title: '找不到資源',
-    description: '您請求的資源不存在或已被移除',
-    action: '返回首頁',
+    titleKey: 'errors.notFound.title',
+    descriptionKey: 'errors.notFound.description',
+    actionKey: 'errors.notFound.action',
     icon: 'FileQuestion'
   },
   
   VALIDATION_ERROR: {
-    title: '資料驗證失敗',
-    description: '請檢查您輸入的資料是否正確',
-    action: '返回修改',
+    titleKey: 'errors.validationError.title',
+    descriptionKey: 'errors.validationError.description',
+    actionKey: 'errors.validationError.action',
     icon: 'AlertCircle'
   },
   
   SERVER_ERROR: {
-    title: '伺服器錯誤',
-    description: '伺服器暫時無法處理您的請求，我們正在處理',
-    action: '稍後重試',
+    titleKey: 'errors.serverError.title',
+    descriptionKey: 'errors.serverError.description',
+    actionKey: 'errors.serverError.action',
     icon: 'Server'
   },
   
   TIMEOUT_ERROR: {
-    title: '請求超時',
-    description: '伺服器響應時間過長，請稍後再試',
-    action: '重試',
+    titleKey: 'errors.timeoutError.title',
+    descriptionKey: 'errors.timeoutError.description',
+    actionKey: 'errors.timeoutError.action',
     icon: 'Clock'
   },
   
   RATE_LIMIT: {
-    title: '請求過於頻繁',
-    description: '您的請求次數已達上限，請稍後再試',
-    action: '稍後重試',
+    titleKey: 'errors.rateLimit.title',
+    descriptionKey: 'errors.rateLimit.description',
+    actionKey: 'errors.rateLimit.action',
     icon: 'AlertTriangle'
   },
   
   UNKNOWN_ERROR: {
-    title: '發生錯誤',
-    description: '發生未知錯誤，請稍後再試',
-    action: '重試',
+    titleKey: 'errors.unknownError.title',
+    descriptionKey: 'errors.unknownError.description',
+    actionKey: 'errors.unknownError.action',
     icon: 'AlertCircle'
   }
 }
@@ -106,15 +108,18 @@ export const getErrorMessage = (error) => {
 }
 
 export const getErrorTitle = (error) => {
-  return getErrorMessage(error).title
+  const message = getErrorMessage(error)
+  return i18n.t(message.titleKey)
 }
 
 export const getErrorDescription = (error) => {
-  return getErrorMessage(error).description
+  const message = getErrorMessage(error)
+  return i18n.t(message.descriptionKey)
 }
 
 export const getErrorAction = (error) => {
-  return getErrorMessage(error).action
+  const message = getErrorMessage(error)
+  return i18n.t(message.actionKey)
 }
 
 export const getErrorIcon = (error) => {
