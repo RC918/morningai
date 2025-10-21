@@ -1,99 +1,76 @@
-# MorningAI System Architecture
+# System Architecture of MorningAI
 
-MorningAI's architecture is designed to support a scalable, efficient, and highly available service for autonomous code generation, FAQ documentation management, and multi-platform integration. This architecture leverages a modern technology stack and follows best practices for web application development.
+The system architecture of MorningAI is designed to support scalable, efficient, and robust autonomous agent systems for code generation, FAQ generation, documentation management, and multi-platform integration. Below is a comprehensive breakdown of the key components and how they interact within the MorningAI platform.
 
 ## Overview
 
-The system architecture of MorningAI is built around several core components, each serving a distinct role within the platform:
+MorningAI leverages a microservices architecture, utilizing a combination of modern technologies to ensure high availability, scalability, and seamless integration across various platforms including Telegram, LINE, and Messenger. The main components of the system architecture include:
 
-- **Frontend**: Developed with React, utilizing Vite for build optimization and TailwindCSS for styling. This setup provides a responsive and dynamic user interface.
-- **Backend**: Python with Flask serves as the backend framework, offering RESTful API endpoints. Gunicorn is used as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
-- **Database**: PostgreSQL, enhanced with Row Level Security (RLS) features provided by Supabase. This setup ensures data integrity and security across multi-tenant environments.
-- **Queue System**: Redis Queue (RQ) is employed for task queuing to manage background jobs like real-time task orchestration effectively.
-- **Orchestration**: LangGraph is utilized for defining and executing agent workflows, enabling complex task sequences to be managed seamlessly.
-- **AI Engine**: OpenAI GPT-4 powers content generation tasks, providing high-quality, contextually relevant text outputs.
-- **Deployment**: Render.com is used for hosting, taking advantage of its continuous integration and deployment (CI/CD) capabilities to streamline updates and maintenance.
+- **Frontend**: Built with React, Vite, and TailwindCSS for a responsive and modern user interface.
+- **Backend**: Python with Flask serving as the API layer, and Gunicorn with multi-worker support for handling concurrent requests efficiently.
+- **Database**: PostgreSQL powered by Supabase, featuring Row Level Security (RLS) for enhanced data security.
+- **Queue**: Redis Queue (RQ) is used for task scheduling and real-time task orchestration.
+- **Orchestration**: LangGraph manages agent workflows within the platform.
+- **AI Module**: Integrates OpenAI's GPT-4 for advanced content generation capabilities.
+- **Deployment**: Hosted on Render.com with Continuous Integration/Continuous Deployment (CI/CD) pipelines in place.
 
-## Detailed Breakdown
+### Detailed Components Interaction
 
-### Frontend
-The frontend layer is built using React, providing an interactive experience. The project configuration relies on Vite for fast builds and TailwindCSS for utility-first styling.
+1. **Frontend to Backend Communication**:
+   - The frontend communicates with the backend via RESTful APIs or WebSocket connections for real-time features.
+   - Example: Fetching generated FAQs from the backend.
+   ```javascript
+   fetch('/api/faqs')
+     .then(response => response.json())
+     .then(data => console.log(data));
+   ```
 
-```jsx
-// Sample React component with TailwindCSS
-function WelcomeMessage() {
-  return <div className="text-center p-4 font-bold">Welcome to MorningAI</div>;
-}
-```
+2. **Backend Services**:
+   - Flask applications handle HTTP requests and route them to appropriate services such as content generation or task orchestration.
+   - Gunicorn serves as the WSGI server with multiple workers to handle requests in parallel.
 
-### Backend
-Flask serves as the backbone of the backend, handling API requests and interfacing with other system components. Gunicorn ensures that the Flask application can handle multiple requests simultaneously by spawning multiple workers.
+3. **Task Orchestration**:
+   - Real-time tasks are managed through Redis Queue (RQ), facilitating asynchronous execution of operations like content generation.
+   - Workers pick up tasks from RQ and process them using defined workflows in LangGraph.
 
-```python
-# Sample Flask route
-from flask import Flask
-app = Flask(__name__)
+4. **Data Storage**:
+   - PostgreSQL database managed by Supabase offers structured data storage with Row Level Security for access control.
+   - Vector memory storage solutions like pgvector are utilized for efficient search operations.
 
-@app.route('/')
-def hello_world():
-    return 'Hello, World!'
-```
+5. **AI Integration**:
+   - The AI module powered by OpenAI's GPT-4 is integral for generating high-quality content based on user inputs or automated tasks.
 
-### Database Configuration
-PostgreSQL is used as the primary data store, with Supabase enhancing its capabilities through additional features like RLS. This ensures that data access is securely managed at the database level.
+6. **Deployment & CI/CD**:
+   - Render.com hosts the application with CI/CD pipelines setup for automatic testing and deployment upon code changes.
 
-```sql
--- Example of setting up RLS in PostgreSQL
-CREATE TABLE secure_data (
-    id serial PRIMARY KEY,
-    user_id integer NOT NULL,
-    data text NOT NULL
-);
-ALTER TABLE secure_data ENABLE ROW LEVEL SECURITY;
-```
+### Related Documentation Links
 
-### Queue System
-Redis Queue manages background tasks such as sending emails or processing asynchronous operations. It integrates smoothly with Flask applications.
+- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- Redis Queue (RQ) Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- Supabase Documentation: [https://supabase.io/docs](https://supabase.io/docs)
+- OpenAI API Docs: [https://beta.openai.com/docs/](https://beta.openai.com/docs/)
+- Render.com Docs: [https://render.com/docs](https://render.com/docs)
 
-```python
-# Enqueueing a job in Redis Queue
-from rq import Queue
-from redis import Redis
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
+### Common Troubleshooting Tips
 
-result = q.enqueue('my_task', args=(my_arg,), timeout=600)
-```
+1. **Backend Service Unresponsive**:
+    - Ensure Gunicorn is running with an adequate number of workers.
+    - Check server logs for any unhandled exceptions or errors in request processing.
 
-### Deployment on Render.com
-Render.com hosts both the frontend and backend components of MorningAI. Continuous integration and deployment are configured through `render.yaml` files in the repository.
+2. **Database Connection Issues**:
+    - Verify database credentials and network configurations.
+    - Ensure Row Level Security policies do not inadvertently block legitimate queries.
 
-```yaml
-# Example render.yaml snippet for deploying Flask app
-services:
-  - type: web
-    name: morningai-backend
-    env: python
-    plan: starter
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app --workers 3 --threads 2"
-```
+3. **Tasks Stuck in Redis Queue**:
+    - Investigate worker logs for errors or deadlocks.
+    - Confirm that RQ workers are running and heartbeat signals are received.
 
-## Troubleshooting
+4. **Content Generation Errors**:
+    - Validate input data formats and ensure they meet the expected schema required by GPT-4 APIs.
+    - Check API usage quotas if using external services like OpenAI.
 
-Common issues developers may encounter include:
-
-1. **Database Connection Errors**: Ensure that your environment variables are correctly set up in your `.env` file or your hosting provider's dashboard.
-2. **Failed Deployments on Render.com**: Check the logs provided by Render.com for any errors during the build or startup process. Ensure all dependencies are correctly specified in your `requirements.txt` or `package.json`.
-3. **Task Queuing Delays**: If background tasks are delayed or not executing, verify that Redis Queue workers are running and monitor their workload to ensure they're not overwhelmed.
-
-## Related Documentation Links
-
-- [React Documentation](https://reactjs.org/docs/getting-started.html)
-- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
-- [Supabase Documentation](https://supabase.io/docs)
-- [Redis Queue Documentation](https://python-rq.org/docs/)
-- [Render.com Deployment Guides](https://render.com/docs)
+For more detailed troubleshooting guides or to report issues, developers can refer to the `issues` section of the RC918/morningai repository or consult the project's dedicated support channels.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -102,6 +79,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `c408f538-1af9-427b-965f-0868cbaf2e69`
+- Trace ID: `6171b814-7acb-4749-93fa-94aab9f608ab`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
