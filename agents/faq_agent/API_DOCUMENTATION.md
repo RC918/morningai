@@ -12,7 +12,19 @@ The FAQ Agent REST API provides comprehensive FAQ management capabilities includ
 
 ## Authentication
 
-Currently, the FAQ API endpoints do not require authentication. Future versions will integrate with the JWT authentication system used by other API endpoints.
+All FAQ API endpoints require JWT authentication. Include the JWT token in the Authorization header:
+
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+**Role-Based Access Control:**
+- **User/Analyst**: Can access GET endpoints (search, get FAQ, categories, stats)
+- **Admin**: Can access all endpoints including POST, PUT, DELETE
+
+**Status Codes:**
+- `401 Unauthorized`: Missing or invalid JWT token
+- `403 Forbidden`: Insufficient privileges (admin required)
 
 ## Endpoints
 
@@ -24,40 +36,58 @@ Search for FAQs using semantic or keyword search.
 
 **Query Parameters:**
 - `q` (string, required): Search query
-- `limit` (integer, optional): Maximum results (default: 10, max: 100)
+- `page` (integer, optional): Page number (default: 1, min: 1)
+- `page_size` (integer, optional): Results per page (default: 10, min: 1, max: 100)
 - `category` (string, optional): Filter by category
+- `sort_by` (string, optional): Sort field (created_at, updated_at)
+- `sort_order` (string, optional): Sort order (asc, desc) (default: desc)
 
 **Response:**
 ```json
 {
-  "query": "how to reset password",
-  "results": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "question": "How do I reset my password?",
-      "answer": "To reset your password...",
-      "category": "account",
-      "tags": ["password", "security"],
-      "score": 0.95,
-      "created_at": "2025-01-15T10:00:00Z",
-      "updated_at": "2025-01-15T10:00:00Z"
-    }
-  ],
-  "count": 1,
-  "cached": false,
-  "timestamp": "2025-01-20T12:00:00Z"
+  "data": {
+    "query": "how to reset password",
+    "results": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "question": "How do I reset my password?",
+        "answer": "To reset your password...",
+        "category": "account",
+        "tags": ["password", "security"],
+        "score": 0.95,
+        "created_at": "2025-01-15T10:00:00Z",
+        "updated_at": "2025-01-15T10:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "page_size": 10,
+      "total_results": 1,
+      "has_more": false
+    },
+    "timestamp": "2025-01-20T12:00:00Z"
+  },
+  "cached": false
 }
 ```
 
 **Status Codes:**
 - `200 OK`: Search completed successfully
-- `400 Bad Request`: Invalid query parameters
+- `401 Unauthorized`: Missing/invalid JWT token
+- `422 Unprocessable Entity`: Validation error (e.g., page_size > 100, empty query)
+- `429 Too Many Requests`: Rate limit exceeded
 - `500 Internal Server Error`: Search failed
 - `503 Service Unavailable`: FAQ service not available
 
 **Example:**
 ```bash
-curl "https://api.example.com/api/faq/search?q=billing&limit=5"
+# Basic search
+curl -H "Authorization: Bearer $JWT_TOKEN" \
+  "https://api.example.com/api/faq/search?q=billing&page=1&page_size=5"
+
+# With pagination
+curl -H "Authorization: Bearer $JWT_TOKEN" \
+  "https://api.example.com/api/faq/search?q=billing&page=2&page_size=10&sort_order=asc"
 ```
 
 ---
@@ -359,23 +389,97 @@ All endpoints return errors in the following format:
 ```
 
 **Common Error Codes:**
-- `invalid_input`: Invalid request parameters
-- `not_found`: Resource not found
-- `create_failed`: FAQ creation failed
-- `update_failed`: FAQ update failed
-- `delete_failed`: FAQ deletion failed
-- `search_failed`: Search operation failed
-- `fetch_failed`: Data fetch failed
-- `service_unavailable`: FAQ service not available
-- `internal_error`: Unexpected server error
+- `validation_error`: Request validation failed (422)
+- `invalid_input`: Invalid request parameters (400)
+- `not_found`: Resource not found (404)
+- `create_failed`: FAQ creation failed (500)
+- `update_failed`: FAQ update failed (500)
+- `delete_failed`: FAQ deletion failed (500)
+- `search_failed`: Search operation failed (500)
+- `fetch_failed`: Data fetch failed (500)
+- `service_unavailable`: FAQ service not available (503)
+- `internal_error`: Unexpected server error (500)
+- `rate_limit_exceeded`: Rate limit exceeded (429)
 
 ---
 
 ## Rate Limiting
 
-Currently, no rate limiting is implemented. Future versions will include:
-- 100 requests per minute per IP for search
-- 20 requests per minute per IP for write operations (create/update/delete)
+Rate limiting is implemented using Redis sliding window algorithm:
+
+- **60 requests per minute per IP** (configurable via `RATE_LIMIT_REQUESTS`)
+- **60-second window** (configurable via `RATE_LIMIT_WINDOW`)
+
+### Rate Limit Headers
+
+All responses include rate limit headers for observability:
+
+```
+X-RateLimit-Limit: 60          # Maximum requests allowed in window
+X-RateLimit-Remaining: 45       # Remaining requests in current window
+X-RateLimit-Reset: 1737380400   # Unix timestamp when limit resets
+```
+
+### 429 Response Example
+
+**Response when rate limit exceeded:**
+```json
+{
+  "error": {
+    "code": "rate_limit_exceeded",
+    "message": "Rate limit exceeded. Maximum 60 requests per 60 seconds."
+  }
+}
+```
+
+**Status Code:** `429 Too Many Requests`
+
+**Headers:**
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1737380460
+```
+
+**Example:**
+```bash
+# Check rate limit status
+curl -i -H "Authorization: Bearer $JWT_TOKEN" \
+  "https://api.example.com/api/faq/categories"
+
+# Response headers:
+# X-RateLimit-Limit: 60
+# X-RateLimit-Remaining: 59
+# X-RateLimit-Reset: 1737380460
+
+# After 60 requests in 1 minute:
+# HTTP/1.1 429 Too Many Requests
+# X-RateLimit-Limit: 60
+# X-RateLimit-Remaining: 0
+# X-RateLimit-Reset: 1737380520
+```
+
+**Frontend Integration:**
+```javascript
+// Monitor rate limit in frontend
+fetch('/api/faq/search?q=test', {
+  headers: { 'Authorization': `Bearer ${token}` }
+})
+.then(response => {
+  const limit = response.headers.get('X-RateLimit-Limit');
+  const remaining = response.headers.get('X-RateLimit-Remaining');
+  const reset = response.headers.get('X-RateLimit-Reset');
+  
+  console.log(`Rate limit: ${remaining}/${limit} remaining`);
+  
+  if (response.status === 429) {
+    const resetDate = new Date(reset * 1000);
+    alert(`Rate limit exceeded. Try again after ${resetDate}`);
+  }
+  
+  return response.json();
+});
+```
 
 ---
 
