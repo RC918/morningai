@@ -10,8 +10,8 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 
-from persistence.upstash_redis_client import UpstashRedisClient
-from error_handler import ErrorCode, create_error, create_success
+from agents.dev_agent.persistence.upstash_redis_client import UpstashRedisClient
+from agents.dev_agent.error_handler import ErrorCode, create_error, create_success
 
 logger = logging.getLogger(__name__)
 

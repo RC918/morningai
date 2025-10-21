@@ -8,7 +8,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from psycopg2.extras import RealDictCursor, Json
 
-from error_handler import (
+from agents.dev_agent.error_handler import (
     create_success, create_error, ErrorCode
 )
 

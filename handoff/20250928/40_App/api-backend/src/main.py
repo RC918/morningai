@@ -8,6 +8,7 @@ from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
 from src.routes.tenant import bp as tenant_bp
 from src.routes.faq import bp as faq_bp
+from src.routes.vectors import bp as vectors_bp
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
@@ -128,6 +129,7 @@ app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
 app.register_blueprint(tenant_bp)
 app.register_blueprint(faq_bp)
+app.register_blueprint(vectors_bp)
 
 if BACKEND_SERVICES_AVAILABLE:
     try:
