@@ -1,0 +1,120 @@
+name: PR Guard - Design PR Validation
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  check-design-pr-violations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check Design PR violations
+        run: |
+          set -e
+          
+          # Get PR title and labels
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_LABELS="${{ join(github.event.pull_request.labels.*.name, ',') }}"
+          
+          echo "PR Title: $PR_TITLE"
+          echo "PR Labels: $PR_LABELS"
+          
+          # Check if this is a Design PR (by title or label)
+          IS_DESIGN_PR=false
+          if [[ "$PR_TITLE" =~ "設計 PR"|"UI/UX"|"Design PR" ]] || [[ "$PR_LABELS" =~ "design"|"ui/ux"|"UX" ]]; then
+            IS_DESIGN_PR=true
+            echo "✅ This is a Design PR"
+          else
+            echo "ℹ️  This is not a Design PR, skipping validation"
+            exit 0
+          fi
+          
+          # Get list of changed files
+          git fetch origin main
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+          
+          echo ""
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
+          
+          # Define forbidden patterns for Design PRs
+          FORBIDDEN_PATTERNS=(
+            "handoff/.*/30_API/openapi/"
+            ".*/api-backend/"
+            ".*/api/.*\.py$"
+            ".*/src/.*\.py$"
+            "agents/.*\.py$"
+            ".*requirements\.txt$"
+          )
+          
+          # Check for violations
+          VIOLATIONS=()
+          for file in $CHANGED_FILES; do
+            for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+              if [[ "$file" =~ $pattern ]]; then
+                VIOLATIONS+=("$file")
+                break
+              fi
+            done
+          done
+          
+          # Report violations
+          if [ ${#VIOLATIONS[@]} -gt 0 ]; then
+            echo "❌ Design PR Violation Detected!"
+            echo ""
+            echo "Design PRs are only allowed to modify:"
+            echo "  - docs/UX/**"
+            echo "  - docs/UX/tokens.json"
+            echo "  - docs/**.md"
+            echo "  - frontend styles and content"
+            echo ""
+            echo "The following files violate Design PR rules:"
+            for violation in "${VIOLATIONS[@]}"; do
+              echo "  ❌ $violation"
+            done
+            echo ""
+            echo "Please:"
+            echo "  1. Remove backend/API changes from this PR"
+            echo "  2. Create a separate Engineering PR for backend changes"
+            echo "  3. Follow RFC process for API/schema changes"
+            echo ""
+            echo "See CONTRIBUTING.md for details."
+            exit 1
+          else
+            echo "✅ No Design PR violations detected"
+          fi
+      
+      - name: Comment on PR (if violations found)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ❌ Design PR Violation Detected
+
+This PR is marked as a Design PR but contains changes to backend/API files.
+
+**Design PRs are only allowed to modify:**
+- \`docs/UX/**\`
+- \`docs/UX/tokens.json\`
+- \`docs/**.md\`
+- Frontend styles and content
+
+**Forbidden changes detected:**
+Please check the workflow logs for the list of violating files.
+
+**Next steps:**
+1. Remove backend/API changes from this PR
+2. Create a separate Engineering PR for backend changes
+3. Follow RFC process for API/schema changes
+
+See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for details.`
+            })

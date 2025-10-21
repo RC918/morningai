@@ -4,4 +4,4 @@ Disallow: /api/
 Disallow: /checkout/success
 Disallow: /checkout/cancel
 
-Sitemap: https://morningai.com/sitemap.xml
+Sitemap: https://gm365.me/sitemap.xml
