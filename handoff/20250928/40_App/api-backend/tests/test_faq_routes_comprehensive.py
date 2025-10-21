@@ -46,54 +46,64 @@ def mock_redis():
         yield mock
 
 @pytest.fixture
-def mock_faq_search_tool():
-    """Mock FAQSearchTool"""
-    with patch('src.routes.faq.FAQSearchTool') as mock:
-        instance = MagicMock()
-        instance.search = AsyncMock(return_value={
-            'success': True,
-            'results': [
-                {
-                    'id': 'faq-123',
-                    'question': 'What is Redis?',
-                    'answer': 'Redis is an in-memory data store',
-                    'category': 'database',
-                    'score': 0.95
-                }
-            ]
-        })
-        mock.return_value = instance
-        yield mock
+def mock_faq_agent_available():
+    """Mock FAQ_AGENT_AVAILABLE to True"""
+    with patch('src.routes.faq.FAQ_AGENT_AVAILABLE', True):
+        yield
 
 @pytest.fixture
-def mock_faq_mgmt_tool():
-    """Mock FAQManagementTool"""
-    with patch('src.routes.faq.FAQManagementTool') as mock:
-        instance = MagicMock()
-        instance.get_faq = AsyncMock(return_value={
-            'success': True,
-            'faq': {
+def mock_faq_search_tool(mock_faq_agent_available):
+    """Mock FAQSearchTool - must be used with mock_faq_agent_available"""
+    mock_class = MagicMock()
+    instance = MagicMock()
+    instance.search = AsyncMock(return_value={
+        'success': True,
+        'results': [
+            {
                 'id': 'faq-123',
                 'question': 'What is Redis?',
-                'answer': 'Redis is an in-memory data store'
+                'answer': 'Redis is an in-memory data store',
+                'category': 'database',
+                'score': 0.95
             }
-        })
-        instance.create_faq = AsyncMock(return_value={
-            'success': True,
-            'faq': {'id': 'faq-new-123'}
-        })
-        instance.update_faq = AsyncMock(return_value={
-            'success': True
-        })
-        instance.delete_faq = AsyncMock(return_value={
-            'success': True
-        })
-        instance.get_categories = AsyncMock(return_value={
-            'success': True,
-            'categories': ['database', 'api', 'security']
-        })
-        mock.return_value = instance
-        yield mock
+        ]
+    })
+    mock_class.return_value = instance
+    
+    with patch('src.routes.faq.FAQSearchTool', mock_class, create=True):
+        yield mock_class
+
+@pytest.fixture
+def mock_faq_mgmt_tool(mock_faq_agent_available):
+    """Mock FAQManagementTool - must be used with mock_faq_agent_available"""
+    mock_class = MagicMock()
+    instance = MagicMock()
+    instance.get_faq = AsyncMock(return_value={
+        'success': True,
+        'faq': {
+            'id': 'faq-123',
+            'question': 'What is Redis?',
+            'answer': 'Redis is an in-memory data store'
+        }
+    })
+    instance.create_faq = AsyncMock(return_value={
+        'success': True,
+        'faq': {'id': 'faq-new-123'}
+    })
+    instance.update_faq = AsyncMock(return_value={
+        'success': True
+    })
+    instance.delete_faq = AsyncMock(return_value={
+        'success': True
+    })
+    instance.get_categories = AsyncMock(return_value={
+        'success': True,
+        'categories': ['database', 'api', 'security']
+    })
+    mock_class.return_value = instance
+    
+    with patch('src.routes.faq.FAQManagementTool', mock_class, create=True):
+        yield mock_class
 
 
 
@@ -206,7 +216,7 @@ class TestFAQSearch:
         )
         assert response.status_code == 200
     
-    def test_search_empty_query_returns_422(self, client, user_token, mock_redis):
+    def test_search_empty_query_returns_422(self, client, user_token, mock_redis, mock_faq_agent_available):
         """Search with empty query returns 422 validation error"""
         response = client.get(
             '/api/faq/search?q=',
@@ -217,7 +227,7 @@ class TestFAQSearch:
         assert data['error']['code'] == 'validation_error'
         assert 'details' in data['error']
     
-    def test_search_invalid_page_returns_422(self, client, user_token, mock_redis):
+    def test_search_invalid_page_returns_422(self, client, user_token, mock_redis, mock_faq_agent_available):
         """Search with page < 1 returns 422"""
         response = client.get(
             '/api/faq/search?q=test&page=0',
@@ -225,7 +235,7 @@ class TestFAQSearch:
         )
         assert response.status_code == 422
     
-    def test_search_invalid_page_size_returns_422(self, client, user_token, mock_redis):
+    def test_search_invalid_page_size_returns_422(self, client, user_token, mock_redis, mock_faq_agent_available):
         """Search with page_size > 100 returns 422"""
         response = client.get(
             '/api/faq/search?q=test&page_size=200',
@@ -233,7 +243,7 @@ class TestFAQSearch:
         )
         assert response.status_code == 422
     
-    def test_search_invalid_sort_order_returns_422(self, client, user_token, mock_redis):
+    def test_search_invalid_sort_order_returns_422(self, client, user_token, mock_redis, mock_faq_agent_available):
         """Search with invalid sort_order returns 422"""
         response = client.get(
             '/api/faq/search?q=test&sort_order=invalid',
@@ -302,7 +312,7 @@ class TestFAQGet:
         data = response.get_json()
         assert data['error']['code'] == 'not_found'
     
-    def test_get_faq_from_cache(self, client, user_token, mock_redis):
+    def test_get_faq_from_cache(self, client, user_token, mock_redis, mock_faq_agent_available):
         """Get FAQ returns cached=True when from cache"""
         cached_faq = {
             'faq': {'id': 'faq-123', 'question': 'Cached?', 'answer': 'Yes'},
@@ -342,7 +352,7 @@ class TestFAQCreate:
         assert 'faq_id' in data['data']
         assert 'message' in data['data']
     
-    def test_create_faq_missing_question_returns_422(self, client, admin_token, mock_redis):
+    def test_create_faq_missing_question_returns_422(self, client, admin_token, mock_redis, mock_faq_agent_available):
         """Create FAQ without question returns 422"""
         response = client.post(
             '/api/faq',
@@ -353,7 +363,7 @@ class TestFAQCreate:
         data = response.get_json()
         assert data['error']['code'] == 'validation_error'
     
-    def test_create_faq_empty_question_returns_422(self, client, admin_token, mock_redis):
+    def test_create_faq_empty_question_returns_422(self, client, admin_token, mock_redis, mock_faq_agent_available):
         """Create FAQ with empty question returns 422"""
         response = client.post(
             '/api/faq',
@@ -394,7 +404,7 @@ class TestFAQUpdate:
         )
         assert response.status_code == 404
     
-    def test_update_faq_no_fields_returns_400(self, client, admin_token, mock_redis):
+    def test_update_faq_no_fields_returns_400(self, client, admin_token, mock_redis, mock_faq_agent_available):
         """Update FAQ with no fields returns 400"""
         response = client.put(
             '/api/faq/faq-123',
@@ -453,7 +463,7 @@ class TestCategoriesAndStats:
         assert 'cached' in data
         assert 'categories' in data['data']
     
-    def test_get_categories_from_cache(self, client, user_token, mock_redis):
+    def test_get_categories_from_cache(self, client, user_token, mock_redis, mock_faq_agent_available):
         """Get categories from cache"""
         cached_data = {'categories': ['database', 'api'], 'timestamp': '2025-01-01'}
         mock_redis.get.return_value = json.dumps(cached_data)

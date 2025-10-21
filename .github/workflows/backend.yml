@@ -72,7 +72,7 @@ jobs:
         run: |
           cd handoff/20250928/40_App/api-backend
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov pytest-asyncio
           cd ../orchestrator
           pip install -e .
       - name: Run tests with coverage
