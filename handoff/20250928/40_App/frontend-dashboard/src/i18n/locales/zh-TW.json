@@ -460,5 +460,91 @@
     "downloadInvoice": "下載發票",
     "downloadInvoiceAria": "下載發票",
     "support": "如有任何問題，請聯繫客服：support@morningai.com"
+  },
+  "wip": {
+    "title": "功能開發中",
+    "description": "此功能正在開發中，敬請期待！",
+    "dashboard": "儀表板開發中",
+    "strategyManagement": "策略管理開發中",
+    "decisionApproval": "決策審批開發中",
+    "historyAnalysis": "歷史分析開發中",
+    "costAnalysis": "成本分析開發中",
+    "systemSettings": "系統設定開發中",
+    "checkoutPage": "結帳頁面開發中"
+  },
+  "strategy": {
+    "title": "策略管理",
+    "description": "管理和監控 AI 決策策略",
+    "createNew": "創建新策略",
+    "editStrategy": "編輯策略",
+    "deleteStrategy": "刪除策略",
+    "strategyName": "策略名稱",
+    "strategyDescription": "策略描述",
+    "status": {
+      "active": "活躍",
+      "inactive": "停用",
+      "draft": "草稿"
+    }
+  },
+  "approval": {
+    "title": "決策審批",
+    "description": "審核待批准的 AI 決策",
+    "pendingDecisions": "待審批決策",
+    "approve": "批准",
+    "reject": "拒絕",
+    "rejectReason": "拒絕理由",
+    "rejectReasonPlaceholder": "請說明拒絕原因",
+    "rejectReasonRequired": "請提供拒絕理由",
+    "approved": "決策已批准",
+    "approvedDescription": "策略將立即執行",
+    "rejected": "決策已拒絕",
+    "rejectedDescription": "系統將尋找替代方案",
+    "approveFailed": "批准失敗",
+    "approveFailedDescription": "請稍後重試",
+    "rejectFailed": "拒絕失敗",
+    "rejectFailedDescription": "請稍後重試",
+    "autoApproveIn": "{{seconds}} 秒後自動批准",
+    "confidence": "信心度",
+    "impact": {
+      "high": "高影響",
+      "medium": "中影響",
+      "low": "低影響"
+    },
+    "risk": {
+      "high": "高風險",
+      "medium": "中風險",
+      "low": "低風險"
+    },
+    "actions": "建議操作",
+    "estimatedDuration": "預計執行時間",
+    "factors": "決策因素"
+  },
+  "history": {
+    "title": "歷史分析",
+    "description": "查看和分析歷史決策記錄"
+  },
+  "cost": {
+    "title": "成本分析",
+    "description": "監控和優化 AI 服務成本"
+  },
+  "errors": {
+    "networkError": "網絡連接錯誤",
+    "serverError": "服務器錯誤",
+    "authError": "認證失敗",
+    "notFound": "找不到資源",
+    "forbidden": "沒有權限",
+    "validationError": "驗證錯誤",
+    "unknownError": "未知錯誤",
+    "tryAgain": "請稍後重試"
+  },
+  "feedback": {
+    "loading": "載入中",
+    "processing": "處理中",
+    "success": "操作成功",
+    "error": "操作失敗",
+    "offline": "您目前處於離線狀態",
+    "offlineDescription": "請檢查您的網絡連接",
+    "reconnecting": "正在重新連接...",
+    "reconnected": "已重新連接"
   }
 }

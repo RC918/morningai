@@ -460,5 +460,91 @@
     "downloadInvoice": "Download Invoice",
     "downloadInvoiceAria": "Download invoice",
     "support": "If you have any questions, please contact support: support@morningai.com"
+  },
+  "wip": {
+    "title": "Feature Under Development",
+    "description": "This feature is currently under development. Stay tuned!",
+    "dashboard": "Dashboard Under Development",
+    "strategyManagement": "Strategy Management Under Development",
+    "decisionApproval": "Decision Approval Under Development",
+    "historyAnalysis": "History Analysis Under Development",
+    "costAnalysis": "Cost Analysis Under Development",
+    "systemSettings": "System Settings Under Development",
+    "checkoutPage": "Checkout Page Under Development"
+  },
+  "strategy": {
+    "title": "Strategy Management",
+    "description": "Manage and monitor AI decision strategies",
+    "createNew": "Create New Strategy",
+    "editStrategy": "Edit Strategy",
+    "deleteStrategy": "Delete Strategy",
+    "strategyName": "Strategy Name",
+    "strategyDescription": "Strategy Description",
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "draft": "Draft"
+    }
+  },
+  "approval": {
+    "title": "Decision Approval",
+    "description": "Review pending AI decisions",
+    "pendingDecisions": "Pending Decisions",
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectReason": "Rejection Reason",
+    "rejectReasonPlaceholder": "Please explain the reason for rejection",
+    "rejectReasonRequired": "Please provide a rejection reason",
+    "approved": "Decision Approved",
+    "approvedDescription": "Strategy will be executed immediately",
+    "rejected": "Decision Rejected",
+    "rejectedDescription": "System will look for alternative solutions",
+    "approveFailed": "Approval Failed",
+    "approveFailedDescription": "Please try again later",
+    "rejectFailed": "Rejection Failed",
+    "rejectFailedDescription": "Please try again later",
+    "autoApproveIn": "Auto-approve in {{seconds}} seconds",
+    "confidence": "Confidence",
+    "impact": {
+      "high": "High Impact",
+      "medium": "Medium Impact",
+      "low": "Low Impact"
+    },
+    "risk": {
+      "high": "High Risk",
+      "medium": "Medium Risk",
+      "low": "Low Risk"
+    },
+    "actions": "Recommended Actions",
+    "estimatedDuration": "Estimated Duration",
+    "factors": "Decision Factors"
+  },
+  "history": {
+    "title": "History Analysis",
+    "description": "View and analyze historical decision records"
+  },
+  "cost": {
+    "title": "Cost Analysis",
+    "description": "Monitor and optimize AI service costs"
+  },
+  "errors": {
+    "networkError": "Network Connection Error",
+    "serverError": "Server Error",
+    "authError": "Authentication Failed",
+    "notFound": "Resource Not Found",
+    "forbidden": "Access Denied",
+    "validationError": "Validation Error",
+    "unknownError": "Unknown Error",
+    "tryAgain": "Please try again later"
+  },
+  "feedback": {
+    "loading": "Loading",
+    "processing": "Processing",
+    "success": "Operation Successful",
+    "error": "Operation Failed",
+    "offline": "You are currently offline",
+    "offlineDescription": "Please check your network connection",
+    "reconnecting": "Reconnecting...",
+    "reconnected": "Reconnected"
   }
 }

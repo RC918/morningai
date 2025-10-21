@@ -73,7 +73,6 @@ function AppContent() {
 
     window.addEventListener('api-error', handleApiError)
 
-    // 檢查用戶認證狀態
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token')
@@ -83,7 +82,7 @@ function AppContent() {
           setIsAuthenticated(true)
         }
       } catch (error) {
-        console.error('認證檢查失敗:', error)
+        console.error('Auth check failed:', error)
         localStorage.removeItem('auth_token')
         setUser({
           id: 'dev_user',
@@ -181,33 +180,33 @@ function AppContent() {
               {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
                 <Route path="/strategies" element={<StrategyManagement />} />
               ) : (
-                <Route path="/strategies" element={<WIPPage title="策略管理開發中" />} />
+                <Route path="/strategies" element={<WIPPage title={t('wip.strategyManagement')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
                 <Route path="/approvals" element={<DecisionApproval />} />
               ) : (
-                <Route path="/approvals" element={<WIPPage title="決策審批開發中" />} />
+                <Route path="/approvals" element={<WIPPage title={t('wip.decisionApproval')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
                 <Route path="/history" element={<HistoryAnalysis />} />
               ) : (
-                <Route path="/history" element={<WIPPage title="歷史分析開發中" />} />
+                <Route path="/history" element={<WIPPage title={t('wip.historyAnalysis')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
                 <Route path="/costs" element={<CostAnalysis />} />
               ) : (
-                <Route path="/costs" element={<WIPPage title="成本分析開發中" />} />
+                <Route path="/costs" element={<WIPPage title={t('wip.costAnalysis')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
                 <Route path="/settings" element={<SystemSettings />} />
               ) : (
-                <Route path="/settings" element={<WIPPage title="系統設定開發中" />} />
+                <Route path="/settings" element={<WIPPage title={t('wip.systemSettings')} />} />
               )}
               <Route path="/tenant-settings" element={<TenantSettings />} />
               {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
                 <Route path="/checkout" element={<CheckoutPage />} />
               ) : (
-                <Route path="/checkout" element={<WIPPage title="結帳頁面開發中" />} />
+                <Route path="/checkout" element={<WIPPage title={t('wip.checkoutPage')} />} />
               )}
               <Route path="/checkout/success" element={<CheckoutSuccess />} />
               <Route path="/checkout/cancel" element={<CheckoutCancel />} />
@@ -217,7 +216,7 @@ function AppContent() {
               
               {/* Fallback to dashboard if no dashboard feature enabled */}
               {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<WIPPage title="儀表板開發中" />} />
+                <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
               )}
                   </Routes>
                 </Suspense>
