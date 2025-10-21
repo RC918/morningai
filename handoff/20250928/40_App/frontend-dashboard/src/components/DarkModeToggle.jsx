@@ -1,33 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useTheme } from 'next-themes'
 import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export const DarkModeToggle = ({ variant = 'default' }) => {
-  const [isDark, setIsDark] = useState(false)
+  const { theme, setTheme, systemTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark)
-    
-    setIsDark(shouldBeDark)
-    updateTheme(shouldBeDark)
+    setMounted(true)
   }, [])
 
-  const updateTheme = (dark) => {
-    const root = document.documentElement
-    if (dark) {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
+  if (!mounted) {
+    return null
   }
 
+  const currentTheme = theme === 'system' ? systemTheme : theme
+  const isDark = currentTheme === 'dark'
+
   const toggleTheme = () => {
-    const newIsDark = !isDark
-    setIsDark(newIsDark)
-    updateTheme(newIsDark)
-    localStorage.setItem('theme', newIsDark ? 'dark' : 'light')
+    setTheme(isDark ? 'light' : 'dark')
   }
 
   if (variant === 'compact') {

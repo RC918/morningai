@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { ThemeProvider } from 'next-themes'
 import { TolgeeProvider } from '@tolgee/react'
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -234,11 +235,13 @@ function AppContent() {
 
 function App() {
   return (
-    <TolgeeProvider tolgee={tolgee} fallback={<PageLoader message="Loading translations..." />}>
-      <NotificationProvider>
-        <AppContent />
-      </NotificationProvider>
-    </TolgeeProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <TolgeeProvider tolgee={tolgee} fallback={<PageLoader message="Loading translations..." />}>
+        <NotificationProvider>
+          <AppContent />
+        </NotificationProvider>
+      </TolgeeProvider>
+    </ThemeProvider>
   )
 }
 
