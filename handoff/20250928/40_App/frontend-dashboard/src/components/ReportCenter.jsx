@@ -153,10 +153,8 @@ const ReportCenter = () => {
                 <SelectContent>
                   {reportTemplates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
-                      <div className="flex items-center">
-                        {getReportTypeIcon(template.id)}
-                        <span className="ml-2">{template.name}</span>
-                      </div>
+                      {getReportTypeIcon(template.id)}
+                      {template.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
