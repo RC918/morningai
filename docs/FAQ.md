@@ -1,96 +1,78 @@
-# MorningAI System Architecture
+# Handling Redis Outage in MorningAI
 
-MorningAI's system architecture is designed to be scalable, efficient, and capable of handling a diverse range of tasks from autonomous code generation to FAQ generation, documentation management, and multi-platform integration. Below is a detailed explanation of each component of the architecture and how they interact with one another.
+When a Redis outage occurs, it can impact various functionalities within the MorningAI platform, such as real-time task orchestration and queue management. Understanding how to effectively manage and mitigate issues during a Redis outage is crucial for maintaining platform stability and performance.
 
-## Frontend
+## Understanding the Impact of a Redis Outage
 
-The frontend of MorningAI is built using React, leveraging Vite as the build tool for a faster development experience and TailwindCSS for styling. The choice of these technologies ensures a modern, efficient user interface that can be easily extended or modified.
+Redis, being an in-memory data store, is utilized by MorningAI for queue management with Redis Queue (RQ) and for orchestrating real-time tasks. An outage can lead to:
 
-### Example:
-```jsx
-// src/components/ExampleComponent.jsx
-import React from 'react';
-import 'tailwindcss/tailwind.css';
+- Delayed or failed task execution
+- Inability to enqueue or process new tasks
+- Potential loss of in-flight data if not persisted
 
-function ExampleComponent() {
-  return <div className="text-xl text-blue-500">Hello, MorningAI!</div>;
-}
+### Code Example: Checking Redis Connection Health
 
-export default ExampleComponent;
-```
+To monitor and check the health of your Redis connection, you can use the following Python snippet:
 
-## Backend
-
-The backend is powered by Python using Flask as the web framework and Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently. This setup provides a robust backend capable of supporting the platform's operations.
-
-### Example:
 ```python
-# app.py
-from flask import Flask
-app = Flask(__name__)
+import redis
 
-@app.route('/')
-def hello_world():
-    return 'Hello, MorningAI!'
-
-if __name__ == '__main__':
-    app.run()
+def check_redis_connection():
+    try:
+        r = redis.Redis(host='localhost', port=6379, db=0)
+        r.ping()
+        print("Redis is connected and healthy.")
+    except redis.ConnectionError:
+        print("Failed to connect to Redis.")
+        
+check_redis_connection()
 ```
 
-## Database
+Replace `'localhost'` and `6379` with your actual Redis server's host and port.
 
-MorningAI uses PostgreSQL for its database needs, with Supabase adding additional functionalities such as Row Level Security (RLS) to ensure data integrity and security. This combination allows for scalable, secure storage solutions.
+## Troubleshooting Steps During an Outage
 
-### Example:
-```sql
--- Create a table with RLS enabled
-CREATE TABLE documents (
-    id SERIAL PRIMARY KEY,
-    content TEXT,
-    user_id INTEGER
-);
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
-```
+1. **Verify Network Connectivity**: Ensure that the network connection between your application servers and the Redis server is stable.
+2. **Check Redis Server Status**: Access your Redis server and check if it's running correctly. You may need to restart the service.
+3. **Review Application Logs**: Look into your application logs for any errors related to Redis connections or task processing failures.
+4. **Monitor System Resources**: Insufficient resources (memory/CPU) on the server hosting Redis can lead to outages. Monitor and allocate additional resources if needed.
+5. **Fallback Mechanism**: Implement a fallback mechanism in your application to handle tasks that cannot be processed due to the outage.
 
-## Queue
+### Code Example: Fallback Mechanism for Task Processing
 
-Redis Queue (RQ) is used for task orchestration, enabling real-time task management with worker heartbeat monitoring to ensure tasks are executed promptly. This is crucial for operations that require immediate attention or are time-sensitive.
+Implementing a simple fallback mechanism can help mitigate the impact of a Redis outage. Here’s an example using Python:
 
-### Example:
 ```python
-# task.py
-from redis import Redis
-from rq import Queue
+def process_task_with_fallback(task):
+    try:
+        # Attempt to enqueue the task using RQ
+        queue = rq.Queue(connection=Redis())
+        queue.enqueue('my_task_function', args=(task,))
+    except (ConnectionError, rq.exceptions.RQException):
+        # Fallback: Process the task synchronously or store it for later processing
+        print("Processing task without RQ due to Redis issue.")
+        my_task_function(task)
 
-q = Queue(connection=Redis())
-
-def say_hello(name):
-    print(f'Hello, {name}!')
-
-job = q.enqueue(say_hello, 'MorningAI')
+# Replace 'my_task_function' with your actual task processing function
 ```
 
-## Orchestration
+## Related Documentation
 
-LangGraph is utilized for agent workflows, allowing complex task orchestration within the platform. It enables the autonomous agent system to perform efficiently and reliably across various operations.
+- [Redis Command Reference](https://redis.io/commands)
+- [RQ Documentation](http://python-rq.org/docs/)
+- [MorningAI Repository: RC918/morningai](https://github.com/RC918/morningai)
 
-## AI
+## Common Issues and Solutions
 
-OpenAI's GPT-4 powers the content generation capabilities of MorningAI, from code generation to FAQ and documentation management. This ensures high-quality, contextually relevant output across all features of the platform.
+**Issue**: "Connection refused" error when trying to connect to Redis.
 
-## Deployment
+**Solution**: Verify that your Redis server is running and accessible. Check firewall rules that may be blocking connections.
 
-The entire platform is deployed on Render.com, benefiting from its CI/CD features for seamless updates and maintenance. This choice allows for easy scaling and ensures that the platform remains up-to-date with minimal downtime.
+**Issue**: Tasks are not being processed during an outage.
 
-## Troubleshooting Tips
+**Solution**: Implement a retry mechanism or a fallback solution as shown above. Ensure that critical tasks are logged or stored safely for later processing once connectivity is restored.
 
-- **Frontend Issues**: Ensure all dependencies are correctly installed via `npm install` or `yarn install`. Check console logs in the developer tools for specific errors.
-- **Backend Connectivity**: Verify that Flask is running and accessible. For connection issues with Gunicorn, check if the number of workers specified matches your system's capability.
-- **Database Access**: Ensure that your PostgreSQL credentials are correct and that RLS policies do not unintentionally block access to data.
-- **Task Queue Delays**: Check Redis server health and worker logs for errors. Ensure that RQ workers are running and have a stable connection to Redis.
-- **Deployment Failures**: Review build logs on Render.com for specific errors. Ensure all environment variables are correctly set up according to Render's documentation.
-
-For further details on each component and more examples, please refer to the official documentation in the repository under `docs/`.
+For more detailed troubleshooting steps, refer to our comprehensive guide in `docs/troubleshooting/redis_outage.md` within the repository.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -98,7 +80,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `5642e40c-a9c4-4a03-a026-7b839d60baba`
+- Task: Test question during Redis outage
+- Trace ID: `c66b249f-1758-41f2-a824-6917b4af8ba1`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
