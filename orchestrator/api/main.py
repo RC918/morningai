@@ -350,6 +350,25 @@ async def get_pending_approvals_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/approvals/history")
+async def get_approval_history_endpoint(
+    limit: int = 100,
+    gate: HITLGate = Depends(get_hitl_gate),
+    user: AuthUser = Depends(get_current_user)
+):
+    """Get approval history (requires authentication)"""
+    try:
+        history = await gate.get_approval_history(limit)
+        return {
+            "success": True,
+            "count": len(history),
+            "history": history
+        }
+    except Exception as e:
+        logger.error(f"Failed to get approval history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/approvals/{approval_id}")
 async def get_approval_status_endpoint(
     approval_id: str,
@@ -422,25 +441,6 @@ async def reject_endpoint(
         raise
     except Exception as e:
         logger.error(f"Failed to reject {approval_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/approvals/history")
-async def get_approval_history_endpoint(
-    limit: int = 100,
-    gate: HITLGate = Depends(get_hitl_gate),
-    user: AuthUser = Depends(get_current_user)
-):
-    """Get approval history (requires authentication)"""
-    try:
-        history = await gate.get_approval_history(limit)
-        return {
-            "success": True,
-            "count": len(history),
-            "history": history
-        }
-    except Exception as e:
-        logger.error(f"Failed to get approval history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

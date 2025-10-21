@@ -37,12 +37,23 @@ def agent_token():
 def mock_redis_queue():
     """Mock Redis queue for testing"""
     with patch('orchestrator.api.main.redis_queue') as mock_queue:
-        mock_queue.redis_client = AsyncMock()
+        mock_redis = AsyncMock()
+        mock_pipeline = MagicMock()
+        mock_pipeline.zremrangebyscore = MagicMock(return_value=mock_pipeline)
+        mock_pipeline.zcard = MagicMock(return_value=mock_pipeline)
+        mock_pipeline.zadd = MagicMock(return_value=mock_pipeline)
+        mock_pipeline.expire = MagicMock(return_value=mock_pipeline)
+        mock_pipeline.execute = AsyncMock(return_value=[None, 0, None, None])
+        
+        mock_redis.pipeline = MagicMock(return_value=mock_pipeline)
+        
+        mock_queue.redis_client = mock_redis
         mock_queue.get_queue_stats = AsyncMock(return_value={
             "pending_tasks": 0,
             "processing_tasks": 0,
             "total_tasks": 0
         })
+        mock_queue.get_task = AsyncMock(return_value=None)
         yield mock_queue
 
 
@@ -51,7 +62,7 @@ class TestRateLimitHeaders:
     
     def test_rate_limit_headers_present(self, client, mock_redis_queue):
         """Test that rate limit headers are included in responses"""
-        response = client.get("/health")
+        response = client.get("/")
         
         assert "X-RateLimit-Limit" in response.headers
         assert "X-RateLimit-Remaining" in response.headers
@@ -59,13 +70,13 @@ class TestRateLimitHeaders:
     
     def test_rate_limit_headers_values(self, client, mock_redis_queue):
         """Test rate limit header values are correct"""
-        response = client.get("/health")
+        response = client.get("/")
         
         limit = int(response.headers["X-RateLimit-Limit"])
         remaining = int(response.headers["X-RateLimit-Remaining"])
         reset = int(response.headers["X-RateLimit-Reset"])
         
-        assert limit == RateLimitConfig.ENDPOINT_LIMITS.get("/health", RateLimitConfig.DEFAULT_RATE_LIMIT)
+        assert limit == RateLimitConfig.DEFAULT_RATE_LIMIT
         
         assert 0 <= remaining <= limit
         
@@ -87,10 +98,10 @@ class TestRateLimitEnforcement:
     
     def test_rate_limit_decreases_with_requests(self, client, mock_redis_queue):
         """Test that remaining count decreases with each request"""
-        response1 = client.get("/health")
+        response1 = client.get("/")
         remaining1 = int(response1.headers["X-RateLimit-Remaining"])
         
-        response2 = client.get("/health")
+        response2 = client.get("/")
         remaining2 = int(response2.headers["X-RateLimit-Remaining"])
         
         assert remaining2 <= remaining1
@@ -113,13 +124,14 @@ class TestRateLimitEnforcement:
                 }
             )
             
-            response_health = client.get("/health")
+            response_root = client.get("/")
             
             if response_tasks.status_code == 200:
                 limit_tasks = int(response_tasks.headers.get("X-RateLimit-Limit", 0))
-                limit_health = int(response_health.headers["X-RateLimit-Limit"])
+                limit_root = int(response_root.headers["X-RateLimit-Limit"])
                 
-                assert limit_health > limit_tasks
+                assert limit_tasks == RateLimitConfig.ENDPOINT_LIMITS["/tasks"]
+                assert limit_root == RateLimitConfig.DEFAULT_RATE_LIMIT
 
 
 class TestRateLimitByIP:
@@ -140,7 +152,7 @@ class TestRateLimitByIP:
         """Test X-Real-IP header is respected"""
         headers = {"X-Real-IP": "10.0.0.1"}
         
-        response = client.get("/health", headers=headers)
+        response = client.get("/", headers=headers)
         assert response.status_code == 200
         assert "X-RateLimit-Limit" in response.headers
 
@@ -151,19 +163,19 @@ class TestRateLimitExceeded:
     def test_rate_limit_exceeded_response(self, client, mock_redis_queue):
         """Test response when rate limit is exceeded"""
         
-        response = client.get("/health")
+        response = client.get("/")
         assert "X-RateLimit-Limit" in response.headers
         
     
     def test_rate_limit_reset_time(self, client, mock_redis_queue):
         """Test rate limit reset timestamp is reasonable"""
-        response = client.get("/health")
+        response = client.get("/")
         
         reset_time = int(response.headers["X-RateLimit-Reset"])
         current_time = int(time.time())
         
         assert reset_time > current_time
-        assert reset_time <= current_time + RateLimitConfig.WINDOW_SIZE + 5  # +5 for tolerance
+        assert reset_time <= current_time + RateLimitConfig.WINDOW_SIZE + 5
 
 
 class TestRateLimitFallback:
@@ -171,7 +183,7 @@ class TestRateLimitFallback:
     
     def test_rate_limiter_works_without_redis(self, client, mock_redis_queue):
         """Test rate limiter falls back to local storage when Redis unavailable"""
-        response = client.get("/health")
+        response = client.get("/")
         
         assert response.status_code == 200
         assert "X-RateLimit-Limit" in response.headers
@@ -230,20 +242,21 @@ class TestRateLimitIntegration:
     
     def test_rate_limit_with_multiple_endpoints(self, client, agent_token, mock_redis_queue):
         """Test rate limiting across multiple endpoints"""
-        response1 = client.get("/health")
-        response2 = client.get("/")
+        response1 = client.get("/")
+        response2 = client.get("/stats")
         
         assert response1.status_code == 200
         assert response2.status_code == 200
         
         assert "X-RateLimit-Limit" in response1.headers
+        assert "X-RateLimit-Limit" in response2.headers
     
     def test_rate_limit_persists_across_requests(self, client, mock_redis_queue):
         """Test rate limit state persists across requests"""
-        response1 = client.get("/health")
+        response1 = client.get("/")
         remaining1 = int(response1.headers["X-RateLimit-Remaining"])
         
-        response2 = client.get("/health")
+        response2 = client.get("/")
         remaining2 = int(response2.headers["X-RateLimit-Remaining"])
         
         assert remaining2 <= remaining1

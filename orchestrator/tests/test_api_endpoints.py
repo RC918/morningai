@@ -54,26 +54,57 @@ def user_token():
 @pytest.fixture
 def mock_redis_queue():
     """Mock Redis queue for testing"""
-    with patch('orchestrator.api.main.redis_queue') as mock_queue:
-        mock_queue.redis_client = AsyncMock()
-        yield mock_queue
+    mock_queue = AsyncMock()
+    mock_redis = AsyncMock()
+    mock_pipeline = MagicMock()
+    mock_pipeline.zremrangebyscore = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.zcard = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.zadd = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.expire = MagicMock(return_value=mock_pipeline)
+    mock_pipeline.execute = AsyncMock(return_value=[None, 0, None, None])
+    
+    mock_redis.pipeline = MagicMock(return_value=mock_pipeline)
+    
+    mock_queue.redis_client = mock_redis
+    mock_queue.get_queue_stats = AsyncMock(return_value={
+        "pending_tasks": 0,
+        "processing_tasks": 0,
+        "total_tasks": 0
+    })
+    mock_queue.get_task = AsyncMock(return_value=None)
+    
+    from orchestrator.api.main import get_redis_queue
+    app.dependency_overrides[get_redis_queue] = lambda: mock_queue
+    
+    yield mock_queue
+    
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def mock_orchestrator_router():
     """Mock orchestrator router"""
-    with patch('orchestrator.api.main.orchestrator_router') as mock_router:
-        from orchestrator.api.router import OrchestratorRouter
-        real_router = OrchestratorRouter(MagicMock())
-        mock_router.route_task = real_router.route_task
-        yield mock_router
+    from orchestrator.api.router import OrchestratorRouter
+    from orchestrator.api.main import get_orchestrator_router
+    real_router = OrchestratorRouter(MagicMock())
+    app.dependency_overrides[get_orchestrator_router] = lambda: real_router
+    yield real_router
+    app.dependency_overrides.pop(get_orchestrator_router, None)
 
 
 @pytest.fixture
 def mock_hitl_gate():
     """Mock HITL gate"""
-    with patch('orchestrator.api.main.hitl_gate') as mock_gate:
-        yield mock_gate
+    from orchestrator.api.main import get_hitl_gate
+    mock_gate = AsyncMock()
+    mock_gate.get_pending_approvals = AsyncMock(return_value=[])
+    mock_gate.get_approval_status = AsyncMock(return_value=None)
+    mock_gate.get_approval_history = AsyncMock(return_value=[])
+    mock_gate.approve = AsyncMock(return_value=False)
+    mock_gate.reject = AsyncMock(return_value=False)
+    app.dependency_overrides[get_hitl_gate] = lambda: mock_gate
+    yield mock_gate
+    app.dependency_overrides.pop(get_hitl_gate, None)
 
 
 class TestRootEndpoint:
@@ -149,7 +180,7 @@ class TestTaskEndpoints:
         assert "task" in data
         assert data["task"]["type"] == "bugfix"
     
-    def test_create_task_requires_agent_role(self, client, user_token, mock_redis_queue):
+    def test_create_task_requires_agent_role(self, client, user_token, mock_redis_queue, mock_orchestrator_router):
         """Test creating task requires agent role"""
         response = client.post(
             "/tasks",
@@ -368,7 +399,7 @@ class TestApprovalEndpoints:
         assert data["count"] == 2
         assert len(data["approvals"]) == 2
     
-    def test_get_pending_approvals_requires_auth(self, client):
+    def test_get_pending_approvals_requires_auth(self, client, mock_hitl_gate):
         """Test getting pending approvals requires authentication"""
         response = client.get("/approvals/pending")
         assert response.status_code == 403
