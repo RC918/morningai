@@ -109,7 +109,7 @@ const LoginPage = ({ onLogin }) => {
               <div className="space-y-2">
                 <Label htmlFor="username">{t('auth.login.username')}</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     id="username"
                     name="username"
@@ -126,7 +126,7 @@ const LoginPage = ({ onLogin }) => {
               <div className="space-y-2">
                 <Label htmlFor="password">{t('auth.login.password')}</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     id="password"
                     name="password"
