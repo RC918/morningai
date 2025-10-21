@@ -1,60 +1,46 @@
 # Test Retry Success in MorningAI
 
-Understanding how to implement and manage test retries is crucial for maintaining a robust testing environment in MorningAI. This FAQ provides an overview of the test retry mechanism, offering developers insights into configuring and utilizing this feature to ensure higher reliability and stability of the application.
+When working with MorningAI, ensuring the reliability and robustness of your automated tasks is crucial. One common scenario that developers face is handling transient errors or intermittent failures in their code or external services. The MorningAI platform, leveraging Redis Queue (RQ) for task orchestration, provides a mechanism to retry tasks that have failed, enhancing the success rate of operations without manual intervention. This FAQ aims to guide developers on how to implement and utilize test retries effectively within the MorningAI framework.
 
-## Overview
+## Understanding Test Retries
 
-In software development, particularly in continuous integration (CI) workflows, tests might fail intermittently due to various reasons such as network latency, dependency issues, or temporary service unavailability. The test retry feature allows these tests to be automatically retried a specified number of times before being marked as failed. This approach helps in mitigating false negatives in CI pipelines, ensuring that only genuine failures are highlighted.
+Test retries are designed to automatically re-execute tasks that fail during their initial run. This is particularly useful in scenarios where failures are due to temporary issues such as network latency, external API rate limits, or short-lived resource unavailability. By implementing retries, you can make your system more resilient and reliable.
 
-## Configuring Test Retries
+### Code Example: Implementing Retries in RQ
 
-MorningAI leverages pytest for Python-based testing, which supports the retry mechanism through plugins like `pytest-rerunfailures`. To configure test retries, you need to install this plugin and adjust your pytest configuration accordingly.
-
-### Step 1: Install pytest-rerunfailures
-
-Ensure your virtual environment is activated, then install `pytest-rerunfailures`:
-
-```bash
-pip install pytest-rerunfailures
-```
-
-### Step 2: Configure pytest.ini
-
-Add the retry configuration to your `pytest.ini` file or equivalent configuration file in your project:
-
-```ini
-[pytest]
-addopts = --reruns 3 --reruns-delay 5
-```
-
-This configuration will retry any failing test up to 3 times with a delay of 5 seconds between each attempt.
-
-### Example Test Case
-
-Here's a simple example of a test case that might benefit from retries:
+To set up retries for a task in Redis Queue within the MorningAI platform, you need to specify `retry` parameters when enqueueing a job. Here's an example using Python and Flask, which is part of the backend technology stack of MorningAI:
 
 ```python
-import requests
+from redis import Redis
+from rq import Queue
+from rq.job import Job
+from my_module import my_task_function
 
-def test_external_api():
-    response = requests.get("https://api.example.com/data")
-    assert response.status_code == 200
+# Setup Redis connection
+redis_conn = Redis()
+
+# Setup RQ queue
+q = Queue(connection=redis_conn)
+
+# Enqueue job with retry policy
+job = q.enqueue(my_task_function, retry=3)
 ```
 
-Given the nature of external network calls, this test could intermittently fail due to temporary issues with the external API or network instability.
+In this example, `my_task_function` will be retried up to 3 times if it fails. You can adjust the retry count according to your needs.
 
-## Related Documentation Links
+### Related Documentation
 
-- Pytest Documentation: [https://docs.pytest.org/en/stable/](https://docs.pytest.org/en/stable/)
-- Pytest-RerunFailures Plugin: [https://github.com/pytest-dev/pytest-rerunfailures](https://github.com/pytest-dev/pytest-rerunfailures)
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Flask Documentation](https://flask.palletsprojects.com/)
+- [Supabase Row Level Security](https://supabase.com/docs/guides/auth/row-level-security)
 
-## Common Troubleshooting Tips
+### Common Troubleshooting Tips
 
-- **Tests Still Failing After Maximum Retries**: If tests continue to fail even after the maximum number of retries, it's crucial to investigate the root cause. Check logs for error messages and consider whether the failure is due to code issues rather than transient problems.
-- **Long Test Suite Execution Time**: While retrying tests can mitigate false negatives, it also increases the overall execution time of your test suite. Monitor your CI pipeline durations and adjust the number of retries or delay between retries if necessary.
-- **Intermittent Failures Becoming Consistent**: Sometimes, an intermittent failure that prompts the use of retries can evolve into a consistent failure due to changes in dependencies or external services. Regularly review and update tests to reflect current expectations and dependencies.
+1. **Job Fails Without Retrying**: Ensure that the failure is not due to permanent errors which cannot be resolved by retries (e.g., syntax errors). Only transient failures are suitable for retries.
+2. **Retries Not Triggering as Expected**: Verify that you have correctly set up the retry policy when enqueuing the job. Incorrect parameters or missing retry logic can lead to unexpected behavior.
+3. **Monitoring and Logging**: Utilize logging within your task function to capture both the occurrence of failures and retries. This will help in diagnosing issues and understanding the behavior of your system under error conditions.
 
-Remember, while test retries can improve CI pipeline reliability by reducing false negatives, they should not be used as a substitute for fixing underlying issues that cause tests to fail intermittently.
+Implementing test retries in MorningAI using Redis Queue enhances your application's resilience against transient failures. By following the above guidelines and making use of the provided code examples, developers can ensure higher success rates for their automated tasks within the MorningAI platform.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -63,6 +49,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: Test retry success
-- Trace ID: `5c8e214d-0e9e-4d65-9e9c-1c5828cd24ca`
+- Trace ID: `1b81023e-87d4-4261-aaa5-016c91aaf3dc`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
