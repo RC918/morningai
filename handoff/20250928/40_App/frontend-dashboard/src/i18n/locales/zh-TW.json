@@ -662,7 +662,31 @@
   },
   "history": {
     "title": "歷史分析",
-    "description": "查看和分析歷史決策記錄"
+    "description": "查看系統運行歷史與趨勢分析",
+    "totalEvents": "總事件",
+    "optimizationExecutions": "優化執行",
+    "warningEvents": "警告事件",
+    "avgResponseTime": "平均響應時間",
+    "eventTimeline": "事件時間軸",
+    "eventTimelineDescription": "按時間順序查看所有系統事件",
+    "viewDetails": "查看詳情",
+    "customRange": "自訂範圍",
+    "periods": {
+      "24h": "過去 24 小時",
+      "7d": "過去 7 天",
+      "30d": "過去 30 天",
+      "90d": "過去 90 天"
+    },
+    "impact": {
+      "positive": "正面影響",
+      "negative": "負面影響",
+      "neutral": "中性"
+    },
+    "examples": {
+      "cpuOptimization": "CPU 優化執行",
+      "autoScaling": "自動擴容事件",
+      "memoryWarning": "記憶體使用率警告"
+    }
   },
   "cost": {
     "title": "成本分析",

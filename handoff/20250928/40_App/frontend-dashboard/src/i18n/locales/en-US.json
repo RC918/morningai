@@ -662,7 +662,31 @@
   },
   "history": {
     "title": "History Analysis",
-    "description": "View and analyze historical decision records"
+    "description": "View system operation history and trend analysis",
+    "totalEvents": "Total Events",
+    "optimizationExecutions": "Optimization Executions",
+    "warningEvents": "Warning Events",
+    "avgResponseTime": "Avg Response Time",
+    "eventTimeline": "Event Timeline",
+    "eventTimelineDescription": "View all system events in chronological order",
+    "viewDetails": "View Details",
+    "customRange": "Custom Range",
+    "periods": {
+      "24h": "Past 24 Hours",
+      "7d": "Past 7 Days",
+      "30d": "Past 30 Days",
+      "90d": "Past 90 Days"
+    },
+    "impact": {
+      "positive": "Positive Impact",
+      "negative": "Negative Impact",
+      "neutral": "Neutral"
+    },
+    "examples": {
+      "cpuOptimization": "CPU Optimization Execution",
+      "autoScaling": "Auto-scaling Event",
+      "memoryWarning": "Memory Usage Warning"
+    }
   },
   "cost": {
     "title": "Cost Analysis",
