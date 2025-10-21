@@ -345,5 +345,59 @@
       "description": "選擇付費方案"
     },
     "logout": "登出"
+  },
+  "widgets": {
+    "cpuUsage": {
+      "title": "CPU 使用率",
+      "needsAttention": "需要關注",
+      "normalRange": "正常範圍"
+    },
+    "memoryUsage": {
+      "title": "內存使用率",
+      "comparedYesterday": "較昨日 -{{percent}}%"
+    },
+    "responseTime": {
+      "title": "響應時間",
+      "comparedYesterday": "較昨日 -{{percent}}%"
+    },
+    "errorRate": {
+      "title": "錯誤率",
+      "systemStable": "系統運行穩定"
+    },
+    "activeStrategies": {
+      "title": "活躍策略",
+      "running": "{{count}} 個策略正在運行"
+    },
+    "pendingApprovals": {
+      "title": "待審批",
+      "waiting": "{{count}} 個決策等待審批"
+    },
+    "costToday": {
+      "title": "今日成本",
+      "saved": "節省 ${{amount}}"
+    },
+    "taskExecution": {
+      "title": "任務執行狀態",
+      "completed": "已完成",
+      "running": "運行中",
+      "pending": "待處理",
+      "todayTasks": "今日任務",
+      "successRate": "成功率",
+      "avgDuration": "平均時長"
+    },
+    "circuitBreakers": {
+      "title": "熔斷器狀態",
+      "normal": "正常",
+      "open": "開啟",
+      "halfOpen": "半開",
+      "unknown": "未知",
+      "allNormal": "所有熔斷器運行正常"
+    },
+    "performanceTrend": {
+      "title": "性能趨勢",
+      "description": "過去6小時的系統性能指標",
+      "cpuLabel": "CPU (%)",
+      "memoryLabel": "內存 (%)"
+    }
   }
 }

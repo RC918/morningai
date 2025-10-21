@@ -345,5 +345,59 @@
       "description": "Choose payment plan"
     },
     "logout": "Logout"
+  },
+  "widgets": {
+    "cpuUsage": {
+      "title": "CPU Usage",
+      "needsAttention": "Needs Attention",
+      "normalRange": "Normal Range"
+    },
+    "memoryUsage": {
+      "title": "Memory Usage",
+      "comparedYesterday": "{{percent}}% less than yesterday"
+    },
+    "responseTime": {
+      "title": "Response Time",
+      "comparedYesterday": "{{percent}}% less than yesterday"
+    },
+    "errorRate": {
+      "title": "Error Rate",
+      "systemStable": "System Running Stable"
+    },
+    "activeStrategies": {
+      "title": "Active Strategies",
+      "running": "{{count}} strategies running"
+    },
+    "pendingApprovals": {
+      "title": "Pending Approvals",
+      "waiting": "{{count}} decisions awaiting approval"
+    },
+    "costToday": {
+      "title": "Cost Today",
+      "saved": "Saved ${{amount}}"
+    },
+    "taskExecution": {
+      "title": "Task Execution Status",
+      "completed": "Completed",
+      "running": "Running",
+      "pending": "Pending",
+      "todayTasks": "Today's Tasks",
+      "successRate": "Success Rate",
+      "avgDuration": "Avg Duration"
+    },
+    "circuitBreakers": {
+      "title": "Circuit Breaker Status",
+      "normal": "Normal",
+      "open": "Open",
+      "halfOpen": "Half-Open",
+      "unknown": "Unknown",
+      "allNormal": "All circuit breakers running normally"
+    },
+    "performanceTrend": {
+      "title": "Performance Trend",
+      "description": "System performance metrics for the past 6 hours",
+      "cpuLabel": "CPU (%)",
+      "memoryLabel": "Memory (%)"
+    }
   }
 }

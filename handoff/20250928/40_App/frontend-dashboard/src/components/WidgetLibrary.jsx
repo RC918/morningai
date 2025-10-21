@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,11 +10,12 @@ import {
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 
-export const WidgetLibrary = {
-  cpu_usage: ({ data }) => (
+const CPUUsageWidget = ({ data }) => {
+  const { t } = useTranslation()
+  return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">CPU 使用率</CardTitle>
+        <CardTitle className="text-sm font-medium">{t('widgets.cpuUsage.title')}</CardTitle>
         <Cpu className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
@@ -23,23 +25,27 @@ export const WidgetLibrary = {
           {(data?.system_metrics?.cpu_usage || 0) > 80 ? (
             <span className="text-red-600 flex items-center">
               <TrendingUp className="w-3 h-3 mr-1" />
-              需要關注
+              {t('widgets.cpuUsage.needsAttention')}
             </span>
           ) : (
             <span className="text-green-600 flex items-center">
               <CheckCircle className="w-3 h-3 mr-1" />
-              正常範圍
+              {t('widgets.cpuUsage.normalRange')}
             </span>
           )}
         </p>
       </CardContent>
     </Card>
-  ),
-  
-  memory_usage: ({ data }) => (
+  )
+}
+
+
+const MemoryUsageWidget = ({ data }) => {
+  const { t } = useTranslation()
+  return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">內存使用率</CardTitle>
+        <CardTitle className="text-sm font-medium">{t('widgets.memoryUsage.title')}</CardTitle>
         <MemoryStick className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
@@ -48,17 +54,21 @@ export const WidgetLibrary = {
         <p className="text-xs text-muted-foreground mt-2">
           <span className="text-green-600 flex items-center">
             <TrendingDown className="w-3 h-3 mr-1" />
-            較昨日 -5%
+            {t('widgets.memoryUsage.comparedYesterday', { percent: 5 })}
           </span>
         </p>
       </CardContent>
     </Card>
-  ),
-  
-  response_time: ({ data }) => (
+  )
+}
+
+
+const ResponseTimeWidget = ({ data }) => {
+  const { t } = useTranslation()
+  return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">響應時間</CardTitle>
+        <CardTitle className="text-sm font-medium">{t('widgets.responseTime.title')}</CardTitle>
         <Zap className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
@@ -66,17 +76,21 @@ export const WidgetLibrary = {
         <p className="text-xs text-muted-foreground mt-2">
           <span className="text-green-600 flex items-center">
             <TrendingDown className="w-3 h-3 mr-1" />
-            較昨日 -12%
+            {t('widgets.responseTime.comparedYesterday', { percent: 12 })}
           </span>
         </p>
       </CardContent>
     </Card>
-  ),
-  
-  error_rate: ({ data }) => (
+  )
+}
+
+
+const ErrorRateWidget = ({ data }) => {
+  const { t } = useTranslation()
+  return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">錯誤率</CardTitle>
+        <CardTitle className="text-sm font-medium">{t('widgets.errorRate.title')}</CardTitle>
         <AlertTriangle className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
@@ -86,45 +100,58 @@ export const WidgetLibrary = {
         <p className="text-xs text-muted-foreground mt-2">
           <span className="text-green-600 flex items-center">
             <CheckCircle className="w-3 h-3 mr-1" />
-            系統運行穩定
+            {t('widgets.errorRate.systemStable')}
           </span>
         </p>
       </CardContent>
     </Card>
-  ),
-  
-  active_strategies: ({ data }) => (
+  )
+}
+
+const ActiveStrategiesWidget = ({ data }) => {
+  const { t } = useTranslation()
+  return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">活躍策略</CardTitle>
+        <CardTitle className="text-lg">{t('widgets.activeStrategies.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="text-3xl font-bold text-blue-600">
           {data?.system_metrics?.active_strategies || 0}
         </div>
-        <p className="text-sm text-gray-600 mt-2">個策略正在運行</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+          {t('widgets.activeStrategies.running', { count: data?.system_metrics?.active_strategies || 0 })}
+        </p>
       </CardContent>
     </Card>
-  ),
-  
-  pending_approvals: ({ data }) => (
+  )
+}
+
+const PendingApprovalsWidget = ({ data }) => {
+  const { t } = useTranslation()
+  return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">待審批</CardTitle>
+        <CardTitle className="text-lg">{t('widgets.pendingApprovals.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="text-3xl font-bold text-orange-600">
           {data?.system_metrics?.pending_approvals || 0}
         </div>
-        <p className="text-sm text-gray-600 mt-2">個決策等待審批</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+          {t('widgets.pendingApprovals.waiting', { count: data?.system_metrics?.pending_approvals || 0 })}
+        </p>
       </CardContent>
     </Card>
-  ),
-  
-  cost_today: ({ data }) => (
+  )
+}
+
+const CostTodayWidget = ({ data }) => {
+  const { t } = useTranslation()
+  return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">今日成本</CardTitle>
+        <CardTitle className="text-sm font-medium">{t('widgets.costToday.title')}</CardTitle>
         <DollarSign className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
@@ -132,17 +159,21 @@ export const WidgetLibrary = {
         <p className="text-xs text-muted-foreground mt-2">
           <span className="text-green-600 flex items-center">
             <TrendingDown className="w-3 h-3 mr-1" />
-            節省 $123.45
+            {t('widgets.costToday.saved', { amount: '123.45' })}
           </span>
         </p>
       </CardContent>
     </Card>
-  ),
-  
-  task_execution: ({ data }) => (
+  )
+}
+
+
+const TaskExecutionWidget = ({ data }) => {
+  const { t } = useTranslation()
+  return (
     <Card>
       <CardHeader>
-        <CardTitle>任務執行狀態</CardTitle>
+        <CardTitle>{t('widgets.taskExecution.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
@@ -152,15 +183,15 @@ export const WidgetLibrary = {
                 <Activity className="w-4 h-4" />
                 <div>
                   <span className="text-sm font-medium">{task?.name || 'Unknown Task'}</span>
-                  <p className="text-xs text-gray-500">{task?.agent || 'Unknown'} • {task?.duration || 'N/A'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{task?.agent || 'Unknown'} • {task?.duration || 'N/A'}</p>
                 </div>
               </div>
               <Badge variant={
                 task?.status === 'completed' ? 'default' : 
                 task?.status === 'running' ? 'secondary' : 'outline'
               }>
-                {task?.status === 'completed' ? '已完成' : 
-                 task?.status === 'running' ? '運行中' : '待處理'}
+                {task?.status === 'completed' ? t('widgets.taskExecution.completed') : 
+                 task?.status === 'running' ? t('widgets.taskExecution.running') : t('widgets.taskExecution.pending')}
               </Badge>
             </div>
           ))}
@@ -168,96 +199,102 @@ export const WidgetLibrary = {
         <div className="mt-4 pt-4 border-t">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-lg font-bold">{data?.task_execution?.total_tasks_today || 0}</div>
-              <div className="text-xs text-gray-500">今日任務</div>
+              <div className="text-lg font-bold dark:text-white">{data?.task_execution?.total_tasks_today || 0}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{t('widgets.taskExecution.todayTasks')}</div>
             </div>
             <div>
               <div className="text-lg font-bold text-green-600">
                 {((data?.task_execution?.success_rate || 0) * 100).toFixed(1)}%
               </div>
-              <div className="text-xs text-gray-500">成功率</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{t('widgets.taskExecution.successRate')}</div>
             </div>
             <div>
-              <div className="text-lg font-bold">{data?.task_execution?.avg_duration || '0s'}</div>
-              <div className="text-xs text-gray-500">平均時長</div>
+              <div className="text-lg font-bold dark:text-white">{data?.task_execution?.avg_duration || '0s'}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{t('widgets.taskExecution.avgDuration')}</div>
             </div>
           </div>
         </div>
       </CardContent>
     </Card>
-  ),
+  )
+}
+
+
+const CircuitBreakersWidget = ({ data }) => {
+  const { t } = useTranslation()
+  let circuitBreakersArray = []
   
-  circuit_breakers: ({ data }) => {
-    let circuitBreakersArray = []
+  try {
+    const circuitBreakers = data?.circuit_breakers
     
-    try {
-      const circuitBreakers = data?.circuit_breakers
-      
-      if (!circuitBreakers) {
-        circuitBreakersArray = []
-      }
-      else if (Array.isArray(circuitBreakers)) {
-        circuitBreakersArray = circuitBreakers.filter(cb => cb && typeof cb === 'object')
-      }
-      else if (typeof circuitBreakers === 'object') {
-        circuitBreakersArray = Object.entries(circuitBreakers)
-          .filter(([key, value]) => key && value !== null && value !== undefined)
-          .map(([name, state]) => ({
-            name: String(name),
-            state: typeof state === 'string' ? state : 
-                   (state?.state && typeof state.state === 'string' ? state.state : 'unknown')
-          }))
-      }
-      else {
-        console.warn('Invalid circuit_breakers data type:', typeof circuitBreakers, circuitBreakers)
-        circuitBreakersArray = []
-      }
-    } catch (error) {
-      console.error('Error processing circuit breakers data:', error)
+    if (!circuitBreakers) {
       circuitBreakersArray = []
-      
-      if (window.Sentry) {
-        window.Sentry.captureException(error, {
-          tags: { section: 'widget_library', widget: 'circuit_breakers' },
-          extra: { data: data?.circuit_breakers }
-        })
-      }
     }
+    else if (Array.isArray(circuitBreakers)) {
+      circuitBreakersArray = circuitBreakers.filter(cb => cb && typeof cb === 'object')
+    }
+    else if (typeof circuitBreakers === 'object') {
+      circuitBreakersArray = Object.entries(circuitBreakers)
+        .filter(([key, value]) => key && value !== null && value !== undefined)
+        .map(([name, state]) => ({
+          name: String(name),
+          state: typeof state === 'string' ? state : 
+                 (state?.state && typeof state.state === 'string' ? state.state : 'unknown')
+        }))
+    }
+    else {
+      console.warn('Invalid circuit_breakers data type:', typeof circuitBreakers, circuitBreakers)
+      circuitBreakersArray = []
+    }
+  } catch (error) {
+    console.error('Error processing circuit breakers data:', error)
+    circuitBreakersArray = []
     
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>熔斷器狀態</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2">
-            {circuitBreakersArray.map((cb, index) => (
-              <div key={`cb-${index}-${cb?.name || 'unknown'}`} className="flex items-center justify-between p-2 border rounded">
-                <span className="text-sm">{cb?.name || `Circuit ${index + 1}`}</span>
-                <Badge variant={cb?.state === 'closed' ? 'default' : 'destructive'}>
-                  {cb?.state === 'closed' ? '正常' : 
-                   cb?.state === 'open' ? '開啟' : 
-                   cb?.state === 'half-open' ? '半開' : '未知'}
-                </Badge>
-              </div>
-            ))}
-            {circuitBreakersArray.length === 0 && (
-              <div className="col-span-2 text-center text-gray-500 py-4">
-                <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                <p className="text-sm">所有熔斷器運行正常</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    )
-  },
+    if (window.Sentry) {
+      window.Sentry.captureException(error, {
+        tags: { section: 'widget_library', widget: 'circuit_breakers' },
+        extra: { data: data?.circuit_breakers }
+      })
+    }
+  }
   
-  performance_trend: ({ data }) => (
+  return (
     <Card>
       <CardHeader>
-        <CardTitle>性能趨勢</CardTitle>
-        <p className="text-sm text-gray-600">過去6小時的系統性能指標</p>
+        <CardTitle>{t('widgets.circuitBreakers.title')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-2">
+          {circuitBreakersArray.map((cb, index) => (
+            <div key={`cb-${index}-${cb?.name || 'unknown'}`} className="flex items-center justify-between p-2 border rounded">
+              <span className="text-sm dark:text-white">{cb?.name || `Circuit ${index + 1}`}</span>
+              <Badge variant={cb?.state === 'closed' ? 'default' : 'destructive'}>
+                {cb?.state === 'closed' ? t('widgets.circuitBreakers.normal') : 
+                 cb?.state === 'open' ? t('widgets.circuitBreakers.open') : 
+                 cb?.state === 'half-open' ? t('widgets.circuitBreakers.halfOpen') : t('widgets.circuitBreakers.unknown')}
+              </Badge>
+            </div>
+          ))}
+          {circuitBreakersArray.length === 0 && (
+            <div className="col-span-2 text-center text-gray-500 dark:text-gray-400 py-4">
+              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+              <p className="text-sm">{t('widgets.circuitBreakers.allNormal')}</p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+
+const PerformanceTrendWidget = ({ data }) => {
+  const { t } = useTranslation()
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('widgets.performanceTrend.title')}</CardTitle>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{t('widgets.performanceTrend.description')}</p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={200}>
@@ -271,20 +308,33 @@ export const WidgetLibrary = {
               dataKey="cpu" 
               stroke="#3b82f6" 
               strokeWidth={2}
-              name="CPU (%)"
+              name={t('widgets.performanceTrend.cpuLabel')}
             />
             <Line 
               type="monotone" 
               dataKey="memory" 
               stroke="#10b981" 
               strokeWidth={2}
-              name="內存 (%)"
+              name={t('widgets.performanceTrend.memoryLabel')}
             />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>
   )
+}
+
+export const WidgetLibrary = {
+  cpu_usage: CPUUsageWidget,
+  memory_usage: MemoryUsageWidget,
+  response_time: ResponseTimeWidget,
+  error_rate: ErrorRateWidget,
+  active_strategies: ActiveStrategiesWidget,
+  pending_approvals: PendingApprovalsWidget,
+  cost_today: CostTodayWidget,
+  task_execution: TaskExecutionWidget,
+  circuit_breakers: CircuitBreakersWidget,
+  performance_trend: PerformanceTrendWidget
 }
 
 export const getWidgetComponent = (widgetId) => {
