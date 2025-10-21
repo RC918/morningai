@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { 
   LayoutDashboard, 
   Settings, 
@@ -20,6 +21,7 @@ import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { DarkModeToggle } from './DarkModeToggle'
 
 const Sidebar = ({ user, onLogout }) => {
+  const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
 
@@ -27,51 +29,51 @@ const Sidebar = ({ user, onLogout }) => {
     {
       path: '/dashboard',
       icon: LayoutDashboard,
-      label: '監控儀表板',
-      description: '系統狀態總覽',
+      label: t('sidebar.dashboard.label'),
+      description: t('sidebar.dashboard.description'),
       feature: AVAILABLE_FEATURES.DASHBOARD
     },
     {
       path: '/strategies',
       icon: Sparkles,
-      label: '策略管理',
-      description: '管理AI策略',
+      label: t('sidebar.strategies.label'),
+      description: t('sidebar.strategies.description'),
       feature: AVAILABLE_FEATURES.STRATEGIES
     },
     {
       path: '/approvals',
       icon: CheckCircle,
-      label: '決策審批',
-      description: '人工審核待辦',
+      label: t('sidebar.approvals.label'),
+      description: t('sidebar.approvals.description'),
       badge: '3',
       feature: AVAILABLE_FEATURES.APPROVALS
     },
     {
       path: '/history',
       icon: History,
-      label: '歷史分析',
-      description: '決策歷史回顧',
+      label: t('sidebar.history.label'),
+      description: t('sidebar.history.description'),
       feature: AVAILABLE_FEATURES.HISTORY
     },
     {
       path: '/costs',
       icon: DollarSign,
-      label: '成本分析',
-      description: 'AI服務成本',
+      label: t('sidebar.costs.label'),
+      description: t('sidebar.costs.description'),
       feature: AVAILABLE_FEATURES.COSTS
     },
     {
       path: '/settings',
       icon: Settings,
-      label: '系統設置',
-      description: '配置管理',
+      label: t('sidebar.settings.label'),
+      description: t('sidebar.settings.description'),
       feature: AVAILABLE_FEATURES.SETTINGS
     },
     {
       path: '/checkout',
       icon: CreditCard,
-      label: '訂閱方案',
-      description: '選擇付費方案',
+      label: t('sidebar.checkout.label'),
+      description: t('sidebar.checkout.description'),
       feature: AVAILABLE_FEATURES.CHECKOUT
     }
   ]
@@ -97,7 +99,7 @@ const Sidebar = ({ user, onLogout }) => {
               />
               <div>
                 <h1 className="text-lg font-bold text-gray-900 dark:text-white">Morning AI</h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">智能決策系統</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('sidebar.header.subtitle')}</p>
               </div>
             </div>
           )}
@@ -130,10 +132,10 @@ const Sidebar = ({ user, onLogout }) => {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {user?.name || '管理員'}
+                {user?.name || t('sidebar.user.defaultName')}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                {user?.role || '系統管理員'}
+                {user?.role || t('sidebar.user.defaultRole')}
               </p>
             </div>
           )}
@@ -195,7 +197,7 @@ const Sidebar = ({ user, onLogout }) => {
           className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white`}
         >
           <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />
-          {!collapsed && '登出'}
+          {!collapsed && t('sidebar.logout')}
         </Button>
       </div>
     </div>

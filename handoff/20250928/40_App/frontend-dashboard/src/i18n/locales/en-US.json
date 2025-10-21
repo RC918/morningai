@@ -299,5 +299,43 @@
         "deployment": "Dedicated deployment options"
       }
     }
+  },
+  "sidebar": {
+    "header": {
+      "subtitle": "Intelligent Decision System"
+    },
+    "user": {
+      "defaultName": "Administrator",
+      "defaultRole": "System Administrator"
+    },
+    "dashboard": {
+      "label": "Monitoring Dashboard",
+      "description": "System status overview"
+    },
+    "strategies": {
+      "label": "Strategy Management",
+      "description": "Manage AI strategies"
+    },
+    "approvals": {
+      "label": "Decision Approvals",
+      "description": "Manual review pending"
+    },
+    "history": {
+      "label": "Historical Analysis",
+      "description": "Decision history review"
+    },
+    "costs": {
+      "label": "Cost Analysis",
+      "description": "AI service costs"
+    },
+    "settings": {
+      "label": "System Settings",
+      "description": "Configuration management"
+    },
+    "checkout": {
+      "label": "Subscription Plan",
+      "description": "Choose payment plan"
+    },
+    "logout": "Logout"
   }
 }

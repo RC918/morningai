@@ -299,5 +299,43 @@
         "deployment": "專屬部署選項"
       }
     }
+  },
+  "sidebar": {
+    "header": {
+      "subtitle": "智能決策系統"
+    },
+    "user": {
+      "defaultName": "管理員",
+      "defaultRole": "系統管理員"
+    },
+    "dashboard": {
+      "label": "監控儀表板",
+      "description": "系統狀態總覽"
+    },
+    "strategies": {
+      "label": "策略管理",
+      "description": "管理AI策略"
+    },
+    "approvals": {
+      "label": "決策審批",
+      "description": "人工審核待辦"
+    },
+    "history": {
+      "label": "歷史分析",
+      "description": "決策歷史回顧"
+    },
+    "costs": {
+      "label": "成本分析",
+      "description": "AI服務成本"
+    },
+    "settings": {
+      "label": "系統設置",
+      "description": "配置管理"
+    },
+    "checkout": {
+      "label": "訂閱方案",
+      "description": "選擇付費方案"
+    },
+    "logout": "登出"
   }
 }
