@@ -639,14 +639,51 @@
     "description": "Monitor and optimize AI service costs"
   },
   "errors": {
-    "networkError": "Network Connection Error",
-    "serverError": "Server Error",
-    "authError": "Authentication Failed",
-    "notFound": "Resource Not Found",
-    "forbidden": "Access Denied",
-    "validationError": "Validation Error",
-    "unknownError": "Unknown Error",
-    "tryAgain": "Please try again later"
+    "networkError": {
+      "title": "Network Connection Problem",
+      "description": "Unable to connect to server, please check your network connection",
+      "action": "Retry"
+    },
+    "unauthorized": {
+      "title": "Unauthorized Access",
+      "description": "Your login has expired, please log in again",
+      "action": "Log In Again"
+    },
+    "forbidden": {
+      "title": "Insufficient Permissions",
+      "description": "You do not have permission to perform this action",
+      "action": "Go Back"
+    },
+    "notFound": {
+      "title": "Resource Not Found",
+      "description": "The resource you requested does not exist or has been removed",
+      "action": "Return Home"
+    },
+    "validationError": {
+      "title": "Data Validation Failed",
+      "description": "Please check if your input data is correct",
+      "action": "Go Back to Edit"
+    },
+    "serverError": {
+      "title": "Server Error",
+      "description": "The server is temporarily unable to process your request, we are working on it",
+      "action": "Try Again Later"
+    },
+    "timeoutError": {
+      "title": "Request Timeout",
+      "description": "Server response time is too long, please try again later",
+      "action": "Retry"
+    },
+    "rateLimit": {
+      "title": "Too Many Requests",
+      "description": "You have reached the request limit, please try again later",
+      "action": "Try Again Later"
+    },
+    "unknownError": {
+      "title": "An Error Occurred",
+      "description": "An unknown error occurred, please try again later",
+      "action": "Retry"
+    }
   },
   "feedback": {
     "loading": "Loading",

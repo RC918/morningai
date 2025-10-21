@@ -639,14 +639,51 @@
     "description": "監控和優化 AI 服務成本"
   },
   "errors": {
-    "networkError": "網絡連接錯誤",
-    "serverError": "服務器錯誤",
-    "authError": "認證失敗",
-    "notFound": "找不到資源",
-    "forbidden": "沒有權限",
-    "validationError": "驗證錯誤",
-    "unknownError": "未知錯誤",
-    "tryAgain": "請稍後重試"
+    "networkError": {
+      "title": "網路連線問題",
+      "description": "無法連接到伺服器，請檢查您的網路連線",
+      "action": "重試"
+    },
+    "unauthorized": {
+      "title": "未授權訪問",
+      "description": "您的登入已過期，請重新登入",
+      "action": "重新登入"
+    },
+    "forbidden": {
+      "title": "權限不足",
+      "description": "您沒有權限執行此操作",
+      "action": "返回"
+    },
+    "notFound": {
+      "title": "找不到資源",
+      "description": "您請求的資源不存在或已被移除",
+      "action": "返回首頁"
+    },
+    "validationError": {
+      "title": "資料驗證失敗",
+      "description": "請檢查您輸入的資料是否正確",
+      "action": "返回修改"
+    },
+    "serverError": {
+      "title": "伺服器錯誤",
+      "description": "伺服器暫時無法處理您的請求，我們正在處理",
+      "action": "稍後重試"
+    },
+    "timeoutError": {
+      "title": "請求超時",
+      "description": "伺服器響應時間過長，請稍後再試",
+      "action": "重試"
+    },
+    "rateLimit": {
+      "title": "請求過於頻繁",
+      "description": "您的請求次數已達上限，請稍後再試",
+      "action": "稍後重試"
+    },
+    "unknownError": {
+      "title": "發生錯誤",
+      "description": "發生未知錯誤，請稍後再試",
+      "action": "重試"
+    }
   },
   "feedback": {
     "loading": "載入中",
