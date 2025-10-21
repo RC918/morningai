@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { 
   CheckCircle, 
   XCircle, 
@@ -20,24 +21,25 @@ import { useToast } from '@/hooks/use-toast'
 import { safeInterval } from '@/lib/safeInterval'
 
 const DecisionApproval = () => {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const [pendingDecisions, setPendingDecisions] = useState([
     {
       id: 'decision_001',
       timestamp: '2024-01-01T14:30:00Z',
       strategy: {
-        name: 'CPU優化策略',
-        description: '當CPU使用率超過85%時自動擴容並優化緩存配置',
+        name: t('approval.mockData.cpuOptimization.name'),
+        description: t('approval.mockData.cpuOptimization.description'),
         actions: [
-          { type: 'scale_up', description: '增加2個計算實例', estimated_time: '3分鐘' },
-          { type: 'optimize_cache', description: '調整緩存TTL為300秒', estimated_time: '30秒' }
+          { type: 'scale_up', description: t('approval.mockData.cpuOptimization.action1'), estimated_time: t('approval.mockData.cpuOptimization.action1Time') },
+          { type: 'optimize_cache', description: t('approval.mockData.cpuOptimization.action2'), estimated_time: t('approval.mockData.cpuOptimization.action2Time') }
         ]
       },
       trigger: {
         type: 'high_cpu_usage',
         value: 92,
         threshold: 85,
-        duration: '5分鐘'
+        duration: t('approval.mockData.cpuOptimization.duration')
       },
       predicted_impact: {
         cpu_reduction: 25,
@@ -47,26 +49,26 @@ const DecisionApproval = () => {
       },
       risk_assessment: {
         level: 'low',
-        factors: ['已測試策略', '可回滾', '低影響範圍']
+        factors: [t('approval.mockData.cpuOptimization.factor1'), t('approval.mockData.cpuOptimization.factor2'), t('approval.mockData.cpuOptimization.factor3')]
       },
       priority: 'high',
-      auto_approve_in: 300 // 5分鐘後自動批准
+      auto_approve_in: 300
     },
     {
       id: 'decision_002',
       timestamp: '2024-01-01T14:25:00Z',
       strategy: {
-        name: '數據庫連接池優化',
-        description: '調整數據庫連接池大小以應對高並發',
+        name: t('approval.mockData.dbOptimization.name'),
+        description: t('approval.mockData.dbOptimization.description'),
         actions: [
-          { type: 'adjust_connection_pool', description: '將連接池從50增加到80', estimated_time: '1分鐘' }
+          { type: 'adjust_connection_pool', description: t('approval.mockData.dbOptimization.action1'), estimated_time: t('approval.mockData.dbOptimization.action1Time') }
         ]
       },
       trigger: {
         type: 'database_connection_exhaustion',
         value: 48,
         threshold: 45,
-        duration: '2分鐘'
+        duration: t('approval.mockData.dbOptimization.duration')
       },
       predicted_impact: {
         database_performance: 20,
@@ -76,7 +78,7 @@ const DecisionApproval = () => {
       },
       risk_assessment: {
         level: 'very_low',
-        factors: ['常規操作', '即時生效', '可動態調整']
+        factors: [t('approval.mockData.dbOptimization.factor1'), t('approval.mockData.dbOptimization.factor2'), t('approval.mockData.dbOptimization.factor3')]
       },
       priority: 'medium',
       auto_approve_in: 600
@@ -85,18 +87,18 @@ const DecisionApproval = () => {
       id: 'decision_003',
       timestamp: '2024-01-01T14:20:00Z',
       strategy: {
-        name: '緊急故障轉移',
-        description: '檢測到主服務異常，建議切換到備用服務',
+        name: t('approval.mockData.failover.name'),
+        description: t('approval.mockData.failover.description'),
         actions: [
-          { type: 'failover', description: '切換到備用數據中心', estimated_time: '2分鐘' },
-          { type: 'notify_team', description: '通知運維團隊', estimated_time: '即時' }
+          { type: 'failover', description: t('approval.mockData.failover.action1'), estimated_time: t('approval.mockData.failover.action1Time') },
+          { type: 'notify_team', description: t('approval.mockData.failover.action2'), estimated_time: t('approval.mockData.failover.action2Time') }
         ]
       },
       trigger: {
         type: 'service_failure',
         value: 'primary_service_down',
         threshold: 'availability_below_99',
-        duration: '30秒'
+        duration: t('approval.mockData.failover.duration')
       },
       predicted_impact: {
         availability_restoration: 99.9,
@@ -106,10 +108,10 @@ const DecisionApproval = () => {
       },
       risk_assessment: {
         level: 'medium',
-        factors: ['緊急操作', '影響用戶', '需要監控']
+        factors: [t('approval.mockData.failover.factor1'), t('approval.mockData.failover.factor2'), t('approval.mockData.failover.factor3')]
       },
       priority: 'critical',
-      auto_approve_in: 120 // 2分鐘後自動批准
+      auto_approve_in: 120
     }
   ])
 
@@ -117,7 +119,7 @@ const DecisionApproval = () => {
   const [approvalComment, setApprovalComment] = useState('')
 
   useEffect(() => {
-    // 模擬自動倒計時 - 使用 safeInterval
+    // Simulate auto-countdown using safeInterval
     const cleanup = safeInterval(() => {
       setPendingDecisions(prev => 
         prev.map(decision => ({
@@ -132,7 +134,6 @@ const DecisionApproval = () => {
 
   const handleApprove = async (decisionId, comment = '') => {
     try {
-      // 模擬API調用
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       setPendingDecisions(prev => 
@@ -140,8 +141,8 @@ const DecisionApproval = () => {
       )
       
       toast({
-        title: "決策已批准",
-        description: "策略將立即執行",
+        title: t('approval.approved'),
+        description: t('approval.approvedDescription'),
         variant: "default"
       })
       
@@ -149,8 +150,8 @@ const DecisionApproval = () => {
       setApprovalComment('')
     } catch (error) {
       toast({
-        title: "批准失敗",
-        description: "請稍後重試",
+        title: t('approval.approveFailed'),
+        description: t('approval.approveFailedDescription'),
         variant: "destructive"
       })
     }
@@ -159,8 +160,8 @@ const DecisionApproval = () => {
   const handleReject = async (decisionId, comment) => {
     if (!comment.trim()) {
       toast({
-        title: "請提供拒絕理由",
-        description: "拒絕決策時必須說明原因",
+        title: t('approval.rejectReasonRequired'),
+        description: t('approval.rejectReasonRequired'),
         variant: "destructive"
       })
       return
@@ -174,8 +175,8 @@ const DecisionApproval = () => {
       )
       
       toast({
-        title: "決策已拒絕",
-        description: "系統將尋找替代方案",
+        title: t('approval.rejected'),
+        description: t('approval.rejectedDescription'),
         variant: "default"
       })
       
@@ -183,8 +184,8 @@ const DecisionApproval = () => {
       setApprovalComment('')
     } catch (error) {
       toast({
-        title: "拒絕失敗",
-        description: "請稍後重試",
+        title: t('approval.rejectFailed'),
+        description: t('approval.rejectFailedDescription'),
         variant: "destructive"
       })
     }
@@ -219,21 +220,19 @@ const DecisionApproval = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* 頁面標題 */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">決策審批中心</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{t('approval.title')}</h1>
         <p className="text-gray-600 mt-2">
-          審核AI系統提出的決策建議，確保系統安全穩定運行
+          {t('approval.description')}
         </p>
       </div>
 
-      {/* 統計摘要 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">待審批</p>
+                <p className="text-sm text-gray-600">{t('approval.pendingDecisions')}</p>
                 <p className="text-2xl font-bold">{pendingDecisions.length}</p>
               </div>
               <Clock className="w-8 h-8 text-orange-500" />
@@ -245,7 +244,7 @@ const DecisionApproval = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">緊急決策</p>
+                <p className="text-sm text-gray-600">{t('approval.criticalDecisions')}</p>
                 <p className="text-2xl font-bold text-red-600">
                   {pendingDecisions.filter(d => d.priority === 'critical').length}
                 </p>
@@ -259,7 +258,7 @@ const DecisionApproval = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">平均信心度</p>
+                <p className="text-sm text-gray-600">{t('approval.avgConfidence')}</p>
                 <p className="text-2xl font-bold text-green-600">
                   {Math.round(pendingDecisions.reduce((acc, d) => acc + d.predicted_impact.confidence, 0) / pendingDecisions.length * 100)}%
                 </p>
@@ -273,7 +272,7 @@ const DecisionApproval = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">預計成本</p>
+                <p className="text-sm text-gray-600">{t('approval.estimatedCost')}</p>
                 <p className="text-2xl font-bold text-blue-600">
                   ${pendingDecisions.reduce((acc, d) => acc + d.predicted_impact.cost_increase, 0).toFixed(2)}
                 </p>
@@ -284,14 +283,13 @@ const DecisionApproval = () => {
         </Card>
       </div>
 
-      {/* 待審批決策列表 */}
       <div className="space-y-4">
         {pendingDecisions.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">沒有待審批的決策</h3>
-              <p className="text-gray-600">所有決策都已處理完畢，系統運行正常</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('approval.noDecisions')}</h3>
+              <p className="text-gray-600">{t('approval.noDecisionsDescription')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -303,20 +301,18 @@ const DecisionApproval = () => {
                     <div className="flex items-center space-x-2 mb-2">
                       <CardTitle className="text-lg">{decision.strategy.name}</CardTitle>
                       <Badge className={getPriorityColor(decision.priority)}>
-                        {decision.priority === 'critical' ? '緊急' :
-                         decision.priority === 'high' ? '高' :
-                         decision.priority === 'medium' ? '中' : '低'}
+                        {t(`approval.priority.${decision.priority}`)}
                       </Badge>
                     </div>
                     <CardDescription>{decision.strategy.description}</CardDescription>
                     <p className="text-sm text-gray-500 mt-2">
-                      觸發時間: {new Date(decision.timestamp).toLocaleString()}
+                      {t('approval.triggerTime')}: {new Date(decision.timestamp).toLocaleString()}
                     </p>
                   </div>
                   
                   <div className="text-right">
                     <div className="text-sm text-gray-600 mb-2">
-                      自動批准倒計時
+                      {t('approval.autoApproveCountdown')}
                     </div>
                     <div className="text-lg font-mono text-orange-600">
                       {formatTimeRemaining(decision.auto_approve_in)}
@@ -331,28 +327,26 @@ const DecisionApproval = () => {
               
               <CardContent>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* 觸發條件 */}
                   <div>
-                    <h4 className="font-medium mb-2">觸發條件</h4>
+                    <h4 className="font-medium mb-2">{t('approval.triggerCondition')}</h4>
                     <div className="text-sm space-y-1">
-                      <p><span className="text-gray-600">類型:</span> {decision.trigger.type}</p>
-                      <p><span className="text-gray-600">當前值:</span> {decision.trigger.value}</p>
-                      <p><span className="text-gray-600">閾值:</span> {decision.trigger.threshold}</p>
-                      <p><span className="text-gray-600">持續時間:</span> {decision.trigger.duration}</p>
+                      <p><span className="text-gray-600">{t('approval.type')}:</span> {decision.trigger.type}</p>
+                      <p><span className="text-gray-600">{t('approval.currentValue')}:</span> {decision.trigger.value}</p>
+                      <p><span className="text-gray-600">{t('approval.threshold')}:</span> {decision.trigger.threshold}</p>
+                      <p><span className="text-gray-600">{t('approval.duration')}:</span> {decision.trigger.duration}</p>
                     </div>
                   </div>
                   
-                  {/* 預期影響 */}
                   <div>
-                    <h4 className="font-medium mb-2">預期影響</h4>
+                    <h4 className="font-medium mb-2">{t('approval.predictedImpact')}</h4>
                     <div className="text-sm space-y-1">
                       {Object.entries(decision.predicted_impact).map(([key, value]) => (
                         <p key={key}>
                           <span className="text-gray-600">
-                            {key === 'confidence' ? '信心度' :
-                             key === 'cost_increase' ? '成本增加' :
-                             key === 'cpu_reduction' ? 'CPU降低' :
-                             key === 'response_time_improvement' ? '響應時間改善' :
+                            {key === 'confidence' ? t('approval.confidence') :
+                             key === 'cost_increase' ? t('approval.costIncrease') :
+                             key === 'cpu_reduction' ? t('approval.cpuReduction') :
+                             key === 'response_time_improvement' ? t('approval.responseTimeImprovement') :
                              key}:
                           </span>{' '}
                           {key === 'cost_increase' ? `$${value}` :
@@ -363,17 +357,13 @@ const DecisionApproval = () => {
                     </div>
                   </div>
                   
-                  {/* 風險評估 */}
                   <div>
-                    <h4 className="font-medium mb-2">風險評估</h4>
+                    <h4 className="font-medium mb-2">{t('approval.riskAssessment')}</h4>
                     <div className="text-sm">
                       <p className="mb-2">
-                        <span className="text-gray-600">風險等級:</span>{' '}
+                        <span className="text-gray-600">{t('approval.riskLevel')}:</span>{' '}
                         <span className={getRiskColor(decision.risk_assessment.level)}>
-                          {decision.risk_assessment.level === 'very_low' ? '極低' :
-                           decision.risk_assessment.level === 'low' ? '低' :
-                           decision.risk_assessment.level === 'medium' ? '中' :
-                           decision.risk_assessment.level === 'high' ? '高' : '極高'}
+                          {t(`approval.risk.${decision.risk_assessment.level.replace('_', '')}`)}
                         </span>
                       </p>
                       <div className="space-y-1">
@@ -385,9 +375,8 @@ const DecisionApproval = () => {
                   </div>
                 </div>
                 
-                {/* 執行步驟 */}
                 <div className="mt-4">
-                  <h4 className="font-medium mb-2">執行步驟</h4>
+                  <h4 className="font-medium mb-2">{t('approval.executionSteps')}</h4>
                   <div className="space-y-2">
                     {decision.strategy.actions.map((action, index) => (
                       <div key={index} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
@@ -396,36 +385,35 @@ const DecisionApproval = () => {
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium">{action.description}</p>
-                          <p className="text-xs text-gray-500">預計耗時: {action.estimated_time}</p>
+                          <p className="text-xs text-gray-500">{t('approval.estimatedTime')}: {action.estimated_time}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
                 
-                {/* 操作按鈕 */}
                 <div className="flex items-center justify-end space-x-3 mt-6">
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant="outline" onClick={() => setSelectedDecision(decision)}>
                         <Info className="w-4 h-4 mr-2" />
-                        詳細信息
+                        {t('approval.detailsButton')}
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl">
                       <DialogHeader>
                         <DialogTitle>{decision.strategy.name}</DialogTitle>
                         <DialogDescription>
-                          決策詳細信息和審批操作
+                          {t('approval.decisionDetails')}
                         </DialogDescription>
                       </DialogHeader>
                       
                       <div className="space-y-4">
                         <div>
-                          <Label htmlFor="comment">審批意見 (可選)</Label>
+                          <Label htmlFor="comment">{t('approval.approvalComment')}</Label>
                           <Textarea
                             id="comment"
-                            placeholder="請輸入審批意見或備註..."
+                            placeholder={t('approval.approvalCommentPlaceholder')}
                             value={approvalComment}
                             onChange={(e) => setApprovalComment(e.target.value)}
                             className="mt-2"
@@ -438,13 +426,13 @@ const DecisionApproval = () => {
                             onClick={() => handleReject(decision.id, approvalComment)}
                           >
                             <XCircle className="w-4 h-4 mr-2" />
-                            拒絕
+                            {t('approval.reject')}
                           </Button>
                           <Button
                             onClick={() => handleApprove(decision.id, approvalComment)}
                           >
                             <CheckCircle className="w-4 h-4 mr-2" />
-                            批准執行
+                            {t('approval.approve')}
                           </Button>
                         </div>
                       </div>
@@ -453,17 +441,17 @@ const DecisionApproval = () => {
                   
                   <Button
                     variant="outline"
-                    onClick={() => handleReject(decision.id, '手動拒絕')}
+                    onClick={() => handleReject(decision.id, 'Manual rejection')}
                   >
                     <XCircle className="w-4 h-4 mr-2" />
-                    拒絕
+                    {t('approval.reject')}
                   </Button>
                   
                   <Button
                     onClick={() => handleApprove(decision.id)}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    批准
+                    {t('approval.approve')}
                   </Button>
                 </div>
               </CardContent>
