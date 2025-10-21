@@ -4,6 +4,7 @@ Orchestrator REST API
 Provides HTTP endpoints for task submission and status monitoring
 """
 import logging
+import os
 from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 
@@ -17,6 +18,8 @@ from orchestrator.schemas.task_schema import (
 )
 from orchestrator.api.router import OrchestratorRouter
 from orchestrator.api.hitl_gate import HITLGate
+from orchestrator.api.auth import get_current_user, require_agent, AuthUser
+from orchestrator.api.rate_limiter import RateLimitMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,7 +40,7 @@ async def lifespan(app: FastAPI):
     
     orchestrator_router = OrchestratorRouter(redis_queue)
     
-    hitl_gate = HITLGate()
+    hitl_gate = HITLGate(redis_queue)
     
     logger.info("Orchestrator API started successfully")
     
@@ -55,13 +58,23 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
+
+app.add_middleware(RateLimitMiddleware, redis_client=None)
+
+
+async def get_hitl_gate() -> HITLGate:
+    """Dependency to get HITL gate instance"""
+    if not hitl_gate:
+        raise HTTPException(status_code=503, detail="HITL gate not initialized")
+    return hitl_gate
 
 
 class TaskRequest(BaseModel):
@@ -137,13 +150,16 @@ async def create_task_endpoint(
     request: TaskRequest,
     background_tasks: BackgroundTasks,
     queue: RedisQueue = Depends(get_redis_queue),
-    router: OrchestratorRouter = Depends(get_orchestrator_router)
+    router: OrchestratorRouter = Depends(get_orchestrator_router),
+    user: AuthUser = Depends(require_agent)
 ):
     """
     Create a new task
     
     This is the unified entry point for all agents (FAQ, Dev, Ops) to submit tasks.
     The orchestrator routes tasks to the appropriate agent based on task type.
+    
+    Requires: Agent role or higher
     """
     try:
         task = create_task(
@@ -183,9 +199,10 @@ async def create_task_endpoint(
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task_endpoint(
     task_id: str,
-    queue: RedisQueue = Depends(get_redis_queue)
+    queue: RedisQueue = Depends(get_redis_queue),
+    user: AuthUser = Depends(get_current_user)
 ):
-    """Get task status by ID"""
+    """Get task status by ID (requires authentication)"""
     try:
         task = await queue.get_task(task_id)
         
@@ -210,9 +227,10 @@ async def update_task_status(
     task_id: str,
     status: str,
     error: Optional[str] = None,
-    queue: RedisQueue = Depends(get_redis_queue)
+    queue: RedisQueue = Depends(get_redis_queue),
+    user: AuthUser = Depends(require_agent)
 ):
-    """Update task status"""
+    """Update task status (requires agent role)"""
     try:
         task = await queue.get_task(task_id)
         
@@ -258,12 +276,14 @@ async def update_task_status(
 @app.post("/events/publish")
 async def publish_event_endpoint(
     request: EventPublishRequest,
-    queue: RedisQueue = Depends(get_redis_queue)
+    queue: RedisQueue = Depends(get_redis_queue),
+    user: AuthUser = Depends(require_agent)
 ):
     """
     Publish an event to the event bus
     
     Agents use this endpoint to publish events that other agents can subscribe to.
+    Requires: Agent role or higher
     """
     try:
         success = await queue.publish_event(
@@ -302,6 +322,118 @@ async def get_stats(queue: RedisQueue = Depends(get_redis_queue)):
         
     except Exception as e:
         logger.error(f"Failed to get stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/approvals/pending")
+async def get_pending_approvals_endpoint(
+    gate: HITLGate = Depends(get_hitl_gate),
+    user: AuthUser = Depends(get_current_user)
+):
+    """Get all pending approvals (requires authentication)"""
+    try:
+        approvals = await gate.get_pending_approvals()
+        return {
+            "success": True,
+            "count": len(approvals),
+            "approvals": approvals
+        }
+    except Exception as e:
+        logger.error(f"Failed to get pending approvals: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/approvals/{approval_id}")
+async def get_approval_status_endpoint(
+    approval_id: str,
+    gate: HITLGate = Depends(get_hitl_gate),
+    user: AuthUser = Depends(get_current_user)
+):
+    """Get approval status by ID (requires authentication)"""
+    try:
+        approval = await gate.get_approval_status(approval_id)
+        
+        if not approval:
+            raise HTTPException(status_code=404, detail=f"Approval {approval_id} not found")
+        
+        return {
+            "success": True,
+            "approval": approval
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get approval status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/approvals/{approval_id}/approve")
+async def approve_endpoint(
+    approval_id: str,
+    gate: HITLGate = Depends(get_hitl_gate),
+    user: AuthUser = Depends(require_agent)
+):
+    """Approve a pending request (requires agent role)"""
+    try:
+        success = await gate.approve(approval_id, user.user_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Approval {approval_id} not found")
+        
+        return {
+            "success": True,
+            "approval_id": approval_id,
+            "message": f"Approved by {user.user_id}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to approve {approval_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/approvals/{approval_id}/reject")
+async def reject_endpoint(
+    approval_id: str,
+    reason: Optional[str] = None,
+    gate: HITLGate = Depends(get_hitl_gate),
+    user: AuthUser = Depends(require_agent)
+):
+    """Reject a pending request (requires agent role)"""
+    try:
+        success = await gate.reject(approval_id, user.user_id, reason)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Approval {approval_id} not found")
+        
+        return {
+            "success": True,
+            "approval_id": approval_id,
+            "message": f"Rejected by {user.user_id}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to reject {approval_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/approvals/history")
+async def get_approval_history_endpoint(
+    limit: int = 100,
+    gate: HITLGate = Depends(get_hitl_gate),
+    user: AuthUser = Depends(get_current_user)
+):
+    """Get approval history (requires authentication)"""
+    try:
+        history = await gate.get_approval_history(limit)
+        return {
+            "success": True,
+            "count": len(history),
+            "history": history
+        }
+    except Exception as e:
+        logger.error(f"Failed to get approval history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
