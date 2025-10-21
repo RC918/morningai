@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { motion } from 'framer-motion'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import apiClient from '@/lib/api'
 
@@ -59,34 +58,23 @@ const LoginPage = ({ onLogin }) => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}>
         <LanguageSwitcher variant="compact" />
       </div>
       
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        {/* Logo和標題 */}
+      <div className="w-full max-w-md px-4">
         <div className="text-center mb-8">
-          <motion.div 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="mx-auto w-16 h-16 mb-4"
-          >
+          <div className="mx-auto w-16 h-16 mb-4">
             <img 
               src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
               alt="Morning AI" 
               className="w-full h-full rounded-2xl"
               style={{ width: '64px', height: '64px', maxWidth: '64px', maxHeight: '64px' }}
             />
-          </motion.div>
-          <h1 className="text-3xl font-bold text-gray-900">{t('app.name')}</h1>
-          <p className="text-gray-600 mt-2">{t('app.tagline')}</p>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">{t('app.tagline')}</p>
         </div>
 
         {/* 登錄表單 */}
@@ -156,23 +144,21 @@ const LoginPage = ({ onLogin }) => {
               </Button>
             </form>
 
-            {/* 開發環境提示 */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">{t('auth.login.devAccount')}</h4>
-              <div className="text-sm text-blue-700 space-y-1">
-                <p>{t('auth.login.username')}: <code className="bg-blue-100 px-1 rounded">admin</code></p>
-                <p>{t('auth.login.password')}: <code className="bg-blue-100 px-1 rounded">admin123</code></p>
+            <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h4>
+              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin</code></p>
+                <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin123</code></p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* 底部信息 */}
-        <div className="text-center mt-8 text-sm text-gray-500">
+        <div className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
           <p>{t('app.copyright')}</p>
           <p className="mt-1">{t('app.motto')}</p>
         </div>
-      </motion.div>
+      </div>
     </div>
   )
 }
