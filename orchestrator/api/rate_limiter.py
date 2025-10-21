@@ -127,16 +127,28 @@ class RateLimiter:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """FastAPI middleware for rate limiting"""
     
-    def __init__(self, app, redis_client: Optional[Redis] = None):
+    def __init__(self, app, redis_client_getter: Optional[Callable] = None):
         """
         Initialize rate limit middleware
         
         Args:
             app: FastAPI application
-            redis_client: Redis client for distributed rate limiting
+            redis_client_getter: Callable that returns Redis client (for lazy initialization)
         """
         super().__init__(app)
-        self.rate_limiter = RateLimiter(redis_client)
+        self.redis_client_getter = redis_client_getter
+        self.rate_limiter = None
+    
+    def _get_rate_limiter(self) -> RateLimiter:
+        """Get or create rate limiter with current Redis client"""
+        redis_client = None
+        if self.redis_client_getter:
+            redis_client = self.redis_client_getter()
+        
+        if not self.rate_limiter or (redis_client and not self.rate_limiter.redis):
+            self.rate_limiter = RateLimiter(redis_client)
+        
+        return self.rate_limiter
     
     async def dispatch(self, request: Request, call_next: Callable):
         """Process request with rate limiting"""
@@ -147,8 +159,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         
         limit = self._get_endpoint_limit(request.url.path)
         
+        rate_limiter = self._get_rate_limiter()
+        
         rate_limit_key = f"ip:{client_ip}:{request.url.path}"
-        is_limited, remaining = await self.rate_limiter.is_rate_limited(
+        is_limited, remaining = await rate_limiter.is_rate_limited(
             rate_limit_key,
             limit
         )

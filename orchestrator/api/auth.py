@@ -28,11 +28,29 @@ class Role(Enum):
 
 class AuthConfig:
     """Authentication configuration"""
-    JWT_SECRET_KEY = os.getenv("ORCHESTRATOR_JWT_SECRET", "change-me-in-production")
+    JWT_SECRET_KEY = os.getenv("ORCHESTRATOR_JWT_SECRET")
     JWT_ALGORITHM = "HS256"
     JWT_EXPIRATION_HOURS = 24
     
     API_KEYS: Dict[str, str] = {}
+    
+    @classmethod
+    def validate_config(cls):
+        """Validate authentication configuration on startup"""
+        if not cls.JWT_SECRET_KEY:
+            raise RuntimeError(
+                "CRITICAL SECURITY ERROR: ORCHESTRATOR_JWT_SECRET environment variable is not set. "
+                "JWT authentication cannot function without a secret key. "
+                "Please set ORCHESTRATOR_JWT_SECRET to a strong random string (minimum 32 characters). "
+                "Generate one with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        
+        if len(cls.JWT_SECRET_KEY) < 32:
+            logger.warning(
+                "SECURITY WARNING: ORCHESTRATOR_JWT_SECRET is too short (< 32 characters). "
+                "This weakens JWT security. Generate a stronger secret with: "
+                "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
     
     @classmethod
     def load_api_keys(cls):
@@ -49,6 +67,7 @@ class AuthConfig:
 
 
 AuthConfig.load_api_keys()
+AuthConfig.validate_config()
 
 
 class AuthUser:

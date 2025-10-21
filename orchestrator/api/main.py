@@ -29,6 +29,13 @@ orchestrator_router: Optional[OrchestratorRouter] = None
 hitl_gate: Optional[HITLGate] = None
 
 
+def get_redis_client():
+    """Get Redis client for middleware (returns None if not initialized yet)"""
+    if redis_queue and redis_queue.redis_client:
+        return redis_queue.redis_client
+    return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for FastAPI app"""
@@ -67,7 +74,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
-app.add_middleware(RateLimitMiddleware, redis_client=None)
+app.add_middleware(RateLimitMiddleware, redis_client_getter=get_redis_client)
 
 
 async def get_hitl_gate() -> HITLGate:
