@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview --port 4173",
     "test:smoke": "node scripts/smoke-tests.js",
+    "test:e2e": "playwright test",
+    "test:vrt": "playwright test -g @vrt",
     "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit"
   },
@@ -75,6 +77,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@playwright/test": "^1.48.2",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
