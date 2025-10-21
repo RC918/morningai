@@ -791,6 +791,7 @@
     "switchToDarkMode": "切換到深色模式",
     "currentPage": "當前頁面",
     "goToPage": "前往頁面",
+    "unknownWidgetType": "未知的組件類型: {{widgetId}}",
     "emptyState": {
       "defaultPrimaryAction": "開始使用",
       "defaultSecondaryAction": "了解更多",

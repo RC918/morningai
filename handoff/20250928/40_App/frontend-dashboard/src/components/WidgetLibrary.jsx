@@ -337,15 +337,20 @@ export const WidgetLibrary = {
   performance_trend: PerformanceTrendWidget
 }
 
-export const getWidgetComponent = (widgetId) => {
-  return WidgetLibrary[widgetId] || (() => (
+const UnknownWidgetComponent = ({ widgetId }) => {
+  const { t } = useTranslation()
+  return (
     <Card>
       <CardContent className="p-6">
         <div className="text-center text-gray-500">
           <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
-          <p>未知的組件類型: {widgetId}</p>
+          <p>{t('feedback.unknownWidgetType', { widgetId })}</p>
         </div>
       </CardContent>
     </Card>
-  ))
+  )
+}
+
+export const getWidgetComponent = (widgetId) => {
+  return WidgetLibrary[widgetId] || (() => <UnknownWidgetComponent widgetId={widgetId} />)
 }
