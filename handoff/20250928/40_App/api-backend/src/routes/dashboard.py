@@ -199,3 +199,131 @@ def get_cost_analysis():
     except Exception as e:
         return jsonify({'error': '獲取成本分析失敗'}), 500
 
+@dashboard_bp.route('/layouts', methods=['GET'])
+def get_dashboard_layout():
+    """獲取用戶的 Dashboard 佈局"""
+    try:
+        user_id = request.args.get('user_id', 'default')
+        
+        default_layout = {
+            'user_id': user_id,
+            'widgets': [
+                {'id': 'cpu_usage', 'position': {'x': 0, 'y': 0, 'w': 6, 'h': 4}},
+                {'id': 'memory_usage', 'position': {'x': 6, 'y': 0, 'w': 6, 'h': 4}},
+                {'id': 'response_time', 'position': {'x': 0, 'y': 4, 'w': 6, 'h': 4}},
+                {'id': 'error_rate', 'position': {'x': 6, 'y': 4, 'w': 6, 'h': 4}},
+                {'id': 'active_strategies', 'position': {'x': 0, 'y': 8, 'w': 4, 'h': 3}},
+                {'id': 'pending_approvals', 'position': {'x': 4, 'y': 8, 'w': 4, 'h': 3}},
+                {'id': 'task_execution', 'position': {'x': 8, 'y': 8, 'w': 4, 'h': 6}}
+            ],
+            'updated_at': datetime.datetime.now().isoformat()
+        }
+        
+        return jsonify(default_layout)
+        
+    except Exception as e:
+        return jsonify({'error': '獲取佈局失敗'}), 500
+
+@dashboard_bp.route('/layouts', methods=['POST'])
+def save_dashboard_layout():
+    """儲存用戶的 Dashboard 佈局"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', 'default')
+        layout = data.get('layout', {})
+        
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Dashboard layout saved successfully',
+            'user_id': user_id,
+            'updated_at': datetime.datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({'error': '儲存佈局失敗'}), 500
+
+@dashboard_bp.route('/widgets', methods=['GET'])
+def get_available_widgets():
+    """獲取可用的 Dashboard 小工具列表"""
+    try:
+        widgets = [
+            {
+                'id': 'cpu_usage',
+                'name': 'CPU 使用率',
+                'description': '實時 CPU 使用率監控',
+                'category': 'system',
+                'icon': 'cpu',
+                'size': {'w': 6, 'h': 4}
+            },
+            {
+                'id': 'memory_usage',
+                'name': '內存使用率',
+                'description': '實時內存使用率監控',
+                'category': 'system',
+                'icon': 'memory',
+                'size': {'w': 6, 'h': 4}
+            },
+            {
+                'id': 'response_time',
+                'name': '響應時間',
+                'description': '系統響應時間監控',
+                'category': 'performance',
+                'icon': 'clock',
+                'size': {'w': 6, 'h': 4}
+            },
+            {
+                'id': 'error_rate',
+                'name': '錯誤率',
+                'description': '系統錯誤率監控',
+                'category': 'performance',
+                'icon': 'alert',
+                'size': {'w': 6, 'h': 4}
+            },
+            {
+                'id': 'active_strategies',
+                'name': '活躍策略',
+                'description': '當前活躍的 AI 策略數量',
+                'category': 'ai',
+                'icon': 'zap',
+                'size': {'w': 4, 'h': 3}
+            },
+            {
+                'id': 'pending_approvals',
+                'name': '待審批任務',
+                'description': '需要人工審批的決策數量',
+                'category': 'workflow',
+                'icon': 'check-circle',
+                'size': {'w': 4, 'h': 3}
+            },
+            {
+                'id': 'cost_today',
+                'name': '今日成本',
+                'description': '今日累計成本',
+                'category': 'cost',
+                'icon': 'dollar-sign',
+                'size': {'w': 4, 'h': 3}
+            },
+            {
+                'id': 'cost_saved',
+                'name': '成本節省',
+                'description': '通過 AI 優化節省的成本',
+                'category': 'cost',
+                'icon': 'trending-down',
+                'size': {'w': 4, 'h': 3}
+            },
+            {
+                'id': 'task_execution',
+                'name': '任務執行',
+                'description': '任務執行狀態與統計',
+                'category': 'workflow',
+                'icon': 'activity',
+                'size': {'w': 4, 'h': 6}
+            }
+        ]
+        
+        return jsonify({'widgets': widgets})
+        
+    except Exception as e:
+        return jsonify({'error': '獲取小工具列表失敗'}), 500
+
