@@ -102,5 +102,4 @@ services:
         value: "10.0"
       - key: LATENCY_ALERT_THRESHOLD
         value: "500.0"
-    healthCheckPath: /health
     autoDeploy: true
