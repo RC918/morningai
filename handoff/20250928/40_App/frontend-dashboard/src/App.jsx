@@ -19,6 +19,7 @@ import '@/i18n/config'
 import './App.css'
 import './styles/mobile-optimizations.css'
 import './styles/motion-governance.css'
+import './styles/theme-apple.css'
 
 const Dashboard = lazy(() => import('@/components/Dashboard'))
 const StrategyManagement = lazy(() => import('@/components/StrategyManagement'))
@@ -146,20 +147,21 @@ function AppContent() {
     <ErrorBoundary>
       <TenantProvider>
         <Router>
-          <OfflineIndicator />
-          <Phase3WelcomeModal 
-            isOpen={showPhase3Welcome}
-            onClose={dismissWelcome}
-          />
-          
-          {!isAuthenticated ? (
-            <Routes>
-              <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
-              <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          ) : (
-            <div className="flex h-screen bg-gray-100">
+          <div className="theme-apple">
+            <OfflineIndicator />
+            <Phase3WelcomeModal 
+              isOpen={showPhase3Welcome}
+              onClose={dismissWelcome}
+            />
+            
+            {!isAuthenticated ? (
+              <Routes>
+                <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
+                <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            ) : (
+              <div className="flex h-screen bg-gray-100">
               <Sidebar user={user} onLogout={handleLogout} />
               
               <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
@@ -216,9 +218,10 @@ function AppContent() {
                 </Suspense>
               </main>
               
-              <Toaster />
-            </div>
-          )}
+                <Toaster />
+              </div>
+            )}
+          </div>
         </Router>
       </TenantProvider>
     </ErrorBoundary>
