@@ -327,26 +327,3 @@ def get_available_widgets():
     except Exception as e:
         return jsonify({'error': '獲取小工具列表失敗'}), 500
 
-@dashboard_bp.route('/data', methods=['GET'])
-def get_dashboard_data():
-    """獲取 Dashboard 所有數據 (整合端點)"""
-    try:
-        data = {
-            'metrics': {
-                'cpu_usage': round(random.uniform(60, 90), 1),
-                'memory_usage': round(random.uniform(50, 80), 1),
-                'response_time': round(random.uniform(100, 300), 0),
-                'error_rate': round(random.uniform(0.01, 0.05), 3),
-                'active_strategies': random.randint(8, 15),
-                'pending_approvals': random.randint(1, 5),
-                'cost_today': round(random.uniform(30, 60), 2),
-                'cost_saved': round(random.uniform(100, 200), 2)
-            },
-            'timestamp': datetime.datetime.now().isoformat()
-        }
-        
-        return jsonify(data)
-        
-    except Exception as e:
-        return jsonify({'error': '獲取 Dashboard 數據失敗'}), 500
-

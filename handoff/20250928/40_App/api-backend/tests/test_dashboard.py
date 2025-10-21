@@ -168,16 +168,3 @@ def test_get_available_widgets(client):
     assert 'category' in widget
     assert 'icon' in widget
     assert 'size' in widget
-
-
-def test_get_dashboard_data(client):
-    """Test GET /api/dashboard/data"""
-    response = client.get('/api/dashboard/data')
-    
-    assert response.status_code == 200
-    data = response.get_json()
-    assert 'metrics' in data
-    assert 'timestamp' in data
-    assert 'cpu_usage' in data['metrics']
-    assert 'memory_usage' in data['metrics']
-    assert 'response_time' in data['metrics']
