@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useTranslation } from 'react-i18next'
 
 export const DarkModeToggle = ({ variant = 'default' }) => {
+  const { t } = useTranslation()
   const { theme, setTheme, systemTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
@@ -27,7 +29,7 @@ export const DarkModeToggle = ({ variant = 'default' }) => {
       <button
         onClick={toggleTheme}
         className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
-        aria-label={isDark ? '切換到淺色模式' : '切換到深色模式'}
+        aria-label={isDark ? t('feedback.switchToLightMode') : t('feedback.switchToDarkMode')}
         style={{ width: '40px', height: '40px' }}
       >
         {isDark ? (
@@ -45,7 +47,7 @@ export const DarkModeToggle = ({ variant = 'default' }) => {
       size="icon"
       onClick={toggleTheme}
       className="rounded-lg flex items-center justify-center"
-      aria-label={isDark ? '切換到淺色模式' : '切換到深色模式'}
+      aria-label={isDark ? t('feedback.switchToLightMode') : t('feedback.switchToDarkMode')}
       style={{ width: '40px', height: '40px' }}
     >
       {isDark ? (

@@ -787,6 +787,8 @@
     "stepCounter": "Step {{current}} / {{total}}",
     "close": "Close",
     "errorId": "Error ID: {{id}}",
+    "switchToLightMode": "Switch to light mode",
+    "switchToDarkMode": "Switch to dark mode",
     "emptyState": {
       "defaultPrimaryAction": "Get Started",
       "defaultSecondaryAction": "Learn More",
