@@ -833,5 +833,25 @@
     "homeButton": "Go Home",
     "homeAriaLabel": "Go to home page",
     "supportMessage": "If the problem persists, please contact technical support."
+  },
+  "wip": {
+    "title": "Feature Under Development",
+    "description": "This feature is actively being developed. Stay tuned!",
+    "autoRedirect": "Automatically returning to dashboard in {{countdown}} seconds",
+    "developmentProgress": "Development Progress",
+    "overallProgress": "Overall Progress",
+    "returnButton": "Return to Dashboard Now",
+    "returnAriaLabel": "Return to dashboard now",
+    "milestones": {
+      "requirementAnalysis": "Requirement Analysis",
+      "uiuxDesign": "UI/UX Design",
+      "backendApi": "Backend API",
+      "frontendImplementation": "Frontend Implementation",
+      "testing": "Testing & Validation",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "planned": "Planned",
+      "pending": "Pending"
+    }
   }
 }

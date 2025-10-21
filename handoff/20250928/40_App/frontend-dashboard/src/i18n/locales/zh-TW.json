@@ -833,5 +833,25 @@
     "homeButton": "返回首頁",
     "homeAriaLabel": "返回首頁",
     "supportMessage": "如果問題持續發生，請聯繫技術支援團隊。"
+  },
+  "wip": {
+    "title": "功能開發中",
+    "description": "此功能正在積極開發中，敬請期待！",
+    "autoRedirect": "{{countdown}} 秒後自動返回儀表板",
+    "developmentProgress": "開發進度",
+    "overallProgress": "整體進度",
+    "returnButton": "立即返回儀表板",
+    "returnAriaLabel": "立即返回儀表板",
+    "milestones": {
+      "requirementAnalysis": "需求分析",
+      "uiuxDesign": "UI/UX 設計",
+      "backendApi": "後端 API",
+      "frontendImplementation": "前端實作",
+      "testing": "測試驗證",
+      "completed": "已完成",
+      "inProgress": "開發中",
+      "planned": "規劃中",
+      "pending": "待開始"
+    }
   }
 }
