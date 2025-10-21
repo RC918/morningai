@@ -118,3 +118,66 @@ def test_get_cost_analysis_month(client):
     assert response.status_code == 200
     data = response.get_json()
     assert 'total_cost' in data
+
+
+def test_get_dashboard_layout(client):
+    """Test GET /api/dashboard/layouts"""
+    response = client.get('/api/dashboard/layouts?user_id=test_user')
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'user_id' in data
+    assert 'widgets' in data
+    assert 'updated_at' in data
+    assert isinstance(data['widgets'], list)
+
+
+def test_save_dashboard_layout(client):
+    """Test POST /api/dashboard/layouts"""
+    layout_data = {
+        'user_id': 'test_user',
+        'layout': {
+            'widgets': [
+                {'id': 'cpu_usage', 'position': {'x': 0, 'y': 0, 'w': 6, 'h': 4}}
+            ]
+        }
+    }
+    response = client.post('/api/dashboard/layouts', json=layout_data)
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['success'] is True
+    assert 'user_id' in data
+    assert 'updated_at' in data
+
+
+def test_get_available_widgets(client):
+    """Test GET /api/dashboard/widgets"""
+    response = client.get('/api/dashboard/widgets')
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'widgets' in data
+    assert isinstance(data['widgets'], list)
+    assert len(data['widgets']) > 0
+    
+    widget = data['widgets'][0]
+    assert 'id' in widget
+    assert 'name' in widget
+    assert 'description' in widget
+    assert 'category' in widget
+    assert 'icon' in widget
+    assert 'size' in widget
+
+
+def test_get_dashboard_data(client):
+    """Test GET /api/dashboard/data"""
+    response = client.get('/api/dashboard/data')
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'metrics' in data
+    assert 'timestamp' in data
+    assert 'cpu_usage' in data['metrics']
+    assert 'memory_usage' in data['metrics']
+    assert 'response_time' in data['metrics']
