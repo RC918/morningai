@@ -10,8 +10,9 @@ async function setAuthToken(page) {
 
 test('[@vrt] Landing page visual baseline', async ({ page }) => {
   await page.goto('/')
-  await expect(page).toHaveTitle(/MorningAI/i)
-  await expect(page).toHaveScreenshot({ fullPage: true })
+  await expect(page).toHaveTitle(/Morning AI/i)
+  await page.waitForTimeout(2000)
+  await expect(page).toHaveScreenshot({ fullPage: true, animations: 'disabled' })
 })
 
 test('[@vrt] Login page visual baseline', async ({ page }) => {
