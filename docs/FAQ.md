@@ -1,31 +1,36 @@
 # MorningAI System Architecture
 
-MorningAI's system architecture is designed to be scalable, efficient, and capable of handling a diverse range of tasks from autonomous code generation to FAQ generation, documentation management, and multi-platform integration. Below is a detailed explanation of each component of the architecture and how they interact with one another.
+MorningAI leverages a robust, scalable, and modular architecture designed to streamline the development and deployment of autonomous agent systems for code generation, FAQ generation, documentation management, and multi-platform integration. Below is an in-depth look at the core components of MorningAI's system architecture.
 
-## Frontend
+## Core Components
 
-The frontend of MorningAI is built using React, leveraging Vite as the build tool for a faster development experience and TailwindCSS for styling. The choice of these technologies ensures a modern, efficient user interface that can be easily extended or modified.
+### Frontend
 
-### Example:
+- **Technology Stack**: React with Vite for faster development and TailwindCSS for styling.
+- **Implementation**: The frontend is designed as a single-page application (SPA) that interacts with the backend via RESTful APIs or WebSocket connections for real-time features.
+- **Path**: `frontend/` directory within the repository.
+
+**Example**:
 ```jsx
-// src/components/ExampleComponent.jsx
 import React from 'react';
-import 'tailwindcss/tailwind.css';
+import ReactDOM from 'react-dom';
+import './index.css';
 
-function ExampleComponent() {
-  return <div className="text-xl text-blue-500">Hello, MorningAI!</div>;
+function App() {
+  return <div className="app">Welcome to MorningAI</div>;
 }
 
-export default ExampleComponent;
+ReactDOM.render(<App />, document.getElementById('root'));
 ```
 
-## Backend
+### Backend
 
-The backend is powered by Python using Flask as the web framework and Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently. This setup provides a robust backend capable of supporting the platform's operations.
+- **Technology Stack**: Python with Flask framework and Gunicorn as the WSGI HTTP Server.
+- **Multi-worker Support**: Leveraging Gunicorn's ability to handle multiple workers for increased concurrency.
+- **Path**: `backend/` directory.
 
-### Example:
+**Example**:
 ```python
-# app.py
 from flask import Flask
 app = Flask(__name__)
 
@@ -37,60 +42,68 @@ if __name__ == '__main__':
     app.run()
 ```
 
-## Database
+### Database
 
-MorningAI uses PostgreSQL for its database needs, with Supabase adding additional functionalities such as Row Level Security (RLS) to ensure data integrity and security. This combination allows for scalable, secure storage solutions.
+- **Technology Stack**: PostgreSQL with Row Level Security (RLS) for data protection, utilizing Supabase for easy setup and management.
+- **Vector Memory Storage**: Integration with pgvector for efficient vector operations within PostgreSQL.
+- **Path**: Database schemas and migrations can be found under `db/` directory.
 
-### Example:
-```sql
--- Create a table with RLS enabled
-CREATE TABLE documents (
-    id SERIAL PRIMARY KEY,
-    content TEXT,
-    user_id INTEGER
-);
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
-```
+### Queue
 
-## Queue
-
-Redis Queue (RQ) is used for task orchestration, enabling real-time task management with worker heartbeat monitoring to ensure tasks are executed promptly. This is crucial for operations that require immediate attention or are time-sensitive.
-
-### Example:
+- **Technology Stack**: Redis Queue (RQ) for managing background tasks and worker heartbeat monitoring to ensure reliability.
+- **Usage**: Task orchestration and real-time operations handling.
+  
+**Example**:
 ```python
-# task.py
-from redis import Redis
 from rq import Queue
+from redis import Redis
+from my_module import count_words_at_url
 
-q = Queue(connection=Redis())
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
 
-def say_hello(name):
-    print(f'Hello, {name}!')
-
-job = q.enqueue(say_hello, 'MorningAI')
+result = q.enqueue(count_words_at_url, 'http://nvie.com')
 ```
 
-## Orchestration
+### Orchestration
 
-LangGraph is utilized for agent workflows, allowing complex task orchestration within the platform. It enables the autonomous agent system to perform efficiently and reliably across various operations.
+- **Tool**: LangGraph is used for defining agent workflows in a flexible manner, allowing for complex task orchestration without hard-coding logic into the application.
 
-## AI
+### AI
 
-OpenAI's GPT-4 powers the content generation capabilities of MorningAI, from code generation to FAQ and documentation management. This ensures high-quality, contextually relevant output across all features of the platform.
+- **Engine**: OpenAI GPT-4 is integrated for advanced content generation capabilities, enabling the autonomous creation of code snippets, FAQs, and documentation.
 
-## Deployment
+### Deployment
 
-The entire platform is deployed on Render.com, benefiting from its CI/CD features for seamless updates and maintenance. This choice allows for easy scaling and ensures that the platform remains up-to-date with minimal downtime.
+- **Platform**: Render.com with continuous integration and continuous deployment (CI/CD) setup ensures smooth deployment workflows and high availability of the MorningAI platform.
 
-## Troubleshooting Tips
+## Related Documentation Links
 
-- **Frontend Issues**: Ensure all dependencies are correctly installed via `npm install` or `yarn install`. Check console logs in the developer tools for specific errors.
-- **Backend Connectivity**: Verify that Flask is running and accessible. For connection issues with Gunicorn, check if the number of workers specified matches your system's capability.
-- **Database Access**: Ensure that your PostgreSQL credentials are correct and that RLS policies do not unintentionally block access to data.
-- **Task Queue Delays**: Check Redis server health and worker logs for errors. Ensure that RQ workers are running and have a stable connection to Redis.
-- **Deployment Failures**: Review build logs on Render.com for specific errors. Ensure all environment variables are correctly set up according to Render's documentation.
+For further details on each component, refer to the following documentation:
 
-For further details on each component and more examples, please refer to the official documentation in the repository under `docs/`.
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- Gunicorn: [https://gunicorn.org/#docs](https://gunicorn.org/#docs)
+- Supabase: [https://supabase.io/docs](https://supabase.io/docs)
+- Redis Queue (RQ): [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
+
+## Common Troubleshooting Tips
+
+1. **Frontend Not Loading Changes**:
+   - Ensure Vite is running in watch mode.
+   - Check browser cache settings or force refresh (Ctrl + F5).
+2. **Backend Connection Issues**:
+   - Verify if Gunicorn is running and properly configured for multi-worker support.
+   - Check Flask app logs for any error messages or warnings.
+3. **Database Access Errors**:
+   - Confirm that Row Level Security policies are correctly set up in PostgreSQL.
+   - Ensure your database connection strings are up-to-date in your application configuration.
+4. **Task Queues Not Processing**:
+   - Check Redis server health and connectivity.
+   - Ensure RQ workers are running and not stalled; restart if necessary.
+
+For more detailed troubleshooting guides, visit the project's wiki or issue tracker on GitHub.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -99,6 +112,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `5642e40c-a9c4-4a03-a026-7b839d60baba`
+- Trace ID: `f8b649a3-7687-41e1-a36f-b48cbc7136e6`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
