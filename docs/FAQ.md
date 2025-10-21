@@ -1,99 +1,63 @@
-# MorningAI System Architecture
+# Handling MorningAI During a Redis Outage
 
-MorningAI's architecture is designed to support a scalable, efficient, and highly available service for autonomous code generation, FAQ documentation management, and multi-platform integration. This architecture leverages a modern technology stack and follows best practices for web application development.
+When using MorningAI, Redis plays a crucial role in managing real-time task orchestration through Redis Queue (RQ). A Redis outage can disrupt these operations, affecting the platform's performance and reliability. This section aims to guide developers on how to navigate and mitigate issues arising from a Redis outage.
 
-## Overview
+## Understanding the Impact of a Redis Outage
 
-The system architecture of MorningAI is built around several core components, each serving a distinct role within the platform:
+Redis, utilized by MorningAI for task queue management via RQ, is essential for handling background tasks and orchestrating real-time operations. An outage can lead to:
+- Inability to enqueue or process new tasks.
+- Interruptions in ongoing task executions.
+- Potential data loss for tasks not yet persisted or in-flight.
 
-- **Frontend**: Developed with React, utilizing Vite for build optimization and TailwindCSS for styling. This setup provides a responsive and dynamic user interface.
-- **Backend**: Python with Flask serves as the backend framework, offering RESTful API endpoints. Gunicorn is used as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
-- **Database**: PostgreSQL, enhanced with Row Level Security (RLS) features provided by Supabase. This setup ensures data integrity and security across multi-tenant environments.
-- **Queue System**: Redis Queue (RQ) is employed for task queuing to manage background jobs like real-time task orchestration effectively.
-- **Orchestration**: LangGraph is utilized for defining and executing agent workflows, enabling complex task sequences to be managed seamlessly.
-- **AI Engine**: OpenAI GPT-4 powers content generation tasks, providing high-quality, contextually relevant text outputs.
-- **Deployment**: Render.com is used for hosting, taking advantage of its continuous integration and deployment (CI/CD) capabilities to streamline updates and maintenance.
+### Code Example: Checking Redis Connection Status
 
-## Detailed Breakdown
-
-### Frontend
-The frontend layer is built using React, providing an interactive experience. The project configuration relies on Vite for fast builds and TailwindCSS for utility-first styling.
-
-```jsx
-// Sample React component with TailwindCSS
-function WelcomeMessage() {
-  return <div className="text-center p-4 font-bold">Welcome to MorningAI</div>;
-}
-```
-
-### Backend
-Flask serves as the backbone of the backend, handling API requests and interfacing with other system components. Gunicorn ensures that the Flask application can handle multiple requests simultaneously by spawning multiple workers.
+Before diving into troubleshooting steps, it's important to verify the connection status with Redis. Here's how you can check this using Python:
 
 ```python
-# Sample Flask route
-from flask import Flask
-app = Flask(__name__)
+import redis
 
-@app.route('/')
-def hello_world():
-    return 'Hello, World!'
+def check_redis_connection():
+    try:
+        r = redis.Redis(host='localhost', port=6379, db=0)
+        r.ping()
+        print("Connected to Redis")
+    except redis.ConnectionError:
+        print("Failed to connect to Redis")
+
+check_redis_connection()
 ```
 
-### Database Configuration
-PostgreSQL is used as the primary data store, with Supabase enhancing its capabilities through additional features like RLS. This ensures that data access is securely managed at the database level.
-
-```sql
--- Example of setting up RLS in PostgreSQL
-CREATE TABLE secure_data (
-    id serial PRIMARY KEY,
-    user_id integer NOT NULL,
-    data text NOT NULL
-);
-ALTER TABLE secure_data ENABLE ROW LEVEL SECURITY;
-```
-
-### Queue System
-Redis Queue manages background tasks such as sending emails or processing asynchronous operations. It integrates smoothly with Flask applications.
-
-```python
-# Enqueueing a job in Redis Queue
-from rq import Queue
-from redis import Redis
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
-
-result = q.enqueue('my_task', args=(my_arg,), timeout=600)
-```
-
-### Deployment on Render.com
-Render.com hosts both the frontend and backend components of MorningAI. Continuous integration and deployment are configured through `render.yaml` files in the repository.
-
-```yaml
-# Example render.yaml snippet for deploying Flask app
-services:
-  - type: web
-    name: morningai-backend
-    env: python
-    plan: starter
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app --workers 3 --threads 2"
-```
-
-## Troubleshooting
-
-Common issues developers may encounter include:
-
-1. **Database Connection Errors**: Ensure that your environment variables are correctly set up in your `.env` file or your hosting provider's dashboard.
-2. **Failed Deployments on Render.com**: Check the logs provided by Render.com for any errors during the build or startup process. Ensure all dependencies are correctly specified in your `requirements.txt` or `package.json`.
-3. **Task Queuing Delays**: If background tasks are delayed or not executing, verify that Redis Queue workers are running and monitor their workload to ensure they're not overwhelmed.
+Replace `'localhost'` and `6379` with your actual Redis server host and port.
 
 ## Related Documentation Links
 
-- [React Documentation](https://reactjs.org/docs/getting-started.html)
-- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
-- [Supabase Documentation](https://supabase.io/docs)
-- [Redis Queue Documentation](https://python-rq.org/docs/)
-- [Render.com Deployment Guides](https://render.com/docs)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [Redis Official Documentation](https://redis.io/documentation)
+
+## Common Troubleshooting Tips
+
+### 1. Verify Network Connectivity
+Ensure that your network connection is stable and that there are no firewall or network policies blocking access to the Redis server.
+
+### 2. Check Redis Server Status
+Use tools like `redis-cli ping` or the code snippet provided above to check if the Redis server is running and accessible.
+
+### 3. Review Application Logs
+Look into your application logs for any error messages related to Redis connectivity. This can provide clues on whether the issue lies with network problems, authentication errors, or configuration misalignments.
+
+### 4. Restarting Services
+Sometimes, simply restarting the Redis service can resolve transient issues:
+```bash
+sudo systemctl restart redis.service
+```
+
+### 5. Configuration Verification
+Ensure your application's configuration files correctly point to the right Redis instance, especially in environments where multiple instances may be running (development, staging, production).
+
+### 6. Contact Support
+If you've gone through these steps without success, it might be time to reach out to your hosting provider or seek assistance from the MorningAI support team.
+
+Remember, while a Redis outage can significantly impact operations within MorningAI, swift diagnosis and action can help minimize disruptions and maintain system integrity.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -101,7 +65,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `c408f538-1af9-427b-965f-0868cbaf2e69`
+- Task: Test question during Redis outage
+- Trace ID: `b7eca3b3-b408-40a3-bcc5-efaf4f3dc17b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
