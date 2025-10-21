@@ -27,6 +27,14 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture
+def auth_headers():
+    """Create authentication headers with JWT token"""
+    from src.middleware.auth_middleware import create_user_token
+    token = create_user_token()
+    return {'Authorization': f'Bearer {token}'}
+
+
 class TestPhase456Availability:
     """Test Phase 4-6 API availability handling"""
     
@@ -322,9 +330,9 @@ class TestPhase456AdditionalEndpoints:
 class TestPhase456DashboardWidgets:
     """Test dashboard widgets endpoint"""
     
-    def test_get_dashboard_widgets_success(self, client):
+    def test_get_dashboard_widgets_success(self, client, auth_headers):
         """Test dashboard widgets returns widget list"""
-        response = client.get('/api/dashboard/widgets')
+        response = client.get('/api/dashboard/widgets', headers=auth_headers)
         
         assert response.status_code == 200
         data = response.get_json()
