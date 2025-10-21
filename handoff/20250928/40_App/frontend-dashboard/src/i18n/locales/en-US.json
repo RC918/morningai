@@ -872,5 +872,15 @@
     "migrationNotice": "ℹ️ Your historical data has been safely migrated, no action needed to continue using",
     "laterButton": "Later",
     "settingsButton": "View Team Settings"
+  },
+  "tokenExample": {
+    "title": "Design Token Example",
+    "description": "This component uses CSS variables defined in theme-apple.css to ensure design consistency and support Dark Mode.",
+    "cardTitle": "Card Title",
+    "cardDescription": "This is an example card component using Design Tokens.",
+    "statusSuccess": "Success",
+    "statusWarning": "Warning",
+    "statusError": "Error",
+    "statusInfo": "Info"
   }
 }

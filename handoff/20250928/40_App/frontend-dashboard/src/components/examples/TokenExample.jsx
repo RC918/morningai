@@ -1,17 +1,19 @@
 /**
  * TokenExample Component
  * 
- * 此元件示範如何使用 theme-apple.css 中定義的 CSS 變數（Design Tokens）
+ * This component demonstrates how to use CSS variables (Design Tokens) defined in theme-apple.css
  * 
- * 使用方式：
- * 1. 確保 App.jsx 根容器有 .theme-apple class
- * 2. 在元件的 style 或 className 中使用 CSS 變數
- * 3. 支援 Dark Mode（自動切換 .theme-apple.dark 變數）
+ * Usage:
+ * 1. Ensure App.jsx root container has .theme-apple class
+ * 2. Use CSS variables in component style or className
+ * 3. Supports Dark Mode (automatically switches .theme-apple.dark variables)
  */
 
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const TokenExample = () => {
+  const { t } = useTranslation()
   return (
     <div style={{
       padding: 'var(--spacing-6)',
@@ -19,27 +21,27 @@ export const TokenExample = () => {
       borderRadius: 'var(--radius-lg)',
       boxShadow: 'var(--shadow-md)'
     }}>
-      {/* 標題 - 使用 typography tokens */}
+      {/* Title - using typography tokens */}
       <h2 style={{
         fontSize: 'var(--font-size-2xl)',
         fontWeight: 'var(--font-weight-bold)',
         color: 'var(--text-primary)',
         marginBottom: 'var(--spacing-4)'
       }}>
-        Design Token 範例
+        {t('tokenExample.title')}
       </h2>
 
-      {/* 描述文字 */}
+      {/* Description text */}
       <p style={{
         fontSize: 'var(--font-size-base)',
         color: 'var(--text-secondary)',
         lineHeight: 'var(--line-height-relaxed)',
         marginBottom: 'var(--spacing-6)'
       }}>
-        此元件使用 theme-apple.css 定義的 CSS 變數，確保設計一致性並支援 Dark Mode。
+        {t('tokenExample.description')}
       </p>
 
-      {/* 按鈕範例 - 使用 color tokens */}
+      {/* Button examples - using color tokens */}
       <div style={{
         display: 'flex',
         gap: 'var(--spacing-3)',
@@ -89,7 +91,7 @@ export const TokenExample = () => {
         </button>
       </div>
 
-      {/* 卡片範例 - 使用 spacing, shadow, border tokens */}
+      {/* Card example - using spacing, shadow, border tokens */}
       <div style={{
         padding: 'var(--spacing-4)',
         backgroundColor: 'var(--bg-secondary)',
@@ -103,18 +105,18 @@ export const TokenExample = () => {
           color: 'var(--text-primary)',
           marginBottom: 'var(--spacing-2)'
         }}>
-          卡片標題
+          {t('tokenExample.cardTitle')}
         </h3>
         <p style={{
           fontSize: 'var(--font-size-sm)',
           color: 'var(--text-secondary)',
           lineHeight: 'var(--line-height-normal)'
         }}>
-          這是一個使用 Design Tokens 的卡片元件範例。
+          {t('tokenExample.cardDescription')}
         </p>
       </div>
 
-      {/* 狀態標籤範例 - 使用 semantic color tokens */}
+      {/* Status badge examples - using semantic color tokens */}
       <div style={{
         display: 'flex',
         gap: 'var(--spacing-2)',
@@ -128,7 +130,7 @@ export const TokenExample = () => {
           fontSize: 'var(--font-size-xs)',
           fontWeight: 'var(--font-weight-medium)'
         }}>
-          成功
+          {t('tokenExample.statusSuccess')}
         </span>
         <span style={{
           padding: 'var(--spacing-1) var(--spacing-3)',
@@ -138,7 +140,7 @@ export const TokenExample = () => {
           fontSize: 'var(--font-size-xs)',
           fontWeight: 'var(--font-weight-medium)'
         }}>
-          警告
+          {t('tokenExample.statusWarning')}
         </span>
         <span style={{
           padding: 'var(--spacing-1) var(--spacing-3)',
@@ -148,7 +150,7 @@ export const TokenExample = () => {
           fontSize: 'var(--font-size-xs)',
           fontWeight: 'var(--font-weight-medium)'
         }}>
-          錯誤
+          {t('tokenExample.statusError')}
         </span>
         <span style={{
           padding: 'var(--spacing-1) var(--spacing-3)',
@@ -158,7 +160,7 @@ export const TokenExample = () => {
           fontSize: 'var(--font-size-xs)',
           fontWeight: 'var(--font-weight-medium)'
         }}>
-          資訊
+          {t('tokenExample.statusInfo')}
         </span>
       </div>
     </div>

@@ -872,5 +872,15 @@
     "migrationNotice": "ℹ️ 您的歷史數據已安全遷移，無需任何操作即可繼續使用",
     "laterButton": "稍後再說",
     "settingsButton": "查看團隊設置"
+  },
+  "tokenExample": {
+    "title": "Design Token 範例",
+    "description": "此元件使用 theme-apple.css 定義的 CSS 變數，確保設計一致性並支援 Dark Mode。",
+    "cardTitle": "卡片標題",
+    "cardDescription": "這是一個使用 Design Tokens 的卡片元件範例。",
+    "statusSuccess": "成功",
+    "statusWarning": "警告",
+    "statusError": "錯誤",
+    "statusInfo": "資訊"
   }
 }
