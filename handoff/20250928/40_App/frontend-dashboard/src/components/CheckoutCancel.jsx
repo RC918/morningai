@@ -1,10 +1,12 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { XCircle, ArrowLeft, RefreshCw, MessageCircle } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 const CheckoutCancel = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const reason = searchParams.get('reason') || 'user_cancelled'
@@ -12,12 +14,12 @@ const CheckoutCancel = () => {
   const getReasonMessage = (reason) => {
     switch (reason) {
       case 'payment_failed':
-        return '付款處理失敗，請檢查您的付款資訊'
+        return t('checkoutCancel.reasons.paymentFailed')
       case 'session_expired':
-        return '付款會話已過期，請重新開始'
+        return t('checkoutCancel.reasons.sessionExpired')
       case 'user_cancelled':
       default:
-        return '您已取消付款流程'
+        return t('checkoutCancel.reasons.userCancelled')
     }
   }
 
@@ -28,7 +30,7 @@ const CheckoutCancel = () => {
           <div className="flex justify-center mb-4">
             <XCircle className="w-16 h-16 text-orange-500" aria-hidden="true" />
           </div>
-          <CardTitle className="text-2xl text-orange-700">付款已取消</CardTitle>
+          <CardTitle className="text-2xl text-orange-700">{t('checkoutCancel.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 text-center">
           <div>
@@ -36,7 +38,7 @@ const CheckoutCancel = () => {
               {getReasonMessage(reason)}
             </p>
             <p className="text-sm text-gray-500">
-              您的帳戶未被收費，可以隨時重新嘗試升級。
+              {t('checkoutCancel.noCharge')}
             </p>
           </div>
 
@@ -45,27 +47,27 @@ const CheckoutCancel = () => {
               <Button 
                 onClick={() => navigate('/checkout')}
                 className="flex-1"
-                aria-label="重新選擇方案"
+                aria-label={t('checkoutCancel.retryAria')}
               >
                 <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" />
-                重新選擇方案
+                {t('checkoutCancel.retry')}
               </Button>
               
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/dashboard')}
                 className="flex-1"
-                aria-label="返回儀表板"
+                aria-label={t('checkoutCancel.backToDashboardAria')}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
-                返回儀表板
+                {t('checkoutCancel.backToDashboard')}
               </Button>
             </div>
           </div>
 
           <div className="text-xs text-gray-500 pt-4 border-t">
             <MessageCircle className="w-3 h-3 inline mr-1" aria-hidden="true" />
-            需要協助？聯繫客服：support@morningai.com
+            {t('checkoutCancel.support')}
           </div>
         </CardContent>
       </Card>

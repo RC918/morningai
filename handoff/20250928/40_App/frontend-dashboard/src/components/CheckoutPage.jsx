@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -22,6 +23,7 @@ import { colors, spacing, typography } from '@/lib/design-tokens'
 import apiClient from '@/lib/api'
 
 const CheckoutPage = () => {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [checkoutData, setCheckoutData] = useState(null)
   const [selectedPlan, setSelectedPlan] = useState('pro')
@@ -78,28 +80,28 @@ const CheckoutPage = () => {
   const getFeaturesByPlan = (planId) => {
     const features = {
       starter: [
-        '基礎 AI 助手功能',
-        '每月 100 次查詢',
-        '標準客服支援',
-        '基礎報表功能'
+        t('checkout.features.starter.basic'),
+        t('checkout.features.starter.queries'),
+        t('checkout.features.starter.support'),
+        t('checkout.features.starter.reports')
       ],
       pro: [
-        '進階 AI 助手功能',
-        '每月 1000 次查詢',
-        '優先客服支援',
-        '進階報表與分析',
-        '自訂工作流程',
-        'API 存取權限'
+        t('checkout.features.pro.advanced'),
+        t('checkout.features.pro.queries'),
+        t('checkout.features.pro.support'),
+        t('checkout.features.pro.reports'),
+        t('checkout.features.pro.workflows'),
+        t('checkout.features.pro.api')
       ],
       enterprise: [
-        '完整 AI 助手功能',
-        '無限制查詢',
-        '專屬客服經理',
-        '完整報表與分析',
-        '自訂工作流程',
-        '完整 API 存取',
-        '單點登入 (SSO)',
-        '專屬部署選項'
+        t('checkout.features.enterprise.complete'),
+        t('checkout.features.enterprise.queries'),
+        t('checkout.features.enterprise.support'),
+        t('checkout.features.enterprise.reports'),
+        t('checkout.features.enterprise.workflows'),
+        t('checkout.features.enterprise.api'),
+        t('checkout.features.enterprise.sso'),
+        t('checkout.features.enterprise.deployment')
       ]
     }
     return features[planId] || features.starter
@@ -128,7 +130,7 @@ const CheckoutPage = () => {
       if (useMockData) {
         window.location.href = `/checkout/cancel?reason=payment_failed`
       } else {
-        alert('結帳失敗，請稍後再試')
+        alert(t('checkout.checkoutFailed'))
       }
     }
   }
@@ -177,12 +179,12 @@ const CheckoutPage = () => {
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">選擇您的方案</h1>
-            <p className="text-gray-600">升級到 Morning AI Pro，解鎖更多強大功能</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('checkout.title')}</h1>
+            <p className="text-gray-600">{t('checkout.description')}</p>
           </div>
           <div className="flex items-center space-x-2">
             <Settings className="w-4 h-4" />
-            <Label htmlFor="mock-toggle" className="text-sm">使用測試資料</Label>
+            <Label htmlFor="mock-toggle" className="text-sm">{t('checkout.useMockData')}</Label>
             <input
               id="mock-toggle"
               type="checkbox"
@@ -192,7 +194,7 @@ const CheckoutPage = () => {
               aria-describedby="mock-toggle-description"
             />
             <span id="mock-toggle-description" className="sr-only">
-              切換使用測試資料或真實 API 資料
+              {t('checkout.mockDataDescription')}
             </span>
           </div>
         </div>
@@ -219,12 +221,12 @@ const CheckoutPage = () => {
                 }}
                 tabIndex={0}
                 role="button"
-                aria-label={`選擇 ${plan.name} 方案，價格 $${plan.price}/${plan.billing}`}
+                aria-label={t('checkout.selectPlanAria', { name: plan.name, price: plan.price, billing: plan.billing })}
                 aria-pressed={selectedPlan === plan.id}
               >
                 {plan.popular && (
                   <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-500">
-                    最受歡迎
+                    {t('checkout.mostPopular')}
                   </Badge>
                 )}
                 <CardHeader className="text-center pb-4">
@@ -254,8 +256,8 @@ const CheckoutPage = () => {
           {/* Payment Methods */}
           <Card>
             <CardHeader>
-              <CardTitle>付款方式</CardTitle>
-              <CardDescription>選擇您偏好的付款方式</CardDescription>
+              <CardTitle>{t('checkout.paymentMethods')}</CardTitle>
+              <CardDescription>{t('checkout.paymentMethodsDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
               <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
@@ -269,7 +271,7 @@ const CheckoutPage = () => {
                       {getPaymentIcon(method.id)}
                       <span className="ml-2">{method.name}</span>
                       {!method.enabled && (
-                        <Badge variant="secondary" className="ml-auto">即將推出</Badge>
+                        <Badge variant="secondary" className="ml-auto">{t('checkout.comingSoon')}</Badge>
                       )}
                     </Label>
                   </div>
@@ -283,37 +285,37 @@ const CheckoutPage = () => {
         <div>
           <Card className="sticky top-6">
             <CardHeader>
-              <CardTitle>訂單摘要</CardTitle>
+              <CardTitle>{t('checkout.orderSummary')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {selectedPlan && checkoutData?.pricing_tiers && (
                 <>
                   <div className="flex justify-between">
-                    <span>方案</span>
+                    <span>{t('checkout.plan')}</span>
                     <span className="font-medium">
                       {checkoutData.pricing_tiers.find(p => p.id === selectedPlan)?.name}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>價格</span>
+                    <span>{t('checkout.price')}</span>
                     <span className="font-medium">
-                      ${checkoutData.pricing_tiers.find(p => p.id === selectedPlan)?.price}/月
+                      ${checkoutData.pricing_tiers.find(p => p.id === selectedPlan)?.price}/{t('checkout.perMonth')}
                     </span>
                   </div>
                   
                   <Separator />
                   
                   <div className="space-y-2">
-                    <Label htmlFor="discount">優惠代碼</Label>
+                    <Label htmlFor="discount">{t('checkout.discountCode')}</Label>
                     <div className="flex space-x-2">
                       <Input
                         id="discount"
-                        placeholder="輸入優惠代碼"
+                        placeholder={t('checkout.discountPlaceholder')}
                         value={discountCode}
                         onChange={(e) => setDiscountCode(e.target.value)}
                       />
-                      <Button variant="outline" size="sm" aria-label="套用優惠代碼">
-                        套用
+                      <Button variant="outline" size="sm" aria-label={t('checkout.applyDiscount')}>
+                        {t('checkout.apply')}
                       </Button>
                     </div>
                   </div>
@@ -321,16 +323,16 @@ const CheckoutPage = () => {
                   {checkoutData?.discounts?.length > 0 && (
                     <div className="text-sm text-green-600">
                       <Clock className="w-4 h-4 inline mr-1" />
-                      可用優惠：{checkoutData.discounts[0].code} (-{checkoutData.discounts[0].discount}%)
+                      {t('checkout.availableDiscount')}: {checkoutData.discounts[0].code} (-{checkoutData.discounts[0].discount}%)
                     </div>
                   )}
                   
                   <Separator />
                   
                   <div className="flex justify-between text-lg font-bold">
-                    <span>總計</span>
+                    <span>{t('checkout.total')}</span>
                     <span>
-                      ${checkoutData.pricing_tiers.find(p => p.id === selectedPlan)?.price}/月
+                      ${checkoutData.pricing_tiers.find(p => p.id === selectedPlan)?.price}/{t('checkout.perMonth')}
                     </span>
                   </div>
                   
@@ -338,15 +340,15 @@ const CheckoutPage = () => {
                     className="w-full" 
                     size="lg"
                     onClick={handleCheckout}
-                    aria-label="進行安全結帳流程"
+                    aria-label={t('checkout.secureCheckout')}
                   >
                     <Shield className="w-4 h-4 mr-2" aria-hidden="true" />
-                    安全結帳
+                    {t('checkout.secureCheckout')}
                   </Button>
                   
                   <div className="text-xs text-gray-500 text-center">
                     <Shield className="w-3 h-3 inline mr-1" />
-                    您的付款資訊受到 256 位元 SSL 加密保護
+                    {t('checkout.sslProtection')}
                   </div>
                 </>
               )}

@@ -306,7 +306,8 @@
         "sso": "單點登入 (SSO)",
         "deployment": "專屬部署選項"
       }
-    }
+    },
+    "selectPlanAria": "選擇 {{name}} 方案，價格 ${{price}}/{{billing}}"
   },
   "sidebar": {
     "header": {
@@ -399,5 +400,31 @@
       "cpuLabel": "CPU (%)",
       "memoryLabel": "內存 (%)"
     }
+  },
+  "checkoutCancel": {
+    "title": "付款已取消",
+    "reasons": {
+      "paymentFailed": "付款處理失敗，請檢查您的付款資訊",
+      "sessionExpired": "付款會話已過期，請重新開始",
+      "userCancelled": "您已取消付款流程"
+    },
+    "noCharge": "您的帳戶未被收費，可以隨時重新嘗試升級。",
+    "retry": "重新選擇方案",
+    "retryAria": "重新選擇方案",
+    "backToDashboard": "返回儀表板",
+    "backToDashboardAria": "返回儀表板",
+    "support": "需要協助？聯繫客服：support@morningai.com"
+  },
+  "checkoutSuccess": {
+    "title": "付款成功！",
+    "thankYou": "感謝您選擇 Morning AI",
+    "planActivated": "{{plan}} 方案已啟用",
+    "orderId": "訂單編號",
+    "emailSent": "確認郵件已發送至您的信箱，包含詳細的訂閱資訊和發票。",
+    "getStarted": "開始使用",
+    "getStartedAria": "前往儀表板開始使用",
+    "downloadInvoice": "下載發票",
+    "downloadInvoiceAria": "下載發票",
+    "support": "如有任何問題，請聯繫客服：support@morningai.com"
   }
 }

@@ -306,7 +306,8 @@
         "sso": "Single Sign-On (SSO)",
         "deployment": "Dedicated deployment options"
       }
-    }
+    },
+    "selectPlanAria": "Select {{name}} plan, price ${{price}}/{{billing}}"
   },
   "sidebar": {
     "header": {
@@ -399,5 +400,31 @@
       "cpuLabel": "CPU (%)",
       "memoryLabel": "Memory (%)"
     }
+  },
+  "checkoutCancel": {
+    "title": "Payment Cancelled",
+    "reasons": {
+      "paymentFailed": "Payment processing failed, please check your payment information",
+      "sessionExpired": "Payment session has expired, please start over",
+      "userCancelled": "You have cancelled the payment process"
+    },
+    "noCharge": "Your account has not been charged, you can retry the upgrade at any time.",
+    "retry": "Select Plan Again",
+    "retryAria": "Select plan again",
+    "backToDashboard": "Back to Dashboard",
+    "backToDashboardAria": "Back to dashboard",
+    "support": "Need help? Contact support: support@morningai.com"
+  },
+  "checkoutSuccess": {
+    "title": "Payment Successful!",
+    "thankYou": "Thank you for choosing Morning AI",
+    "planActivated": "{{plan}} plan activated",
+    "orderId": "Order ID",
+    "emailSent": "A confirmation email has been sent to your inbox with detailed subscription information and invoice.",
+    "getStarted": "Get Started",
+    "getStartedAria": "Go to dashboard to get started",
+    "downloadInvoice": "Download Invoice",
+    "downloadInvoiceAria": "Download invoice",
+    "support": "If you have any questions, please contact support: support@morningai.com"
   }
 }
