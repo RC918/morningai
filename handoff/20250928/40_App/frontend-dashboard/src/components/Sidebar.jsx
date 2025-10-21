@@ -86,7 +86,6 @@ const Sidebar = ({ user, onLogout }) => {
     <div className={`bg-white dark:bg-gray-900 shadow-lg transition-all duration-300 ${
       collapsed ? 'w-16' : 'w-64'
     }`}>
-      {/* 頭部 */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           {!collapsed && (
@@ -119,7 +118,6 @@ const Sidebar = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* 用戶信息 */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-3">
           <Avatar className="w-10 h-10">
@@ -142,7 +140,6 @@ const Sidebar = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* 導航菜單 */}
       <nav className="flex-1 p-4">
         <ul className="space-y-2">
           {menuItems.map((item) => {
@@ -185,7 +182,6 @@ const Sidebar = ({ user, onLogout }) => {
         </ul>
       </nav>
 
-      {/* 底部操作 */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
         <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />

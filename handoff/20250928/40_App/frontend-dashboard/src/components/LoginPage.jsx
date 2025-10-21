@@ -77,7 +77,6 @@ const LoginPage = ({ onLogin }) => {
           <p className="text-gray-600 dark:text-gray-400 mt-2">{t('app.tagline')}</p>
         </div>
 
-        {/* 登錄表單 */}
         <Card>
           <CardHeader>
             <CardTitle>{t('auth.login.title')}</CardTitle>
