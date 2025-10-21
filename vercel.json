@@ -4,6 +4,7 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install --include=dev",
   "outputDirectory": "dist",
+  "rootDirectory": "handoff/20250928/40_App/frontend-dashboard",
   "rewrites": [
     {
       "source": "/(.*)",
