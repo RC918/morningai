@@ -1,5 +1,9 @@
-# RLS Phase 2 Monitoring System Requirements
+# Braintrust Trace Processor Service Requirements
 # Install with: pip install -r requirements.txt
+
+# FastAPI and Uvicorn for web service
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
 
 # PostgreSQL adapter for Python (required)
 psycopg2-binary>=2.9.0
@@ -7,6 +11,6 @@ psycopg2-binary>=2.9.0
 # Sentry SDK for error tracking and alerts (optional)
 sentry-sdk>=1.40.0
 
-# Additional dependencies (usually already installed)
-# python-dotenv>=1.0.0  # For loading .env files
-# requests>=2.31.0      # HTTP client (for Slack integration)
+# Additional dependencies
+python-dotenv>=1.0.0  # For loading .env files
+requests>=2.31.0      # HTTP client (for Slack integration)
