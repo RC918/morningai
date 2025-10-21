@@ -14,6 +14,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from psycopg2.pool import ThreadedConnectionPool
 from src.middleware.auth_middleware import jwt_required
 from src.utils.i18n import i18n, translate
 
@@ -22,12 +23,31 @@ logger = logging.getLogger(__name__)
 bp = Blueprint('vectors', __name__, url_prefix='/api/vectors')
 
 
+_DB_POOL = None
+
+def _get_db_pool():
+    global _DB_POOL
+    if _DB_POOL is None:
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            raise ValueError("DATABASE_URL environment variable not set")
+        _DB_POOL = ThreadedConnectionPool(minconn=1, maxconn=int(os.getenv("DB_POOL_MAX", "10")), dsn=database_url)
+    return _DB_POOL
+
+
 def get_db_connection():
-    """Get database connection"""
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise ValueError("DATABASE_URL environment variable not set")
-    return psycopg2.connect(database_url)
+    pool = _get_db_pool()
+    return pool.getconn()
+
+
+def release_db_connection(conn):
+    try:
+        _get_db_pool().putconn(conn)
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 @bp.route('/visualize', methods=['GET'])
@@ -166,7 +186,7 @@ def visualize_vectors():
         )
         
         cursor.close()
-        conn.close()
+        release_db_connection(conn)
         
         return jsonify({
             "data": {
@@ -214,7 +234,7 @@ def get_clusters():
         clusters = [dict(row) for row in results]
         
         cursor.close()
-        conn.close()
+        release_db_connection(conn)
         
         return jsonify({
             "data": {
@@ -266,7 +286,7 @@ def detect_drift():
         stable = [d for d in drift_analysis if d['status'] == 'STABLE']
         
         cursor.close()
-        conn.close()
+        release_db_connection(conn)
         
         return jsonify({
             "data": {
@@ -313,7 +333,7 @@ def get_statistics():
                 stat['newest_vector'] = stat['newest_vector'].isoformat()
         
         cursor.close()
-        conn.close()
+        release_db_connection(conn)
         
         return jsonify({
             "data": {
@@ -345,7 +365,7 @@ def refresh_visualization():
         conn.commit()
         
         cursor.close()
-        conn.close()
+        release_db_connection(conn)
         
         return jsonify({
             "data": {
