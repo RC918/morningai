@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Brain, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 
 export const BrandLoader = ({ 
   message = '載入中...', 
@@ -62,9 +62,13 @@ export const BrandLoader = ({
           variants={logoVariants}
           initial="initial"
           animate="animate"
-          className={`${currentSize.container} bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg`}
+          className={`${currentSize.container} rounded-xl flex items-center justify-center shadow-lg`}
         >
-          <Brain className={`${currentSize.icon} text-white`} />
+          <img 
+            src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+            alt="Morning AI" 
+            className="w-full h-full rounded-xl"
+          />
         </motion.div>
         <span className={`${currentSize.text} font-medium text-gray-700`}>
           {message}
@@ -98,9 +102,13 @@ export const BrandLoader = ({
           variants={logoVariants}
           initial="initial"
           animate="animate"
-          className={`relative ${currentSize.container} bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl`}
+          className={`relative ${currentSize.container} rounded-2xl flex items-center justify-center shadow-2xl`}
         >
-          <Brain className={`${currentSize.icon} text-white`} />
+          <img 
+            src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+            alt="Morning AI" 
+            className="w-full h-full rounded-2xl"
+          />
         </motion.div>
       </div>
       

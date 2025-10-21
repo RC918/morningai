@@ -11,7 +11,7 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  Brain,
+  Sparkles,
   CreditCard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -32,7 +32,7 @@ const Sidebar = ({ user, onLogout }) => {
     },
     {
       path: '/strategies',
-      icon: Brain,
+      icon: Sparkles,
       label: '策略管理',
       description: '管理AI策略',
       feature: AVAILABLE_FEATURES.STRATEGIES
@@ -88,9 +88,11 @@ const Sidebar = ({ user, onLogout }) => {
         <div className="flex items-center justify-between">
           {!collapsed && (
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Brain className="w-5 h-5 text-white" />
-              </div>
+              <img 
+                src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+                alt="Morning AI" 
+                className="w-8 h-8 rounded-lg"
+              />
               <div>
                 <h1 className="text-lg font-bold text-gray-900">Morning AI</h1>
                 <p className="text-xs text-gray-500">智能決策系統</p>

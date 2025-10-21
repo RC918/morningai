@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Brain, Lock, User, AlertCircle, Loader2 } from 'lucide-react'
+import { Lock, User, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -77,9 +77,13 @@ const LoginPage = ({ onLogin }) => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4"
+            className="mx-auto w-16 h-16 mb-4"
           >
-            <Brain className="w-8 h-8 text-white" />
+            <img 
+              src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+              alt="Morning AI" 
+              className="w-full h-full rounded-2xl"
+            />
           </motion.div>
           <h1 className="text-3xl font-bold text-gray-900">{t('app.name')}</h1>
           <p className="text-gray-600 mt-2">{t('app.tagline')}</p>

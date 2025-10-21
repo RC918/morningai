@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { Brain } from 'lucide-react'
 
 export const PageLoader = ({ message = '載入中...' }) => {
   return (
@@ -14,9 +13,13 @@ export const PageLoader = ({ message = '載入中...' }) => {
           repeat: Infinity,
           ease: "easeInOut"
         }}
-        className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6"
+        className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6"
       >
-        <Brain className="w-10 h-10 text-white" />
+        <img 
+          src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+          alt="Morning AI" 
+          className="w-full h-full rounded-2xl"
+        />
       </motion.div>
       
       <motion.div

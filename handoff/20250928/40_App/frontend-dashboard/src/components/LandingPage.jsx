@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
-import { Brain, Chrome, Apple as AppleIcon, Github } from 'lucide-react'
+import { Chrome, Apple as AppleIcon, Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import AppleHero from './AppleHero'
@@ -36,9 +36,11 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
+            <img 
+              src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+              alt="Morning AI" 
+              className="w-8 h-8 rounded-lg"
+            />
             <span className="text-xl font-bold text-gray-900 dark:text-white">
               {t('app.name')}
             </span>
@@ -239,9 +241,11 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Brain className="w-5 h-5 text-white" />
-                </div>
+                <img 
+                  src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+                  alt="Morning AI" 
+                  className="w-8 h-8 rounded-lg"
+                />
                 <span className="text-lg font-bold text-gray-900 dark:text-white">
                   {t('app.name')}
                 </span>
