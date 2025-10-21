@@ -487,9 +487,14 @@
     }
   },
   "approval": {
-    "title": "Decision Approval",
-    "description": "Review pending AI decisions",
-    "pendingDecisions": "Pending Decisions",
+    "title": "Decision Approval Center",
+    "description": "Review AI system decision proposals to ensure safe and stable operation",
+    "pendingDecisions": "Pending",
+    "criticalDecisions": "Critical Decisions",
+    "avgConfidence": "Avg Confidence",
+    "estimatedCost": "Estimated Cost",
+    "noDecisions": "No Pending Decisions",
+    "noDecisionsDescription": "All decisions have been processed, system is running normally",
     "approve": "Approve",
     "reject": "Reject",
     "rejectReason": "Rejection Reason",
@@ -503,21 +508,77 @@
     "approveFailedDescription": "Please try again later",
     "rejectFailed": "Rejection Failed",
     "rejectFailedDescription": "Please try again later",
-    "autoApproveIn": "Auto-approve in {{seconds}} seconds",
+    "autoApproveCountdown": "Auto-approve Countdown",
+    "triggerTime": "Trigger Time",
+    "triggerCondition": "Trigger Condition",
+    "predictedImpact": "Predicted Impact",
+    "riskAssessment": "Risk Assessment",
+    "executionSteps": "Execution Steps",
+    "detailsButton": "Details",
+    "decisionDetails": "Decision details and approval actions",
+    "approvalComment": "Approval Comment (Optional)",
+    "approvalCommentPlaceholder": "Enter approval comment or notes...",
+    "rejectComment": "Rejection Reason (Required)",
+    "rejectCommentPlaceholder": "Please explain the reason for rejection...",
     "confidence": "Confidence",
-    "impact": {
-      "high": "High Impact",
-      "medium": "Medium Impact",
-      "low": "Low Impact"
+    "costIncrease": "Cost Increase",
+    "cpuReduction": "CPU Reduction",
+    "responseTimeImprovement": "Response Time Improvement",
+    "riskLevel": "Risk Level",
+    "estimatedTime": "Estimated Time",
+    "type": "Type",
+    "currentValue": "Current Value",
+    "threshold": "Threshold",
+    "duration": "Duration",
+    "priority": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
     },
     "risk": {
-      "high": "High Risk",
-      "medium": "Medium Risk",
-      "low": "Low Risk"
+      "veryLow": "Very Low",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "veryHigh": "Very High"
     },
-    "actions": "Recommended Actions",
-    "estimatedDuration": "Estimated Duration",
-    "factors": "Decision Factors"
+    "mockData": {
+      "cpuOptimization": {
+        "name": "CPU Optimization Strategy",
+        "description": "Auto-scale and optimize cache when CPU usage exceeds 85%",
+        "action1": "Add 2 compute instances",
+        "action1Time": "3 minutes",
+        "action2": "Adjust cache TTL to 300 seconds",
+        "action2Time": "30 seconds",
+        "duration": "5 minutes",
+        "factor1": "Tested strategy",
+        "factor2": "Rollback available",
+        "factor3": "Low impact scope"
+      },
+      "dbOptimization": {
+        "name": "Database Connection Pool Optimization",
+        "description": "Adjust database connection pool size for high concurrency",
+        "action1": "Increase connection pool from 50 to 80",
+        "action1Time": "1 minute",
+        "duration": "2 minutes",
+        "factor1": "Routine operation",
+        "factor2": "Immediate effect",
+        "factor3": "Dynamically adjustable"
+      },
+      "failover": {
+        "name": "Emergency Failover",
+        "description": "Primary service anomaly detected, recommend switching to backup",
+        "action1": "Switch to backup data center",
+        "action1Time": "2 minutes",
+        "action2": "Notify operations team",
+        "action2Time": "Immediate",
+        "duration": "30 seconds",
+        "factor1": "Emergency operation",
+        "factor2": "User impact",
+        "factor3": "Monitoring required"
+      }
+    }
   },
   "history": {
     "title": "History Analysis",

@@ -487,9 +487,14 @@
     }
   },
   "approval": {
-    "title": "決策審批",
-    "description": "審核待批准的 AI 決策",
-    "pendingDecisions": "待審批決策",
+    "title": "決策審批中心",
+    "description": "審核AI系統提出的決策建議，確保系統安全穩定運行",
+    "pendingDecisions": "待審批",
+    "criticalDecisions": "緊急決策",
+    "avgConfidence": "平均信心度",
+    "estimatedCost": "預計成本",
+    "noDecisions": "沒有待審批的決策",
+    "noDecisionsDescription": "所有決策都已處理完畢，系統運行正常",
     "approve": "批准",
     "reject": "拒絕",
     "rejectReason": "拒絕理由",
@@ -503,21 +508,77 @@
     "approveFailedDescription": "請稍後重試",
     "rejectFailed": "拒絕失敗",
     "rejectFailedDescription": "請稍後重試",
-    "autoApproveIn": "{{seconds}} 秒後自動批准",
+    "autoApproveCountdown": "自動批准倒計時",
+    "triggerTime": "觸發時間",
+    "triggerCondition": "觸發條件",
+    "predictedImpact": "預期影響",
+    "riskAssessment": "風險評估",
+    "executionSteps": "執行步驟",
+    "detailsButton": "詳細信息",
+    "decisionDetails": "決策詳細信息和審批操作",
+    "approvalComment": "審批意見 (可選)",
+    "approvalCommentPlaceholder": "請輸入審批意見或備註...",
+    "rejectComment": "拒絕理由 (必填)",
+    "rejectCommentPlaceholder": "請說明拒絕原因...",
     "confidence": "信心度",
-    "impact": {
-      "high": "高影響",
-      "medium": "中影響",
-      "low": "低影響"
+    "costIncrease": "成本增加",
+    "cpuReduction": "CPU降低",
+    "responseTimeImprovement": "響應時間改善",
+    "riskLevel": "風險等級",
+    "estimatedTime": "預計耗時",
+    "type": "類型",
+    "currentValue": "當前值",
+    "threshold": "閾值",
+    "duration": "持續時間",
+    "priority": {
+      "critical": "緊急",
+      "high": "高",
+      "medium": "中",
+      "low": "低"
     },
     "risk": {
-      "high": "高風險",
-      "medium": "中風險",
-      "low": "低風險"
+      "veryLow": "極低",
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "veryHigh": "極高"
     },
-    "actions": "建議操作",
-    "estimatedDuration": "預計執行時間",
-    "factors": "決策因素"
+    "mockData": {
+      "cpuOptimization": {
+        "name": "CPU優化策略",
+        "description": "當CPU使用率超過85%時自動擴容並優化緩存配置",
+        "action1": "增加2個計算實例",
+        "action1Time": "3分鐘",
+        "action2": "調整緩存TTL為300秒",
+        "action2Time": "30秒",
+        "duration": "5分鐘",
+        "factor1": "已測試策略",
+        "factor2": "可回滾",
+        "factor3": "低影響範圍"
+      },
+      "dbOptimization": {
+        "name": "數據庫連接池優化",
+        "description": "調整數據庫連接池大小以應對高並發",
+        "action1": "將連接池從50增加到80",
+        "action1Time": "1分鐘",
+        "duration": "2分鐘",
+        "factor1": "常規操作",
+        "factor2": "即時生效",
+        "factor3": "可動態調整"
+      },
+      "failover": {
+        "name": "緊急故障轉移",
+        "description": "檢測到主服務異常，建議切換到備用服務",
+        "action1": "切換到備用數據中心",
+        "action1Time": "2分鐘",
+        "action2": "通知運維團隊",
+        "action2Time": "即時",
+        "duration": "30秒",
+        "factor1": "緊急操作",
+        "factor2": "影響用戶",
+        "factor3": "需要監控"
+      }
+    }
   },
   "history": {
     "title": "歷史分析",
