@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import AppleHero from './AppleHero'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { DarkModeToggle } from './DarkModeToggle'
 
 const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
   const { t } = useTranslation()
@@ -35,11 +36,11 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <img 
               src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
               alt="Morning AI" 
-              className="w-8 h-8 rounded-lg"
+              className="w-10 h-10 rounded-lg shadow-sm"
             />
             <span className="text-xl font-bold text-gray-900 dark:text-white">
               {t('app.name')}
@@ -47,6 +48,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
           </div>
           
           <div className="flex items-center gap-4">
+            <DarkModeToggle variant="compact" />
             <LanguageSwitcher variant="compact" />
             <Button
               variant="ghost"
@@ -240,11 +242,11 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
         <footer className="py-12 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <img 
                   src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
                   alt="Morning AI" 
-                  className="w-8 h-8 rounded-lg"
+                  className="w-10 h-10 rounded-lg shadow-sm"
                 />
                 <span className="text-lg font-bold text-gray-900 dark:text-white">
                   {t('app.name')}
