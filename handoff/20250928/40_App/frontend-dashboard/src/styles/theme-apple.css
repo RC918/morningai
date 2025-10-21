@@ -13,6 +13,11 @@
   --brand-orange: #FF6B35;
   --brand-warm-orange: #FF8C42;
   
+  /* ===== Design System Tokens ===== */
+  --brand-primary: #FF8C42;
+  --brand-primary-hover: #FF6B35;
+  --brand-primary-active: #E55A24;
+  
   /* ===== Primary Colors ===== */
   --color-primary: #FF8C42;
   --color-primary-hover: #FF6B35;
@@ -58,6 +63,12 @@
   --bg-overlay: rgba(0, 0, 0, 0.5);
   --bg-gradient-primary: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-orange) 100%);
   --bg-gradient-secondary: linear-gradient(135deg, var(--brand-warm-orange) 0%, var(--brand-orange) 100%);
+  
+  /* ===== Surface Tokens ===== */
+  --surface-base: #FFFFFF;
+  --surface-alt: #FAFAFA;
+  --surface-elevated: #FFFFFF;
+  --surface-overlay: rgba(0, 0, 0, 0.5);
   
   /* ===== Text Colors ===== */
   --text-primary: #171717;
@@ -173,6 +184,12 @@
   --bg-secondary: #262626;
   --bg-tertiary: #404040;
   --bg-overlay: rgba(0, 0, 0, 0.7);
+  
+  /* ===== Surface Tokens (Dark) ===== */
+  --surface-base: #171717;
+  --surface-alt: #262626;
+  --surface-elevated: #404040;
+  --surface-overlay: rgba(0, 0, 0, 0.7);
   
   /* ===== Text Colors (Dark) ===== */
   --text-primary: #FAFAFA;
