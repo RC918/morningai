@@ -33,9 +33,10 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
           <Button 
             variant="outline" 
             size="sm" 
-            className={`${className} bg-white hover:bg-gray-50 shadow-md`}
+            className={`${className} bg-white hover:bg-gray-50 shadow-md flex items-center justify-center`}
+            style={{ width: '40px', height: '40px', padding: '0' }}
           >
-            <Globe className="w-5 h-5" />
+            <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">

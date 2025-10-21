@@ -166,6 +166,19 @@ class ApiClient {
       body: JSON.stringify(settings),
     })
   }
+
+  async get(endpoint) {
+    return this.request(endpoint, {
+      method: 'GET',
+    })
+  }
+
+  async post(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
 }
 
 export const apiClient = new ApiClient()
