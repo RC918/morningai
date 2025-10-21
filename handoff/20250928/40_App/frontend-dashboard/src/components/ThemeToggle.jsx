@@ -1,32 +1,13 @@
-import { useState, useEffect } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useTheme } from 'next-themes'
 
 export const ThemeToggle = ({ variant = 'default' }) => {
-  const [isDark, setIsDark] = useState(false)
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark)
-    
-    setIsDark(shouldBeDark)
-    updateTheme(shouldBeDark)
-  }, [])
-
-  const updateTheme = (dark) => {
-    if (dark) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }
+  const { theme, setTheme } = useTheme()
+  const isDark = theme === 'dark'
 
   const toggleTheme = () => {
-    const newIsDark = !isDark
-    setIsDark(newIsDark)
-    updateTheme(newIsDark)
-    localStorage.setItem('theme', newIsDark ? 'dark' : 'light')
+    setTheme(isDark ? 'light' : 'dark')
   }
 
   if (variant === 'compact') {
