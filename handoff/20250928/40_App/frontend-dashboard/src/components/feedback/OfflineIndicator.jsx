@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WifiOff, Wifi } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export const OfflineIndicator = () => {
+  const { t } = useTranslation()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [showReconnected, setShowReconnected] = useState(false)
   
@@ -40,7 +42,7 @@ export const OfflineIndicator = () => {
           aria-live="assertive"
         >
           <WifiOff className="inline w-4 h-4 mr-2" aria-hidden="true" />
-          您目前處於離線狀態，部分功能可能無法使用
+          {t('feedback.offlineMessage')}
         </motion.div>
       )}
       
@@ -55,7 +57,7 @@ export const OfflineIndicator = () => {
           aria-live="polite"
         >
           <Wifi className="inline w-4 h-4 mr-2" aria-hidden="true" />
-          網路連線已恢復
+          {t('feedback.reconnectedMessage')}
         </motion.div>
       )}
     </AnimatePresence>

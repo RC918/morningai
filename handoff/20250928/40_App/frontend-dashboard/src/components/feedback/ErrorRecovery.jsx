@@ -3,8 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { getErrorMessage } from '@/lib/errorMessages'
 import * as Icons from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 
 export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }) => {
+  const { t } = useTranslation()
   const errorInfo = getErrorMessage(error)
   const Icon = Icons[errorInfo.icon] || Icons.AlertCircle
   
@@ -32,14 +34,14 @@ export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }) => 
             )}
             {onDismiss && (
               <Button variant="outline" onClick={onDismiss}>
-                關閉
+                {t('feedback.close')}
               </Button>
             )}
           </div>
           
           {error?.requestId && (
             <p className="text-xs text-gray-400 mt-4 text-center">
-              錯誤 ID: {error.requestId}
+              {t('feedback.errorId', { id: error.requestId })}
             </p>
           )}
         </CardContent>
