@@ -17,7 +17,13 @@
       "loggingIn": "Logging in...",
       "loginFailed": "Login failed, please check your username and password",
       "loginError": "Login failed: Invalid username or password",
-      "devAccount": "Development Test Account"
+      "devAccount": "Development Test Account",
+      "loginSuccess": "Login Successful",
+      "welcomeBack": "Welcome back, {{name}}!"
+    },
+    "logout": {
+      "logoutSuccess": "Logged Out",
+      "logoutMessage": "You have successfully logged out"
     }
   },
   "landing": {
@@ -186,7 +192,11 @@
     "logout": "Logout",
     "profile": "Profile",
     "notifications": "Notifications",
-    "language": "Language"
+    "language": "Language",
+    "apiError": "API Error",
+    "loadingApp": "Loading application...",
+    "loadingPage": "Loading page...",
+    "mainContentArea": "Main content area"
   },
   "settings": {
     "title": "System Settings",

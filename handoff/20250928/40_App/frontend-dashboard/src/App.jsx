@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
@@ -33,6 +34,7 @@ const CheckoutSuccess = lazy(() => import('@/components/CheckoutSuccess'))
 const CheckoutCancel = lazy(() => import('@/components/CheckoutCancel'))
 
 function AppContent() {
+  const { t } = useTranslation()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
@@ -60,7 +62,7 @@ function AppContent() {
     const handleApiError = (event) => {
       const { endpoint, error, status, requestId } = event.detail
       addToast({
-        title: "API 錯誤",
+        title: t('common.apiError'),
         description: `${endpoint}: ${error} (ID: ${requestId})`,
         variant: "destructive"
       })
@@ -107,8 +109,8 @@ function AppContent() {
     setIsAuthenticated(true)
     localStorage.setItem('auth_token', token)
     addToast({
-      title: "登入成功",
-      description: `歡迎回來，${userData.name}！`,
+      title: t('auth.login.loginSuccess'),
+      description: t('auth.login.welcomeBack', { name: userData.name }),
       variant: "default"
     })
   }
@@ -125,14 +127,14 @@ function AppContent() {
     setIsAuthenticated(false)
     localStorage.removeItem('auth_token')
     addToast({
-      title: "已登出",
-      description: "您已成功登出系統",
+      title: t('auth.logout.logoutSuccess'),
+      description: t('auth.logout.logoutMessage'),
       variant: "default"
     })
   }
 
   if (loading) {
-    return <PageLoader message="正在載入應用程式..." />
+    return <PageLoader message={t('common.loadingApp')} />
   }
 
   const handleNavigateToLogin = () => {
@@ -164,8 +166,8 @@ function AppContent() {
               <div className="flex h-screen bg-gray-100">
               <Sidebar user={user} onLogout={handleLogout} />
               
-              <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
-                <Suspense fallback={<PageLoader message="正在載入頁面..." />}>
+              <main className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
+                <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
