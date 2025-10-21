@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
 import { Chrome, Apple as AppleIcon, Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -34,13 +33,13 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
               src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
               alt="Morning AI" 
-              className="w-10 h-10 rounded-lg shadow-sm"
+              className="w-10 h-10 rounded-lg"
               style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
             />
             <span className="text-xl font-bold text-gray-900 dark:text-white">
@@ -54,12 +53,12 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
             <Button
               variant="ghost"
               onClick={onNavigateToLogin}
-              className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+              className="text-gray-600 dark:text-gray-400"
             >
               {t('landing.nav.login')}
             </Button>
             <Button
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+              className="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900"
               onClick={handleGetStarted}
             >
               {t('landing.nav.getStarted')}
@@ -76,84 +75,71 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
 
         <section
           id="sso-login"
-          className="py-20 bg-gray-50 dark:bg-gray-800/50"
+          className="py-20 bg-white dark:bg-gray-900"
         >
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="text-center mb-12"
-            >
+            <div className="text-center mb-12">
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
                 {t('landing.sso.title')}
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-300">
+              <p className="text-lg text-gray-600 dark:text-gray-400">
                 {t('landing.sso.subtitle')}
               </p>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <Card className="shadow-xl">
-                <CardContent className="p-8 space-y-4">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="w-full justify-start gap-3 h-14 text-base hover:bg-gray-50 dark:hover:bg-gray-800"
-                    onClick={() => handleSSOLogin('google')}
-                  >
-                    <Chrome className="w-5 h-5 text-blue-500" />
-                    {t('landing.sso.google')}
-                  </Button>
+            <Card className="border-gray-200 dark:border-gray-700">
+              <CardContent className="p-8 space-y-4">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-14 text-base"
+                  onClick={() => handleSSOLogin('google')}
+                >
+                  <Chrome className="w-5 h-5" />
+                  {t('landing.sso.google')}
+                </Button>
 
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="w-full justify-start gap-3 h-14 text-base hover:bg-gray-50 dark:hover:bg-gray-800"
-                    onClick={() => handleSSOLogin('apple')}
-                  >
-                    <AppleIcon className="w-5 h-5 text-gray-900 dark:text-white" />
-                    {t('landing.sso.apple')}
-                  </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-14 text-base"
+                  onClick={() => handleSSOLogin('apple')}
+                >
+                  <AppleIcon className="w-5 h-5" />
+                  {t('landing.sso.apple')}
+                </Button>
 
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="w-full justify-start gap-3 h-14 text-base hover:bg-gray-50 dark:hover:bg-gray-800"
-                    onClick={() => handleSSOLogin('github')}
-                  >
-                    <Github className="w-5 h-5 text-gray-900 dark:text-white" />
-                    {t('landing.sso.github')}
-                  </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-14 text-base"
+                  onClick={() => handleSSOLogin('github')}
+                >
+                  <Github className="w-5 h-5" />
+                  {t('landing.sso.github')}
+                </Button>
 
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300 dark:border-gray-600" />
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-4 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
-                        {t('landing.sso.or')}
-                      </span>
-                    </div>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300 dark:border-gray-600" />
                   </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                      {t('landing.sso.or')}
+                    </span>
+                  </div>
+                </div>
 
-                  <Button
-                    size="lg"
-                    variant="ghost"
-                    className="w-full h-14 text-base text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                    onClick={onNavigateToLogin}
-                  >
-                    {t('landing.sso.emailLogin')}
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="w-full h-14 text-base"
+                  onClick={onNavigateToLogin}
+                >
+                  {t('landing.sso.emailLogin')}
+                </Button>
+              </CardContent>
+            </Card>
 
             <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
               {t('landing.sso.terms')}
@@ -163,78 +149,48 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
 
         <section
           id="features"
-          className="py-20 bg-white dark:bg-gray-900"
+          className="py-20 bg-gray-50 dark:bg-gray-800/50"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="text-center mb-16"
-            >
+            <div className="text-center mb-16">
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
                 {t('landing.features.title')}
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
                 {t('landing.features.subtitle')}
               </p>
-            </motion.div>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
                 {
                   title: t('landing.features.realtime.title'),
-                  description: t('landing.features.realtime.description'),
-                  gradient: 'from-blue-500 to-cyan-500'
+                  description: t('landing.features.realtime.description')
                 },
                 {
                   title: t('landing.features.intelligent.title'),
-                  description: t('landing.features.intelligent.description'),
-                  gradient: 'from-purple-500 to-pink-500'
+                  description: t('landing.features.intelligent.description')
                 },
                 {
                   title: t('landing.features.secure.title'),
-                  description: t('landing.features.secure.description'),
-                  gradient: 'from-green-500 to-emerald-500'
-                },
-                {
-                  title: t('landing.features.scalable.title'),
-                  description: t('landing.features.scalable.description'),
-                  gradient: 'from-orange-500 to-red-500'
-                },
-                {
-                  title: t('landing.features.collaborative.title'),
-                  description: t('landing.features.collaborative.description'),
-                  gradient: 'from-indigo-500 to-blue-500'
-                },
-                {
-                  title: t('landing.features.insights.title'),
-                  description: t('landing.features.insights.description'),
-                  gradient: 'from-pink-500 to-rose-500'
+                  description: t('landing.features.secure.description')
                 }
               ].map((feature, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                >
-                  <Card className="h-full hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4`}>
-                        <div className="w-6 h-6 bg-white rounded-full" />
+                <div key={index} className="text-center">
+                  <Card className="h-full border-gray-200 dark:border-gray-700">
+                    <CardContent className="p-8">
+                      <div className="w-12 h-12 mx-auto rounded-lg bg-gray-900 dark:bg-white flex items-center justify-center mb-4">
+                        <div className="w-6 h-6 bg-white dark:bg-gray-900 rounded-full" />
                       </div>
                       <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                         {feature.title}
                       </h3>
-                      <p className="text-gray-600 dark:text-gray-300">
+                      <p className="text-gray-600 dark:text-gray-400">
                         {feature.description}
                       </p>
                     </CardContent>
                   </Card>
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>
