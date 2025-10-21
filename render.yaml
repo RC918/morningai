@@ -103,3 +103,44 @@ services:
       - key: LATENCY_ALERT_THRESHOLD
         value: "500.0"
     autoDeploy: true
+
+  - type: web
+    name: morningai-orchestrator-api
+    runtime: docker
+    dockerfilePath: ./orchestrator/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: ORCHESTRATOR_JWT_SECRET
+        generateValue: true
+      - key: ORCHESTRATOR_API_KEYS
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ORCHESTRATOR_CORS_ORIGINS
+        value: http://localhost:5173,http://localhost:5174,https://morningai.vercel.app,https://*.vercel.app
+      - key: ORCHESTRATOR_RATE_LIMIT_TASKS
+        value: "10"
+      - key: ORCHESTRATOR_RATE_LIMIT_EVENTS
+        value: "20"
+      - key: ORCHESTRATOR_RATE_LIMIT_APPROVALS
+        value: "5"
+      - key: ORCHESTRATOR_RATE_LIMIT_STATS
+        value: "30"
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: ORCHESTRATOR_QUEUE_PREFIX
+        value: orchestrator
+      - key: ORCHESTRATOR_TASK_TTL
+        value: "86400"
+      - key: ORCHESTRATOR_APPROVAL_TIMEOUT
+        value: "86400"
+      - key: ORCHESTRATOR_APPROVAL_HISTORY_TTL
+        value: "2592000"
+      - key: ORCHESTRATOR_MAX_APPROVAL_HISTORY
+        value: "1000"
+    autoDeploy: true
