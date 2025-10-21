@@ -780,6 +780,36 @@
     "offline": "您目前處於離線狀態",
     "offlineDescription": "請檢查您的網絡連接",
     "reconnecting": "正在重新連接...",
-    "reconnected": "已重新連接"
+    "reconnected": "已重新連接",
+    "emptyState": {
+      "defaultPrimaryAction": "開始使用",
+      "defaultSecondaryAction": "了解更多",
+      "noData": {
+        "title": "暫無資料",
+        "description": "目前沒有可顯示的資料，請稍後再試或新增資料。"
+      },
+      "noSearchResults": {
+        "title": "找不到相關結果",
+        "description": "請嘗試使用不同的關鍵字或調整搜尋條件。"
+      },
+      "error": {
+        "title": "發生錯誤",
+        "description": "抱歉，系統遇到問題。請稍後再試或聯繫支援團隊。"
+      },
+      "success": {
+        "title": "操作成功",
+        "description": "您的操作已成功完成。"
+      },
+      "loading": {
+        "title": "處理中",
+        "description": "請稍候，系統正在處理您的請求..."
+      },
+      "premium": {
+        "title": "進階功能",
+        "description": "此功能需要升級至專業版才能使用。",
+        "primaryAction": "立即升級",
+        "secondaryAction": "了解方案"
+      }
+    }
   }
 }

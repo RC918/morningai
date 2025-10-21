@@ -780,6 +780,36 @@
     "offline": "You are currently offline",
     "offlineDescription": "Please check your network connection",
     "reconnecting": "Reconnecting...",
-    "reconnected": "Reconnected"
+    "reconnected": "Reconnected",
+    "emptyState": {
+      "defaultPrimaryAction": "Get Started",
+      "defaultSecondaryAction": "Learn More",
+      "noData": {
+        "title": "No Data Available",
+        "description": "There is currently no data to display. Please try again later or add new data."
+      },
+      "noSearchResults": {
+        "title": "No Results Found",
+        "description": "Try using different keywords or adjusting your search criteria."
+      },
+      "error": {
+        "title": "An Error Occurred",
+        "description": "Sorry, the system encountered a problem. Please try again later or contact support."
+      },
+      "success": {
+        "title": "Operation Successful",
+        "description": "Your operation has been completed successfully."
+      },
+      "loading": {
+        "title": "Processing",
+        "description": "Please wait while the system processes your request..."
+      },
+      "premium": {
+        "title": "Premium Feature",
+        "description": "This feature requires upgrading to the professional version.",
+        "primaryAction": "Upgrade Now",
+        "secondaryAction": "View Plans"
+      }
+    }
   }
 }
