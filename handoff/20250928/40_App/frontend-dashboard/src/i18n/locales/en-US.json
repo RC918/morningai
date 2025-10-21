@@ -524,16 +524,46 @@
   },
   "strategy": {
     "title": "Strategy Management",
-    "description": "Manage and monitor AI decision strategies",
+    "description": "Manage and configure automation strategies",
     "createNew": "Create New Strategy",
     "editStrategy": "Edit Strategy",
     "deleteStrategy": "Delete Strategy",
     "strategyName": "Strategy Name",
     "strategyDescription": "Strategy Description",
+    "addStrategy": "Add Strategy",
+    "activeStrategies": "Active Strategies",
+    "totalTriggers": "Total Triggers",
+    "pausedStrategies": "Paused Strategies",
+    "strategyList": "Strategy List",
+    "strategyListDescription": "View and manage all automation strategies",
+    "triggeredTimes": "Triggered",
+    "times": "times",
+    "lastExecuted": "Last Executed",
     "status": {
       "active": "Active",
       "inactive": "Inactive",
-      "draft": "Draft"
+      "draft": "Draft",
+      "paused": "Paused",
+      "error": "Error"
+    },
+    "examples": {
+      "cpuOptimization": {
+        "name": "CPU Optimization Strategy",
+        "description": "Auto-scale when CPU usage exceeds 85%"
+      },
+      "dbConnectionPool": {
+        "name": "Database Connection Pool Optimization",
+        "description": "Automatically adjust connection pool size for high concurrency"
+      },
+      "cacheWarmup": {
+        "name": "Cache Warmup Strategy",
+        "description": "Periodically warm up popular data cache"
+      }
+    },
+    "timeAgo": {
+      "hoursAgo": "hours ago",
+      "minutesAgo": "minutes ago",
+      "daysAgo": "days ago"
     }
   },
   "approval": {

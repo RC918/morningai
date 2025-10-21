@@ -524,16 +524,46 @@
   },
   "strategy": {
     "title": "策略管理",
-    "description": "管理和監控 AI 決策策略",
+    "description": "管理與設定自動化策略",
     "createNew": "創建新策略",
     "editStrategy": "編輯策略",
     "deleteStrategy": "刪除策略",
     "strategyName": "策略名稱",
     "strategyDescription": "策略描述",
+    "addStrategy": "新增策略",
+    "activeStrategies": "啟用策略",
+    "totalTriggers": "總觸發次數",
+    "pausedStrategies": "暫停策略",
+    "strategyList": "策略列表",
+    "strategyListDescription": "查看和管理所有自動化策略",
+    "triggeredTimes": "觸發",
+    "times": "次",
+    "lastExecuted": "最後執行",
     "status": {
-      "active": "活躍",
+      "active": "啟用中",
       "inactive": "停用",
-      "draft": "草稿"
+      "draft": "草稿",
+      "paused": "已暫停",
+      "error": "錯誤"
+    },
+    "examples": {
+      "cpuOptimization": {
+        "name": "CPU 優化策略",
+        "description": "當 CPU 使用率超過 85% 時自動擴容"
+      },
+      "dbConnectionPool": {
+        "name": "數據庫連接池優化",
+        "description": "自動調整連接池大小以應對高並發"
+      },
+      "cacheWarmup": {
+        "name": "緩存預熱策略",
+        "description": "定期預熱熱門數據緩存"
+      }
+    },
+    "timeAgo": {
+      "hoursAgo": "小時前",
+      "minutesAgo": "分鐘前",
+      "daysAgo": "天前"
     }
   },
   "approval": {
