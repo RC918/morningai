@@ -122,7 +122,41 @@
   },
   "reportCenter": {
     "title": "報表中心",
-    "description": "生成和管理系統報表"
+    "description": "生成和管理系統報表",
+    "generation": {
+      "title": "報表生成",
+      "reportType": "報表類型",
+      "timeRange": "時間範圍",
+      "generatePDF": "生成 PDF",
+      "exportCSV": "導出 CSV"
+    },
+    "timeRanges": {
+      "1h": "過去1小時",
+      "24h": "過去24小時",
+      "7d": "過去7天",
+      "30d": "過去30天"
+    },
+    "history": {
+      "title": "報表歷史",
+      "systemPerformance": "系統性能報告",
+      "taskTracking": "任務追蹤報告",
+      "resilience": "韌性模式報告",
+      "empty": "尚無報表歷史記錄",
+      "emptyHint": "生成第一份報表開始使用"
+    },
+    "status": {
+      "completed": "已完成",
+      "failed": "失敗",
+      "generating": "生成中",
+      "unknown": "未知"
+    },
+    "quickActions": {
+      "title": "快速操作",
+      "dailyPerformance": "日性能報告",
+      "weeklyTasks": "週任務報告",
+      "monthlyResilience": "月韌性報告",
+      "monthlyCost": "月成本報告"
+    }
   },
   "metrics": {
     "cpuUsage": "CPU 使用率",

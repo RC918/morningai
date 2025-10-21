@@ -122,7 +122,41 @@
   },
   "reportCenter": {
     "title": "Report Center",
-    "description": "Generate and manage system reports"
+    "description": "Generate and manage system reports",
+    "generation": {
+      "title": "Report Generation",
+      "reportType": "Report Type",
+      "timeRange": "Time Range",
+      "generatePDF": "Generate PDF",
+      "exportCSV": "Export CSV"
+    },
+    "timeRanges": {
+      "1h": "Past 1 Hour",
+      "24h": "Past 24 Hours",
+      "7d": "Past 7 Days",
+      "30d": "Past 30 Days"
+    },
+    "history": {
+      "title": "Report History",
+      "systemPerformance": "System Performance Report",
+      "taskTracking": "Task Tracking Report",
+      "resilience": "Resilience Mode Report",
+      "empty": "No report history yet",
+      "emptyHint": "Generate your first report to get started"
+    },
+    "status": {
+      "completed": "Completed",
+      "failed": "Failed",
+      "generating": "Generating",
+      "unknown": "Unknown"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "dailyPerformance": "Daily Performance Report",
+      "weeklyTasks": "Weekly Task Report",
+      "monthlyResilience": "Monthly Resilience Report",
+      "monthlyCost": "Monthly Cost Report"
+    }
   },
   "metrics": {
     "cpuUsage": "CPU Usage",
