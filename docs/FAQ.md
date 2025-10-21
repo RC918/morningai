@@ -1,87 +1,99 @@
-# E2E Test FAQ Update for MorningAI
+# MorningAI System Architecture
 
-End-to-end (E2E) testing is a crucial part of the software development lifecycle, ensuring that the application behaves as expected from the user's perspective. This FAQ aims to guide developers through the process of setting up, running, and troubleshooting E2E tests in the MorningAI platform.
+MorningAI's architecture is designed to support a scalable, efficient, and highly available service for autonomous code generation, FAQ documentation management, and multi-platform integration. This architecture leverages a modern technology stack and follows best practices for web application development.
 
-## What are E2E Tests?
+## Overview
 
-E2E tests simulate real user scenarios, verifying that the entire flow of an application from start to finish works as intended. In the context of MorningAI, these tests ensure that all components of the platform, including autonomous agent systems, documentation management, multi-platform integration, and real-time task orchestration, work together seamlessly.
+The system architecture of MorningAI is built around several core components, each serving a distinct role within the platform:
 
-## Setting Up E2E Tests
+- **Frontend**: Developed with React, utilizing Vite for build optimization and TailwindCSS for styling. This setup provides a responsive and dynamic user interface.
+- **Backend**: Python with Flask serves as the backend framework, offering RESTful API endpoints. Gunicorn is used as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
+- **Database**: PostgreSQL, enhanced with Row Level Security (RLS) features provided by Supabase. This setup ensures data integrity and security across multi-tenant environments.
+- **Queue System**: Redis Queue (RQ) is employed for task queuing to manage background jobs like real-time task orchestration effectively.
+- **Orchestration**: LangGraph is utilized for defining and executing agent workflows, enabling complex task sequences to be managed seamlessly.
+- **AI Engine**: OpenAI GPT-4 powers content generation tasks, providing high-quality, contextually relevant text outputs.
+- **Deployment**: Render.com is used for hosting, taking advantage of its continuous integration and deployment (CI/CD) capabilities to streamline updates and maintenance.
 
-Before running E2E tests on MorningAI, ensure you have the following prerequisites:
+## Detailed Breakdown
 
-1. **Node.js and npm**: Make sure you have Node.js and npm installed on your machine. These are required to run JavaScript-based testing frameworks like Cypress or Puppeteer.
-2. **Test Framework**: Choose a testing framework suitable for your project needs. For MorningAI, we recommend Cypress for its easy setup and powerful testing capabilities.
+### Frontend
+The frontend layer is built using React, providing an interactive experience. The project configuration relies on Vite for fast builds and TailwindCSS for utility-first styling.
 
-### Installation Steps
-
-1. **Install Cypress**:
-    ```bash
-    npm install cypress --save-dev
-    ```
-
-2. **Configure Cypress**:
-   After installation, configure Cypress to suit your testing needs. You can modify `cypress.json` in your project root for global configurations.
-
-3. **Write Your First Test**:
-   Create a new test file under `cypress/integration/morningai_spec.js`. Here's a simple example that tests if the MorningAI homepage loads correctly:
-
-    ```javascript
-    describe('MorningAI Homepage', () => {
-      it('successfully loads', () => {
-        cy.visit('https://morningai.example.com') // Change this URL to your app's URL
-      })
-    })
-    ```
-
-## Running E2E Tests
-
-To run your E2E tests with Cypress:
-
-```bash
-./node_modules/.bin/cypress open
-```
-
-This command opens the Cypress Test Runner, where you can select and run individual test files.
-
-## Troubleshooting Common Issues
-
-### 1. Tests Timing Out
-
-If your tests frequently time out, consider increasing the default timeout in `cypress.json`:
-
-```json
-{
-  "defaultCommandTimeout": 10000,
-  "pageLoadTimeout": 30000
+```jsx
+// Sample React component with TailwindCSS
+function WelcomeMessage() {
+  return <div className="text-center p-4 font-bold">Welcome to MorningAI</div>;
 }
 ```
 
-### 2. Element Not Found
+### Backend
+Flask serves as the backbone of the backend, handling API requests and interfacing with other system components. Gunicorn ensures that the Flask application can handle multiple requests simultaneously by spawning multiple workers.
 
-Ensure that dynamic content has fully loaded before attempting to interact with it. Use `.wait()` or `.should()` functions to wait for elements to appear:
+```python
+# Sample Flask route
+from flask import Flask
+app = Flask(__name__)
 
-```javascript
-cy.get('.dynamic-element', { timeout: 10000 }).should('be.visible');
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
 ```
 
-### 3. Cross-Origin Errors
+### Database Configuration
+PostgreSQL is used as the primary data store, with Supabase enhancing its capabilities through additional features like RLS. This ensures that data access is securely managed at the database level.
 
-Cypress can run into cross-origin issues when testing applications with multiple domains. Use the `chromeWebSecurity` configuration option to disable Chrome Web Security:
-
-```json
-{
-  "chromeWebSecurity": false
-}
+```sql
+-- Example of setting up RLS in PostgreSQL
+CREATE TABLE secure_data (
+    id serial PRIMARY KEY,
+    user_id integer NOT NULL,
+    data text NOT NULL
+);
+ALTER TABLE secure_data ENABLE ROW LEVEL SECURITY;
 ```
 
-## Related Documentation
+### Queue System
+Redis Queue manages background tasks such as sending emails or processing asynchronous operations. It integrates smoothly with Flask applications.
 
-- [Cypress Documentation](https://docs.cypress.io)
-- [MorningAI Repository](https://github.com/RC918/morningai)
+```python
+# Enqueueing a job in Redis Queue
+from rq import Queue
+from redis import Redis
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+
+result = q.enqueue('my_task', args=(my_arg,), timeout=600)
+```
+
+### Deployment on Render.com
+Render.com hosts both the frontend and backend components of MorningAI. Continuous integration and deployment are configured through `render.yaml` files in the repository.
+
+```yaml
+# Example render.yaml snippet for deploying Flask app
+services:
+  - type: web
+    name: morningai-backend
+    env: python
+    plan: starter
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --workers 3 --threads 2"
+```
+
+## Troubleshooting
+
+Common issues developers may encounter include:
+
+1. **Database Connection Errors**: Ensure that your environment variables are correctly set up in your `.env` file or your hosting provider's dashboard.
+2. **Failed Deployments on Render.com**: Check the logs provided by Render.com for any errors during the build or startup process. Ensure all dependencies are correctly specified in your `requirements.txt` or `package.json`.
+3. **Task Queuing Delays**: If background tasks are delayed or not executing, verify that Redis Queue workers are running and monitor their workload to ensure they're not overwhelmed.
+
+## Related Documentation Links
+
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
 - [Supabase Documentation](https://supabase.io/docs)
-
-Remember, thorough E2E testing is key to ensuring a high-quality user experience on the MorningAI platform. By following these guidelines and leveraging the recommended tools and practices, developers can effectively test complex workflows and interactions within their applications.
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Render.com Deployment Guides](https://render.com/docs)
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -89,7 +101,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `45762758-11db-4e22-8996-c715e4d8d961`
+- Task: What is the system architecture?
+- Trace ID: `c408f538-1af9-427b-965f-0868cbaf2e69`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
