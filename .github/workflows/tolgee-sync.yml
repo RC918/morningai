@@ -22,13 +22,10 @@ jobs:
 
       - name: Pull translations from Tolgee
         working-directory: handoff/20250928/40_App/frontend-dashboard
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
-          tolgee pull \
-            --api-url https://app.tolgee.io \
-            --api-key "${{ secrets.TOLGEE_API_KEY }}" \
-            --project-id "${{ secrets.TOLGEE_PROJECT_ID }}" \
-            --path src/i18n/locales \
-            --format JSON_I18NEXT
+          tolgee pull --api-key "$TOLGEE_API_KEY"
 
       - name: Create PR if changes
         uses: peter-evans/create-pull-request@v6
