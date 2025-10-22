@@ -1,60 +1,72 @@
-# Testing Sentry `trace_id` in MorningAI
+# E2E Testing in MorningAI
 
-Sentry is an open-source error tracking tool that helps developers monitor and fix crashes in real-time. The `trace_id` is a unique identifier for each request or transaction, allowing developers to trace errors and performance issues back to their source. In the context of MorningAI, integrating Sentry with a focus on utilizing the `trace_id` can significantly enhance debugging and error tracking capabilities.
+End-to-end (E2E) testing is a crucial aspect of ensuring the reliability and functionality of the MorningAI platform. This FAQ aims to guide developers through the process of setting up, running, and troubleshooting E2E tests within the MorningAI environment.
 
-## Understanding `trace_id` in Sentry
+## What is E2E Testing?
 
-The `trace_id` is part of Sentry's tracing feature, which enables you to follow the path of a request across various services and components in your application. This is especially useful in distributed systems where a request passes through multiple microservices.
+E2E testing involves testing the entire software application from start to finish. It ensures that all integrated components function together as expected in a scenario that mimics real-world usage. In the context of MorningAI, E2E tests validate the interactions between the autonomous agent system, FAQ generation, documentation management, multi-platform integration, and real-time task orchestration.
 
-### How to Use `trace_id` in MorningAI
+## Setting Up E2E Tests
 
-To leverage `trace_id` within MorningAI, you need to integrate Sentry into your application first. Here's a basic guide on setting it up:
+Before running E2E tests, ensure your development environment is correctly set up:
 
-1. **Sentry SDK Installation**: Ensure you have Sentry SDK installed in your project. For a Flask application like MorningAI, you would typically use:
+1. Install all necessary dependencies:
+   - Ensure Node.js and npm are installed.
+   - Install Cypress or your chosen E2E testing framework.
 
-    ```bash
-    pip install --upgrade sentry-sdk[flask]
-    ```
+```bash
+npm install cypress --save-dev
+```
 
-2. **Configure Sentry in Your Application**:
-    - Import and initialize Sentry in your Flask app within `app/__init__.py` or wherever your Flask application is configured.
+2. Configure your test scripts in `package.json`:
 
-    ```python
-    import sentry_sdk
-    from sentry_sdk.integrations.flask import FlaskIntegration
+```json
+"scripts": {
+  "e2e": "cypress open"
+}
+```
 
-    sentry_sdk.init(
-        dsn="your_sentry_dsn_here",
-        integrations=[FlaskIntegration()],
-        traces_sample_rate=1.0 # Adjust sample rate as needed
-    )
-    ```
+3. Ensure your application and any dependent services (like Redis Queue or PostgreSQL) are running either locally or in a test environment accessible to the testing framework.
 
-3. **Retrieving and Using `trace_id`**:
-   - Within any part of your code, especially within error handling or critical workflow sections, you can access the current scope's `trace_id` using the Sentry SDK.
+## Writing E2E Tests
 
-   ```python
-   from sentry_sdk import Hub
+When writing E2E tests for MorningAI, consider scenarios that involve multiple components interacting with each other. Here's an example using Cypress for a test case that verifies successful user login through the UI:
 
-   def log_error():
-       trace_id = Hub.current.scope.span.trace_id
-       print(f"Error Trace ID: {trace_id}")
-       # Additional logging or error handling logic here
-   ```
+```javascript
+describe('Login Test', () => {
+  it('Successfully logs in', () => {
+    cy.visit('/login');
+    cy.get('input[name="username"]').type('testuser');
+    cy.get('input[name="password"]').type('password123');
+    cy.get('button[type="submit"]').click();
 
-### Related Documentation Links
+    // Verify login by checking if the dashboard is visible
+    cy.url().should('include', '/dashboard');
+  });
+});
+```
 
-- Sentry Flask Integration: [https://docs.sentry.io/platforms/python/guides/flask/](https://docs.sentry.io/platforms/python/guides/flask/)
-- Distributed Tracing with Sentry: [https://docs.sentry.io/product/sentry-basics/tracing/distributed-tracing/](https://docs.sentry.io/product/sentry-basics/tracing/distributed-tracing/)
+## Running E2E Tests
 
-### Common Troubleshooting Tips
+To run your E2E tests, execute the test script defined in `package.json`:
 
-- **Trace ID Not Available**: If you find that the `trace_id` is not being generated or is unavailable, ensure that the transaction containing the request has been started correctly. Transactions can be manually started with Sentry's SDK if automatic detection doesn't work as expected.
-- **Errors Not Showing in Sentry Dashboard**: Check if the DSN (Data Source Name) in your configuration is correct and that your network allows outgoing requests to Sentry's servers.
-- **Sampling Rate Issues**: If you're noticing missing data or too much data, adjust the `traces_sample_rate`. A rate of 1.0 captures 100% of transactions but might be overwhelming; experiment to find a balance that suits your needs.
-- **Performance Impact**: Monitor your application's performance after integrating Sentry, as capturing 100% of transactions can impact performance. Adjusting sampling rates or selectively instrumenting transactions can mitigate this.
+```bash
+npm run e2e
+```
 
-Integrating Sentry and utilizing its tracing capabilities, including `trace_id`, can greatly improve how you monitor, debug, and optimize MorningAI. By following these guidelines, developers can ensure they're leveraging these tools effectively within their projects.
+This will launch the Cypress Test Runner, from which you can select and run individual test suites or all tests.
+
+## Troubleshooting Common Issues
+
+- **Tests Fail to Connect to Local Services**: Ensure all services (backend server, Redis Queue, etc.) are running before executing tests. Check service logs for any startup errors.
+- **Flaky Tests**: Flaky tests often result from timing issues or assumptions about state. Use Cypress commands like `cy.wait()` sparingly and ensure your tests reset state before each test where feasible.
+- **Database State**: For tests involving database operations, consider using tools like pgvector/Supabase for vector memory storage with rollback capabilities to reset database state before each test suite runs.
+
+For more detailed guidance on writing and troubleshooting specific types of tests within MorningAI's architecture, refer to our developer documentation:
+- [Cypress Documentation](https://docs.cypress.io)
+- [MorningAI Developer Guides](https://github.com/RC918/morningai/docs/developer_guides)
+
+Remember, consistent and comprehensive E2E testing is key to maintaining high-quality software delivery pipelines. Ensuring your tests cover critical user journeys can significantly reduce bugs and improve user satisfaction with MorningAI.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -62,7 +74,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test Sentry trace_id
-- Trace ID: `7cf676b5-86c5-47c9-9575-f1c83f833616`
+- Task: E2E test FAQ update
+- Trace ID: `22f3b3b4-f803-4b4b-8f79-fbd2bd3be564`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
