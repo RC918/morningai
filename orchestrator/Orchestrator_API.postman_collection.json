@@ -1,0 +1,512 @@
+{
+	"info": {
+		"_postman_id": "orchestrator-api-collection",
+		"name": "MorningAI Orchestrator API",
+		"description": "Complete API collection for MorningAI Orchestrator - Task orchestration, event management, and HITL approvals",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://morningai-orchestrator-api.onrender.com",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "api_key",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "task_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "approval_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Check API health and Redis connection status"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Stats",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/stats",
+							"host": ["{{base_url}}"],
+							"path": ["stats"]
+						},
+						"description": "Get queue statistics (public endpoint)"
+					},
+					"response": []
+				},
+				{
+					"name": "Root",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": ["{{base_url}}"],
+							"path": [""]
+						},
+						"description": "API root endpoint"
+					},
+					"response": []
+				}
+			],
+			"description": "Health check and status endpoints"
+		},
+		{
+			"name": "Task Management",
+			"item": [
+				{
+					"name": "Create Task (Bugfix)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('task_id', response.task_id);",
+									"    console.log('Task ID saved:', response.task_id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"bugfix\",\n  \"payload\": {\n    \"issue\": \"123\",\n    \"description\": \"Fix login bug\",\n    \"priority\": \"high\"\n  },\n  \"priority\": \"P2\",\n  \"source\": \"github\",\n  \"metadata\": {\n    \"repo\": \"morningai\",\n    \"branch\": \"main\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/tasks",
+							"host": ["{{base_url}}"],
+							"path": ["tasks"]
+						},
+						"description": "Create a bugfix task (routed to Dev Agent)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Task (Deployment)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"deployment\",\n  \"payload\": {\n    \"service\": \"api-backend\",\n    \"version\": \"v1.2.3\",\n    \"environment\": \"production\"\n  },\n  \"priority\": \"P1\",\n  \"source\": \"ci_cd\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/tasks",
+							"host": ["{{base_url}}"],
+							"path": ["tasks"]
+						},
+						"description": "Create a deployment task (routed to Ops Agent, requires HITL approval)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Task (FAQ Update)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"faq_update\",\n  \"payload\": {\n    \"question\": \"How do I reset my password?\",\n    \"answer\": \"Click on 'Forgot Password' on the login page.\"\n  },\n  \"priority\": \"P3\",\n  \"source\": \"support\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/tasks",
+							"host": ["{{base_url}}"],
+							"path": ["tasks"]
+						},
+						"description": "Create an FAQ update task (routed to FAQ Agent)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tasks/{{task_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["tasks", "{{task_id}}"]
+						},
+						"description": "Get task details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Task Status (In Progress)",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tasks/{{task_id}}/status?status=in_progress",
+							"host": ["{{base_url}}"],
+							"path": ["tasks", "{{task_id}}", "status"],
+							"query": [
+								{
+									"key": "status",
+									"value": "in_progress"
+								}
+							]
+						},
+						"description": "Mark task as in progress"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Task Status (Completed)",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tasks/{{task_id}}/status?status=completed",
+							"host": ["{{base_url}}"],
+							"path": ["tasks", "{{task_id}}", "status"],
+							"query": [
+								{
+									"key": "status",
+									"value": "completed"
+								}
+							]
+						},
+						"description": "Mark task as completed"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Task Status (Failed)",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tasks/{{task_id}}/status?status=failed&error=Connection timeout",
+							"host": ["{{base_url}}"],
+							"path": ["tasks", "{{task_id}}", "status"],
+							"query": [
+								{
+									"key": "status",
+									"value": "failed"
+								},
+								{
+									"key": "error",
+									"value": "Connection timeout"
+								}
+							]
+						},
+						"description": "Mark task as failed with error message"
+					},
+					"response": []
+				}
+			],
+			"description": "Task creation and management endpoints"
+		},
+		{
+			"name": "Event Management",
+			"item": [
+				{
+					"name": "Publish Event (Task Started)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"task.started\",\n  \"source_agent\": \"dev_agent\",\n  \"payload\": {\n    \"task_id\": \"{{task_id}}\",\n    \"started_at\": \"2025-10-22T06:00:00Z\"\n  },\n  \"task_id\": \"{{task_id}}\",\n  \"priority\": \"P2\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/events/publish",
+							"host": ["{{base_url}}"],
+							"path": ["events", "publish"]
+						},
+						"description": "Publish a task started event"
+					},
+					"response": []
+				},
+				{
+					"name": "Publish Event (Deployment Completed)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"deployment.completed\",\n  \"source_agent\": \"ops_agent\",\n  \"payload\": {\n    \"service\": \"api-backend\",\n    \"version\": \"v1.2.3\",\n    \"environment\": \"production\",\n    \"duration_seconds\": 120\n  },\n  \"priority\": \"P1\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/events/publish",
+							"host": ["{{base_url}}"],
+							"path": ["events", "publish"]
+						},
+						"description": "Publish a deployment completed event"
+					},
+					"response": []
+				},
+				{
+					"name": "Publish Event (Error Occurred)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"error.occurred\",\n  \"source_agent\": \"dev_agent\",\n  \"payload\": {\n    \"error_type\": \"DatabaseConnectionError\",\n    \"message\": \"Failed to connect to database\",\n    \"severity\": \"high\"\n  },\n  \"task_id\": \"{{task_id}}\",\n  \"priority\": \"P0\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/events/publish",
+							"host": ["{{base_url}}"],
+							"path": ["events", "publish"]
+						},
+						"description": "Publish an error event"
+					},
+					"response": []
+				}
+			],
+			"description": "Event publishing endpoints"
+		},
+		{
+			"name": "HITL Approvals",
+			"item": [
+				{
+					"name": "Get Pending Approvals",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.approvals && response.approvals.length > 0) {",
+									"        pm.collectionVariables.set('approval_id', response.approvals[0].approval_id);",
+									"        console.log('Approval ID saved:', response.approvals[0].approval_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/approvals/pending",
+							"host": ["{{base_url}}"],
+							"path": ["approvals", "pending"]
+						},
+						"description": "Get all pending approval requests"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Approval Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/approvals/{{approval_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["approvals", "{{approval_id}}"]
+						},
+						"description": "Get status of a specific approval"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Request",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/approvals/{{approval_id}}/approve",
+							"host": ["{{base_url}}"],
+							"path": ["approvals", "{{approval_id}}", "approve"]
+						},
+						"description": "Approve a pending request"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Request",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/approvals/{{approval_id}}/reject?reason=Security concerns",
+							"host": ["{{base_url}}"],
+							"path": ["approvals", "{{approval_id}}", "reject"],
+							"query": [
+								{
+									"key": "reason",
+									"value": "Security concerns"
+								}
+							]
+						},
+						"description": "Reject a pending request with reason"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Approval History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/approvals/history?limit=50",
+							"host": ["{{base_url}}"],
+							"path": ["approvals", "history"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						},
+						"description": "Get approval history (last 50 records)"
+					},
+					"response": []
+				}
+			],
+			"description": "Human-in-the-loop approval endpoints"
+		},
+		{
+			"name": "Authentication Tests",
+			"item": [
+				{
+					"name": "Test No Auth (Should Fail)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tasks/test-task-id",
+							"host": ["{{base_url}}"],
+							"path": ["tasks", "test-task-id"]
+						},
+						"description": "Test endpoint without authentication (should return 401/403)"
+					},
+					"response": []
+				},
+				{
+					"name": "Test API Key Auth",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/approvals/pending",
+							"host": ["{{base_url}}"],
+							"path": ["approvals", "pending"]
+						},
+						"description": "Test API key authentication"
+					},
+					"response": []
+				},
+				{
+					"name": "Test JWT Auth",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/approvals/pending",
+							"host": ["{{base_url}}"],
+							"path": ["approvals", "pending"]
+						},
+						"description": "Test JWT token authentication (uses collection auth)"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication testing endpoints"
+		}
+	]
+}
