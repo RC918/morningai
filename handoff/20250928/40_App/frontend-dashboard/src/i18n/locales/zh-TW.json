@@ -513,14 +513,23 @@
   },
   "wip": {
     "title": "功能開發中",
-    "description": "此功能正在開發中，敬請期待！",
-    "dashboard": "儀表板開發中",
-    "strategyManagement": "策略管理開發中",
-    "decisionApproval": "決策審批開發中",
-    "historyAnalysis": "歷史分析開發中",
-    "costAnalysis": "成本分析開發中",
-    "systemSettings": "系統設定開發中",
-    "checkoutPage": "結帳頁面開發中"
+    "description": "此功能正在積極開發中，敬請期待！",
+    "autoRedirect": "{{countdown}} 秒後自動返回儀表板",
+    "developmentProgress": "開發進度",
+    "overallProgress": "整體進度",
+    "returnButton": "立即返回儀表板",
+    "returnAriaLabel": "立即返回儀表板",
+    "milestones": {
+      "requirementAnalysis": "需求分析",
+      "uiuxDesign": "UI/UX 設計",
+      "backendApi": "後端 API",
+      "frontendImplementation": "前端實作",
+      "testing": "測試驗證",
+      "completed": "已完成",
+      "inProgress": "開發中",
+      "planned": "規劃中",
+      "pending": "待開始"
+    }
   },
   "strategy": {
     "title": "策略管理",
@@ -774,7 +783,7 @@
   },
   "feedback": {
     "loading": "載入中",
-    "processing": "處理中",
+    "processing": "處理中...",
     "success": "操作成功",
     "error": "操作失敗",
     "offline": "您目前處於離線狀態",
@@ -783,7 +792,6 @@
     "reconnecting": "正在重新連接...",
     "reconnected": "已重新連接",
     "reconnectedMessage": "網路連線已恢復",
-    "processing": "處理中...",
     "stepCounter": "步驟 {{current}} / {{total}}",
     "close": "關閉",
     "errorId": "錯誤 ID: {{id}}",
@@ -834,26 +842,6 @@
     "homeAriaLabel": "返回首頁",
     "supportMessage": "如果問題持續發生，請聯繫技術支援團隊。"
   },
-  "wip": {
-    "title": "功能開發中",
-    "description": "此功能正在積極開發中，敬請期待！",
-    "autoRedirect": "{{countdown}} 秒後自動返回儀表板",
-    "developmentProgress": "開發進度",
-    "overallProgress": "整體進度",
-    "returnButton": "立即返回儀表板",
-    "returnAriaLabel": "立即返回儀表板",
-    "milestones": {
-      "requirementAnalysis": "需求分析",
-      "uiuxDesign": "UI/UX 設計",
-      "backendApi": "後端 API",
-      "frontendImplementation": "前端實作",
-      "testing": "測試驗證",
-      "completed": "已完成",
-      "inProgress": "開發中",
-      "planned": "規劃中",
-      "pending": "待開始"
-    }
-  },
   "phase3Welcome": {
     "title": "🎉 歡迎使用全新 Morning AI！",
     "subtitle": "團隊協作功能現已上線",
@@ -882,5 +870,34 @@
     "statusWarning": "警告",
     "statusError": "錯誤",
     "statusInfo": "資訊"
+  },
+  "accessibility": {
+    "skipToContent": "跳至主要內容",
+    "closeDialog": "關閉對話框",
+    "openMenu": "開啟選單",
+    "closeMenu": "關閉選單",
+    "loading": "載入中",
+    "error": "錯誤",
+    "success": "成功",
+    "warning": "警告",
+    "info": "資訊",
+    "required": "必填欄位",
+    "optional": "選填欄位",
+    "searchPlaceholder": "搜尋...",
+    "noResults": "找不到結果",
+    "pageNavigation": "頁面導航",
+    "currentPage": "目前頁面",
+    "goToPage": "前往第 {page} 頁",
+    "previousPage": "上一頁",
+    "nextPage": "下一頁",
+    "sortBy": "依 {field} 排序",
+    "filterBy": "依 {field} 篩選",
+    "clearFilters": "清除所有篩選",
+    "selectAll": "全選",
+    "deselectAll": "取消全選",
+    "expandSection": "展開區塊",
+    "collapseSection": "收合區塊",
+    "showMore": "顯示更多",
+    "showLess": "顯示較少"
   }
 }
