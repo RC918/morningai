@@ -153,7 +153,7 @@ services:
       pip install --upgrade pip &&
       pip install -r agents/ops_agent/dashboard/requirements.txt
     startCommand: cd agents/ops_agent/dashboard && python app.py
-    healthCheckPath: /api/worker/status
+    healthCheckPath: /api/health
     envVars:
       - key: REDIS_URL
         sync: false
