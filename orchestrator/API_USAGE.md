@@ -125,7 +125,7 @@ Create a new task and route it to the appropriate agent.
 
 **Endpoint**: `POST /tasks`  
 **Auth**: Requires `agent` role  
-**Rate Limit**: 10 requests/minute
+**Rate Limit**: 30 requests/minute
 
 **Request**:
 ```json
@@ -198,7 +198,7 @@ Retrieve task details by ID.
 
 **Endpoint**: `GET /tasks/{task_id}`  
 **Auth**: Requires authentication  
-**Rate Limit**: 30 requests/minute
+**Rate Limit**: 60 requests/minute
 
 **Response**:
 ```json
@@ -229,7 +229,7 @@ Update the status of a task.
 
 **Endpoint**: `PATCH /tasks/{task_id}/status`  
 **Auth**: Requires `agent` role  
-**Rate Limit**: 10 requests/minute
+**Rate Limit**: 60 requests/minute
 
 **Query Parameters**:
 - `status` (required): New status (`in_progress`, `completed`, `failed`)
@@ -258,7 +258,7 @@ Publish an event to the event bus for other agents to consume.
 
 **Endpoint**: `POST /events/publish`  
 **Auth**: Requires `agent` role  
-**Rate Limit**: 20 requests/minute
+**Rate Limit**: 100 requests/minute
 
 **Request**:
 ```json
@@ -305,7 +305,7 @@ Retrieve all pending approval requests.
 
 **Endpoint**: `GET /approvals/pending`  
 **Auth**: Requires authentication  
-**Rate Limit**: 5 requests/minute
+**Rate Limit**: 60 requests/minute
 
 **Response**:
 ```json
@@ -337,7 +337,7 @@ Get the status of a specific approval.
 
 **Endpoint**: `GET /approvals/{approval_id}`  
 **Auth**: Requires authentication  
-**Rate Limit**: 5 requests/minute
+**Rate Limit**: 60 requests/minute
 
 **Response**:
 ```json
@@ -359,7 +359,7 @@ Approve a pending request.
 
 **Endpoint**: `POST /approvals/{approval_id}/approve`  
 **Auth**: Requires `agent` role  
-**Rate Limit**: 5 requests/minute
+**Rate Limit**: 60 requests/minute
 
 **Response**:
 ```json
@@ -382,7 +382,7 @@ Reject a pending request.
 
 **Endpoint**: `POST /approvals/{approval_id}/reject`  
 **Auth**: Requires `agent` role  
-**Rate Limit**: 5 requests/minute
+**Rate Limit**: 60 requests/minute
 
 **Query Parameters**:
 - `reason` (optional): Rejection reason
@@ -408,7 +408,7 @@ Retrieve approval history.
 
 **Endpoint**: `GET /approvals/history`  
 **Auth**: Requires authentication  
-**Rate Limit**: 5 requests/minute
+**Rate Limit**: 60 requests/minute
 
 **Query Parameters**:
 - `limit` (optional): Maximum number of records (default: 100)
@@ -438,7 +438,7 @@ Get current queue statistics.
 
 **Endpoint**: `GET /stats`  
 **Auth**: Public (no authentication required)  
-**Rate Limit**: 30 requests/minute
+**Rate Limit**: 60 requests/minute
 
 **Response**:
 ```json
@@ -475,14 +475,16 @@ X-RateLimit-Reset: 1634567890
 
 | Endpoint | Limit | Window |
 |----------|-------|--------|
-| `POST /tasks` | 10 | 1 minute |
-| `GET /tasks/{id}` | 30 | 1 minute |
-| `PATCH /tasks/{id}/status` | 10 | 1 minute |
-| `POST /events/publish` | 20 | 1 minute |
-| `GET /approvals/*` | 5 | 1 minute |
-| `POST /approvals/*/approve` | 5 | 1 minute |
-| `POST /approvals/*/reject` | 5 | 1 minute |
-| `GET /stats` | 30 | 1 minute |
+| `POST /tasks` | 30 | 1 minute |
+| `GET /tasks/{id}` | 60 | 1 minute |
+| `PATCH /tasks/{id}/status` | 60 | 1 minute |
+| `POST /events/publish` | 100 | 1 minute |
+| `GET /approvals/*` | 60 | 1 minute |
+| `POST /approvals/*/approve` | 60 | 1 minute |
+| `POST /approvals/*/reject` | 60 | 1 minute |
+| `GET /stats` | 60 | 1 minute |
+| `GET /health` | 300 | 1 minute |
+| **Other endpoints** | 60 | 1 minute |
 
 ### 429 Too Many Requests
 
