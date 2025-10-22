@@ -1,10 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "pnpm run build",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "outputDirectory": "dist",
-  "rootDirectory": "frontend-dashboard-deploy",
+  "buildCommand": "cd handoff/20250928/40_App/frontend-dashboard && npm run build",
+  "installCommand": "cd handoff/20250928/40_App/frontend-dashboard && npm install --include=dev",
+  "outputDirectory": "handoff/20250928/40_App/frontend-dashboard/dist",
   "rewrites": [
     {
       "source": "/(.*)",
