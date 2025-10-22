@@ -199,7 +199,6 @@ class TestProductionReadiness:
         assert retrieved_task.error == "Simulated error"
     
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Test takes too long (1000 iterations) - needs optimization or reduced scope")
     async def test_memory_leak_prevention(self):
         """Test for memory leaks during extended operation"""
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -209,43 +208,50 @@ class TestProductionReadiness:
         process = psutil.Process()
         initial_memory = process.memory_info().rss / 1024 / 1024
         
-        for i in range(1000):
+        for i in range(100):
             task = UnifiedTask(
                 type=TaskType.DEPLOY,
                 payload={"memory_test": i},
                 priority=TaskPriority.P2,
                 source="test"
             )
-            await queue.enqueue_task(task)
+            await queue.enqueue_task(task, publish_events=False)
             
-            if i % 100 == 0:
+            if i % 10 == 0:
                 await queue.dequeue_task()
         
         final_memory = process.memory_info().rss / 1024 / 1024
         memory_increase = final_memory - initial_memory
         
-        assert memory_increase < 100, f"Memory increased by {memory_increase:.2f}MB (should be < 100MB)"
+        assert memory_increase < 20, f"Memory increased by {memory_increase:.2f}MB (should be < 20MB)"
     
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Event listener requires separate Redis connection - needs architectural fix")
     async def test_event_publishing_reliability(self):
         """Test event publishing reliability"""
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        queue = await create_redis_queue(redis_url=redis_url)
+        
+        publisher_queue = await create_redis_queue(redis_url=redis_url)
+        subscriber_queue = await create_redis_queue(redis_url=redis_url)
         
         events_received = []
+        listener_ready = asyncio.Event()
         
         async def event_handler(event):
             events_received.append(event)
         
-        await queue.subscribe_to_events(
+        await subscriber_queue.subscribe_to_events(
             ["task.created", "task.completed"],
             event_handler
         )
         
-        listener_task = asyncio.create_task(queue.start_event_listener())
+        async def start_listener_and_signal():
+            listener_ready.set()
+            await subscriber_queue.start_event_listener()
         
-        await asyncio.sleep(0.1)
+        listener_task = asyncio.create_task(start_listener_and_signal())
+        
+        await listener_ready.wait()
+        await asyncio.sleep(0.5)
         
         task = UnifiedTask(
             type=TaskType.DEPLOY,
@@ -254,18 +260,21 @@ class TestProductionReadiness:
             source="test"
         )
         
-        await queue.enqueue_task(task)
+        await publisher_queue.enqueue_task(task)
         
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(1.0)
         
-        await queue.stop_event_listener()
+        await subscriber_queue.stop_event_listener()
         listener_task.cancel()
         try:
             await listener_task
         except asyncio.CancelledError:
             pass
         
-        assert len(events_received) > 0
+        await publisher_queue.close()
+        await subscriber_queue.close()
+        
+        assert len(events_received) > 0, f"No events were received. Published task {task.task_id}"
     
     @pytest.mark.asyncio
     async def test_graceful_shutdown(self):
