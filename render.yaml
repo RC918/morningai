@@ -159,6 +159,10 @@ services:
         sync: false
       - key: DASHBOARD_PORT
         value: "8080"
+      - key: DASHBOARD_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://morningai-worker-dashboard.onrender.com
     autoDeploy: true
 
   - type: worker
