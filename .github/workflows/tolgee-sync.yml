@@ -25,7 +25,8 @@ jobs:
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
-          tolgee pull --api-key "$TOLGEE_API_KEY"
+          tolgee login "$TOLGEE_API_KEY"
+          tolgee pull --project-id=23882 --path ./src/i18n/locales
 
       - name: Create PR if changes
         uses: peter-evans/create-pull-request@v6
