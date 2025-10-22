@@ -229,8 +229,11 @@ const SystemSettings = () => {
             <CardHeader>
               <CardTitle>{t('settings.notifications.title')}</CardTitle>
               <CardDescription>{t('settings.notifications.description')}</CardDescription>
+              <Badge variant="outline" className="mt-2 w-fit">
+                {t('common.comingSoon', '即將開放')}
+              </Badge>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 opacity-60 pointer-events-none">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>{t('settings.notifications.email')}</Label>
@@ -315,7 +318,19 @@ const SystemSettings = () => {
                   </Label>
                   <p className="text-sm text-gray-600">{t('settings.security.twoFactorDescription')}</p>
                 </div>
-                <Badge className="bg-green-100 text-green-800">{t('settings.security.twoFactorEnabled')}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-gray-600">
+                    {t('common.comingSoon', '即將開放')}
+                  </Badge>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled
+                    aria-label={t('settings.security.enable2FA', 'Enable 2FA')}
+                  >
+                    {t('settings.security.enable', '啟用')}
+                  </Button>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3">
