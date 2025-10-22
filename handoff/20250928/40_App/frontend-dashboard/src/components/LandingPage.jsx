@@ -1,4 +1,6 @@
+import { useRef, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { motion, useInView } from 'framer-motion'
 import { Chrome, Apple as AppleIcon, Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -8,6 +10,22 @@ import { DarkModeToggle } from './DarkModeToggle'
 
 const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
   const { t } = useTranslation()
+  const ssoRef = useRef(null)
+  const featuresRef = useRef(null)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  
+  const ssoInView = useInView(ssoRef, { once: true, margin: "-100px" })
+  const featuresInView = useInView(featuresRef, { once: true, margin: "-100px" })
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setPrefersReducedMotion(mediaQuery.matches)
+    
+    const handleChange = (e) => setPrefersReducedMotion(e.matches)
+    mediaQuery.addEventListener('change', handleChange)
+    
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
 
   const handleGetStarted = () => {
     const ssoSection = document.getElementById('sso-login')
@@ -75,91 +93,129 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
 
         <section
           id="sso-login"
+          ref={ssoRef}
           className="py-20 bg-white dark:bg-gray-900"
         >
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
+            <motion.div
+              className="text-center mb-12"
+              initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+              animate={ssoInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            >
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
                 {t('landing.sso.title')}
               </h2>
               <p className="text-lg text-gray-600 dark:text-gray-400">
                 {t('landing.sso.subtitle')}
               </p>
-            </div>
+            </motion.div>
 
-            <Card className="border-gray-200 dark:border-gray-700">
-              <CardContent className="p-8 space-y-4">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-14 text-base"
-                  onClick={() => handleSSOLogin('google')}
-                >
-                  <Chrome className="w-5 h-5" />
-                  {t('landing.sso.google')}
-                </Button>
+            <motion.div
+              initial={prefersReducedMotion ? {} : { opacity: 0, y: 30 }}
+              animate={ssoInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Card className="border-gray-200 dark:border-gray-700">
+                <CardContent className="p-8 space-y-4">
+                  <motion.div
+                    whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+                    whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+                  >
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full justify-start gap-3 h-14 text-base"
+                      onClick={() => handleSSOLogin('google')}
+                    >
+                      <Chrome className="w-5 h-5" />
+                      {t('landing.sso.google')}
+                    </Button>
+                  </motion.div>
 
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-14 text-base"
-                  onClick={() => handleSSOLogin('apple')}
-                >
-                  <AppleIcon className="w-5 h-5" />
-                  {t('landing.sso.apple')}
-                </Button>
+                  <motion.div
+                    whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+                    whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+                  >
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full justify-start gap-3 h-14 text-base"
+                      onClick={() => handleSSOLogin('apple')}
+                    >
+                      <AppleIcon className="w-5 h-5" />
+                      {t('landing.sso.apple')}
+                    </Button>
+                  </motion.div>
 
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-14 text-base"
-                  onClick={() => handleSSOLogin('github')}
-                >
-                  <Github className="w-5 h-5" />
-                  {t('landing.sso.github')}
-                </Button>
+                  <motion.div
+                    whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+                    whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+                  >
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full justify-start gap-3 h-14 text-base"
+                      onClick={() => handleSSOLogin('github')}
+                    >
+                      <Github className="w-5 h-5" />
+                      {t('landing.sso.github')}
+                    </Button>
+                  </motion.div>
 
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-4 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                        {t('landing.sso.or')}
+                      </span>
+                    </div>
                   </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
-                      {t('landing.sso.or')}
-                    </span>
-                  </div>
-                </div>
 
-                <Button
-                  size="lg"
-                  variant="ghost"
-                  className="w-full h-14 text-base"
-                  onClick={onNavigateToLogin}
-                >
-                  {t('landing.sso.emailLogin')}
-                </Button>
-              </CardContent>
-            </Card>
+                  <motion.div
+                    whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+                    whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+                  >
+                    <Button
+                      size="lg"
+                      variant="ghost"
+                      className="w-full h-14 text-base"
+                      onClick={onNavigateToLogin}
+                    >
+                      {t('landing.sso.emailLogin')}
+                    </Button>
+                  </motion.div>
+                </CardContent>
+              </Card>
 
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
-              {t('landing.sso.terms')}
-            </p>
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
+                {t('landing.sso.terms')}
+              </p>
+            </motion.div>
           </div>
         </section>
 
         <section
           id="features"
+          ref={featuresRef}
           className="py-20 bg-gray-50 dark:bg-gray-800/50"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
+            <motion.div
+              className="text-center mb-16"
+              initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+              animate={featuresInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            >
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
                 {t('landing.features.title')}
               </h2>
               <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
                 {t('landing.features.subtitle')}
               </p>
-            </div>
+            </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
@@ -176,12 +232,27 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                   description: t('landing.features.secure.description')
                 }
               ].map((feature, index) => (
-                <div key={index} className="text-center">
+                <motion.div
+                  key={index}
+                  className="text-center"
+                  initial={prefersReducedMotion ? {} : { opacity: 0, y: 30, scale: 0.95 }}
+                  animate={featuresInView ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 30, scale: 0.95 }}
+                  transition={{
+                    duration: 0.5,
+                    delay: index * 0.1,
+                    ease: [0.22, 1, 0.36, 1]
+                  }}
+                  whileHover={prefersReducedMotion ? {} : { y: -8 }}
+                >
                   <Card className="h-full border-gray-200 dark:border-gray-700">
                     <CardContent className="p-8">
-                      <div className="w-12 h-12 mx-auto rounded-lg bg-gray-900 dark:bg-white flex items-center justify-center mb-4">
+                      <motion.div
+                        className="w-12 h-12 mx-auto rounded-lg bg-gray-900 dark:bg-white flex items-center justify-center mb-4"
+                        whileHover={prefersReducedMotion ? {} : { rotate: 360 }}
+                        transition={{ duration: 0.6 }}
+                      >
                         <div className="w-6 h-6 bg-white dark:bg-gray-900 rounded-full" />
-                      </div>
+                      </motion.div>
                       <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                         {feature.title}
                       </h3>
@@ -190,7 +261,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                       </p>
                     </CardContent>
                   </Card>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
