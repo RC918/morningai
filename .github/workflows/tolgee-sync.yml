@@ -21,6 +21,7 @@ jobs:
         run: npm i -g @tolgee/cli
 
       - name: Pull translations from Tolgee
+        working-directory: handoff/20250928/40_App/frontend-dashboard
         run: |
           tolgee pull \
             --api-url https://app.tolgee.io \
