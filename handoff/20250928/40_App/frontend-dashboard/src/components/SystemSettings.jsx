@@ -20,7 +20,7 @@ import {
 import useSettingsStore from '@/stores/settingsStore'
 
 const SystemSettings = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const {
     profile,
     preferences,
@@ -34,6 +34,15 @@ const SystemSettings = () => {
     loadFromAPI,
     saveToAPI
   } = useSettingsStore()
+
+  const handleLanguageChange = (language) => {
+    setLanguage(language)
+    i18n.changeLanguage(language)
+  }
+
+  const handleThemeChange = (theme) => {
+    setTheme(theme)
+  }
 
   useEffect(() => {
     loadFromAPI().catch(console.warn)
@@ -88,7 +97,30 @@ const SystemSettings = () => {
                   <AvatarFallback>RC</AvatarFallback>
                 </Avatar>
                 <div>
-                  <Button variant="outline" size="sm" aria-label={t('settings.profile.avatar')}>{t('settings.profile.avatar')}</Button>
+                  <input
+                    type="file"
+                    id="avatar-upload"
+                    accept="image/jpeg,image/png,image/gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onloadend = () => {
+                          setProfile({ ...profile, avatar: reader.result })
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    aria-label={t('settings.profile.avatar')}
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                  >
+                    {t('settings.profile.avatar')}
+                  </Button>
                   <p className="text-sm text-gray-600 mt-1">{t('settings.profile.avatarHint')}</p>
                 </div>
               </div>
@@ -147,11 +179,11 @@ const SystemSettings = () => {
                   <Globe className="w-4 h-4" />
                   {t('settings.preferences.language')}
                 </Label>
-                <Select value={preferences.language} onValueChange={setLanguage}>
+                <Select value={preferences.language} onValueChange={handleLanguageChange}>
                   <SelectTrigger id="language">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50">
                     <SelectItem value="zh-TW">繁體中文</SelectItem>
                     <SelectItem value="zh-CN">简体中文</SelectItem>
                     <SelectItem value="en">English</SelectItem>
@@ -165,11 +197,11 @@ const SystemSettings = () => {
                   <Palette className="w-4 h-4" />
                   {t('settings.preferences.theme')}
                 </Label>
-                <Select value={preferences.theme} onValueChange={setTheme}>
+                <Select value={preferences.theme} onValueChange={handleThemeChange}>
                   <SelectTrigger id="theme">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50">
                     <SelectItem value="light">{t('settings.preferences.themeLight')}</SelectItem>
                     <SelectItem value="dark">{t('settings.preferences.themeDark')}</SelectItem>
                     <SelectItem value="auto">{t('settings.preferences.themeAuto')}</SelectItem>

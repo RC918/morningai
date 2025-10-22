@@ -88,8 +88,17 @@ const Sidebar = ({ user, onLogout }) => {
     }`}>
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          {!collapsed && (
-            <div className="flex items-center space-x-3">
+          {collapsed ? (
+            <Link to="/dashboard" className="hover:opacity-80 transition-opacity">
+              <img 
+                src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+                alt="Morning AI" 
+                className="w-10 h-10 rounded-lg shadow-sm"
+                style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
+              />
+            </Link>
+          ) : (
+            <Link to="/dashboard" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
               <img 
                 src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
                 alt="Morning AI" 
@@ -100,7 +109,7 @@ const Sidebar = ({ user, onLogout }) => {
                 <h1 className="text-lg font-bold text-gray-900 dark:text-white">Morning AI</h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{t('sidebar.header.subtitle')}</p>
               </div>
-            </div>
+            </Link>
           )}
           
           <Button
