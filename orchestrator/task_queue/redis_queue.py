@@ -67,6 +67,10 @@ class RedisQueue:
             await self.redis_client.close()
             logger.info("Disconnected from Redis")
     
+    async def close(self):
+        """Alias for disconnect() for compatibility"""
+        await self.disconnect()
+    
     async def enqueue_task(self, task: UnifiedTask) -> bool:
         """
         Add task to queue
@@ -216,8 +220,20 @@ class RedisQueue:
             bool: True if successful
         """
         try:
+            try:
+                event_type_enum = EventType(event_type)
+            except ValueError:
+                event_type_enum = None
+                for et in EventType:
+                    if et.value == event_type:
+                        event_type_enum = et
+                        break
+                if event_type_enum is None:
+                    logger.warning(f"Unknown event type '{event_type}', defaulting to TASK_CREATED")
+                    event_type_enum = EventType.TASK_CREATED
+            
             event = AgentEvent(
-                event_type=EventType(event_type),
+                event_type=event_type_enum,
                 source_agent=source_agent,
                 task_id=task_id,
                 trace_id=trace_id,
@@ -253,12 +269,13 @@ class RedisQueue:
         self.event_handlers[event_type].append(handler)
         logger.info(f"Registered handler for {event_type}")
     
-    async def subscribe_to_events(self, event_types: List[str]):
+    async def subscribe_to_events(self, event_types: List[str], handler: Optional[Callable] = None):
         """
         Subscribe to specific event types
         
         Args:
             event_types: List of event types to subscribe to
+            handler: Optional event handler function to register for these event types
         """
         try:
             if not self.pubsub:
@@ -268,6 +285,10 @@ class RedisQueue:
             await self.pubsub.subscribe(*channels)
             
             logger.info(f"Subscribed to events: {event_types}")
+            
+            if handler:
+                for event_type in event_types:
+                    self.register_event_handler(event_type, handler)
             
         except Exception as e:
             logger.error(f"Failed to subscribe to events: {e}")
