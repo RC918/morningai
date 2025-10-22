@@ -168,12 +168,12 @@ const SystemSettings = () => {
         </TabsContent>
 
         <TabsContent value="preferences" className="space-y-6">
-          <Card>
+          <Card className="overflow-visible">
             <CardHeader>
               <CardTitle>{t('settings.preferences.title')}</CardTitle>
               <CardDescription>{t('settings.preferences.description')}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 overflow-visible">
               <div className="space-y-2">
                 <Label htmlFor="language" className="flex items-center gap-2">
                   <Globe className="w-4 h-4" />
@@ -183,7 +183,7 @@ const SystemSettings = () => {
                   <SelectTrigger id="language">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="z-50">
+                  <SelectContent position="popper" className="z-50">
                     <SelectItem value="zh-TW">繁體中文</SelectItem>
                     <SelectItem value="zh-CN">简体中文</SelectItem>
                     <SelectItem value="en">English</SelectItem>
@@ -201,7 +201,7 @@ const SystemSettings = () => {
                   <SelectTrigger id="theme">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="z-50">
+                  <SelectContent position="popper" className="z-50">
                     <SelectItem value="light">{t('settings.preferences.themeLight')}</SelectItem>
                     <SelectItem value="dark">{t('settings.preferences.themeDark')}</SelectItem>
                     <SelectItem value="auto">{t('settings.preferences.themeAuto')}</SelectItem>
