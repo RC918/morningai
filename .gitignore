@@ -26,3 +26,7 @@ phase7_state.db
 
 # (keep project scripts under control)
 # 如果未來要版控 scripts，請移回並針對性加入
+
+# Local artifacts
+.lighthouseci/
+handoff/20250928/40_App/frontend-dashboard/.lighthouseci/
