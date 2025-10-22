@@ -1,3 +1,5 @@
+import { tokenManager } from './auth/tokenManager'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
@@ -19,9 +21,13 @@ class ApiClient {
       ...options,
     }
 
-    const token = localStorage.getItem('auth_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    try {
+      const token = await tokenManager.getValidToken()
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    } catch (error) {
+      console.warn('Failed to get valid token:', error.message)
     }
 
     try {
@@ -113,10 +119,41 @@ class ApiClient {
   }
 
   async login(credentials) {
-    return this.request('/auth/login', {
+    const response = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     })
+    
+    if (response.token && response.refresh_token) {
+      tokenManager.setTokens(response.token, response.refresh_token, response.expires_in)
+    }
+    
+    return response
+  }
+
+  async refreshToken(refreshToken) {
+    return this.request('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+  }
+
+  async ssoCallback(provider, code, codeVerifier, redirectUri) {
+    const response = await this.request('/auth/sso/callback', {
+      method: 'POST',
+      body: JSON.stringify({
+        provider,
+        code,
+        code_verifier: codeVerifier,
+        redirect_uri: redirectUri
+      }),
+    })
+    
+    if (response.token && response.refresh_token) {
+      tokenManager.setTokens(response.token, response.refresh_token, response.expires_in)
+    }
+    
+    return response
   }
 
   async getBillingPlans() {

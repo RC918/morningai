@@ -19,11 +19,26 @@
       "loginError": "Login failed: Invalid username or password",
       "devAccount": "Development Test Account",
       "loginSuccess": "Login Successful",
-      "welcomeBack": "Welcome back, {{name}}!"
+      "welcomeBack": "Welcome back, {{name}}!",
+      "orContinueWith": "Or continue with"
     },
     "logout": {
       "logoutSuccess": "Logged Out",
       "logoutMessage": "You have successfully logged out"
+    },
+    "sso": {
+      "loginWithGoogle": "Continue with Google",
+      "loginWithApple": "Continue with Apple",
+      "loginWithGitHub": "Continue with GitHub",
+      "processing": "Authenticating",
+      "processingMessage": "Authenticating with {{provider}}...",
+      "success": "Authentication Successful",
+      "successMessage": "Redirecting to dashboard...",
+      "error": "Authentication Failed",
+      "redirectingToLogin": "Redirecting to login page...",
+      "initializationFailed": "Failed to initialize SSO login",
+      "loginSuccess": "SSO Login Successful",
+      "loginFailed": "SSO Login Failed"
     }
   },
   "landing": {

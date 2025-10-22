@@ -35,6 +35,7 @@ const TenantSettings = lazy(() => import('@/components/TenantSettings'))
 const CheckoutPage = lazy(() => import('@/components/CheckoutPage'))
 const CheckoutSuccess = lazy(() => import('@/components/CheckoutSuccess'))
 const CheckoutCancel = lazy(() => import('@/components/CheckoutCancel'))
+const SSOCallback = lazy(() => import('@/components/SSOCallback'))
 
 function AppContent() {
   const { t } = useTranslation()
@@ -162,6 +163,9 @@ function AppContent() {
               <Routes>
                 <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
                 <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+                <Route path="/auth/callback/google" element={<SSOCallback provider="google" />} />
+                <Route path="/auth/callback/apple" element={<SSOCallback provider="apple" />} />
+                <Route path="/auth/callback/github" element={<SSOCallback provider="github" />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             ) : (

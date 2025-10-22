@@ -19,11 +19,26 @@
       "loginError": "登錄失敗：用戶名或密碼錯誤",
       "devAccount": "開發環境測試帳號",
       "loginSuccess": "登入成功",
-      "welcomeBack": "歡迎回來，{{name}}！"
+      "welcomeBack": "歡迎回來，{{name}}！",
+      "orContinueWith": "或使用以下方式繼續"
     },
     "logout": {
       "logoutSuccess": "已登出",
       "logoutMessage": "您已成功登出系統"
+    },
+    "sso": {
+      "loginWithGoogle": "使用 Google 繼續",
+      "loginWithApple": "使用 Apple 繼續",
+      "loginWithGitHub": "使用 GitHub 繼續",
+      "processing": "驗證中",
+      "processingMessage": "正在使用 {{provider}} 進行驗證...",
+      "success": "驗證成功",
+      "successMessage": "正在跳轉到儀表板...",
+      "error": "驗證失敗",
+      "redirectingToLogin": "正在跳轉到登入頁面...",
+      "initializationFailed": "無法初始化 SSO 登入",
+      "loginSuccess": "SSO 登入成功",
+      "loginFailed": "SSO 登入失敗"
     }
   },
   "landing": {
