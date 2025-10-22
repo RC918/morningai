@@ -249,7 +249,7 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           {showReportCenter ? t('reportCenter.title') : t('dashboard.title')}
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
+        <p className="text-gray-600 dark:text-gray-600 mt-2">
           {showReportCenter ? t('reportCenter.description') : t('dashboard.description')}
         </p>
       </div>
@@ -435,8 +435,8 @@ const Dashboard = () => {
                       </div>
                       <div>
                         <h4 className="font-medium dark:text-white">{decision.strategy}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{decision.impact}</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                        <p className="text-sm text-gray-600 dark:text-gray-600">{decision.impact}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-600">
                           {new Date(decision.timestamp).toLocaleString()}
                         </p>
                       </div>
@@ -446,7 +446,7 @@ const Dashboard = () => {
                         {decision.status === 'executed' ? t('decisions.status.executed') : 
                          decision.status === 'pending' ? t('decisions.status.pending') : t('decisions.status.failed')}
                       </Badge>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      <p className="text-sm text-gray-600 dark:text-gray-600 mt-1">
                         {t('decisions.confidence')}: {(decision.confidence * 100).toFixed(0)}%
                       </p>
                     </div>
@@ -461,9 +461,9 @@ const Dashboard = () => {
         {isEditMode && (
           <Card className="border-dashed border-2">
             <CardContent className="p-6 text-center">
-              <Edit3 className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <Edit3 className="w-12 h-12 mx-auto mb-4 text-gray-600" />
               <h3 className="text-lg font-medium mb-2 dark:text-white">{t('dashboard.customize')}</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
+              <p className="text-gray-600 dark:text-gray-600 mb-4">
                 {t('dashboard.editInstructions')}
               </p>
               <div className="flex justify-center space-x-2">

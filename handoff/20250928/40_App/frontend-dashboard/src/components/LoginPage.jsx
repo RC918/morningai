@@ -126,7 +126,7 @@ const LoginPage = ({ onLogin }) => {
             />
           </motion.div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">{t('app.tagline')}</p>
+          <p className="text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? {} : itemVariants}>
@@ -155,7 +155,7 @@ const LoginPage = ({ onLogin }) => {
                 <div className="space-y-2">
                   <Label htmlFor="username">{t('auth.login.username')}</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
                     <Input
                       id="username"
                       name="username"
@@ -172,7 +172,7 @@ const LoginPage = ({ onLogin }) => {
                 <div className="space-y-2">
                   <Label htmlFor="password">{t('auth.login.password')}</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
                     <Input
                       id="password"
                       name="password"
@@ -219,7 +219,7 @@ const LoginPage = ({ onLogin }) => {
         </motion.div>
 
         <motion.div
-          className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400"
+          className="text-center mt-8 text-sm text-gray-600 dark:text-gray-600"
           variants={prefersReducedMotion ? {} : itemVariants}
         >
           <p>{t('app.copyright')}</p>

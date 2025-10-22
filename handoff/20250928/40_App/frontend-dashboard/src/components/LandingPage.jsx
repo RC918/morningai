@@ -71,7 +71,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
             <Button
               variant="ghost"
               onClick={onNavigateToLogin}
-              className="text-gray-600 dark:text-gray-400"
+              className="text-gray-600 dark:text-gray-600"
             >
               {t('landing.nav.login')}
             </Button>
@@ -106,7 +106,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
                 {t('landing.sso.title')}
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-400">
+              <p className="text-lg text-gray-600 dark:text-gray-600">
                 {t('landing.sso.subtitle')}
               </p>
             </motion.div>
@@ -168,7 +168,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                       <div className="w-full border-t border-gray-300 dark:border-gray-600" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="px-4 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                      <span className="px-4 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-600">
                         {t('landing.sso.or')}
                       </span>
                     </div>
@@ -190,7 +190,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                 </CardContent>
               </Card>
 
-              <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
+              <p className="text-center text-sm text-gray-600 dark:text-gray-600 mt-6">
                 {t('landing.sso.terms')}
               </p>
             </motion.div>
@@ -212,7 +212,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
                 {t('landing.features.title')}
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              <p className="text-lg text-gray-600 dark:text-gray-600 max-w-2xl mx-auto">
                 {t('landing.features.subtitle')}
               </p>
             </motion.div>
@@ -256,7 +256,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                       <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                         {feature.title}
                       </h3>
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-600">
                         {feature.description}
                       </p>
                     </CardContent>
@@ -283,10 +283,10 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
               </div>
               
               <div className="text-center md:text-right">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-600">
                   {t('app.copyright')}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-600 mt-1">
                   {t('app.motto')}
                 </p>
               </div>

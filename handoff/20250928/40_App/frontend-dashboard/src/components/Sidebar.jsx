@@ -98,7 +98,7 @@ const Sidebar = ({ user, onLogout }) => {
               />
               <div>
                 <h1 className="text-lg font-bold text-gray-900 dark:text-white">Morning AI</h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{t('sidebar.header.subtitle')}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-600">{t('sidebar.header.subtitle')}</p>
               </div>
             </div>
           )}
@@ -134,7 +134,7 @@ const Sidebar = ({ user, onLogout }) => {
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                 {user?.name || t('sidebar.user.defaultName')}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              <p className="text-xs text-gray-600 dark:text-gray-600 truncate">
                 {user?.role || t('sidebar.user.defaultRole')}
               </p>
             </div>
@@ -173,7 +173,7 @@ const Sidebar = ({ user, onLogout }) => {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        <p className="text-xs text-gray-600 dark:text-gray-600 mt-1">
                           {item.description}
                         </p>
                       </div>

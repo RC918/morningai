@@ -58,7 +58,7 @@ const WIPPage = ({
         
         <CardContent className="space-y-6">
           <div className="text-center">
-            <div className="text-sm text-gray-500 mb-2">
+            <div className="text-sm text-gray-600 mb-2">
               {t('wip.autoRedirect', { countdown })}
             </div>
             <Progress value={((redirectSeconds - countdown) / redirectSeconds) * 100} className="w-full" />
@@ -78,13 +78,13 @@ const WIPPage = ({
                       milestone.completed ? 'bg-green-500' : 'bg-gray-300'
                     }`} />
                     <span className={`font-medium ${
-                      milestone.completed ? 'text-gray-900' : 'text-gray-500'
+                      milestone.completed ? 'text-gray-900' : 'text-gray-600'
                     }`}>
                       {milestone.name}
                     </span>
                   </div>
                   <span className={`text-sm ${
-                    milestone.completed ? 'text-green-600' : 'text-gray-500'
+                    milestone.completed ? 'text-green-600' : 'text-gray-600'
                   }`}>
                     {milestone.date}
                   </span>
