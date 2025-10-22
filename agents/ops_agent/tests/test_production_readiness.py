@@ -6,17 +6,31 @@ Comprehensive test suite to validate production deployment readiness
 import os
 import sys
 import pytest
+import pytest_asyncio
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.insert(0, project_root)
 
-from orchestrator.schemas.task_schema import UnifiedTask, TaskType, TaskPriority, TaskStatus
+from orchestrator.schemas.task_schema import UnifiedTask, TaskType, TaskPriority, TaskStatus, SLAConfig
 from orchestrator.task_queue.redis_queue import create_redis_queue
 
+
+@pytest_asyncio.fixture
+async def clean_redis():
+    """Clean Redis before each test"""
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    queue = await create_redis_queue(redis_url=redis_url)
+    
+    if queue.redis_client:
+        await queue.redis_client.flushdb()
+    
+    await queue.close()
+    yield
+    
 
 class TestProductionReadiness:
     """Production readiness test suite"""
@@ -68,7 +82,7 @@ class TestProductionReadiness:
             assert retrieved_task.task_id == task.task_id
     
     @pytest.mark.asyncio
-    async def test_task_priority_ordering(self):
+    async def test_task_priority_ordering(self, clean_redis):
         """Test that tasks are processed in priority order"""
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         queue = await create_redis_queue(redis_url=redis_url)
@@ -108,17 +122,21 @@ class TestProductionReadiness:
         assert third_task.priority == TaskPriority.P3
     
     @pytest.mark.asyncio
-    async def test_task_timeout_handling(self):
+    async def test_task_timeout_handling(self, clean_redis):
         """Test task timeout and cleanup"""
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         queue = await create_redis_queue(redis_url=redis_url)
         
+        sla_deadline = (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat()
         task = UnifiedTask(
             type=TaskType.DEPLOY,
             payload={"timeout_test": True},
             priority=TaskPriority.P2,
             source="test",
-            sla_target=1
+            sla=SLAConfig(
+                target="1 second",
+                deadline=sla_deadline
+            )
         )
         
         await queue.enqueue_task(task)

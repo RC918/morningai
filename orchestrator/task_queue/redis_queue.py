@@ -229,7 +229,7 @@ class RedisQueue:
                         event_type_enum = et
                         break
                 if event_type_enum is None:
-                    logger.warning(f"Unknown event type '{event_type}', defaulting to TASK_CREATED")
+                    logger.error(f"Unknown event type '{event_type}', defaulting to TASK_CREATED. Valid types: {[e.value for e in EventType]}")
                     event_type_enum = EventType.TASK_CREATED
             
             event = AgentEvent(

@@ -8,6 +8,9 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from enum import Enum
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TaskType(Enum):
@@ -119,22 +122,26 @@ class UnifiedTask:
         
         try:
             data['type'] = TaskType(data['type'])
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Invalid type value '{data.get('type')}', keeping as string: {e}")
             pass
         
         try:
             data['priority'] = TaskPriority(data['priority'])
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Invalid priority value '{data.get('priority')}', keeping as string: {e}")
             pass
         
         try:
             data['source'] = TaskSource(data['source'])
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Invalid source value '{data.get('source')}', keeping as string: {e}")
             pass
         
         try:
             data['status'] = TaskStatus(data['status'])
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Invalid status value '{data.get('status')}', keeping as string: {e}")
             pass
         
         data['sla'] = sla
