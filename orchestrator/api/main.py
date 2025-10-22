@@ -43,7 +43,8 @@ async def lifespan(app: FastAPI):
     
     logger.info("Starting Orchestrator API")
     
-    redis_queue = await create_redis_queue()
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    redis_queue = await create_redis_queue(redis_url=redis_url)
     
     orchestrator_router = OrchestratorRouter(redis_queue)
     
