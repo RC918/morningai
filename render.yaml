@@ -144,3 +144,44 @@ services:
       - key: ORCHESTRATOR_MAX_APPROVAL_HISTORY
         value: "1000"
     autoDeploy: true
+
+  - type: web
+    name: morningai-worker-dashboard
+    env: python
+    runtime: python
+    buildCommand: |
+      pip install --upgrade pip &&
+      pip install -r agents/ops_agent/dashboard/requirements.txt
+    startCommand: cd agents/ops_agent/dashboard && python app.py
+    healthCheckPath: /api/worker/status
+    envVars:
+      - key: REDIS_URL
+        sync: false
+      - key: DASHBOARD_PORT
+        value: "8080"
+    autoDeploy: true
+
+  - type: worker
+    name: morningai-ops-agent-worker
+    env: python
+    runtime: python
+    buildCommand: |
+      pip install --upgrade pip &&
+      pip install -r agents/ops_agent/requirements.txt
+    startCommand: cd agents/ops_agent && python worker.py
+    envVars:
+      - key: REDIS_URL
+        sync: false
+      - key: VERCEL_TOKEN
+        sync: false
+      - key: VERCEL_TEAM_ID
+        sync: false
+      - key: ORCHESTRATOR_API_URL
+        value: https://morningai-orchestrator-api.onrender.com
+      - key: ORCHESTRATOR_API_KEY
+        sync: false
+      - key: POLL_INTERVAL
+        value: "5"
+      - key: ENVIRONMENT
+        value: production
+    autoDeploy: true
