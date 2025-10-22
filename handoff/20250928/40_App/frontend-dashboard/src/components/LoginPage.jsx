@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import apiClient from '@/lib/api'
-import { ssoAuthService, SSO_PROVIDERS } from '@/lib/auth/sso'
+import { signInWithOAuth } from '@/lib/supabaseClient'
 
 const LoginPage = ({ onLogin }) => {
   const { t } = useTranslation()
@@ -74,8 +74,18 @@ const LoginPage = ({ onLogin }) => {
   const handleSSOLogin = async (provider) => {
     try {
       setLoading(true)
-      await ssoAuthService.loginWithProvider(provider)
+      setError('')
+      
+      const { error } = await signInWithOAuth(provider, {
+        redirectTo: `${window.location.origin}/auth/callback`
+      })
+      
+      if (error) {
+        setError(t('auth.sso.initializationFailed'))
+        setLoading(false)
+      }
     } catch (error) {
+      console.error('SSO login error:', error)
       setError(t('auth.sso.initializationFailed'))
       setLoading(false)
     }
@@ -235,7 +245,7 @@ const LoginPage = ({ onLogin }) => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => handleSSOLogin(SSO_PROVIDERS.GOOGLE)}
+                    onClick={() => handleSSOLogin('google')}
                     disabled={loading}
                     className="w-full"
                     aria-label={t('auth.sso.loginWithGoogle')}
@@ -263,7 +273,7 @@ const LoginPage = ({ onLogin }) => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => handleSSOLogin(SSO_PROVIDERS.APPLE)}
+                    onClick={() => handleSSOLogin('apple')}
                     disabled={loading}
                     className="w-full"
                     aria-label={t('auth.sso.loginWithApple')}
@@ -276,7 +286,7 @@ const LoginPage = ({ onLogin }) => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => handleSSOLogin(SSO_PROVIDERS.GITHUB)}
+                    onClick={() => handleSSOLogin('github')}
                     disabled={loading}
                     className="w-full"
                     aria-label={t('auth.sso.loginWithGitHub')}
