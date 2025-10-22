@@ -108,6 +108,8 @@ const Sidebar = ({ user, onLogout }) => {
             size="sm"
             onClick={() => setCollapsed(!collapsed)}
             className="p-1"
+            aria-label={collapsed ? t('accessibility.expandSection') : t('accessibility.collapseSection')}
+            aria-expanded={!collapsed}
           >
             {collapsed ? (
               <ChevronRight className="w-4 h-4" />
@@ -140,8 +142,8 @@ const Sidebar = ({ user, onLogout }) => {
         </div>
       </div>
 
-      <nav className="flex-1 p-4">
-        <ul className="space-y-2">
+      <nav className="flex-1 p-4" aria-label={t('sidebar.navigation', 'Main navigation')}>
+        <ul className="space-y-2" role="list">
           {menuItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.path)
@@ -155,6 +157,8 @@ const Sidebar = ({ user, onLogout }) => {
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-r-2 border-blue-700 dark:border-blue-400'
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                   }`}
+                  aria-current={active ? 'page' : undefined}
+                  aria-label={`${item.label}${item.badge ? ` (${item.badge} ${t('accessibility.info', 'notifications')})` : ''}`}
                 >
                   <Icon className={`w-5 h-5 ${collapsed ? 'mx-auto' : 'mr-3'}`} />
                   
@@ -191,6 +195,7 @@ const Sidebar = ({ user, onLogout }) => {
           size="sm"
           onClick={onLogout}
           className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white`}
+          aria-label={t('sidebar.logout')}
         >
           <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />
           {!collapsed && t('sidebar.logout')}
