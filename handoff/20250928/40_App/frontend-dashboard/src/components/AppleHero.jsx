@@ -126,7 +126,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
           </motion.h1>
 
           <motion.p
-            className="text-xl sm:text-2xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto"
+            className="text-xl sm:text-2xl text-gray-600 dark:text-gray-600 max-w-3xl mx-auto"
             variants={prefersReducedMotion ? {} : itemVariants}
           >
             {t('landing.hero.subtitle')}
@@ -188,7 +188,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {feature.title}
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                <p className="text-gray-600 dark:text-gray-600 text-sm">
                   {feature.description}
                 </p>
               </motion.div>

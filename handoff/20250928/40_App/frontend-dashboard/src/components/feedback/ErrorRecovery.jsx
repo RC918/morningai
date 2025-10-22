@@ -40,7 +40,7 @@ export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }) => 
           </div>
           
           {error?.requestId && (
-            <p className="text-xs text-gray-400 mt-4 text-center">
+            <p className="text-xs text-gray-600 mt-4 text-center">
               {t('feedback.errorId', { id: error.requestId })}
             </p>
           )}

@@ -23,7 +23,7 @@ export const EmptyState = ({
         <img src={illustration} alt="" aria-hidden="true" role="presentation" className="w-64 h-64 mb-6" />
       ) : Icon && (
         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-          <Icon className="w-10 h-10 text-gray-400" />
+          <Icon className="w-10 h-10 text-gray-600" />
         </div>
       )}
       
