@@ -41,13 +41,13 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode, t })
   return (
     <div
       ref={(node) => drag(drop(node))}
-      className={`relative ${isDragging ? 'opacity-50' : ''} ${isEditMode ? 'cursor-move' : ''}`}
+      className={`relative transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-lg'} ${isEditMode ? 'cursor-move' : ''}`}
     >
       {isEditMode && (
         <Button
           variant="destructive"
           size="sm"
-          className="absolute top-2 right-2 z-10"
+          className="absolute top-2 right-2 z-10 shadow-md"
           onClick={() => onRemove(index)}
           aria-label={t('dashboard.removeWidget')}
         >
@@ -360,12 +360,12 @@ const Dashboard = () => {
         {!isEditMode && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Performance Trend Chart */}
-            <Card>
-              <CardHeader>
+            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+              <CardHeader className="pb-4">
                 <CardTitle>{t('metrics.performanceTrend')}</CardTitle>
                 <CardDescription>{t('metrics.performanceDescription')}</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={performanceData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -392,12 +392,12 @@ const Dashboard = () => {
             </Card>
 
             {/* Response Time Chart */}
-            <Card>
-              <CardHeader>
+            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+              <CardHeader className="pb-4">
                 <CardTitle>{t('metrics.responseTimeTrend')}</CardTitle>
                 <CardDescription>{t('metrics.responseTimeDescription')}</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={performanceData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -420,15 +420,15 @@ const Dashboard = () => {
 
         {/* Recent Decisions - Always visible when not in edit mode */}
         {!isEditMode && (
-          <Card>
-            <CardHeader>
+          <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+            <CardHeader className="pb-4">
               <CardTitle>{t('decisions.title')}</CardTitle>
               <CardDescription>{t('decisions.description')}</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="pt-0">
+              <div className="space-y-3">
                 {recentDecisions.map((decision) => (
-                  <div key={decision.id} className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700">
+                  <div key={decision.id} className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors duration-200 shadow-sm">
                     <div className="flex items-center space-x-4">
                       <div className={`p-2 rounded-full ${getStatusColor(decision.status)}`}>
                         {getStatusIcon(decision.status)}
