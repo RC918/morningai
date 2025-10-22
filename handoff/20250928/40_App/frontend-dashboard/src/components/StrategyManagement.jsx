@@ -9,32 +9,34 @@ import {
   CheckCircle,
   AlertCircle 
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const StrategyManagement = () => {
+  const { t } = useTranslation()
   const mockStrategies = [
     {
       id: 1,
-      name: 'CPU 優化策略',
-      description: '當 CPU 使用率超過 85% 時自動擴容',
+      name: t('strategy.examples.cpuOptimization.name'),
+      description: t('strategy.examples.cpuOptimization.description'),
       status: 'active',
       triggers: 3,
-      lastExecuted: '2 小時前'
+      lastExecuted: `2 ${t('strategy.timeAgo.hoursAgo')}`
     },
     {
       id: 2,
-      name: '數據庫連接池優化',
-      description: '自動調整連接池大小以應對高並發',
+      name: t('strategy.examples.dbConnectionPool.name'),
+      description: t('strategy.examples.dbConnectionPool.description'),
       status: 'active',
       triggers: 8,
-      lastExecuted: '30 分鐘前'
+      lastExecuted: `30 ${t('strategy.timeAgo.minutesAgo')}`
     },
     {
       id: 3,
-      name: '緩存預熱策略',
-      description: '定期預熱熱門數據緩存',
+      name: t('strategy.examples.cacheWarmup.name'),
+      description: t('strategy.examples.cacheWarmup.description'),
       status: 'paused',
       triggers: 0,
-      lastExecuted: '3 天前'
+      lastExecuted: `3 ${t('strategy.timeAgo.daysAgo')}`
     }
   ]
 
@@ -68,12 +70,12 @@ const StrategyManagement = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">策略管理</h1>
-          <p className="text-gray-600 mt-1">管理與設定自動化策略</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('strategy.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('strategy.description')}</p>
         </div>
         <Button className="flex items-center gap-2">
           <Plus className="w-4 h-4" />
-          新增策略
+          {t('strategy.addStrategy')}
         </Button>
       </div>
 
@@ -82,7 +84,7 @@ const StrategyManagement = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">啟用策略</p>
+                <p className="text-sm text-gray-600">{t('strategy.activeStrategies')}</p>
                 <p className="text-2xl font-bold text-gray-900">2</p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
@@ -96,7 +98,7 @@ const StrategyManagement = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">總觸發次數</p>
+                <p className="text-sm text-gray-600">{t('strategy.totalTriggers')}</p>
                 <p className="text-2xl font-bold text-gray-900">11</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -110,7 +112,7 @@ const StrategyManagement = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">暫停策略</p>
+                <p className="text-sm text-gray-600">{t('strategy.pausedStrategies')}</p>
                 <p className="text-2xl font-bold text-gray-900">1</p>
               </div>
               <div className="p-3 bg-gray-100 rounded-lg">
@@ -123,8 +125,8 @@ const StrategyManagement = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>策略列表</CardTitle>
-          <CardDescription>查看和管理所有自動化策略</CardDescription>
+          <CardTitle>{t('strategy.strategyList')}</CardTitle>
+          <CardDescription>{t('strategy.strategyListDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -140,18 +142,17 @@ const StrategyManagement = () => {
                     <p className="text-sm text-gray-600">{strategy.description}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <Badge variant="outline" className="text-xs">
-                        觸發 {strategy.triggers} 次
+                        {t('strategy.triggeredTimes')} {strategy.triggers} {t('strategy.times')}
                       </Badge>
                       <span className="text-xs text-gray-500">
-                        最後執行: {strategy.lastExecuted}
+                        {t('strategy.lastExecuted')}: {strategy.lastExecuted}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge className={getStatusColor(strategy.status)}>
-                    {strategy.status === 'active' ? '啟用中' : 
-                     strategy.status === 'paused' ? '已暫停' : '錯誤'}
+                    {t(`strategy.status.${strategy.status}`)}
                   </Badge>
                   <Button variant="outline" size="sm">
                     <Settings className="w-4 h-4" />

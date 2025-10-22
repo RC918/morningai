@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { useTranslation } from 'react-i18next'
 
 export const EmptyState = ({
   icon: Icon,
@@ -10,6 +11,7 @@ export const EmptyState = ({
   illustration,
   className = ''
 }) => {
+  const { t } = useTranslation()
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -34,7 +36,7 @@ export const EmptyState = ({
       
       {action && (
         <Button onClick={action} size="lg">
-          {actionLabel || '開始使用'}
+          {actionLabel || t('feedback.emptyState.defaultPrimaryAction')}
         </Button>
       )}
     </motion.div>

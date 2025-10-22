@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -12,6 +13,7 @@ import {
 import apiClient from '@/lib/api'
 
 const ReportCenter = () => {
+  const { t } = useTranslation()
   const [reportType, setReportType] = useState('performance')
   const [timeRange, setTimeRange] = useState('24h')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -41,7 +43,7 @@ const ReportCenter = () => {
       setReportHistory([
         {
           id: 1,
-          name: '系統性能報告',
+          name: t('reportCenter.history.systemPerformance'),
           type: 'performance',
           generated_at: '2024-01-01T14:30:00Z',
           format: 'PDF',
@@ -49,7 +51,7 @@ const ReportCenter = () => {
         },
         {
           id: 2,
-          name: '任務追蹤報告',
+          name: t('reportCenter.history.taskTracking'),
           type: 'task_tracking',
           generated_at: '2024-01-01T12:00:00Z',
           format: 'CSV',
@@ -57,7 +59,7 @@ const ReportCenter = () => {
         },
         {
           id: 3,
-          name: '韌性模式報告',
+          name: t('reportCenter.history.resilience'),
           type: 'resilience',
           generated_at: '2024-01-01T10:15:00Z',
           format: 'PDF',
@@ -137,13 +139,13 @@ const ReportCenter = () => {
         <CardHeader>
           <CardTitle className="flex items-center">
             <FileText className="w-5 h-5 mr-2" />
-            報表生成
+            {t('reportCenter.generation.title')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="report-type" className="text-sm font-medium">報表類型</Label>
+              <Label htmlFor="report-type" className="text-sm font-medium">{t('reportCenter.generation.reportType')}</Label>
               <Select value={reportType} onValueChange={setReportType}>
                 <SelectTrigger id="report-type">
                   <SelectValue />
@@ -151,26 +153,24 @@ const ReportCenter = () => {
                 <SelectContent>
                   {reportTemplates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
-                      <div className="flex items-center">
-                        {getReportTypeIcon(template.id)}
-                        <span className="ml-2">{template.name}</span>
-                      </div>
+                      {getReportTypeIcon(template.id)}
+                      {template.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="time-range" className="text-sm font-medium">時間範圍</Label>
+              <Label htmlFor="time-range" className="text-sm font-medium">{t('reportCenter.generation.timeRange')}</Label>
               <Select value={timeRange} onValueChange={setTimeRange}>
                 <SelectTrigger id="time-range">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1h">過去1小時</SelectItem>
-                  <SelectItem value="24h">過去24小時</SelectItem>
-                  <SelectItem value="7d">過去7天</SelectItem>
-                  <SelectItem value="30d">過去30天</SelectItem>
+                  <SelectItem value="1h">{t('reportCenter.timeRanges.1h')}</SelectItem>
+                  <SelectItem value="24h">{t('reportCenter.timeRanges.24h')}</SelectItem>
+                  <SelectItem value="7d">{t('reportCenter.timeRanges.7d')}</SelectItem>
+                  <SelectItem value="30d">{t('reportCenter.timeRanges.30d')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -200,7 +200,7 @@ const ReportCenter = () => {
               ) : (
                 <Download className="w-4 h-4 mr-2" />
               )}
-              生成 PDF
+              {t('reportCenter.generation.generatePDF')}
             </Button>
             <Button 
               variant="outline" 
@@ -213,7 +213,7 @@ const ReportCenter = () => {
               ) : (
                 <Download className="w-4 h-4 mr-2" />
               )}
-              導出 CSV
+              {t('reportCenter.generation.exportCSV')}
             </Button>
           </div>
         </CardContent>
@@ -224,7 +224,7 @@ const ReportCenter = () => {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Calendar className="w-5 h-5 mr-2" />
-            報表歷史
+            {t('reportCenter.history.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -242,9 +242,9 @@ const ReportCenter = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Badge className={getStatusColor(report.status)}>
-                    {report.status === 'completed' ? '已完成' : 
-                     report.status === 'failed' ? '失敗' : 
-                     report.status === 'generating' ? '生成中' : '未知'}
+                    {report.status === 'completed' ? t('reportCenter.status.completed') : 
+                     report.status === 'failed' ? t('reportCenter.status.failed') : 
+                     report.status === 'generating' ? t('reportCenter.status.generating') : t('reportCenter.status.unknown')}
                   </Badge>
                   {report.status === 'completed' && (
                     <Button variant="outline" size="sm">
@@ -257,8 +257,8 @@ const ReportCenter = () => {
             {reportHistory.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>尚無報表歷史記錄</p>
-                <p className="text-sm">生成第一份報表開始使用</p>
+                <p>{t('reportCenter.history.empty')}</p>
+                <p className="text-sm">{t('reportCenter.history.emptyHint')}</p>
               </div>
             )}
           </div>
@@ -268,7 +268,7 @@ const ReportCenter = () => {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>快速操作</CardTitle>
+          <CardTitle>{t('reportCenter.quickActions.title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -283,7 +283,7 @@ const ReportCenter = () => {
               disabled={isGenerating}
             >
               <TrendingUp className="w-6 h-6 mb-2" />
-              <span className="text-xs">日性能報告</span>
+              <span className="text-xs">{t('reportCenter.quickActions.dailyPerformance')}</span>
             </Button>
             <Button 
               variant="outline" 
@@ -296,7 +296,7 @@ const ReportCenter = () => {
               disabled={isGenerating}
             >
               <CheckCircle className="w-6 h-6 mb-2" />
-              <span className="text-xs">週任務報告</span>
+              <span className="text-xs">{t('reportCenter.quickActions.weeklyTasks')}</span>
             </Button>
             <Button 
               variant="outline" 
@@ -309,7 +309,7 @@ const ReportCenter = () => {
               disabled={isGenerating}
             >
               <BarChart3 className="w-6 h-6 mb-2" />
-              <span className="text-xs">月韌性報告</span>
+              <span className="text-xs">{t('reportCenter.quickActions.monthlyResilience')}</span>
             </Button>
             <Button 
               variant="outline" 
@@ -322,7 +322,7 @@ const ReportCenter = () => {
               disabled={isGenerating}
             >
               <FileText className="w-6 h-6 mb-2" />
-              <span className="text-xs">月成本報告</span>
+              <span className="text-xs">{t('reportCenter.quickActions.monthlyCost')}</span>
             </Button>
           </div>
         </CardContent>

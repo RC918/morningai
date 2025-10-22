@@ -1,5 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { ThemeProvider } from 'next-themes'
+import { TolgeeProvider } from '@tolgee/react'
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
@@ -16,9 +19,11 @@ import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
 import '@/i18n/config'
+import { tolgee } from '@/i18n/config'
 import './App.css'
 import './styles/mobile-optimizations.css'
 import './styles/motion-governance.css'
+import './styles/theme-apple.css'
 
 const Dashboard = lazy(() => import('@/components/Dashboard'))
 const StrategyManagement = lazy(() => import('@/components/StrategyManagement'))
@@ -32,6 +37,7 @@ const CheckoutSuccess = lazy(() => import('@/components/CheckoutSuccess'))
 const CheckoutCancel = lazy(() => import('@/components/CheckoutCancel'))
 
 function AppContent() {
+  const { t } = useTranslation()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
@@ -59,7 +65,7 @@ function AppContent() {
     const handleApiError = (event) => {
       const { endpoint, error, status, requestId } = event.detail
       addToast({
-        title: "API 錯誤",
+        title: t('common.apiError'),
         description: `${endpoint}: ${error} (ID: ${requestId})`,
         variant: "destructive"
       })
@@ -67,7 +73,6 @@ function AppContent() {
 
     window.addEventListener('api-error', handleApiError)
 
-    // 檢查用戶認證狀態
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token')
@@ -77,7 +82,7 @@ function AppContent() {
           setIsAuthenticated(true)
         }
       } catch (error) {
-        console.error('認證檢查失敗:', error)
+        console.error('Auth check failed:', error)
         localStorage.removeItem('auth_token')
         setUser({
           id: 'dev_user',
@@ -106,8 +111,8 @@ function AppContent() {
     setIsAuthenticated(true)
     localStorage.setItem('auth_token', token)
     addToast({
-      title: "登入成功",
-      description: `歡迎回來，${userData.name}！`,
+      title: t('auth.login.loginSuccess'),
+      description: t('auth.login.welcomeBack', { name: userData.name }),
       variant: "default"
     })
   }
@@ -124,14 +129,14 @@ function AppContent() {
     setIsAuthenticated(false)
     localStorage.removeItem('auth_token')
     addToast({
-      title: "已登出",
-      description: "您已成功登出系統",
+      title: t('auth.logout.logoutSuccess'),
+      description: t('auth.logout.logoutMessage'),
       variant: "default"
     })
   }
 
   if (loading) {
-    return <PageLoader message="正在載入應用程式..." />
+    return <PageLoader message={t('common.loadingApp')} />
   }
 
   const handleNavigateToLogin = () => {
@@ -146,24 +151,25 @@ function AppContent() {
     <ErrorBoundary>
       <TenantProvider>
         <Router>
-          <OfflineIndicator />
-          <Phase3WelcomeModal 
-            isOpen={showPhase3Welcome}
-            onClose={dismissWelcome}
-          />
-          
-          {!isAuthenticated ? (
-            <Routes>
-              <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
-              <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          ) : (
-            <div className="flex h-screen bg-gray-100">
+          <div className="theme-apple">
+            <OfflineIndicator />
+            <Phase3WelcomeModal 
+              isOpen={showPhase3Welcome}
+              onClose={dismissWelcome}
+            />
+            
+            {!isAuthenticated ? (
+              <Routes>
+                <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
+                <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            ) : (
+              <div className="flex h-screen bg-gray-100">
               <Sidebar user={user} onLogout={handleLogout} />
               
-              <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
-                <Suspense fallback={<PageLoader message="正在載入頁面..." />}>
+              <main className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
+                <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
@@ -174,33 +180,33 @@ function AppContent() {
               {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
                 <Route path="/strategies" element={<StrategyManagement />} />
               ) : (
-                <Route path="/strategies" element={<WIPPage title="策略管理開發中" />} />
+                <Route path="/strategies" element={<WIPPage title={t('wip.strategyManagement')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
                 <Route path="/approvals" element={<DecisionApproval />} />
               ) : (
-                <Route path="/approvals" element={<WIPPage title="決策審批開發中" />} />
+                <Route path="/approvals" element={<WIPPage title={t('wip.decisionApproval')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
                 <Route path="/history" element={<HistoryAnalysis />} />
               ) : (
-                <Route path="/history" element={<WIPPage title="歷史分析開發中" />} />
+                <Route path="/history" element={<WIPPage title={t('wip.historyAnalysis')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
                 <Route path="/costs" element={<CostAnalysis />} />
               ) : (
-                <Route path="/costs" element={<WIPPage title="成本分析開發中" />} />
+                <Route path="/costs" element={<WIPPage title={t('wip.costAnalysis')} />} />
               )}
               {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
                 <Route path="/settings" element={<SystemSettings />} />
               ) : (
-                <Route path="/settings" element={<WIPPage title="系統設定開發中" />} />
+                <Route path="/settings" element={<WIPPage title={t('wip.systemSettings')} />} />
               )}
               <Route path="/tenant-settings" element={<TenantSettings />} />
               {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
                 <Route path="/checkout" element={<CheckoutPage />} />
               ) : (
-                <Route path="/checkout" element={<WIPPage title="結帳頁面開發中" />} />
+                <Route path="/checkout" element={<WIPPage title={t('wip.checkoutPage')} />} />
               )}
               <Route path="/checkout/success" element={<CheckoutSuccess />} />
               <Route path="/checkout/cancel" element={<CheckoutCancel />} />
@@ -210,15 +216,16 @@ function AppContent() {
               
               {/* Fallback to dashboard if no dashboard feature enabled */}
               {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<WIPPage title="儀表板開發中" />} />
+                <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
               )}
                   </Routes>
                 </Suspense>
               </main>
               
-              <Toaster />
-            </div>
-          )}
+                <Toaster />
+              </div>
+            )}
+          </div>
         </Router>
       </TenantProvider>
     </ErrorBoundary>
@@ -227,9 +234,13 @@ function AppContent() {
 
 function App() {
   return (
-    <NotificationProvider>
-      <AppContent />
-    </NotificationProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <TolgeeProvider tolgee={tolgee} fallback={<PageLoader message="Loading translations..." />}>
+        <NotificationProvider>
+          <AppContent />
+        </NotificationProvider>
+      </TolgeeProvider>
+    </ThemeProvider>
   )
 }
 

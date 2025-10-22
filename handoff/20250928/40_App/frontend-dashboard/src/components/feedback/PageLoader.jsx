@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion'
-import { Brain } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
-export const PageLoader = ({ message = '載入中...' }) => {
+export const PageLoader = ({ message }) => {
+  const { t } = useTranslation()
+  const displayMessage = message || t('feedback.loading')
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <motion.div
@@ -14,9 +16,13 @@ export const PageLoader = ({ message = '載入中...' }) => {
           repeat: Infinity,
           ease: "easeInOut"
         }}
-        className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6"
+        className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6"
       >
-        <Brain className="w-10 h-10 text-white" />
+        <img 
+          src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+          alt="Morning AI" 
+          className="w-full h-full rounded-2xl"
+        />
       </motion.div>
       
       <motion.div
@@ -26,7 +32,7 @@ export const PageLoader = ({ message = '載入中...' }) => {
         className="text-center"
       >
         <h2 className="text-xl font-semibold text-gray-900 mb-2">
-          {message}
+          {displayMessage}
         </h2>
         <div className="flex space-x-1 justify-center">
           {[0, 1, 2].map((i) => (

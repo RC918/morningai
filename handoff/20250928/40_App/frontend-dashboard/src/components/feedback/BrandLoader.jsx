@@ -1,11 +1,14 @@
 import { motion } from 'framer-motion'
-import { Brain, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export const BrandLoader = ({ 
-  message = '載入中...', 
+  message, 
   size = 'default',
   variant = 'full'
 }) => {
+  const { t } = useTranslation()
+  const displayMessage = message || t('feedback.loading')
   const sizes = {
     small: { container: 'w-12 h-12', icon: 'w-6 h-6', text: 'text-sm' },
     default: { container: 'w-20 h-20', icon: 'w-10 h-10', text: 'text-xl' },
@@ -62,12 +65,16 @@ export const BrandLoader = ({
           variants={logoVariants}
           initial="initial"
           animate="animate"
-          className={`${currentSize.container} bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg`}
+          className={`${currentSize.container} rounded-xl flex items-center justify-center shadow-lg`}
         >
-          <Brain className={`${currentSize.icon} text-white`} />
+          <img 
+            src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+            alt="Morning AI" 
+            className="w-full h-full rounded-xl"
+          />
         </motion.div>
         <span className={`${currentSize.text} font-medium text-gray-700`}>
-          {message}
+          {displayMessage}
         </span>
       </div>
     )
@@ -98,9 +105,13 @@ export const BrandLoader = ({
           variants={logoVariants}
           initial="initial"
           animate="animate"
-          className={`relative ${currentSize.container} bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl`}
+          className={`relative ${currentSize.container} rounded-2xl flex items-center justify-center shadow-2xl`}
         >
-          <Brain className={`${currentSize.icon} text-white`} />
+          <img 
+            src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+            alt="Morning AI" 
+            className="w-full h-full rounded-2xl"
+          />
         </motion.div>
       </div>
       
@@ -111,7 +122,7 @@ export const BrandLoader = ({
         className="text-center mt-8"
       >
         <h2 className={`${currentSize.text} font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3`}>
-          {message}
+          {displayMessage}
         </h2>
         <div className="flex space-x-2 justify-center">
           {[0, 1, 2].map((i) => (

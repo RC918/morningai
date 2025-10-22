@@ -1,0 +1,101 @@
+name: Tolgee Translation Sync
+
+on:
+  workflow_dispatch:  # Allow manual trigger
+  schedule:
+    # Run daily at 2 AM UTC (10 AM Taiwan time)
+    - cron: '0 2 * * *'
+  push:
+    branches: [main]  # Only trigger on main branch
+    paths:
+      - 'handoff/20250928/40_App/frontend-dashboard/src/i18n/locales/**'
+
+jobs:
+  sync-translations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    # Only run if triggered manually or on main branch
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: handoff/20250928/40_App/frontend-dashboard/package-lock.json
+      
+      - name: Install Tolgee CLI
+        run: npm install -g @tolgee/cli
+      
+      - name: Pull translations from Tolgee
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+          TOLGEE_PROJECT_ID: ${{ secrets.TOLGEE_PROJECT_ID }}
+        run: |
+          tolgee pull \
+            --api-url https://app.tolgee.io \
+            --api-key $TOLGEE_API_KEY \
+            --project-id $TOLGEE_PROJECT_ID \
+            --path src/i18n/locales \
+            --format json
+      
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --quiet handoff/20250928/40_App/frontend-dashboard/src/i18n/locales/; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Pull Request
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'i18n: Sync translations from Tolgee'
+          title: 'i18n: Sync translations from Tolgee'
+          body: |
+            ## Translation Sync
+            
+            This PR contains translation updates from Tolgee.
+            
+            ### Changes
+            - Updated translation files in `src/i18n/locales/`
+            
+            ### Review Checklist
+            - [ ] Verify no breaking changes to translation keys
+            - [ ] Check for proper formatting
+            - [ ] Ensure all languages are updated consistently
+            
+            ---
+            
+            🤖 This PR was automatically created by the Tolgee sync workflow.
+            
+            Link to Devin run: https://app.devin.ai/sessions/6d970144dd4c4def9839fe3f8a573ab8
+            Requested by: Ryan Chen (ryan2939z@gmail.com) / @RC918
+          branch: tolgee-sync-${{ github.run_number }}
+          base: main
+          labels: |
+            i18n
+            automated
+          delete-branch: true
+      
+      - name: Summary
+        run: |
+          if [ "${{ steps.check_changes.outputs.has_changes }}" == "true" ]; then
+            echo "✅ Translation changes detected and PR created"
+          else
+            echo "ℹ️ No translation changes detected"
+          fi

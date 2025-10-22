@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Zap
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const emptyStateVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
@@ -65,6 +66,7 @@ export const EmptyStateLibrary = ({
   illustration,
   className = ''
 }) => {
+  const { t } = useTranslation()
   const variants = {
     default: {
       icon: CustomIcon || Inbox,
@@ -190,7 +192,7 @@ export const EmptyStateLibrary = ({
             size="lg"
             className="shadow-lg hover:shadow-xl transition-shadow"
           >
-            {primaryActionLabel || '開始使用'}
+            {primaryActionLabel || t('feedback.emptyState.defaultPrimaryAction')}
           </Button>
         )}
         {secondaryAction && (
@@ -199,7 +201,7 @@ export const EmptyStateLibrary = ({
             variant="outline"
             size="lg"
           >
-            {secondaryActionLabel || '了解更多'}
+            {secondaryActionLabel || t('feedback.emptyState.defaultSecondaryAction')}
           </Button>
         )}
       </motion.div>
@@ -207,60 +209,78 @@ export const EmptyStateLibrary = ({
   )
 }
 
-export const NoDataState = (props) => (
-  <EmptyStateLibrary
-    variant="noData"
-    title="暫無資料"
-    description="目前沒有可顯示的資料，請稍後再試或新增資料。"
-    {...props}
-  />
-)
+export const NoDataState = (props) => {
+  const { t } = useTranslation()
+  return (
+    <EmptyStateLibrary
+      variant="noData"
+      title={t('feedback.emptyState.noData.title')}
+      description={t('feedback.emptyState.noData.description')}
+      {...props}
+    />
+  )
+}
 
-export const NoSearchResults = (props) => (
-  <EmptyStateLibrary
-    variant="search"
-    title="找不到相關結果"
-    description="請嘗試使用不同的關鍵字或調整搜尋條件。"
-    {...props}
-  />
-)
+export const NoSearchResults = (props) => {
+  const { t } = useTranslation()
+  return (
+    <EmptyStateLibrary
+      variant="search"
+      title={t('feedback.emptyState.noSearchResults.title')}
+      description={t('feedback.emptyState.noSearchResults.description')}
+      {...props}
+    />
+  )
+}
 
-export const ErrorState = (props) => (
-  <EmptyStateLibrary
-    variant="error"
-    title="發生錯誤"
-    description="抱歉，系統遇到問題。請稍後再試或聯繫支援團隊。"
-    {...props}
-  />
-)
+export const ErrorState = (props) => {
+  const { t } = useTranslation()
+  return (
+    <EmptyStateLibrary
+      variant="error"
+      title={t('feedback.emptyState.error.title')}
+      description={t('feedback.emptyState.error.description')}
+      {...props}
+    />
+  )
+}
 
-export const SuccessState = (props) => (
-  <EmptyStateLibrary
-    variant="success"
-    title="操作成功"
-    description="您的操作已成功完成。"
-    {...props}
-  />
-)
+export const SuccessState = (props) => {
+  const { t } = useTranslation()
+  return (
+    <EmptyStateLibrary
+      variant="success"
+      title={t('feedback.emptyState.success.title')}
+      description={t('feedback.emptyState.success.description')}
+      {...props}
+    />
+  )
+}
 
-export const LoadingState = (props) => (
-  <EmptyStateLibrary
-    variant="loading"
-    title="處理中"
-    description="請稍候，系統正在處理您的請求..."
-    {...props}
-  />
-)
+export const LoadingState = (props) => {
+  const { t } = useTranslation()
+  return (
+    <EmptyStateLibrary
+      variant="loading"
+      title={t('feedback.emptyState.loading.title')}
+      description={t('feedback.emptyState.loading.description')}
+      {...props}
+    />
+  )
+}
 
-export const PremiumFeatureState = (props) => (
-  <EmptyStateLibrary
-    variant="premium"
-    title="進階功能"
-    description="此功能需要升級至專業版才能使用。"
-    primaryActionLabel="立即升級"
-    secondaryActionLabel="了解方案"
-    {...props}
-  />
-)
+export const PremiumFeatureState = (props) => {
+  const { t } = useTranslation()
+  return (
+    <EmptyStateLibrary
+      variant="premium"
+      title={t('feedback.emptyState.premium.title')}
+      description={t('feedback.emptyState.premium.description')}
+      primaryActionLabel={t('feedback.emptyState.premium.primaryAction')}
+      secondaryActionLabel={t('feedback.emptyState.premium.secondaryAction')}
+      {...props}
+    />
+  )
+}
 
 export default EmptyStateLibrary

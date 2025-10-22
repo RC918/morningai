@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview --port 4173",
     "test:smoke": "node scripts/smoke-tests.js",
+    "test:e2e": "playwright test",
+    "test:vrt": "playwright test -g @vrt",
     "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit"
   },
@@ -44,6 +46,8 @@
     "@sentry/react": "^10.17.0",
     "@sentry/vite-plugin": "^4.3.0",
     "@tailwindcss/vite": "^4.1.7",
+    "@tolgee/i18next": "^6.2.7",
+    "@tolgee/react": "^6.2.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -75,6 +79,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@playwright/test": "^1.48.2",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",

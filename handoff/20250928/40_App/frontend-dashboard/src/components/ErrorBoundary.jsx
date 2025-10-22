@@ -2,6 +2,7 @@ import React from 'react'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { withTranslation } from 'react-i18next'
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -57,6 +58,7 @@ class ErrorBoundary extends React.Component {
   }
 
   render() {
+    const { t } = this.props
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
@@ -66,18 +68,18 @@ class ErrorBoundary extends React.Component {
                 <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
               <CardTitle className="text-2xl font-bold text-gray-900">
-                應用程式發生錯誤
+                {t('errorBoundary.title')}
               </CardTitle>
               <CardDescription className="text-lg text-gray-600 mt-2">
-                很抱歉，應用程式遇到了意外錯誤。我們已經記錄了這個問題。
+                {t('errorBoundary.description')}
               </CardDescription>
             </CardHeader>
             
             <CardContent className="space-y-6">
               <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-2">錯誤詳情</h3>
+                <h3 className="font-semibold text-gray-900 mb-2">{t('errorBoundary.errorDetailsTitle')}</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  錯誤 ID: <code className="bg-gray-200 px-2 py-1 rounded text-xs">{this.state.errorId}</code>
+                  {t('errorBoundary.errorIdLabel')} <code className="bg-gray-200 px-2 py-1 rounded text-xs">{this.state.errorId}</code>
                 </p>
                 {this.state.error && (
                   <p className="text-sm text-red-600 font-mono bg-red-50 p-2 rounded">
@@ -90,24 +92,24 @@ class ErrorBoundary extends React.Component {
                 <Button 
                   onClick={this.handleRetry.bind(this)} 
                   className="flex items-center gap-2"
-                  aria-label="重新載入頁面"
+                  aria-label={t('errorBoundary.reloadAriaLabel')}
                 >
                   <RefreshCw className="w-4 h-4" />
-                  重新載入
+                  {t('errorBoundary.reloadButton')}
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={this.handleGoHome.bind(this)}
                   className="flex items-center gap-2"
-                  aria-label="返回首頁"
+                  aria-label={t('errorBoundary.homeAriaLabel')}
                 >
                   <Home className="w-4 h-4" />
-                  返回首頁
+                  {t('errorBoundary.homeButton')}
                 </Button>
               </div>
 
               <div className="text-center text-sm text-gray-500">
-                如果問題持續發生，請聯繫技術支援團隊。
+                {t('errorBoundary.supportMessage')}
               </div>
             </CardContent>
           </Card>
@@ -119,4 +121,4 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-export default ErrorBoundary
+export default withTranslation()(ErrorBoundary)

@@ -17,7 +17,13 @@
       "loggingIn": "Logging in...",
       "loginFailed": "Login failed, please check your username and password",
       "loginError": "Login failed: Invalid username or password",
-      "devAccount": "Development Test Account"
+      "devAccount": "Development Test Account",
+      "loginSuccess": "Login Successful",
+      "welcomeBack": "Welcome back, {{name}}!"
+    },
+    "logout": {
+      "logoutSuccess": "Logged Out",
+      "logoutMessage": "You have successfully logged out"
     }
   },
   "landing": {
@@ -104,11 +110,53 @@
     "editInstructions": "Drag widgets to rearrange, click trash icon to remove, or add new widgets",
     "addWidget": "Add Widget",
     "selectWidget": "Select Widget",
-    "removeWidget": "Remove Widget"
+    "removeWidget": "Remove Widget",
+    "decisions": {
+      "cpuOptimization": "CPU Optimization Strategy",
+      "cacheOptimization": "Cache Optimization",
+      "autoScaling": "Auto Scaling",
+      "performanceIncrease": "+{{percent}}% Performance Improvement",
+      "expectedResponseSpeed": "Expected +{{percent}}% Response Speed",
+      "capacityIncrease": "Processing Capacity +{{percent}}%"
+    }
   },
   "reportCenter": {
     "title": "Report Center",
-    "description": "Generate and manage system reports"
+    "description": "Generate and manage system reports",
+    "generation": {
+      "title": "Report Generation",
+      "reportType": "Report Type",
+      "timeRange": "Time Range",
+      "generatePDF": "Generate PDF",
+      "exportCSV": "Export CSV"
+    },
+    "timeRanges": {
+      "1h": "Past 1 Hour",
+      "24h": "Past 24 Hours",
+      "7d": "Past 7 Days",
+      "30d": "Past 30 Days"
+    },
+    "history": {
+      "title": "Report History",
+      "systemPerformance": "System Performance Report",
+      "taskTracking": "Task Tracking Report",
+      "resilience": "Resilience Mode Report",
+      "empty": "No report history yet",
+      "emptyHint": "Generate your first report to get started"
+    },
+    "status": {
+      "completed": "Completed",
+      "failed": "Failed",
+      "generating": "Generating",
+      "unknown": "Unknown"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "dailyPerformance": "Daily Performance Report",
+      "weeklyTasks": "Weekly Task Report",
+      "monthlyResilience": "Monthly Resilience Report",
+      "monthlyCost": "Monthly Cost Report"
+    }
   },
   "metrics": {
     "cpuUsage": "CPU Usage",
@@ -186,16 +234,28 @@
     "logout": "Logout",
     "profile": "Profile",
     "notifications": "Notifications",
-    "language": "Language"
+    "language": "Language",
+    "apiError": "API Error",
+    "loadingApp": "Loading application...",
+    "loadingPage": "Loading page...",
+    "mainContentArea": "Main content area"
   },
   "settings": {
     "title": "System Settings",
-    "description": "Manage your account and system preferences",
+    "description": "Manage your account preferences and system configuration",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "loadingTitle": "Loading page title",
+    "loadingDescription": "Loading page description",
+    "loadingMainSettings": "Loading main settings area",
+    "loadingSecondarySettings": "Loading secondary settings area",
     "tabs": {
       "profile": "Profile",
       "preferences": "Preferences",
       "notifications": "Notifications",
-      "security": "Security"
+      "security": "Security",
+      "system": "System",
+      "billing": "Billing"
     },
     "profile": {
       "title": "Profile",
@@ -209,19 +269,27 @@
       "saving": "Saving..."
     },
     "preferences": {
-      "title": "Interface Preferences",
-      "description": "Customize your experience",
+      "title": "Appearance Settings",
+      "description": "Customize your interface appearance and experience",
       "language": "Language",
       "theme": "Theme",
-      "themeLight": "Light",
-      "themeDark": "Dark",
-      "themeAuto": "Auto"
+      "themeLight": "Light Theme",
+      "themeDark": "Dark Theme",
+      "themeAuto": "Auto",
+      "timezone": "Timezone",
+      "autoRefresh": "Auto Refresh Interval (seconds)"
     },
     "notifications": {
-      "title": "Notification Settings",
-      "description": "Manage the notifications you want to receive",
+      "title": "Notification Preferences",
+      "description": "Choose how you want to receive notifications",
       "email": "Email Notifications",
-      "emailDescription": "Receive important updates via email",
+      "emailDescription": "Receive important system updates and alerts",
+      "push": "Push Notifications",
+      "pushDescription": "Browser push notifications",
+      "sms": "SMS Notifications",
+      "smsDescription": "Emergency event SMS notifications",
+      "slack": "Slack Notifications",
+      "slackDescription": "Team collaboration notifications",
       "desktop": "Desktop Notifications",
       "desktopDescription": "Show real-time notifications in browser",
       "aiSuggestions": "AI Suggestion Notifications",
@@ -229,15 +297,49 @@
     },
     "security": {
       "title": "Security Settings",
-      "description": "Protect your account security",
+      "description": "Manage your account security and access control",
       "currentPassword": "Current Password",
       "newPassword": "New Password",
       "confirmPassword": "Confirm New Password",
-      "twoFactor": "Two-Factor Authentication (2FA)",
+      "twoFactor": "Two-Factor Authentication",
       "twoFactorDescription": "Add an extra layer of security to your account",
       "twoFactorEnabled": "Enabled",
+      "sessionTimeout": "Session Timeout (seconds)",
+      "auditLogging": "Audit Logging",
+      "auditLoggingDescription": "Record all system access and operations",
       "updatePassword": "Update Password",
       "updating": "Updating..."
+    },
+    "system": {
+      "title": "System Configuration",
+      "description": "Adjust system behavior and performance settings",
+      "autoApproval": "Auto Approval",
+      "autoApprovalDescription": "Automatically approve low-risk decisions",
+      "riskThreshold": "Risk Threshold",
+      "monitoringInterval": "Monitoring Interval (seconds)",
+      "apiRateLimit": "API Rate Limit (per hour)"
+    },
+    "billing": {
+      "title": "Billing Information",
+      "description": "Manage your subscription and payment methods",
+      "currentPlan": "Current Plan",
+      "billingCycle": "Billing Cycle",
+      "billingCycleMonthly": "Monthly",
+      "billingCycleYearly": "Yearly",
+      "nextBillingDate": "Next Billing Date",
+      "paymentMethod": "Payment Method",
+      "updatePaymentMethod": "Update Payment Method",
+      "viewBillingHistory": "View Billing History"
+    },
+    "timezones": {
+      "taipei": "Taipei (UTC+8)",
+      "tokyo": "Tokyo (UTC+9)",
+      "utc": "UTC (UTC+0)"
+    },
+    "languages": {
+      "zhTW": "繁體中文",
+      "enUS": "English",
+      "jaJP": "日本語"
     }
   },
   "checkout": {
@@ -288,6 +390,497 @@
         "sso": "Single Sign-On (SSO)",
         "deployment": "Dedicated deployment options"
       }
+    },
+    "selectPlanAria": "Select {{name}} plan, price ${{price}}/{{billing}}"
+  },
+  "sidebar": {
+    "header": {
+      "subtitle": "Intelligent Decision System"
+    },
+    "user": {
+      "defaultName": "Administrator",
+      "defaultRole": "System Administrator"
+    },
+    "dashboard": {
+      "label": "Monitoring Dashboard",
+      "description": "System status overview"
+    },
+    "strategies": {
+      "label": "Strategy Management",
+      "description": "Manage AI strategies"
+    },
+    "approvals": {
+      "label": "Decision Approvals",
+      "description": "Manual review pending"
+    },
+    "history": {
+      "label": "Historical Analysis",
+      "description": "Decision history review"
+    },
+    "costs": {
+      "label": "Cost Analysis",
+      "description": "AI service costs"
+    },
+    "settings": {
+      "label": "System Settings",
+      "description": "Configuration management"
+    },
+    "checkout": {
+      "label": "Subscription Plan",
+      "description": "Choose payment plan"
+    },
+    "logout": "Logout"
+  },
+  "widgets": {
+    "cpuUsage": {
+      "title": "CPU Usage",
+      "needsAttention": "Needs Attention",
+      "normalRange": "Normal Range"
+    },
+    "memoryUsage": {
+      "title": "Memory Usage",
+      "comparedYesterday": "{{percent}}% less than yesterday"
+    },
+    "responseTime": {
+      "title": "Response Time",
+      "comparedYesterday": "{{percent}}% less than yesterday"
+    },
+    "errorRate": {
+      "title": "Error Rate",
+      "systemStable": "System Running Stable"
+    },
+    "activeStrategies": {
+      "title": "Active Strategies",
+      "running": "{{count}} strategies running"
+    },
+    "pendingApprovals": {
+      "title": "Pending Approvals",
+      "waiting": "{{count}} decisions awaiting approval"
+    },
+    "costToday": {
+      "title": "Cost Today",
+      "saved": "Saved ${{amount}}"
+    },
+    "taskExecution": {
+      "title": "Task Execution Status",
+      "completed": "Completed",
+      "running": "Running",
+      "pending": "Pending",
+      "todayTasks": "Today's Tasks",
+      "successRate": "Success Rate",
+      "avgDuration": "Avg Duration"
+    },
+    "circuitBreakers": {
+      "title": "Circuit Breaker Status",
+      "normal": "Normal",
+      "open": "Open",
+      "halfOpen": "Half-Open",
+      "unknown": "Unknown",
+      "allNormal": "All circuit breakers running normally"
+    },
+    "performanceTrend": {
+      "title": "Performance Trend",
+      "description": "System performance metrics for the past 6 hours",
+      "cpuLabel": "CPU (%)",
+      "memoryLabel": "Memory (%)"
     }
+  },
+  "checkoutCancel": {
+    "title": "Payment Cancelled",
+    "reasons": {
+      "paymentFailed": "Payment processing failed, please check your payment information",
+      "sessionExpired": "Payment session has expired, please start over",
+      "userCancelled": "You have cancelled the payment process"
+    },
+    "noCharge": "Your account has not been charged, you can retry the upgrade at any time.",
+    "retry": "Select Plan Again",
+    "retryAria": "Select plan again",
+    "backToDashboard": "Back to Dashboard",
+    "backToDashboardAria": "Back to dashboard",
+    "support": "Need help? Contact support: support@morningai.com"
+  },
+  "checkoutSuccess": {
+    "title": "Payment Successful!",
+    "thankYou": "Thank you for choosing Morning AI",
+    "planActivated": "{{plan}} plan activated",
+    "orderId": "Order ID",
+    "emailSent": "A confirmation email has been sent to your inbox with detailed subscription information and invoice.",
+    "getStarted": "Get Started",
+    "getStartedAria": "Go to dashboard to get started",
+    "downloadInvoice": "Download Invoice",
+    "downloadInvoiceAria": "Download invoice",
+    "support": "If you have any questions, please contact support: support@morningai.com"
+  },
+  "wip": {
+    "title": "Feature Under Development",
+    "description": "This feature is currently under development. Stay tuned!",
+    "dashboard": "Dashboard Under Development",
+    "strategyManagement": "Strategy Management Under Development",
+    "decisionApproval": "Decision Approval Under Development",
+    "historyAnalysis": "History Analysis Under Development",
+    "costAnalysis": "Cost Analysis Under Development",
+    "systemSettings": "System Settings Under Development",
+    "checkoutPage": "Checkout Page Under Development"
+  },
+  "strategy": {
+    "title": "Strategy Management",
+    "description": "Manage and configure automation strategies",
+    "createNew": "Create New Strategy",
+    "editStrategy": "Edit Strategy",
+    "deleteStrategy": "Delete Strategy",
+    "strategyName": "Strategy Name",
+    "strategyDescription": "Strategy Description",
+    "addStrategy": "Add Strategy",
+    "activeStrategies": "Active Strategies",
+    "totalTriggers": "Total Triggers",
+    "pausedStrategies": "Paused Strategies",
+    "strategyList": "Strategy List",
+    "strategyListDescription": "View and manage all automation strategies",
+    "triggeredTimes": "Triggered",
+    "times": "times",
+    "lastExecuted": "Last Executed",
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "draft": "Draft",
+      "paused": "Paused",
+      "error": "Error"
+    },
+    "examples": {
+      "cpuOptimization": {
+        "name": "CPU Optimization Strategy",
+        "description": "Auto-scale when CPU usage exceeds 85%"
+      },
+      "dbConnectionPool": {
+        "name": "Database Connection Pool Optimization",
+        "description": "Automatically adjust connection pool size for high concurrency"
+      },
+      "cacheWarmup": {
+        "name": "Cache Warmup Strategy",
+        "description": "Periodically warm up popular data cache"
+      }
+    },
+    "timeAgo": {
+      "hoursAgo": "hours ago",
+      "minutesAgo": "minutes ago",
+      "daysAgo": "days ago"
+    }
+  },
+  "approval": {
+    "title": "Decision Approval Center",
+    "description": "Review AI system decision proposals to ensure safe and stable operation",
+    "pendingDecisions": "Pending",
+    "criticalDecisions": "Critical Decisions",
+    "avgConfidence": "Avg Confidence",
+    "estimatedCost": "Estimated Cost",
+    "noDecisions": "No Pending Decisions",
+    "noDecisionsDescription": "All decisions have been processed, system is running normally",
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectReason": "Rejection Reason",
+    "rejectReasonPlaceholder": "Please explain the reason for rejection",
+    "rejectReasonRequired": "Please provide a rejection reason",
+    "approved": "Decision Approved",
+    "approvedDescription": "Strategy will be executed immediately",
+    "rejected": "Decision Rejected",
+    "rejectedDescription": "System will look for alternative solutions",
+    "approveFailed": "Approval Failed",
+    "approveFailedDescription": "Please try again later",
+    "rejectFailed": "Rejection Failed",
+    "rejectFailedDescription": "Please try again later",
+    "autoApproveCountdown": "Auto-approve Countdown",
+    "triggerTime": "Trigger Time",
+    "triggerCondition": "Trigger Condition",
+    "predictedImpact": "Predicted Impact",
+    "riskAssessment": "Risk Assessment",
+    "executionSteps": "Execution Steps",
+    "detailsButton": "Details",
+    "decisionDetails": "Decision details and approval actions",
+    "approvalComment": "Approval Comment (Optional)",
+    "approvalCommentPlaceholder": "Enter approval comment or notes...",
+    "rejectComment": "Rejection Reason (Required)",
+    "rejectCommentPlaceholder": "Please explain the reason for rejection...",
+    "confidence": "Confidence",
+    "costIncrease": "Cost Increase",
+    "cpuReduction": "CPU Reduction",
+    "responseTimeImprovement": "Response Time Improvement",
+    "riskLevel": "Risk Level",
+    "estimatedTime": "Estimated Time",
+    "type": "Type",
+    "currentValue": "Current Value",
+    "threshold": "Threshold",
+    "duration": "Duration",
+    "priority": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "risk": {
+      "veryLow": "Very Low",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "veryHigh": "Very High"
+    },
+    "mockData": {
+      "cpuOptimization": {
+        "name": "CPU Optimization Strategy",
+        "description": "Auto-scale and optimize cache when CPU usage exceeds 85%",
+        "action1": "Add 2 compute instances",
+        "action1Time": "3 minutes",
+        "action2": "Adjust cache TTL to 300 seconds",
+        "action2Time": "30 seconds",
+        "duration": "5 minutes",
+        "factor1": "Tested strategy",
+        "factor2": "Rollback available",
+        "factor3": "Low impact scope"
+      },
+      "dbOptimization": {
+        "name": "Database Connection Pool Optimization",
+        "description": "Adjust database connection pool size for high concurrency",
+        "action1": "Increase connection pool from 50 to 80",
+        "action1Time": "1 minute",
+        "duration": "2 minutes",
+        "factor1": "Routine operation",
+        "factor2": "Immediate effect",
+        "factor3": "Dynamically adjustable"
+      },
+      "failover": {
+        "name": "Emergency Failover",
+        "description": "Primary service anomaly detected, recommend switching to backup",
+        "action1": "Switch to backup data center",
+        "action1Time": "2 minutes",
+        "action2": "Notify operations team",
+        "action2Time": "Immediate",
+        "duration": "30 seconds",
+        "factor1": "Emergency operation",
+        "factor2": "User impact",
+        "factor3": "Monitoring required"
+      }
+    }
+  },
+  "history": {
+    "title": "History Analysis",
+    "description": "View system operation history and trend analysis",
+    "totalEvents": "Total Events",
+    "optimizationExecutions": "Optimization Executions",
+    "warningEvents": "Warning Events",
+    "avgResponseTime": "Avg Response Time",
+    "eventTimeline": "Event Timeline",
+    "eventTimelineDescription": "View all system events in chronological order",
+    "viewDetails": "View Details",
+    "customRange": "Custom Range",
+    "periods": {
+      "24h": "Past 24 Hours",
+      "7d": "Past 7 Days",
+      "30d": "Past 30 Days",
+      "90d": "Past 90 Days"
+    },
+    "impact": {
+      "positive": "Positive Impact",
+      "negative": "Negative Impact",
+      "neutral": "Neutral"
+    },
+    "examples": {
+      "cpuOptimization": "CPU Optimization Execution",
+      "autoScaling": "Auto-scaling Event",
+      "memoryWarning": "Memory Usage Warning"
+    }
+  },
+  "cost": {
+    "title": "Cost Analysis",
+    "description": "Track and analyze AI service costs",
+    "currentMonth": "Current Month",
+    "monthlyBudget": "Monthly Budget",
+    "estimatedEndOfMonth": "Estimated End of Month",
+    "basedOnCurrentTrend": "Based on current usage trend",
+    "comparedToLastMonth": "compared to last month",
+    "usedPercentage": "Used",
+    "exportReport": "Export Report",
+    "costBreakdown": "Cost Breakdown",
+    "costBreakdownDescription": "View cost distribution by service category",
+    "optimizationSuggestions": "Cost Optimization Suggestions",
+    "optimizationSuggestionsDescription": "AI-analyzed savings opportunities",
+    "periods": {
+      "current": "This Month",
+      "last": "Last Month",
+      "quarter": "This Quarter",
+      "year": "This Year"
+    },
+    "categories": {
+      "aiService": "AI Services",
+      "compute": "Compute Resources",
+      "storage": "Storage",
+      "network": "Network Traffic"
+    },
+    "alerts": {
+      "aiServiceIncrease": "AI service costs increased 35% compared to last month",
+      "budgetExceeded": "Estimated total cost will exceed budget by 10%"
+    },
+    "suggestions": {
+      "optimizeAiUsage": "Optimize AI Service Usage Schedule",
+      "optimizeAiUsageDescription": "Run batch tasks during off-peak hours, estimated savings of $120 per month",
+      "adjustStorageStrategy": "Adjust Storage Strategy",
+      "adjustStorageStrategyDescription": "Migrate cold data to low-cost storage, estimated savings of $45 per month"
+    }
+  },
+  "errors": {
+    "networkError": {
+      "title": "Network Connection Problem",
+      "description": "Unable to connect to server, please check your network connection",
+      "action": "Retry"
+    },
+    "unauthorized": {
+      "title": "Unauthorized Access",
+      "description": "Your login has expired, please log in again",
+      "action": "Log In Again"
+    },
+    "forbidden": {
+      "title": "Insufficient Permissions",
+      "description": "You do not have permission to perform this action",
+      "action": "Go Back"
+    },
+    "notFound": {
+      "title": "Resource Not Found",
+      "description": "The resource you requested does not exist or has been removed",
+      "action": "Return Home"
+    },
+    "validationError": {
+      "title": "Data Validation Failed",
+      "description": "Please check if your input data is correct",
+      "action": "Go Back to Edit"
+    },
+    "serverError": {
+      "title": "Server Error",
+      "description": "The server is temporarily unable to process your request, we are working on it",
+      "action": "Try Again Later"
+    },
+    "timeoutError": {
+      "title": "Request Timeout",
+      "description": "Server response time is too long, please try again later",
+      "action": "Retry"
+    },
+    "rateLimit": {
+      "title": "Too Many Requests",
+      "description": "You have reached the request limit, please try again later",
+      "action": "Try Again Later"
+    },
+    "unknownError": {
+      "title": "An Error Occurred",
+      "description": "An unknown error occurred, please try again later",
+      "action": "Retry"
+    }
+  },
+  "feedback": {
+    "loading": "Loading",
+    "processing": "Processing",
+    "success": "Operation Successful",
+    "error": "Operation Failed",
+    "offline": "You are currently offline",
+    "offlineDescription": "Please check your network connection",
+    "offlineMessage": "You are currently offline, some features may be unavailable",
+    "reconnecting": "Reconnecting...",
+    "reconnected": "Reconnected",
+    "reconnectedMessage": "Network connection restored",
+    "processing": "Processing...",
+    "stepCounter": "Step {{current}} / {{total}}",
+    "close": "Close",
+    "errorId": "Error ID: {{id}}",
+    "switchToLightMode": "Switch to light mode",
+    "switchToDarkMode": "Switch to dark mode",
+    "currentPage": "Current page",
+    "goToPage": "Go to page",
+    "unknownWidgetType": "Unknown widget type: {{widgetId}}",
+    "emptyState": {
+      "defaultPrimaryAction": "Get Started",
+      "defaultSecondaryAction": "Learn More",
+      "noData": {
+        "title": "No Data Available",
+        "description": "There is currently no data to display. Please try again later or add new data."
+      },
+      "noSearchResults": {
+        "title": "No Results Found",
+        "description": "Try using different keywords or adjusting your search criteria."
+      },
+      "error": {
+        "title": "An Error Occurred",
+        "description": "Sorry, the system encountered a problem. Please try again later or contact support."
+      },
+      "success": {
+        "title": "Operation Successful",
+        "description": "Your operation has been completed successfully."
+      },
+      "loading": {
+        "title": "Processing",
+        "description": "Please wait while the system processes your request..."
+      },
+      "premium": {
+        "title": "Premium Feature",
+        "description": "This feature requires upgrading to the professional version.",
+        "primaryAction": "Upgrade Now",
+        "secondaryAction": "View Plans"
+      }
+    }
+  },
+  "errorBoundary": {
+    "title": "Application Error",
+    "description": "We're sorry, the application encountered an unexpected error. We have logged this issue.",
+    "errorDetailsTitle": "Error Details",
+    "errorIdLabel": "Error ID:",
+    "reloadButton": "Reload",
+    "reloadAriaLabel": "Reload page",
+    "homeButton": "Go Home",
+    "homeAriaLabel": "Go to home page",
+    "supportMessage": "If the problem persists, please contact technical support."
+  },
+  "wip": {
+    "title": "Feature Under Development",
+    "description": "This feature is actively being developed. Stay tuned!",
+    "autoRedirect": "Automatically returning to dashboard in {{countdown}} seconds",
+    "developmentProgress": "Development Progress",
+    "overallProgress": "Overall Progress",
+    "returnButton": "Return to Dashboard Now",
+    "returnAriaLabel": "Return to dashboard now",
+    "milestones": {
+      "requirementAnalysis": "Requirement Analysis",
+      "uiuxDesign": "UI/UX Design",
+      "backendApi": "Backend API",
+      "frontendImplementation": "Frontend Implementation",
+      "testing": "Testing & Validation",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "planned": "Planned",
+      "pending": "Pending"
+    }
+  },
+  "phase3Welcome": {
+    "title": "🎉 Welcome to the New Morning AI!",
+    "subtitle": "Team Collaboration Features Now Available",
+    "teamManagement": {
+      "title": "Team Management",
+      "description": "View and manage your team members in System Settings"
+    },
+    "enhancedSecurity": {
+      "title": "Enhanced Security",
+      "description": "Enterprise-grade data isolation ensures your data security"
+    },
+    "rolePermissions": {
+      "title": "Role Permissions",
+      "description": "Flexible member role management: Owner, Admin, Member, Viewer"
+    },
+    "migrationNotice": "ℹ️ Your historical data has been safely migrated, no action needed to continue using",
+    "laterButton": "Later",
+    "settingsButton": "View Team Settings"
+  },
+  "tokenExample": {
+    "title": "Design Token Example",
+    "description": "This component uses CSS variables defined in theme-apple.css to ensure design consistency and support Dark Mode.",
+    "cardTitle": "Card Title",
+    "cardDescription": "This is an example card component using Design Tokens.",
+    "statusSuccess": "Success",
+    "statusWarning": "Warning",
+    "statusError": "Error",
+    "statusInfo": "Info"
   }
 }

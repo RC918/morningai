@@ -10,14 +10,16 @@ import {
   BarChart3,
   Clock
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const HistoryAnalysis = () => {
+  const { t } = useTranslation()
   const mockHistory = [
     {
       id: 1,
       date: '2024-01-15',
       type: 'optimization',
-      title: 'CPU 優化執行',
+      title: t('history.examples.cpuOptimization'),
       impact: 'positive',
       metrics: { cpu: -25, responseTime: -30 },
       status: 'completed'
@@ -26,7 +28,7 @@ const HistoryAnalysis = () => {
       id: 2,
       date: '2024-01-14',
       type: 'scaling',
-      title: '自動擴容事件',
+      title: t('history.examples.autoScaling'),
       impact: 'positive',
       metrics: { instances: +2, cost: +18.5 },
       status: 'completed'
@@ -35,7 +37,7 @@ const HistoryAnalysis = () => {
       id: 3,
       date: '2024-01-13',
       type: 'alert',
-      title: '記憶體使用率警告',
+      title: t('history.examples.memoryWarning'),
       impact: 'neutral',
       metrics: { memory: 78 },
       status: 'resolved'
@@ -68,8 +70,8 @@ const HistoryAnalysis = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">歷史分析</h1>
-          <p className="text-gray-600 mt-1">查看系統運行歷史與趨勢分析</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('history.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('history.description')}</p>
         </div>
         <div className="flex items-center gap-3">
           <Select defaultValue="7d">
@@ -77,15 +79,15 @@ const HistoryAnalysis = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="24h">過去 24 小時</SelectItem>
-              <SelectItem value="7d">過去 7 天</SelectItem>
-              <SelectItem value="30d">過去 30 天</SelectItem>
-              <SelectItem value="90d">過去 90 天</SelectItem>
+              <SelectItem value="24h">{t('history.periods.24h')}</SelectItem>
+              <SelectItem value="7d">{t('history.periods.7d')}</SelectItem>
+              <SelectItem value="30d">{t('history.periods.30d')}</SelectItem>
+              <SelectItem value="90d">{t('history.periods.90d')}</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline">
             <Calendar className="w-4 h-4 mr-2" />
-            自訂範圍
+            {t('history.customRange')}
           </Button>
         </div>
       </div>
@@ -95,7 +97,7 @@ const HistoryAnalysis = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">總事件</p>
+                <p className="text-sm text-gray-600">{t('history.totalEvents')}</p>
                 <p className="text-2xl font-bold text-gray-900">156</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -109,7 +111,7 @@ const HistoryAnalysis = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">優化執行</p>
+                <p className="text-sm text-gray-600">{t('history.optimizationExecutions')}</p>
                 <p className="text-2xl font-bold text-gray-900">23</p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
@@ -123,7 +125,7 @@ const HistoryAnalysis = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">警告事件</p>
+                <p className="text-sm text-gray-600">{t('history.warningEvents')}</p>
                 <p className="text-2xl font-bold text-gray-900">8</p>
               </div>
               <div className="p-3 bg-yellow-100 rounded-lg">
@@ -137,7 +139,7 @@ const HistoryAnalysis = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">平均響應時間</p>
+                <p className="text-sm text-gray-600">{t('history.avgResponseTime')}</p>
                 <p className="text-2xl font-bold text-gray-900">245ms</p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
@@ -150,8 +152,8 @@ const HistoryAnalysis = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>事件時間軸</CardTitle>
-          <CardDescription>按時間順序查看所有系統事件</CardDescription>
+          <CardTitle>{t('history.eventTimeline')}</CardTitle>
+          <CardDescription>{t('history.eventTimelineDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -167,8 +169,7 @@ const HistoryAnalysis = () => {
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="font-semibold text-gray-900">{event.title}</h3>
                     <Badge className={getImpactColor(event.impact)}>
-                      {event.impact === 'positive' ? '正面影響' :
-                       event.impact === 'negative' ? '負面影響' : '中性'}
+                      {t(`history.impact.${event.impact}`)}
                     </Badge>
                   </div>
                   <p className="text-sm text-gray-600 mb-2">{event.date}</p>
@@ -181,7 +182,7 @@ const HistoryAnalysis = () => {
                   </div>
                 </div>
                 <Button variant="ghost" size="sm">
-                  查看詳情
+                  {t('history.viewDetails')}
                 </Button>
               </div>
             ))}

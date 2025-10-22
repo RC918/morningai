@@ -4,6 +4,7 @@ import {
   ChevronRightIcon,
   MoreHorizontalIcon,
 } from "lucide-react"
+import { useTranslation } from 'react-i18next'
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button";
@@ -46,6 +47,7 @@ function PaginationLink({
   size = "icon",
   ...props
 }) {
+  const { t } = useTranslation()
   return (
     <a
       aria-current={isActive ? "page" : undefined}
@@ -55,7 +57,7 @@ function PaginationLink({
         variant: isActive ? "outline" : "ghost",
         size,
       }), className)}
-      aria-label={isActive ? "當前頁面" : "前往頁面"}
+      aria-label={isActive ? t('feedback.currentPage') : t('feedback.goToPage')}
       {...props} />
   );
 }
