@@ -48,7 +48,7 @@ jobs:
             --api-key $TOLGEE_API_KEY \
             --project-id $TOLGEE_PROJECT_ID \
             --path src/i18n/locales \
-            --format json
+            --format JSON_I18NEXT
       
       - name: Check for changes
         id: check_changes
