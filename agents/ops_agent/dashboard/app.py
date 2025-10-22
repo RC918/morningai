@@ -12,7 +12,7 @@ from typing import Optional, Dict, Any, List
 import subprocess
 import signal
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, Header
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,13 +29,26 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Ops Agent Worker Dashboard", version="1.0.0")
 
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")):
+    """Verify API key for dashboard access"""
+    expected_key = os.getenv("DASHBOARD_API_KEY")
+    if not expected_key:
+        raise HTTPException(
+            status_code=500,
+            detail="Dashboard API key not configured. Set DASHBOARD_API_KEY environment variable."
+        )
+    if x_api_key != expected_key:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return x_api_key
 
 worker_process: Optional[subprocess.Popen] = None
 redis_queue = None
@@ -44,7 +57,6 @@ websocket_connections: List[WebSocket] = []
 
 class WorkerConfig(BaseModel):
     redis_url: str
-    vercel_token: str
     team_id: str
     poll_interval: int = 5
 
@@ -91,7 +103,7 @@ async def health_check():
     }
 
 
-@app.get("/api/worker/status")
+@app.get("/api/worker/status", dependencies=[Depends(verify_api_key)])
 async def get_worker_status():
     """Get current worker status"""
     global worker_process
@@ -125,7 +137,7 @@ async def get_worker_status():
     }
 
 
-@app.get("/api/queue/stats")
+@app.get("/api/queue/stats", dependencies=[Depends(verify_api_key)])
 async def get_queue_stats():
     """Get queue statistics"""
     if not redis_queue:
@@ -143,7 +155,7 @@ async def get_queue_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/tasks/recent")
+@app.get("/api/tasks/recent", dependencies=[Depends(verify_api_key)])
 async def get_recent_tasks(limit: int = 10):
     """Get recent tasks"""
     if not redis_queue:
@@ -181,7 +193,7 @@ async def get_recent_tasks(limit: int = 10):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/worker/start")
+@app.post("/api/worker/start", dependencies=[Depends(verify_api_key)])
 async def start_worker(config: WorkerConfig):
     """Start the worker process"""
     global worker_process
@@ -196,10 +208,17 @@ async def start_worker(config: WorkerConfig):
             "worker.py"
         )
         
+        vercel_token = os.getenv("VERCEL_TOKEN")
+        if not vercel_token:
+            raise HTTPException(
+                status_code=500,
+                detail="VERCEL_TOKEN not configured. Set VERCEL_TOKEN environment variable."
+            )
+        
         env = os.environ.copy()
         env.update({
             "REDIS_URL": config.redis_url,
-            "VERCEL_TOKEN": config.vercel_token,
+            "VERCEL_TOKEN": vercel_token,
             "VERCEL_TEAM_ID": config.team_id,
             "WORKER_POLL_INTERVAL": str(config.poll_interval)
         })
@@ -238,7 +257,7 @@ async def start_worker(config: WorkerConfig):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/worker/stop")
+@app.post("/api/worker/stop", dependencies=[Depends(verify_api_key)])
 async def stop_worker():
     """Stop the worker process"""
     global worker_process
@@ -274,7 +293,7 @@ async def stop_worker():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/worker/restart")
+@app.post("/api/worker/restart", dependencies=[Depends(verify_api_key)])
 async def restart_worker(config: WorkerConfig):
     """Restart the worker process"""
     try:
@@ -338,13 +357,14 @@ def get_dashboard_html() -> str:
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Redis URL</label>
-                    <input type="text" id="redis-url" value="redis://localhost:6379" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                    <input type="password" id="api-key" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                           placeholder="Enter Dashboard API Key">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Vercel Token</label>
-                    <input type="password" id="vercel-token" 
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Redis URL</label>
+                    <input type="text" id="redis-url" value="redis://localhost:6379" 
                            class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 </div>
                 <div>
@@ -463,10 +483,20 @@ def get_dashboard_html() -> str:
             };
         }
         
+        function getHeaders() {
+            const apiKey = document.getElementById('api-key').value;
+            if (!apiKey) {
+                throw new Error('API Key is required');
+            }
+            return {
+                'Content-Type': 'application/json',
+                'X-API-Key': apiKey
+            };
+        }
+        
         async function startWorker() {
             const config = {
                 redis_url: document.getElementById('redis-url').value,
-                vercel_token: document.getElementById('vercel-token').value,
                 team_id: document.getElementById('team-id').value,
                 poll_interval: parseInt(document.getElementById('poll-interval').value)
             };
@@ -474,8 +504,8 @@ def get_dashboard_html() -> str:
             try {
                 const response = await fetch('/api/worker/start', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({config})
+                    headers: getHeaders(),
+                    body: JSON.stringify(config)
                 });
                 const data = await response.json();
                 alert(data.message || 'Worker started');
@@ -487,7 +517,10 @@ def get_dashboard_html() -> str:
         
         async function stopWorker() {
             try {
-                const response = await fetch('/api/worker/stop', {method: 'POST'});
+                const response = await fetch('/api/worker/stop', {
+                    method: 'POST',
+                    headers: getHeaders()
+                });
                 const data = await response.json();
                 alert(data.message || 'Worker stopped');
                 updateDashboard();
@@ -499,7 +532,6 @@ def get_dashboard_html() -> str:
         async function restartWorker() {
             const config = {
                 redis_url: document.getElementById('redis-url').value,
-                vercel_token: document.getElementById('vercel-token').value,
                 team_id: document.getElementById('team-id').value,
                 poll_interval: parseInt(document.getElementById('poll-interval').value)
             };
@@ -507,8 +539,8 @@ def get_dashboard_html() -> str:
             try {
                 const response = await fetch('/api/worker/restart', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({config})
+                    headers: getHeaders(),
+                    body: JSON.stringify(config)
                 });
                 const data = await response.json();
                 alert(data.message || 'Worker restarted');
@@ -520,7 +552,9 @@ def get_dashboard_html() -> str:
         
         async function updateDashboard() {
             try {
-                const statusResponse = await fetch('/api/worker/status');
+                const headers = getHeaders();
+                
+                const statusResponse = await fetch('/api/worker/status', { headers });
                 const status = await statusResponse.json();
                 
                 document.getElementById('worker-status').textContent = status.status;
@@ -534,7 +568,7 @@ def get_dashboard_html() -> str:
                 document.getElementById('worker-memory').textContent = 
                     status.memory_mb ? status.memory_mb.toFixed(1) : '-';
                 
-                const queueResponse = await fetch('/api/queue/stats');
+                const queueResponse = await fetch('/api/queue/stats', { headers });
                 const queue = await queueResponse.json();
                 
                 if (queue.success) {
@@ -543,7 +577,7 @@ def get_dashboard_html() -> str:
                     document.getElementById('queue-total').textContent = queue.stats.total_tasks || 0;
                 }
                 
-                const tasksResponse = await fetch('/api/tasks/recent?limit=10');
+                const tasksResponse = await fetch('/api/tasks/recent?limit=10', { headers });
                 const tasks = await tasksResponse.json();
                 
                 if (tasks.success) {
