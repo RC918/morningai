@@ -74,7 +74,7 @@ const CheckoutSuccess = () => {
             </div>
           </div>
 
-          <div className="text-xs text-gray-500 pt-4 border-t">
+          <div className="text-xs text-gray-600 pt-4 border-t">
             <Mail className="w-3 h-3 inline mr-1" aria-hidden="true" />
             {t('checkoutSuccess.support')}
           </div>

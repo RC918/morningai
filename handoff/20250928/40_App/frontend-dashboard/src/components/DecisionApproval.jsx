@@ -208,7 +208,7 @@ const DecisionApproval = () => {
       case 'medium': return 'text-yellow-500'
       case 'high': return 'text-red-500'
       case 'very_high': return 'text-red-600'
-      default: return 'text-gray-500'
+      default: return 'text-gray-600'
     }
   }
 
@@ -305,7 +305,7 @@ const DecisionApproval = () => {
                       </Badge>
                     </div>
                     <CardDescription>{decision.strategy.description}</CardDescription>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-gray-600 mt-2">
                       {t('approval.triggerTime')}: {new Date(decision.timestamp).toLocaleString()}
                     </p>
                   </div>
@@ -385,7 +385,7 @@ const DecisionApproval = () => {
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium">{action.description}</p>
-                          <p className="text-xs text-gray-500">{t('approval.estimatedTime')}: {action.estimated_time}</p>
+                          <p className="text-xs text-gray-600">{t('approval.estimatedTime')}: {action.estimated_time}</p>
                         </div>
                       </div>
                     ))}

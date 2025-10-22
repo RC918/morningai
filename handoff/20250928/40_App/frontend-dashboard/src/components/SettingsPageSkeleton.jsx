@@ -237,7 +237,7 @@ const SettingsPageSkeleton = () => {
                     <Label htmlFor={key} className="text-sm font-medium">
                       {t(`settings.notifications.${key}`)}
                     </Label>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-600">
                       {t(`settings.notifications.${key}Description`)}
                     </p>
                   </div>
@@ -265,7 +265,7 @@ const SettingsPageSkeleton = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">{t('settings.security.twoFactor')}</Label>
-                  <p className="text-sm text-gray-500">{t('settings.security.twoFactorDescription')}</p>
+                  <p className="text-sm text-gray-600">{t('settings.security.twoFactorDescription')}</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   {settings?.security_settings?.two_factor_enabled && (
@@ -296,7 +296,7 @@ const SettingsPageSkeleton = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">{t('settings.security.auditLogging')}</Label>
-                  <p className="text-sm text-gray-500">{t('settings.security.auditLoggingDescription')}</p>
+                  <p className="text-sm text-gray-600">{t('settings.security.auditLoggingDescription')}</p>
                 </div>
                 <Switch
                   checked={settings?.security_settings?.audit_logging}
@@ -320,7 +320,7 @@ const SettingsPageSkeleton = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">{t('settings.system.autoApproval')}</Label>
-                  <p className="text-sm text-gray-500">{t('settings.system.autoApprovalDescription')}</p>
+                  <p className="text-sm text-gray-600">{t('settings.system.autoApprovalDescription')}</p>
                 </div>
                 <Switch
                   checked={settings?.system_config?.auto_approval}

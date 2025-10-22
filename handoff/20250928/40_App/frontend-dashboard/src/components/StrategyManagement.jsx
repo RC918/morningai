@@ -144,7 +144,7 @@ const StrategyManagement = () => {
                       <Badge variant="outline" className="text-xs">
                         {t('strategy.triggeredTimes')} {strategy.triggers} {t('strategy.times')}
                       </Badge>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-600">
                         {t('strategy.lastExecuted')}: {strategy.lastExecuted}
                       </span>
                     </div>

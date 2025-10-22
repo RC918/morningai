@@ -110,6 +110,7 @@ const TenantSettings = () => {
           <button
             onClick={fetchTenantData}
             className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            aria-label="Retry loading tenant information"
           >
             Retry
           </button>
@@ -163,22 +164,23 @@ const TenantSettings = () => {
           <h2 className="text-xl font-semibold mb-4">Team Members</h2>
           
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200" aria-label="Team members list">
+              <caption className="sr-only">Team members with their roles and join dates</caption>
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Display Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Joined
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -198,6 +200,7 @@ const TenantSettings = () => {
                         onChange={(e) => updateMemberRole(member.id, e.target.value)}
                         disabled={updatingMember === member.id}
                         className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        aria-label={`Change role for ${member.email || member.display_name}`}
                       >
                         <option value="viewer">Viewer</option>
                         <option value="member">Member</option>
@@ -205,10 +208,10 @@ const TenantSettings = () => {
                         <option value="owner">Owner</option>
                       </select>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {member.created_at ? new Date(member.created_at).toLocaleDateString() : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {updatingMember === member.id && (
                         <span className="text-blue-600">Updating...</span>
                       )}
@@ -219,7 +222,7 @@ const TenantSettings = () => {
             </table>
             
             {members.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-600">
                 No members found
               </div>
             )}

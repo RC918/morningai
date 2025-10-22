@@ -14,6 +14,7 @@ import { NotificationProvider, useNotification } from '@/contexts/NotificationCo
 import { Phase3WelcomeModal } from '@/components/Phase3WelcomeModal'
 import { PageLoader } from '@/components/feedback/PageLoader'
 import { OfflineIndicator } from '@/components/feedback/OfflineIndicator'
+import { SkipToContent } from '@/components/SkipToContent'
 import { applyDesignTokens } from '@/lib/design-tokens'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import useAppStore from '@/stores/appStore'
@@ -166,9 +167,10 @@ function AppContent() {
               </Routes>
             ) : (
               <div className="flex h-screen bg-gray-100">
+              <SkipToContent />
               <Sidebar user={user} onLogout={handleLogout} />
               
-              <main className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
+              <main id="main-content" className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
                 <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
