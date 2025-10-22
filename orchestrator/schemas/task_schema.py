@@ -3,11 +3,14 @@
 Unified Task Schema for Multi-Agent Orchestration
 Defines the standard format for inter-agent communication
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from enum import Enum
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TaskType(Enum):
@@ -69,10 +72,10 @@ class UnifiedTask:
     through the Orchestrator's event bus and task queue.
     """
     task_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    type: TaskType = TaskType.FAQ
-    priority: TaskPriority = TaskPriority.P2
-    source: TaskSource = TaskSource.USER
-    status: TaskStatus = TaskStatus.PENDING
+    type: Union[TaskType, str] = TaskType.FAQ
+    priority: Union[TaskPriority, str] = TaskPriority.P2
+    source: Union[TaskSource, str] = TaskSource.USER
+    status: Union[TaskStatus, str] = TaskStatus.PENDING
     
     payload: Dict[str, Any] = field(default_factory=dict)
     trace_id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -97,10 +100,10 @@ class UnifiedTask:
     def to_dict(self) -> Dict[str, Any]:
         """Convert task to dictionary"""
         result = asdict(self)
-        result['type'] = self.type.value
-        result['priority'] = self.priority.value
-        result['source'] = self.source.value
-        result['status'] = self.status.value
+        result['type'] = self.type.value if isinstance(self.type, TaskType) else self.type
+        result['priority'] = self.priority.value if isinstance(self.priority, TaskPriority) else self.priority
+        result['source'] = self.source.value if isinstance(self.source, TaskSource) else self.source
+        result['status'] = self.status.value if isinstance(self.status, TaskStatus) else self.status
         
         if self.sla:
             result['sla'] = {
@@ -117,10 +120,30 @@ class UnifiedTask:
         sla_data = data.pop('sla', None)
         sla = SLAConfig(**sla_data) if sla_data else None
         
-        data['type'] = TaskType(data['type'])
-        data['priority'] = TaskPriority(data['priority'])
-        data['source'] = TaskSource(data['source'])
-        data['status'] = TaskStatus(data['status'])
+        try:
+            data['type'] = TaskType(data['type'])
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Invalid type value '{data.get('type')}', keeping as string: {e}")
+            pass
+        
+        try:
+            data['priority'] = TaskPriority(data['priority'])
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Invalid priority value '{data.get('priority')}', keeping as string: {e}")
+            pass
+        
+        try:
+            data['source'] = TaskSource(data['source'])
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Invalid source value '{data.get('source')}', keeping as string: {e}")
+            pass
+        
+        try:
+            data['status'] = TaskStatus(data['status'])
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Invalid status value '{data.get('status')}', keeping as string: {e}")
+            pass
+        
         data['sla'] = sla
         
         return cls(**data)
