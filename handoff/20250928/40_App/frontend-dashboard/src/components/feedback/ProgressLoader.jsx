@@ -44,7 +44,7 @@ export const ProgressLoader = ({
         <p className="text-sm text-gray-600">
           {steps[currentStep]?.description}
         </p>
-        <div className="mt-4 text-xs text-gray-500">
+        <div className="mt-4 text-xs text-gray-600">
           {t('feedback.stepCounter', { current: currentStep + 1, total: steps.length })}
         </div>
       </motion.div>

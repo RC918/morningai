@@ -108,7 +108,7 @@ class ErrorBoundary extends React.Component {
                 </Button>
               </div>
 
-              <div className="text-center text-sm text-gray-500">
+              <div className="text-center text-sm text-gray-600">
                 {t('errorBoundary.supportMessage')}
               </div>
             </CardContent>

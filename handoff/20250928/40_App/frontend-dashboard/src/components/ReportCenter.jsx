@@ -255,7 +255,7 @@ const ReportCenter = () => {
               </div>
             ))}
             {reportHistory.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-600">
                 <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>{t('reportCenter.history.empty')}</p>
                 <p className="text-sm">{t('reportCenter.history.emptyHint')}</p>

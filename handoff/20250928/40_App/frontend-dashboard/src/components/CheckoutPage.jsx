@@ -236,7 +236,7 @@ const CheckoutPage = () => {
                   <CardTitle className="text-xl">{plan.name}</CardTitle>
                   <div className="text-3xl font-bold">
                     ${plan.price}
-                    <span className="text-sm font-normal text-gray-500">/{plan.billing}</span>
+                    <span className="text-sm font-normal text-gray-600">/{plan.billing}</span>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -346,7 +346,7 @@ const CheckoutPage = () => {
                     {t('checkout.secureCheckout')}
                   </Button>
                   
-                  <div className="text-xs text-gray-500 text-center">
+                  <div className="text-xs text-gray-600 text-center">
                     <Shield className="w-3 h-3 inline mr-1" />
                     {t('checkout.sslProtection')}
                   </div>

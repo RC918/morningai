@@ -37,7 +37,7 @@ const CheckoutCancel = () => {
             <p className="text-gray-600 mb-4">
               {getReasonMessage(reason)}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-600">
               {t('checkoutCancel.noCharge')}
             </p>
           </div>
@@ -65,7 +65,7 @@ const CheckoutCancel = () => {
             </div>
           </div>
 
-          <div className="text-xs text-gray-500 pt-4 border-t">
+          <div className="text-xs text-gray-600 pt-4 border-t">
             <MessageCircle className="w-3 h-3 inline mr-1" aria-hidden="true" />
             {t('checkoutCancel.support')}
           </div>
