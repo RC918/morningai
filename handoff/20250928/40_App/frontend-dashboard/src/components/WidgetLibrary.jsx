@@ -119,7 +119,7 @@ const ActiveStrategiesWidget = ({ data }) => {
         <div className="text-3xl font-bold text-blue-600">
           {data?.system_metrics?.active_strategies || 0}
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+        <p className="text-sm text-gray-600 dark:text-gray-600 mt-2">
           {t('widgets.activeStrategies.running', { count: data?.system_metrics?.active_strategies || 0 })}
         </p>
       </CardContent>
@@ -138,7 +138,7 @@ const PendingApprovalsWidget = ({ data }) => {
         <div className="text-3xl font-bold text-orange-600">
           {data?.system_metrics?.pending_approvals || 0}
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+        <p className="text-sm text-gray-600 dark:text-gray-600 mt-2">
           {t('widgets.pendingApprovals.waiting', { count: data?.system_metrics?.pending_approvals || 0 })}
         </p>
       </CardContent>
@@ -183,7 +183,7 @@ const TaskExecutionWidget = ({ data }) => {
                 <Activity className="w-4 h-4" />
                 <div>
                   <span className="text-sm font-medium">{task?.name || 'Unknown Task'}</span>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{task?.agent || 'Unknown'} • {task?.duration || 'N/A'}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-600">{task?.agent || 'Unknown'} • {task?.duration || 'N/A'}</p>
                 </div>
               </div>
               <Badge variant={
@@ -200,17 +200,17 @@ const TaskExecutionWidget = ({ data }) => {
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-lg font-bold dark:text-white">{data?.task_execution?.total_tasks_today || 0}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{t('widgets.taskExecution.todayTasks')}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-600">{t('widgets.taskExecution.todayTasks')}</div>
             </div>
             <div>
               <div className="text-lg font-bold text-green-600">
                 {((data?.task_execution?.success_rate || 0) * 100).toFixed(1)}%
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{t('widgets.taskExecution.successRate')}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-600">{t('widgets.taskExecution.successRate')}</div>
             </div>
             <div>
               <div className="text-lg font-bold dark:text-white">{data?.task_execution?.avg_duration || '0s'}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{t('widgets.taskExecution.avgDuration')}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-600">{t('widgets.taskExecution.avgDuration')}</div>
             </div>
           </div>
         </div>
@@ -276,7 +276,7 @@ const CircuitBreakersWidget = ({ data }) => {
             </div>
           ))}
           {circuitBreakersArray.length === 0 && (
-            <div className="col-span-2 text-center text-gray-500 dark:text-gray-400 py-4">
+            <div className="col-span-2 text-center text-gray-600 dark:text-gray-600 py-4">
               <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
               <p className="text-sm">{t('widgets.circuitBreakers.allNormal')}</p>
             </div>
@@ -294,7 +294,7 @@ const PerformanceTrendWidget = ({ data }) => {
     <Card>
       <CardHeader>
         <CardTitle>{t('widgets.performanceTrend.title')}</CardTitle>
-        <p className="text-sm text-gray-600 dark:text-gray-400">{t('widgets.performanceTrend.description')}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-600">{t('widgets.performanceTrend.description')}</p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={200}>
@@ -342,7 +342,7 @@ const UnknownWidgetComponent = ({ widgetId }) => {
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="text-center text-gray-500">
+        <div className="text-center text-gray-600">
           <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
           <p>{t('feedback.unknownWidgetType', { widgetId })}</p>
         </div>

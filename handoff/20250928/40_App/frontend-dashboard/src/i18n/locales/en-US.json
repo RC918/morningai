@@ -513,14 +513,23 @@
   },
   "wip": {
     "title": "Feature Under Development",
-    "description": "This feature is currently under development. Stay tuned!",
-    "dashboard": "Dashboard Under Development",
-    "strategyManagement": "Strategy Management Under Development",
-    "decisionApproval": "Decision Approval Under Development",
-    "historyAnalysis": "History Analysis Under Development",
-    "costAnalysis": "Cost Analysis Under Development",
-    "systemSettings": "System Settings Under Development",
-    "checkoutPage": "Checkout Page Under Development"
+    "description": "This feature is actively being developed. Stay tuned!",
+    "autoRedirect": "Automatically returning to dashboard in {{countdown}} seconds",
+    "developmentProgress": "Development Progress",
+    "overallProgress": "Overall Progress",
+    "returnButton": "Return to Dashboard Now",
+    "returnAriaLabel": "Return to dashboard now",
+    "milestones": {
+      "requirementAnalysis": "Requirement Analysis",
+      "uiuxDesign": "UI/UX Design",
+      "backendApi": "Backend API",
+      "frontendImplementation": "Frontend Implementation",
+      "testing": "Testing & Validation",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "planned": "Planned",
+      "pending": "Pending"
+    }
   },
   "strategy": {
     "title": "Strategy Management",
@@ -774,7 +783,7 @@
   },
   "feedback": {
     "loading": "Loading",
-    "processing": "Processing",
+    "processing": "Processing...",
     "success": "Operation Successful",
     "error": "Operation Failed",
     "offline": "You are currently offline",
@@ -783,7 +792,6 @@
     "reconnecting": "Reconnecting...",
     "reconnected": "Reconnected",
     "reconnectedMessage": "Network connection restored",
-    "processing": "Processing...",
     "stepCounter": "Step {{current}} / {{total}}",
     "close": "Close",
     "errorId": "Error ID: {{id}}",
@@ -834,26 +842,6 @@
     "homeAriaLabel": "Go to home page",
     "supportMessage": "If the problem persists, please contact technical support."
   },
-  "wip": {
-    "title": "Feature Under Development",
-    "description": "This feature is actively being developed. Stay tuned!",
-    "autoRedirect": "Automatically returning to dashboard in {{countdown}} seconds",
-    "developmentProgress": "Development Progress",
-    "overallProgress": "Overall Progress",
-    "returnButton": "Return to Dashboard Now",
-    "returnAriaLabel": "Return to dashboard now",
-    "milestones": {
-      "requirementAnalysis": "Requirement Analysis",
-      "uiuxDesign": "UI/UX Design",
-      "backendApi": "Backend API",
-      "frontendImplementation": "Frontend Implementation",
-      "testing": "Testing & Validation",
-      "completed": "Completed",
-      "inProgress": "In Progress",
-      "planned": "Planned",
-      "pending": "Pending"
-    }
-  },
   "phase3Welcome": {
     "title": "🎉 Welcome to the New Morning AI!",
     "subtitle": "Team Collaboration Features Now Available",
@@ -882,5 +870,34 @@
     "statusWarning": "Warning",
     "statusError": "Error",
     "statusInfo": "Info"
+  },
+  "accessibility": {
+    "skipToContent": "Skip to main content",
+    "closeDialog": "Close dialog",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "loading": "Loading",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information",
+    "required": "Required field",
+    "optional": "Optional field",
+    "searchPlaceholder": "Search...",
+    "noResults": "No results found",
+    "pageNavigation": "Page navigation",
+    "currentPage": "Current page",
+    "goToPage": "Go to page {page}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "sortBy": "Sort by {field}",
+    "filterBy": "Filter by {field}",
+    "clearFilters": "Clear all filters",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "expandSection": "Expand section",
+    "collapseSection": "Collapse section",
+    "showMore": "Show more",
+    "showLess": "Show less"
   }
 }

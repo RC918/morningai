@@ -71,7 +71,7 @@ export const EmptyStateLibrary = ({
     default: {
       icon: CustomIcon || Inbox,
       bgColor: 'bg-gray-100',
-      iconColor: 'text-gray-400',
+      iconColor: 'text-gray-600',
       titleColor: 'text-gray-900',
       descColor: 'text-gray-600'
     },
