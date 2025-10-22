@@ -62,9 +62,11 @@ class RedisQueue:
         if self.pubsub:
             await self.pubsub.unsubscribe()
             await self.pubsub.close()
+            self.pubsub = None
         
         if self.redis_client:
             await self.redis_client.close()
+            self.redis_client = None
             logger.info("Disconnected from Redis")
     
     async def close(self):
@@ -183,15 +185,15 @@ class RedisQueue:
                 f"{self.TASK_STORAGE_PREFIX}{task.task_id}",
                 mapping={
                     "data": task_data,
-                    "status": task.status.value,
+                    "status": task.status.value if hasattr(task.status, 'value') else task.status,
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
             )
             
-            if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+            if (task.status if hasattr(task.status, 'value') else str(task.status)) in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
                 await self.redis_client.srem(self.TASK_PROCESSING_KEY, task.task_id)
             
-            logger.info(f"Updated task {task.task_id} status to {task.status.value}")
+            logger.info(f"Updated task {task.task_id} status to {(task.status.value if hasattr(task.status, 'value') else task.status)}")
             return True
             
         except Exception as e:
