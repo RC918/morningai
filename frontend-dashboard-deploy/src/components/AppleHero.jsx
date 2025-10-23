@@ -31,7 +31,11 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsVisible(entry.isIntersecting)
+        if (entry.isIntersecting) {
+          setTimeout(() => setIsVisible(true), 100)
+        } else {
+          setIsVisible(false)
+        }
       },
       { threshold: 0.1 }
     )
