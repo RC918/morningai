@@ -1,0 +1,24 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "/",
+        "/login",
+        "/pricing"
+      ],
+      "numberOfRuns": 1,
+      "startServerCommand": "cd frontend-dashboard-deploy && pnpm preview --port 4173",
+      "startServerReadyPattern": "Local:",
+      "settings": {
+        "preset": "desktop",
+        "formFactor": "desktop",
+        "throttlingMethod": "simulate",
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lhci"
+    }
+  }
+}

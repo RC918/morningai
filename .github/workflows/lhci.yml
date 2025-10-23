@@ -1,0 +1,203 @@
+name: lighthouse-ci
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend-dashboard-deploy/**'
+      - '.github/workflows/lhci.yml'
+      - 'lighthouserc.json'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend-dashboard-deploy/**'
+      - '.github/workflows/lhci.yml'
+      - 'lighthouserc.*.json'
+
+jobs:
+  lhci-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lhci-${{ github.head_ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: frontend-dashboard-deploy
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+
+      - name: Start preview server
+        run: |
+          pnpm preview --port 4173 &
+          echo $! > preview.pid
+
+      - name: Wait for server
+        run: |
+          echo "Waiting for server to be ready..."
+          for i in {1..60}; do
+            if curl -s http://localhost:4173 > /dev/null; then
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/60: Server not ready yet, waiting 2s..."
+            sleep 2
+          done
+          echo "Server failed to start within 120 seconds"
+          exit 1
+
+      - name: Run Lighthouse CI (PR - fast)
+        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1
+
+      - name: Upload LHCI artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lhci-artifacts-pr
+          path: .lighthouseci
+
+      - name: Generate PR comment
+        if: always()
+        run: node ../scripts/make-lhci-pr-comment.js
+
+      - name: Read PR comment
+        if: always()
+        id: read_comment
+        run: |
+          if [ -f .lhci-diff.md ]; then
+            {
+              echo 'COMMENT<<EOF'
+              cat .lhci-diff.md
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "COMMENT=⚠️ Lighthouse CI 報告生成失敗" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post PR comment
+        if: always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: ${{ steps.read_comment.outputs.COMMENT }}
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          if [ -f preview.pid ]; then
+            kill $(cat preview.pid) || true
+          fi
+
+  lhci-main:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lhci-main
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: frontend-dashboard-deploy
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+
+      - name: Start preview server
+        run: |
+          pnpm preview --port 4173 &
+          echo $! > preview.pid
+
+      - name: Wait for server
+        run: |
+          echo "Waiting for server to be ready..."
+          for i in {1..60}; do
+            if curl -s http://localhost:4173 > /dev/null; then
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/60: Server not ready yet, waiting 2s..."
+            sleep 2
+          done
+          echo "Server failed to start within 120 seconds"
+          exit 1
+
+      - name: Setup Playwright authentication
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test tests/auth.setup.spec.ts
+          node ../scripts/make-lhci-cookie.js
+
+      - name: Run Lighthouse CI (main - accurate)
+        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=3
+
+      - name: Upload LHCI artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lhci-artifacts-main
+          path: .lighthouseci
+
+      - name: Update baseline and trend
+        if: always()
+        run: node ../scripts/update-baseline-and-trend.js
+
+      - name: Commit baseline updates
+        if: always()
+        continue-on-error: true
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(ci): update LHCI baseline & trend [skip ci]"
+          file_pattern: ".lhci-baseline.json trend.csv"
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          if [ -f preview.pid ]; then
+            kill $(cat preview.pid) || true
+          fi

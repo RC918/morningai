@@ -1,0 +1,229 @@
+/* Motion Governance - Issue #470 */
+
+/* Respect user's reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* Remove infinite loop animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Replace infinite animations with finite ones */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1);
+  animation-iteration-count: 3; /* Limit to 3 iterations instead of infinite */
+}
+
+.animate-spin {
+  animation: spin 1s linear;
+  animation-iteration-count: 1; /* Single rotation instead of infinite */
+}
+
+/* Safe fade-in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Safe slide-up animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+/* Safe slide-down animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.4s ease-out;
+}
+
+/* Safe scale animation */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* Animation budget enforcement - max 3 per page */
+.animation-slot-1 { animation-delay: 0ms; }
+.animation-slot-2 { animation-delay: 100ms; }
+.animation-slot-3 { animation-delay: 200ms; }
+
+/* Disable animations beyond budget */
+.animation-slot-4,
+.animation-slot-5,
+.animation-slot-6 {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Remove expensive blur effects on mobile */
+@media (max-width: 768px) {
+  .glass,
+  .frost,
+  .backdrop,
+  .blur-3xl,
+  .blur-2xl,
+  .blur-xl {
+    filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+/* Glass and Frost effects with shadows instead of blur */
+.glass {
+  /* Original: backdrop-filter: blur(4px); */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.frost {
+  /* Original: backdrop-filter: blur(8px); */
+  box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Optimize backdrop blur (legacy support) */
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+.backdrop-blur {
+  backdrop-filter: blur(8px);
+}
+
+/* Remove blur on reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .blur-3xl,
+  .blur-2xl,
+  .blur-xl,
+  .blur-lg,
+  .blur-md,
+  .blur-sm,
+  .blur,
+  .backdrop-blur-3xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-xl,
+  .backdrop-blur-lg,
+  .backdrop-blur-md,
+  .backdrop-blur-sm,
+  .backdrop-blur {
+    filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+/* Safe transition defaults */
+.transition-safe {
+  transition-property: opacity, transform;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Intersection Observer animation classes */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.animate-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-on-scroll {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Loading states - finite animations only */
+.loading-pulse {
+  animation: pulse 1.5s ease-in-out;
+  animation-iteration-count: 3;
+}
+
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out;
+  animation-iteration-count: 2;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-pulse,
+  .loading-shimmer {
+    animation: none !important;
+  }
+}

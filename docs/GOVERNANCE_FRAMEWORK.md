@@ -286,6 +286,89 @@ def execute(goal, repo_full, trace_id=None):
         )
 ```
 
+### Worker Integration
+
+The ops-agent-worker integrates with the governance framework to provide cost tracking, permission checking, and reputation scoring for operational tasks.
+
+**Architecture:**
+```
+ops-agent-worker (agents/ops_agent/worker.py)
+    ↓
+sys.path configuration
+    ↓
+Governance modules (handoff/20250928/40_App/orchestrator/governance/)
+    ↓
+Supabase (agent_reputation, reputation_events tables)
+```
+
+**Key Configuration:**
+
+1. **Dependencies** (`agents/ops_agent/requirements.txt`):
+   ```
+   PyYAML>=6.0
+   supabase==2.6.0
+   redis==5.0.1
+   ```
+
+2. **Environment Variables** (Render):
+   ```
+   SUPABASE_URL=https://...
+   SUPABASE_SERVICE_ROLE_KEY=eyJ...
+   REDIS_URL=redis://...
+   ```
+
+3. **Agent Type Registration**:
+   ```python
+   # Correct usage
+   agent_id = reputation_engine.get_or_create_agent('ops_agent')
+   
+   # ❌ Wrong - violates database constraint
+   agent_id = reputation_engine.get_or_create_agent('ops')
+   ```
+
+**Module Import Path Considerations:**
+
+The worker adds `handoff/20250928/40_App/orchestrator` to `sys.path`, which affects how modules are imported:
+
+```python
+# Worker sys.path setup
+governance_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestrator')
+sys.path.insert(0, governance_path)
+```
+
+**Impact**: When importing from governance modules, use fallback import logic:
+
+```python
+try:
+    from orchestrator.persistence.db_client import get_client  # Absolute path
+    return get_client()
+except (ImportError, ModuleNotFoundError):
+    try:
+        from persistence.db_client import get_client  # Relative path
+        return get_client()
+    except Exception as e:
+        print(f"[Module] Supabase unavailable: {e}")
+        return None
+```
+
+**Verification:**
+
+After deployment, check worker logs for:
+```
+✅ Governance modules initialized
+✅ Registered with Governance (agent_id: ...)
+   Permission Level: sandbox_only, Reputation Score: 100
+🚀 Ops Agent Worker started successfully
+```
+
+**Degraded Mode:**
+
+If governance registration fails, worker operates in degraded mode:
+- ⚠️ No cost tracking
+- ⚠️ No permission checking
+- ⚠️ No reputation scoring
+- ⚠️ Warning: "Could not register with Governance (degraded mode)"
+
 ## Daily Maintenance
 
 ### Reputation Update Script
@@ -445,6 +528,88 @@ PolicyViolation: File access denied: ./secrets/api_key.txt
 - Verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set
 - Check network connectivity
 - Review Supabase service status
+
+**5. Worker Degraded Mode**
+```
+⚠️ Could not register with Governance (degraded mode)
+```
+**Symptoms:**
+- Worker starts successfully
+- Governance modules initialize
+- But registration fails silently
+
+**Root Causes:**
+
+1. **Module Import Path Mismatch**:
+   - Worker adds `orchestrator` directory to sys.path
+   - Import `from orchestrator.persistence...` fails
+   - Python looks for `orchestrator/orchestrator/persistence`
+   
+2. **Agent Type Constraint Violation**:
+   - Using incorrect agent_type (e.g., `'ops'` instead of `'ops_agent'`)
+   - Database constraint only allows: `'ops_agent'`, `'dev_agent'`, `'pm_agent'`, `'growth_strategist'`, `'meta_agent'`
+
+3. **Missing Dependencies**:
+   - PyYAML not in requirements.txt
+   - Supabase SDK not in requirements.txt
+
+4. **Environment Variables**:
+   - SUPABASE_URL not set
+   - SUPABASE_SERVICE_ROLE_KEY not set or truncated
+
+**Solutions:**
+
+1. **Check Dependencies**:
+   ```bash
+   # Verify requirements.txt includes:
+   grep -E "(PyYAML|supabase)" agents/ops_agent/requirements.txt
+   ```
+
+2. **Verify Environment Variables**:
+   ```bash
+   # In Render dashboard, check:
+   # - SUPABASE_URL (full URL)
+   # - SUPABASE_SERVICE_ROLE_KEY (complete key, not truncated)
+   ```
+
+3. **Check Agent Type**:
+   ```python
+   # In worker.py, verify:
+   agent_id = self.reputation_engine.get_or_create_agent('ops_agent')  # ✅
+   # NOT:
+   agent_id = self.reputation_engine.get_or_create_agent('ops')  # ❌
+   ```
+
+4. **Test Supabase Connection**:
+   ```python
+   from supabase import create_client
+   import os
+   
+   client = create_client(
+       os.getenv('SUPABASE_URL'),
+       os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+   )
+   response = client.table('agent_reputation').select('*').execute()
+   print(f"Found {len(response.data)} agents")
+   ```
+
+5. **Check Import Path**:
+   ```python
+   # Test import in worker context
+   import sys
+   sys.path.insert(0, 'handoff/20250928/40_App/orchestrator')
+   
+   try:
+       from persistence.db_client import get_client  # Should work
+       print("✅ Import successful")
+   except ImportError as e:
+       print(f"❌ Import failed: {e}")
+   ```
+
+**Related Issues:**
+- PR #624: PyYAML dependency fix
+- PR #628: Supabase SDK dependency fix
+- PR #632: Import path and agent_type fix
 
 ## Migration Guide
 

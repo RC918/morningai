@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,9 +13,33 @@ import {
   Download
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { customFetch } from '@/lib/api-client'
 
 const CostAnalysis = () => {
   const { t } = useTranslation()
+  const [loading, setLoading] = useState(true)
+  const [costData, setCostData] = useState(null)
+  const [period, setPeriod] = useState('daily')
+
+  useEffect(() => {
+    loadCostData()
+  }, [period])
+
+  const loadCostData = async () => {
+    try {
+      setLoading(true)
+      const data = await customFetch({ 
+        url: `/api/governance/costs?period=${period}&trace_id=system` 
+      })
+      setCostData(data)
+    } catch (error) {
+      console.error('Failed to load cost data:', error)
+      setCostData(mockCostData)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const mockCostData = {
     currentMonth: 1245.50,
     lastMonth: 980.30,
@@ -43,7 +68,18 @@ const CostAnalysis = () => {
     }
   }
 
-  const budgetUsagePercentage = (mockCostData.currentMonth / mockCostData.budget) * 100
+  const displayData = costData || mockCostData
+  const currentUsage = costData?.usage?.usd || mockCostData.currentMonth
+  const budgetLimit = costData?.limits?.usd || mockCostData.budget
+  const budgetUsagePercentage = (currentUsage / budgetLimit) * 100
+
+  if (loading && !costData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -53,18 +89,17 @@ const CostAnalysis = () => {
           <p className="text-gray-600 mt-1">{t('cost.description')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select defaultValue="current">
+          <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="current">{t('cost.periods.current')}</SelectItem>
-              <SelectItem value="last">{t('cost.periods.last')}</SelectItem>
-              <SelectItem value="quarter">{t('cost.periods.quarter')}</SelectItem>
-              <SelectItem value="year">{t('cost.periods.year')}</SelectItem>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="hourly">Hourly</SelectItem>
+              <SelectItem value="task">Per Task</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" onClick={loadCostData}>
             <Download className="w-4 h-4 mr-2" />
             {t('cost.exportReport')}
           </Button>
@@ -96,13 +131,17 @@ const CostAnalysis = () => {
               </div>
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              ${mockCostData.currentMonth.toFixed(2)}
+              ${currentUsage.toFixed(2)}
             </p>
             <div className="flex items-center gap-2 mt-2">
-              {getTrendIcon(mockCostData.trend)}
-              <span className={`text-sm ${mockCostData.trend === 'up' ? 'text-red-600' : 'text-green-600'}`}>
-                {((mockCostData.currentMonth / mockCostData.lastMonth - 1) * 100).toFixed(1)}% {t('cost.comparedToLastMonth')}
-              </span>
+              <Badge variant={costData?.within_budget ? "outline" : "destructive"}>
+                {costData?.within_budget ? 'Within Budget' : 'Over Budget'}
+              </Badge>
+              {costData?.alert_level && (
+                <Badge variant={costData.alert_level === 'critical' ? 'destructive' : costData.alert_level === 'warning' ? 'warning' : 'outline'}>
+                  {costData.alert_level}
+                </Badge>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -116,13 +155,18 @@ const CostAnalysis = () => {
               </div>
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              ${mockCostData.budget.toFixed(2)}
+              ${budgetLimit.toFixed(2)}
             </p>
             <div className="mt-2">
               <Progress value={budgetUsagePercentage} className="h-2" />
               <p className="text-sm text-gray-600 mt-1">
                 {t('cost.usedPercentage')} {budgetUsagePercentage.toFixed(1)}%
               </p>
+              {costData && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Tokens: {costData.usage?.tokens?.toLocaleString() || 0} / {costData.limits?.tokens?.toLocaleString() || 0}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
