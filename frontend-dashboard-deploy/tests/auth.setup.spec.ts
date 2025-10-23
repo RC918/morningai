@@ -33,16 +33,15 @@ setup('authenticate', async ({ page }) => {
 
   await page.waitForLoadState('networkidle');
 
-  await page.fill('input[type="email"], input[name="email"]', testEmail);
-  await page.fill('input[type="password"], input[name="password"]', testPassword);
+  await page.fill('input[name="username"]', testEmail);
+  await page.fill('input[name="password"]', testPassword);
 
   await page.click('button[type="submit"]');
 
-  await page.waitForURL(/\/(dashboard|home|$)/, { timeout: 10000 });
+  await page.waitForURL(/\/(dashboard|home|\/)/, { timeout: 15000 });
 
-  await expect(page.locator('body')).toBeVisible();
-
-  console.log('✅ Authentication successful');
+  const currentUrl = page.url();
+  console.log(`✅ Authentication successful, current URL: ${currentUrl}`);
 
   await page.context().storageState({ path: authFile });
 

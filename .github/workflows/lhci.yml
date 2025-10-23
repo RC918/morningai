@@ -121,8 +121,7 @@ jobs:
       - name: Build application
         run: pnpm build
 
-      - name: Setup Playwright (optional auth)
-        if: ${{ env.USE_PLAYWRIGHT_AUTH == '1' }}
+      - name: Setup Playwright authentication
         env:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
