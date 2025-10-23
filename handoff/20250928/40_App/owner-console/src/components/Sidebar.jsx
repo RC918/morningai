@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { DarkModeToggle } from './DarkModeToggle'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 const Sidebar = ({ user, onLogout }) => {
   const [collapsed, setCollapsed] = useState(false)
@@ -161,6 +162,9 @@ const Sidebar = ({ user, onLogout }) => {
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
         <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
+        </div>
+        <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
+          <LanguageSwitcher variant={collapsed ? 'compact' : 'default'} />
         </div>
         <Button
           variant="ghost"

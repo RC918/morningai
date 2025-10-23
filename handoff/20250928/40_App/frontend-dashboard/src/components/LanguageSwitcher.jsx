@@ -39,7 +39,11 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
             <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent 
+          align="end" 
+          className="w-48 !bg-white dark:!bg-gray-800 border border-gray-200 dark:border-gray-700"
+          style={{ backgroundColor: 'white' }}
+        >
           <AnimatePresence>
             {languages.map((lang) => (
               <motion.div
@@ -78,7 +82,11 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
           <span>{currentLanguage.name}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent 
+        align="end" 
+        className="w-48 !bg-white dark:!bg-gray-800 border border-gray-200 dark:border-gray-700"
+        style={{ backgroundColor: 'white' }}
+      >
         <AnimatePresence>
           {languages.map((lang) => (
             <motion.div
