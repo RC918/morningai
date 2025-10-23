@@ -591,7 +591,7 @@ class TestEnvironmentValidation:
         )
         
         with patch('builtins.open', mock_open(read_data=yaml_content)), \
-             patch('phase7_startup.env_schema_validator', mock_validator), \
+             patch('env_schema_validator.env_schema_validator', mock_validator), \
              patch('phase7_startup.PHASE6_AVAILABLE', False), \
              patch('phase7_startup.OpsAgent'), \
              patch('phase7_startup.GrowthStrategist'), \
@@ -616,7 +616,7 @@ class TestEnvironmentValidation:
         )
         
         with patch('builtins.open', mock_open(read_data=yaml_content)), \
-             patch('phase7_startup.env_schema_validator', mock_validator), \
+             patch('env_schema_validator.env_schema_validator', mock_validator), \
              patch('phase7_startup.PHASE6_AVAILABLE', False), \
              patch('phase7_startup.OpsAgent'), \
              patch('phase7_startup.GrowthStrategist'), \
@@ -624,7 +624,7 @@ class TestEnvironmentValidation:
              patch('phase7_startup.HITLApprovalSystem'):
             
             system = Phase7System('test_config.yaml')
-            await system.initialize()  # Should not raise
+            await system.initialize()
     
     @pytest.mark.asyncio
     async def test_validate_environment_failure(self, mock_config):
@@ -639,7 +639,7 @@ class TestEnvironmentValidation:
         )
         
         with patch('builtins.open', mock_open(read_data=yaml_content)), \
-             patch('phase7_startup.env_schema_validator', mock_validator), \
+             patch('env_schema_validator.env_schema_validator', mock_validator), \
              patch('phase7_startup.PHASE6_AVAILABLE', False):
             
             system = Phase7System('test_config.yaml')
@@ -653,7 +653,7 @@ class TestEnvironmentValidation:
         yaml_content = yaml.dump(mock_config)
         
         with patch('builtins.open', mock_open(read_data=yaml_content)), \
-             patch('phase7_startup.env_schema_validator', side_effect=ImportError()), \
+             patch('builtins.__import__', side_effect=ImportError('env_schema_validator not found')), \
              patch('phase7_startup.PHASE6_AVAILABLE', False), \
              patch('phase7_startup.OpsAgent'), \
              patch('phase7_startup.GrowthStrategist'), \
@@ -661,7 +661,7 @@ class TestEnvironmentValidation:
              patch('phase7_startup.HITLApprovalSystem'):
             
             system = Phase7System('test_config.yaml')
-            await system.initialize()  # Should not raise
+            await system.initialize()
 
 
 class TestMainEntryPoint:

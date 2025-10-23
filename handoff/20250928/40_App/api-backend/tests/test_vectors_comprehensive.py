@@ -18,13 +18,19 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from src.main import app
-
 
 @pytest.fixture
 def client():
-    """Create test client"""
+    """Create test client with mocked Flask app"""
+    from flask import Flask
+    
+    app = Flask(__name__)
     app.config['TESTING'] = True
+    
+    with patch('src.middleware.auth_middleware.jwt_required', lambda f: f):
+        from src.routes.vectors import bp as vectors_bp
+        app.register_blueprint(vectors_bp)
+    
     with app.test_client() as client:
         yield client
 
@@ -68,10 +74,14 @@ class TestVectorVisualization:
         ]
         mock_cursor.fetchall.return_value = mock_results
         
-        response = client.get(
-            '/api/vectors/visualize?method=tsne&limit=50&dimensions=2',
-            headers=auth_headers
-        )
+        mock_tsne = MagicMock()
+        mock_tsne.fit_transform.return_value = np.random.rand(50, 2)
+        
+        with patch('src.routes.vectors.TSNE', return_value=mock_tsne):
+            response = client.get(
+                '/api/vectors/visualize?method=tsne&limit=50&dimensions=2',
+                headers=auth_headers
+            )
         
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -99,10 +109,14 @@ class TestVectorVisualization:
         ]
         mock_cursor.fetchall.return_value = mock_results
         
-        response = client.get(
-            '/api/vectors/visualize?method=pca&limit=30&dimensions=3',
-            headers=auth_headers
-        )
+        mock_pca = MagicMock()
+        mock_pca.fit_transform.return_value = np.random.rand(30, 3)
+        
+        with patch('src.routes.vectors.PCA', return_value=mock_pca):
+            response = client.get(
+                '/api/vectors/visualize?method=pca&limit=30&dimensions=3',
+                headers=auth_headers
+            )
         
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -127,10 +141,14 @@ class TestVectorVisualization:
         ]
         mock_cursor.fetchall.return_value = mock_results
         
-        response = client.get(
-            '/api/vectors/visualize?source=filtered_source&limit=20',
-            headers=auth_headers
-        )
+        mock_tsne = MagicMock()
+        mock_tsne.fit_transform.return_value = np.random.rand(20, 2)
+        
+        with patch('src.routes.vectors.TSNE', return_value=mock_tsne):
+            response = client.get(
+                '/api/vectors/visualize?source=filtered_source&limit=20',
+                headers=auth_headers
+            )
         
         assert response.status_code == 200
         mock_cursor.execute.assert_called_once()
