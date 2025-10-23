@@ -1,9 +1,11 @@
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Users, Plus, Settings } from 'lucide-react'
 
 const TenantManagement = () => {
+  const { t } = useTranslation()
   const mockTenants = [
     { id: 'tenant_001', name: 'Acme Corp', status: 'active', agents: 12, users: 5 },
     { id: 'tenant_002', name: 'TechStart Inc', status: 'active', agents: 8, users: 3 },
@@ -16,20 +18,20 @@ const TenantManagement = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <Users className="w-8 h-8 text-purple-600" />
-            Tenant Management
+            {t('tenants.title')}
           </h1>
-          <p className="text-gray-600 mt-1">Manage tenant accounts and permissions</p>
+          <p className="text-gray-600 mt-1">{t('tenants.subtitle')}</p>
         </div>
         <Button>
           <Plus className="w-4 h-4 mr-2" />
-          Add Tenant
+          {t('tenants.addTenant')}
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Active Tenants</CardTitle>
-          <CardDescription>All registered tenant organizations</CardDescription>
+          <CardTitle>{t('tenants.activeTenants')}</CardTitle>
+          <CardDescription>{t('tenants.allTenants')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -41,11 +43,11 @@ const TenantManagement = () => {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-sm text-gray-600">{tenant.agents} agents</p>
-                    <p className="text-sm text-gray-600">{tenant.users} users</p>
+                    <p className="text-sm text-gray-600">{tenant.agents} {t('tenants.agents')}</p>
+                    <p className="text-sm text-gray-600">{tenant.users} {t('tenants.users')}</p>
                   </div>
                   <Badge variant={tenant.status === 'active' ? 'default' : 'destructive'}>
-                    {tenant.status}
+                    {t(`tenants.${tenant.status}`)}
                   </Badge>
                   <Button variant="ghost" size="sm">
                     <Settings className="w-4 h-4" />

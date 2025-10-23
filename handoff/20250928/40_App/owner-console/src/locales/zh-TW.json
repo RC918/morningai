@@ -8,31 +8,100 @@
     "logout": "登出"
   },
   "dashboard": {
-    "title": "Owner 儀表板",
-    "subtitle": "平台概覽與指標",
-    "welcome": "歡迎回來"
+    "title": "平台概覽",
+    "subtitle": "一目了然地監控您的 MorningAI 平台",
+    "stats": {
+      "totalTenants": "總租戶數",
+      "activeAgents": "活躍 Agents",
+      "monthlyCost": "每月成本",
+      "systemHealth": "系統健康度",
+      "thisMonth": "本月",
+      "acrossAllTenants": "跨所有租戶",
+      "platformWideUsage": "平台全域使用量",
+      "allSystemsOperational": "所有系統正常運作"
+    },
+    "recentActivity": {
+      "title": "最近活動",
+      "subtitle": "最新的平台事件與變更",
+      "newTenant": "新租戶註冊",
+      "agentDeployed": "Agent 已部署",
+      "maintenanceScheduled": "系統維護已排程"
+    },
+    "systemStatus": {
+      "title": "系統狀態",
+      "subtitle": "基礎設施健康狀態與效能",
+      "apiBackend": "API 後端",
+      "database": "資料庫",
+      "redisCache": "Redis 快取",
+      "workerNodes": "Worker 節點",
+      "healthy": "健康"
+    }
   },
   "governance": {
     "title": "Agent 治理",
-    "subtitle": "監控 Agent 聲譽與合規性",
-    "agents": "Agents",
-    "reputation": "聲譽",
-    "events": "事件",
-    "violations": "違規",
-    "costs": "成本",
-    "leaderboard": "排行榜",
-    "loading": "正在載入 Agent 治理資料...",
-    "error": "載入治理資料失敗",
-    "retry": "重試",
-    "noData": "無可用資料"
+    "subtitle": "監控 agent 聲譽、權限與合規性",
+    "refresh": "重新整理",
+    "stats": {
+      "totalAgents": "總 Agents 數",
+      "avgReputation": "平均聲譽",
+      "dailyCost": "每日成本",
+      "violations": "違規次數"
+    },
+    "tabs": {
+      "agents": "Agents 列表",
+      "events": "事件",
+      "violations": "違規"
+    },
+    "agents": {
+      "title": "Agent 聲譽排行榜",
+      "subtitle": "依聲譽分數與權限等級排序的 Agents",
+      "noAgents": "找不到 agents",
+      "reputation": "聲譽"
+    },
+    "events": {
+      "title": "最近事件",
+      "subtitle": "聲譽事件與 agent 活動",
+      "noEvents": "找不到事件",
+      "delta": "變化",
+      "trace": "追蹤"
+    },
+    "violations": {
+      "title": "政策違規",
+      "subtitle": "安全與合規違規",
+      "noViolations": "未偵測到違規",
+      "severity": "嚴重性",
+      "resolved": "已解決"
+    },
+    "permissions": {
+      "prodFull": "正式環境完整權限",
+      "prodLowRisk": "正式環境低風險",
+      "staging": "測試環境",
+      "sandbox": "沙盒"
+    }
   },
   "tenants": {
     "title": "租戶管理",
-    "subtitle": "管理租戶帳戶與權限"
+    "subtitle": "管理租戶帳戶與權限",
+    "addTenant": "新增租戶",
+    "activeTenants": "活躍租戶",
+    "allTenants": "所有已註冊的租戶組織",
+    "agents": "個 agents",
+    "users": "位使用者",
+    "active": "活躍",
+    "suspended": "已暫停"
   },
   "monitoring": {
     "title": "系統監控",
-    "subtitle": "監控系統健康狀態與效能"
+    "subtitle": "監控系統健康狀態與效能指標",
+    "apiServices": "API 服務",
+    "database": "資料庫",
+    "workers": "Workers",
+    "uptime": "正常運行時間",
+    "avgResponse": "平均回應時間",
+    "connections": "連線數",
+    "queryTime": "查詢時間",
+    "active": "活躍",
+    "queueSize": "佇列大小"
   },
   "settings": {
     "title": "平台設定",

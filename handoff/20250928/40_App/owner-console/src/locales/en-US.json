@@ -8,31 +8,100 @@
     "logout": "Logout"
   },
   "dashboard": {
-    "title": "Owner Dashboard",
-    "subtitle": "Platform overview and metrics",
-    "welcome": "Welcome back"
+    "title": "Platform Overview",
+    "subtitle": "Monitor your MorningAI platform at a glance",
+    "stats": {
+      "totalTenants": "Total Tenants",
+      "activeAgents": "Active Agents",
+      "monthlyCost": "Monthly Cost",
+      "systemHealth": "System Health",
+      "thisMonth": "this month",
+      "acrossAllTenants": "Across all tenants",
+      "platformWideUsage": "Platform-wide usage",
+      "allSystemsOperational": "All systems operational"
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "subtitle": "Latest platform events and changes",
+      "newTenant": "New tenant registered",
+      "agentDeployed": "Agent deployed",
+      "maintenanceScheduled": "System maintenance scheduled"
+    },
+    "systemStatus": {
+      "title": "System Status",
+      "subtitle": "Infrastructure health and performance",
+      "apiBackend": "API Backend",
+      "database": "Database",
+      "redisCache": "Redis Cache",
+      "workerNodes": "Worker Nodes",
+      "healthy": "Healthy"
+    }
   },
   "governance": {
     "title": "Agent Governance",
-    "subtitle": "Monitor agent reputation and compliance",
-    "agents": "Agents",
-    "reputation": "Reputation",
-    "events": "Events",
-    "violations": "Violations",
-    "costs": "Costs",
-    "leaderboard": "Leaderboard",
-    "loading": "Loading agent governance data...",
-    "error": "Failed to load governance data",
-    "retry": "Retry",
-    "noData": "No data available"
+    "subtitle": "Monitor agent reputation, permissions, and compliance",
+    "refresh": "Refresh",
+    "stats": {
+      "totalAgents": "Total Agents",
+      "avgReputation": "Avg Reputation",
+      "dailyCost": "Daily Cost",
+      "violations": "Violations"
+    },
+    "tabs": {
+      "agents": "Agents",
+      "events": "Events",
+      "violations": "Violations"
+    },
+    "agents": {
+      "title": "Agent Reputation Leaderboard",
+      "subtitle": "Agents ranked by reputation score and permission level",
+      "noAgents": "No agents found",
+      "reputation": "Reputation"
+    },
+    "events": {
+      "title": "Recent Events",
+      "subtitle": "Reputation events and agent activities",
+      "noEvents": "No events found",
+      "delta": "Delta",
+      "trace": "Trace"
+    },
+    "violations": {
+      "title": "Policy Violations",
+      "subtitle": "Security and compliance violations",
+      "noViolations": "No violations detected",
+      "severity": "Severity",
+      "resolved": "Resolved"
+    },
+    "permissions": {
+      "prodFull": "Prod Full",
+      "prodLowRisk": "Prod Low Risk",
+      "staging": "Staging",
+      "sandbox": "Sandbox"
+    }
   },
   "tenants": {
     "title": "Tenant Management",
-    "subtitle": "Manage tenant accounts and permissions"
+    "subtitle": "Manage tenant accounts and permissions",
+    "addTenant": "Add Tenant",
+    "activeTenants": "Active Tenants",
+    "allTenants": "All registered tenant organizations",
+    "agents": "agents",
+    "users": "users",
+    "active": "active",
+    "suspended": "suspended"
   },
   "monitoring": {
     "title": "System Monitoring",
-    "subtitle": "Monitor system health and performance"
+    "subtitle": "Monitor system health and performance metrics",
+    "apiServices": "API Services",
+    "database": "Database",
+    "workers": "Workers",
+    "uptime": "Uptime",
+    "avgResponse": "Avg Response",
+    "connections": "Connections",
+    "queryTime": "Query Time",
+    "active": "Active",
+    "queueSize": "Queue Size"
   },
   "settings": {
     "title": "Platform Settings",
