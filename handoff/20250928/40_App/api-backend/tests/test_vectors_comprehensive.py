@@ -10,35 +10,27 @@ Tests all vector endpoints including:
 """
 import pytest
 import json
+import os
 import numpy as np
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from src.main import app
+from src.middleware.auth_middleware import create_admin_token
 
 
 @pytest.fixture
 def client():
-    """Create test client with mocked Flask app"""
-    from flask import Flask
-    
-    app = Flask(__name__)
+    """Flask test client"""
     app.config['TESTING'] = True
-    
-    with patch('src.middleware.auth_middleware.jwt_required', lambda f: f):
-        from src.routes.vectors import bp as vectors_bp
-        app.register_blueprint(vectors_bp)
-    
     with app.test_client() as client:
         yield client
 
 
 @pytest.fixture
 def auth_headers():
-    """Mock authentication headers"""
-    return {'Authorization': 'Bearer mock-token'}
+    """Generate admin JWT token for authentication"""
+    token = create_admin_token()
+    return {'Authorization': f'Bearer {token}'}
 
 
 @pytest.fixture

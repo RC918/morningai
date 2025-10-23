@@ -101,18 +101,32 @@ class TestMetricsCollection:
     @pytest.mark.asyncio
     async def test_collect_metrics_success(self, dashboard, mock_resilience_metrics, mock_saga_metrics, mock_storage_stats):
         """Test successful metrics collection"""
+        mock_resilience_module = Mock()
         mock_resilience_manager = Mock()
         mock_resilience_manager.get_all_metrics.return_value = mock_resilience_metrics
+        mock_resilience_module.resilience_manager = mock_resilience_manager
         
-        mock_state_manager = Mock()
-        mock_state_manager.get_storage_stats.return_value = mock_storage_stats
-        
+        mock_saga_module = Mock()
         mock_saga_orchestrator = Mock()
         mock_saga_orchestrator.get_orchestrator_metrics.return_value = mock_saga_metrics
+        mock_saga_module.saga_orchestrator = mock_saga_orchestrator
         
-        with patch('services.monitoring_dashboard.resilience_manager', mock_resilience_manager), \
-             patch('services.monitoring_dashboard.PersistentStateManager', return_value=mock_state_manager), \
-             patch('services.monitoring_dashboard.saga_orchestrator', mock_saga_orchestrator):
+        mock_state_manager_instance = Mock()
+        mock_state_manager_instance.get_storage_stats.return_value = mock_storage_stats
+        
+        mock_state_manager_class = Mock(return_value=mock_state_manager_instance)
+        
+        mock_persistence_module = Mock()
+        mock_state_manager_module = Mock()
+        mock_state_manager_module.PersistentStateManager = mock_state_manager_class
+        mock_persistence_module.state_manager = mock_state_manager_module
+        
+        with patch.dict('sys.modules', {
+            'resilience_patterns': mock_resilience_module,
+            'saga_orchestrator': mock_saga_module,
+            'persistence': mock_persistence_module,
+            'persistence.state_manager': mock_state_manager_module
+        }):
             
             metrics = await dashboard.collect_metrics()
             
@@ -126,18 +140,32 @@ class TestMetricsCollection:
     @pytest.mark.asyncio
     async def test_collect_metrics_adds_to_history(self, dashboard, mock_resilience_metrics, mock_saga_metrics, mock_storage_stats):
         """Test metrics are added to history"""
+        mock_resilience_module = Mock()
         mock_resilience_manager = Mock()
         mock_resilience_manager.get_all_metrics.return_value = mock_resilience_metrics
+        mock_resilience_module.resilience_manager = mock_resilience_manager
         
-        mock_state_manager = Mock()
-        mock_state_manager.get_storage_stats.return_value = mock_storage_stats
-        
+        mock_saga_module = Mock()
         mock_saga_orchestrator = Mock()
         mock_saga_orchestrator.get_orchestrator_metrics.return_value = mock_saga_metrics
+        mock_saga_module.saga_orchestrator = mock_saga_orchestrator
         
-        with patch('services.monitoring_dashboard.resilience_manager', mock_resilience_manager), \
-             patch('services.monitoring_dashboard.PersistentStateManager', return_value=mock_state_manager), \
-             patch('services.monitoring_dashboard.saga_orchestrator', mock_saga_orchestrator):
+        mock_state_manager_instance = Mock()
+        mock_state_manager_instance.get_storage_stats.return_value = mock_storage_stats
+        
+        mock_state_manager_class = Mock(return_value=mock_state_manager_instance)
+        
+        mock_persistence_module = Mock()
+        mock_state_manager_module = Mock()
+        mock_state_manager_module.PersistentStateManager = mock_state_manager_class
+        mock_persistence_module.state_manager = mock_state_manager_module
+        
+        with patch.dict('sys.modules', {
+            'resilience_patterns': mock_resilience_module,
+            'saga_orchestrator': mock_saga_module,
+            'persistence': mock_persistence_module,
+            'persistence.state_manager': mock_state_manager_module
+        }):
             
             initial_count = len(dashboard.metrics_history)
             await dashboard.collect_metrics()
@@ -147,18 +175,32 @@ class TestMetricsCollection:
     @pytest.mark.asyncio
     async def test_collect_metrics_history_limit(self, dashboard, mock_resilience_metrics, mock_saga_metrics, mock_storage_stats):
         """Test metrics history is limited to prevent memory issues"""
+        mock_resilience_module = Mock()
         mock_resilience_manager = Mock()
         mock_resilience_manager.get_all_metrics.return_value = mock_resilience_metrics
+        mock_resilience_module.resilience_manager = mock_resilience_manager
         
-        mock_state_manager = Mock()
-        mock_state_manager.get_storage_stats.return_value = mock_storage_stats
-        
+        mock_saga_module = Mock()
         mock_saga_orchestrator = Mock()
         mock_saga_orchestrator.get_orchestrator_metrics.return_value = mock_saga_metrics
+        mock_saga_module.saga_orchestrator = mock_saga_orchestrator
         
-        with patch('services.monitoring_dashboard.resilience_manager', mock_resilience_manager), \
-             patch('services.monitoring_dashboard.PersistentStateManager', return_value=mock_state_manager), \
-             patch('services.monitoring_dashboard.saga_orchestrator', mock_saga_orchestrator):
+        mock_state_manager_instance = Mock()
+        mock_state_manager_instance.get_storage_stats.return_value = mock_storage_stats
+        
+        mock_state_manager_class = Mock(return_value=mock_state_manager_instance)
+        
+        mock_persistence_module = Mock()
+        mock_state_manager_module = Mock()
+        mock_state_manager_module.PersistentStateManager = mock_state_manager_class
+        mock_persistence_module.state_manager = mock_state_manager_module
+        
+        with patch.dict('sys.modules', {
+            'resilience_patterns': mock_resilience_module,
+            'saga_orchestrator': mock_saga_module,
+            'persistence': mock_persistence_module,
+            'persistence.state_manager': mock_state_manager_module
+        }):
             
             for _ in range(1001):
                 await dashboard.collect_metrics()
@@ -168,7 +210,10 @@ class TestMetricsCollection:
     @pytest.mark.asyncio
     async def test_collect_metrics_error_handling(self, dashboard):
         """Test error handling during metrics collection"""
-        with patch('services.monitoring_dashboard.resilience_manager', side_effect=Exception('Collection failed')):
+        mock_resilience_module = Mock()
+        mock_resilience_module.resilience_manager = Mock(side_effect=Exception('Collection failed'))
+        
+        with patch.dict('sys.modules', {'resilience_patterns': mock_resilience_module}):
             metrics = await dashboard.collect_metrics()
             
             assert metrics is None
@@ -680,18 +725,32 @@ class TestContinuousMonitoring:
     @pytest.mark.asyncio
     async def test_start_monitoring_loop(self, dashboard, mock_resilience_metrics, mock_saga_metrics, mock_storage_stats):
         """Test continuous monitoring loop"""
+        mock_resilience_module = Mock()
         mock_resilience_manager = Mock()
         mock_resilience_manager.get_all_metrics.return_value = mock_resilience_metrics
+        mock_resilience_module.resilience_manager = mock_resilience_manager
         
-        mock_state_manager = Mock()
-        mock_state_manager.get_storage_stats.return_value = mock_storage_stats
-        
+        mock_saga_module = Mock()
         mock_saga_orchestrator = Mock()
         mock_saga_orchestrator.get_orchestrator_metrics.return_value = mock_saga_metrics
+        mock_saga_module.saga_orchestrator = mock_saga_orchestrator
         
-        with patch('services.monitoring_dashboard.resilience_manager', mock_resilience_manager), \
-             patch('services.monitoring_dashboard.PersistentStateManager', return_value=mock_state_manager), \
-             patch('services.monitoring_dashboard.saga_orchestrator', mock_saga_orchestrator):
+        mock_state_manager_instance = Mock()
+        mock_state_manager_instance.get_storage_stats.return_value = mock_storage_stats
+        
+        mock_state_manager_class = Mock(return_value=mock_state_manager_instance)
+        
+        mock_persistence_module = Mock()
+        mock_state_manager_module = Mock()
+        mock_state_manager_module.PersistentStateManager = mock_state_manager_class
+        mock_persistence_module.state_manager = mock_state_manager_module
+        
+        with patch.dict('sys.modules', {
+            'resilience_patterns': mock_resilience_module,
+            'saga_orchestrator': mock_saga_module,
+            'persistence': mock_persistence_module,
+            'persistence.state_manager': mock_state_manager_module
+        }):
             
             monitoring_task = asyncio.create_task(dashboard.start_monitoring(interval_seconds=0.1))
             
