@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { 
   Shield, 
   TrendingUp,
@@ -12,9 +13,11 @@ import {
   DollarSign,
   Activity
 } from 'lucide-react'
+import { apiClient } from '@/lib/api'
 
 const AgentGovernance = () => {
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [agents, setAgents] = useState([])
   const [events, setEvents] = useState([])
   const [violations, setViolations] = useState([])
@@ -28,19 +31,22 @@ const AgentGovernance = () => {
   const loadGovernanceData = async () => {
     try {
       setLoading(true)
+      setError(null)
       
-      setAgents([
-        { agent_id: 'agent_001', agent_type: 'ops_agent', reputation_score: 95, permission_level: 'prod_full_access' },
-        { agent_id: 'agent_002', agent_type: 'dev_agent', reputation_score: 88, permission_level: 'prod_low_risk' }
+      const [agentsData, eventsData, violationsData, statsData] = await Promise.all([
+        apiClient.getGovernanceAgents(),
+        apiClient.getGovernanceEvents({ limit: 50 }),
+        apiClient.getGovernanceViolations({ limit: 50 }),
+        apiClient.getGovernanceStatistics()
       ])
-      setEvents([])
-      setViolations([])
-      setStatistics({
-        reputation: { total_agents: 2, average_score: 91.5 },
-        costs: { daily: { usage: { usd: 12.34 } } }
-      })
+
+      setAgents(agentsData.agents || [])
+      setEvents(eventsData.events || [])
+      setViolations(violationsData.violations || [])
+      setStatistics(statsData)
     } catch (error) {
       console.error('Failed to load governance data:', error)
+      setError(error.message || 'Failed to load governance data')
     } finally {
       setLoading(false)
     }
@@ -109,11 +115,29 @@ const AgentGovernance = () => {
           </h1>
           <p className="text-gray-600 mt-1">Monitor agent reputation, permissions, and compliance</p>
         </div>
-        <Button onClick={loadGovernanceData} variant="outline">
+        <Button onClick={loadGovernanceData} variant="outline" disabled={loading}>
           <Activity className="w-4 h-4 mr-2" />
           Refresh
         </Button>
       </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {error}
+            <Button 
+              onClick={loadGovernanceData} 
+              variant="outline" 
+              size="sm" 
+              className="ml-4"
+            >
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
