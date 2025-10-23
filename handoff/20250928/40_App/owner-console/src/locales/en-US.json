@@ -1,0 +1,88 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "governance": "Agent Governance",
+    "tenants": "Tenant Management",
+    "monitoring": "System Monitoring",
+    "settings": "Platform Settings",
+    "logout": "Logout"
+  },
+  "dashboard": {
+    "title": "Owner Dashboard",
+    "subtitle": "Platform overview and metrics",
+    "welcome": "Welcome back"
+  },
+  "governance": {
+    "title": "Agent Governance",
+    "subtitle": "Monitor agent reputation and compliance",
+    "agents": "Agents",
+    "reputation": "Reputation",
+    "events": "Events",
+    "violations": "Violations",
+    "costs": "Costs",
+    "leaderboard": "Leaderboard",
+    "loading": "Loading agent governance data...",
+    "error": "Failed to load governance data",
+    "retry": "Retry",
+    "noData": "No data available"
+  },
+  "tenants": {
+    "title": "Tenant Management",
+    "subtitle": "Manage tenant accounts and permissions"
+  },
+  "monitoring": {
+    "title": "System Monitoring",
+    "subtitle": "Monitor system health and performance"
+  },
+  "settings": {
+    "title": "Platform Settings",
+    "subtitle": "Configure platform-wide settings"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "refresh": "Refresh"
+  },
+  "auth": {
+    "login": {
+      "title": "Owner Console Login",
+      "description": "Enter your credentials to access the platform",
+      "username": "Username",
+      "password": "Password",
+      "usernamePlaceholder": "Enter your username",
+      "passwordPlaceholder": "Enter your password",
+      "loginButton": "Login",
+      "loggingIn": "Logging in...",
+      "loginFailed": "Login failed",
+      "loginError": "Invalid username or password",
+      "devAccount": "Development Account"
+    },
+    "logout": "Logout",
+    "email": "Email",
+    "forgotPassword": "Forgot password?",
+    "rememberMe": "Remember me",
+    "loginSuccess": "Login successful",
+    "logoutSuccess": "Logout successful"
+  },
+  "app": {
+    "name": "Morning AI",
+    "tagline": "Owner Console",
+    "copyright": "© 2025 Morning AI. All rights reserved.",
+    "motto": "Empowering the future with AI"
+  },
+  "sidebar": {
+    "user": {
+      "defaultName": "Owner",
+      "defaultRole": "Platform Owner"
+    }
+  }
+}

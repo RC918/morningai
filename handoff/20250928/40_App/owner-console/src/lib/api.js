@@ -179,6 +179,53 @@ class ApiClient {
       body: JSON.stringify(data),
     })
   }
+
+  async getGovernanceAgents() {
+    return this.requestWithRetry('/governance/agents')
+  }
+
+  async getGovernanceAgentDetails(agentId) {
+    return this.requestWithRetry(`/governance/agents/${agentId}`)
+  }
+
+  async getGovernanceEvents(params = {}) {
+    const queryParams = new URLSearchParams()
+    if (params.agent_id) queryParams.append('agent_id', params.agent_id)
+    if (params.limit) queryParams.append('limit', params.limit)
+    
+    const query = queryParams.toString()
+    return this.requestWithRetry(`/governance/events${query ? `?${query}` : ''}`)
+  }
+
+  async getGovernanceCosts(params = {}) {
+    const queryParams = new URLSearchParams()
+    if (params.trace_id) queryParams.append('trace_id', params.trace_id)
+    if (params.period) queryParams.append('period', params.period)
+    
+    const query = queryParams.toString()
+    return this.requestWithRetry(`/governance/costs${query ? `?${query}` : ''}`)
+  }
+
+  async getGovernanceViolations(params = {}) {
+    const queryParams = new URLSearchParams()
+    if (params.agent_id) queryParams.append('agent_id', params.agent_id)
+    if (params.limit) queryParams.append('limit', params.limit)
+    
+    const query = queryParams.toString()
+    return this.requestWithRetry(`/governance/violations${query ? `?${query}` : ''}`)
+  }
+
+  async getGovernanceStatistics() {
+    return this.requestWithRetry('/governance/statistics')
+  }
+
+  async getGovernanceLeaderboard(limit = 10) {
+    return this.requestWithRetry(`/governance/leaderboard?limit=${limit}`)
+  }
+
+  async getGovernanceHealth() {
+    return this.request('/governance/health')
+  }
 }
 
 export const apiClient = new ApiClient()

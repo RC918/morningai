@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { 
   LayoutDashboard, 
   Settings, 
@@ -13,41 +14,43 @@ import {
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { DarkModeToggle } from './DarkModeToggle'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 const Sidebar = ({ user, onLogout }) => {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
+  const { t } = useTranslation()
 
   const menuItems = [
     {
       path: '/dashboard',
       icon: LayoutDashboard,
-      label: 'Dashboard',
-      description: 'Platform overview and metrics'
+      label: t('nav.dashboard'),
+      description: t('dashboard.subtitle')
     },
     {
       path: '/governance',
       icon: Shield,
-      label: 'Agent Governance',
-      description: 'Monitor agent reputation and compliance'
+      label: t('nav.governance'),
+      description: t('governance.subtitle')
     },
     {
       path: '/tenants',
       icon: Users,
-      label: 'Tenant Management',
-      description: 'Manage tenant accounts and permissions'
+      label: t('nav.tenants'),
+      description: t('tenants.subtitle')
     },
     {
       path: '/monitoring',
       icon: Activity,
-      label: 'System Monitoring',
-      description: 'Monitor system health and performance'
+      label: t('nav.monitoring'),
+      description: t('monitoring.subtitle')
     },
     {
       path: '/settings',
       icon: Settings,
-      label: 'Platform Settings',
-      description: 'Configure platform-wide settings'
+      label: t('nav.settings'),
+      description: t('settings.subtitle')
     }
   ]
 
@@ -162,15 +165,18 @@ const Sidebar = ({ user, onLogout }) => {
         <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
         </div>
+        <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
+          <LanguageSwitcher variant={collapsed ? 'compact' : 'default'} />
+        </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={onLogout}
           className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white`}
-          aria-label="Logout"
+          aria-label={t('auth.logout')}
         >
           <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />
-          {!collapsed && 'Logout'}
+          {!collapsed && t('auth.logout')}
         </Button>
       </div>
     </div>
