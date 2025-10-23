@@ -1,0 +1,176 @@
+name: lighthouse-ci
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend-dashboard-deploy/**'
+      - '.github/workflows/lhci.yml'
+      - 'lighthouserc.json'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend-dashboard-deploy/**'
+      - '.github/workflows/lhci.yml'
+      - 'lighthouserc.*.json'
+
+jobs:
+  lhci-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lhci-${{ github.head_ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: frontend-dashboard-deploy
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: frontend-dashboard-deploy/pnpm-lock.yaml
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+
+      - name: Start preview server
+        run: |
+          pnpm preview --port 4173 &
+          echo $! > preview.pid
+
+      - name: Wait for server
+        uses: jakejarvis/wait-action@v0.2.0
+        with:
+          url: 'http://localhost:4173'
+          timeout: '120'
+
+      - name: Run Lighthouse CI (PR - fast)
+        run: pnpm dlx @lhci/cli autorun --rc=../lighthouserc.json
+
+      - name: Upload LHCI artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lhci-artifacts-pr
+          path: frontend-dashboard-deploy/.lhci
+
+      - name: Generate PR comment
+        if: always()
+        run: node ../scripts/make-lhci-pr-comment.js
+
+      - name: Post PR comment
+        if: always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: frontend-dashboard-deploy/.lhci-diff.md
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          if [ -f preview.pid ]; then
+            kill $(cat preview.pid) || true
+          fi
+
+  lhci-main:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lhci-main
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: frontend-dashboard-deploy
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: frontend-dashboard-deploy/pnpm-lock.yaml
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+
+      - name: Setup Playwright (optional auth)
+        if: ${{ env.USE_PLAYWRIGHT_AUTH == '1' }}
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          pnpm dlx playwright install --with-deps chromium
+          pnpm dlx playwright test tests/auth.setup.spec.ts
+          node ../scripts/make-lhci-cookie.js
+
+      - name: Start preview server
+        run: |
+          pnpm preview --port 4173 &
+          echo $! > preview.pid
+
+      - name: Wait for server
+        uses: jakejarvis/wait-action@v0.2.0
+        with:
+          url: 'http://localhost:4173'
+          timeout: '120'
+
+      - name: Run Lighthouse CI (main - accurate)
+        run: |
+          RC=../lighthouserc.main.json
+          [ -f "$RC" ] || RC=../lighthouserc.json
+          pnpm dlx @lhci/cli autorun --rc=$RC
+
+      - name: Upload LHCI artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lhci-artifacts-main
+          path: frontend-dashboard-deploy/.lhci
+
+      - name: Update baseline and trend
+        if: always()
+        run: node ../scripts/update-baseline-and-trend.js
+
+      - name: Commit baseline updates
+        if: always()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(ci): update LHCI baseline & trend [skip ci]"
+          file_pattern: ".lhci-baseline.json trend.csv"
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          if [ -f preview.pid ]; then
+            kill $(cat preview.pid) || true
+          fi
