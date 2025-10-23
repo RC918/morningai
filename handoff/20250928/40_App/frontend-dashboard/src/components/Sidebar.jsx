@@ -8,6 +8,7 @@ import {
   CheckCircle, 
   History, 
   DollarSign,
+  Shield,
   LogOut,
   User,
   ChevronLeft,
@@ -61,6 +62,13 @@ const Sidebar = ({ user, onLogout }) => {
       label: t('sidebar.costs.label'),
       description: t('sidebar.costs.description'),
       feature: AVAILABLE_FEATURES.COSTS
+    },
+    {
+      path: '/governance',
+      icon: Shield,
+      label: 'Agent Governance',
+      description: 'Monitor agent reputation and compliance',
+      feature: AVAILABLE_FEATURES.GOVERNANCE
     },
     {
       path: '/settings',
