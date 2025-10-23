@@ -51,20 +51,19 @@ Lighthouse CI 是一個自動化效能測試系統，在每個 Pull Request 和 
       "settings": {
         "preset": "desktop",
         "formFactor": "desktop",
-        "throttlingMethod": "simulate"
+        "throttlingMethod": "simulate",
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
       }
     },
-    "assert": {
-      "assertions": {
-        "categories:performance": ["warn", {"minScore": 0.90}],
-        "largest-contentful-paint": ["error", {"maxNumericValue": 3000}],
-        "total-blocking-time": ["error", {"maxNumericValue": 300}],
-        "cumulative-layout-shift": ["error", {"maxNumericValue": 0.1}]
-      }
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lighthouseci"
     }
   }
 }
 ```
+
+**注意**: 目前配置為「僅報告模式」，不會因效能問題阻擋 PR 合併。效能指標會顯示在 PR 評論中供參考，適合逐步改進效能。
 
 ### `lighthouserc.main.json` (main 版本)
 
@@ -73,17 +72,21 @@ Lighthouse CI 是一個自動化效能測試系統，在每個 Pull Request 和 
 - 可選包含認證頁面
 - 使用 `aggregationMethod: "median"`
 
-## 效能閾值
+## 效能指標追蹤
 
-| 指標 | 閾值 | 級別 | 說明 |
-|-----|------|------|------|
-| Performance Score | ≥ 90% | warn | 整體效能分數 |
-| Largest Contentful Paint (LCP) | ≤ 3000ms | error | 最大內容繪製時間 |
-| Total Blocking Time (TBT) | ≤ 300ms | error | 總阻塞時間 |
-| Cumulative Layout Shift (CLS) | ≤ 0.1 | error | 累積版面配置位移 |
-| First Contentful Paint (FCP) | ≤ 2000ms | warn | 首次內容繪製時間 |
+系統追蹤以下 Core Web Vitals 指標：
 
-**容差範圍**：±5%
+| 指標 | 建議目標 | 說明 |
+|-----|---------|------|
+| Largest Contentful Paint (LCP) | ≤ 2.5s | 最大內容繪製時間（用戶感知的載入速度） |
+| Total Blocking Time (TBT) | ≤ 200ms | 總阻塞時間（主執行緒被阻塞的時間） |
+| Cumulative Layout Shift (CLS) | ≤ 0.1 | 累積版面配置位移（視覺穩定性） |
+| First Contentful Paint (FCP) | ≤ 1.8s | 首次內容繪製時間（首次視覺反饋） |
+| Time to Interactive (TTI) | ≤ 3.8s | 可互動時間（完全可用的時間） |
+
+**容差範圍**：±5% (PR 評論中超過此範圍會顯示警告)
+
+**注意**: 目前系統僅提供效能報告和警告，不會阻擋 PR 合併。這允許團隊逐步改進效能，而不會影響開發速度。
 
 ## 使用方式
 
@@ -263,7 +266,7 @@ ls -la playwright/.auth/storageState.json
 node ../scripts/make-lhci-cookie.js
 
 # 6. 檢查 headers
-cat ../LHCI_EXTRA_HEADERS.json
+cat LHCI_EXTRA_HEADERS.json
 
 # 7. 執行 Lighthouse CI (含認證頁面)
 pnpm lhci:main
