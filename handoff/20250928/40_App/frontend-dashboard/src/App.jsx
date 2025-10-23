@@ -19,6 +19,7 @@ import { applyDesignTokens } from '@/lib/design-tokens'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
+import { supabase, getSession } from '@/lib/supabaseClient'
 import '@/i18n/config'
 import { tolgee } from '@/i18n/config'
 import './App.css'
@@ -77,6 +78,23 @@ function AppContent() {
 
     const checkAuth = async () => {
       try {
+        const { session, error: sessionError } = await getSession()
+        
+        if (session && !sessionError) {
+          const supabaseUser = session.user
+          setUser({
+            id: supabaseUser.id,
+            name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User',
+            email: supabaseUser.email,
+            avatar: supabaseUser.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${supabaseUser.email}`,
+            role: 'Owner',
+            tenant_id: 'tenant_001'
+          })
+          setIsAuthenticated(true)
+          setLoading(false)
+          return
+        }
+        
         const token = localStorage.getItem('auth_token')
         if (token) {
           const userData = await apiClient.verifyAuth()

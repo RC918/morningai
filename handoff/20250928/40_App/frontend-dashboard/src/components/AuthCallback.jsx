@@ -49,7 +49,7 @@ const AuthCallback = () => {
         setStatus('success');
         
         setTimeout(() => {
-          navigate('/dashboard');
+          window.location.href = '/dashboard';
         }, 1500);
       } catch (err) {
         console.error('Auth callback error:', err);
