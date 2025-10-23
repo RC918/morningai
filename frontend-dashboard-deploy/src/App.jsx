@@ -96,15 +96,46 @@ function AppContent() {
     checkAuth()
     applyDesignTokens()
 
+    const handleFirstValueOperation = (event) => {
+      const firstLoginTime = localStorage.getItem('first_login_time')
+      if (firstLoginTime) {
+        const ttv = Date.now() - parseInt(firstLoginTime, 10)
+        const ttvData = {
+          ttv_ms: ttv,
+          operation: event.detail?.operation || 'unknown',
+          timestamp: new Date().toISOString(),
+          user_id: user?.id,
+          tenant_id: user?.tenant_id
+        }
+        
+        if (window.Sentry) {
+          window.Sentry.captureMessage('First Value Operation', {
+            level: 'info',
+            extra: ttvData
+          })
+        }
+        
+        localStorage.removeItem('first_login_time')
+      }
+    }
+
+    window.addEventListener('first-value-operation', handleFirstValueOperation)
+
     return () => {
       window.removeEventListener('api-error', handleApiError)
+      window.removeEventListener('first-value-operation', handleFirstValueOperation)
     }
-  }, [addToast, setUser])
+  }, [addToast, setUser, user])
 
   const handleLogin = (userData, token) => {
     setUser(userData)
     setIsAuthenticated(true)
     localStorage.setItem('auth_token', token)
+    
+    if (!localStorage.getItem('first_login_time')) {
+      localStorage.setItem('first_login_time', Date.now().toString())
+    }
+    
     addToast({
       title: "登入成功",
       description: `歡迎回來，${userData.name}！`,
@@ -145,14 +176,21 @@ function AppContent() {
   return (
     <ErrorBoundary>
       <TenantProvider>
-        <Router>
-          <OfflineIndicator />
-          <Phase3WelcomeModal 
-            isOpen={showPhase3Welcome}
-            onClose={dismissWelcome}
-          />
-          
-          {!isAuthenticated ? (
+        <div className="theme-morning-ai min-h-screen">
+          <a 
+            href="#main-content" 
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:shadow-lg"
+          >
+            跳至主要內容
+          </a>
+          <Router>
+            <OfflineIndicator />
+            <Phase3WelcomeModal 
+              isOpen={showPhase3Welcome}
+              onClose={dismissWelcome}
+            />
+            
+            {!isAuthenticated ? (
             <Routes>
               <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
               <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
@@ -162,7 +200,7 @@ function AppContent() {
             <div className="flex h-screen bg-gray-100">
               <Sidebar user={user} onLogout={handleLogout} />
               
-              <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
+              <main id="main-content" className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
                 <Suspense fallback={<PageLoader message="正在載入頁面..." />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -219,7 +257,8 @@ function AppContent() {
               <Toaster />
             </div>
           )}
-        </Router>
+          </Router>
+        </div>
       </TenantProvider>
     </ErrorBoundary>
   )

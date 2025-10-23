@@ -58,6 +58,10 @@ const useAppStore = create(
       
       error: null,
       
+      pathTracking: {
+        activePaths: {}
+      },
+      
       setUser: (user) => set({ user: { ...get().user, ...user } }),
       
       setTenant: (tenant) => set({ tenant: { ...get().tenant, ...tenant } }),
@@ -143,6 +147,90 @@ const useAppStore = create(
             online: navigator.onLine
           }
         }))
+      },
+      
+      trackPathStart: (pathName) => {
+        const pathId = `${pathName}_${Date.now()}`
+        set(state => ({
+          pathTracking: {
+            ...state.pathTracking,
+            activePaths: {
+              ...state.pathTracking.activePaths,
+              [pathId]: {
+                name: pathName,
+                startTime: Date.now(),
+                status: 'in_progress'
+              }
+            }
+          }
+        }))
+        return pathId
+      },
+      
+      trackPathComplete: (pathId) => {
+        const state = get()
+        const path = state.pathTracking.activePaths[pathId]
+        if (path) {
+          const duration = Date.now() - path.startTime
+          const trackingData = {
+            path_name: path.name,
+            status: 'completed',
+            duration_ms: duration,
+            timestamp: new Date().toISOString(),
+            user_id: state.user.id,
+            tenant_id: state.user.tenant_id
+          }
+          
+          if (window.Sentry) {
+            window.Sentry.captureMessage('Path Completed', {
+              level: 'info',
+              extra: trackingData
+            })
+          }
+          
+          set(state => ({
+            pathTracking: {
+              ...state.pathTracking,
+              activePaths: {
+                ...state.pathTracking.activePaths,
+                [pathId]: { ...path, status: 'completed', duration }
+              }
+            }
+          }))
+        }
+      },
+      
+      trackPathFail: (pathId, error) => {
+        const state = get()
+        const path = state.pathTracking.activePaths[pathId]
+        if (path) {
+          const duration = Date.now() - path.startTime
+          const trackingData = {
+            path_name: path.name,
+            status: 'failed',
+            duration_ms: duration,
+            error: error?.message || 'Unknown error',
+            timestamp: new Date().toISOString(),
+            user_id: state.user.id,
+            tenant_id: state.user.tenant_id
+          }
+          
+          if (window.Sentry) {
+            window.Sentry.captureException(error, {
+              extra: trackingData
+            })
+          }
+          
+          set(state => ({
+            pathTracking: {
+              ...state.pathTracking,
+              activePaths: {
+                ...state.pathTracking.activePaths,
+                [pathId]: { ...path, status: 'failed', duration, error: error?.message }
+              }
+            }
+          }))
+        }
       },
       
       reset: () => set({
