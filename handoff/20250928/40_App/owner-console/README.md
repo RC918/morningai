@@ -92,12 +92,23 @@ npm run build
 
 ### 环境变量
 
-创建 `.env` 文件：
+创建 `.env.local` 文件（**不要提交到 git**）：
 
 ```env
+# API Configuration
 VITE_API_BASE_URL=https://morningai-backend-v2.onrender.com
 VITE_OWNER_CONSOLE=true
+
+# Tolgee Translation Management (可选 - 应用在没有这些变量时仍可正常运作)
+VITE_TOLGEE_API_URL=https://app.tolgee.io
+VITE_TOLGEE_API_KEY=your_api_key_here
+VITE_TOLGEE_PROJECT_ID=your_project_id_here
 ```
+
+**Tolgee 配置说明**：
+- 这些变量是可选的，应用在没有它们的情况下会使用本地 JSON 翻译文件
+- 如需使用 in-context 翻译编辑功能（Alt+T），请设置这些变量
+- 详细设置指南请参考：[Tolgee 设置文档](/docs/TOLGEE_SETUP.md)
 
 ## 部署
 

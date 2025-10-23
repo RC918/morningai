@@ -10,8 +10,7 @@ import LoginPage from '@/components/LoginPage'
 import LandingPage from '@/components/LandingPage'
 import WIPPage from '@/components/WIPPage'
 import { TenantProvider } from '@/contexts/TenantContext'
-import { NotificationProvider, useNotification } from '@/contexts/NotificationContext'
-import { Phase3WelcomeModal } from '@/components/Phase3WelcomeModal'
+import { NotificationProvider } from '@/contexts/NotificationContext'
 import { PageLoader } from '@/components/feedback/PageLoader'
 import { OfflineIndicator } from '@/components/feedback/OfflineIndicator'
 import { SkipToContent } from '@/components/SkipToContent'
@@ -43,7 +42,6 @@ function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
-  const { showPhase3Welcome, dismissWelcome } = useNotification()
 
   useEffect(() => {
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -155,10 +153,6 @@ function AppContent() {
         <Router>
           <div className="theme-apple">
             <OfflineIndicator />
-            <Phase3WelcomeModal 
-              isOpen={showPhase3Welcome}
-              onClose={dismissWelcome}
-            />
             
             {!isAuthenticated ? (
               <Routes>
