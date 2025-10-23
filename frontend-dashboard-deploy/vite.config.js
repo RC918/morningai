@@ -17,13 +17,15 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['lucide-react', 'recharts', 'framer-motion'],
+          'framer-motion': ['framer-motion'],
+          'ui-vendor': ['lucide-react', 'recharts'],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'i18n-vendor': ['i18next', 'react-i18next'],
         },
       },
     },
     chunkSizeWarningLimit: 600,
+    minify: 'esbuild',
   },
   server: {
     proxy: {
