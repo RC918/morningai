@@ -22,22 +22,15 @@ const __dirname = path.dirname(__filename);
 const authFile = path.join(__dirname, '../playwright/.auth/storageState.json');
 
 setup('authenticate', async ({ page }) => {
-  const testEmail = process.env.TEST_EMAIL;
-  const testPassword = process.env.TEST_PASSWORD;
-
-  if (!testEmail || !testPassword) {
-    throw new Error('TEST_EMAIL and TEST_PASSWORD environment variables are required');
-  }
-
   console.log('🔐 Starting authentication setup...');
-  console.log(`   Email: ${testEmail}`);
+  console.log('   Using mock credentials: admin/admin123');
 
   await page.goto('http://localhost:4173/login');
 
   await page.waitForLoadState('networkidle');
 
-  await page.fill('input[name="username"]', testEmail);
-  await page.fill('input[name="password"]', testPassword);
+  await page.fill('input[name="username"]', 'admin');
+  await page.fill('input[name="password"]', 'admin123');
 
   await page.click('button[type="submit"]');
 

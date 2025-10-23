@@ -4,12 +4,14 @@ Comprehensive RLS (Row Level Security) Policy Testing for pytest
 
 Tests all RLS policies with different access levels:
 - service_role: Full access (backend services)
-- authenticated/anon: Read-only access (Dashboard users and public API)
+- authenticated users (real JWT): Read-only access to all tables
+- anon key: Read-only access to FAQs only (public content)
 - true anonymous (no API key): Blocked
 
-Note: In Supabase, 'anon' role is part of the 'authenticated' group.
-Migration 014 policies are 'TO authenticated', which includes anon role.
-This provides public read-only access via the anon key.
+Security Model (after Migration 015):
+- Migration 014 initially granted anon key access to all tables
+- Migration 015 restricts anon key to FAQs only
+- Sensitive tables require real user authentication (auth.uid() IS NOT NULL)
 """
 
 import os
@@ -23,10 +25,13 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
 SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY')
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-rls-testing')
 
-TABLES_WITH_RLS = [
+TABLES_PUBLIC_ANON = [
     'faqs',
+    'faq_categories'
+]
+
+TABLES_AUTHENTICATED_ONLY = [
     'faq_search_history',
-    'faq_categories',
     'embeddings',
     'vector_queries',
     'trace_metrics',
@@ -34,6 +39,8 @@ TABLES_WITH_RLS = [
     'agent_reputation',
     'reputation_events'
 ]
+
+TABLES_WITH_RLS = TABLES_PUBLIC_ANON + TABLES_AUTHENTICATED_ONLY
 
 
 def generate_authenticated_jwt():
@@ -152,17 +159,12 @@ class TestAuthenticatedRoleAccess:
             f"authenticated role should NOT successfully INSERT to {table}"
 
 
-@pytest.mark.parametrize("table", TABLES_WITH_RLS)
-class TestAnonRoleAccess:
-    """Test that anon role (public authenticated) has read-only access
+@pytest.mark.parametrize("table", TABLES_PUBLIC_ANON)
+class TestAnonRolePublicAccess:
+    """Test that anon key can access public tables (FAQs only)"""
     
-    Note: In Supabase, 'anon' role is part of the 'authenticated' group.
-    The migration policies are 'TO authenticated', which includes anon role.
-    This is correct behavior - anon key provides public read-only access.
-    """
-    
-    def test_anon_can_select(self, table):
-        """anon role should be able to SELECT (public read access)"""
+    def test_anon_can_select_public_tables(self, table):
+        """anon key should be able to SELECT from public tables (FAQs)"""
         headers = get_headers('anonymous')
         response = requests.get(
             f'{SUPABASE_URL}/rest/v1/{table}?limit=1',
@@ -170,10 +172,10 @@ class TestAnonRoleAccess:
             timeout=10
         )
         assert response.status_code == 200, \
-            f"anon role should have SELECT access to {table}, got {response.status_code}"
+            f"anon key should have SELECT access to {table}, got {response.status_code}"
     
-    def test_anon_cannot_insert(self, table):
-        """anon role should NOT be able to INSERT (read-only)"""
+    def test_anon_cannot_insert_public_tables(self, table):
+        """anon key should NOT be able to INSERT (read-only)"""
         headers = get_headers('anonymous')
         
         test_data = {
@@ -189,9 +191,25 @@ class TestAnonRoleAccess:
         )
         
         assert response.status_code in [400, 401, 403, 422], \
-            f"anon role should NOT have INSERT access to {table}, got {response.status_code}"
+            f"anon key should NOT have INSERT access to {table}, got {response.status_code}"
         assert response.status_code != 201, \
-            f"anon role should NOT successfully INSERT to {table}"
+            f"anon key should NOT successfully INSERT to {table}"
+
+
+@pytest.mark.parametrize("table", TABLES_AUTHENTICATED_ONLY)
+class TestAnonRoleBlockedFromSensitive:
+    """Test that anon key is blocked from sensitive tables"""
+    
+    def test_anon_blocked_from_sensitive_tables(self, table):
+        """anon key should be BLOCKED from sensitive tables"""
+        headers = get_headers('anonymous')
+        response = requests.get(
+            f'{SUPABASE_URL}/rest/v1/{table}?limit=1',
+            headers=headers,
+            timeout=10
+        )
+        assert response.status_code in [401, 403], \
+            f"anon key should be BLOCKED from {table}, got {response.status_code}"
 
 
 @pytest.mark.parametrize("table", TABLES_WITH_RLS)
@@ -292,16 +310,25 @@ def run_comprehensive_rls_tests():
             failed_tests += 1
             total_tests += 1
         
-        print("  Testing anon role (public authenticated):")
+        print("  Testing anon key:")
         try:
             headers = get_headers('anonymous')
             response = requests.get(f'{SUPABASE_URL}/rest/v1/{table}?limit=1', headers=headers, timeout=10)
-            if response.status_code == 200:
-                print("    ✅ SELECT: PASS (anon role has read access)")
-                passed_tests += 1
+            
+            if table in TABLES_PUBLIC_ANON:
+                if response.status_code == 200:
+                    print("    ✅ SELECT: PASS (public table, anon key allowed)")
+                    passed_tests += 1
+                else:
+                    print(f"    ❌ SELECT: FAIL - should allow anon key ({response.status_code})")
+                    failed_tests += 1
             else:
-                print(f"    ❌ SELECT: FAIL ({response.status_code})")
-                failed_tests += 1
+                if response.status_code in [401, 403]:
+                    print("    ✅ SELECT: BLOCKED (sensitive table, anon key blocked)")
+                    passed_tests += 1
+                else:
+                    print(f"    ❌ SELECT: FAIL - should block anon key ({response.status_code})")
+                    failed_tests += 1
             total_tests += 1
         except Exception as e:
             print(f"    ❌ SELECT: ERROR ({e})")

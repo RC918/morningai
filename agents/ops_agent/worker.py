@@ -100,7 +100,7 @@ class OpsAgentWorker:
             )
             logger.info("✅ Initialized Ops Agent OODA Loop")
             
-            self.agent_id = self.reputation_engine.get_or_create_agent('ops')
+            self.agent_id = self.reputation_engine.get_or_create_agent('ops_agent')
             if self.agent_id:
                 logger.info(f"✅ Registered with Governance (agent_id: {self.agent_id})")
                 permission_level = self.reputation_engine.get_permission_level(self.agent_id)

@@ -1,0 +1,157 @@
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { 
+  Users, 
+  Shield,
+  Activity,
+  DollarSign,
+  TrendingUp,
+  Server
+} from 'lucide-react'
+
+const OwnerDashboard = () => {
+  const [stats, setStats] = useState({
+    totalTenants: 12,
+    activeAgents: 45,
+    totalCost: 1234.56,
+    systemHealth: 98.5
+  })
+
+  return (
+    <div className="p-8 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Platform Overview</h1>
+        <p className="text-gray-600 mt-1">Monitor your MorningAI platform at a glance</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Tenants</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalTenants}</div>
+            <p className="text-xs text-muted-foreground">
+              <TrendingUp className="inline h-3 w-3 text-green-600" /> +2 this month
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Agents</CardTitle>
+            <Shield className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.activeAgents}</div>
+            <p className="text-xs text-muted-foreground">
+              Across all tenants
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Cost</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${stats.totalCost.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              Platform-wide usage
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">System Health</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.systemHealth}%</div>
+            <p className="text-xs text-green-600">
+              All systems operational
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Latest platform events and changes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">New tenant registered</p>
+                  <p className="text-xs text-gray-500">Acme Corp - 2 hours ago</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Agent deployed</p>
+                  <p className="text-xs text-gray-500">ops_agent v2.1 - 5 hours ago</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">System maintenance scheduled</p>
+                  <p className="text-xs text-gray-500">Tomorrow at 2:00 AM UTC</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>System Status</CardTitle>
+            <CardDescription>Infrastructure health and performance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Server className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">API Backend</span>
+                </div>
+                <span className="text-xs text-green-600 font-medium">Healthy</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Server className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">Database</span>
+                </div>
+                <span className="text-xs text-green-600 font-medium">Healthy</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Server className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">Redis Cache</span>
+                </div>
+                <span className="text-xs text-green-600 font-medium">Healthy</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Server className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">Worker Nodes</span>
+                </div>
+                <span className="text-xs text-green-600 font-medium">Healthy</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+export default OwnerDashboard
