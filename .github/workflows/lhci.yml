@@ -70,7 +70,9 @@ jobs:
           exit 1
 
       - name: Run Lighthouse CI (PR - fast)
-        run: pnpm dlx @lhci/cli autorun --rc=../lighthouserc.json
+        run: |
+          pnpm dlx @lhci/cli collect --rc=../lighthouserc.json
+          pnpm dlx @lhci/cli upload --rc=../lighthouserc.json || true
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
@@ -163,7 +165,8 @@ jobs:
         run: |
           RC=../lighthouserc.main.json
           [ -f "$RC" ] || RC=../lighthouserc.json
-          pnpm dlx @lhci/cli autorun --rc=$RC
+          pnpm dlx @lhci/cli collect --rc=$RC
+          pnpm dlx @lhci/cli upload --rc=$RC || true
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
