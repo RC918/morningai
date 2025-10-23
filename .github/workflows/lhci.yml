@@ -71,8 +71,8 @@ jobs:
 
       - name: Run Lighthouse CI (PR - fast)
         run: |
-          pnpm dlx @lhci/cli collect --rc=../lighthouserc.json
-          pnpm dlx @lhci/cli upload --rc=../lighthouserc.json || true
+          pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1
+          pnpm dlx @lhci/cli upload --target=filesystem --outputDir=.lhci || true
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
@@ -163,10 +163,8 @@ jobs:
 
       - name: Run Lighthouse CI (main - accurate)
         run: |
-          RC=../lighthouserc.main.json
-          [ -f "$RC" ] || RC=../lighthouserc.json
-          pnpm dlx @lhci/cli collect --rc=$RC
-          pnpm dlx @lhci/cli upload --rc=$RC || true
+          pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=3
+          pnpm dlx @lhci/cli upload --target=filesystem --outputDir=.lhci || true
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
