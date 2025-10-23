@@ -83,19 +83,25 @@ jobs:
         if: always()
         run: node ../scripts/make-lhci-pr-comment.js
 
-      - name: Debug - Check if comment file exists
+      - name: Read PR comment
         if: always()
+        id: read_comment
         run: |
-          echo "Looking for .lhci-diff.md:"
-          ls -la .lhci-diff.md || echo "File not found"
-          echo "Full directory listing:"
-          ls -la
+          if [ -f .lhci-diff.md ]; then
+            {
+              echo 'COMMENT<<EOF'
+              cat .lhci-diff.md
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "COMMENT=⚠️ Lighthouse CI 報告生成失敗" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Post PR comment
         if: always()
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          path: .lhci-diff.md
+          message: ${{ steps.read_comment.outputs.COMMENT }}
 
       - name: Stop preview server
         if: always()
