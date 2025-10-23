@@ -1,71 +1,76 @@
-# Testing Sentry Trace ID in MorningAI
+# System Architecture of MorningAI
 
-When integrating Sentry into a project like MorningAI, testing the `trace_id` functionality is crucial for monitoring and identifying issues across the service's distributed architecture. This FAQ aims to guide developers through the process of testing and validating Sentry's `trace_id` within the MorningAI platform.
+MorningAI leverages a robust and scalable system architecture designed to facilitate seamless integration and efficient operation across various platforms. This architecture supports autonomous agent systems for code generation, FAQ generation, documentation management, multi-platform integration, real-time task orchestration, and vector memory storage. Below is a comprehensive overview of the MorningAI system architecture, including its key components and how they interact within the ecosystem.
 
-## Understanding Sentry `trace_id`
+## Overview
 
-Sentry uses `trace_id` to track and aggregate errors, performance issues, and monitor distributed tracing across services. It's a unique identifier for a set of events or transactions that span across multiple systems or microservices, allowing developers to trace the path of a request or process through the entire system.
+The system architecture of MorningAI is built on a microservices model, utilizing a range of technologies to ensure high performance, scalability, and reliability. Here's a breakdown of the main components:
 
-## How to Test Sentry `trace_id` in MorningAI
+### Frontend
+- **Technology Stack**: React with Vite for bundling and TailwindCSS for styling.
+- **Functionality**: Provides the user interface for interacting with MorningAI services.
 
-Testing the `trace_id` involves simulating scenarios where errors or performance issues are likely to occur and verifying that these incidents are correctly logged and linked in Sentry with a consistent `trace_id`.
+### Backend
+- **Technology Stack**: Python with Flask as the web framework and Gunicorn as the WSGI HTTP server with multi-worker support.
+- **Functionality**: Handles API requests, business logic, and interaction with other backend services.
 
-### Step 1: Configuration
+### Database
+- **Technology Stack**: PostgreSQL hosted on Supabase, utilizing Row Level Security (RLS) for enhanced data protection.
+- **Functionality**: Stores user data, agent configurations, documentation content, and other persistent data.
 
-Ensure Sentry is properly configured in your MorningAI setup. This typically involves setting up your Sentry DSN (Data Source Name) in your project settings. For MorningAI, this configuration might be located in:
+### Queue
+- **Technology Stack**: Redis Queue (RQ) with worker heartbeat monitoring to manage background jobs efficiently.
+- **Functionality**: Manages task queues for asynchronous processing tasks like code generation or document parsing.
 
-```python
-# File: morningai/config.py
+### Orchestration
+- **Technology Stack**: LangGraph for managing agent workflows in an efficient and scalable manner.
+- **Functionality**: Coordinates complex processes across multiple services and agents.
 
-SENTRY_DSN = "your_sentry_dsn_here"
-```
+### AI
+- **Technology Stack**: OpenAI GPT-4 for advanced content generation capabilities.
+- **Functionality**: Powers intelligent agents for code generation and FAQ/document content creation.
 
-And initializing Sentry in your application:
+### Deployment
+- **Platform**: Render.com with continuous integration/continuous deployment (CI/CD) pipelines.
+- **Functionality**: Automates the deployment process, ensuring that updates are smoothly rolled out without downtime.
 
-```python
-# File: morningai/app/__init__.py
+## Code Example
 
-import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration
-
-sentry_sdk.init(
-    dsn="your_sentry_dsn_here",
-    integrations=[FlaskIntegration()]
-)
-```
-
-### Step 2: Triggering Errors or Events
-
-To test, you'll need to trigger an error or an event that would generate a `trace_id`. This can be done by intentionally causing an error in your application logic or via API calls that result in an error state.
-
-Example of intentionally triggering an error:
+While specific code examples related to each component might vary widely based on the task at hand, below is a simplified example showcasing how to initiate a background job using Redis Queue in Flask:
 
 ```python
-# File: morningai/routes/example.py
+from redis import Redis
+from rq import Queue
+from your_task_module import execute_long_task
 
-@app.route('/trigger_error')
-def trigger_error():
-    division_by_zero = 1 / 0  # This will cause a ZeroDivisionError
-    return "This should not appear"
+# Initialize Redis connection and queue
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+
+# Enqueue a long-running task
+job = q.enqueue(execute_long_task, 'parameter1', 'parameter2')
 ```
 
-### Step 3: Verifying Trace ID in Sentry
-
-After triggering the error, go to your Sentry dashboard and locate the error event. Within the event details, you should find the `trace_id`. This ID links this error event with any other related events across different services or requests involved in the process.
+This example demonstrates adding a long-running task `execute_long_task` to the queue with parameters `'parameter1'` and `'parameter2'`.
 
 ## Related Documentation Links
 
-- Sentry Official Documentation: [https://docs.sentry.io/](https://docs.sentry.io/)
-- Flask Integration with Sentry: [https://docs.sentry.io/platforms/python/guides/flask/](https://docs.sentry.io/platforms/python/guides/flask/)
+For more detailed information on each component of the MorningAI system architecture:
+
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- PostgreSQL/Supabase: [https://supabase.io/docs](https://supabase.io/docs)
+- Redis Queue: [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- OpenAI GPT: [https://beta.openai.com/docs/](https://beta.openai.com/docs/)
+- Render.com CI/CD: [https://render.com/docs](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-- **Sentry DSN Not Set**: Ensure that your Sentry DSN is correctly configured in your project settings.
-- **Incorrect Initialization**: Verify that Sentry has been initialized correctly with Flask integration as shown above.
-- **No Errors Showing Up**: Make sure you're triggering an actual error and that your environment (development/production) is set up to send errors to Sentry.
-- **Mismatched Trace IDs**: Ensure that all parts of your distributed system are correctly forwarding and using the same `trace_id` for related processes.
+1. **Database Connectivity Issues**: Ensure that your Supabase credentials are correctly configured in your environment variables. Verify that your IP is whitelisted if RLS is enabled.
+2. **Failed Background Jobs in RQ**: Check the Redis server status and ensure it's running. Review job failure logs for specific errors.
+3. **Deployment Failures on Render.com**: Ensure that your `render.yaml` file is correctly configured according to your project needs. Check the Render dashboard for specific error messages during deployment.
 
-By following these steps, you should be able to test and validate the functionality of `trace_id` within your MorningAI platform, ensuring that you can effectively monitor and troubleshoot issues across your distributed services.
+For further assistance or if encountering any issues not covered here, please consult the detailed documentation or reach out to the support community.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -73,7 +78,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test Sentry trace_id
-- Trace ID: `bd390ea5-e4ca-4f04-a74b-d14107e23d12`
+- Task: What is the system architecture?
+- Trace ID: `a0f5e631-0b2b-454b-8e61-76ec24aa099c`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
