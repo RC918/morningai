@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Extract Supabase localStorage from Playwright auth state and create injection script
+ * Extract auth localStorage from Playwright auth state and create injection script
  * 
  * This script:
  * 1. Reads Playwright's storageState.json (contains localStorage from authenticated session)
- * 2. Extracts Supabase auth data from localStorage
+ * 2. Extracts auth data from localStorage (Supabase or mock auth_token)
  * 3. Creates a JavaScript snippet that Lighthouse can execute before testing
  * 
- * This allows Lighthouse to test authenticated pages by injecting the Supabase
+ * This allows Lighthouse to test authenticated pages by injecting the auth
  * session into localStorage before the page loads.
  */
 
@@ -35,31 +35,31 @@ function extractLocalStorage() {
       process.exit(1);
     }
 
-    let supabaseData = null;
+    let authData = null;
     for (const origin of state.origins) {
       if (origin.localStorage) {
         for (const item of origin.localStorage) {
-          if (item.name.includes('supabase.auth.token')) {
-            supabaseData = origin.localStorage;
-            console.log(`✅ Found Supabase auth data in origin: ${origin.origin}`);
+          if (item.name.includes('supabase.auth.token') || item.name === 'auth_token') {
+            authData = origin.localStorage;
+            console.log(`✅ Found auth data in origin: ${origin.origin}`);
             break;
           }
         }
       }
-      if (supabaseData) break;
+      if (authData) break;
     }
 
-    if (!supabaseData) {
-      console.error('❌ No Supabase auth data found in localStorage');
+    if (!authData) {
+      console.error('❌ No auth data found in localStorage');
       console.error('   Available localStorage keys:', 
         state.origins.flatMap(o => o.localStorage?.map(i => i.name) || []).join(', '));
       process.exit(1);
     }
 
-    console.log(`✅ Extracted ${supabaseData.length} localStorage item(s)`);
-    console.log('   Keys:', supabaseData.map(i => i.name).join(', '));
+    console.log(`✅ Extracted ${authData.length} localStorage item(s)`);
+    console.log('   Keys:', authData.map(i => i.name).join(', '));
 
-    return supabaseData;
+    return authData;
   } catch (error) {
     console.error('❌ Error reading Playwright state:', error.message);
     process.exit(1);
@@ -77,7 +77,7 @@ function createInjectionScript(localStorageData) {
 
 (function() {
   ${scriptLines.join('\n  ')}
-  console.log('✅ Supabase auth injected into localStorage');
+  console.log('✅ Auth data injected into localStorage');
 })();
 `;
 
