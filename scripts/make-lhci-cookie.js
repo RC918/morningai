@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PLAYWRIGHT_STATE_FILE = path.join(__dirname, '../frontend-dashboard-deploy/playwright/.auth/storageState.json');
-const OUTPUT_FILE = path.join(__dirname, '../LHCI_EXTRA_HEADERS.json');
+const OUTPUT_FILE = path.join(__dirname, '../frontend-dashboard-deploy/LHCI_EXTRA_HEADERS.json');
 
 function extractCookies() {
   try {
