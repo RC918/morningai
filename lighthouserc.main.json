@@ -1,0 +1,27 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "/",
+        "/login",
+        "/pricing",
+        "/dashboard",
+        "/settings"
+      ],
+      "numberOfRuns": 3,
+      "startServerCommand": "cd frontend-dashboard-deploy && pnpm preview --port 4173",
+      "startServerReadyPattern": "Local:",
+      "settings": {
+        "preset": "desktop",
+        "formFactor": "desktop",
+        "throttlingMethod": "simulate",
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"],
+        "extraHeaders": "LHCI_EXTRA_HEADERS.json"
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lhci"
+    }
+  }
+}
