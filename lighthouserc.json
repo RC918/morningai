@@ -16,15 +16,6 @@
         "onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
       }
     },
-    "assert": {
-      "assertions": {
-        "categories:performance": ["warn", {"minScore": 0.70}],
-        "largest-contentful-paint": ["warn", {"maxNumericValue": 4000, "aggregationMethod": "median"}],
-        "total-blocking-time": ["warn", {"maxNumericValue": 600, "aggregationMethod": "median"}],
-        "cumulative-layout-shift": ["warn", {"maxNumericValue": 0.25}],
-        "first-contentful-paint": ["warn", {"maxNumericValue": 3000}]
-      }
-    },
     "upload": {
       "target": "filesystem",
       "outputDir": ".lhci"

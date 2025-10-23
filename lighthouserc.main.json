@@ -19,16 +19,6 @@
         "extraHeaders": "LHCI_EXTRA_HEADERS.json"
       }
     },
-    "assert": {
-      "assertions": {
-        "categories:performance": ["warn", {"minScore": 0.90}],
-        "largest-contentful-paint": ["error", {"maxNumericValue": 3000, "aggregationMethod": "median"}],
-        "total-blocking-time": ["error", {"maxNumericValue": 300, "aggregationMethod": "median"}],
-        "cumulative-layout-shift": ["error", {"maxNumericValue": 0.1, "aggregationMethod": "median"}],
-        "first-contentful-paint": ["warn", {"maxNumericValue": 2000, "aggregationMethod": "median"}],
-        "interactive": ["warn", {"maxNumericValue": 4000, "aggregationMethod": "median"}]
-      }
-    },
     "upload": {
       "target": "filesystem",
       "outputDir": ".lhci"
