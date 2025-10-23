@@ -83,6 +83,14 @@ jobs:
         if: always()
         run: node ../scripts/make-lhci-pr-comment.js
 
+      - name: Debug - Check if comment file exists
+        if: always()
+        run: |
+          echo "Looking for .lhci-diff.md:"
+          ls -la .lhci-diff.md || echo "File not found"
+          echo "Full directory listing:"
+          ls -la
+
       - name: Post PR comment
         if: always()
         uses: marocchino/sticky-pull-request-comment@v2
