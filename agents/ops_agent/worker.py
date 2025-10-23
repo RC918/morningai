@@ -21,6 +21,18 @@ if ops_agent_dir not in sys.path:
 from orchestrator import RedisQueue, create_redis_queue, UnifiedTask
 from ops_agent_ooda import OpsAgentOODA
 
+governance_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestrator')
+if governance_path not in sys.path:
+    sys.path.insert(0, governance_path)
+
+from governance import (
+    get_cost_tracker,
+    get_reputation_engine,
+    get_permission_checker,
+    CostBudgetExceeded,
+    PermissionDenied
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -64,7 +76,13 @@ class OpsAgentWorker:
         self.ops_agent: Optional[OpsAgentOODA] = None
         self.is_running = False
         
+        self.cost_tracker = get_cost_tracker()
+        self.reputation_engine = get_reputation_engine()
+        self.permission_checker = get_permission_checker()
+        self.agent_id: Optional[str] = None
+        
         logger.info(f"Initialized Ops Agent Worker (Redis: {self.redis_url})")
+        logger.info("✅ Governance modules initialized")
     
     async def start(self):
         """Start the worker"""
@@ -81,6 +99,15 @@ class OpsAgentWorker:
                 enable_alerts=True
             )
             logger.info("✅ Initialized Ops Agent OODA Loop")
+            
+            self.agent_id = self.reputation_engine.get_or_create_agent('ops')
+            if self.agent_id:
+                logger.info(f"✅ Registered with Governance (agent_id: {self.agent_id})")
+                permission_level = self.reputation_engine.get_permission_level(self.agent_id)
+                score = self.reputation_engine.get_reputation_score(self.agent_id)
+                logger.info(f"   Permission Level: {permission_level}, Reputation Score: {score}")
+            else:
+                logger.warning("⚠️ Could not register with Governance (degraded mode)")
             
             await self.queue.subscribe_to_events([
                 "task.created",
@@ -147,6 +174,40 @@ class OpsAgentWorker:
             task: UnifiedTask to execute
         """
         try:
+            if self.agent_id:
+                try:
+                    self.cost_tracker.enforce_budget(task.trace_id, period='daily')
+                    self.cost_tracker.enforce_budget(task.trace_id, period='hourly')
+                    logger.info(f"✅ Budget check passed for task {task.task_id}")
+                except CostBudgetExceeded as e:
+                    logger.error(f"❌ Budget exceeded: {e}")
+                    task.mark_failed(f"Budget exceeded: {e}")
+                    await self.queue.update_task(task)
+                    if self.agent_id:
+                        self.reputation_engine.record_event(
+                            self.agent_id,
+                            'budget_exceeded',
+                            trace_id=task.trace_id,
+                            reason=str(e)
+                        )
+                    return
+                
+                operation = self._map_task_to_operation(task)
+                try:
+                    self.permission_checker.check_permission(self.agent_id, operation)
+                    logger.info(f"✅ Permission check passed for operation: {operation}")
+                except PermissionDenied as e:
+                    logger.error(f"❌ Permission denied: {e}")
+                    task.mark_failed(f"Permission denied: {e}")
+                    await self.queue.update_task(task)
+                    self.reputation_engine.record_event(
+                        self.agent_id,
+                        'permission_denied',
+                        trace_id=task.trace_id,
+                        reason=str(e)
+                    )
+                    return
+            
             task.mark_in_progress()
             await self.queue.update_task(task)
             
@@ -178,6 +239,27 @@ class OpsAgentWorker:
             if result.get('success'):
                 task.mark_completed()
                 task.metadata['result'] = result.get('result', {})
+                
+                if self.agent_id:
+                    tokens_used = result.get('tokens_used', 1000)
+                    cost_usd = self.cost_tracker.estimate_cost(tokens_used)
+                    self.cost_tracker.track_usage(
+                        trace_id=task.trace_id,
+                        tokens=tokens_used,
+                        cost_usd=cost_usd,
+                        model='gpt-4',
+                        operation=task.type.value
+                    )
+                    
+                    self.reputation_engine.record_event(
+                        self.agent_id,
+                        'task_success',
+                        trace_id=task.trace_id,
+                        reason=f"Successfully completed {task.type.value} task",
+                        metadata={'task_id': task.task_id, 'task_type': task.type.value}
+                    )
+                    logger.info(f"✅ Recorded reputation event: task_success")
+                
                 await self.queue.update_task(task)
                 
                 await self.queue.publish_event(
@@ -196,6 +278,16 @@ class OpsAgentWorker:
             else:
                 error = result.get('error', 'Unknown error')
                 task.mark_failed(error)
+                
+                if self.agent_id:
+                    self.reputation_engine.record_event(
+                        self.agent_id,
+                        'task_failure',
+                        trace_id=task.trace_id,
+                        reason=f"Task failed: {error}",
+                        metadata={'task_id': task.task_id, 'task_type': task.type.value}
+                    )
+                
                 await self.queue.update_task(task)
                 
                 await self.queue.publish_event(
@@ -215,6 +307,16 @@ class OpsAgentWorker:
             logger.error(f"Exception executing task {task.task_id}: {e}")
             
             task.mark_failed(str(e))
+            
+            if self.agent_id:
+                self.reputation_engine.record_event(
+                    self.agent_id,
+                    'task_failure',
+                    trace_id=task.trace_id,
+                    reason=f"Exception: {str(e)}",
+                    metadata={'task_id': task.task_id, 'task_type': task.type.value}
+                )
+            
             await self.queue.update_task(task)
             
             await self.queue.publish_event(
@@ -227,6 +329,40 @@ class OpsAgentWorker:
                 },
                 trace_id=task.trace_id
             )
+    
+    def _map_task_to_operation(self, task: UnifiedTask) -> str:
+        """
+        Map UnifiedTask to governance operation name
+        
+        Args:
+            task: UnifiedTask
+        
+        Returns:
+            str: Operation name for permission checking
+        """
+        task_type = task.type.value
+        payload = task.payload
+        
+        if task_type == "deploy":
+            environment = payload.get("environment", "production")
+            if environment == "production":
+                return "deploy_prod"
+            elif environment == "staging":
+                return "deploy_staging"
+            else:
+                return "deploy_sandbox"
+        
+        elif task_type == "monitor":
+            return "monitor_system"
+        
+        elif task_type == "alert":
+            return "manage_alerts"
+        
+        elif task_type == "investigate":
+            return "investigate_issues"
+        
+        else:
+            return "execute_task"
     
     def _map_task_to_description(self, task: UnifiedTask) -> str:
         """
