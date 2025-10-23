@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
 import LoginPage from '@/components/LoginPage'
+import SignupPage from '@/components/SignupPage'
 import LandingPage from '@/components/LandingPage'
 import WIPPage from '@/components/WIPPage'
 import { TenantProvider } from '@/contexts/TenantContext'
@@ -205,6 +206,7 @@ function AppContent() {
               <Routes>
                 <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
                 <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+                <Route path="/signup" element={<SignupPage />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

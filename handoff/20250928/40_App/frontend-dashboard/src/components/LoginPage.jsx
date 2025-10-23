@@ -303,6 +303,13 @@ const LoginPage = ({ onLogin }) => {
                 </div>
               </div>
 
+              <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-600">
+                {t('auth.login.noAccount', '還沒有帳號？')}{' '}
+                <Link to="/signup" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                  {t('auth.login.signupLink', '註冊')}
+                </Link>
+              </div>
+
               <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h4>
                 <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
