@@ -25,6 +25,13 @@ Testing Branch Protection Rules enforcement with required status checks.
 - [管理腳本指南](docs/scripts_overview.md) - 標準化管理腳本的使用方式與安全注意事項
 - [環境變數 Schema](docs/config/env_schema.md) - 完整的環境變數配置說明（53 個變數）
 
+## 核心文檔
+
+- [Agent Governance Framework](docs/GOVERNANCE_FRAMEWORK.md) - 多代理系統治理框架（成本追蹤、權限管理、聲譽系統）
+- [Worker Deployment Troubleshooting](docs/WORKER_DEPLOYMENT_TROUBLESHOOTING.md) - Worker 部署故障排除指南
+- [Architecture](docs/ARCHITECTURE.md) - 系統架構文檔
+- [Monitoring Setup](docs/MONITORING_SETUP.md) - 監控設置指南
+
 ## Milestones
 - Phase 9 - Commercialization & PWA
 - Phase 10 - Governance & Compliance
