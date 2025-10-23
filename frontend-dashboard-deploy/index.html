@@ -11,8 +11,24 @@
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://api.dicebear.com" />
     
-    <!-- Preconnect to critical origins -->
+    <!-- Font preloading with font-display: swap -->
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" /></noscript>
+    
+    <!-- Preload critical images -->
+    <link rel="preload" as="image" href="/hero.jpg" imagesrcset="/hero@2x.jpg 2x" />
+    
+    <!-- Critical CSS will be inlined here by Vite plugin -->
+    <style id="critical-css">
+      /* Critical above-the-fold styles */
+      *,::before,::after{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}
+      html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:Inter,system-ui,sans-serif;font-feature-settings:normal;font-variation-settings:normal}
+      body{margin:0;line-height:inherit}
+      #root{min-height:100vh;display:flex;flex-direction:column}
+    </style>
     
     <title>MorningAI - 智能運營平台</title>
   </head>
