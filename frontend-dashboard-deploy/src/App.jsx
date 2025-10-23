@@ -67,10 +67,34 @@ function AppContent() {
 
     window.addEventListener('api-error', handleApiError)
 
-    // 檢查用戶認證狀態
+    const safeLocalStorage = {
+      getItem: (key) => {
+        try {
+          return localStorage.getItem(key)
+        } catch (e) {
+          console.warn(`localStorage.getItem failed for key "${key}":`, e.message)
+          return null
+        }
+      },
+      setItem: (key, value) => {
+        try {
+          localStorage.setItem(key, value)
+        } catch (e) {
+          console.warn(`localStorage.setItem failed for key "${key}":`, e.message)
+        }
+      },
+      removeItem: (key) => {
+        try {
+          localStorage.removeItem(key)
+        } catch (e) {
+          console.warn(`localStorage.removeItem failed for key "${key}":`, e.message)
+        }
+      }
+    }
+
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem('auth_token')
+        const token = safeLocalStorage.getItem('auth_token')
         if (token) {
           const userData = await apiClient.verifyAuth()
           setUser(userData)
@@ -78,7 +102,7 @@ function AppContent() {
         }
       } catch (error) {
         console.error('認證檢查失敗:', error)
-        localStorage.removeItem('auth_token')
+        safeLocalStorage.removeItem('auth_token')
         setUser({
           id: 'dev_user',
           name: 'Ryan Chen',
@@ -97,15 +121,16 @@ function AppContent() {
     applyDesignTokens()
 
     const handleFirstValueOperation = (event) => {
-      const firstLoginTime = localStorage.getItem('first_login_time')
+      const firstLoginTime = safeLocalStorage.getItem('first_login_time')
       if (firstLoginTime) {
         const ttv = Date.now() - parseInt(firstLoginTime, 10)
+        const currentUser = useAppStore.getState().user
         const ttvData = {
           ttv_ms: ttv,
           operation: event.detail?.operation || 'unknown',
           timestamp: new Date().toISOString(),
-          user_id: user?.id,
-          tenant_id: user?.tenant_id
+          user_id: currentUser?.id,
+          tenant_id: currentUser?.tenant_id
         }
         
         if (window.Sentry) {
@@ -115,7 +140,7 @@ function AppContent() {
           })
         }
         
-        localStorage.removeItem('first_login_time')
+        safeLocalStorage.removeItem('first_login_time')
       }
     }
 
@@ -125,15 +150,34 @@ function AppContent() {
       window.removeEventListener('api-error', handleApiError)
       window.removeEventListener('first-value-operation', handleFirstValueOperation)
     }
-  }, [addToast, setUser, user])
+  }, [addToast, setUser])
 
   const handleLogin = (userData, token) => {
     setUser(userData)
     setIsAuthenticated(true)
-    localStorage.setItem('auth_token', token)
     
-    if (!localStorage.getItem('first_login_time')) {
-      localStorage.setItem('first_login_time', Date.now().toString())
+    const safeLocalStorage = {
+      getItem: (key) => {
+        try {
+          return localStorage.getItem(key)
+        } catch (e) {
+          console.warn(`localStorage.getItem failed for key "${key}":`, e.message)
+          return null
+        }
+      },
+      setItem: (key, value) => {
+        try {
+          localStorage.setItem(key, value)
+        } catch (e) {
+          console.warn(`localStorage.setItem failed for key "${key}":`, e.message)
+        }
+      }
+    }
+    
+    safeLocalStorage.setItem('auth_token', token)
+    
+    if (!safeLocalStorage.getItem('first_login_time')) {
+      safeLocalStorage.setItem('first_login_time', Date.now().toString())
     }
     
     addToast({
@@ -153,7 +197,13 @@ function AppContent() {
       tenant_id: 'tenant_001'
     })
     setIsAuthenticated(false)
-    localStorage.removeItem('auth_token')
+    
+    try {
+      localStorage.removeItem('auth_token')
+    } catch (e) {
+      console.warn('localStorage.removeItem failed:', e.message)
+    }
+    
     addToast({
       title: "已登出",
       description: "您已成功登出系統",

@@ -188,13 +188,11 @@ const useAppStore = create(
             })
           }
           
+          const { [pathId]: _, ...remainingPaths } = state.pathTracking.activePaths
           set(state => ({
             pathTracking: {
               ...state.pathTracking,
-              activePaths: {
-                ...state.pathTracking.activePaths,
-                [pathId]: { ...path, status: 'completed', duration }
-              }
+              activePaths: remainingPaths
             }
           }))
         }
@@ -221,13 +219,11 @@ const useAppStore = create(
             })
           }
           
+          const { [pathId]: _, ...remainingPaths } = state.pathTracking.activePaths
           set(state => ({
             pathTracking: {
               ...state.pathTracking,
-              activePaths: {
-                ...state.pathTracking.activePaths,
-                [pathId]: { ...path, status: 'failed', duration, error: error?.message }
-              }
+              activePaths: remainingPaths
             }
           }))
         }

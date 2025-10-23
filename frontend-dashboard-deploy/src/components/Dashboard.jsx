@@ -18,6 +18,7 @@ import { DashboardSkeleton } from '@/components/feedback/ContentSkeleton'
 import LiveRegion from '@/components/LiveRegion'
 import apiClient from '@/lib/api'
 import { safeInterval } from '@/lib/safeInterval'
+import useAppStore from '@/stores/appStore'
 
 const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
   const [{ isDragging }, drag] = useDrag({
@@ -60,6 +61,7 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) =>
 }
 
 const Dashboard = () => {
+  const { trackPathStart, trackPathComplete, trackPathFail } = useAppStore()
   const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
   const [showReportCenter, setShowReportCenter] = useState(false)
@@ -181,6 +183,7 @@ const Dashboard = () => {
 
 
   const saveDashboardLayout = async () => {
+    const pathId = trackPathStart('dashboard_save_layout')
     setSaveStatus('saving')
     try {
       await apiClient.request('/dashboard/layouts', {
@@ -191,10 +194,16 @@ const Dashboard = () => {
         })
       })
       setSaveStatus('success')
+      trackPathComplete(pathId)
       setTimeout(() => setSaveStatus('idle'), 2000)
+      
+      window.dispatchEvent(new CustomEvent('first-value-operation', {
+        detail: { operation: 'dashboard_save_layout' }
+      }))
     } catch (error) {
       console.error('Failed to save dashboard layout:', error)
       setSaveStatus('error')
+      trackPathFail(pathId, error)
       setTimeout(() => setSaveStatus('idle'), 3000)
     }
   }
