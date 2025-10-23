@@ -16,6 +16,33 @@ Testing Branch Protection Rules enforcement with required status checks.
 ![Coverage](https://img.shields.io/badge/coverage-41.61%25-yellow)
 ![Tests](https://img.shields.io/badge/tests-100%20passed-brightgreen)
 
+## 架構概覽
+
+MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割：
+
+### 前端應用
+
+1. **Owner Console** (`handoff/20250928/40_App/owner-console/`)
+   - 獨立的平台管理控制台
+   - 僅 Owner 角色可訪問
+   - 功能：Agent Governance、Tenant Management、System Monitoring、Platform Settings
+   - 部署 URL: `admin.morningai.com` 或 `owner.morningai.com`
+
+2. **Tenant Dashboard** (`handoff/20250928/40_App/frontend-dashboard/`)
+   - 租戶使用的主要界面
+   - 租戶用戶可訪問
+   - 功能：Dashboard、Strategies、Approvals、History、Costs
+   - 部署 URL: `dashboard.morningai.com` 或 `app.morningai.com`
+
+### 後端 API
+
+- **API Backend** (`handoff/20250928/40_App/api-backend/`)
+  - 共享後端服務
+  - 基於角色的權限控制 (RLS)
+  - Owner 專屬 endpoints: `/api/governance/*`, `/api/tenants/*`, `/api/monitoring/*`
+
+詳細架構文檔：[Owner Console README](handoff/20250928/40_App/owner-console/README.md)
+
 ## 開發貢獻流程
 
 請參閱以下文件了解專案的開發規範與 CI/CD 流程：
