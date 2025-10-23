@@ -1,80 +1,56 @@
-# E2E Testing in MorningAI
+# Handling Redis Outage in MorningAI
 
-End-to-End (E2E) testing is a crucial part of the MorningAI development lifecycle. It ensures that the system operates as expected from start to finish, mimicking real-user scenarios and interactions. This section provides a comprehensive guide to understanding and implementing E2E tests within the MorningAI platform.
+In the event of a Redis outage, MorningAI's real-time task orchestration and queue management functionalities may be affected. This FAQ provides guidance on understanding the impact of a Redis outage on MorningAI and outlines steps to mitigate issues.
 
-## Overview
+## Understanding the Impact of a Redis Outage
 
-E2E tests simulate real user scenarios, typically involving the entire application from the frontend through to the backend, including its integration with external services. For MorningAI, this means testing the interaction between the React frontend, Flask backend, Redis Queue, and PostgreSQL database, among other components.
+Redis Queue (RQ) is integral to MorningAI for managing background tasks and orchestrating real-time operations. An outage can result in:
+- Delays or failures in executing asynchronous tasks.
+- Interruptions in real-time data processing and task orchestration.
+- Potential inconsistencies in task status tracking.
 
-### Why E2E Testing?
+### Code Example: Monitoring Redis Queue Health
 
-- **Holistic Approach**: Validates the integrated operation of components.
-- **User Experience**: Ensures the application behaves as expected in real-world scenarios.
-- **Regression Detection**: Identifies issues introduced by changes in the codebase.
+To monitor the health of your Redis Queue, you can implement a simple health check endpoint in your Flask application:
 
-## Implementing E2E Tests
+```python
+from flask import Flask, jsonify
+import redis
 
-MorningAI uses [Cypress](https://www.cypress.io/) and [Selenium](https://www.selenium.dev/) for E2E testing. Below is a basic example of how to set up a Cypress test in MorningAI.
+app = Flask(__name__)
 
-### Setup Cypress
+@app.route('/health/redis', methods=['GET'])
+def check_redis():
+    try:
+        r = redis.Redis(host='localhost', port=6379, db=0)
+        r.ping()
+        return jsonify({"status": "Redis is up"}), 200
+    except redis.ConnectionError:
+        return jsonify({"status": "Redis is down"}), 503
 
-1. Install Cypress via npm:
-```bash
-npm install cypress --save-dev
+if __name__ == '__main__':
+    app.run(debug=True)
 ```
 
-2. Add a script in your `package.json` to open Cypress:
-```json
-{
-  "scripts": {
-    "cypress:open": "cypress open"
-  }
-}
-```
+This endpoint attempts to ping your Redis instance and returns the status accordingly.
 
-3. Run Cypress for the first time:
-```bash
-npm run cypress:open
-```
+## Related Documentation Links
 
-### Example Test Case
-
-Create a new file under `cypress/integration/morningai_login_spec.js` with the following content:
-
-```javascript
-describe('MorningAI Login Test', function() {
-  it('Visits the login page and logs in', function() {
-    cy.visit('/login') // Adjust this URL to your application's login page
-    cy.get('input[name=username]').type('user@example.com')
-    cy.get('input[name=password]').type('password123{enter}')
-
-    // Assert that dashboard page is reached
-    cy.url().should('include', '/dashboard')
-  })
-})
-```
-
-### Running Tests
-
-To run your tests, use:
-
-```bash
-npm run cypress:open
-```
-Then select `morningai_login_spec.js` from the Cypress UI to execute your test.
-
-## Related Documentation
-
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Selenium Documentation: [https://www.selenium.dev/documentation/](https://www.selenium.dev/documentation/)
+- Redis Queue (RQ) Documentation: [https://python-rq.org/docs/](https://python-rq.org/docs/)
+- Flask Documentation for creating endpoints: [https://flask.palletsprojects.com/en/2.0.x/quickstart/](https://flask.palletsprojects.com/en/2.0.x/quickstart/)
+- Redis Command Reference: [https://redis.io/commands](https://redis.io/commands)
 
 ## Common Troubleshooting Tips
 
-- **Timeout Errors**: Increase default timeout settings in Cypress if your application takes longer to respond.
-- **Flaky Tests**: Ensure your test environment is stable and consistent. Use static data where possible and avoid relying on external services without mocking/stubbing them.
-- **Element Not Found**: Make sure your selectors are correct and specific enough. Also, ensure elements are rendered before attempting to interact with them.
+1. **Verify Redis Server Status**: Ensure that your Redis server is running by using the command `redis-cli ping`. If it's running, you should receive a `PONG` response.
+2. **Check Network Connectivity**: Sometimes, network issues can cause disruptions in connecting to the Redis server. Verify network connectivity and firewall rules.
+3. **Review Application Logs**: Check your application logs for any error messages related to Redis connections or task executions. This can provide insights into what might be causing the issue.
+4. **Restart Services**: In some cases, restarting your Flask application and the Redis service can resolve transient issues.
+5. **Backup and Restore**: Ensure you have recent backups of your Redis data. In case of data corruption or loss during an outage, you'll be able to restore from a backup.
 
-Incorporating E2E testing into your development process significantly enhances product reliability and user satisfaction by catching bugs that unit or integration tests may miss. For more detailed guidance on writing E2E tests or configuring your testing environment, refer to the official documentation of Cypress and Selenium linked above.
+For further details on configuring and managing your Redis instances with MorningAI, refer to the documentation in `RC918/morningai/docs/setup.md`.
+
+Remember, while handling outages, maintaining clear communication within your team and implementing robust monitoring will significantly aid in quick resolution.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -82,7 +58,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `6baa5675-0031-4ef3-9eb0-bc9232031d08`
+- Task: Test question during Redis outage
+- Trace ID: `8a2972ac-e4f7-41c5-8de0-cf308f3b0b66`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
