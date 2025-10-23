@@ -143,17 +143,6 @@ jobs:
       - name: Build application
         run: pnpm build
 
-      - name: Setup Playwright authentication
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
-          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-        run: |
-          pnpm exec playwright install --with-deps chromium
-          pnpm exec playwright test tests/auth.setup.spec.ts
-          node ../scripts/make-lhci-cookie.js
-
       - name: Start preview server
         run: |
           pnpm preview --port 4173 &
@@ -172,6 +161,17 @@ jobs:
           done
           echo "Server failed to start within 120 seconds"
           exit 1
+
+      - name: Setup Playwright authentication
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test tests/auth.setup.spec.ts
+          node ../scripts/make-lhci-cookie.js
 
       - name: Run Lighthouse CI (main - accurate)
         run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=3
