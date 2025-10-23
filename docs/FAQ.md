@@ -1,72 +1,77 @@
-# E2E Testing in MorningAI
+# Handling Redis Outage in MorningAI
 
-End-to-end (E2E) testing is a crucial aspect of ensuring the reliability and functionality of the MorningAI platform. This FAQ aims to guide developers through the process of setting up, running, and troubleshooting E2E tests within the MorningAI environment.
+When encountering a Redis outage, it's crucial for developers working with MorningAI to understand how it impacts the platform and what steps can be taken to mitigate issues. Redis Queue (RQ) is integral for task orchestration and real-time job processing in MorningAI. This section outlines how to navigate through a Redis outage effectively.
 
-## What is E2E Testing?
+## Understanding the Impact of a Redis Outage
 
-E2E testing involves testing the entire software application from start to finish. It ensures that all integrated components function together as expected in a scenario that mimics real-world usage. In the context of MorningAI, E2E tests validate the interactions between the autonomous agent system, FAQ generation, documentation management, multi-platform integration, and real-time task orchestration.
+Redis, being a central component of MorningAI's task queue system, is used for managing background jobs and real-time task orchestration. An outage can lead to:
 
-## Setting Up E2E Tests
+- Inability to process new tasks.
+- Interruption in ongoing task execution.
+- Delays or failures in multi-platform integration messaging.
 
-Before running E2E tests, ensure your development environment is correctly set up:
+## Mitigation Strategies
 
-1. Install all necessary dependencies:
-   - Ensure Node.js and npm are installed.
-   - Install Cypress or your chosen E2E testing framework.
+### 1. Immediate Action Plan
 
-```bash
-npm install cypress --save-dev
+Upon detecting a Redis outage, follow these initial steps:
+
+- **Verify the scope of the outage**: Confirm if the issue is with Redis itself or network-related.
+- **Check the status of Redis Queue workers**: Utilize heartbeat monitoring to assess worker status.
+
+```python
+# Example command to check RQ worker status
+rq info --url redis://:password@hostname:port
 ```
 
-2. Configure your test scripts in `package.json`:
+### 2. Fallback Mechanisms
 
-```json
-"scripts": {
-  "e2e": "cypress open"
-}
+Implement fallback mechanisms to ensure minimal disruption:
+
+- **Queue Redundancy**: Have a secondary Redis instance or alternative queuing system as backup.
+- **Retry Logic**: Implement automatic retry mechanisms for failed tasks once Redis is back online.
+
+### 3. Communication with Stakeholders
+
+Keep stakeholders informed about the outage and expected resolution time.
+
+### 4. Post-Outage Review
+
+After resolving the issue, conduct a post-mortem analysis to identify root causes and prevent future outages.
+
+## Code Adjustments
+
+In your Python Flask backend, ensure you have try-except blocks around tasks that enqueue jobs to handle exceptions gracefully:
+
+```python
+from rq import Queue
+from redis import Redis
+from my_module import handle_task
+
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+
+try:
+    job = q.enqueue(handle_task, 'http://example.com')
+except ConnectionError:
+    # Implement fallback logic here
+    pass
 ```
 
-3. Ensure your application and any dependent services (like Redis Queue or PostgreSQL) are running either locally or in a test environment accessible to the testing framework.
+## Related Documentation Links
 
-## Writing E2E Tests
+For more detailed information on configuring and managing RQ within Flask applications, refer to:
 
-When writing E2E tests for MorningAI, consider scenarios that involve multiple components interacting with each other. Here's an example using Cypress for a test case that verifies successful user login through the UI:
+- [Redis Queue (RQ) Documentation](http://python-rq.org/docs/)
+- [Flask-RQ2 Extension](https://flask-rq2.readthedocs.io/en/latest/)
 
-```javascript
-describe('Login Test', () => {
-  it('Successfully logs in', () => {
-    cy.visit('/login');
-    cy.get('input[name="username"]').type('testuser');
-    cy.get('input[name="password"]').type('password123');
-    cy.get('button[type="submit"]').click();
+## Common Troubleshooting Tips
 
-    // Verify login by checking if the dashboard is visible
-    cy.url().should('include', '/dashboard');
-  });
-});
-```
+- **Connection Issues**: Verify that your Redis instance is running and accessible. Check firewall rules and network policies.
+- **Worker Not Processing Jobs**: Ensure that your RQ workers are running. Restart workers if necessary.
+- **Tasks Failing Silently**: Enable verbose logging for both RQ workers and your Flask application to capture errors.
 
-## Running E2E Tests
-
-To run your E2E tests, execute the test script defined in `package.json`:
-
-```bash
-npm run e2e
-```
-
-This will launch the Cypress Test Runner, from which you can select and run individual test suites or all tests.
-
-## Troubleshooting Common Issues
-
-- **Tests Fail to Connect to Local Services**: Ensure all services (backend server, Redis Queue, etc.) are running before executing tests. Check service logs for any startup errors.
-- **Flaky Tests**: Flaky tests often result from timing issues or assumptions about state. Use Cypress commands like `cy.wait()` sparingly and ensure your tests reset state before each test where feasible.
-- **Database State**: For tests involving database operations, consider using tools like pgvector/Supabase for vector memory storage with rollback capabilities to reset database state before each test suite runs.
-
-For more detailed guidance on writing and troubleshooting specific types of tests within MorningAI's architecture, refer to our developer documentation:
-- [Cypress Documentation](https://docs.cypress.io)
-- [MorningAI Developer Guides](https://github.com/RC918/morningai/docs/developer_guides)
-
-Remember, consistent and comprehensive E2E testing is key to maintaining high-quality software delivery pipelines. Ensuring your tests cover critical user journeys can significantly reduce bugs and improve user satisfaction with MorningAI.
+By following these guidelines, developers can better manage and recover from Redis outages in MorningAI, ensuring smoother operation and reliability of the platform.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +79,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `22f3b3b4-f803-4b4b-8f79-fbd2bd3be564`
+- Task: Test question during Redis outage
+- Trace ID: `04170fb3-3980-4d4b-95e0-866cc6dfda63`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
