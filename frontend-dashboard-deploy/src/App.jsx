@@ -13,6 +13,7 @@ import { PageLoader } from '@/components/feedback/PageLoader'
 import { OfflineIndicator } from '@/components/feedback/OfflineIndicator'
 import { applyDesignTokens } from '@/lib/design-tokens'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
+import { AB_TESTS, getABTestVariant, trackABTestMetrics, collectWebVitals } from '@/lib/ab-testing'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
 import '@/i18n/config'
@@ -67,7 +68,6 @@ function AppContent() {
 
     window.addEventListener('api-error', handleApiError)
 
-    // 檢查用戶認證狀態
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token')
@@ -95,6 +95,20 @@ function AppContent() {
 
     checkAuth()
     applyDesignTokens()
+
+    const variant = getABTestVariant(AB_TESTS.PERFORMANCE_OPTIMIZATIONS.id)
+    console.log('[AB Test] Performance optimization variant:', variant)
+
+    if (window.performance && window.performance.timing) {
+      window.addEventListener('load', async () => {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        const metrics = await collectWebVitals()
+        trackABTestMetrics(AB_TESTS.PERFORMANCE_OPTIMIZATIONS.id, metrics)
+        
+        console.log('[Performance] Web Vitals collected:', metrics)
+      })
+    }
 
     return () => {
       window.removeEventListener('api-error', handleApiError)
