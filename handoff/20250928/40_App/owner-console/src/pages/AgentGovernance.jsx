@@ -63,10 +63,10 @@ const AgentGovernance = () => {
 
   const getPermissionLevelLabel = (level) => {
     const labels = {
-      'prod_full_access': 'Production Full',
-      'prod_low_risk': 'Production Low Risk',
+      'prod_full_access': 'Prod Full',
+      'prod_low_risk': 'Prod Low Risk',
       'staging_access': 'Staging',
-      'sandbox_only': 'Sandbox Only'
+      'sandbox_only': 'Sandbox'
     }
     return labels[level] || level
   }
@@ -203,7 +203,7 @@ const AgentGovernance = () => {
                           <p className="text-2xl font-bold text-gray-900">{agent.reputation_score}</p>
                           <p className="text-sm text-gray-600">Reputation</p>
                         </div>
-                        <Badge className={getPermissionLevelColor(agent.permission_level)}>
+                        <Badge className={`${getPermissionLevelColor(agent.permission_level)} max-w-[140px] truncate`}>
                           {getPermissionLevelLabel(agent.permission_level)}
                         </Badge>
                       </div>

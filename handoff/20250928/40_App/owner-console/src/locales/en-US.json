@@ -36,7 +36,25 @@
   },
   "settings": {
     "title": "Platform Settings",
-    "subtitle": "Configure platform-wide settings"
+    "subtitle": "Configure platform-wide settings and policies",
+    "general": {
+      "title": "General Settings",
+      "subtitle": "Platform-wide configuration options",
+      "platformName": "Platform Name",
+      "supportEmail": "Support Email",
+      "saveChanges": "Save Changes"
+    },
+    "security": {
+      "title": "Security Policies",
+      "subtitle": "Configure security and compliance settings",
+      "requireMFA": "Require MFA",
+      "requireMFADesc": "Enforce multi-factor authentication for all users",
+      "sessionTimeout": "Session Timeout",
+      "sessionTimeoutDesc": "Auto-logout after inactivity",
+      "30minutes": "30 minutes",
+      "1hour": "1 hour",
+      "4hours": "4 hours"
+    }
   },
   "common": {
     "loading": "Loading...",

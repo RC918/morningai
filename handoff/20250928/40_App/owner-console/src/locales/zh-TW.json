@@ -36,7 +36,25 @@
   },
   "settings": {
     "title": "平台設定",
-    "subtitle": "配置平台全域設定"
+    "subtitle": "配置平台全域設定與政策",
+    "general": {
+      "title": "一般設定",
+      "subtitle": "平台全域配置選項",
+      "platformName": "平台名稱",
+      "supportEmail": "支援電子郵件",
+      "saveChanges": "儲存變更"
+    },
+    "security": {
+      "title": "安全政策",
+      "subtitle": "配置安全與合規設定",
+      "requireMFA": "要求 MFA",
+      "requireMFADesc": "對所有使用者強制執行多因素驗證",
+      "sessionTimeout": "工作階段逾時",
+      "sessionTimeoutDesc": "閒置後自動登出",
+      "30minutes": "30 分鐘",
+      "1hour": "1 小時",
+      "4hours": "4 小時"
+    }
   },
   "common": {
     "loading": "載入中...",
