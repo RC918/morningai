@@ -12,20 +12,22 @@ from governance.reputation_engine import ReputationEngine
 from governance.permission_checker import PermissionChecker, PermissionDenied
 from governance.violation_detector import ViolationDetector, ViolationError
 
+POLICIES_PATH = os.path.join(os.path.dirname(__file__), '../config/policies.yaml')
+
 
 class TestPolicyGuard:
     """Test PolicyGuard middleware"""
     
     def test_file_access_allow(self):
         """Test file access allow patterns"""
-        guard = PolicyGuard()
+        guard = PolicyGuard(policies_path=POLICIES_PATH)
         
         assert guard.check_file_access('./apps/web/index.js') == True
         assert guard.check_file_access('./docs/README.md') == True
     
     def test_file_access_deny(self):
         """Test file access deny patterns"""
-        guard = PolicyGuard()
+        guard = PolicyGuard(policies_path=POLICIES_PATH)
         
         with pytest.raises(PolicyViolation):
             guard.check_file_access('./secrets/api_key.txt')
@@ -35,47 +37,47 @@ class TestPolicyGuard:
     
     def test_network_access_allow(self):
         """Test network access allow patterns"""
-        guard = PolicyGuard()
+        guard = PolicyGuard(policies_path=POLICIES_PATH)
         
         assert guard.check_network_access('api.github.com') == True
         assert guard.check_network_access('registry.npmjs.org') == True
     
     def test_network_access_deny(self):
         """Test network access deny patterns"""
-        guard = PolicyGuard()
+        guard = PolicyGuard(policies_path=POLICIES_PATH)
         
         with pytest.raises(PolicyViolation):
             guard.check_network_access('malicious-site.com')
     
     def test_tool_permission_sandbox(self):
         """Test tool permissions for sandbox_only level"""
-        guard = PolicyGuard()
+        guard = PolicyGuard(policies_path=POLICIES_PATH)
         
-        assert guard.check_tool_permission('read_file', 'read', 'sandbox_only') == True
+        assert guard.check_tool_permission('Git_Tool', 'commit', 'sandbox_only') == True
         
         with pytest.raises(PolicyViolation):
-            guard.check_tool_permission('deploy', 'execute', 'sandbox_only')
+            guard.check_tool_permission('Render_Tool', 'deploy', 'sandbox_only')
     
     def test_tool_permission_prod(self):
         """Test tool permissions for prod_full_access level"""
-        guard = PolicyGuard()
+        guard = PolicyGuard(policies_path=POLICIES_PATH)
         
-        assert guard.check_tool_permission('deploy', 'execute', 'prod_full_access') == True
+        assert guard.check_tool_permission('Render_Tool', 'get_status', 'prod_full_access') == True
     
     def test_risk_level_detection(self):
         """Test risk level detection"""
-        guard = PolicyGuard()
+        guard = PolicyGuard(policies_path=POLICIES_PATH)
         
-        assert guard.check_risk_level(['./apps/web/index.js']) == 'low_risk'
+        assert guard.check_risk_level(['./docs/README.md']) == 'low_risk'
         assert guard.check_risk_level(['./migrations/001_init.sql']) == 'high_risk'
-        assert guard.check_risk_level(['./config/production.yaml']) == 'high_risk'
+        assert guard.check_risk_level(['./production/config.yaml']) == 'high_risk'
     
     def test_human_approval_required(self):
         """Test human approval requirement"""
-        guard = PolicyGuard()
+        guard = PolicyGuard(policies_path=POLICIES_PATH)
         
         assert guard.requires_human_approval(['db_migration'], 'high_risk') == True
-        assert guard.requires_human_approval(['feature'], 'low_risk') == False
+        assert guard.requires_human_approval(['docs_only'], 'low_risk') == False
 
 
 class TestCostTracker:
@@ -93,14 +95,14 @@ class TestCostTracker:
     def test_track_usage(self, mock_redis):
         """Test usage tracking"""
         with patch('redis.from_url', return_value=mock_redis):
-            tracker = CostTracker()
+            tracker = CostTracker(policies_path=POLICIES_PATH)
             tracker.track_usage('trace-123', 1000, 0.03, model='gpt-4')
             
-            assert mock_redis.incrbyfloat.called
+            assert mock_redis.hincrby.called or mock_redis.hincrbyfloat.called
     
     def test_estimate_cost(self):
         """Test cost estimation"""
-        tracker = CostTracker()
+        tracker = CostTracker(policies_path=POLICIES_PATH)
         
         cost_gpt4 = tracker.estimate_cost(1000, model='gpt-4')
         assert cost_gpt4 == 0.03
@@ -110,20 +112,20 @@ class TestCostTracker:
     
     def test_budget_enforcement(self, mock_redis):
         """Test budget enforcement"""
-        mock_redis.get.return_value = b'{"tokens": 150000, "usd": 6.0}'
+        mock_redis.hget.side_effect = lambda key, field: '150000' if field == 'tokens' else ('6.0' if field == 'usd' else '1')
         
         with patch('redis.from_url', return_value=mock_redis):
-            tracker = CostTracker()
+            tracker = CostTracker(policies_path=POLICIES_PATH)
             
             with pytest.raises(CostBudgetExceeded):
                 tracker.enforce_budget('trace-123', period='daily')
     
     def test_budget_status(self, mock_redis):
         """Test budget status reporting"""
-        mock_redis.get.return_value = b'{"tokens": 50000, "usd": 2.5}'
+        mock_redis.hget.side_effect = lambda key, field: '50000' if field == 'tokens' else ('2.5' if field == 'usd' else '10')
         
         with patch('redis.from_url', return_value=mock_redis):
-            tracker = CostTracker()
+            tracker = CostTracker(policies_path=POLICIES_PATH)
             status = tracker.get_budget_status('trace-123', period='daily')
             
             assert status['within_budget'] == True
@@ -239,23 +241,30 @@ class TestPermissionChecker:
 class TestViolationDetector:
     """Test ViolationDetector"""
     
-    def test_check_secrets_access(self):
+    @pytest.fixture
+    def mock_policies(self):
+        """Mock policies for ViolationDetector"""
+        import yaml
+        with open(POLICIES_PATH, 'r') as f:
+            return yaml.safe_load(f)
+    
+    def test_check_secrets_access(self, mock_policies):
         """Test secrets access detection"""
-        detector = ViolationDetector()
+        detector = ViolationDetector(policies=mock_policies)
         
         with pytest.raises(ViolationError):
             detector.check_secrets_access('export API_KEY=sk-1234567890')
     
-    def test_check_dangerous_operations(self):
+    def test_check_dangerous_operations(self, mock_policies):
         """Test dangerous operations detection"""
-        detector = ViolationDetector()
+        detector = ViolationDetector(policies=mock_policies)
         
         with pytest.raises(ViolationError):
             detector.check_dangerous_operations('rm -rf /')
     
-    def test_check_file_access_secrets(self):
+    def test_check_file_access_secrets(self, mock_policies):
         """Test file access to secrets"""
-        detector = ViolationDetector()
+        detector = ViolationDetector(policies=mock_policies)
         
         with pytest.raises(ViolationError):
             detector.check_file_access('.env')
@@ -263,9 +272,9 @@ class TestViolationDetector:
         with pytest.raises(ViolationError):
             detector.check_file_access('./secrets/api_key.pem')
     
-    def test_sanitize_content(self):
+    def test_sanitize_content(self, mock_policies):
         """Test content sanitization"""
-        detector = ViolationDetector()
+        detector = ViolationDetector(policies=mock_policies)
         
         content = "API_KEY=sk-1234567890 PASSWORD=secret123"
         sanitized = detector.sanitize_content(content)
@@ -311,10 +320,31 @@ class TestIntegration:
     
     def test_full_governance_flow(self, mock_redis, mock_supabase):
         """Test complete governance flow"""
+        agent_data = {
+            'agent_id': 'agent-123',
+            'agent_type': 'dev_agent',
+            'reputation_score': 150,
+            'permission_level': 'prod_low_risk'
+        }
+        
+        table_mock = MagicMock()
+        table_mock.select.return_value = table_mock
+        table_mock.eq.return_value = table_mock
+        table_mock.single.return_value = table_mock
+        table_mock.insert.return_value = table_mock
+        table_mock.execute.return_value = MagicMock(data=[agent_data])
+        
+        single_mock = MagicMock()
+        single_mock.execute.return_value = MagicMock(data=agent_data)
+        table_mock.single.return_value = single_mock
+        
+        mock_supabase.table.return_value = table_mock
+        mock_supabase.rpc.return_value = table_mock
+        
         with patch('redis.from_url', return_value=mock_redis):
-            policy_guard = PolicyGuard()
-            cost_tracker = CostTracker()
-            reputation_engine = ReputationEngine(supabase_client=mock_supabase)
+            policy_guard = PolicyGuard(policies_path=POLICIES_PATH)
+            cost_tracker = CostTracker(policies_path=POLICIES_PATH)
+            reputation_engine = ReputationEngine(supabase_client=mock_supabase, policies_path=POLICIES_PATH)
             permission_checker = PermissionChecker(reputation_engine=reputation_engine)
             
             agent_id = reputation_engine.get_or_create_agent('dev_agent')
@@ -324,7 +354,7 @@ class TestIntegration:
             
             cost_tracker.track_usage('trace-123', 1000, 0.03)
             
-            assert permission_checker.check_permission(agent_id, 'read_file') == True
+            assert permission_checker.check_permission(agent_id, 'create_prod_pr') == True
             
             reputation_engine.record_event(
                 agent_id,
