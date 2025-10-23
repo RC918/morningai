@@ -70,7 +70,7 @@ def update_user_preferences():
     - 500: Server error
     """
     try:
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True)
         
         if not data:
             return jsonify({
