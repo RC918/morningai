@@ -17,6 +17,7 @@ import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { AB_TESTS, getABTestVariant, trackABTestMetrics, collectWebVitals } from '@/lib/ab-testing'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
+import safeLocalStorage from '@/lib/safeLocalStorage'
 import '@/i18n/config'
 import './App.css'
 import './styles/mobile-optimizations.css'
@@ -71,7 +72,7 @@ function AppContent() {
 
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem('auth_token')
+        const token = safeLocalStorage.getItem('auth_token')
         if (token) {
           const userData = await apiClient.verifyAuth()
           setUser(userData)
@@ -79,7 +80,7 @@ function AppContent() {
         }
       } catch (error) {
         console.error('認證檢查失敗:', error)
-        localStorage.removeItem('auth_token')
+        safeLocalStorage.removeItem('auth_token')
         setUser({
           id: 'dev_user',
           name: 'Ryan Chen',
@@ -97,6 +98,32 @@ function AppContent() {
     checkAuth()
     applyDesignTokens()
 
+    const handleFirstValueOperation = (event) => {
+      const firstLoginTime = safeLocalStorage.getItem('first_login_time')
+      if (firstLoginTime) {
+        const ttv = Date.now() - parseInt(firstLoginTime, 10)
+        const currentUser = useAppStore.getState().user
+        const ttvData = {
+          ttv_ms: ttv,
+          operation: event.detail?.operation || 'unknown',
+          timestamp: new Date().toISOString(),
+          user_id: currentUser?.id,
+          tenant_id: currentUser?.tenant_id
+        }
+        
+        if (window.Sentry) {
+          window.Sentry.captureMessage('First Value Operation', {
+            level: 'info',
+            extra: ttvData
+          })
+        }
+        
+        safeLocalStorage.removeItem('first_login_time')
+      }
+    }
+
+    window.addEventListener('first-value-operation', handleFirstValueOperation)
+
     const variant = getABTestVariant(AB_TESTS.PERFORMANCE_OPTIMIZATIONS.id)
     console.log('[AB Test] Performance optimization variant:', variant)
 
@@ -113,13 +140,20 @@ function AppContent() {
 
     return () => {
       window.removeEventListener('api-error', handleApiError)
+      window.removeEventListener('first-value-operation', handleFirstValueOperation)
     }
   }, [addToast, setUser])
 
   const handleLogin = (userData, token) => {
     setUser(userData)
     setIsAuthenticated(true)
-    localStorage.setItem('auth_token', token)
+    
+    safeLocalStorage.setItem('auth_token', token)
+    
+    if (!safeLocalStorage.getItem('first_login_time')) {
+      safeLocalStorage.setItem('first_login_time', Date.now().toString())
+    }
+    
     addToast({
       title: "登入成功",
       description: `歡迎回來，${userData.name}！`,
@@ -137,7 +171,13 @@ function AppContent() {
       tenant_id: 'tenant_001'
     })
     setIsAuthenticated(false)
-    localStorage.removeItem('auth_token')
+    
+    try {
+      localStorage.removeItem('auth_token')
+    } catch (e) {
+      console.warn('localStorage.removeItem failed:', e.message)
+    }
+    
     addToast({
       title: "已登出",
       description: "您已成功登出系統",
@@ -160,14 +200,21 @@ function AppContent() {
   return (
     <ErrorBoundary>
       <TenantProvider>
-        <Router>
-          <OfflineIndicator />
-          <Phase3WelcomeModal 
-            isOpen={showPhase3Welcome}
-            onClose={dismissWelcome}
-          />
-          
-          {!isAuthenticated ? (
+        <div className="theme-morning-ai min-h-screen">
+          <a 
+            href="#main-content" 
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:shadow-lg"
+          >
+            跳至主要內容
+          </a>
+          <Router>
+            <OfflineIndicator />
+            <Phase3WelcomeModal 
+              isOpen={showPhase3Welcome}
+              onClose={dismissWelcome}
+            />
+            
+            {!isAuthenticated ? (
             <Routes>
               <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
               <Route path="/login" element={
@@ -181,7 +228,7 @@ function AppContent() {
             <div className="flex h-screen bg-gray-100">
               <Sidebar user={user} onLogout={handleLogout} />
               
-              <main className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
+              <main id="main-content" className="flex-1 overflow-y-auto" role="main" aria-label="主要內容區域">
                 <Suspense fallback={<PageLoader message="正在載入頁面..." />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -238,7 +285,8 @@ function AppContent() {
               <Toaster />
             </div>
           )}
-        </Router>
+          </Router>
+        </div>
       </TenantProvider>
     </ErrorBoundary>
   )
