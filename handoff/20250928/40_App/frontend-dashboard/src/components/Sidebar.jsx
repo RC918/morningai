@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { DarkModeToggle } from './DarkModeToggle'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 const Sidebar = ({ user, onLogout }) => {
   const { t } = useTranslation()
@@ -204,8 +205,9 @@ const Sidebar = ({ user, onLogout }) => {
       </nav>
 
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-        <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
+        <div className={`flex ${collapsed ? 'flex-col gap-2' : 'gap-2'}`}>
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
+          <LanguageSwitcher variant={collapsed ? 'compact' : 'default'} />
         </div>
         <Button
           variant="ghost"
