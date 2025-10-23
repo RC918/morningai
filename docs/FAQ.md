@@ -1,72 +1,102 @@
-# E2E Testing in MorningAI
+# System Architecture of MorningAI
 
-End-to-end (E2E) testing is a crucial aspect of ensuring the reliability and functionality of the MorningAI platform. This FAQ aims to guide developers through the process of setting up, running, and troubleshooting E2E tests within the MorningAI environment.
+MorningAI is designed as a multi-tenant SaaS platform leveraging modern technologies to provide a suite of features including autonomous code generation, documentation management, multi-platform integration, real-time task orchestration, and vector memory storage. Understanding the system architecture is crucial for developers working on or with the MorningAI platform. This guide outlines the main components and their interactions within the system.
 
-## What is E2E Testing?
+## Overview
 
-E2E testing involves testing the entire software application from start to finish. It ensures that all integrated components function together as expected in a scenario that mimics real-world usage. In the context of MorningAI, E2E tests validate the interactions between the autonomous agent system, FAQ generation, documentation management, multi-platform integration, and real-time task orchestration.
+The architecture of MorningAI is built to be scalable, efficient, and robust, enabling it to handle multiple tasks simultaneously while providing a seamless user experience. Below is an overview of each component in the MorningAI system:
 
-## Setting Up E2E Tests
+### Frontend
 
-Before running E2E tests, ensure your development environment is correctly set up:
+- **Technology Stack**: React with Vite for bundling and TailwindCSS for styling.
+- **Path in Repository**: `frontend/`
+- **Main Responsibilities**: Provides the user interface for interacting with MorningAI's features. It communicates with the backend through RESTful APIs or WebSocket connections for real-time updates.
 
-1. Install all necessary dependencies:
-   - Ensure Node.js and npm are installed.
-   - Install Cypress or your chosen E2E testing framework.
+### Backend
 
-```bash
-npm install cypress --save-dev
+- **Technology Stack**: Python with Flask as the web framework and Gunicorn as the WSGI HTTP Server with multi-worker support.
+- **Path in Repository**: `backend/`
+- **Main Responsibilities**: Handles business logic, authentication, data processing, and serves API endpoints. It also manages task orchestration and execution.
+
+### Database
+
+- **Technology Used**: PostgreSQL with Supabase for enhanced functionalities like Row Level Security.
+- **Path in Repository**: Not directly applicable since Supabase manages this externally, but database schema and migrations can be found under `database/`.
+- **Main Responsibilities**: Stores all persistent data including user information, documentation content, and task states.
+
+### Queue
+
+- **Technology Used**: Redis Queue (RQ) for managing background tasks with worker heartbeat monitoring.
+- **Path in Repository**: Configuration can be found under `backend/rq_config.py`.
+- **Main Responsibilities**: Manages asynchronous task execution such as long-running AI operations or external API calls to ensure responsiveness of the main application.
+
+### Orchestration
+
+- **Technology Used**: LangGraph for defining and executing workflows of autonomous agents.
+- **Path in Repository**: Workflow definitions can be found under `orchestration/`.
+- **Main Responsibilities**: Coordinates complex tasks involving multiple steps or dependencies between different systems/components.
+
+### AI
+
+- **Technology Used**: OpenAI GPT-4 for content generation and other AI-driven tasks.
+- **Integration Points**: Integrated via API calls from backend services.
+- **Main Responsibilities**: Powers intelligent features like FAQ generation, code suggestions, and natural language understanding.
+
+### Deployment
+
+- **Platform Used**: Render.com with continuous integration and delivery (CI/CD) pipelines set up for automatic deployment.
+- **Configuration Files**: Deployment configurations can be found under `.render/` directory.
+  
+## Code Examples
+
+While direct code examples of the architecture might not be applicable due to the broad scope of this topic, here are some snippets related to integrating components:
+
+### Backend API Route Example (Flask)
+
+```python
+from flask import Flask, jsonify
+app = Flask(__name__)
+
+@app.route('/api/v1/hello')
+def hello_world():
+    return jsonify({"message": "Hello World"})
+
+if __name__ == '__main__':
+    app.run()
 ```
 
-2. Configure your test scripts in `package.json`:
-
-```json
-"scripts": {
-  "e2e": "cypress open"
-}
-```
-
-3. Ensure your application and any dependent services (like Redis Queue or PostgreSQL) are running either locally or in a test environment accessible to the testing framework.
-
-## Writing E2E Tests
-
-When writing E2E tests for MorningAI, consider scenarios that involve multiple components interacting with each other. Here's an example using Cypress for a test case that verifies successful user login through the UI:
+### Frontend API Call Example (React)
 
 ```javascript
-describe('Login Test', () => {
-  it('Successfully logs in', () => {
-    cy.visit('/login');
-    cy.get('input[name="username"]').type('testuser');
-    cy.get('input[name="password"]').type('password123');
-    cy.get('button[type="submit"]').click();
-
-    // Verify login by checking if the dashboard is visible
-    cy.url().should('include', '/dashboard');
-  });
-});
+fetch('/api/v1/hello')
+  .then(response => response.json())
+  .then(data => console.log(data));
 ```
 
-## Running E2E Tests
+## Related Documentation Links
 
-To run your E2E tests, execute the test script defined in `package.json`:
+For more detailed information on each component:
 
-```bash
-npm run e2e
-```
+- React: https://reactjs.org/docs/getting-started.html
+- Flask: https://flask.palletsprojects.com/en/2.0.x/
+- Supabase: https://supabase.com/docs
+- Redis Queue (RQ): http://python-rq.org/docs/
+- OpenAI API: https://beta.openai.com/docs/
 
-This will launch the Cypress Test Runner, from which you can select and run individual test suites or all tests.
+## Common Troubleshooting Tips
 
-## Troubleshooting Common Issues
+1. **Frontend not updating after backend changes**:
+   - Ensure that your frontend is correctly fetching data from updated backend endpoints.
+   - Check if CORS settings are properly configured to allow requests between frontend and backend during development.
 
-- **Tests Fail to Connect to Local Services**: Ensure all services (backend server, Redis Queue, etc.) are running before executing tests. Check service logs for any startup errors.
-- **Flaky Tests**: Flaky tests often result from timing issues or assumptions about state. Use Cypress commands like `cy.wait()` sparingly and ensure your tests reset state before each test where feasible.
-- **Database State**: For tests involving database operations, consider using tools like pgvector/Supabase for vector memory storage with rollback capabilities to reset database state before each test suite runs.
+2. **Tasks stuck in queue**:
+   - Verify that Redis Queue workers are running; you can start them using `rq worker` command.
+   - Check for any uncaught exceptions in your task code which may cause tasks to fail silently.
 
-For more detailed guidance on writing and troubleshooting specific types of tests within MorningAI's architecture, refer to our developer documentation:
-- [Cypress Documentation](https://docs.cypress.io)
-- [MorningAI Developer Guides](https://github.com/RC918/morningai/docs/developer_guides)
+3. **Database migrations not applied**:
+   - Ensure that you've run migration commands after any changes to database schemas. With Supabase locally, use tools like Flyway or similar based on your setup.
 
-Remember, consistent and comprehensive E2E testing is key to maintaining high-quality software delivery pipelines. Ensuring your tests cover critical user journeys can significantly reduce bugs and improve user satisfaction with MorningAI.
+Remember that specific issues may require deeper investigation into logs and system metrics. Always consider consulting documentation or community forums for more complex problems.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +104,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `22f3b3b4-f803-4b4b-8f79-fbd2bd3be564`
+- Task: What is the system architecture?
+- Trace ID: `d27aeb03-823f-4cae-b11c-ceb441b56c78`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
