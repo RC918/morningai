@@ -79,7 +79,7 @@ jobs:
         if: always()
         with:
           name: lhci-artifacts-pr
-          path: frontend-dashboard-deploy/.lhci
+          path: .lhci
 
       - name: Generate PR comment
         if: always()
@@ -89,7 +89,7 @@ jobs:
         if: always()
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          path: frontend-dashboard-deploy/.lhci-diff.md
+          path: .lhci-diff.md
 
       - name: Stop preview server
         if: always()
@@ -171,7 +171,7 @@ jobs:
         if: always()
         with:
           name: lhci-artifacts-main
-          path: frontend-dashboard-deploy/.lhci
+          path: .lhci
 
       - name: Update baseline and trend
         if: always()
