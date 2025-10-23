@@ -9,9 +9,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { motion } from 'framer-motion'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import apiClient from '@/lib/api'
+import useAppStore from '@/stores/appStore'
 
 const LoginPage = ({ onLogin }) => {
   const { t } = useTranslation()
+  const { trackPathStart, trackPathComplete, trackPathFail } = useAppStore()
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
@@ -21,6 +23,7 @@ const LoginPage = ({ onLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const pathId = trackPathStart('user_login')
     setLoading(true)
     setError('')
 
@@ -28,8 +31,14 @@ const LoginPage = ({ onLogin }) => {
       const result = await apiClient.login(credentials)
       
       if (result.user && result.token) {
+        trackPathComplete(pathId)
         onLogin(result.user, result.token)
+        
+        window.dispatchEvent(new CustomEvent('first-value-operation', {
+          detail: { operation: 'user_login' }
+        }))
       } else {
+        trackPathFail(pathId, new Error(result.message || 'Login failed'))
         setError(result.message || t('auth.login.loginFailed'))
       }
     } catch (error) {
@@ -43,8 +52,14 @@ const LoginPage = ({ onLogin }) => {
           avatar: null
         }
         const mockToken = 'mock-jwt-token-' + Date.now()
+        trackPathComplete(pathId)
         onLogin(mockUser, mockToken)
+        
+        window.dispatchEvent(new CustomEvent('first-value-operation', {
+          detail: { operation: 'user_login' }
+        }))
       } else {
+        trackPathFail(pathId, error)
         setError(t('auth.login.loginError'))
       }
     } finally {

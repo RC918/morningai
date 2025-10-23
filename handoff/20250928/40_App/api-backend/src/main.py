@@ -99,7 +99,7 @@ def add_cors_headers(response):
     if origin in cors_origins or is_vercel_preview(origin):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
     
     return response
@@ -107,7 +107,7 @@ def add_cors_headers(response):
 cors_config = {
     "origins": cors_origins,
     "supports_credentials": True,
-    "allow_headers": ["Content-Type", "Authorization"],
+    "allow_headers": ["Content-Type", "Authorization", "X-Request-ID"],
     "expose_headers": ["Content-Type", "Authorization"],
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
 }

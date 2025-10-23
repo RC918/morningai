@@ -4,7 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend'
 import { 
   Activity, TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
   Clock, DollarSign, Cpu, MemoryStick, Zap, Settings, Download,
-  Plus, Trash2, Edit3, FileText, Grid3X3
+  Plus, Trash2, Edit3, FileText, Grid3X3, Loader2, Save
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,8 +15,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'
 import { DashboardSkeleton } from '@/components/feedback/ContentSkeleton'
+import LiveRegion from '@/components/LiveRegion'
 import apiClient from '@/lib/api'
 import { safeInterval } from '@/lib/safeInterval'
+import useAppStore from '@/stores/appStore'
 
 const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) => {
   const [{ isDragging }, drag] = useDrag({
@@ -59,12 +61,14 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode }) =>
 }
 
 const Dashboard = () => {
+  const { trackPathStart, trackPathComplete, trackPathFail } = useAppStore()
   const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
   const [showReportCenter, setShowReportCenter] = useState(false)
   const [availableWidgets, setAvailableWidgets] = useState([])
   const [dashboardLayout, setDashboardLayout] = useState([])
   const [dashboardData, setDashboardData] = useState({})
+  const [saveStatus, setSaveStatus] = useState('idle')
   const [systemMetrics, setSystemMetrics] = useState({
     cpu_usage: 72,
     memory_usage: 68,
@@ -179,6 +183,8 @@ const Dashboard = () => {
 
 
   const saveDashboardLayout = async () => {
+    const pathId = trackPathStart('dashboard_save_layout')
+    setSaveStatus('saving')
     try {
       await apiClient.request('/dashboard/layouts', {
         method: 'POST',
@@ -187,8 +193,18 @@ const Dashboard = () => {
           layout: { widgets: dashboardLayout.map(w => ({ id: w.id, position: w.position })) }
         })
       })
+      setSaveStatus('success')
+      trackPathComplete(pathId)
+      setTimeout(() => setSaveStatus('idle'), 2000)
+      
+      window.dispatchEvent(new CustomEvent('first-value-operation', {
+        detail: { operation: 'dashboard_save_layout' }
+      }))
     } catch (error) {
       console.error('Failed to save dashboard layout:', error)
+      setSaveStatus('error')
+      trackPathFail(pathId, error)
+      setTimeout(() => setSaveStatus('idle'), 3000)
     }
   }
 
@@ -248,9 +264,29 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold text-gray-900">
           {showReportCenter ? '報表中心' : '自助儀表板'}
         </h1>
-        <p className="text-gray-600 mt-2">
-          {showReportCenter ? '生成和管理系統報表' : '可自訂的系統監控與任務追蹤'}
-        </p>
+        <div className="flex items-center gap-3 mt-2">
+          <p className="text-gray-600">
+            {showReportCenter ? '生成和管理系統報表' : '可自訂的系統監控與任務追蹤'}
+          </p>
+          {saveStatus === 'saving' && (
+            <div className="flex items-center text-blue-600 text-sm">
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" aria-hidden="true" />
+              <span>儲存中...</span>
+            </div>
+          )}
+          {saveStatus === 'success' && (
+            <div className="flex items-center text-green-600 text-sm" role="status" aria-live="polite">
+              <CheckCircle className="w-4 h-4 mr-1" aria-hidden="true" />
+              <span>已儲存</span>
+            </div>
+          )}
+          {saveStatus === 'error' && (
+            <div className="flex items-center text-red-600 text-sm" role="alert" aria-live="assertive">
+              <AlertTriangle className="w-4 h-4 mr-1" aria-hidden="true" />
+              <span>儲存失敗</span>
+            </div>
+          )}
+        </div>
       </div>
       <div className="flex space-x-2">
         <Button
@@ -267,8 +303,13 @@ const Dashboard = () => {
               setIsEditMode(!isEditMode)
               if (isEditMode) saveDashboardLayout()
             }}
+            disabled={saveStatus === 'saving'}
           >
-            <Settings className="w-4 h-4 mr-2" />
+            {saveStatus === 'saving' ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+            ) : (
+              <Settings className="w-4 h-4 mr-2" />
+            )}
             {isEditMode ? '完成編輯' : '自訂儀表板'}
           </Button>
         )}
@@ -323,9 +364,26 @@ const Dashboard = () => {
     )
   }
 
+  const getSaveStatusMessage = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return '正在儲存儀表板配置...'
+      case 'success':
+        return '儀表板配置已成功儲存'
+      case 'error':
+        return '儲存儀表板配置時發生錯誤'
+      default:
+        return ''
+    }
+  }
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="p-6 space-y-6">
+        <LiveRegion 
+          message={getSaveStatusMessage()}
+          politeness={saveStatus === 'error' ? 'assertive' : 'polite'}
+        />
         <DashboardToolbar />
 
         {/* Customizable Dashboard Widgets */}
