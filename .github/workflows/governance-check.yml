@@ -1,0 +1,209 @@
+name: Governance Check
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/orchestrator/**'
+      - 'agents/**'
+      - 'config/policies.yaml'
+
+jobs:
+  policy-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          pip install -r requirements.txt
+          pip install pyyaml
+      
+      - name: Validate policies.yaml
+        run: |
+          python - <<'PY'
+          import yaml
+          import sys
+          
+          try:
+              with open('config/policies.yaml', 'r') as f:
+                  policies = yaml.safe_load(f)
+              
+              required_sections = [
+                  'resource_sandbox',
+                  'cost_budget',
+                  'capability_constraints',
+                  'task_contract',
+                  'risk_routing',
+                  'violation_detection',
+                  'reputation',
+                  'monitoring'
+              ]
+              
+              missing = [s for s in required_sections if s not in policies]
+              if missing:
+                  print(f"❌ Missing required sections: {', '.join(missing)}")
+                  sys.exit(1)
+              
+              print("✅ policies.yaml validation passed")
+              print(f"   Sections: {', '.join(policies.keys())}")
+              
+          except Exception as e:
+              print(f"❌ policies.yaml validation failed: {e}")
+              sys.exit(1)
+          PY
+      
+      - name: Check file access patterns
+        run: |
+          python - <<'PY'
+          import yaml
+          import sys
+          
+          with open('config/policies.yaml', 'r') as f:
+              policies = yaml.safe_load(f)
+          
+          file_access = policies.get('resource_sandbox', {}).get('file_access', {})
+          allow = file_access.get('allow', [])
+          deny = file_access.get('deny', [])
+          
+          if not allow:
+              print("⚠️  Warning: No file access allow patterns defined")
+          
+          if not deny:
+              print("⚠️  Warning: No file access deny patterns defined")
+          
+          print(f"✅ File access patterns configured:")
+          print(f"   Allow: {len(allow)} patterns")
+          print(f"   Deny: {len(deny)} patterns")
+          PY
+      
+      - name: Check cost budget configuration
+        run: |
+          python - <<'PY'
+          import yaml
+          import sys
+          
+          with open('config/policies.yaml', 'r') as f:
+              policies = yaml.safe_load(f)
+          
+          cost_budget = policies.get('cost_budget', {})
+          
+          required_budgets = ['daily', 'hourly', 'per_task']
+          missing = [b for b in required_budgets if b not in cost_budget]
+          
+          if missing:
+              print(f"❌ Missing cost budget configurations: {', '.join(missing)}")
+              sys.exit(1)
+          
+          for budget_type in required_budgets:
+              budget = cost_budget[budget_type]
+              if 'max_usd' not in budget or 'max_tokens' not in budget:
+                  print(f"❌ {budget_type} budget missing max_usd or max_tokens")
+                  sys.exit(1)
+          
+          print("✅ Cost budget configuration valid")
+          print(f"   Daily: ${cost_budget['daily']['max_usd']} / {cost_budget['daily']['max_tokens']} tokens")
+          print(f"   Hourly: ${cost_budget['hourly']['max_usd']} / {cost_budget['hourly']['max_tokens']} tokens")
+          print(f"   Per-task: ${cost_budget['per_task']['max_usd']} / {cost_budget['per_task']['max_tokens']} tokens")
+          PY
+      
+      - name: Check reputation system configuration
+        run: |
+          python - <<'PY'
+          import yaml
+          import sys
+          
+          with open('config/policies.yaml', 'r') as f:
+              policies = yaml.safe_load(f)
+          
+          reputation = policies.get('reputation', {})
+          
+          if 'initial_score' not in reputation:
+              print("❌ Missing initial_score in reputation config")
+              sys.exit(1)
+          
+          if 'permission_levels' not in reputation:
+              print("❌ Missing permission_levels in reputation config")
+              sys.exit(1)
+          
+          if 'scoring_rules' not in reputation:
+              print("❌ Missing scoring_rules in reputation config")
+              sys.exit(1)
+          
+          levels = reputation['permission_levels']
+          required_levels = ['sandbox_only', 'staging_access', 'prod_low_risk', 'prod_full_access']
+          missing_levels = [l for l in required_levels if l not in levels]
+          
+          if missing_levels:
+              print(f"❌ Missing permission levels: {', '.join(missing_levels)}")
+              sys.exit(1)
+          
+          print("✅ Reputation system configuration valid")
+          print(f"   Initial score: {reputation['initial_score']}")
+          print(f"   Permission levels: {len(levels)}")
+          print(f"   Scoring rules: {len(reputation['scoring_rules'])}")
+          PY
+      
+      - name: Test governance imports
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          python - <<'PY'
+          import sys
+          
+          try:
+              from governance import (
+                  PolicyGuard, guarded,
+                  CostTracker, CostBudgetExceeded, get_cost_tracker,
+                  ReputationEngine, get_reputation_engine,
+                  PermissionChecker, PermissionDenied, get_permission_checker,
+                  ViolationDetector, ViolationError, get_violation_detector
+              )
+              print("✅ All governance modules imported successfully")
+          except ImportError as e:
+              print(f"❌ Failed to import governance modules: {e}")
+              sys.exit(1)
+          PY
+      
+      - name: Check risk routing configuration
+        run: |
+          python - <<'PY'
+          import yaml
+          import sys
+          
+          with open('config/policies.yaml', 'r') as f:
+              policies = yaml.safe_load(f)
+          
+          risk_routing = policies.get('risk_routing', {})
+          
+          if 'high_risk_labels' not in risk_routing:
+              print("⚠️  Warning: No high_risk_labels defined")
+          
+          if 'require_human_signoff' not in risk_routing:
+              print("⚠️  Warning: require_human_signoff not configured")
+          
+          print("✅ Risk routing configuration checked")
+          print(f"   High-risk labels: {risk_routing.get('high_risk_labels', [])}")
+          print(f"   Require human signoff: {risk_routing.get('require_human_signoff', False)}")
+          PY
+      
+      - name: Summary
+        if: success()
+        run: |
+          echo "🎉 All governance checks passed!"
+          echo ""
+          echo "Validated:"
+          echo "  ✅ policies.yaml structure"
+          echo "  ✅ File access patterns"
+          echo "  ✅ Cost budget configuration"
+          echo "  ✅ Reputation system configuration"
+          echo "  ✅ Governance module imports"
+          echo "  ✅ Risk routing configuration"
