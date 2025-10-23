@@ -3,9 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
-import LoginPage from '@/components/LoginPage'
-import LandingPage from '@/components/LandingPage'
 import WIPPage from '@/components/WIPPage'
+import LandingPage from '@/components/LandingPage'
+
+const LoginPage = lazy(() => import('@/components/LoginPage'))
 import { TenantProvider } from '@/contexts/TenantContext'
 import { NotificationProvider, useNotification } from '@/contexts/NotificationContext'
 import { Phase3WelcomeModal } from '@/components/Phase3WelcomeModal'
@@ -169,7 +170,11 @@ function AppContent() {
           {!isAuthenticated ? (
             <Routes>
               <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
-              <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+              <Route path="/login" element={
+                <Suspense fallback={<PageLoader message="正在載入頁面..." />}>
+                  <LoginPage onLogin={handleLogin} />
+                </Suspense>
+              } />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           ) : (
