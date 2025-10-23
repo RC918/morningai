@@ -39,6 +39,13 @@ class ReputationEngine:
         try:
             from orchestrator.persistence.db_client import get_client
             return get_client()
+        except (ImportError, ModuleNotFoundError):
+            try:
+                from persistence.db_client import get_client
+                return get_client()
+            except Exception as e:
+                print(f"[ReputationEngine] Supabase unavailable: {e}")
+                return None
         except Exception as e:
             print(f"[ReputationEngine] Supabase unavailable: {e}")
             return None
