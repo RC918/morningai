@@ -150,8 +150,8 @@ jobs:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
-          pnpm dlx playwright install --with-deps chromium
-          pnpm dlx playwright test tests/auth.setup.spec.ts
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test tests/auth.setup.spec.ts
           node ../scripts/make-lhci-cookie.js
 
       - name: Start preview server
