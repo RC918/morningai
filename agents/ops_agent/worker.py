@@ -21,6 +21,13 @@ if ops_agent_dir not in sys.path:
 from orchestrator import RedisQueue, create_redis_queue, UnifiedTask
 from ops_agent_ooda import OpsAgentOODA
 
+sys.path.insert(0, os.path.join(project_root, 'handoff/20250928/40_App/orchestrator'))
+from governance import (
+    get_cost_tracker, CostBudgetExceeded,
+    get_reputation_engine,
+    get_permission_checker, PermissionDenied
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -64,12 +71,24 @@ class OpsAgentWorker:
         self.ops_agent: Optional[OpsAgentOODA] = None
         self.is_running = False
         
+        self.cost_tracker = get_cost_tracker()
+        self.reputation_engine = get_reputation_engine()
+        self.permission_checker = get_permission_checker()
+        self.agent_id = None
+        
         logger.info(f"Initialized Ops Agent Worker (Redis: {self.redis_url})")
     
     async def start(self):
         """Start the worker"""
         try:
             logger.info("Starting Ops Agent Worker...")
+            
+            self.agent_id = self.reputation_engine.get_or_create_agent('ops_agent')
+            if self.agent_id:
+                logger.info(f"✅ Agent ID: {self.agent_id}")
+                permission_level = self.reputation_engine.get_permission_level(self.agent_id)
+                score = self.reputation_engine.get_reputation_score(self.agent_id)
+                logger.info(f"✅ Reputation: score={score}, level={permission_level}")
             
             self.queue = await create_redis_queue(redis_url=self.redis_url)
             logger.info("✅ Connected to Orchestrator Redis queue")
@@ -147,6 +166,33 @@ class OpsAgentWorker:
             task: UnifiedTask to execute
         """
         try:
+            if self.agent_id:
+                try:
+                    self.cost_tracker.enforce_budget(task.trace_id, period='daily')
+                    self.cost_tracker.enforce_budget(task.trace_id, period='hourly')
+                except CostBudgetExceeded as e:
+                    logger.error(f"💰 Budget exceeded: {e}")
+                    self.reputation_engine.record_event(
+                        self.agent_id, 'cost_overrun',
+                        trace_id=task.trace_id, reason=str(e)
+                    )
+                    task.mark_failed(f"Budget exceeded: {e}")
+                    await self.queue.update_task(task)
+                    return
+                
+                operation = self._get_operation_from_task(task)
+                try:
+                    self.permission_checker.check_permission(self.agent_id, operation)
+                except PermissionDenied as e:
+                    logger.error(f"🚫 Permission denied: {e}")
+                    self.reputation_engine.record_event(
+                        self.agent_id, 'human_escalation',
+                        trace_id=task.trace_id, reason=f"Permission denied for {operation}"
+                    )
+                    task.mark_failed(f"Permission denied: {e}")
+                    await self.queue.update_task(task)
+                    return
+            
             task.mark_in_progress()
             await self.queue.update_task(task)
             
@@ -180,6 +226,20 @@ class OpsAgentWorker:
                 task.metadata['result'] = result.get('result', {})
                 await self.queue.update_task(task)
                 
+                if self.agent_id:
+                    self.reputation_engine.record_event(
+                        self.agent_id, 'test_passed',
+                        trace_id=task.trace_id,
+                        reason=f"Task {task.task_id} completed successfully"
+                    )
+                    
+                    estimated_tokens = result.get('tokens_used', 1000)
+                    estimated_cost = self.cost_tracker.estimate_cost(estimated_tokens, model='gpt-4')
+                    self.cost_tracker.track_usage(
+                        task.trace_id, estimated_tokens, estimated_cost,
+                        model='gpt-4', operation=task.type.value
+                    )
+                
                 await self.queue.publish_event(
                     event_type="task.completed",
                     source_agent="ops",
@@ -197,6 +257,13 @@ class OpsAgentWorker:
                 error = result.get('error', 'Unknown error')
                 task.mark_failed(error)
                 await self.queue.update_task(task)
+                
+                if self.agent_id:
+                    self.reputation_engine.record_event(
+                        self.agent_id, 'test_failed',
+                        trace_id=task.trace_id,
+                        reason=f"Task {task.task_id} failed: {error}"
+                    )
                 
                 await self.queue.publish_event(
                     event_type="task.failed",
@@ -227,6 +294,36 @@ class OpsAgentWorker:
                 },
                 trace_id=task.trace_id
             )
+    
+    def _get_operation_from_task(self, task: UnifiedTask) -> str:
+        """
+        Map UnifiedTask to governance operation name
+        
+        Args:
+            task: UnifiedTask
+        
+        Returns:
+            str: Operation name for permission checking
+        """
+        task_type = task.type.value
+        payload = task.payload
+        
+        if task_type == "deploy":
+            environment = payload.get("environment", "production")
+            if environment == "production":
+                return "deploy_prod"
+            elif environment == "staging":
+                return "deploy_staging"
+            else:
+                return "deploy"
+        elif task_type == "monitor":
+            return "monitor_metrics"
+        elif task_type == "alert":
+            return "manage_alerts"
+        elif task_type == "investigate":
+            return "investigate_issues"
+        else:
+            return "execute_task"
     
     def _map_task_to_description(self, task: UnifiedTask) -> str:
         """

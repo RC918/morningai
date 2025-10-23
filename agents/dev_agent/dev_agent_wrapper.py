@@ -4,6 +4,7 @@ Dev Agent Wrapper - Provides unified interface for Bug Fix Workflow
 Phase 1 Week 6: Bug Fix Workflow
 """
 import os
+import sys
 import logging
 import subprocess
 from typing import Optional, Dict, Any
@@ -13,6 +14,15 @@ from knowledge_graph.knowledge_graph_manager import (
 )
 from knowledge_graph.bug_fix_pattern_learner import (
     BugFixPatternLearner
+)
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, os.path.join(project_root, 'handoff/20250928/40_App/orchestrator'))
+
+from governance import (
+    get_cost_tracker, CostBudgetExceeded,
+    get_reputation_engine,
+    get_permission_checker, PermissionDenied
 )
 
 logger = logging.getLogger(__name__)
@@ -303,8 +313,73 @@ class DevAgent:
                 "OpenAI API key not configured - LLM features disabled"
             )
 
+        self.cost_tracker = get_cost_tracker()
+        self.reputation_engine = get_reputation_engine()
+        self.permission_checker = get_permission_checker()
+        self.agent_id = self.reputation_engine.get_or_create_agent('dev_agent')
+        
+        if self.agent_id:
+            score = self.reputation_engine.get_reputation_score(self.agent_id)
+            level = self.reputation_engine.get_permission_level(self.agent_id)
+            logger.info(f"DevAgent governance initialized: score={score}, level={level}")
+
         logger.info("DevAgent initialized with all tools")
 
+    def check_budget(self, trace_id: str) -> bool:
+        """Check if budget allows operation"""
+        if not self.agent_id:
+            return True
+        
+        try:
+            self.cost_tracker.enforce_budget(trace_id, period='daily')
+            self.cost_tracker.enforce_budget(trace_id, period='hourly')
+            return True
+        except CostBudgetExceeded as e:
+            logger.error(f"Budget exceeded: {e}")
+            self.reputation_engine.record_event(
+                self.agent_id, 'cost_overrun',
+                trace_id=trace_id, reason=str(e)
+            )
+            return False
+    
+    def check_permission(self, operation: str) -> bool:
+        """Check if agent has permission for operation"""
+        if not self.agent_id:
+            return True
+        
+        try:
+            self.permission_checker.check_permission(self.agent_id, operation)
+            return True
+        except PermissionDenied as e:
+            logger.error(f"Permission denied: {e}")
+            return False
+    
+    def track_success(self, trace_id: str, tokens_used: int = 1000):
+        """Track successful operation"""
+        if not self.agent_id:
+            return
+        
+        self.reputation_engine.record_event(
+            self.agent_id, 'test_passed',
+            trace_id=trace_id, reason='Operation completed successfully'
+        )
+        
+        cost = self.cost_tracker.estimate_cost(tokens_used, model='gpt-4')
+        self.cost_tracker.track_usage(
+            trace_id, tokens_used, cost,
+            model='gpt-4', operation='dev_agent_task'
+        )
+    
+    def track_failure(self, trace_id: str, error: str):
+        """Track failed operation"""
+        if not self.agent_id:
+            return
+        
+        self.reputation_engine.record_event(
+            self.agent_id, 'test_failed',
+            trace_id=trace_id, reason=f'Operation failed: {error}'
+        )
+    
     def health_check(self) -> Dict[str, Any]:
         """Check health of all components."""
         health = {
@@ -313,12 +388,20 @@ class DevAgent:
             'ide_tool': True,
             'test_tool': True,
             'llm': self.llm is not None,
-            'hitl': self.hitl_client is not None
+            'hitl': self.hitl_client is not None,
+            'governance': self.agent_id is not None
         }
 
         kg_health = self.knowledge_graph.health_check()
         health['knowledge_graph'] = kg_health.get('success', False)
 
         health['overall'] = all(health.values())
+        
+        if self.agent_id:
+            health['reputation'] = {
+                'agent_id': self.agent_id,
+                'score': self.reputation_engine.get_reputation_score(self.agent_id),
+                'level': self.reputation_engine.get_permission_level(self.agent_id)
+            }
 
         return health

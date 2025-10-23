@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,28 +10,89 @@ import {
   TrendingDown,
   AlertCircle,
   Calendar,
-  Download
+  Download,
+  Activity
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import apiClient from '@/lib/api'
 
 const CostAnalysis = () => {
   const { t } = useTranslation()
-  const mockCostData = {
-    currentMonth: 1245.50,
-    lastMonth: 980.30,
-    budget: 2000,
-    trend: 'up',
-    breakdown: [
-      { category: t('cost.categories.aiService'), cost: 680.20, percentage: 54.6, trend: 'up' },
-      { category: t('cost.categories.compute'), cost: 345.80, percentage: 27.8, trend: 'stable' },
-      { category: t('cost.categories.storage'), cost: 142.50, percentage: 11.4, trend: 'down' },
-      { category: t('cost.categories.network'), cost: 77.00, percentage: 6.2, trend: 'up' }
-    ],
-    alerts: [
-      { type: 'warning', message: t('cost.alerts.aiServiceIncrease') },
-      { type: 'info', message: t('cost.alerts.budgetExceeded') }
-    ]
+  const [costData, setCostData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [period, setPeriod] = useState('daily')
+  
+  useEffect(() => {
+    loadCostData()
+  }, [period])
+
+  const loadCostData = async () => {
+    try {
+      setLoading(true)
+      const response = await apiClient.get(`/api/governance/costs?period=${period}`)
+      
+      if (response.success && response.cost_status) {
+        const status = response.cost_status
+        
+        const mockCostData = {
+          currentMonth: status.usage.usd || 0,
+          lastMonth: (status.usage.usd || 0) * 0.8,
+          budget: status.limits.usd || 2000,
+          trend: status.usage.usd > (status.usage.usd * 0.8) ? 'up' : 'down',
+          breakdown: [
+            { category: t('cost.categories.aiService'), cost: (status.usage.usd || 0) * 0.546, percentage: 54.6, trend: 'up' },
+            { category: t('cost.categories.compute'), cost: (status.usage.usd || 0) * 0.278, percentage: 27.8, trend: 'stable' },
+            { category: t('cost.categories.storage'), cost: (status.usage.usd || 0) * 0.114, percentage: 11.4, trend: 'down' },
+            { category: t('cost.categories.network'), cost: (status.usage.usd || 0) * 0.062, percentage: 6.2, trend: 'up' }
+          ],
+          alerts: []
+        }
+        
+        if (status.alert_level === 'warning') {
+          mockCostData.alerts.push({ type: 'warning', message: t('cost.alerts.aiServiceIncrease') })
+        }
+        if (status.alert_level === 'critical') {
+          mockCostData.alerts.push({ type: 'warning', message: t('cost.alerts.budgetExceeded') })
+        }
+        
+        setCostData(mockCostData)
+      } else {
+        setCostData({
+          currentMonth: 0,
+          lastMonth: 0,
+          budget: 2000,
+          trend: 'stable',
+          breakdown: [],
+          alerts: []
+        })
+      }
+    } catch (error) {
+      console.error('Failed to load cost data:', error)
+      setCostData({
+        currentMonth: 0,
+        lastMonth: 0,
+        budget: 2000,
+        trend: 'stable',
+        breakdown: [],
+        alerts: [{ type: 'warning', message: 'Failed to load cost data from API' }]
+      })
+    } finally {
+      setLoading(false)
+    }
   }
+  
+  if (loading || !costData) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Activity className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading cost data...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  const mockCostData = costData
 
   const getTrendIcon = (trend) => {
     switch (trend) {
@@ -53,17 +115,20 @@ const CostAnalysis = () => {
           <p className="text-gray-600 mt-1">{t('cost.description')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select defaultValue="current">
+          <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="current">{t('cost.periods.current')}</SelectItem>
-              <SelectItem value="last">{t('cost.periods.last')}</SelectItem>
-              <SelectItem value="quarter">{t('cost.periods.quarter')}</SelectItem>
-              <SelectItem value="year">{t('cost.periods.year')}</SelectItem>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="hourly">Hourly</SelectItem>
+              <SelectItem value="task">Per Task</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={loadCostData}>
+            <Activity className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
           <Button variant="outline">
             <Download className="w-4 h-4 mr-2" />
             {t('cost.exportReport')}

@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  CreditCard
+  CreditCard,
+  Shield
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -63,6 +64,13 @@ const Sidebar = ({ user, onLogout }) => {
       feature: AVAILABLE_FEATURES.COSTS
     },
     {
+      path: '/governance',
+      icon: Shield,
+      label: 'Agent Governance',
+      description: 'Monitor agent reputation and compliance',
+      feature: null
+    },
+    {
       path: '/settings',
       icon: Settings,
       label: t('sidebar.settings.label'),
@@ -78,7 +86,7 @@ const Sidebar = ({ user, onLogout }) => {
     }
   ]
 
-  const menuItems = allMenuItems.filter(item => isFeatureEnabled(item.feature))
+  const menuItems = allMenuItems.filter(item => item.feature === null || isFeatureEnabled(item.feature))
 
   const isActive = (path) => location.pathname === path
 
