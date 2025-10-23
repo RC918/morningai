@@ -1,0 +1,151 @@
+name: Validate Vercel Config
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/vercel.json'
+      - 'handoff/**/package.json'
+      - '.github/workflows/validate-vercel-config.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate vercel.json syntax
+        run: |
+          echo "🔍 Validating vercel.json files..."
+          
+          # Find all vercel.json files
+          files=$(find . -name "vercel.json" -not -path "*/node_modules/*" -not -path "*/.git/*")
+          
+          if [ -z "$files" ]; then
+            echo "⚠️  No vercel.json files found"
+            exit 0
+          fi
+          
+          # Validate each file
+          for file in $files; do
+            echo "Checking $file"
+            if ! jq empty "$file" 2>/dev/null; then
+              echo "❌ Invalid JSON in $file"
+              exit 1
+            fi
+            echo "✅ $file is valid JSON"
+          done
+      
+      - name: Check frontend apps have vercel.json
+        run: |
+          echo "🔍 Checking frontend apps for vercel.json..."
+          
+          # Find all frontend app directories
+          apps=$(find handoff/20250928/40_App -maxdepth 1 -type d \
+            -not -name "40_App" \
+            -not -name "api-*" \
+            -not -name "@*" \
+            -not -name ".*" \
+            2>/dev/null || true)
+          
+          if [ -z "$apps" ]; then
+            echo "ℹ️  No frontend apps found"
+            exit 0
+          fi
+          
+          missing_config=0
+          for app in $apps; do
+            if [ -f "$app/package.json" ]; then
+              app_name=$(basename "$app")
+              
+              # Skip frontend-dashboard (uses root vercel.json)
+              if [ "$app_name" = "frontend-dashboard" ]; then
+                echo "ℹ️  $app_name uses root vercel.json (OK)"
+                continue
+              fi
+              
+              if [ ! -f "$app/vercel.json" ]; then
+                echo "⚠️  $app has package.json but no vercel.json"
+                echo "   This may cause deployment issues!"
+                echo "   See docs/VERCEL_MONOREPO_DEPLOYMENT_GUIDE.md"
+                missing_config=1
+              else
+                echo "✅ $app has vercel.json"
+              fi
+            fi
+          done
+          
+          if [ $missing_config -eq 1 ]; then
+            echo ""
+            echo "⚠️  Some apps are missing vercel.json"
+            echo "   This is a warning, not a failure"
+            echo "   Please review docs/VERCEL_MONOREPO_DEPLOYMENT_GUIDE.md"
+          fi
+      
+      - name: Validate vercel.json structure
+        run: |
+          echo "🔍 Validating vercel.json structure..."
+          
+          files=$(find . -name "vercel.json" -not -path "*/node_modules/*" -not -path "*/.git/*")
+          
+          for file in $files; do
+            echo "Checking structure of $file"
+            
+            # Check required fields
+            if ! jq -e '.framework' "$file" > /dev/null 2>&1; then
+              echo "⚠️  $file missing 'framework' field"
+            fi
+            
+            if ! jq -e '.rewrites' "$file" > /dev/null 2>&1; then
+              echo "⚠️  $file missing 'rewrites' field (needed for SPA routing)"
+            fi
+            
+            # Check for common mistakes
+            if jq -e '.buildCommand | contains("cd ")' "$file" > /dev/null 2>&1; then
+              dir=$(dirname "$file")
+              if [ "$dir" != "." ]; then
+                echo "⚠️  $file contains 'cd' in buildCommand"
+                echo "   This may cause issues if Root Directory is set in Vercel Dashboard"
+                echo "   Consider removing 'cd' and relying on Root Directory setting"
+              fi
+            fi
+            
+            echo "✅ $file structure validated"
+          done
+      
+      - name: Generate deployment summary
+        if: always()
+        run: |
+          echo "## 📊 Vercel Configuration Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # List all vercel.json files
+          echo "### Found vercel.json files:" >> $GITHUB_STEP_SUMMARY
+          files=$(find . -name "vercel.json" -not -path "*/node_modules/*" -not -path "*/.git/*")
+          for file in $files; do
+            echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Frontend Apps:" >> $GITHUB_STEP_SUMMARY
+          apps=$(find handoff/20250928/40_App -maxdepth 1 -type d \
+            -not -name "40_App" \
+            -not -name "api-*" \
+            -not -name "@*" \
+            -not -name ".*" \
+            2>/dev/null || true)
+          
+          for app in $apps; do
+            if [ -f "$app/package.json" ]; then
+              app_name=$(basename "$app")
+              if [ -f "$app/vercel.json" ]; then
+                echo "- ✅ \`$app_name\` (has vercel.json)" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- ⚠️  \`$app_name\` (missing vercel.json)" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📖 See [Vercel Deployment Guide](../blob/main/docs/VERCEL_MONOREPO_DEPLOYMENT_GUIDE.md) for best practices" >> $GITHUB_STEP_SUMMARY

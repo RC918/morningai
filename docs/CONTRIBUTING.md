@@ -157,3 +157,123 @@ bash .github/scripts/audit_workflows.sh
 - **PR #447**: Orchestrator 無限循環修復範例
 - **相關事件**: 66 個測試 PRs 被自動創建（2025-10-18）
 - **Root Cause Analysis**: `/home/ubuntu/ORCHESTRATOR_INFINITE_LOOP_ROOT_CAUSE_ANALYSIS.md`
+
+---
+
+## Vercel 部署規範
+
+### 🎯 核心原則
+
+在 monorepo 中部署多個前端應用到 Vercel 時，必須遵循以下規範以避免配置衝突和部署失敗。
+
+### 📋 必須遵守的規則
+
+#### 規則 1：每個獨立前端應用必須有自己的 `vercel.json`
+
+**例外**：主應用（Tenant Dashboard）可以使用根目錄的 `vercel.json`
+
+```
+✅ 正確結構：
+handoff/20250928/40_App/
+├── frontend-dashboard/     # 主應用，使用根目錄 vercel.json
+│   └── package.json
+├── owner-console/          # 獨立應用，必須有自己的 vercel.json
+│   ├── vercel.json        ✅ 必須
+│   └── package.json
+└── future-app/             # 未來的應用
+    ├── vercel.json        ✅ 必須
+    └── package.json
+
+❌ 錯誤結構：
+handoff/20250928/40_App/
+├── owner-console/
+│   └── package.json       ❌ 缺少 vercel.json
+```
+
+#### 規則 2：使用標準化的 `vercel.json` 模板
+
+**子應用模板**（Owner Console, 其他獨立應用）：
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --include=dev",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+**重要**：
+- ❌ 不要在命令中使用 `cd`（Root Directory 已在 Vercel Dashboard 設置）
+- ✅ 使用簡化的命令（`npm run build` 而非 `cd ... && npm run build`）
+- ✅ 必須包含 `rewrites` 配置（支持 SPA 客戶端路由）
+
+#### 規則 3：Vercel Dashboard 配置檢查清單
+
+創建新的 Vercel 項目時：
+
+- [ ] **項目名稱**：`morningai-[app-name]`
+- [ ] **Root Directory**：`handoff/20250928/40_App/[app-name]` ✅ 必須設置
+- [ ] **Build Command**：關閉 Override（讓 vercel.json 生效）
+- [ ] **Output Directory**：關閉 Override（讓 vercel.json 生效）
+- [ ] **Install Command**：關閉 Override（讓 vercel.json 生效）
+- [ ] **環境變數**：根據應用需求設置（應用於所有環境）
+
+### 🚨 常見錯誤和解決方案
+
+#### 錯誤 1：找不到目錄
+```
+sh: line 1: cd: handoff/.../frontend-dashboard: No such file or directory
+```
+
+**原因**：根目錄的 `vercel.json` 覆蓋了子應用的配置
+
+**解決方案**：
+1. 在子應用目錄創建獨立的 `vercel.json`
+2. 確保 Vercel Dashboard 的 Root Directory 正確設置
+3. 關閉所有 Override 開關
+
+#### 錯誤 2：環境變數未生效
+```javascript
+console.log(import.meta.env.VITE_API_BASE_URL) // undefined
+```
+
+**解決方案**：
+1. 在 Vercel Dashboard 檢查環境變數設置
+2. 確保應用於所有環境（Production, Preview, Development）
+3. 重新部署應用
+
+### 📝 PR 提交檢查清單
+
+提交包含新前端應用或修改 Vercel 配置的 PR 時：
+
+- [ ] 子應用包含 `vercel.json` 文件
+- [ ] `vercel.json` 使用標準模板
+- [ ] 包含 `.env.example` 文件
+- [ ] PR 描述中說明 Vercel 部署需求
+- [ ] 在 `ARCHITECTURE.md` 中記錄新應用
+
+### 🔍 CI 自動驗證
+
+CI 會自動檢查：
+- `vercel.json` 語法是否正確
+- 前端應用是否缺少 `vercel.json`
+- 配置結構是否符合規範
+
+查看 `.github/workflows/validate-vercel-config.yml` 了解詳情。
+
+### 📖 詳細文檔
+
+完整的部署指南和故障排除：
+- **[Vercel Monorepo 部署標準指南](./VERCEL_MONOREPO_DEPLOYMENT_GUIDE.md)**
+
+---
+
+**最後更新**：2025-10-23  
+**相關 PR**：#639, #641
