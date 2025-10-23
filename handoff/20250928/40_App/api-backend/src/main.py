@@ -16,6 +16,7 @@ from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.auth import auth_bp
 from src.routes.dashboard import dashboard_bp
+from src.routes.user_preferences import user_preferences_bp
 from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required
 from flask_cors import CORS
 import sys
@@ -126,6 +127,7 @@ if SECURITY_AVAILABLE:
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+app.register_blueprint(user_preferences_bp, url_prefix='/api')
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
 app.register_blueprint(tenant_bp)
