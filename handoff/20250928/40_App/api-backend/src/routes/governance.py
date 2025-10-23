@@ -2,7 +2,6 @@
 import os
 import sys
 from flask import Blueprint, jsonify, request
-from functools import wraps
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
 if project_root not in sys.path:
@@ -24,21 +23,13 @@ except ImportError as e:
     print(f"Warning: Governance modules not available: {e}")
     GOVERNANCE_AVAILABLE = False
 
+from src.middleware.auth_middleware import jwt_required, admin_required
+
 bp = Blueprint('governance', __name__, url_prefix='/api/governance')
 
 
-def require_auth(f):
-    """Authentication decorator (placeholder - integrate with existing JWT middleware)"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
-            return jsonify({'error': 'Authorization required'}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-
 @bp.route('/agents', methods=['GET'])
+@jwt_required
 def get_agents():
     """Get all agents with their reputation scores"""
     if not GOVERNANCE_AVAILABLE:
@@ -57,6 +48,7 @@ def get_agents():
 
 
 @bp.route('/agents/<agent_id>', methods=['GET'])
+@jwt_required
 def get_agent_details(agent_id):
     """Get detailed information about a specific agent"""
     if not GOVERNANCE_AVAILABLE:
@@ -84,6 +76,7 @@ def get_agent_details(agent_id):
 
 
 @bp.route('/events', methods=['GET'])
+@jwt_required
 def get_events():
     """Get reputation events history"""
     if not GOVERNANCE_AVAILABLE:
@@ -119,6 +112,7 @@ def get_events():
 
 
 @bp.route('/costs', methods=['GET'])
+@jwt_required
 def get_costs():
     """Get cost tracking statistics"""
     if not GOVERNANCE_AVAILABLE:
@@ -141,6 +135,7 @@ def get_costs():
 
 
 @bp.route('/violations', methods=['GET'])
+@jwt_required
 def get_violations():
     """Get policy violation records"""
     if not GOVERNANCE_AVAILABLE:
@@ -166,6 +161,7 @@ def get_violations():
 
 
 @bp.route('/statistics', methods=['GET'])
+@jwt_required
 def get_statistics():
     """Get overall governance system statistics"""
     if not GOVERNANCE_AVAILABLE:
@@ -188,6 +184,7 @@ def get_statistics():
 
 
 @bp.route('/leaderboard', methods=['GET'])
+@jwt_required
 def get_leaderboard():
     """Get agent reputation leaderboard"""
     if not GOVERNANCE_AVAILABLE:

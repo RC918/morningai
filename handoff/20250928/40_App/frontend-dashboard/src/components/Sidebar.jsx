@@ -68,7 +68,7 @@ const Sidebar = ({ user, onLogout }) => {
       icon: Shield,
       label: 'Agent Governance',
       description: 'Monitor agent reputation and compliance',
-      feature: AVAILABLE_FEATURES.COSTS
+      feature: AVAILABLE_FEATURES.GOVERNANCE
     },
     {
       path: '/settings',
