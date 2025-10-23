@@ -93,6 +93,141 @@ ops_agent/
 - **FAQ Agent**: Share operational insights
 - **Database**: Store metrics and alerts
 
+## Governance Integration
+
+### Overview
+
+Ops Agent Worker integrates with the Agent Governance Framework to provide:
+- **Cost Tracking**: Token and USD budget monitoring
+- **Permission Checking**: Reputation-based access control
+- **Reputation Scoring**: Dynamic agent scoring based on task outcomes
+
+### Configuration
+
+**Required Dependencies** (`requirements.txt`):
+```
+PyYAML>=6.0
+supabase==2.6.0
+redis==5.0.1
+```
+
+**Required Environment Variables**:
+```bash
+# Supabase (for reputation system)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
+
+# Redis (for cost tracking)
+REDIS_URL=redis://your-redis-host:6379
+
+# Vercel (for deployments)
+VERCEL_TOKEN=your-vercel-token
+VERCEL_TEAM_ID=your-team-id
+```
+
+### Agent Registration
+
+On startup, the worker registers with the governance system:
+
+```python
+# In worker.py
+self.agent_id = self.reputation_engine.get_or_create_agent('ops_agent')
+```
+
+**Agent Type**: Must be `'ops_agent'` (matches database constraint)
+
+**Initial State**:
+- Reputation Score: 100
+- Permission Level: `sandbox_only`
+- Allowed Operations: Read-only, test execution, sandbox deployments
+
+### Task Execution Flow
+
+```
+1. Task received from Redis queue
+   ↓
+2. Budget check (daily + hourly)
+   ↓
+3. Permission check (based on reputation)
+   ↓
+4. Task execution
+   ↓
+5. Cost tracking
+   ↓
+6. Reputation event recording
+```
+
+**Example Log Output**:
+```
+INFO:__main__:✅ Governance modules initialized
+INFO:__main__:✅ Registered with Governance (agent_id: 7df3273c-1c9c-49cf-9fb3-41d8494768d8)
+INFO:__main__:   Permission Level: sandbox_only, Reputation Score: 100
+INFO:__main__:✅ Budget check passed for task task-123
+INFO:__main__:✅ Permission check passed for operation: deploy_sandbox
+INFO:__main__:✅ Recorded reputation event: task_success
+```
+
+### Reputation Events
+
+The worker records the following events:
+
+| Event Type | Delta | Trigger |
+|-----------|-------|---------|
+| `task_success` | +2 | Task completed successfully |
+| `task_failure` | -3 | Task failed |
+| `budget_exceeded` | -10 | Cost budget exceeded |
+| `permission_denied` | -8 | Permission check failed |
+
+### Permission Levels
+
+| Level | Score Range | Allowed Operations |
+|-------|-------------|-------------------|
+| `sandbox_only` | 0-89 | Read-only, test execution, sandbox deployments |
+| `staging_access` | 90-129 | Staging deployments, non-prod changes |
+| `prod_low_risk` | 130-159 | Low-risk prod changes (docs, UI) |
+| `prod_full_access` | 160+ | Full production access |
+
+### Degraded Mode
+
+If governance registration fails, the worker operates in **degraded mode**:
+
+**Symptoms**:
+```
+⚠️ Could not register with Governance (degraded mode)
+```
+
+**Impact**:
+- No cost tracking
+- No permission checking
+- No reputation scoring
+- All tasks execute without governance constraints
+
+**Troubleshooting**:
+1. Check environment variables (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+2. Verify dependencies installed (PyYAML, supabase)
+3. Check Supabase connection
+4. Review worker logs for specific errors
+
+### Monitoring
+
+**Key Metrics**:
+- Agent reputation score
+- Permission level
+- Task success rate
+- Cost per task
+- Budget utilization
+
+**Alerts**:
+- Reputation score drops below 70
+- Budget exceeds 80% (warning) or 95% (critical)
+- Permission denied events
+
+### Related Documentation
+
+- [Governance Framework](../../docs/GOVERNANCE_FRAMEWORK.md)
+- [Cost Tracking](../../docs/GOVERNANCE_FRAMEWORK.md#3-cost-tracker)
+- [Reputation System](../../docs/GOVERNANCE_FRAMEWORK.md#4-reputation-system)
+
 ## API Design
 
 ### Deployment Tool API
