@@ -1,6 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from 'next-themes'
+import { TolgeeProvider } from '@tolgee/react'
+import { tolgee } from './i18n'
 import Sidebar from '@/components/Sidebar'
 import LoginPage from '@/components/LoginPage'
 import './App.css'
@@ -86,9 +88,11 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <AppContent />
-    </ThemeProvider>
+    <TolgeeProvider tolgee={tolgee} fallback="Loading translations...">
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <AppContent />
+      </ThemeProvider>
+    </TolgeeProvider>
   )
 }
 
