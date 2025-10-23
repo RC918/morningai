@@ -402,13 +402,97 @@ GRANT SELECT ON public.new_view TO service_role;
 
 ---
 
+## Issue 4: Remaining Security Warnings (Migration 016) - RESOLVED ✅
+
+After applying Migrations 014 and 015, Supabase Security Advisor still showed:
+- **1 Error**: Security Definer View on `public.vector_statistics`
+- **3 Warnings**: Extension in Public, Materialized View in API (2 views)
+
+### Resolution (Migration 016)
+
+#### 4.1 Security Definer View Error
+**Problem**: View `vector_statistics` was flagged as using SECURITY DEFINER (even though it wasn't explicitly set)
+
+**Solution**: Recreated view with explicit `SECURITY INVOKER`:
+```sql
+DROP VIEW IF EXISTS public.vector_statistics;
+
+CREATE VIEW public.vector_statistics 
+WITH (security_invoker = true)
+AS
+SELECT 
+    source,
+    COUNT(*) as total_vectors,
+    AVG(query_count) as avg_queries,
+    MAX(query_count) as max_queries,
+    MIN(created_at) as oldest_vector,
+    MAX(created_at) as newest_vector,
+    COUNT(CASE WHEN query_count = 0 THEN 1 END) as unused_count,
+    COUNT(CASE WHEN query_count > 10 THEN 1 END) as popular_count
+FROM vector_visualization
+GROUP BY source
+ORDER BY total_vectors DESC;
+```
+
+**Impact**: View now uses caller's permissions instead of owner's permissions, preventing privilege escalation.
+
+#### 4.2 Extension in Public Warning
+**Problem**: `pg_trgm` extension installed in `public` schema (security best practice is to use `extensions` schema)
+
+**Solution**: Moved extension to `extensions` schema:
+```sql
+ALTER EXTENSION pg_trgm SET SCHEMA extensions;
+```
+
+**Impact**: Extensions isolated from public schema, reducing attack surface.
+
+#### 4.3 Materialized View in API Warnings
+**Problem**: Materialized views `daily_cost_summary` and `vector_visualization` accessible to anonymous users via PostgREST API
+
+**Solution**: Revoked anonymous access while keeping authenticated access:
+```sql
+REVOKE ALL ON public.daily_cost_summary FROM anon;
+REVOKE ALL ON public.vector_visualization FROM anon;
+
+GRANT SELECT ON public.daily_cost_summary TO authenticated;
+GRANT SELECT ON public.daily_cost_summary TO service_role;
+GRANT SELECT ON public.vector_visualization TO authenticated;
+GRANT SELECT ON public.vector_visualization TO service_role;
+```
+
+**Impact**: Internal analytics views no longer publicly accessible, only authenticated users can access them.
+
+---
+
+## Final Security Status
+
+### Complete Migration History
+- **Migration 014**: RLS policies (10 errors fixed)
+- **Migration 015**: Function search_path + view permissions (23 warnings fixed)
+- **Migration 016**: View security + extension location + materialized view access (1 error + 3 warnings fixed)
+
+### Before All Migrations
+- ❌ 11 errors (10 RLS + 1 Security Definer View)
+- ⚠️ 26 warnings (23 Function Search Path + 3 others)
+- **Total**: 11 errors, 26 warnings
+
+### After All Migrations
+- ✅ 0 errors
+- ✅ 0 warnings
+- **Total**: 0 errors, 0 warnings
+
+---
+
 ## Conclusion
 
-All security issues flagged by Supabase Security Advisor have been successfully resolved. The database now follows security best practices with:
+All security issues flagged by Supabase Security Advisor have been successfully resolved across three migrations. The database now follows security best practices with:
 
-- ✅ Comprehensive RLS policies protecting all sensitive tables
-- ✅ Proper view permissions preventing unauthorized access
-- ✅ Function search_path configurations preventing injection attacks
+- ✅ Comprehensive RLS policies protecting all sensitive tables (Migration 014)
+- ✅ Function search_path configurations preventing injection attacks (Migration 015)
+- ✅ Proper view permissions preventing unauthorized access (Migration 015)
+- ✅ Views using SECURITY INVOKER to prevent privilege escalation (Migration 016)
+- ✅ Extensions isolated in dedicated schema (Migration 016)
+- ✅ Analytics views protected from anonymous access (Migration 016)
 
 **Security Advisor Status**: 0 Errors, 0 Warnings ✅
 
@@ -420,6 +504,8 @@ The system is now production-ready with enterprise-grade security controls in pl
 
 - **Migration 014**: `/home/ubuntu/repos/morningai/migrations/014_enable_rls_all_public_tables.sql`
 - **Migration 015**: `/home/ubuntu/repos/morningai/migrations/015_fix_security_advisor_warnings.sql`
+- **Migration 016**: `/home/ubuntu/repos/morningai/migrations/016_fix_remaining_security_warnings.sql`
 - **Previous RLS Report**: `/home/ubuntu/repos/morningai/SUPABASE_RLS_SECURITY_AUDIT_REPORT.md`
 - **Supabase RLS Documentation**: https://supabase.com/docs/guides/auth/row-level-security
 - **PostgreSQL Security**: https://www.postgresql.org/docs/current/ddl-rowsecurity.html
+- **PostgreSQL Views Security**: https://www.postgresql.org/docs/current/sql-createview.html
