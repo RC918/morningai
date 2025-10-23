@@ -116,17 +116,10 @@ class TestMetricsCollection:
         
         mock_state_manager_class = Mock(return_value=mock_state_manager_instance)
         
-        mock_persistence_module = Mock()
-        mock_state_manager_module = Mock()
-        mock_state_manager_module.PersistentStateManager = mock_state_manager_class
-        mock_persistence_module.state_manager = mock_state_manager_module
-        
         with patch.dict('sys.modules', {
             'resilience_patterns': mock_resilience_module,
-            'saga_orchestrator': mock_saga_module,
-            'persistence': mock_persistence_module,
-            'persistence.state_manager': mock_state_manager_module
-        }):
+            'saga_orchestrator': mock_saga_module
+        }), patch('src.persistence.state_manager.PersistentStateManager', mock_state_manager_class):
             
             metrics = await dashboard.collect_metrics()
             
@@ -155,17 +148,10 @@ class TestMetricsCollection:
         
         mock_state_manager_class = Mock(return_value=mock_state_manager_instance)
         
-        mock_persistence_module = Mock()
-        mock_state_manager_module = Mock()
-        mock_state_manager_module.PersistentStateManager = mock_state_manager_class
-        mock_persistence_module.state_manager = mock_state_manager_module
-        
         with patch.dict('sys.modules', {
             'resilience_patterns': mock_resilience_module,
-            'saga_orchestrator': mock_saga_module,
-            'persistence': mock_persistence_module,
-            'persistence.state_manager': mock_state_manager_module
-        }):
+            'saga_orchestrator': mock_saga_module
+        }), patch('src.persistence.state_manager.PersistentStateManager', mock_state_manager_class):
             
             initial_count = len(dashboard.metrics_history)
             await dashboard.collect_metrics()
@@ -190,17 +176,10 @@ class TestMetricsCollection:
         
         mock_state_manager_class = Mock(return_value=mock_state_manager_instance)
         
-        mock_persistence_module = Mock()
-        mock_state_manager_module = Mock()
-        mock_state_manager_module.PersistentStateManager = mock_state_manager_class
-        mock_persistence_module.state_manager = mock_state_manager_module
-        
         with patch.dict('sys.modules', {
             'resilience_patterns': mock_resilience_module,
-            'saga_orchestrator': mock_saga_module,
-            'persistence': mock_persistence_module,
-            'persistence.state_manager': mock_state_manager_module
-        }):
+            'saga_orchestrator': mock_saga_module
+        }), patch('src.persistence.state_manager.PersistentStateManager', mock_state_manager_class):
             
             for _ in range(1001):
                 await dashboard.collect_metrics()
@@ -211,7 +190,9 @@ class TestMetricsCollection:
     async def test_collect_metrics_error_handling(self, dashboard):
         """Test error handling during metrics collection"""
         mock_resilience_module = Mock()
-        mock_resilience_module.resilience_manager = Mock(side_effect=Exception('Collection failed'))
+        mock_resilience_manager = Mock()
+        mock_resilience_manager.get_all_metrics.side_effect = Exception('Collection failed')
+        mock_resilience_module.resilience_manager = mock_resilience_manager
         
         with patch.dict('sys.modules', {'resilience_patterns': mock_resilience_module}):
             metrics = await dashboard.collect_metrics()
@@ -740,17 +721,10 @@ class TestContinuousMonitoring:
         
         mock_state_manager_class = Mock(return_value=mock_state_manager_instance)
         
-        mock_persistence_module = Mock()
-        mock_state_manager_module = Mock()
-        mock_state_manager_module.PersistentStateManager = mock_state_manager_class
-        mock_persistence_module.state_manager = mock_state_manager_module
-        
         with patch.dict('sys.modules', {
             'resilience_patterns': mock_resilience_module,
-            'saga_orchestrator': mock_saga_module,
-            'persistence': mock_persistence_module,
-            'persistence.state_manager': mock_state_manager_module
-        }):
+            'saga_orchestrator': mock_saga_module
+        }), patch('src.persistence.state_manager.PersistentStateManager', mock_state_manager_class):
             
             monitoring_task = asyncio.create_task(dashboard.start_monitoring(interval_seconds=0.1))
             
