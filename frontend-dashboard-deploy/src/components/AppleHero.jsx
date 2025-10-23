@@ -25,15 +25,17 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
     const handleChange = (e) => setPrefersReducedMotion(e.matches)
     mediaQuery.addEventListener('change', handleChange)
 
-    setTimeout(() => setIsVisible(true), 100)
-
     return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsVisible(entry.isIntersecting)
+        if (entry.isIntersecting) {
+          setTimeout(() => setIsVisible(true), 100)
+        } else {
+          setIsVisible(false)
+        }
       },
       { threshold: 0.1 }
     )

@@ -1,12 +1,10 @@
-import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Brain, Chrome, Apple as AppleIcon, Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { LanguageSwitcher } from './LanguageSwitcher'
-
-const AppleHero = lazy(() => import('./AppleHero'))
+import AppleHero from './AppleHero'
 
 const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
   const { t } = useTranslation()
@@ -66,16 +64,10 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
       </header>
 
       <main className="pt-16">
-        <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="animate-pulse text-gray-400">Loading...</div>
-          </div>
-        }>
-          <AppleHero
-            onGetStarted={handleGetStarted}
-            onLearnMore={handleLearnMore}
-          />
-        </Suspense>
+        <AppleHero
+          onGetStarted={handleGetStarted}
+          onLearnMore={handleLearnMore}
+        />
 
         <section
           id="sso-login"
