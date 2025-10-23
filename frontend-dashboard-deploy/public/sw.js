@@ -5,6 +5,7 @@ const CACHE_NAME = `morningai-${CACHE_VERSION}`;
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
+  '/offline.html',
   '/favicon.ico',
   '/manifest.json',
 ];
