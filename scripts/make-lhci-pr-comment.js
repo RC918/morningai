@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const LHCI_DIR = path.join(__dirname, '../frontend-dashboard-deploy/.lhci');
+const LHCI_DIR = path.join(__dirname, '../frontend-dashboard-deploy/.lighthouseci');
 const BASELINE_FILE = path.join(__dirname, '../.lhci-baseline.json');
 const OUTPUT_FILE = path.join(__dirname, '../frontend-dashboard-deploy/.lhci-diff.md');
 

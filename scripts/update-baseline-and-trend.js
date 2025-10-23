@@ -12,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const LHCI_DIR = path.join(__dirname, '../frontend-dashboard-deploy/.lhci');
+const LHCI_DIR = path.join(__dirname, '../frontend-dashboard-deploy/.lighthouseci');
 const BASELINE_FILE = path.join(__dirname, '../.lhci-baseline.json');
 const TREND_FILE = path.join(__dirname, '../trend.csv');
 
