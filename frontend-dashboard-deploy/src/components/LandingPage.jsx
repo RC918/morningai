@@ -3,8 +3,8 @@ import { motion } from 'framer-motion'
 import { Brain, Chrome, Apple as AppleIcon, Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import AppleHero from './AppleHero'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import AppleHero from './AppleHero'
 
 const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
   const { t } = useTranslation()
