@@ -1,4 +1,9 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
+const isProduction = import.meta.env.MODE === 'production'
+const defaultURL = isProduction 
+  ? 'https://morningai-backend-v2.onrender.com'
+  : 'http://localhost:5001'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || defaultURL
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 class ApiClient {
