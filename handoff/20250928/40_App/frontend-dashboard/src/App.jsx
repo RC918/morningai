@@ -32,6 +32,7 @@ const StrategyManagement = lazy(() => import('@/components/StrategyManagement'))
 const DecisionApproval = lazy(() => import('@/components/DecisionApproval'))
 const HistoryAnalysis = lazy(() => import('@/components/HistoryAnalysis'))
 const CostAnalysis = lazy(() => import('@/components/CostAnalysis'))
+const AgentGovernance = lazy(() => import('@/components/AgentGovernance'))
 const SystemSettings = lazy(() => import('@/components/SystemSettings'))
 const TenantSettings = lazy(() => import('@/components/TenantSettings'))
 const CheckoutPage = lazy(() => import('@/components/CheckoutPage'))
@@ -219,6 +220,7 @@ function AppContent() {
               ) : (
                 <Route path="/costs" element={<WIPPage title={t('wip.costAnalysis')} />} />
               )}
+              <Route path="/governance" element={<AgentGovernance />} />
               {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
                 <Route path="/settings" element={<SystemSettings />} />
               ) : (

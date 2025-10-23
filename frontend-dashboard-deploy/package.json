@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "test:smoke": "node scripts/smoke-tests.js",
     "generate:api": "orval --config orval.config.cjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lhci": "lhci autorun --rc=../lighthouserc.json",
+    "lhci:main": "lhci autorun --rc=../lighthouserc.main.json",
+    "lhci:pr-comment": "node ../scripts/make-lhci-pr-comment.js",
+    "lhci:update-baseline": "node ../scripts/update-baseline-and-trend.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
@@ -75,6 +79,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@playwright/test": "^1.56.1",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",

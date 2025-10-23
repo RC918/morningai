@@ -1,0 +1,281 @@
+version: "1.0"
+description: "MorningAI Agent Governance Policies"
+last_updated: "2025-10-23"
+
+resource_sandbox:
+  file_access:
+    allow:
+      - "./apps/web/**"
+      - "./docs/**"
+      - "./handoff/20250928/40_App/orchestrator/**"
+      - "./tests/**"
+    deny:
+      - "./secrets/**"
+      - ".env*"
+      - "**/.git/**"
+      - "**/node_modules/**"
+    
+  network:
+    allow_domains:
+      - "api.github.com"
+      - "registry.npmjs.org"
+      - "api.openai.com"
+      - "*.supabase.co"
+      - "*.upstash.io"
+      - "api.render.com"
+      - "api.vercel.com"
+    rate_limit:
+      requests_per_minute: 60
+      requests_per_hour: 1000
+
+cost_budget:
+  daily:
+    max_usd: 5.0
+    max_tokens: 100000
+  hourly:
+    max_usd: 1.0
+    max_tokens: 20000
+  per_task:
+    max_usd: 0.5
+    max_tokens: 10000
+  
+  alert_thresholds:
+    warning_percent: 80  # Alert at 80% of budget
+    critical_percent: 95  # Critical alert at 95%
+
+capability_constraints:
+  restricted_tools:
+    - name: "Shell_Tool"
+      permission_level: "staging_access"
+      allowed_commands:
+        - "git"
+        - "npm"
+        - "pytest"
+        - "python"
+      denied_commands:
+        - "rm -rf"
+        - "sudo"
+        - "chmod"
+        - "chown"
+    
+    - name: "Git_Tool"
+      permission_level: "sandbox_only"
+      allowed_operations:
+        - "clone"
+        - "commit"
+        - "push"
+        - "create_branch"
+        - "create_pr"
+      denied_operations:
+        - "force_push"
+        - "delete_branch"
+        - "merge_to_main"
+    
+    - name: "Render_Tool"
+      permission_level: "prod_low_risk"
+      allowed_operations:
+        - "get_status"
+        - "get_logs"
+      denied_operations:
+        - "deploy"
+        - "restart"
+        - "scale"
+    
+    - name: "Vercel_Tool"
+      permission_level: "prod_low_risk"
+      allowed_operations:
+        - "get_deployments"
+        - "get_logs"
+      denied_operations:
+        - "deploy"
+        - "rollback"
+        - "delete"
+
+task_contract:
+  input_validation:
+    enabled: true
+    schema_path: "config/schemas/task_input.json"
+  
+  output_validation:
+    enabled: true
+    schema_path: "config/schemas/task_output.json"
+    required_fields:
+      - "task_id"
+      - "status"
+      - "trace_id"
+
+risk_routing:
+  high_risk_labels:
+    - "db_migration"
+    - "prod_config"
+    - "payment"
+    - "secrets_access"
+    - "user_data_deletion"
+    - "infrastructure_change"
+  
+  require_human_signoff: true
+  
+  auto_approve_labels:
+    - "docs_only"
+    - "test_only"
+    - "ui_style"
+  
+  risk_scoring:
+    file_patterns:
+      high_risk:
+        - "**/migrations/**"
+        - "**/secrets/**"
+        - ".env*"
+        - "**/production/**"
+      medium_risk:
+        - "**/api/**"
+        - "**/backend/**"
+        - "**/database/**"
+      low_risk:
+        - "**/docs/**"
+        - "**/tests/**"
+        - "**/frontend/**"
+
+violation_detection:
+  enabled: true
+  
+  patterns:
+    secrets_access:
+      - pattern: "SECRET|PASSWORD|TOKEN|KEY"
+        severity: "critical"
+        action: "block"
+    
+    dangerous_operations:
+      - pattern: "rm -rf|sudo|chmod 777"
+        severity: "critical"
+        action: "block"
+    
+    unauthorized_api:
+      - pattern: "SUPABASE_SERVICE_ROLE_KEY|MASTER_KEY"
+        severity: "critical"
+        action: "block"
+  
+  alert_channels:
+    - "telegram"
+    - "sentry"
+    - "slack"
+
+reputation:
+  initial_score: 100
+  
+  permission_levels:
+    sandbox_only:
+      min_score: 0
+      max_score: 89
+      allowed_operations:
+        - "create_pr"
+        - "run_tests"
+        - "read_docs"
+    
+    staging_access:
+      min_score: 90
+      max_score: 129
+      allowed_operations:
+        - "deploy_staging"
+        - "modify_staging_config"
+        - "run_integration_tests"
+    
+    prod_low_risk:
+      min_score: 130
+      max_score: 159
+      allowed_operations:
+        - "modify_docs"
+        - "update_frontend_styles"
+        - "create_prod_pr"
+    
+    prod_full_access:
+      min_score: 160
+      max_score: 999
+      allowed_operations:
+        - "deploy_prod"
+        - "modify_prod_config"
+        - "execute_migrations"
+  
+  scoring_rules:
+    pr_merged_without_revert: +5
+    pr_reverted: -15
+    human_escalation: -8
+    test_passed: +2
+    test_failed: -3
+    cost_overrun: -10
+    violation_detected: -20
+    ci_success: +1
+    ci_failure: -2
+  
+  decay:
+    enabled: true
+    rate: 0.01  # 1% decay per week for inactive agents
+    min_score: 50  # Never decay below this
+
+monitoring:
+  heartbeat:
+    enabled: true
+    interval_seconds: 60
+    timeout_seconds: 120
+  
+  metrics:
+    - name: "task_success_rate"
+      threshold: 0.85
+      alert_on_below: true
+    
+    - name: "cost_per_task"
+      threshold: 0.5
+      alert_on_above: true
+    
+    - name: "human_escalation_rate"
+      threshold: 0.2
+      alert_on_above: true
+  
+  alert_destinations:
+    telegram:
+      enabled: true
+      chat_id_env: "TELEGRAM_ADMIN_CHAT_ID"
+    
+    sentry:
+      enabled: true
+      dsn_env: "SENTRY_DSN"
+    
+    slack:
+      enabled: false
+      webhook_env: "SLACK_WEBHOOK_URL"
+
+audit:
+  enabled: true
+  
+  log_levels:
+    tool_calls: true
+    decision_chain: true
+    cost_tracking: true
+    violation_attempts: true
+  
+  retention:
+    days: 90
+    archive_after_days: 30
+  
+  storage:
+    primary: "supabase"
+    backup: "s3"  # Future
+
+rollback:
+  enabled: true
+  
+  runbooks:
+    - name: "rollback-pr"
+      path: "runbooks/rollback-pr.yaml"
+      trigger: "pr_reverted"
+    
+    - name: "rollback-deployment"
+      path: "runbooks/rollback-deployment.yaml"
+      trigger: "deployment_failed"
+  
+  auto_rollback:
+    enabled: true
+    conditions:
+      - "ci_failure"
+      - "health_check_failure"
+      - "cost_exceeded"

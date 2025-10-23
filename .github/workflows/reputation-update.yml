@@ -1,0 +1,42 @@
+name: Daily Reputation Update
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at 00:00 UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  update-reputation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          cd handoff/20250928/40_App/orchestrator
+          pip install -r requirements.txt
+          pip install pyyaml requests
+      
+      - name: Run reputation update
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          python scripts/update_reputation_daily.py
+      
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reputation-update-logs
+          path: |
+            *.log
+          retention-days: 7

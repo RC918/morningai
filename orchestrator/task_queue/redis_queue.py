@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional, Callable, List
 import redis.asyncio as redis
 from datetime import datetime, timezone
 
-from orchestrator.schemas.task_schema import UnifiedTask, TaskStatus
+from orchestrator.schemas.task_schema import UnifiedTask, TaskStatus, TaskPriority
 from orchestrator.schemas.event_schema import AgentEvent, EventType
 
 logger = logging.getLogger(__name__)
@@ -62,12 +62,18 @@ class RedisQueue:
         if self.pubsub:
             await self.pubsub.unsubscribe()
             await self.pubsub.close()
+            self.pubsub = None
         
         if self.redis_client:
             await self.redis_client.close()
+            self.redis_client = None
             logger.info("Disconnected from Redis")
     
-    async def enqueue_task(self, task: UnifiedTask) -> bool:
+    async def close(self):
+        """Alias for disconnect() for compatibility"""
+        await self.disconnect()
+    
+    async def enqueue_task(self, task: UnifiedTask, publish_events: bool = True) -> bool:
         """
         Add task to queue
         
@@ -79,36 +85,38 @@ class RedisQueue:
         """
         try:
             task_data = json.dumps(task.to_dict())
+            priority_score = self._get_priority_score(task.priority.value if isinstance(task.priority, TaskPriority) else task.priority)
             
-            await self.redis_client.hset(
+            pipeline = self.redis_client.pipeline()
+            pipeline.hset(
                 f"{self.TASK_STORAGE_PREFIX}{task.task_id}",
                 mapping={
                     "data": task_data,
-                    "status": task.status.value,
+                    "status": task.status.value if hasattr(task.status, 'value') else task.status,
                     "created_at": task.created_at,
-                    "priority": task.priority.value
+                    "priority": task.priority.value if hasattr(task.priority, 'value') else task.priority
                 }
             )
-            
-            priority_score = self._get_priority_score(task.priority.value)
-            await self.redis_client.zadd(
+            pipeline.zadd(
                 self.TASK_QUEUE_KEY,
                 {task.task_id: priority_score}
             )
+            await pipeline.execute()
             
-            logger.info(f"Enqueued task {task.task_id} with priority {task.priority.value}")
+            logger.info(f"Enqueued task {task.task_id} with priority {task.priority.value if hasattr(task.priority, 'value') else task.priority}")
             
-            await self.publish_event(
-                event_type="task.created",
-                source_agent="orchestrator",
-                task_id=task.task_id,
-                payload={
-                    "task_type": task.type.value,
-                    "priority": task.priority.value,
-                    "assigned_to": task.assigned_to
-                },
-                trace_id=task.trace_id
-            )
+            if publish_events:
+                await self.publish_event(
+                    event_type="task.created",
+                    source_agent="orchestrator",
+                    task_id=task.task_id,
+                    payload={
+                        "task_type": task.type.value if hasattr(task.type, 'value') else task.type,
+                        "priority": task.priority.value if hasattr(task.priority, 'value') else task.priority,
+                        "assigned_to": task.assigned_to
+                    },
+                    trace_id=task.trace_id
+                )
             
             return True
             
@@ -177,15 +185,15 @@ class RedisQueue:
                 f"{self.TASK_STORAGE_PREFIX}{task.task_id}",
                 mapping={
                     "data": task_data,
-                    "status": task.status.value,
+                    "status": task.status.value if hasattr(task.status, 'value') else task.status,
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
             )
             
-            if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+            if (task.status if hasattr(task.status, 'value') else str(task.status)) in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
                 await self.redis_client.srem(self.TASK_PROCESSING_KEY, task.task_id)
             
-            logger.info(f"Updated task {task.task_id} status to {task.status.value}")
+            logger.info(f"Updated task {task.task_id} status to {(task.status.value if hasattr(task.status, 'value') else task.status)}")
             return True
             
         except Exception as e:
@@ -216,8 +224,20 @@ class RedisQueue:
             bool: True if successful
         """
         try:
+            try:
+                event_type_enum = EventType(event_type)
+            except ValueError:
+                event_type_enum = None
+                for et in EventType:
+                    if et.value == event_type:
+                        event_type_enum = et
+                        break
+                if event_type_enum is None:
+                    logger.error(f"Unknown event type '{event_type}', defaulting to TASK_CREATED. Valid types: {[e.value for e in EventType]}")
+                    event_type_enum = EventType.TASK_CREATED
+            
             event = AgentEvent(
-                event_type=EventType(event_type),
+                event_type=event_type_enum,
                 source_agent=source_agent,
                 task_id=task_id,
                 trace_id=trace_id,
@@ -253,12 +273,13 @@ class RedisQueue:
         self.event_handlers[event_type].append(handler)
         logger.info(f"Registered handler for {event_type}")
     
-    async def subscribe_to_events(self, event_types: List[str]):
+    async def subscribe_to_events(self, event_types: List[str], handler: Optional[Callable] = None):
         """
         Subscribe to specific event types
         
         Args:
             event_types: List of event types to subscribe to
+            handler: Optional event handler function to register for these event types
         """
         try:
             if not self.pubsub:
@@ -268,6 +289,10 @@ class RedisQueue:
             await self.pubsub.subscribe(*channels)
             
             logger.info(f"Subscribed to events: {event_types}")
+            
+            if handler:
+                for event_type in event_types:
+                    self.register_event_handler(event_type, handler)
             
         except Exception as e:
             logger.error(f"Failed to subscribe to events: {e}")
