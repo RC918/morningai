@@ -18,9 +18,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/hooks/use-toast'
 import { safeInterval } from '@/lib/safeInterval'
+import useAppStore from '@/stores/appStore'
 
 const DecisionApproval = () => {
   const { toast } = useToast()
+  const { trackPathStart, trackPathComplete, trackPathFail } = useAppStore()
   const [pendingDecisions, setPendingDecisions] = useState([
     {
       id: 'decision_001',
@@ -131,13 +133,15 @@ const DecisionApproval = () => {
   }, [])
 
   const handleApprove = async (decisionId, comment = '') => {
+    const pathId = trackPathStart('decision_approve')
     try {
-      // 模擬API調用
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       setPendingDecisions(prev => 
         prev.filter(d => d.id !== decisionId)
       )
+      
+      trackPathComplete(pathId)
       
       toast({
         title: "決策已批准",
@@ -145,9 +149,14 @@ const DecisionApproval = () => {
         variant: "default"
       })
       
+      window.dispatchEvent(new CustomEvent('first-value-operation', {
+        detail: { operation: 'decision_approve' }
+      }))
+      
       setSelectedDecision(null)
       setApprovalComment('')
     } catch (error) {
+      trackPathFail(pathId, error)
       toast({
         title: "批准失敗",
         description: "請稍後重試",
@@ -166,6 +175,7 @@ const DecisionApproval = () => {
       return
     }
 
+    const pathId = trackPathStart('decision_reject')
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
       
@@ -173,15 +183,22 @@ const DecisionApproval = () => {
         prev.filter(d => d.id !== decisionId)
       )
       
+      trackPathComplete(pathId)
+      
       toast({
         title: "決策已拒絕",
         description: "系統將尋找替代方案",
         variant: "default"
       })
       
+      window.dispatchEvent(new CustomEvent('first-value-operation', {
+        detail: { operation: 'decision_reject' }
+      }))
+      
       setSelectedDecision(null)
       setApprovalComment('')
     } catch (error) {
+      trackPathFail(pathId, error)
       toast({
         title: "拒絕失敗",
         description: "請稍後重試",

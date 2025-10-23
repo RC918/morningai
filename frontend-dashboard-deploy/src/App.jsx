@@ -17,6 +17,7 @@ import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { AB_TESTS, getABTestVariant, trackABTestMetrics, collectWebVitals } from '@/lib/ab-testing'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
+import safeLocalStorage from '@/lib/safeLocalStorage'
 import '@/i18n/config'
 import './App.css'
 import './styles/mobile-optimizations.css'
@@ -68,31 +69,6 @@ function AppContent() {
     }
 
     window.addEventListener('api-error', handleApiError)
-
-    const safeLocalStorage = {
-      getItem: (key) => {
-        try {
-          return localStorage.getItem(key)
-        } catch (e) {
-          console.warn(`localStorage.getItem failed for key "${key}":`, e.message)
-          return null
-        }
-      },
-      setItem: (key, value) => {
-        try {
-          localStorage.setItem(key, value)
-        } catch (e) {
-          console.warn(`localStorage.setItem failed for key "${key}":`, e.message)
-        }
-      },
-      removeItem: (key) => {
-        try {
-          localStorage.removeItem(key)
-        } catch (e) {
-          console.warn(`localStorage.removeItem failed for key "${key}":`, e.message)
-        }
-      }
-    }
 
     const checkAuth = async () => {
       try {
@@ -171,24 +147,6 @@ function AppContent() {
   const handleLogin = (userData, token) => {
     setUser(userData)
     setIsAuthenticated(true)
-    
-    const safeLocalStorage = {
-      getItem: (key) => {
-        try {
-          return localStorage.getItem(key)
-        } catch (e) {
-          console.warn(`localStorage.getItem failed for key "${key}":`, e.message)
-          return null
-        }
-      },
-      setItem: (key, value) => {
-        try {
-          localStorage.setItem(key, value)
-        } catch (e) {
-          console.warn(`localStorage.setItem failed for key "${key}":`, e.message)
-        }
-      }
-    }
     
     safeLocalStorage.setItem('auth_token', token)
     

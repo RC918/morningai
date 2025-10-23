@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,8 +10,24 @@ import {
   CheckCircle,
   AlertCircle 
 } from 'lucide-react'
+import useAppStore from '@/stores/appStore'
 
 const StrategyManagement = () => {
+  const { trackPathStart, trackPathComplete } = useAppStore()
+  
+  useEffect(() => {
+    const pathId = trackPathStart('strategy_management_view')
+    
+    const timer = setTimeout(() => {
+      trackPathComplete(pathId)
+      
+      window.dispatchEvent(new CustomEvent('first-value-operation', {
+        detail: { operation: 'strategy_management_view' }
+      }))
+    }, 500)
+    
+    return () => clearTimeout(timer)
+  }, [])
   const mockStrategies = [
     {
       id: 1,

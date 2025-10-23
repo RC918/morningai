@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,8 +12,24 @@ import {
   Calendar,
   Download
 } from 'lucide-react'
+import useAppStore from '@/stores/appStore'
 
 const CostAnalysis = () => {
+  const { trackPathStart, trackPathComplete } = useAppStore()
+  
+  useEffect(() => {
+    const pathId = trackPathStart('cost_analysis_view')
+    
+    const timer = setTimeout(() => {
+      trackPathComplete(pathId)
+      
+      window.dispatchEvent(new CustomEvent('first-value-operation', {
+        detail: { operation: 'cost_analysis_view' }
+      }))
+    }, 500)
+    
+    return () => clearTimeout(timer)
+  }, [])
   const mockCostData = {
     currentMonth: 1245.50,
     lastMonth: 980.30,
