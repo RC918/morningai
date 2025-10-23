@@ -20,6 +20,7 @@ Testing Branch Protection Rules enforcement with required status checks.
 
 請參閱以下文件了解專案的開發規範與 CI/CD 流程：
 - **[本地開發設定](docs/setup_local.md)** - 快速啟動指南與常見問題排除
+- **[常見問題與解決方案](COMMON_ISSUES.md)** - Vercel 部署、Package Lock 衝突等常見問題的解決方法
 - [貢獻規則](docs/CONTRIBUTING.md) - 分工規則、API 變更流程、驗收標準
 - [CI 工作流矩陣](docs/ci_matrix.md) - 完整的 GitHub Actions 工作流說明、觸發條件、Branch Protection 規則
 - [管理腳本指南](docs/scripts_overview.md) - 標準化管理腳本的使用方式與安全注意事項
