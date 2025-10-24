@@ -79,10 +79,17 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 
 ## 核心文檔
 
+### 架構與治理
 - [Agent Governance Framework](docs/GOVERNANCE_FRAMEWORK.md) - 多代理系統治理框架（成本追蹤、權限管理、聲譽系統）
-- [Worker Deployment Troubleshooting](docs/WORKER_DEPLOYMENT_TROUBLESHOOTING.md) - Worker 部署故障排除指南
 - [Architecture](docs/ARCHITECTURE.md) - 系統架構文檔
 - [Monitoring Setup](docs/MONITORING_SETUP.md) - 監控設置指南
+
+### 安全與決策
+- [Security Advisor 修復指南](SECURITY_ADVISOR_FIXES.md) - Supabase 安全警告處理說明
+- [技術決策記錄](docs/TECHNICAL_DECISIONS.md) - 重要技術決策的背景、理由和後果
+
+### 故障排除
+- [Worker Deployment Troubleshooting](docs/WORKER_DEPLOYMENT_TROUBLESHOOTING.md) - Worker 部署故障排除指南
 
 ## Milestones & Roadmap
 
