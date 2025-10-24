@@ -301,6 +301,29 @@ def get_task_status(task_id):
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
+        if redis_client is None or redis_client_rq is None:
+            logger.error("Redis clients not initialized")
+            return jsonify({
+                "error": "Redis connection not available",
+                "queue_length": 0,
+                "recent_job_ids": [],
+                "sample_task": None,
+                "timestamp": datetime.utcnow().isoformat()
+            }), 503
+        
+        try:
+            redis_client.ping()
+            redis_client_rq.ping()
+        except (RedisConnectionError, AttributeError, Exception) as conn_err:
+            logger.error(f"Redis connection test failed: {conn_err}")
+            return jsonify({
+                "error": "Redis connection unavailable",
+                "queue_length": 0,
+                "recent_job_ids": [],
+                "sample_task": None,
+                "timestamp": datetime.utcnow().isoformat()
+            }), 503
+        
         queue_length = redis_client_rq.llen(f"rq:queue:{RQ_QUEUE_NAME}")
         
         recent_jobs = redis_client_rq.lrange(f"rq:queue:{RQ_QUEUE_NAME}", 0, 4)
@@ -335,6 +358,19 @@ def debug_queue_status():
             "sample_task": sample_task,
             "timestamp": datetime.utcnow().isoformat()
         }), 200
+    except RedisConnectionError as e:
+        logger.error(f"Redis connection error in debug endpoint: {e}")
+        if sentry_sdk:
+            sentry_sdk.capture_exception(e)
+        return jsonify({
+            "error": "Redis connection error",
+            "queue_length": 0,
+            "recent_job_ids": [],
+            "sample_task": None,
+            "timestamp": datetime.utcnow().isoformat()
+        }), 503
     except Exception as e:
         logger.error(f"Failed to get debug status: {e}")
+        if sentry_sdk:
+            sentry_sdk.capture_exception(e)
         return jsonify({"error": str(e)}), 500
