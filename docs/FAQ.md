@@ -1,94 +1,113 @@
-# System Architecture of MorningAI
+# MorningAI System Architecture
 
-The system architecture of MorningAI is designed to support a scalable, efficient, and robust SaaS platform for autonomous code generation, FAQ generation, documentation management, and multi-platform integration. This architecture leverages a microservices approach, integrating various technologies such as React, Python Flask, PostgreSQL (Supabase), Redis Queue (RQ), and OpenAI GPT-4 to deliver a seamless experience.
+The MorningAI platform is designed as a scalable, multi-tenant Software as a Service (SaaS) solution, leveraging modern technologies and architectural patterns to provide robust code generation, FAQ generation, documentation management, and real-time task orchestration capabilities. Below is an overview of the system architecture, highlighting key components and their interactions.
 
 ## Overview
 
-At its core, the MorningAI platform consists of the following components:
+MorningAI's architecture is composed of several interconnected services and components, structured to optimize performance, scalability, and maintainability. The main components include:
 
-- **Frontend**: Developed with React, leveraging Vite for build optimization and TailwindCSS for styling. The frontend is responsible for delivering a responsive user interface and interacting with the backend services.
-  
-- **Backend**: Built with Python using the Flask framework and deployed with Gunicorn supporting multiple workers for handling concurrent requests efficiently. The backend handles business logic, API requests, and serves as an intermediary between the frontend and the database.
+- **Frontend**: Developed with React and Vite for a responsive user interface, styled with TailwindCSS for a modern look and feel.
+- **Backend**: Built on Python with Flask framework, employing Gunicorn as the WSGI HTTP server with multi-worker support to handle concurrent requests efficiently.
+- **Database**: Utilizes PostgreSQL for data storage, enhanced with Supabase for additional features like Row Level Security (RLS), providing a secure way to manage data access.
+- **Queue System**: Redis Queue (RQ) is used for task queuing to manage background jobs and real-time task orchestration effectively.
+- **Orchestration Layer**: Implements LangGraph for defining and managing the workflow of autonomous agents within the platform.
+- **AI Engine**: Integrates OpenAI's GPT-4 for advanced content generation capabilities, including FAQ generation and code suggestions.
+- **Deployment & CI/CD**: Hosted on Render.com with continuous integration and continuous deployment pipelines to ensure smooth updates and maintenance.
 
-- **Database**: Utilizes PostgreSQL hosted on Supabase, which provides additional features like Row Level Security for enhanced data protection. The database stores all platform data including user information, task details, and generated content.
+### Frontend Architecture
 
-- **Queue System**: Implements Redis Queue (RQ) for task queuing and real-time task orchestration. This system allows asynchronous execution of resource-intensive tasks such as code generation and content processing.
+```javascript
+// Example: src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Route } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import AboutPage from './pages/AboutPage';
+// TailwindCSS import for global styles
+import './index.css';
 
-- **Orchestration**: Uses LangGraph for managing agent workflows, ensuring tasks are executed in an orderly manner based on dependencies and priorities.
+function App() {
+  return (
+    <Router>
+      <div className="app">
+        <Route exact path="/" component={HomePage} />
+        <Route path="/about" component={AboutPage} />
+      </div>
+    </Router>
+  );
+}
 
-- **AI Integration**: Incorporates OpenAI GPT-4 for generating high-quality content across various functionalities within the platform.
-
-- **Deployment**: Hosted on Render.com with continuous integration and continuous deployment (CI/CD) pipelines in place to automate deployment processes.
-
-## Code Examples
-
-### Flask Application Initialization
-```python
-from flask import Flask
-from flask_cors import CORS
-from config import Config
-
-app = Flask(__name__)
-app.config.from_object(Config)
-CORS(app)
-
-if __name__ == "__main__":
-    from gunicorn.app.base import BaseApplication
-
-    class Application(BaseApplication):
-        def init(self, parser, opts, args):
-            return {'bind': '0.0.0.0:8000', 'workers': 4}
-
-        def load(self):
-            return app
-
-    Application().run()
+export default App;
 ```
 
-### Redis Queue Task Example
+### Backend Architecture
+
 ```python
+# Example: app.py
+from flask import Flask
+from flask_restful import Api
+from resources.example_resource import ExampleResource
+
+app = Flask(__name__)
+api = Api(app)
+
+# Endpoint definition
+api.add_resource(ExampleResource, '/api/example')
+
+if __name__ == '__main__':
+    app.run(debug=True)
+```
+
+### Database Configuration
+
+```sql
+-- Example: Enable Row Level Security for a table
+ALTER TABLE your_table_name ENABLE ROW LEVEL SECURITY;
+```
+
+### Queue Configuration
+
+```python
+# Example: worker.py
 import redis
-from rq import Queue
+from rq import Worker, Queue, Connection
 
-redis_conn = redis.Redis()
-q = Queue(connection=redis_conn)
+listen = ['high', 'default', 'low']
 
-def background_task(arg):
-    print(f"Task running with argument {arg}!")
-    return f"Task completed with argument {arg}"
+redis_url = 'redis://localhost:6379'
 
-job = q.enqueue(background_task, 'Example argument')
+conn = redis.from_url(redis_url)
+
+if __name__ == '__main__':
+    with Connection(conn):
+        worker = Worker(map(Queue, listen))
+        worker.work()
 ```
 
 ## Related Documentation Links
 
-- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
-- PostgreSQL Documentation: [https://www.postgresql.org/docs/](https://www.postgresql.org/docs/)
-- Redis Queue (RQ) Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
-- OpenAI GPT Documentation: [https://beta.openai.com/docs/](https://beta.openai.com/docs/)
-- Render Deployment Documentation: [https://render.com/docs](https://render.com/docs)
+For more detailed information about each component or technology mentioned above:
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Redis Queue (RQ) Documentation](http://python-rq.org/docs/)
+- [Render.com Deployment Guide](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-### Database Connection Issues
-Ensure that your Supabase credentials are correct and that your IP address is whitelisted if necessary. Review your `DATABASE_URL` environment variable for correctness.
-
-### Task Queuing Delays or Failures
-Check the Redis server health and ensure it's running properly. Verify that RQ workers are online by inspecting their heartbeat status via the RQ dashboard or command line tools.
-
-### Deployment Failures on Render.com
-Review your build logs on Render.com to identify any errors during the build or deploy process. Ensure that all required environment variables are correctly set in your Render service configuration.
-
-For more detailed troubleshooting tips related to specific components or setup instructions, refer to the respective documentation linked above.
+1. **Frontend not updating**: Ensure that your browser cache is cleared or use hard refresh (Ctrl+F5) after deploying new changes.
+2. **Database connection issues**: Verify that the database credentials in your configuration are correct and that your database server is running.
+3. **Background tasks not running**: Check that Redis server is up and that RQ workers are running. Use `rq info` command to inspect the queue status.
+4. **Deployment failures**: Consult the deployment logs on Render.com for specific errors. Ensure all environment variables are correctly set up.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `15989ab5-e4eb-48f3-ad9d-97e7977f022b`
+- Trace ID: `cd0e462e-4837-4656-a6e1-67fa5d411a6d`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
