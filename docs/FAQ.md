@@ -1,91 +1,117 @@
-# MorningAI System Architecture
+# System Architecture of MorningAI
 
-MorningAI leverages a robust, scalable architecture designed to deliver high-performance code generation, FAQ documentation management, and real-time task orchestration across multiple platforms. This section provides an overview of the core components that make up the MorningAI system architecture.
+The system architecture of MorningAI is designed to support a scalable, multi-tenant SaaS platform that offers a range of services including autonomous code generation, FAQ and documentation management, multi-platform integration, real-time task orchestration, and vector memory storage. Below is a comprehensive breakdown of the architecture components and how they interact within the MorningAI ecosystem.
 
 ## Overview
 
-MorningAI's architecture is built to support multi-tenancy and ensure efficient processing of tasks, seamless integration with various messaging platforms, and secure, scalable storage for generated content and vector memory. The system is divided into several key components:
+MorningAI's architecture is built on a microservices model, leveraging various technologies to ensure robustness, scalability, and ease of maintenance. The key components of this architecture include:
 
-- **Frontend**: Developed with React, utilizing Vite for build optimization and TailwindCSS for styling. This setup ensures a fast, responsive user interface.
-  
-- **Backend**: The backend logic is powered by Python using the Flask framework, with Gunicorn serving as the WSGI HTTP Server to manage multiple worker processes effectively.
+- **Frontend**: Developed with React, utilizing Vite for an optimized build toolchain and TailwindCSS for styling.
+- **Backend**: Python-based using Flask as the web framework and Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
+- **Database**: PostgreSQL hosted on Supabase, configured with Row Level Security (RLS) to ensure data isolation across different tenants.
+- **Queue System**: Redis Queue (RQ) is used for managing background jobs with worker heartbeat monitoring to handle task execution in real-time.
+- **Orchestration**: LangGraph is employed for managing agent workflows, facilitating complex operations that require coordination between different services.
+- **AI Layer**: OpenAI GPT-4 powers the content generation, including code and documentation.
+- **Deployment**: Render.com is used for hosting with continuous integration and continuous deployment (CI/CD) practices in place to streamline updates.
 
-- **Database**: PostgreSQL is used for data storage, enhanced by Supabase for additional features such as Row Level Security (RLS), making data access secure and compliant.
+## Detailed Components
 
-- **Queue**: Redis Queue (RQ) handles task queuing and worker management, providing a reliable mechanism for task execution with worker heartbeat monitoring to ensure health and performance.
+### Frontend
 
-- **Orchestration**: LangGraph orchestrates agent workflows, enabling complex processing sequences necessary for autonomous code generation and other AI-driven tasks.
+```javascript
+// Example: src/main.js
+import React from 'react';
+import ReactDOM from 'react-dom';
+import './index.css';
+import App from './App';
+import 'tailwindcss/tailwind.css'
 
-- **AI**: OpenAI's GPT-4 model powers the content generation capabilities of MorningAI, from generating code snippets to creating comprehensive FAQ documents.
-
-- **Deployment**: The platform is deployed on Render.com, benefiting from its CI/CD features for streamlined updates and maintenance.
-
-## System Flow
-
-1. **Request Handling**:
-   User requests are received through the frontend interface or via integrated messaging platforms (Telegram, LINE, Messenger). These requests are routed to the appropriate backend service via Flask endpoints.
-
-2. **Task Queuing**:
-   For operations requiring asynchronous processing (e.g., code generation), tasks are queued in Redis Queue with specific priorities and are processed by available workers based on their load and capabilities.
-
-3. **Processing**:
-   Depending on the task type (e.g., code generation, FAQ creation), LangGraph orchestrates the workflow among different agents. For AI-related tasks, GPT-4 is utilized to generate content based on input parameters and existing data models.
-
-4. **Storage**:
-   Generated content is stored in PostgreSQL databases managed by Supabase. Vector memory storage uses pgvector for efficient similarity search operations within the database.
-
-5. **Response Delivery**:
-   Once processing is complete, results are sent back to the user through the initial request channel or updated in the frontend application in real-time.
-
-## Configuration Instructions
-
-### Backend Setup
-
-To configure the backend Flask application with Gunicorn:
-
-```bash
-cd backend
-pip install -r requirements.txt
-gunicorn --workers 3 app:app
+ReactDOM.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+  document.getElementById('root')
+);
 ```
 
-This command starts the Flask application with Gunicorn serving as the HTTP server with 3 worker processes.
+This snippet showcases the entry point for the React application, incorporating TailwindCSS for styling.
 
-### Redis Queue Setup
+### Backend
 
-Ensure Redis is installed and running:
+A simplified Flask app setup might look like this:
 
-```bash
-redis-server
+```python
+# Example: backend/app.py
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
 ```
 
-Start RQ workers:
-
-```bash
-rq worker --with-heartbeat
-```
+For production environments, Gunicorn is configured to serve the Flask application, allowing it to handle multiple requests simultaneously through worker processes.
 
 ### Database Configuration
 
-Refer to Supabase documentation for setting up PostgreSQL databases with Row Level Security: [Supabase RLS Documentation](https://supabase.io/docs/guides/auth/row-level-security)
+Supabase setup involves configuring RLS policies to ensure that data access is securely managed. This example demonstrates setting up a policy:
+
+```sql
+-- Example: Setup RLS on Supabase
+CREATE POLICY tenant_isolation_policy ON public.your_table_name
+FOR SELECT USING (auth.uid() = user_id);
+```
+
+This SQL snippet creates an RLS policy that ensures users can only access rows where their user ID matches the `user_id` column in the table.
+
+### Queue System
+
+Redis Queue setup involves defining tasks and workers. Here’s an example of how you might define a simple background task:
+
+```python
+# Example: backend/tasks.py
+from redis import Redis
+from rq import Queue
+
+q = Queue(connection=Redis())
+
+def background_task(arg):
+    print(f"Task executed with argument {arg}")
+
+# Enqueueing a task
+job = q.enqueue(background_task, 'example')
+```
+
+This Python code snippet enqueues a background task to be processed by a worker.
+
+### Deployment Configuration
+
+The `render.yaml` file specifies the configuration needed for deployment on Render.com. It would detail services, databases, environment variables, etc., necessary for deploying the entire stack.
 
 ## Troubleshooting Tips
 
-- **Worker Not Responding**: Check if Redis server is running and accessible. Review RQ dashboard for any dead or inactive workers.
-  
-- **Database Connection Issues**: Verify your Supabase credentials and network access rules. Ensure your connection string matches what's specified in your configuration files.
-  
-- **Deployment Failures on Render.com**: Check build logs for specific errors. Common issues include misconfigured environment variables or failures in dependency installation steps.
-  
-For more detailed troubleshooting guides and configuration options, refer to our documentation repository: `RC918/morningai/docs/`.
+1. **Frontend Issues**: Ensure all dependencies are correctly installed via `npm` or `yarn`. Check browser console logs for errors.
+2. **Backend Connectivity**: Verify that Gunicorn is correctly set up and listening on the expected port. Ensure environment variables are correctly set for database connections.
+3. **Database Policies**: If experiencing issues with data access due to RLS policies on Supabase, review your policy configurations and ensure they match your application logic.
+4. **Queue System Failures**: Monitor Redis Queue dashboard for failed jobs. Check logs for specific error messages that can guide troubleshooting efforts.
+5. **Deployment Errors**: Consult Render.com deployment logs if there are issues during CI/CD processes. Ensure all required environment variables are correctly defined in `render.yaml`.
+
+For more detailed information on each component and additional setup instructions, please refer to the respective documentation pages linked below:
+
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Render.com Documentation](https://render.com/docs)
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `5af498b6-d63c-4bcf-b524-83c3e4c7bd33`
+- Trace ID: `fb725d05-8828-482c-bfb6-d8c36e38691a`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
