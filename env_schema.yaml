@@ -8,8 +8,7 @@ fields:
   REDIS_URL:
     type: url
     required: false
-    default: redis://localhost:6379/0
-    description: Redis connection URL
+    description: Redis connection URL (deprecated - use UPSTASH_REDIS_REST_URL for HTTPS)
   SUPABASE_URL:
     type: url
     required: true

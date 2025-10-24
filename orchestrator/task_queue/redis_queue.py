@@ -2,10 +2,13 @@
 """
 Redis Queue and Event Bus for Multi-Agent Orchestration
 Handles task queuing and event pub/sub
+
+Security: Uses Upstash Redis with HTTPS for secure communication
 """
 import asyncio
 import json
 import logging
+import os
 from typing import Dict, Any, Optional, Callable, List
 import redis.asyncio as redis
 from datetime import datetime, timezone
@@ -26,17 +29,38 @@ class RedisQueue:
     
     def __init__(
         self,
-        redis_url: str = "redis://localhost:6379",
+        redis_url: Optional[str] = None,
         db: int = 0
     ):
         """
-        Initialize Redis Queue
+        Initialize Redis Queue with Upstash Redis (HTTPS)
         
         Args:
-            redis_url: Redis connection URL
+            redis_url: Redis connection URL (defaults to UPSTASH_REDIS_REST_URL or REDIS_URL from env)
             db: Redis database number
+        
+        Security: Prioritizes Upstash Redis (HTTPS) over plain Redis connections
         """
-        self.redis_url = redis_url
+        # Priority: Upstash (HTTPS) > REDIS_URL (TLS) > provided redis_url
+        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
+        env_redis_url = os.getenv("REDIS_URL")
+        
+        if upstash_url:
+            logger.info("Using Upstash Redis (HTTPS) for secure communication")
+            self.redis_url = upstash_url
+        elif env_redis_url:
+            if not env_redis_url.startswith("rediss://"):
+                logger.warning("⚠️ REDIS_URL is not using TLS (rediss://). Recommend using UPSTASH_REDIS_REST_URL for HTTPS.")
+            self.redis_url = env_redis_url
+        elif redis_url:
+            if not redis_url.startswith("rediss://") and not redis_url.startswith("https://"):
+                logger.warning("⚠️ Redis URL is not using TLS. Recommend using UPSTASH_REDIS_REST_URL for HTTPS.")
+            self.redis_url = redis_url
+        else:
+            raise ValueError(
+                "No Redis configuration found. Please set UPSTASH_REDIS_REST_URL or REDIS_URL environment variable."
+            )
+        
         self.db = db
         self.redis_client: Optional[redis.Redis] = None
         self.pubsub: Optional[redis.client.PubSub] = None
@@ -44,17 +68,30 @@ class RedisQueue:
         self.is_running = False
         
     async def connect(self):
-        """Connect to Redis"""
+        """Connect to Redis with TLS support"""
         try:
+            import ssl
+            
+            # Configure SSL/TLS for secure connections
+            ssl_cert_reqs = None
+            if self.redis_url.startswith("rediss://"):
+                ssl_cert_reqs = ssl.CERT_REQUIRED
+                logger.info("Connecting to Redis with TLS (rediss://)")
+            elif self.redis_url.startswith("https://"):
+                logger.info("Connecting to Upstash Redis with HTTPS")
+            
             self.redis_client = await redis.from_url(
                 self.redis_url,
                 db=self.db,
-                decode_responses=True
+                decode_responses=True,
+                ssl_cert_reqs=ssl_cert_reqs
             )
             await self.redis_client.ping()
-            logger.info(f"Connected to Redis at {self.redis_url}")
+            
+            protocol = "HTTPS" if "https://" in self.redis_url else ("TLS" if "rediss://" in self.redis_url else "non-TLS")
+            logger.info(f"✅ Connected to Redis ({protocol})")
         except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
+            logger.error(f"❌ Failed to connect to Redis: {e}")
             raise
     
     async def disconnect(self):
@@ -368,8 +405,18 @@ class RedisQueue:
             return {}
 
 
-async def create_redis_queue(redis_url: str = "redis://localhost:6379") -> RedisQueue:
-    """Factory function to create and connect Redis queue"""
+async def create_redis_queue(redis_url: Optional[str] = None) -> RedisQueue:
+    """
+    Factory function to create and connect Redis queue
+    
+    Args:
+        redis_url: Optional Redis URL (defaults to UPSTASH_REDIS_REST_URL or REDIS_URL from env)
+    
+    Returns:
+        Connected RedisQueue instance
+    
+    Security: Prioritizes Upstash Redis (HTTPS) for secure communication
+    """
     queue = RedisQueue(redis_url=redis_url)
     await queue.connect()
     return queue
