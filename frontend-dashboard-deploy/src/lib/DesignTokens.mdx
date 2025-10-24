@@ -1,0 +1,511 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Design System/Design Tokens" />
+
+# Design Tokens
+
+Design Tokens are the visual design atoms of the MorningAI design system. They define the fundamental visual elements such as colors, typography, spacing, and more.
+
+## Overview
+
+Our design token system is centralized in `public/tokens.json` and automatically applied to all components through the `.theme-morning-ai` CSS class scope.
+
+## Color Palette
+
+### Primary Colors
+
+Our primary color palette defines the main brand colors used throughout the application.
+
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', marginTop: '24px' }}>
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-primary)', 
+      height: '80px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Primary</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>var(--color-primary)</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-secondary)', 
+      height: '80px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Secondary</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>var(--color-secondary)</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-accent)', 
+      height: '80px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Accent</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>var(--color-accent)</div>
+  </div>
+</div>
+
+### Semantic Colors
+
+Semantic colors convey meaning and state in the UI.
+
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', marginTop: '24px' }}>
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-success)', 
+      height: '80px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Success</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>var(--color-success)</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-warning)', 
+      height: '80px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Warning</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>var(--color-warning)</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-error)', 
+      height: '80px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Error</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>var(--color-error)</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-info)', 
+      height: '80px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Info</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>var(--color-info)</div>
+  </div>
+</div>
+
+### Neutral Colors
+
+Neutral colors are used for text, backgrounds, and borders.
+
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px', marginTop: '24px' }}>
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-50)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px',
+      border: '1px solid #e5e7eb'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600' }}>Gray 50</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-100)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600' }}>Gray 100</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-200)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600' }}>Gray 200</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-300)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600' }}>Gray 300</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-400)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600' }}>Gray 400</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-500)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600', color: 'white' }}>Gray 500</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-600)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600', color: 'white' }}>Gray 600</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-700)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600', color: 'white' }}>Gray 700</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-800)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600', color: 'white' }}>Gray 800</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      backgroundColor: 'var(--color-gray-900)', 
+      height: '60px', 
+      borderRadius: '8px',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '12px', fontWeight: '600', color: 'white' }}>Gray 900</div>
+  </div>
+</div>
+
+## Typography
+
+### Font Families
+
+```css
+--font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+--font-family-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+--font-family-mono: 'Fira Code', 'Courier New', monospace;
+```
+
+### Font Sizes
+
+<div style={{ marginTop: '24px' }}>
+  <div style={{ fontSize: 'var(--font-size-xs)', marginBottom: '12px' }}>
+    <strong>XS (12px)</strong> - var(--font-size-xs) - Small labels, captions
+  </div>
+  <div style={{ fontSize: 'var(--font-size-sm)', marginBottom: '12px' }}>
+    <strong>SM (14px)</strong> - var(--font-size-sm) - Body text, form inputs
+  </div>
+  <div style={{ fontSize: 'var(--font-size-base)', marginBottom: '12px' }}>
+    <strong>Base (16px)</strong> - var(--font-size-base) - Default body text
+  </div>
+  <div style={{ fontSize: 'var(--font-size-lg)', marginBottom: '12px' }}>
+    <strong>LG (18px)</strong> - var(--font-size-lg) - Large body text
+  </div>
+  <div style={{ fontSize: 'var(--font-size-xl)', marginBottom: '12px' }}>
+    <strong>XL (20px)</strong> - var(--font-size-xl) - Small headings
+  </div>
+  <div style={{ fontSize: 'var(--font-size-2xl)', marginBottom: '12px' }}>
+    <strong>2XL (24px)</strong> - var(--font-size-2xl) - Medium headings
+  </div>
+  <div style={{ fontSize: 'var(--font-size-3xl)', marginBottom: '12px' }}>
+    <strong>3XL (30px)</strong> - var(--font-size-3xl) - Large headings
+  </div>
+  <div style={{ fontSize: 'var(--font-size-4xl)', marginBottom: '12px' }}>
+    <strong>4XL (36px)</strong> - var(--font-size-4xl) - Extra large headings
+  </div>
+</div>
+
+### Font Weights
+
+<div style={{ marginTop: '24px' }}>
+  <div style={{ fontWeight: 'var(--font-weight-normal)', marginBottom: '12px' }}>
+    <strong>Normal (400)</strong> - var(--font-weight-normal) - Regular body text
+  </div>
+  <div style={{ fontWeight: 'var(--font-weight-medium)', marginBottom: '12px' }}>
+    <strong>Medium (500)</strong> - var(--font-weight-medium) - Emphasized text
+  </div>
+  <div style={{ fontWeight: 'var(--font-weight-semibold)', marginBottom: '12px' }}>
+    <strong>Semibold (600)</strong> - var(--font-weight-semibold) - Subheadings
+  </div>
+  <div style={{ fontWeight: 'var(--font-weight-bold)', marginBottom: '12px' }}>
+    <strong>Bold (700)</strong> - var(--font-weight-bold) - Headings, strong emphasis
+  </div>
+</div>
+
+## Spacing
+
+Our spacing system follows an 8px base unit for consistent rhythm and alignment.
+
+<div style={{ marginTop: '24px' }}>
+  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <thead>
+      <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+        <th style={{ textAlign: 'left', padding: '12px' }}>Token</th>
+        <th style={{ textAlign: 'left', padding: '12px' }}>Value</th>
+        <th style={{ textAlign: 'left', padding: '12px' }}>Usage</th>
+        <th style={{ textAlign: 'left', padding: '12px' }}>Visual</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '12px' }}><code>--spacing-xs</code></td>
+        <td style={{ padding: '12px' }}>4px</td>
+        <td style={{ padding: '12px' }}>Tight spacing, icon gaps</td>
+        <td style={{ padding: '12px' }}>
+          <div style={{ width: '4px', height: '20px', backgroundColor: '#3b82f6' }} />
+        </td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '12px' }}><code>--spacing-sm</code></td>
+        <td style={{ padding: '12px' }}>8px</td>
+        <td style={{ padding: '12px' }}>Small gaps, compact layouts</td>
+        <td style={{ padding: '12px' }}>
+          <div style={{ width: '8px', height: '20px', backgroundColor: '#3b82f6' }} />
+        </td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '12px' }}><code>--spacing-md</code></td>
+        <td style={{ padding: '12px' }}>16px</td>
+        <td style={{ padding: '12px' }}>Default spacing, form fields</td>
+        <td style={{ padding: '12px' }}>
+          <div style={{ width: '16px', height: '20px', backgroundColor: '#3b82f6' }} />
+        </td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '12px' }}><code>--spacing-lg</code></td>
+        <td style={{ padding: '12px' }}>24px</td>
+        <td style={{ padding: '12px' }}>Section spacing, card padding</td>
+        <td style={{ padding: '12px' }}>
+          <div style={{ width: '24px', height: '20px', backgroundColor: '#3b82f6' }} />
+        </td>
+      </tr>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <td style={{ padding: '12px' }}><code>--spacing-xl</code></td>
+        <td style={{ padding: '12px' }}>32px</td>
+        <td style={{ padding: '12px' }}>Large gaps, page sections</td>
+        <td style={{ padding: '12px' }}>
+          <div style={{ width: '32px', height: '20px', backgroundColor: '#3b82f6' }} />
+        </td>
+      </tr>
+      <tr>
+        <td style={{ padding: '12px' }}><code>--spacing-2xl</code></td>
+        <td style={{ padding: '12px' }}>48px</td>
+        <td style={{ padding: '12px' }}>Extra large gaps, major sections</td>
+        <td style={{ padding: '12px' }}>
+          <div style={{ width: '48px', height: '20px', backgroundColor: '#3b82f6' }} />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+## Border Radius
+
+Consistent border radius values for rounded corners.
+
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px', marginTop: '24px' }}>
+  <div>
+    <div style={{ 
+      width: '100px',
+      height: '100px',
+      backgroundColor: '#3b82f6',
+      borderRadius: 'var(--border-radius-sm)',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Small (4px)</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>--border-radius-sm</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      width: '100px',
+      height: '100px',
+      backgroundColor: '#3b82f6',
+      borderRadius: 'var(--border-radius-md)',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Medium (8px)</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>--border-radius-md</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      width: '100px',
+      height: '100px',
+      backgroundColor: '#3b82f6',
+      borderRadius: 'var(--border-radius-lg)',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Large (12px)</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>--border-radius-lg</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      width: '100px',
+      height: '100px',
+      backgroundColor: '#3b82f6',
+      borderRadius: 'var(--border-radius-full)',
+      marginBottom: '8px'
+    }} />
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Full (9999px)</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>--border-radius-full</div>
+  </div>
+</div>
+
+## Shadows
+
+Elevation system using box shadows for depth and hierarchy.
+
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '24px', marginTop: '24px' }}>
+  <div>
+    <div style={{ 
+      width: '100%',
+      height: '100px',
+      backgroundColor: 'white',
+      boxShadow: 'var(--shadow-sm)',
+      borderRadius: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: '8px'
+    }}>
+      <span style={{ fontSize: '14px', color: '#666' }}>Small Shadow</span>
+    </div>
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Small</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>--shadow-sm</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      width: '100%',
+      height: '100px',
+      backgroundColor: 'white',
+      boxShadow: 'var(--shadow-md)',
+      borderRadius: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: '8px'
+    }}>
+      <span style={{ fontSize: '14px', color: '#666' }}>Medium Shadow</span>
+    </div>
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Medium</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>--shadow-md</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      width: '100%',
+      height: '100px',
+      backgroundColor: 'white',
+      boxShadow: 'var(--shadow-lg)',
+      borderRadius: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: '8px'
+    }}>
+      <span style={{ fontSize: '14px', color: '#666' }}>Large Shadow</span>
+    </div>
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Large</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>--shadow-lg</div>
+  </div>
+  
+  <div>
+    <div style={{ 
+      width: '100%',
+      height: '100px',
+      backgroundColor: 'white',
+      boxShadow: 'var(--shadow-xl)',
+      borderRadius: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: '8px'
+    }}>
+      <span style={{ fontSize: '14px', color: '#666' }}>XL Shadow</span>
+    </div>
+    <div style={{ fontSize: '14px', fontWeight: '600' }}>Extra Large</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>--shadow-xl</div>
+  </div>
+</div>
+
+## Usage
+
+### In CSS
+
+```css
+.my-component {
+  color: var(--color-primary);
+  font-size: var(--font-size-base);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+}
+```
+
+### In Tailwind
+
+Design tokens are automatically integrated with Tailwind CSS through the configuration.
+
+```jsx
+<div className="text-primary text-base p-4 rounded-md shadow-sm">
+  Content
+</div>
+```
+
+### In JavaScript
+
+```javascript
+import tokens from '@/public/tokens.json';
+
+const primaryColor = tokens.colors.primary;
+const baseFontSize = tokens.typography.fontSize.base;
+```
+
+## Best Practices
+
+1. **Always use design tokens** instead of hard-coded values
+2. **Maintain consistency** across all components and pages
+3. **Use semantic colors** (success, warning, error) for meaningful UI states
+4. **Follow the spacing scale** for consistent rhythm
+5. **Test color contrast** to ensure WCAG AA compliance (4.5:1 for normal text)
+
+## Resources
+
+- [tokens.json](../public/tokens.json) - Complete design token definitions
+- [Storybook Guide](../docs/STORYBOOK_GUIDE.md) - How to use Storybook with design tokens
+- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/) - Accessibility standards
