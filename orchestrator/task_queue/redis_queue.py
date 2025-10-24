@@ -79,8 +79,6 @@ class RedisQueue:
     async def connect(self):
         """Connect to Redis with TLS support"""
         try:
-            import ssl
-            
             connection_kwargs = {
                 "db": self.db,
                 "decode_responses": True
@@ -88,10 +86,7 @@ class RedisQueue:
             
             # Only add SSL config for TLS connections
             if self.redis_url.startswith("rediss://"):
-                ssl_context = ssl.create_default_context()
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
-                connection_kwargs["ssl"] = ssl_context
+                connection_kwargs["ssl_cert_reqs"] = "none"
                 logger.info("Connecting to Redis with TLS (rediss://)")
             elif self.redis_url.startswith("redis://"):
                 logger.info("Connecting to Redis without TLS (redis://)")
