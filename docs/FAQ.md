@@ -1,80 +1,76 @@
-# Test Retry Success in MorningAI
+# E2E Test FAQ for MorningAI
 
-Understanding and implementing test retries within the MorningAI platform is crucial for maintaining a robust and reliable testing environment. This functionality is essential for identifying flaky tests which can pass or fail sporadically without any changes to the code. Implementing retries can help ensure that transient issues do not lead to false negatives in your continuous integration (CI) pipelines.
+End-to-End (E2E) testing is a critical component of ensuring the reliability and functionality of the MorningAI platform. It simulates real-user scenarios to validate the system as a whole, from the frontend through to the backend, database, and integration layers. This FAQ aims to guide developers on how to effectively utilize E2E tests within the MorningAI project.
 
-## Comprehensive Explanation
+## What is E2E Testing in MorningAI?
 
-In the context of MorningAI, test retries are particularly useful in scenarios where tests might fail due to temporary external service downtimes, network latency, or other intermittent issues. By allowing a test to rerun a specified number of times before being marked as failed, developers can reduce the noise from flaky tests and focus on genuine issues.
+E2E testing in MorningAI involves automated testing strategies that simulate user behaviors against the platform to ensure all integrated components function as expected. This includes interactions with the React frontend, Flask backend, PostgreSQL database via Supabase, Redis Queue tasks, and any third-party integrations.
 
-MorningAI leverages various technologies including Python, Flask, and Redis Queue (RQ), which can be used to implement retry mechanisms for both unit tests and integration tests.
+## How to Set Up E2E Tests?
 
-### Code Examples
+### Prerequisites
 
-#### Python Unit Test Retry Example
+- Ensure you have Node.js installed for running JavaScript-based E2E tests.
+- Install all project dependencies by navigating to your project directory and running `npm install`.
 
-For Python-based services, you can use the `unittest` module along with a custom retry decorator. Here's a simple example:
+### Setting Up Test Environment
 
-```python
-import unittest
-from time import sleep
-from random import randint
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/RC918/morningai.git
+   cd morningai
+   ```
 
-def retry_test(max_retries):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            for _ in range(max_retries):
-                try:
-                    result = func(*args, **kwargs)
-                    if result is not None:
-                        return result
-                except AssertionError as e:
-                    last_exception = e
-                    sleep(1)  # Optional: wait before retry
-            raise last_exception
-        return wrapper
-    return decorator
+2. Install E2E testing tools like Cypress or Puppeteer. For Cypress, run:
+   ```bash
+   npm install cypress --save-dev
+   ```
 
-class MyTestCase(unittest.TestCase):
-    @retry_test(max_retries=3)
-    def test_random(self):
-        self.assertTrue(randint(0, 1))
+3. Configure your `.env` file with necessary environment variables for accessing the database, API keys, etc.
+
+4. Prepare your test data and scripts based on realistic user scenarios that interact with MorningAI's features.
+
+### Running E2E Tests
+
+To execute your E2E tests using Cypress as an example:
+
+```bash
+npx cypress open
+```
+or for headless execution:
+```bash
+npx cypress run
 ```
 
-In this example, `test_random` will be retried up to 3 times if it fails due to an assertion error.
+## Code Example
 
-#### Integration Test Retry With Redis Queue (RQ)
+Here's a simple example of an E2E test script using Cypress that tests user login functionality:
 
-For tasks processed by RQ that require retries on failure, you can utilize RQ's built-in retry mechanism:
-
-```python
-from redis import Redis
-from rq import Queue
-from rq.job import Retry
-
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
-
-job = q.enqueue(
-    'my_module.my_function',
-    retry=Retry(max=3, interval=[10, 30, 60])
-)
+```javascript
+describe('Login Test', () => {
+  it('Visits the login page and logs in', () => {
+    cy.visit('/login')
+    cy.get('input[name=username]').type('testuser')
+    cy.get('input[name=password]').type('password')
+    cy.get('form').submit()
+    cy.url().should('include', '/dashboard')
+  })
+})
 ```
 
-This snippet enqueues a job with up to 3 retries on failure, with intervals of 10, 30, and 60 seconds between retries.
+## Related Documentation Links
 
-### Related Documentation Links
+- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
+- Puppeteer GitHub: [https://github.com/puppeteer/puppeteer](https://github.com/puppeteer/puppeteer)
+- MorningAI Repository: [https://github.com/RC918/morningai](https://github.com/RC918/morningai)
 
-- Python unittest: https://docs.python.org/3/library/unittest.html
-- RQ documentation: https://python-rq.org/docs/
+## Common Troubleshooting Tips
 
-### Common Troubleshooting Tips
+- **Tests Failing Unexpectedly**: Ensure your environment variables are correctly set up and that external services (databases, third-party APIs) are accessible.
+- **Timeouts or Slow Tests**: Adjust timeout settings within your testing framework. Consider mocking external services or databases if real interactions are not essential for certain tests.
+- **Flaky Tests**: Try to isolate and identify any non-deterministic behavior in your tests or application code. Ensure you're waiting for necessary elements or responses before proceeding in your test scripts.
 
-- **Ensure Consistent Test Environment:** Flakiness can often be reduced by ensuring that each test run starts with a consistent state. This may involve resetting databases or clearing caches.
-- **Review Test Dependencies:** Make sure that tests are not dependent on each other's outcomes. Each test should be able to run independently.
-- **Analyze Logs Carefully:** When a test fails before passing on a retry, examine logs for clues about why it failed. This can provide insights into what might be made more reliable.
-- **Adjust Retry Intervals Thoughtfully:** Especially for integration tests involving external services or networks, consider lengthening the interval between retries to allow transient issues more time to resolve.
-
-Implementing and managing test retries effectively can significantly improve the stability of your CI/CD pipeline by reducing the impact of flaky tests. For further customization or assistance with specific scenarios within MorningAI’s infrastructure, consulting the respective technology documentation or reaching out to support channels may provide additional insights.
+Remember, consistent, reliable E2E tests are invaluable for maintaining high-quality software. Regularly review and update your test cases to cover new features or changes within the platform.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -82,7 +78,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `1a805b76-9854-4a2f-8728-a342927bcb48`
+- Task: E2E test FAQ update
+- Trace ID: `b141498c-e922-4fd5-b369-795f30ff3b9b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
