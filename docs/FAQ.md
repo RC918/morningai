@@ -1,108 +1,55 @@
-# System Architecture of MorningAI
+# Test Retry Mechanism in MorningAI
 
-MorningAI is a robust, multi-tenant SaaS platform designed to enhance productivity through autonomous agent systems for code generation, comprehensive FAQ generation, documentation management, and seamless multi-platform integration. Its architecture is built to support real-time task orchestration and vector memory storage efficiently. Below is an in-depth overview of the system's architecture, designed to help developers navigate and utilize MorningAI effectively.
+When working with MorningAI, understanding and implementing a robust test retry mechanism is crucial for ensuring the reliability of your codebase, especially in an environment where tasks can fail due to transient issues. This FAQ entry covers how to use and configure the test retry feature within the MorningAI platform, providing developers with the tools needed to enhance test reliability.
 
-## Overview
+## Understanding Test Retry Mechanism
 
-The MorningAI platform leverages a modern technology stack that includes:
+The test retry mechanism in MorningAI is designed to automatically rerun failed tests before marking them as failures. This is particularly useful for handling flaky tests or transient errors that might occur due to external dependencies, network latency, or other unpredictable factors.
 
-- **Frontend**: Developed with React, utilizing Vite for build optimization and TailwindCSS for styling.
-- **Backend**: Python with Flask serves as the core backend framework, enhanced with Gunicorn for multi-worker support.
-- **Database**: PostgreSQL managed via Supabase, incorporating Row Level Security (RLS) for data integrity and security.
-- **Queue System**: Redis Queue (RQ) facilitates asynchronous task processing, equipped with worker heartbeat monitoring for reliability.
-- **Orchestration**: LangGraph is used for orchestrating agent workflows, ensuring efficient task management.
-- **AI Integration**: OpenAI's GPT-4 powers content generation, providing advanced natural language processing capabilities.
-- **Deployment**: Render.com hosts the application, benefiting from its integrated CI/CD pipelines for streamlined deployments.
+### Configuration
 
-### Detailed Architecture
+To configure the test retry mechanism, you'll need to modify your test configuration settings. This involves setting up retry policies including the maximum number of retries and defining specific conditions under which a test should be retried.
 
-MorningAI's architecture is designed to be scalable and resilient, ensuring high availability and performance. Here's a breakdown:
-
-#### Frontend
-
-```jsx
-// src/App.jsx
-import React from 'react';
-import { BrowserRouter as Router, Route } from 'react-router-dom';
-import HomePage from './pages/HomePage';
-import 'tailwindcss/tailwind.css';
-
-function App() {
-  return (
-    <Router>
-      <Route path="/" component={HomePage} />
-    </Router>
-  );
-}
-
-export default App;
-```
-
-This snippet demonstrates the application's entry point using React Router for page navigation and TailwindCSS for styling.
-
-#### Backend
+Example configuration (Python pytest):
 
 ```python
-# app.py
-from flask import Flask
-from flask_gunicorn import GunicornApp
-
-app = Flask(__name__)
-
-@app.route("/")
-def hello_world():
-    return "Hello, MorningAI!"
-
-if __name__ == "__main__":
-    GunicornApp(app).run()
+# In pytest.ini or conftest.py
+def pytest_configure(config):
+    config.addinivalue_line("reruns", 2)
+    config.addinivalue_line("reruns_delay", 1)  # Delay in seconds between retries
 ```
 
-A basic Flask application setup with Gunicorn integration illustrates how the backend serves HTTP requests.
+This example uses the `pytest-rerunfailures` plugin to add retry logic to pytest. It specifies that tests should be retried up to 2 times with a delay of 1 second between retries.
 
-#### Database Integration
+### Implementing Test Retry Logic
 
-Supabase integration ensures secure and scalable database management:
+For scenarios where more granular control is required, such as when certain errors should trigger a retry, custom logic can be implemented within your test framework. 
 
-```sql
--- Create a table with RLS enabled
-CREATE TABLE documents (
-    id SERIAL PRIMARY KEY,
-    content TEXT,
-    tenant_id INTEGER
-);
+Example custom retry logic in Python:
 
--- Enable Row Level Security
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+```python
+import pytest
+from my_module import transient_error_prone_function
+
+@pytest.mark.flaky(reruns=5, reruns_delay=2)
+def test_example():
+    assert transient_error_prone_function()
 ```
 
-This SQL snippet shows how to create a database table with RLS enabled in Supabase.
+This example marks a specific test as flaky using the `@pytest.mark.flaky` decorator from the `pytest-rerunfailures` plugin, allowing it to be retried up to 5 times with a delay of 2 seconds if it fails.
 
-### Common Troubleshooting Tips
+## Related Documentation Links
 
-**Issue: Failed Deployment on Render.com**
-- Ensure your `render.yaml` file is correctly configured with the appropriate service specifications.
-- Check the logs provided by Render.com for specific error messages that can guide troubleshooting.
+- Pytest RerunFailures Plugin: [https://github.com/pytest-dev/pytest-rerunfailures](https://github.com/pytest-dev/pytest-rerunfailures)
+- MorningAI Developer Guide: Please refer to the `docs/developer_guide.md` in the RC918/morningai repository for more detailed instructions on setting up and managing your testing environment.
 
-**Issue: Tasks Stuck in Redis Queue**
-- Verify that Redis workers are online and adequately scaled to handle the workload. Use `rq info` command to monitor queue status.
-- Inspect worker heartbeat logs to identify any workers that might have become unresponsive.
+## Common Troubleshooting Tips
 
-**Issue: Database Connection Errors**
-- Confirm that your Supabase connection strings are correctly configured in your application settings.
-- Ensure network rules and permissions in Supabase allow connections from your application's deployment environment.
+- **Tests Not Retrying**: Ensure that your testing framework is correctly configured for retries and that you have the necessary plugins (like `pytest-rerunfailures`) installed.
+- **Retry Delays Not Working**: Verify that you've set an appropriate delay between retries and that your testing framework supports this feature.
+- **Excessive Retries Leading to Longer Test Times**: Balance the number of retries with the average time tests take to run and consider increasing timeouts for specific tests known to take longer.
 
-### Related Documentation Links
-
-For more detailed information on each component of MorningAI's system architecture, please refer to the following documentation resources:
-
-- [React Documentation](https://reactjs.org/docs/getting-started.html)
-- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
-- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
-- [Supabase Documentation](https://supabase.io/docs)
-- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
-- [Render.com Deployment Guides](https://render.com/docs)
-
-By understanding MorningAI's comprehensive system architecture, developers can better leverage its capabilities to build efficient, scalable applications.
+Remember, while test retries can help mitigate the impact of flaky tests, they are not a substitute for fixing underlying issues causing test instability. Regularly review failed tests even if they eventually pass after retries.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -110,7 +57,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `83b0b691-c324-4341-8c6a-f4cbc6869bd3`
+- Task: Test retry success
+- Trace ID: `fbc8d232-2595-4f28-8cd4-888a1adae078`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
