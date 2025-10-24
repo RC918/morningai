@@ -16,6 +16,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'
 import { DashboardSkeleton } from '@/components/feedback/ContentSkeleton'
+import SaveStatusIndicator from './SaveStatusIndicator'
 import apiClient from '@/lib/api'
 import { safeInterval } from '@/lib/safeInterval'
 
@@ -67,6 +68,11 @@ const Dashboard = () => {
   const [availableWidgets, setAvailableWidgets] = useState([])
   const [dashboardLayout, setDashboardLayout] = useState([])
   const [dashboardData, setDashboardData] = useState({})
+  const [saveStatus, setSaveStatus] = useState({
+    status: 'saved',
+    lastSaved: null,
+    error: null
+  })
   const [systemMetrics, setSystemMetrics] = useState({
     cpu_usage: 72,
     memory_usage: 68,
@@ -180,6 +186,8 @@ const Dashboard = () => {
 
 
   const saveDashboardLayout = async () => {
+    setSaveStatus({ status: 'saving', lastSaved: saveStatus.lastSaved, error: null })
+    
     try {
       await apiClient.request('/dashboard/layouts', {
         method: 'POST',
@@ -188,8 +196,14 @@ const Dashboard = () => {
           layout: { widgets: dashboardLayout.map(w => ({ id: w.id, position: w.position })) }
         })
       })
+      setSaveStatus({ status: 'saved', lastSaved: new Date(), error: null })
     } catch (error) {
       console.error('Failed to save dashboard layout:', error)
+      setSaveStatus({ 
+        status: 'error', 
+        lastSaved: saveStatus.lastSaved, 
+        error: error.message || '保存失敗'
+      })
     }
   }
 
@@ -211,10 +225,12 @@ const Dashboard = () => {
       newLayout.splice(hoverIndex, 0, draggedWidget)
       return newLayout
     })
+    setSaveStatus(prev => ({ ...prev, status: 'unsaved' }))
   }, [])
 
   const removeWidget = useCallback((index) => {
     setDashboardLayout(prev => prev.filter((_, i) => i !== index))
+    setSaveStatus(prev => ({ ...prev, status: 'unsaved' }))
   }, [])
 
   const addWidget = (widgetId) => {
@@ -223,6 +239,7 @@ const Dashboard = () => {
       position: { x: 0, y: 0, w: 6, h: 4 }
     }
     setDashboardLayout(prev => [...prev, newWidget])
+    setSaveStatus(prev => ({ ...prev, status: 'unsaved' }))
   }
 
   const getStatusColor = (status) => {
@@ -252,6 +269,16 @@ const Dashboard = () => {
         <p className="text-gray-600 dark:text-gray-600 mt-2">
           {showReportCenter ? t('reportCenter.description') : t('dashboard.description')}
         </p>
+        {isEditMode && (
+          <div className="mt-2">
+            <SaveStatusIndicator 
+              status={saveStatus.status}
+              lastSaved={saveStatus.lastSaved}
+              error={saveStatus.error}
+              onRetry={saveDashboardLayout}
+            />
+          </div>
+        )}
       </div>
       <div className="flex space-x-2">
         <Button

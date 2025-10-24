@@ -119,7 +119,7 @@ function AppContent() {
     }
 
     checkAuth()
-    applyDesignTokens()
+    applyDesignTokens('.theme-morning-ai')
 
     return () => {
       window.removeEventListener('api-error', handleApiError)
@@ -199,7 +199,7 @@ function AppContent() {
     <ErrorBoundary>
       <TenantProvider>
         <Router>
-          <div className="theme-apple">
+          <div className="theme-morning-ai theme-apple">
             <OfflineIndicator />
             
             {!isAuthenticated ? (
