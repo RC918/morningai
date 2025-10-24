@@ -6,12 +6,13 @@ from src.middleware import create_user_token
 
 def test_redis_unavailable_returns_503():
     """Test that API returns 503 when Redis is unavailable (Chaos test)"""
+    from src.main import app
     token = create_user_token()
-    with patch('src.routes.agent.redis_client') as mock_redis:
-        mock_redis.hset.side_effect = RedisConnectionError("Connection refused")
-        
-        from src.main import app
-        with app.test_client() as client:
+    
+    with app.test_client() as client:
+        with patch('src.routes.agent.redis_client') as mock_redis:
+            mock_redis.hset.side_effect = RedisConnectionError("Connection refused")
+            
             response = client.post('/api/agent/faq', json={
                 'question': 'Test question during Redis outage'
             }, headers={'Authorization': f'Bearer {token}'})
@@ -22,13 +23,14 @@ def test_redis_unavailable_returns_503():
 
 def test_redis_retry_with_sentry_trace():
     """Test that Sentry captures trace_id during Redis failures"""
+    from src.main import app
     token = create_user_token()
-    with patch('src.routes.agent.sentry_sdk') as mock_sentry:
-        with patch('src.routes.agent.redis_client') as mock_redis:
-            mock_redis.hset.side_effect = RedisConnectionError("Connection timeout")
-            
-            from src.main import app
-            with app.test_client() as client:
+    
+    with app.test_client() as client:
+        with patch('src.routes.agent.sentry_sdk') as mock_sentry:
+            with patch('src.routes.agent.redis_client') as mock_redis:
+                mock_redis.hset.side_effect = RedisConnectionError("Connection timeout")
+                
                 response = client.post('/api/agent/faq', json={
                     'question': 'Test Sentry trace_id'
                 }, headers={'Authorization': f'Bearer {token}'})
@@ -40,6 +42,7 @@ def test_redis_retry_with_sentry_trace():
 
 def test_redis_connection_with_retry_succeeds():
     """Test that Redis retry logic works when connection is restored"""
+    from src.main import app
     token = create_user_token()
     attempt_count = {'count': 0}
     
@@ -49,12 +52,11 @@ def test_redis_connection_with_retry_succeeds():
             raise RedisConnectionError("Temporary failure")
         return "OK"
     
-    with patch('src.routes.agent.redis_client') as mock_redis:
-        mock_redis.hset.side_effect = intermittent_failure
-        mock_redis.expire.return_value = True
-        
-        from src.main import app
-        with app.test_client() as client:
+    with app.test_client() as client:
+        with patch('src.routes.agent.redis_client') as mock_redis:
+            mock_redis.hset.side_effect = intermittent_failure
+            mock_redis.expire.return_value = True
+            
             response = client.post('/api/agent/faq', json={
                 'question': 'Test retry success'
             }, headers={'Authorization': f'Bearer {token}'})
