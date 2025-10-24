@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from src.models.user import User, db
+from src.middleware.auth_middleware import jwt_required
 
 user_bp = Blueprint('user', __name__)
 
@@ -37,3 +38,34 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return '', 204
+
+@user_bp.route('/user/profile', methods=['GET'])
+@jwt_required
+def get_user_profile():
+    """Get current user's profile"""
+    user_id = request.user_id
+    user = User.query.get_or_404(user_id)
+    return jsonify(user.to_dict())
+
+@user_bp.route('/user/preferences', methods=['GET'])
+@jwt_required
+def get_user_preferences():
+    """Get current user's preferences"""
+    user_id = request.user_id
+    user = User.query.get_or_404(user_id)
+    return jsonify(user.get_preferences())
+
+@user_bp.route('/user/preferences', methods=['POST'])
+@jwt_required
+def update_user_preferences():
+    """Update current user's preferences"""
+    user_id = request.user_id
+    user = User.query.get_or_404(user_id)
+    
+    data = request.json
+    current_prefs = user.get_preferences()
+    current_prefs.update(data)
+    user.set_preferences(current_prefs)
+    
+    db.session.commit()
+    return jsonify(user.get_preferences())
