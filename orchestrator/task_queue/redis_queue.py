@@ -81,19 +81,21 @@ class RedisQueue:
         try:
             import ssl
             
-            # Configure SSL/TLS for secure connections
-            ssl_cert_reqs = None
+            connection_kwargs = {
+                "db": self.db,
+                "decode_responses": True
+            }
+            
+            # Only add SSL config for TLS connections
             if self.redis_url.startswith("rediss://"):
-                ssl_cert_reqs = ssl.CERT_REQUIRED
+                connection_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
                 logger.info("Connecting to Redis with TLS (rediss://)")
             elif self.redis_url.startswith("redis://"):
                 logger.info("Connecting to Redis without TLS (redis://)")
             
             self.redis_client = await redis.from_url(
                 self.redis_url,
-                db=self.db,
-                decode_responses=True,
-                ssl_cert_reqs=ssl_cert_reqs
+                **connection_kwargs
             )
             await self.redis_client.ping()
             
