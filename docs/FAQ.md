@@ -1,63 +1,74 @@
-# Test Retry Mechanism in MorningAI
+# Handling Redis Outage in MorningAI
 
-MorningAI implements a robust test retry mechanism to ensure the reliability and stability of code before it's deployed. This FAQ is designed to help developers understand and utilize this feature within the MorningAI platform effectively.
+In the event of a Redis outage, MorningAI's real-time task orchestration and queue management capabilities may be impacted. This FAQ provides guidance on understanding, mitigating, and resolving issues related to Redis outages within the MorningAI platform.
 
-## Understanding the Test Retry Mechanism
+## Understanding the Impact of a Redis Outage
 
-The test retry mechanism in MorningAI is designed to automatically rerun failed tests a configurable number of times before marking them as failures. This approach helps mitigate issues caused by transient conditions such as network latency, temporary service outages, or flaky tests.
+Redis Queue (RQ) is a vital component of MorningAI, facilitating task queuing and worker management for asynchronous job processing. An outage can lead to:
 
-### How It Works
+- Inability to enqueue new tasks
+- Stalled processing of ongoing tasks
+- Potential loss of task data not backed up or persisted outside Redis
 
-When a test fails during the CI/CD pipeline execution, the retry mechanism kicks in based on the rules defined in the configuration file. If the test passes on any subsequent attempt, it is marked as passed for the pipeline execution, reducing the likelihood of false negatives impacting development workflows.
+### Code Example: Monitoring Redis Health
 
-### Configuration
+To monitor the health of your Redis instance, you can implement a simple health check endpoint in Flask:
 
-To configure test retries in MorningAI, navigate to your project settings within the repository at `RC918/morningai`. In the CI/CD configuration file (commonly `.gitlab-ci.yml` or `.github/workflows/ci.yml`), you can specify the retry policy.
+```python
+from flask import Flask, jsonify
+import redis
 
-Example configuration snippet for a GitLab CI pipeline:
+app = Flask(__name__)
+redis_url = "redis://localhost:6379"
+redis_conn = redis.Redis.from_url(redis_url)
 
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when:
-      - runner_system_failure
-      - unknown_failure
+@app.route('/health/redis', methods=['GET'])
+def check_redis():
+    try:
+        redis_conn.ping()
+        return jsonify({"status": "success", "message": "Redis is up"}), 200
+    except redis.ConnectionError:
+        return jsonify({"status": "failure", "message": "Cannot connect to Redis"}), 503
+
+if __name__ == '__main__':
+    app.run(debug=True)
 ```
 
-This configuration will retry any test job up to two additional times if it fails due to system failures or unknown errors.
+This endpoint attempts to ping the Redis server and returns a success response if successful or a failure if it cannot connect.
 
-### Code Example for Implementing Retries in Tests Directly
+## Related Documentation Links
 
-If using pytest, you can leverage the `pytest-rerunfailures` plugin to add retries directly in your tests:
-
-```bash
-pip install pytest-rerunfailures
-```
-
-Then, modify your pytest command as follows:
-
-```bash
-pytest --reruns 3
-```
-
-This will rerun any failed tests up to three times.
-
-### Related Documentation Links
-
-- [GitLab CI/CD Pipeline Configuration](https://docs.gitlab.com/ee/ci/yaml/)
-- [GitHub Actions Workflow Syntax](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)
-- [Pytest RerunFailures Plugin](https://github.com/pytest-dev/pytest-rerunfailures)
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Supabase Realtime Server](https://supabase.io/docs/guides/database#realtime)
 
 ## Common Troubleshooting Tips
 
-- **Ensure Consistent Environment**: Flakiness can often be reduced by ensuring that tests run in a consistent environment. Use Docker containers or similar technologies to standardize test environments.
-- **Review Test Logs**: Always review logs from failed tests before and after retries. This can provide insights into whether an issue is truly transient or indicative of a deeper problem.
-- **Adjust Retry Count Carefully**: While retries can help with flakiness, too many retries might mask real issues. Start with a low number of retries and adjust based on observed behavior.
-- **Isolate Flaky Tests**: If certain tests are consistently flaky, consider isolating them from your main test suite until they can be stabilized.
+In case of a Redis outage, consider the following steps for troubleshooting and mitigation:
 
-By understanding and properly configuring the test retry mechanism in MorningAI, developers can significantly improve their development workflow and reduce interruptions caused by transient test failures.
+1. **Check Redis Server Status**: Ensure that the Redis server is running. Use commands like `redis-cli ping` which should return `PONG` if the server is up.
+2. **Review Logs**: Check the logs for any errors or warnings that might indicate what caused the outage or issue.
+3. **Resource Utilization**: Monitor CPU and memory usage to ensure that system resources are not being maxed out, leading to performance issues or crashes.
+4. **Network Issues**: Verify network connectivity between your application servers and Redis server, including firewall rules and network ACLs.
+5. **Data Persistence**: If using RQ with persistent queues, ensure that your data is being correctly saved to disk so that it can be recovered after resolving any issues.
+6. **Failover Strategy**: Implement a failover strategy using Redis Sentinel or a managed service like AWS ElastiCache with multi-AZ deployment for higher availability.
+7. **Backup Regularly**: Regular backups can help recover from data loss in case of severe failures.
+
+### Example: Restarting Redis Service
+
+If you've determined that the issue is with the Redis service itself, you might need to restart it. Here's how you could do it on a Unix-like system:
+
+```bash
+sudo systemctl restart redis.service
+```
+
+After restarting, check the status to ensure it's running smoothly:
+
+```bash
+sudo systemctl status redis.service
+```
+
+Remember, handling an outage effectively requires preparation and understanding of your infrastructure and dependencies. Monitoring, regular checks, and having recovery procedures in place are key to maintaining system resilience.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -65,7 +76,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `ffaf9265-954e-4433-8376-0935b86cab69`
+- Task: Test question during Redis outage
+- Trace ID: `7577262d-5ae2-487e-be43-1659a2555645`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
