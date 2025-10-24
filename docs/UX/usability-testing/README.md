@@ -4,6 +4,8 @@
 
 This directory contains all materials needed to conduct usability testing for the MorningAI dashboard, as outlined in the Week 4 UX Enhancement Roadmap.
 
+> **⚠️ Execution Status**: Legal review completed, formal execution deferred until public beta. Materials are GDPR-compliant and ready for future use.
+
 ### Data Privacy and Usage Limitation
 
 **Purpose Limitation**: All data collected during usability testing is used **exclusively for product usability research** to improve the MorningAI dashboard interface. Data will not be used for:
