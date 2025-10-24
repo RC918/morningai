@@ -1,81 +1,83 @@
 # System Architecture of MorningAI
 
-The system architecture of MorningAI is designed to be robust, scalable, and capable of handling complex workflows for code generation, documentation management, and real-time task orchestration. Below is a detailed overview of each component in the MorningAI platform, how they interact, and some insights into their configuration and operation.
+The MorningAI platform is designed as a multi-tenant Software as a Service (SaaS) solution, leveraging a modern technology stack to provide an autonomous agent system for code generation, FAQ generation, documentation management, multi-platform integration, real-time task orchestration with Redis Queue, and vector memory storage with pgvector/Supabase. This document provides an overview of the system architecture to aid developers in understanding and utilizing the MorningAI platform effectively.
 
 ## Overview
 
-MorningAI leverages a modern stack that includes React, Vite, and TailwindCSS for the frontend; Python, Flask, Gunicorn with multi-worker support for the backend; PostgreSQL (via Supabase) with Row Level Security for the database; Redis Queue (RQ) for task queuing; LangGraph for agent workflows orchestration; OpenAI GPT-4 for AI-powered content generation; and Render.com for deployment with CI/CD capabilities.
+MorningAI's architecture is built to be scalable, efficient, and modular, allowing for easy integration and expansion. The core components of the system include:
 
-### Frontend
+- **Frontend:** Utilizes React for the UI components, managed by Vite for an optimized development environment and styled with TailwindCSS for a flexible layout design.
+- **Backend:** Written in Python using Flask as the web framework, with Gunicorn serving as the WSGI HTTP Server to handle requests with multi-worker support for scalability.
+- **Database:** PostgreSQL is used for data storage, enhanced with Row Level Security (RLS) features from Supabase for data integrity and security.
+- **Queue System:** Redis Queue (RQ) is employed for managing background tasks, providing a robust system for real-time task orchestration.
+- **Orchestration:** LangGraph is used for defining and managing agent workflows within the platform.
+- **AI Integration:** OpenAI's GPT-4 model powers the content generation aspects of the platform, including FAQ generation and documentation management.
+- **Deployment:** Render.com is used for hosting with continuous integration and continuous deployment (CI/CD) to streamline development cycles.
 
-The frontend is built using React, utilizing Vite as the build tool and TailwindCSS for styling. This setup allows for fast development cycles and a highly customizable UI design.
+## Code Examples
 
-- **Location in Repository**: `/frontend`
-- **Key Configuration**:
-  - `vite.config.js` for Vite settings
-  - `tailwind.config.js` for TailwindCSS customization
+While specific code examples depend on the context of use, here are some general snippets to illustrate how components might interact within the MorningAI architecture:
 
-### Backend
+### Flask Application Initialization
 
-Our backend is powered by Python with Flask serving as the web framework and Gunicorn as the WSGI HTTP Server with multi-worker support to handle concurrent requests efficiently.
+```python
+from flask import Flask
+from config import Config
 
-- **Location in Repository**: `/backend`
-- **Flask Application Setup**:
-  ```python
-  from flask import Flask
-  app = Flask(__name__)
-  ```
-- **Gunicorn Configuration**:
-  ```bash
-  gunicorn --workers=3 myapp:app
-  ```
+app = Flask(__name__)
+app.config.from_object(Config)
 
-### Database
+if __name__ == "__main__":
+    app.run()
+```
 
-We utilize PostgreSQL through Supabase with Row Level Security (RLS) enabled to ensure data integrity and security. RLS policies are defined directly in the database to automatically enforce access controls at the row level.
+### Gunicorn Configuration Example
 
-- **Supabase Project Setup**:
-  Access your Supabase project dashboard to configure tables, RLS policies, and retrieve API keys.
+`gunicorn.conf.py`
 
-### Task Queuing
+```python
+workers = 2
+threads = 4
+timeout = 120
+```
 
-Redis Queue (RQ) is used for managing background tasks. It allows us to offload tasks that are resource-intensive or time-consuming, ensuring that our web application remains responsive.
+This configuration can be tailored based on the deployment environment requirements.
 
-- **Worker Setup**:
-  ```python
-  from rq import Worker, Queue, Connection
-  import redis
-  
-  redis_url = 'redis://localhost:6379'
-  redis_conn = redis.from_url(redis_url)
-  
-  if __name__ == '__main__':
-      with Connection(redis_conn):
-          worker = Worker(['default'], connection=redis_conn)
-          worker.work()
-  ```
+### Redis Queue Task Example
 
-### Orchestration
+```python
+import redis
+from rq import Queue
 
-LangGraph orchestrates agent workflows. It enables the autonomous agent system within MorningAI to execute complex sequences of tasks based on predefined rules or dynamic conditions.
+r = redis.Redis()
+q = Queue(connection=r)
 
-### AI Content Generation
+def background_task(arg):
+    print(f"Running task with argument {arg}")
+    # Task implementation here
 
-OpenAI's GPT-4 powers our content generation features. It's integrated into various parts of MorningAI to offer advanced code generation capabilities and automated FAQ generation.
+job = q.enqueue(background_task, 'example')
+```
 
-### Deployment
+## Related Documentation Links
 
-The entire platform is deployed on Render.com, benefiting from its seamless CI/CD pipelines that automatically build and deploy our application upon every commit to our repository.
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- Gunicorn Configuration: [https://docs.gunicorn.org/en/stable/configure.html](https://docs.gunicorn.org/en/stable/configure.html)
+- Redis Queue (RQ): [http://python-rq.org/](http://python-rq.org/)
+- Supabase Documentation: [https://supabase.io/docs](https://supabase.io/docs)
+- Render Deployment Guides: [https://render.com/docs](https://render.com/docs)
 
-### Troubleshooting Tips
+## Common Troubleshooting Tips
 
-- **Frontend Issues**: Ensure all npm packages are correctly installed (`npm install`) and check browser console logs for errors.
-- **Backend Problems**: Verify that all environment variables are set correctly, especially those related to database connections and third-party services.
-- **Database Connectivity**: Make sure that your Supabase project's API keys are up-to-date and that RLS policies do not inadvertently block access.
-- **Task Queue Delays**: Investigate Redis server health and worker logs if tasks are not being processed as expected.
-- **Deployment Failures**: Check Render.com deployment logs for details on build or deployment errors.
+**1. Gunicorn Workers Crashing**: Ensure that your server has adequate resources. You may need to adjust the number of workers based on available memory and CPU cores.
 
-For more detailed documentation on each component, please refer to the specific sections in our repository located at `RC918/morningai/docs`.
+**2. Database Connection Issues**: Verify your database URL and credentials. Check if Row Level Security policies are correctly configured if encountering permission errors.
+
+**3. Task Delays in Redis Queue**: Monitor your queue sizes and worker availability. Consider scaling up workers or optimizing task execution times.
+
+**4. Deployment Failures on Render.com**: Review build logs for any errors during the CI/CD process. Ensure all environment variables are correctly set up in your Render dashboard.
+
+For detailed troubleshooting steps and community support, refer to each component's official documentation or forums.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -84,6 +86,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `05857048-172f-48c1-be99-c8cad956cfb4`
+- Trace ID: `52d788e9-0fed-43f4-8962-6ce956802f21`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
