@@ -126,6 +126,23 @@
     "addWidget": "Add Widget",
     "selectWidget": "Select Widget",
     "removeWidget": "Remove Widget",
+    "undo": "Undo",
+    "redo": "Redo",
+    "saveStatus": {
+      "saved": "Saved",
+      "savedWithTime": "Saved · {{time}}",
+      "saving": "Saving...",
+      "unsaved": "Unsaved changes",
+      "error": "Save failed",
+      "retry": "Retry",
+      "retryLabel": "Retry saving",
+      "timeAgo": {
+        "seconds": "{{count}}s ago",
+        "minutes": "{{count}}m ago",
+        "hours": "{{count}}h ago",
+        "days": "{{count}}d ago"
+      }
+    },
     "decisions": {
       "cpuOptimization": "CPU Optimization Strategy",
       "cacheOptimization": "Cache Optimization",
@@ -885,6 +902,36 @@
     "statusWarning": "Warning",
     "statusError": "Error",
     "statusInfo": "Info"
+  },
+  "form": {
+    "required": "required",
+    "optional": "optional",
+    "fieldRequired": "This field is required",
+    "invalidEmail": "Please enter a valid email address",
+    "invalidFormat": "Invalid format"
+  },
+  "search": {
+    "placeholder": "Search pages, widgets, settings...",
+    "recentSearches": "Recent Searches",
+    "noResults": "No results found",
+    "tryDifferentKeywords": "Try using different keywords",
+    "navigate": "Navigate",
+    "select": "Select",
+    "close": "Close",
+    "categories": {
+      "pages": "Pages",
+      "widgets": "Widgets",
+      "settings": "Settings",
+      "docs": "Documentation"
+    }
+  },
+  "widgets": {
+    "cpuUsage": "CPU Usage",
+    "cpuDescription": "Monitor CPU utilization",
+    "memoryUsage": "Memory Usage",
+    "memoryDescription": "Track memory consumption",
+    "responseTime": "Response Time",
+    "responseTimeDescription": "Monitor system response time"
   },
   "accessibility": {
     "skipToContent": "Skip to main content",

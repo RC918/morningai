@@ -4,8 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { ThemeProvider } from 'next-themes'
 import { TolgeeProvider } from '@tolgee/react'
 import { Toaster } from '@/components/ui/toaster'
+import { toast } from '@/lib/toast-with-announcement'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
+import GlobalSearch from '@/components/GlobalSearch'
 import LoginPage from '@/components/LoginPage'
 import SignupPage from '@/components/SignupPage'
 import LandingPage from '@/components/LandingPage'
@@ -119,7 +121,7 @@ function AppContent() {
     }
 
     checkAuth()
-    applyDesignTokens()
+    applyDesignTokens('.theme-morning-ai')
 
     return () => {
       window.removeEventListener('api-error', handleApiError)
@@ -199,7 +201,7 @@ function AppContent() {
     <ErrorBoundary>
       <TenantProvider>
         <Router>
-          <div className="theme-apple">
+          <div className="theme-morning-ai theme-apple">
             <OfflineIndicator />
             
             {!isAuthenticated ? (
@@ -271,6 +273,7 @@ function AppContent() {
               </main>
               
                 <Toaster />
+                <GlobalSearch />
               </div>
             )}
           </div>

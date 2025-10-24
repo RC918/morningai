@@ -3,6 +3,17 @@ import sys
 import datetime
 import asyncio
 import re
+import logging
+
+orchestrator_path = os.getenv('ORCHESTRATOR_PATH')
+if not orchestrator_path:
+    orchestrator_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../orchestrator'))
+
+if os.path.exists(orchestrator_path) and orchestrator_path not in sys.path:
+    sys.path.insert(0, orchestrator_path)
+    logging.info(f"Added orchestrator path to sys.path: {orchestrator_path}")
+elif not os.path.exists(orchestrator_path):
+    logging.warning(f"Orchestrator path does not exist: {orchestrator_path}. Orchestrator features may not work.")
 
 from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
@@ -167,9 +178,21 @@ def get_health_payload():
         except Exception as e:
             db_status = f"error: {str(e)[:100]}"
         
+        redis_info = {"status": "not_configured"}
+        try:
+            from src.utils.redis_client import get_redis_connection_info
+            redis_info = get_redis_connection_info()
+            redis_info["status"] = "connected"
+        except Exception as e:
+            redis_info = {
+                "status": "error",
+                "error": str(e)[:100]
+            }
+        
         return {
             "status": "healthy" if db_status == "connected" else "degraded",
             "database": str(db_status),
+            "redis": redis_info,
             "phase": str(os.environ.get('APP_PHASE', 'Phase 8: Self-service Dashboard & Reporting Center')),
             "version": str(os.environ.get('APP_VERSION', '8.0.0')),
             "timestamp": datetime.datetime.now().isoformat(),
@@ -540,7 +563,20 @@ def generate_report():
             return Response(csv_data, mimetype='text/csv', 
                           headers={'Content-Disposition': f'attachment; filename=report_{report_type}_{time_range}.csv'})
         else:
-            return jsonify(report_data)
+            from dataclasses import asdict
+            report_dict = asdict(report_data)
+            
+            def serialize_datetime(obj):
+                if isinstance(obj, datetime.datetime):
+                    return obj.isoformat()
+                elif isinstance(obj, dict):
+                    return {k: serialize_datetime(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [serialize_datetime(item) for item in obj]
+                return obj
+            
+            report_dict = serialize_datetime(report_dict)
+            return jsonify(report_dict)
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500

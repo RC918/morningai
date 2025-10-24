@@ -1,11 +1,4 @@
-import { supabase } from './supabaseClient'
-
-const isProduction = import.meta.env.MODE === 'production'
-const defaultURL = isProduction 
-  ? 'https://morningai-web.fly.dev'
-  : 'http://localhost:5001'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || defaultURL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com'
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 class ApiClient {
@@ -26,13 +19,9 @@ class ApiClient {
       ...options,
     }
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        config.headers.Authorization = `Bearer ${session.access_token}`
-      }
-    } catch (error) {
-      console.warn('Failed to get Supabase session:', error.message)
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
 
     try {

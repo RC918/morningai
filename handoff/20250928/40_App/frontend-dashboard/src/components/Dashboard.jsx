@@ -5,7 +5,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend'
 import { 
   Activity, TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
   Clock, DollarSign, Cpu, MemoryStick, Zap, Settings, Download,
-  Plus, Trash2, Edit3, FileText, Grid3X3
+  Plus, Trash2, Edit3, FileText, Grid3X3, Undo2, Redo2
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +16,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'
 import { DashboardSkeleton } from '@/components/feedback/ContentSkeleton'
+import SaveStatusIndicator from './SaveStatusIndicator'
+import useUndoRedo from '@/hooks/useUndoRedo'
 import apiClient from '@/lib/api'
 import { safeInterval } from '@/lib/safeInterval'
 
@@ -65,8 +67,21 @@ const Dashboard = () => {
   const [isEditMode, setIsEditMode] = useState(false)
   const [showReportCenter, setShowReportCenter] = useState(false)
   const [availableWidgets, setAvailableWidgets] = useState([])
-  const [dashboardLayout, setDashboardLayout] = useState([])
   const [dashboardData, setDashboardData] = useState({})
+  const [saveStatus, setSaveStatus] = useState({
+    status: 'saved',
+    lastSaved: null,
+    error: null
+  })
+  
+  const {
+    state: dashboardLayout,
+    setState: setDashboardLayout,
+    undo,
+    redo,
+    canUndo,
+    canRedo
+  } = useUndoRedo([])
   const [systemMetrics, setSystemMetrics] = useState({
     cpu_usage: 72,
     memory_usage: 68,
@@ -178,8 +193,28 @@ const Dashboard = () => {
     return cleanup
   }, [isEditMode, loadDashboardData])
 
+  useEffect(() => {
+    if (!isEditMode) return
+
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) {
+          redo()
+        } else {
+          undo()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isEditMode, undo, redo])
+
 
   const saveDashboardLayout = async () => {
+    setSaveStatus({ status: 'saving', lastSaved: saveStatus.lastSaved, error: null })
+    
     try {
       await apiClient.request('/dashboard/layouts', {
         method: 'POST',
@@ -188,8 +223,14 @@ const Dashboard = () => {
           layout: { widgets: dashboardLayout.map(w => ({ id: w.id, position: w.position })) }
         })
       })
+      setSaveStatus({ status: 'saved', lastSaved: new Date(), error: null })
     } catch (error) {
       console.error('Failed to save dashboard layout:', error)
+      setSaveStatus({ 
+        status: 'error', 
+        lastSaved: saveStatus.lastSaved, 
+        error: error.message || '保存失敗'
+      })
     }
   }
 
@@ -211,10 +252,12 @@ const Dashboard = () => {
       newLayout.splice(hoverIndex, 0, draggedWidget)
       return newLayout
     })
+    setSaveStatus(prev => ({ ...prev, status: 'unsaved' }))
   }, [])
 
   const removeWidget = useCallback((index) => {
     setDashboardLayout(prev => prev.filter((_, i) => i !== index))
+    setSaveStatus(prev => ({ ...prev, status: 'unsaved' }))
   }, [])
 
   const addWidget = (widgetId) => {
@@ -223,6 +266,7 @@ const Dashboard = () => {
       position: { x: 0, y: 0, w: 6, h: 4 }
     }
     setDashboardLayout(prev => [...prev, newWidget])
+    setSaveStatus(prev => ({ ...prev, status: 'unsaved' }))
   }
 
   const getStatusColor = (status) => {
@@ -252,8 +296,44 @@ const Dashboard = () => {
         <p className="text-gray-600 dark:text-gray-600 mt-2">
           {showReportCenter ? t('reportCenter.description') : t('dashboard.description')}
         </p>
+        {isEditMode && (
+          <div className="mt-2">
+            <SaveStatusIndicator 
+              status={saveStatus.status}
+              lastSaved={saveStatus.lastSaved}
+              error={saveStatus.error}
+              onRetry={saveDashboardLayout}
+            />
+          </div>
+        )}
       </div>
       <div className="flex space-x-2">
+        {isEditMode && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={undo}
+              disabled={!canUndo}
+              aria-label={t('dashboard.undo')}
+              title={`${t('dashboard.undo')} (Cmd/Ctrl+Z)`}
+            >
+              <Undo2 className="w-4 h-4 mr-2" aria-hidden="true" />
+              {t('dashboard.undo')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={redo}
+              disabled={!canRedo}
+              aria-label={t('dashboard.redo')}
+              title={`${t('dashboard.redo')} (Cmd/Ctrl+Shift+Z)`}
+            >
+              <Redo2 className="w-4 h-4 mr-2" aria-hidden="true" />
+              {t('dashboard.redo')}
+            </Button>
+          </>
+        )}
         <Button
           variant={showReportCenter ? "default" : "outline"}
           onClick={() => setShowReportCenter(!showReportCenter)}

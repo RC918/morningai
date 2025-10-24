@@ -5,13 +5,7 @@ Provides endpoints for pgvector space visualization and memory drift analysis.
 """
 import os
 import logging
-import numpy as np
-import pandas as pd
 from flask import Blueprint, jsonify, request
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
-import plotly.express as px
-import plotly.graph_objects as go
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
@@ -19,6 +13,24 @@ from src.middleware.auth_middleware import jwt_required
 from src.utils.i18n import i18n, translate
 
 logger = logging.getLogger(__name__)
+
+try:
+    import numpy as np
+    import pandas as pd
+    from sklearn.manifold import TSNE
+    from sklearn.decomposition import PCA
+    import plotly.express as px
+    import plotly.graph_objects as go
+    VISUALIZATION_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Visualization libraries not available: {e}. Vector visualization endpoints will return 503.")
+    VISUALIZATION_AVAILABLE = False
+    np = None
+    pd = None
+    TSNE = None
+    PCA = None
+    px = None
+    go = None
 
 bp = Blueprint('vectors', __name__, url_prefix='/api/vectors')
 
@@ -65,6 +77,9 @@ def visualize_vectors():
     Returns:
         Plotly JSON figure
     """
+    if not VISUALIZATION_AVAILABLE:
+        return jsonify({"error": "Visualization libraries not available. Install pandas, scikit-learn, and plotly."}), 503
+    
     method = request.args.get('method', 'tsne').lower()
     limit = int(request.args.get('limit', 1000))
     source = request.args.get('source')

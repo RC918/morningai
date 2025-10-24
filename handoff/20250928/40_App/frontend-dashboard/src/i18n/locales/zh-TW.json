@@ -126,6 +126,23 @@
     "addWidget": "添加組件",
     "selectWidget": "選擇組件",
     "removeWidget": "移除小工具",
+    "undo": "撤銷",
+    "redo": "重做",
+    "saveStatus": {
+      "saved": "已保存",
+      "savedWithTime": "已保存 · {{time}}",
+      "saving": "保存中...",
+      "unsaved": "有未保存的變更",
+      "error": "保存失敗",
+      "retry": "重試",
+      "retryLabel": "重試保存",
+      "timeAgo": {
+        "seconds": "{{count}}秒前",
+        "minutes": "{{count}}分鐘前",
+        "hours": "{{count}}小時前",
+        "days": "{{count}}天前"
+      }
+    },
     "decisions": {
       "cpuOptimization": "CPU優化策略",
       "cacheOptimization": "緩存優化",
@@ -885,6 +902,36 @@
     "statusWarning": "警告",
     "statusError": "錯誤",
     "statusInfo": "資訊"
+  },
+  "form": {
+    "required": "必填",
+    "optional": "選填",
+    "fieldRequired": "此欄位為必填",
+    "invalidEmail": "請輸入有效的電子郵件地址",
+    "invalidFormat": "格式無效"
+  },
+  "search": {
+    "placeholder": "搜尋頁面、組件、設定...",
+    "recentSearches": "最近搜尋",
+    "noResults": "找不到結果",
+    "tryDifferentKeywords": "試試使用不同的關鍵字",
+    "navigate": "導航",
+    "select": "選擇",
+    "close": "關閉",
+    "categories": {
+      "pages": "頁面",
+      "widgets": "組件",
+      "settings": "設定",
+      "docs": "文檔"
+    }
+  },
+  "widgets": {
+    "cpuUsage": "CPU 使用率",
+    "cpuDescription": "監控 CPU 使用情況",
+    "memoryUsage": "記憶體使用率",
+    "memoryDescription": "追蹤記憶體消耗",
+    "responseTime": "響應時間",
+    "responseTimeDescription": "監控系統響應時間"
   },
   "accessibility": {
     "skipToContent": "跳至主要內容",

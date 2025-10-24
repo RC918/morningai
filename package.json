@@ -1,0 +1,37 @@
+{
+  "name": "morningai-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Morning AI - Monorepo with pnpm workspaces",
+  "scripts": {
+    "dev": "pnpm --filter frontend-dashboard dev",
+    "dev:owner": "pnpm --filter owner-console dev",
+    "build": "turbo run build",
+    "build:dashboard": "turbo run build --filter=frontend-dashboard",
+    "build:owner": "turbo run build --filter=owner-console",
+    "lint": "turbo run lint",
+    "lint:dashboard": "turbo run lint --filter=frontend-dashboard",
+    "lint:owner": "turbo run lint --filter=owner-console",
+    "test": "turbo run test",
+    "test:dashboard": "turbo run test --filter=frontend-dashboard",
+    "test:owner": "turbo run test --filter=owner-console",
+    "test:e2e": "turbo run test:e2e",
+    "typecheck": "turbo run typecheck",
+    "typecheck:dashboard": "turbo run typecheck --filter=frontend-dashboard",
+    "typecheck:owner": "turbo run typecheck --filter=owner-console",
+    "clean": "pnpm -r exec rm -rf node_modules dist build .next",
+    "clean:cache": "rm -rf node_modules/.cache .pnpm-store .turbo"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.1",
+  "devDependencies": {
+    "turbo": "^2.5.8",
+    "typescript": "5.9.3"
+  },
+  "pnpm": {
+    "overrides": {}
+  }
+}

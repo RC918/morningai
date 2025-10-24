@@ -2,43 +2,52 @@
 
 ## 📦 Package Manager Policy
 
-### Official Package Manager: npm
+### Official Package Manager: pnpm
 
-**Morning AI 專案統一使用 npm 作為唯一的依賴管理工具。**
+**Morning AI 專案統一使用 pnpm 作為依賴管理工具。**
 
-### Why npm?
+> **政策變更**: 2025-10-24 從 npm 遷移到 pnpm  
+> **理由**: 參見 [ADR-001: 遷移到 pnpm + Turborepo](../docs/adr/001-pnpm-turborepo-migration.md)
 
-1. **一致性**：避免 pnpm/yarn/npm 混用導致的 lockfile 衝突
-2. **CI/CD 穩定性**：GitHub Actions 與 Vercel 預設支援 npm
-3. **團隊協作**：降低新成員學習成本
-4. **生態系統**：最廣泛的支援與文檔
+### Why pnpm?
+
+1. **性能優異**：安裝速度比 npm 快 2-3 倍（12.8s vs 30-40s）
+2. **磁碟空間節省**：content-addressable storage 節省 60-70% 空間
+3. **依賴隔離**：嚴格的 node_modules 結構，防止 phantom dependencies
+4. **Monorepo 支持**：原生 workspaces 功能，與 Turborepo 完美整合
+5. **生態系統**：Vercel、Next.js、Vue、Svelte 等大型項目都使用 pnpm
 
 ---
 
-## 🚫 禁止使用的工具
+## ✅ 推薦使用的工具
 
-### ❌ 不要使用 pnpm
+### ✅ pnpm（包管理器）
 
 ```bash
-# ❌ 錯誤
+# ✅ 正確
 pnpm install
 pnpm add package-name
-
-# ✅ 正確
-npm install
-npm install package-name
+pnpm remove package-name
 ```
 
-### ❌ 不要使用 yarn
+### ✅ Turborepo（構建系統）
+
+```bash
+# ✅ 正確
+pnpm build        # 構建所有應用
+pnpm dev          # 開發所有應用
+pnpm test         # 測試所有應用
+```
+
+### ❌ 不要使用 npm 或 yarn
 
 ```bash
 # ❌ 錯誤
+npm install
 yarn install
-yarn add package-name
 
 # ✅ 正確
-npm install
-npm install package-name
+pnpm install
 ```
 
 ---
@@ -49,53 +58,76 @@ npm install package-name
 
 ```bash
 # 開發環境
-npm install
+pnpm install
 
-# 生產環境
-npm ci
+# 生產環境（CI）
+pnpm install --frozen-lockfile
 ```
 
 ### 2. 新增依賴
 
 ```bash
 # 生產依賴
-npm install package-name
+pnpm add package-name
 
 # 開發依賴
-npm install --save-dev package-name
+pnpm add -D package-name
+
+# 為特定 workspace 添加依賴
+pnpm add package-name --filter frontend-dashboard
 ```
 
 ### 3. 更新依賴
 
 ```bash
 # 更新單一套件
-npm update package-name
+pnpm update package-name
 
 # 更新所有套件
-npm update
+pnpm update
+
+# 互動式更新
+pnpm update -i
 ```
 
 ### 4. 移除依賴
 
 ```bash
-npm uninstall package-name
+pnpm remove package-name
+
+# 從特定 workspace 移除
+pnpm remove package-name --filter frontend-dashboard
+```
+
+### 5. Workspace 操作
+
+```bash
+# 在所有 workspaces 執行命令
+pnpm -r build
+
+# 在特定 workspace 執行命令
+pnpm --filter frontend-dashboard dev
+
+# 執行根目錄腳本
+pnpm build:all
 ```
 
 ---
 
 ## 🔒 Lockfile 管理
 
-### package-lock.json 是必須的
+### pnpm-lock.yaml 是必須的
 
-- ✅ **必須提交** `package-lock.json` 到 Git
-- ❌ **禁止提交** `pnpm-lock.yaml` 或 `yarn.lock`
-- ❌ **禁止在 .gitignore 排除** `package-lock.json`
+- ✅ **必須提交** `pnpm-lock.yaml` 到 Git
+- ❌ **禁止提交** `package-lock.json` 或 `yarn.lock`
+- ❌ **禁止在 .gitignore 排除** `pnpm-lock.yaml`
 
 ### 為什麼需要 lockfile？
 
 1. **版本鎖定**：確保所有環境使用相同版本
 2. **可重現性**：CI/CD 與本地環境一致
 3. **安全性**：防止依賴被惡意替換
+4. **性能優化**：pnpm 使用 lockfile 實現快速安裝
 
 ---
 
@@ -104,22 +136,45 @@ npm uninstall package-name
 ### GitHub Actions
 
 ```yaml
-- name: Install dependencies
-  run: npm ci
+- name: Setup pnpm
+  uses: pnpm/action-setup@v4
+  with:
+    version: 9.15.1
 
-- name: Cache npm dependencies
+- name: Install dependencies
+  run: pnpm install --frozen-lockfile
+
+- name: Cache pnpm dependencies
   uses: actions/cache@v3
   with:
-    path: ~/.npm
-    key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+    path: ~/.pnpm-store
+    key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 ```
 
 ### Vercel
 
 ```json
 {
-  "installCommand": "npm install --include=dev",
-  "buildCommand": "npm run build"
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm build"
+}
+```
+
+### Turborepo
+
+```json
+// turbo.json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**"]
+    },
+    "dev": {
+      "cache": false
+    }
+  }
 }
 ```
 
@@ -127,23 +182,21 @@ npm uninstall package-name
 
 ## 🚨 常見問題與解決方案
 
-### 問題 1: Vercel 使用 pnpm 導致部署失敗
+### 問題 1: pnpm 安裝失敗
 
 **症狀**：
 ```
-ERR_INVALID_THIS
-Value of 'this' must be of type URLSearchParams
+ERR_PNPM_NO_MATCHING_VERSION
 ```
 
-**根本原因**：
-- Vercel Production Overrides 使用舊設定（pnpm install）
-- .vercelignore 排除了 pnpm-lock.yaml
-- 導致 pnpm 無法正確安裝依賴
-
 **解決方案**：
-1. 在 vercel.json 明確指定 `installCommand: "npm install --include=dev"`
-2. 移除 rootDirectory，使用完整路徑
-3. 清除 Vercel Production Overrides 的舊設定
+```bash
+# 確保使用正確的 pnpm 版本
+pnpm --version  # 應該是 9.15.1
+
+# 如果版本不對，重新安裝
+npm install -g pnpm@9.15.1
+```
 
 ### 問題 2: 本地與 CI 環境不一致
 
@@ -152,37 +205,54 @@ Value of 'this' must be of type URLSearchParams
 - 依賴版本不一致
 
 **解決方案**：
-1. 確保 package-lock.json 已提交
-2. CI 使用 `npm ci` 而非 `npm install`
-3. 定期執行 `npm audit` 檢查安全性
+1. 確保 pnpm-lock.yaml 已提交
+2. CI 使用 `pnpm install --frozen-lockfile`
+3. 定期執行 `pnpm audit` 檢查安全性
 
-### 問題 3: 多個 lockfile 衝突
+### 問題 3: Phantom Dependencies
 
 **症狀**：
-- 同時存在 package-lock.json 和 pnpm-lock.yaml
-- Git 衝突頻繁
+- 代碼 import 了未在 package.json 聲明的依賴
+- 本地可以運行，但 CI 失敗
 
 **解決方案**：
 ```bash
-# 移除非 npm 的 lockfile
-rm -f pnpm-lock.yaml yarn.lock
+# pnpm 的嚴格模式會自動檢測
+# 將缺失的依賴添加到 package.json
+pnpm add missing-package
+```
 
-# 重新生成 package-lock.json
+### 問題 4: 從 npm 遷移到 pnpm
+
+**步驟**：
+```bash
+# 1. 移除舊的 lockfile 和 node_modules
 rm -rf node_modules package-lock.json
-npm install
 
-# 提交變更
-git add package-lock.json
-git commit -m "chore: 統一使用 npm，移除 pnpm lockfile"
+# 2. 安裝 pnpm
+npm install -g pnpm@9.15.1
+
+# 3. 生成 pnpm-lock.yaml
+pnpm install
+
+# 4. 測試所有應用
+pnpm build
+pnpm test
+
+# 5. 提交變更
+git add pnpm-lock.yaml .npmrc pnpm-workspace.yaml
+git commit -m "chore: 遷移到 pnpm"
 ```
 
 ---
 
 ## 📚 延伸閱讀
 
-- [npm Documentation](https://docs.npmjs.com/)
-- [package-lock.json 說明](https://docs.npmjs.com/cli/v9/configuring-npm/package-lock-json)
-- [npm ci vs npm install](https://docs.npmjs.com/cli/v9/commands/npm-ci)
+- [pnpm Documentation](https://pnpm.io/)
+- [pnpm Workspaces](https://pnpm.io/workspaces)
+- [Turborepo Documentation](https://turbo.build/repo/docs)
+- [Why pnpm?](https://pnpm.io/motivation)
+- [pnpm vs npm vs yarn](https://pnpm.io/benchmarks)
 
 ---
 
@@ -190,6 +260,7 @@ git commit -m "chore: 統一使用 npm，移除 pnpm lockfile"
 
 | 日期 | 版本 | 變更內容 |
 |------|------|----------|
+| 2025-10-24 | 2.0.0 | 遷移到 pnpm + Turborepo，提升性能 2-10x |
 | 2025-10-21 | 1.0.0 | 初版發布，統一使用 npm |
 
 ---

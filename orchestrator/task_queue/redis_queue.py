@@ -2,10 +2,13 @@
 """
 Redis Queue and Event Bus for Multi-Agent Orchestration
 Handles task queuing and event pub/sub
+
+Security: Uses redis-py library with TLS (rediss://) for secure communication
 """
 import asyncio
 import json
 import logging
+import os
 from typing import Dict, Any, Optional, Callable, List
 import redis.asyncio as redis
 from datetime import datetime, timezone
@@ -26,17 +29,47 @@ class RedisQueue:
     
     def __init__(
         self,
-        redis_url: str = "redis://localhost:6379",
+        redis_url: Optional[str] = None,
         db: int = 0
     ):
         """
-        Initialize Redis Queue
+        Initialize Redis Queue with Upstash Redis (HTTPS)
         
         Args:
-            redis_url: Redis connection URL
+            redis_url: Redis connection URL (defaults to UPSTASH_REDIS_REST_URL or REDIS_URL from env)
             db: Redis database number
+        
+        Security: Uses redis-py library which requires redis:// or rediss:// URLs
         """
-        self.redis_url = redis_url
+        # Priority: REDIS_URL (TLS) > provided redis_url > UPSTASH_REDIS_REST_URL
+        env_redis_url = os.getenv("REDIS_URL")
+        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
+        
+        if env_redis_url:
+            if env_redis_url.startswith("rediss://"):
+                logger.info("Using REDIS_URL with TLS (rediss://)")
+            elif env_redis_url.startswith("redis://"):
+                logger.warning("⚠️ REDIS_URL is not using TLS (redis://). Recommend using rediss:// for secure connections.")
+            self.redis_url = env_redis_url
+        elif redis_url:
+            if redis_url.startswith("rediss://"):
+                logger.info("Using provided Redis URL with TLS (rediss://)")
+            elif redis_url.startswith("redis://"):
+                logger.warning("⚠️ Provided Redis URL is not using TLS. Recommend using rediss:// for secure connections.")
+            self.redis_url = redis_url
+        elif upstash_url:
+            logger.error("❌ UPSTASH_REDIS_REST_URL (https://) is not compatible with redis-py library.")
+            logger.error("   Please set REDIS_URL with rediss:// scheme instead.")
+            logger.error("   Example: rediss://default:PASSWORD@HOST.upstash.io:6379")
+            raise ValueError(
+                "redis-py library requires REDIS_URL with redis://, rediss://, or unix:// scheme. "
+                "UPSTASH_REDIS_REST_URL (https://) is only compatible with upstash-redis SDK."
+            )
+        else:
+            raise ValueError(
+                "No Redis configuration found. Please set REDIS_URL environment variable with redis:// or rediss:// scheme."
+            )
+        
         self.db = db
         self.redis_client: Optional[redis.Redis] = None
         self.pubsub: Optional[redis.client.PubSub] = None
@@ -44,17 +77,30 @@ class RedisQueue:
         self.is_running = False
         
     async def connect(self):
-        """Connect to Redis"""
+        """Connect to Redis with TLS support"""
         try:
+            connection_kwargs = {
+                "db": self.db,
+                "decode_responses": True
+            }
+            
+            # Only add SSL config for TLS connections
+            if self.redis_url.startswith("rediss://"):
+                connection_kwargs["ssl_cert_reqs"] = "none"
+                logger.info("Connecting to Redis with TLS (rediss://)")
+            elif self.redis_url.startswith("redis://"):
+                logger.info("Connecting to Redis without TLS (redis://)")
+            
             self.redis_client = await redis.from_url(
                 self.redis_url,
-                db=self.db,
-                decode_responses=True
+                **connection_kwargs
             )
             await self.redis_client.ping()
-            logger.info(f"Connected to Redis at {self.redis_url}")
+            
+            protocol = "TLS" if "rediss://" in self.redis_url else "non-TLS"
+            logger.info(f"✅ Connected to Redis ({protocol})")
         except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
+            logger.error(f"❌ Failed to connect to Redis: {e}")
             raise
     
     async def disconnect(self):
@@ -368,8 +414,19 @@ class RedisQueue:
             return {}
 
 
-async def create_redis_queue(redis_url: str = "redis://localhost:6379") -> RedisQueue:
-    """Factory function to create and connect Redis queue"""
+async def create_redis_queue(redis_url: Optional[str] = None) -> RedisQueue:
+    """
+    Factory function to create and connect Redis queue
+    
+    Args:
+        redis_url: Optional Redis URL (defaults to REDIS_URL from env)
+                  Must use redis://, rediss://, or unix:// scheme
+    
+    Returns:
+        Connected RedisQueue instance
+    
+    Security: Requires TLS (rediss://) for secure communication in production
+    """
     queue = RedisQueue(redis_url=redis_url)
     await queue.connect()
     return queue

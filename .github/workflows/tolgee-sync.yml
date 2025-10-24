@@ -24,13 +24,19 @@ jobs:
       - name: Install Tolgee CLI
         run: npm i -g @tolgee/cli
 
-      - name: Pull translations from Tolgee
+      - name: Pull translations for Frontend Dashboard
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
-          tolgee login "$TOLGEE_API_KEY"
-          tolgee pull --project-id=23882 --path ./src/i18n/locales
+          tolgee pull --api-key "$TOLGEE_API_KEY"
+
+      - name: Pull translations for Owner Console
+        working-directory: handoff/20250928/40_App/owner-console
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          tolgee pull --api-key "$TOLGEE_API_KEY"
 
       - name: Create PR if changes
         uses: peter-evans/create-pull-request@v6

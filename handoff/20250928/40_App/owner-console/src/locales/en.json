@@ -1,0 +1,13 @@
+{
+  "add-item-add-button": "Add",
+  "add-item-input-placeholder": "New list item",
+  "app-title": "What to pack",
+  "delete-item-button": "Delete",
+  "items-count_one": "Showing {{count, number}} item",
+  "items-count_other": "Showing {{count, number}} items",
+  "menu-item-translation-methods": "Translation methods",
+  "send-via-email": "Send via e-mail",
+  "share-button": "Share",
+  "terms-conditions-agreement": "I agree with the <a>Terms and Conditions</a>",
+  "welcome-message": "Hello {{name}}!"
+}
