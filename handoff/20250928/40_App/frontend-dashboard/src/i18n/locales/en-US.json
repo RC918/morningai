@@ -133,6 +133,7 @@
       "unsaved": "Unsaved changes",
       "error": "Save failed",
       "retry": "Retry",
+      "retryLabel": "Retry saving",
       "timeAgo": {
         "seconds": "{{count}}s ago",
         "minutes": "{{count}}m ago",

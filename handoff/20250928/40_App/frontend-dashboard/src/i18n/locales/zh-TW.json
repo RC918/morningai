@@ -133,6 +133,7 @@
       "unsaved": "有未保存的變更",
       "error": "保存失敗",
       "retry": "重試",
+      "retryLabel": "重試保存",
       "timeAgo": {
         "seconds": "{{count}}秒前",
         "minutes": "{{count}}分鐘前",

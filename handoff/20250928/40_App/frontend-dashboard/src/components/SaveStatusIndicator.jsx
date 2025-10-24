@@ -62,7 +62,7 @@ export const SaveStatusIndicator = ({ status, lastSaved, error, onRetry }) => {
           variant="ghost"
           size="sm"
           onClick={config.action.onClick}
-          aria-label="重試保存"
+          aria-label={t('dashboard.saveStatus.retryLabel')}
         >
           {config.action.label}
         </Button>
