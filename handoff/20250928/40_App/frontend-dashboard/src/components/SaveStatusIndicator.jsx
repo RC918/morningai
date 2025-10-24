@@ -1,42 +1,47 @@
 import { Check, Loader2, AlertCircle, XCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 
-const formatRelativeTime = (date) => {
+const formatRelativeTime = (date, t) => {
   const now = new Date()
   const diff = Math.floor((now - date) / 1000)
   
-  if (diff < 60) return `${diff}秒前`
-  if (diff < 3600) return `${Math.floor(diff / 60)}分鐘前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}小時前`
-  return `${Math.floor(diff / 86400)}天前`
+  if (diff < 60) return t('dashboard.saveStatus.timeAgo.seconds', { count: diff })
+  if (diff < 3600) return t('dashboard.saveStatus.timeAgo.minutes', { count: Math.floor(diff / 60) })
+  if (diff < 86400) return t('dashboard.saveStatus.timeAgo.hours', { count: Math.floor(diff / 3600) })
+  return t('dashboard.saveStatus.timeAgo.days', { count: Math.floor(diff / 86400) })
 }
 
 export const SaveStatusIndicator = ({ status, lastSaved, error, onRetry }) => {
+  const { t } = useTranslation()
+  
   const statusConfig = {
     saved: {
       icon: Check,
-      text: lastSaved ? `已保存 · ${formatRelativeTime(lastSaved)}` : '已保存',
+      text: lastSaved 
+        ? t('dashboard.saveStatus.savedWithTime', { time: formatRelativeTime(lastSaved, t) })
+        : t('dashboard.saveStatus.saved'),
       className: 'text-success-600',
       iconClassName: 'text-success-600'
     },
     saving: {
       icon: Loader2,
-      text: '保存中...',
+      text: t('dashboard.saveStatus.saving'),
       className: 'text-gray-600',
       iconClassName: 'text-gray-600 animate-spin'
     },
     unsaved: {
       icon: AlertCircle,
-      text: '有未保存的變更',
+      text: t('dashboard.saveStatus.unsaved'),
       className: 'text-warning-600',
       iconClassName: 'text-warning-600'
     },
     error: {
       icon: XCircle,
-      text: error || '保存失敗',
+      text: error || t('dashboard.saveStatus.error'),
       className: 'text-error-600',
       iconClassName: 'text-error-600',
-      action: { label: '重試', onClick: onRetry }
+      action: { label: t('dashboard.saveStatus.retry'), onClick: onRetry }
     }
   }
   

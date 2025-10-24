@@ -126,6 +126,20 @@
     "addWidget": "Add Widget",
     "selectWidget": "Select Widget",
     "removeWidget": "Remove Widget",
+    "saveStatus": {
+      "saved": "Saved",
+      "savedWithTime": "Saved · {{time}}",
+      "saving": "Saving...",
+      "unsaved": "Unsaved changes",
+      "error": "Save failed",
+      "retry": "Retry",
+      "timeAgo": {
+        "seconds": "{{count}}s ago",
+        "minutes": "{{count}}m ago",
+        "hours": "{{count}}h ago",
+        "days": "{{count}}d ago"
+      }
+    },
     "decisions": {
       "cpuOptimization": "CPU Optimization Strategy",
       "cacheOptimization": "Cache Optimization",
