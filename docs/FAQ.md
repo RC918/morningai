@@ -1,91 +1,129 @@
-# System Architecture of MorningAI
+# MorningAI System Architecture
 
-The MorningAI platform is designed as a multi-tenant Software as a Service (SaaS) solution, leveraging a modern technology stack to provide an autonomous agent system for code generation, FAQ generation, documentation management, multi-platform integration, real-time task orchestration with Redis Queue, and vector memory storage with pgvector/Supabase. This document provides an overview of the system architecture to aid developers in understanding and utilizing the MorningAI platform effectively.
+Understanding the system architecture of MorningAI is essential for developers looking to integrate, extend, or troubleshoot the platform. The architecture is designed to support scalable, efficient, and real-time operations across various services, including autonomous code generation, FAQ management, and multi-platform integration.
 
 ## Overview
 
-MorningAI's architecture is built to be scalable, efficient, and modular, allowing for easy integration and expansion. The core components of the system include:
+MorningAI leverages a microservices architecture built on a robust stack that includes React, Flask, Gunicorn, PostgreSQL (via Supabase), Redis Queue (RQ), and OpenAI's GPT-4 for AI-driven functionalities. The system is orchestrated using LangGraph and deployed on Render.com with continuous integration and delivery (CI/CD).
 
-- **Frontend:** Utilizes React for the UI components, managed by Vite for an optimized development environment and styled with TailwindCSS for a flexible layout design.
-- **Backend:** Written in Python using Flask as the web framework, with Gunicorn serving as the WSGI HTTP Server to handle requests with multi-worker support for scalability.
-- **Database:** PostgreSQL is used for data storage, enhanced with Row Level Security (RLS) features from Supabase for data integrity and security.
-- **Queue System:** Redis Queue (RQ) is employed for managing background tasks, providing a robust system for real-time task orchestration.
-- **Orchestration:** LangGraph is used for defining and managing agent workflows within the platform.
-- **AI Integration:** OpenAI's GPT-4 model powers the content generation aspects of the platform, including FAQ generation and documentation management.
-- **Deployment:** Render.com is used for hosting with continuous integration and continuous deployment (CI/CD) to streamline development cycles.
+### Frontend
 
-## Code Examples
+The frontend is developed using React along with Vite for fast builds and TailwindCSS for styling. This combination allows for a highly responsive and visually appealing user interface that can be rapidly developed and iterated upon.
 
-While specific code examples depend on the context of use, here are some general snippets to illustrate how components might interact within the MorningAI architecture:
+**Code Example: Initializing a React Component**
 
-### Flask Application Initialization
+```jsx
+import React from 'react';
+import ReactDOM from 'react-dom';
+import './index.css';
+
+function App() {
+  return <div className="app">Welcome to MorningAI</div>;
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
+```
+
+### Backend
+
+The backend infrastructure uses Python with Flask as the web framework and Gunicorn as the WSGI HTTP server. It is configured for multi-worker support to handle concurrent requests efficiently.
+
+**Code Example: Flask Application Setup**
 
 ```python
 from flask import Flask
-from config import Config
-
 app = Flask(__name__)
-app.config.from_object(Config)
 
-if __name__ == "__main__":
+@app.route('/')
+def hello_world():
+    return 'Hello, MorningAI!'
+
+if __name__ == '__main__':
     app.run()
 ```
 
-### Gunicorn Configuration Example
+### Database
 
-`gunicorn.conf.py`
+MorningAI utilizes PostgreSQL for data storage, with Supabase adding a layer of real-time capabilities and Row Level Security (RLS) for data integrity and access control.
+
+**Code Example: Supabase Integration**
 
 ```python
-workers = 2
-threads = 4
-timeout = 120
+from supabase import create_client, Client
+
+url: str = "https://your-supabase-project-url.supabase.co"
+key: str = "your-supabase-key"
+supabase: Client = create_client(url, key)
+
+response = supabase.table("your_table").select("*").execute()
+data = response.data
 ```
 
-This configuration can be tailored based on the deployment environment requirements.
+### Queue System
 
-### Redis Queue Task Example
+Task orchestration and real-time operations are handled by Redis Queue (RQ), enabling asynchronous task processing to improve the platform's efficiency.
+
+**Code Example: Enqueueing a Task with RQ**
 
 ```python
-import redis
+from redis import Redis
 from rq import Queue
 
-r = redis.Redis()
-q = Queue(connection=r)
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
 
-def background_task(arg):
-    print(f"Running task with argument {arg}")
-    # Task implementation here
-
-job = q.enqueue(background_task, 'example')
+result = q.enqueue('my_module.my_function', args=(my_arg,), timeout=600)
 ```
 
-## Related Documentation Links
+### AI Integration
 
-- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
-- Gunicorn Configuration: [https://docs.gunicorn.org/en/stable/configure.html](https://docs.gunicorn.org/en/stable/configure.html)
-- Redis Queue (RQ): [http://python-rq.org/](http://python-rq.org/)
-- Supabase Documentation: [https://supabase.io/docs](https://supabase.io/docs)
-- Render Deployment Guides: [https://render.com/docs](https://render.com/docs)
+OpenAI's GPT-4 powers the autonomous agent system and content generation features within MorningAI. This integration allows for sophisticated code generation and natural language processing capabilities.
 
-## Common Troubleshooting Tips
+**Code Example: Using GPT-4 with OpenAI API**
 
-**1. Gunicorn Workers Crashing**: Ensure that your server has adequate resources. You may need to adjust the number of workers based on available memory and CPU cores.
+```python
+import openai
 
-**2. Database Connection Issues**: Verify your database URL and credentials. Check if Row Level Security policies are correctly configured if encountering permission errors.
+openai.api_key = 'your-api-key'
 
-**3. Task Delays in Redis Queue**: Monitor your queue sizes and worker availability. Consider scaling up workers or optimizing task execution times.
+response = openai.Completion.create(
+  engine="gpt-4",
+  prompt="Generate FAQ content for a SaaS platform:",
+  temperature=0.5,
+  max_tokens=1000
+)
 
-**4. Deployment Failures on Render.com**: Review build logs for any errors during the CI/CD process. Ensure all environment variables are correctly set up in your Render dashboard.
+print(response.choices[0].text)
+```
 
-For detailed troubleshooting steps and community support, refer to each component's official documentation or forums.
+### Deployment and Orchestration
+
+Deployment is managed via Render.com, supporting seamless CI/CD workflows. LangGraph orchestrates agent workflows, ensuring efficient task execution across different services.
+
+## Troubleshooting Tips
+
+- **Frontend Issues**: Ensure dependencies are up to date with `npm install` or `yarn install`. Check console logs for errors.
+- **Backend Connectivity**: Verify Flask application logs for errors. Ensure Gunicorn is properly configured for worker processes.
+- **Database Access**: Confirm RLS policies in Supabase do not inadvertently block legitimate queries. Review connection strings.
+- **Queue System**: Monitor Redis Queue dashboard for failed jobs. Ensure workers are running and have sufficient resources.
+- **Deployment Errors**: Check Render.com deployment logs for any build or deployment issues. Validate environment variables are correctly set.
+
+For further documentation on specific components of the system architecture, please refer to the official documentation:
+
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [OpenAI API Documentation](https://beta.openai.com/docs/)
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `52d788e9-0fed-43f4-8962-6ce956802f21`
+- Trace ID: `28c9ce0c-70d8-4fbf-bcdd-f434a6611c8d`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
