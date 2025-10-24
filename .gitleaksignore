@@ -1,0 +1,40 @@
+# Gitleaks Ignore File
+# Add false positives here to prevent Gitleaks from flagging them
+
+# Example patterns (update based on actual false positives):
+# - Test fixtures with fake credentials
+# - Documentation examples
+# - Public API keys (non-sensitive)
+
+# Test files with example credentials
+**/tests/**/*test*.py:*example*
+**/tests/**/*fixture*.py:*dummy*
+**/__tests__/**/*.ts:*mock*
+**/__tests__/**/*.tsx:*test*
+
+# Documentation examples
+docs/**/*.md:*example*
+README.md:*example*
+*.md:*placeholder*
+
+# Public/example configuration
+.env.example:*
+env_schema.yaml:*example*
+
+# Vercel configuration (public deployment URLs)
+vercel.json:*
+
+# Package files (dependency hashes, not secrets)
+package-lock.json:*
+pnpm-lock.yaml:*
+poetry.lock:*
+
+# Build artifacts
+dist/**
+build/**
+.next/**
+.turbo/**
+
+# Known false positives (add specific hashes if needed)
+# Format: file:line:hash
+# Example: src/config.ts:42:abc123def456
