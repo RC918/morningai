@@ -23,10 +23,18 @@ During this session, you will:
 
 ### Recording and Data Collection
 
-- **Screen Recording**: Your screen and audio will be recorded during the session
+We will collect the following types of data during your session:
+
+- **Screen Recording**: Your screen will be recorded during the session
+- **Audio Recording**: Your voice will be recorded as you think aloud
+- **Video Recording** (optional): Your webcam video may be recorded if you choose to enable it
 - **Path Tracking**: The system will automatically track your interactions (clicks, page views, timing)
 - **Notes**: The researcher will take notes during the session
 - **Survey Data**: Your responses to questionnaires will be collected
+
+**Separate Consent for Video Recording**:
+☐ I consent to video recording of my webcam during the session (optional)
+☐ I do NOT consent to video recording (screen and audio recording will still occur)
 
 ### Data Usage
 
@@ -45,12 +53,34 @@ The data collected will be used to:
 - Only the research team will have access to raw data
 - We comply with GDPR and local privacy laws
 
-### Voluntary Participation
+### Data Retention and Deletion
+
+**Retention Period**: All personal data, including recordings, notes, and survey responses, will be retained for a maximum of **90 days** from the date of your test session, or until the completion of the research study plus 30 days, whichever comes first.
+
+**Deletion Process**: After the retention period:
+- All video and audio recordings will be permanently deleted
+- Observation notes containing personal identifiers will be destroyed
+- Only anonymized, aggregated data will be retained for research purposes
+
+**Your Right to Request Deletion**: You may request deletion of your data at any time by contacting us at ux@morningai.app. We will delete your data within 30 days of your request.
+
+### Voluntary Participation and Your Rights
 
 - Your participation is completely voluntary
 - You may stop at any time without penalty
 - You may skip any questions you don't want to answer
 - You may request that your data be deleted at any time
+
+**Your GDPR Rights**: Under the General Data Protection Regulation (GDPR), you have the right to:
+- **Access**: Request a copy of your personal data
+- **Rectification**: Request correction of inaccurate data
+- **Erasure**: Request deletion of your data ("right to be forgotten")
+- **Restriction**: Request limitation of how we process your data
+- **Portability**: Receive your data in a structured, machine-readable format
+- **Objection**: Object to processing of your data
+- **Withdraw Consent**: Withdraw your consent at any time without affecting the lawfulness of processing before withdrawal
+
+To exercise any of these rights, please contact our Data Protection Officer (DPO) at: dpo@morningai.app
 
 ### Compensation
 
@@ -59,8 +89,10 @@ You will receive [NT$ 1,000 / 3 months free MorningAI subscription] for your par
 ### Questions or Concerns
 
 If you have any questions about this study, please contact:
-- **Email**: ux@morningai.app
 - **Research Lead**: [Insert Name]
+- **Email**: ux@morningai.app
+- **Data Protection Officer (DPO)**: dpo@morningai.app
+- **Privacy Concerns**: privacy@morningai.app
 
 ### Consent
 

@@ -4,6 +4,27 @@
 
 This directory contains all materials needed to conduct usability testing for the MorningAI dashboard, as outlined in the Week 4 UX Enhancement Roadmap.
 
+### Data Privacy and Usage Limitation
+
+**Purpose Limitation**: All data collected during usability testing is used **exclusively for product usability research** to improve the MorningAI dashboard interface. Data will not be used for:
+- Marketing or promotional purposes
+- User profiling or behavioral tracking outside of research
+- Sale or transfer to third parties
+- Any purpose other than usability research and product improvement
+
+**Data Minimization**: We collect only the minimum data necessary to conduct usability research:
+- Screen recordings and audio (for task observation)
+- Path Tracking data (for TTV measurement)
+- Survey responses (for usability metrics)
+- Observation notes (for qualitative insights)
+
+**Retention and Deletion**: All personal data will be retained for a maximum of **90 days** from the test session date, or until research completion plus 30 days, whichever comes first. After this period:
+- All video and audio recordings will be permanently deleted
+- Personal identifiers will be removed from notes
+- Only anonymized, aggregated data will be retained
+
+For more details, see [CONSENT_FORM.md](CONSENT_FORM.md).
+
 ## Quick Start
 
 ### For Facilitators

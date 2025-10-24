@@ -102,6 +102,27 @@
 - **Survey Tool**: Google Forms
 - **Analytics**: Sentry (Path Tracking)
 
+### Data Privacy and Retention Policy
+
+**Purpose Limitation**: All data collected was used exclusively for product usability research to improve the MorningAI dashboard interface. Data was not used for marketing, user profiling, or any purpose other than usability research.
+
+**Data Minimization**: Only the minimum necessary data was collected:
+- Screen recordings and audio for task observation
+- Path Tracking data for TTV measurement
+- Survey responses for usability metrics
+- Observation notes for qualitative insights
+
+**Retention Period**: All personal data will be retained for a maximum of **90 days** from the test session date, or until research completion plus 30 days, whichever comes first.
+
+**Deletion Schedule**:
+- **Day 90**: All video and audio recordings will be permanently deleted
+- **Day 90**: Personal identifiers will be removed from observation notes
+- **After Day 90**: Only anonymized, aggregated data will be retained for research purposes
+
+**GDPR Compliance**: All participants provided informed consent. Participants were informed of their rights to access, rectification, erasure, restriction, portability, and objection under GDPR Article 13.
+
+**Data Protection Officer**: dpo@morningai.app
+
 ---
 
 ## 2. Participant Demographics
