@@ -29,3 +29,4 @@ SUPABASE_RLS_SECURITY_AUDIT_REPORT.md:curl-auth-header:220
 # Example of INCORRECT format (too broad - DO NOT USE):
 # *.md:*:*
 # **/tests/**:*:*
+46e072ddb4d4175868ad1b6e108b9107426630c9:docs/SECRET_SCANNING_GUIDE.md:generic-api-key:153
