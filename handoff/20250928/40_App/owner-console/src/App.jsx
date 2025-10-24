@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from 'next-themes'
 import Sidebar from '@/components/Sidebar'
+import LoginPage from '@/components/LoginPage'
 import './App.css'
 
 const OwnerDashboard = lazy(() => import('@/pages/OwnerDashboard'))
@@ -20,10 +21,20 @@ function AppContent() {
     role: 'Owner'
   })
 
+  const handleLogin = (userData, token) => {
+    setUser(userData)
+    setIsAuthenticated(true)
+    localStorage.setItem('owner_auth_token', token)
+  }
+
   const handleLogout = () => {
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem('owner_auth_token')
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} />
   }
 
   return (
