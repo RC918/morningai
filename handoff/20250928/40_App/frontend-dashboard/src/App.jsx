@@ -7,11 +7,11 @@ import { Toaster } from '@/components/ui/toaster'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
 import LoginPage from '@/components/LoginPage'
+import SignupPage from '@/components/SignupPage'
 import LandingPage from '@/components/LandingPage'
 import WIPPage from '@/components/WIPPage'
 import { TenantProvider } from '@/contexts/TenantContext'
 import { NotificationProvider, useNotification } from '@/contexts/NotificationContext'
-import { Phase3WelcomeModal } from '@/components/Phase3WelcomeModal'
 import { PageLoader } from '@/components/feedback/PageLoader'
 import { OfflineIndicator } from '@/components/feedback/OfflineIndicator'
 import { SkipToContent } from '@/components/SkipToContent'
@@ -19,6 +19,7 @@ import { applyDesignTokens } from '@/lib/design-tokens'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
+import { supabase, getSession, signInWithOAuth } from '@/lib/supabaseClient'
 import '@/i18n/config'
 import { tolgee } from '@/i18n/config'
 import './App.css'
@@ -37,13 +38,13 @@ const TenantSettings = lazy(() => import('@/components/TenantSettings'))
 const CheckoutPage = lazy(() => import('@/components/CheckoutPage'))
 const CheckoutSuccess = lazy(() => import('@/components/CheckoutSuccess'))
 const CheckoutCancel = lazy(() => import('@/components/CheckoutCancel'))
+const AuthCallback = lazy(() => import('@/components/AuthCallback'))
 
 function AppContent() {
   const { t } = useTranslation()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
-  const { showPhase3Welcome, dismissWelcome } = useNotification()
 
   useEffect(() => {
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -77,6 +78,23 @@ function AppContent() {
 
     const checkAuth = async () => {
       try {
+        const { session, error: sessionError } = await getSession()
+        
+        if (session && !sessionError) {
+          const supabaseUser = session.user
+          setUser({
+            id: supabaseUser.id,
+            name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User',
+            email: supabaseUser.email,
+            avatar: supabaseUser.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${supabaseUser.email}`,
+            role: 'Owner',
+            tenant_id: 'tenant_001'
+          })
+          setIsAuthenticated(true)
+          setLoading(false)
+          return
+        }
+        
         const token = localStorage.getItem('auth_token')
         if (token) {
           const userData = await apiClient.verifyAuth()
@@ -119,7 +137,13 @@ function AppContent() {
     })
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.error('Supabase signOut error:', error)
+    }
+    
     setUser({
       id: null,
       name: 'Ryan Chen',
@@ -135,6 +159,8 @@ function AppContent() {
       description: t('auth.logout.logoutMessage'),
       variant: "default"
     })
+    
+    window.location.href = '/'
   }
 
   if (loading) {
@@ -145,8 +171,28 @@ function AppContent() {
     window.location.href = '/login'
   }
 
-  const handleSSOLogin = (provider) => {
-    console.log(`SSO Login with ${provider}`)
+  const handleSSOLogin = async (provider) => {
+    try {
+      const { error } = await signInWithOAuth(provider, {
+        redirectTo: `${window.location.origin}/auth/callback`
+      })
+      
+      if (error) {
+        console.error('SSO login error:', error)
+        addToast({
+          title: t('auth.login.loginError'),
+          description: error.message,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('SSO login error:', error)
+      addToast({
+        title: t('auth.login.loginError'),
+        description: error.message,
+        variant: "destructive"
+      })
+    }
   }
 
   return (
@@ -155,15 +201,13 @@ function AppContent() {
         <Router>
           <div className="theme-apple">
             <OfflineIndicator />
-            <Phase3WelcomeModal 
-              isOpen={showPhase3Welcome}
-              onClose={dismissWelcome}
-            />
             
             {!isAuthenticated ? (
               <Routes>
                 <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
                 <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             ) : (
