@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
-  Search, FileText, Settings, BarChart3, Clock, TrendingUp,
-  DollarSign, Shield, Users, Zap, Command, ArrowRight
+  Search, FileText, Settings, BarChart3, Command, ArrowRight
 } from 'lucide-react'
 import {
   Dialog,
@@ -13,13 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-
-const SEARCH_CATEGORIES = {
-  PAGES: 'pages',
-  WIDGETS: 'widgets',
-  SETTINGS: 'settings',
-  DOCS: 'docs'
-}
+import { SEARCH_CATEGORIES, getSearchableItems } from '@/lib/searchRegistry'
 
 const CATEGORY_ICONS = {
   [SEARCH_CATEGORIES.PAGES]: FileText,
@@ -49,125 +42,7 @@ export const GlobalSearch = () => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [recentSearches, setRecentSearches] = useState([])
 
-  const searchableItems = useMemo(() => [
-    {
-      id: 'dashboard',
-      title: t('dashboard.title'),
-      description: t('dashboard.description'),
-      category: SEARCH_CATEGORIES.PAGES,
-      path: '/dashboard',
-      keywords: ['dashboard', 'home', 'overview', 'metrics', 'monitoring'],
-      weight: 10
-    },
-    {
-      id: 'strategies',
-      title: t('nav.strategies'),
-      description: t('strategies.description'),
-      category: SEARCH_CATEGORIES.PAGES,
-      path: '/strategies',
-      keywords: ['strategy', 'strategies', 'management', 'rules'],
-      weight: 9
-    },
-    {
-      id: 'approvals',
-      title: t('nav.approvals'),
-      description: t('approvals.description'),
-      category: SEARCH_CATEGORIES.PAGES,
-      path: '/approvals',
-      keywords: ['approval', 'approvals', 'decisions', 'review'],
-      weight: 8
-    },
-    {
-      id: 'history',
-      title: t('nav.history'),
-      description: t('history.description'),
-      category: SEARCH_CATEGORIES.PAGES,
-      path: '/history',
-      keywords: ['history', 'logs', 'past', 'timeline'],
-      weight: 7
-    },
-    {
-      id: 'costs',
-      title: t('nav.costs'),
-      description: t('costs.description'),
-      category: SEARCH_CATEGORIES.PAGES,
-      path: '/costs',
-      keywords: ['cost', 'costs', 'billing', 'expenses', 'budget'],
-      weight: 8
-    },
-    {
-      id: 'governance',
-      title: t('nav.governance'),
-      description: t('governance.description'),
-      category: SEARCH_CATEGORIES.PAGES,
-      path: '/governance',
-      keywords: ['governance', 'compliance', 'rules', 'policies'],
-      weight: 6
-    },
-    {
-      id: 'settings',
-      title: t('nav.settings'),
-      description: t('settings.description'),
-      category: SEARCH_CATEGORIES.PAGES,
-      path: '/settings',
-      keywords: ['settings', 'preferences', 'configuration', 'options'],
-      weight: 7
-    },
-    {
-      id: 'cpu-widget',
-      title: t('widgets.cpuUsage'),
-      description: t('widgets.cpuDescription'),
-      category: SEARCH_CATEGORIES.WIDGETS,
-      action: () => console.log('Add CPU widget'),
-      keywords: ['cpu', 'processor', 'usage', 'performance'],
-      weight: 5
-    },
-    {
-      id: 'memory-widget',
-      title: t('widgets.memoryUsage'),
-      description: t('widgets.memoryDescription'),
-      category: SEARCH_CATEGORIES.WIDGETS,
-      action: () => console.log('Add Memory widget'),
-      keywords: ['memory', 'ram', 'usage'],
-      weight: 5
-    },
-    {
-      id: 'response-time-widget',
-      title: t('widgets.responseTime'),
-      description: t('widgets.responseTimeDescription'),
-      category: SEARCH_CATEGORIES.WIDGETS,
-      action: () => console.log('Add Response Time widget'),
-      keywords: ['response', 'time', 'latency', 'speed'],
-      weight: 5
-    },
-    {
-      id: 'profile-settings',
-      title: t('settings.tabs.profile'),
-      description: t('settings.profile.description'),
-      category: SEARCH_CATEGORIES.SETTINGS,
-      path: '/settings?tab=profile',
-      keywords: ['profile', 'account', 'user', 'personal'],
-      weight: 4
-    },
-    {
-      id: 'notification-settings',
-      title: t('settings.tabs.notifications'),
-      description: t('settings.notifications.description'),
-      category: SEARCH_CATEGORIES.SETTINGS,
-      path: '/settings?tab=notifications',
-      keywords: ['notifications', 'alerts', 'email', 'push'],
-      weight: 4
-    },
-    {
-      id: 'security-settings',
-      title: t('settings.tabs.security'),
-      description: t('settings.security.description'),
-      category: SEARCH_CATEGORIES.SETTINGS,
-      path: '/settings?tab=security',
-      keywords: ['security', 'password', 'authentication', '2fa', 'mfa'],
-      weight: 4
-    }
-  ], [t])
+  const searchableItems = useMemo(() => getSearchableItems(t), [t])
 
   const fuzzySearch = useCallback((searchQuery, items) => {
     if (!searchQuery.trim()) return []

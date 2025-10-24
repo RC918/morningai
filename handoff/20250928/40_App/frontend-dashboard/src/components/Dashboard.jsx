@@ -316,7 +316,7 @@ const Dashboard = () => {
               onClick={undo}
               disabled={!canUndo}
               aria-label={t('dashboard.undo')}
-              title={`${t('dashboard.undo')} (${navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+Z)`}
+              title={`${t('dashboard.undo')} (Cmd/Ctrl+Z)`}
             >
               <Undo2 className="w-4 h-4 mr-2" aria-hidden="true" />
               {t('dashboard.undo')}
@@ -327,7 +327,7 @@ const Dashboard = () => {
               onClick={redo}
               disabled={!canRedo}
               aria-label={t('dashboard.redo')}
-              title={`${t('dashboard.redo')} (${navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+Shift+Z)`}
+              title={`${t('dashboard.redo')} (Cmd/Ctrl+Shift+Z)`}
             >
               <Redo2 className="w-4 h-4 mr-2" aria-hidden="true" />
               {t('dashboard.redo')}
