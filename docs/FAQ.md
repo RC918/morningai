@@ -1,94 +1,135 @@
 # System Architecture of MorningAI
 
-MorningAI leverages a robust and scalable multi-tenant SaaS platform architecture designed to provide autonomous agent systems for code generation, FAQ generation, documentation management, and multi-platform integration. The architecture is built with a focus on real-time task orchestration and efficient vector memory storage to ensure high performance and reliability.
+MorningAI is designed as a scalable, multi-tenant SaaS platform aimed at enhancing productivity through autonomous code generation, dynamic FAQ and documentation management, and seamless multi-platform integration. Its architecture is crafted to support real-time task orchestration and efficient vector memory storage. Below is a detailed overview of the system architecture, highlighting its main components and their interconnections.
 
-## Core Components
+## Overview
+
+The MorningAI platform leverages a modern technology stack that includes React, Vite, and TailwindCSS for the frontend; Python, Flask, and Gunicorn for the backend; PostgreSQL with Supabase for the database; Redis Queue (RQ) for task queuing; LangGraph for orchestration; OpenAI GPT-4 for AI-driven content generation; and Render.com for deployment with continuous integration/continuous deployment (CI/CD).
 
 ### Frontend
-- **Technologies**: React, Vite, TailwindCSS
-- **Functionality**: Provides the user interface for interacting with the MorningAI platform. Implemented using React for its component-based architecture, Vite for fast builds, and TailwindCSS for styling.
+
+- **Technologies**: React + Vite + TailwindCSS
+- **Purpose**: Provides the user interface for interaction with MorningAI's features.
+- **Path**: `frontend/`
   
+```jsx
+// Example: App.jsx
+import React from 'react';
+import { TailwindProvider } from 'tailwindcss-react-native';
+
+const App = () => {
+  return (
+    <TailwindProvider>
+      {/* Your app components */}
+    </TailwindProvider>
+  );
+};
+export default App;
+```
+
 ### Backend
-- **Technologies**: Python, Flask, Gunicorn with multi-worker support
-- **Functionality**: Handles business logic, including API requests/responses and interaction with the database and queue system. Flask serves as the web framework due to its simplicity and flexibility, while Gunicorn is used in production for its ability to manage multiple workers.
+
+- **Technologies**: Python + Flask + Gunicorn
+- **Purpose**: Handles API requests, integrates with external services (like OpenAI), and manages background tasks.
+- **Path**: `backend/`
+
+```python
+# Example: app.py
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
+
+if __name__ == '__main__':
+    app.run()
+```
 
 ### Database
-- **Technology**: PostgreSQL (Supabase) with Row Level Security (RLS)
-- **Functionality**: Stores all persistent data for the platform, including user data, documentation content, and task logs. Supabase adds a layer of real-time capabilities and security with RLS.
+
+- **Technology**: PostgreSQL (Supabase) with Row Level Security
+- **Purpose**: Stores user data, generated content, and operational logs securely.
+- **Path**: Configuration found in `supabase/` or managed through the Supabase UI.
 
 ### Queue System
-- **Technology**: Redis Queue (RQ) with worker heartbeat monitoring
-- **Functionality**: Manages background tasks such as long-running code generation processes or documentation updates. RQ is chosen for its simplicity and integration ease with Python applications.
+
+- **Technology**: Redis Queue (RQ)
+- **Purpose**: Manages asynchronous job queues for long-running tasks.
+- **Path**: Jobs and worker configuration can be found in `backend/rq_workers/`
+
+```python
+# Example: worker.py
+import redis
+from rq import Worker, Queue, Connection
+
+listen = ['high', 'default', 'low']
+
+redis_url = 'redis://localhost:6379'
+
+conn = redis.from_url(redis_url)
+
+if __name__ == '__main__':
+    with Connection(conn):
+        worker = Worker(map(Queue, listen))
+        worker.work()
+```
 
 ### Orchestration
-- **Technology**: LangGraph for agent workflows
-- **Functionality**: Organizes complex workflows between different autonomous agents within the platform. LangGraph helps in defining these workflows in a flexible manner.
 
-### AI Component
-- **Technology**: OpenAI GPT-4 for content generation
-- **Functionality**: Powers the autonomous agent system to generate code snippets, FAQs, and manage documentation autonomously. Utilizes GPT-4 for its advanced understanding and generation capabilities.
+- **Technology**: LangGraph
+- **Purpose**: Coordinates complex workflows between different system components.
+- **Documentation Link**: [LangGraph Documentation](https://langgraph.io/docs)
+
+### AI Integration
+
+- **Technology**: OpenAI GPT-4
+- **Purpose**: Powers the autonomous agent system for code generation and FAQ/documentation management.
+  
+```python
+# Example: ai_integration.py
+import openai
+
+openai.api_key = "your-api-key"
+
+response = openai.Completion.create(
+  engine="text-davinci-003",
+  prompt="What is the system architecture?",
+  max_tokens=100
+)
+
+print(response.choices[0].text.strip())
+```
 
 ### Deployment
-- **Platform**: Render.com with CI/CD
-- **Functionality**: Hosts the application and automates deployment processes. Render.com is chosen for its simplicity in setup and robust support for both frontend and backend technologies.
 
-## Example: Adding a New Feature
+- **Platform**: Render.com
+- **Purpose**: Hosts the application with CI/CD pipelines for automatic deployments from the main branch.
 
-To add a new feature to the MorningAI platform (e.g., a new integration), you would typically follow these steps:
+## Related Documentation Links
 
-1. **Frontend**:
-   - Add UI components in `frontend/components` using React.
-   - Style components with TailwindCSS classes.
-   ```jsx
-   // Example Component.jsx
-   function NewFeatureComponent() {
-     return <div className="p-4 max-w-sm mx-auto">New Feature</div>;
-   }
-   ```
+For further details on each component:
+- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- Supabase Documentation: [https://supabase.io/docs](https://supabase.io/docs)
+- RQ Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- OpenAI API Documentation: [https://beta.openai.com/docs/](https://beta.openai.com/docs/)
+  
+## Common Troubleshooting Tips
 
-2. **Backend**:
-   - Create a new API endpoint in Flask within `backend/api`.
-   - Implement business logic to interact with other services like database or queue.
-   ```python
-   # Example new_feature.py in backend/api
-   from flask import Blueprint, jsonify
-   
-   new_feature_bp = Blueprint('new_feature', __name__)
-   
-   @new_feature_bp.route('/new-feature', methods=['GET'])
-   def handle_new_feature():
-       return jsonify({"message": "New Feature Endpoint"}), 200
-   ```
+1. **Deployment Issues on Render.com**:
+   - Ensure environment variables are correctly set up in your Render dashboard.
+   - Check the build & deploy logs for specific error messages.
 
-3. **Database**:
-   - Update the database schema via Supabase dashboard if necessary.
-   - Apply Row Level Security policies as needed.
+2. **Database Connection Errors**:
+   - Verify your Supabase project keys and connection strings are correct.
+   - Check if Row Level Security policies are interfering with expected operations.
 
-4. **Queue System**:
-   - If the feature involves background processing, add a new task type in `backend/queue_tasks`.
-   
-5. **Orchestration & AI**:
-   - Update LangGraph workflows if this feature interacts with autonomous agents.
-   
-6. **Deployment**:
-    - Ensure all tests pass.
-    - Push changes to your repository; CI/CD on Render.com will handle deployment.
+3. **Task Queues Not Processing**:
+   - Ensure Redis server is running and accessible.
+   - Check that RQ workers are running; restart them if necessary.
 
-## Troubleshooting Tips
-
-1. **Deployment Issues**:
-    - Check build logs on Render.com for specific error messages.
-    - Ensure environment variables are correctly set up on Render.com.
-
-2. **Database Connectivity**:
-    - Verify that your Supabase project keys are correct and have not been rotated recently.
-    - Ensure your application's IP is allowed if you've set IP restrictions.
-
-3. **Queue Worker Failures**:
-    - Review RQ worker logs for errors during task execution.
-    - Confirm that Redis is accessible by workers; network policies might restrict access unexpectedly.
-
-For more detailed documentation on each component or feature of MorningAI, please refer to the official documentation located within each module's directory in the RC918/morningai repository or visit [MorningAI Documentation](https://morningai.example.com/docs).
+For additional help or to report issues, please refer to our GitHub issues page at `RC918/morningai/issues`.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -97,6 +138,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `ac7d5f4d-9892-42b1-8666-3fc4e1bf5481`
+- Trace ID: `b0968d69-8393-4d81-8f7c-11a70c1158fa`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
