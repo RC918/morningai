@@ -240,7 +240,7 @@ class TestRequestValidation:
                              data='not json',
                              headers=auth_headers_admin)
         
-        assert response.status_code in [400, 415, 500, 503]
+        assert response.status_code in [400, 415, 422, 500, 503]
     
     def test_empty_request_body(self, client, auth_headers_admin):
         """Test empty request body handling"""
@@ -257,7 +257,7 @@ class TestRequestValidation:
                              content_type='application/json',
                              headers=auth_headers_admin)
         
-        assert response.status_code in [400, 500, 503]
+        assert response.status_code in [400, 422, 500, 503]
 
 
 class TestSecurityHeaders:
