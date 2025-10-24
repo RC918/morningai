@@ -35,6 +35,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Install api-backend dependencies (required for importing Flask routes)
+          if [ -f ../../handoff/20250928/40_App/api-backend/requirements.txt ]; then 
+            pip install -r ../../handoff/20250928/40_App/api-backend/requirements.txt
+          fi
       
       - name: Run FAQ Agent tests
         working-directory: agents/faq_agent
@@ -64,6 +68,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Install api-backend dependencies (required for importing Flask routes)
+          if [ -f ../../handoff/20250928/40_App/api-backend/requirements.txt ]; then 
+            pip install -r ../../handoff/20250928/40_App/api-backend/requirements.txt
+          fi
       
       - name: Run Ops Agent tests
         working-directory: agents/ops_agent
@@ -93,6 +101,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Install api-backend dependencies (required for importing Flask routes)
+          if [ -f ../../handoff/20250928/40_App/api-backend/requirements.txt ]; then 
+            pip install -r ../../handoff/20250928/40_App/api-backend/requirements.txt
+          fi
       
       - name: Run Dev Agent tests
         working-directory: agents/dev_agent
