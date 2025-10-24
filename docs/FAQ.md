@@ -1,59 +1,64 @@
-# System Architecture of MorningAI
+# Test Retry Success in MorningAI
 
-MorningAI leverages a modern, scalable, and robust architecture designed to provide an efficient and reliable service for autonomous code generation, FAQ documentation management, and multi-platform integration. Understanding the system architecture is crucial for developers looking to integrate with or contribute to MorningAI. This section aims to give a comprehensive overview of our system architecture.
+Understanding and implementing test retries can significantly improve the robustness of your application by ensuring transient errors do not cause your entire test suite to fail. This section will guide you through configuring test retries in the MorningAI platform, leveraging its autonomous agent system and task orchestration capabilities.
 
-## Overview
+## Explanation
 
-MorningAI's architecture is built around several core components that work together to deliver a seamless experience:
+In the context of MorningAI, test retries are a crucial feature allowing developers to automatically rerun failed tests before marking them as failures. This capability is especially useful in dealing with flaky tests or issues that might arise from temporary external service downtimes, network glitches, or similar transient problems.
 
-- **Frontend**: Developed using React, Vite, and TailwindCSS for a responsive and modern user interface.
-- **Backend**: Powered by Python with Flask serving as the web framework, and Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests.
-- **Database**: Utilizes PostgreSQL for data storage, enhanced with Supabase for additional functionalities like Row Level Security (RLS), which ensures data isolation across different tenants.
-- **Queue System**: Implements Redis Queue (RQ) to manage background tasks efficiently, allowing real-time task orchestration and worker heartbeat monitoring to ensure reliability.
-- **Orchestration**: Uses LangGraph for managing agent workflows, ensuring tasks are executed in an orderly and optimized manner.
-- **AI Engine**: Integrates OpenAI GPT-4 for generating content dynamically, including code snippets and FAQ documentation.
-- **Deployment**: Hosted on Render.com with continuous integration and delivery (CI/CD) practices in place to streamline updates and maintain high availability.
+MorningAI utilizes a task orchestration system powered by Redis Queue (RQ) and LangGraph for workflow management. This system allows us to implement a retry mechanism for our automated testing processes efficiently.
 
-### Code Examples
+### Configuring Test Retries
 
-While detailed code examples specific to each component might be too extensive for this document, here's a brief example of how a Flask application could be initialized within our backend structure:
+To configure test retries within MorningAI, you'll need to adjust your task definitions in the LangGraph orchestrator and ensure your Redis Queue workers are set up to handle retries appropriately.
+
+#### Code Example: Setting Up Test Retries
+
+Below is an example showing how you might configure a retry mechanism for a test task in Python using Flask and RQ:
 
 ```python
+from redis import Redis
+from rq import Queue
+from rq.job import Job
 from flask import Flask
-from config import Config
+import time
 
 app = Flask(__name__)
-app.config.from_object(Config)
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+
+def run_test():
+    # Placeholder for your test running logic
+    print("Running test...")
+    # Simulate test failure
+    if time.time() % 2 > 1:
+        raise Exception("Test failed due to a transient error")
+
+@app.route("/submit_test")
+def submit_test():
+    job = q.enqueue(run_test, failure_ttl=30, retry={'max': 3, 'interval': [10, 30, 60]})
+    return f"Test submitted, job ID: {job.id}"
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
 ```
 
-This simple example shows the initialization of a Flask application with configurations loaded from an external `Config` class. For more specific examples related to other components like React setups or RQ usage, developers should refer to the respective directories within the repository at `RC918/morningai`.
+This example shows how to enqueue a job with retry configurations using RQ. The `retry` parameter is a dictionary where `max` specifies the maximum number of retries and `interval` defines the delay between retries in seconds.
 
 ### Related Documentation Links
 
-For further details on each component of our system architecture, please refer to the following documentation:
-
-- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
-- PostgreSQL/Supabase: [https://supabase.io/docs](https://supabase.io/docs)
-- Redis Queue (RQ): [http://python-rq.org/docs/](http://python-rq.org/docs/)
-- OpenAI GPT: [https://beta.openai.com/docs/](https://beta.openai.com/docs/)
-- Render.com CI/CD: [https://render.com/docs](https://render.com/docs)
+- [RQ Documentation](https://python-rq.org/docs/)
+- [Flask Documentation](https://flask.palletsprojects.com/)
+- [Redis Queue Job Retry](https://python-rq.org/docs/jobs/#retries)
 
 ### Common Troubleshooting Tips
 
-**Issue:** Application does not start properly due to database connection errors.
-**Solution:** Verify that the PostgreSQL database credentials are correct and that the Supabase instance is accessible. Ensure that environment variables are properly configured.
+1. **Job Not Retrying**: Ensure that your RQ worker is configured correctly to listen to the right queues and that it is running.
+2. **Retry Intervals Not Honored**: Verify that the intervals specified in the retry configuration match your expectations and are reasonable given your test durations.
+3. **Excessive Retries Causing Delays**: If excessive retries are causing delays in your pipeline, consider adjusting the retry intervals or reducing the maximum number of retries.
+4. **Monitoring and Logging**: Make use of logging within your test jobs to monitor their execution and debugging issues. RQ dashboard can also be used for real-time monitoring of jobs.
 
-**Issue:** Tasks queued in Redis Queue are not being processed.
-**Solution:** Check that RQ workers are running and monitor their heartbeat. Ensure there's no network partitioning or connectivity issues between your application servers and Redis.
-
-**Issue:** Changes pushed do not reflect in the deployed application on Render.com.
-**Solution:** Ensure that CI/CD pipelines are correctly configured in Render.com settings. Check build logs for any errors during deployment.
-
-This FAQ aims to provide a starting point for understanding MorningAI's system architecture. For more detailed inquiries or specific issues not covered here, developers should consult the project's repository documentation or reach out through the project's issue tracker.
+Implementing a robust retry mechanism allows MorningAI's autonomous agent system to handle transient errors gracefully, improving overall reliability without manual intervention.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -61,7 +66,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `4e68305a-8e2a-4fed-b633-390b282cd18b`
+- Task: Test retry success
+- Trace ID: `86d0297b-f696-4367-82f9-8988100eb0f4`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
