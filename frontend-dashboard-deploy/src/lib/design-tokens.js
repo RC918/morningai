@@ -51,13 +51,19 @@ export const getCSSVariables = () => {
   return cssVars
 }
 
-export const applyDesignTokens = () => {
-  const root = document.documentElement
+export const applyDesignTokens = (scope = '.theme-morning-ai') => {
+  const container = document.querySelector(scope) || document.documentElement
   const cssVars = getCSSVariables()
   
   Object.entries(cssVars).forEach(([property, value]) => {
-    root.style.setProperty(property, value)
+    container.style.setProperty(property, value)
   })
+  
+  if (container !== document.documentElement) {
+    console.log(`[Design Tokens] Applied to scoped container: ${scope}`)
+  } else {
+    console.log('[Design Tokens] Applied to document root (fallback)')
+  }
 }
 
 export default {

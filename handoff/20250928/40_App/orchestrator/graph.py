@@ -6,6 +6,8 @@ from redis_queue.worker import enqueue
 from memory.pgvector_store import save_text, recall_top
 from llm.faq_generator import generate_faq_content
 from utils.rate_limit import check_pr_rate_limit
+from governance.cost_tracker import get_cost_tracker, CostBudgetExceeded
+from governance.reputation_engine import get_reputation_engine
 
 def planner(goal:str):
     steps = ["analyze", "patch", "open PR", "check CI"]
@@ -15,6 +17,19 @@ def planner(goal:str):
 def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     if trace_id is None:
         trace_id = str(uuid.uuid4())
+    
+    cost_tracker = get_cost_tracker()
+    reputation_engine = get_reputation_engine()
+    agent_id = reputation_engine.get_or_create_agent('meta_agent')
+    
+    try:
+        cost_tracker.enforce_budget(trace_id, period='daily')
+        cost_tracker.enforce_budget(trace_id, period='hourly')
+    except CostBudgetExceeded as e:
+        print(f"[Cost] Budget exceeded: {e}")
+        if agent_id:
+            reputation_engine.record_event(agent_id, 'cost_overrun', trace_id=trace_id, reason=str(e))
+        return None, "budget_exceeded", trace_id
     
     allowed, count = check_pr_rate_limit(trace_id, max_per_hour=10, redis_url=os.getenv("REDIS_URL"))
     if not allowed:
@@ -28,6 +43,11 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     try:
         faq_content = generate_faq_content(goal, trace_id, repo_full)
         print(f"[GPT-4] Generated FAQ content ({len(faq_content)} chars)")
+        
+        estimated_tokens = len(faq_content) // 4  # Rough estimate: 4 chars per token
+        estimated_cost = cost_tracker.estimate_cost(estimated_tokens, model='gpt-4')
+        cost_tracker.track_usage(trace_id, estimated_tokens, estimated_cost, model='gpt-4', operation='faq_generation')
+        
     except Exception as e:
         print(f"[GPT-4] Failed to generate content: {e}, using fallback")
         # Fallback is handled inside generate_faq_content
@@ -82,6 +102,14 @@ Requested by: @RC918
     
     state, checks = get_pr_checks(repo, pr_num)
     print(f"[CI] state={state} checks={checks}")
+    
+    if agent_id and state == "success":
+        reputation_engine.record_event(agent_id, 'test_passed', trace_id=trace_id, reason='CI checks passed')
+    elif agent_id and state in ["failure", "error"]:
+        reputation_engine.record_event(agent_id, 'test_failed', trace_id=trace_id, reason=f'CI checks failed: {state}')
+    
+    budget_status = cost_tracker.get_budget_status(trace_id, period='daily')
+    print(f"[Cost] Daily budget: {budget_status['usage']['usd']:.2f}/${budget_status['limits']['usd']:.2f} USD ({budget_status['percentages']['usd']:.1f}%)")
     
     if is_test_mode:
         print(f"[Test Mode] PR #{pr_num} created as draft for testing")

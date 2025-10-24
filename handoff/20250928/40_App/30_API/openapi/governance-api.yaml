@@ -1,0 +1,525 @@
+openapi: 3.0.3
+info:
+  title: Agent Governance API
+  description: |
+    API for managing agent reputation, cost tracking, and policy compliance.
+    
+    This API provides endpoints to monitor and manage the Agent Governance Framework,
+    including reputation scoring, budget enforcement, permission management, and violation tracking.
+  version: 1.0.0
+  contact:
+    name: Morning AI Engineering Team
+    email: engineering@morningai.com
+
+servers:
+  - url: https://api.morningai.com
+    description: Production server
+  - url: https://staging-api.morningai.com
+    description: Staging server
+  - url: http://localhost:5001
+    description: Local development server
+
+tags:
+  - name: Agents
+    description: Agent reputation and permission management
+  - name: Events
+    description: Reputation event tracking
+  - name: Costs
+    description: Cost tracking and budget management
+  - name: Violations
+    description: Policy violation monitoring
+  - name: Statistics
+    description: System-wide governance statistics
+  - name: Health
+    description: System health checks
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/governance/agents:
+    get:
+      tags:
+        - Agents
+      summary: List all agents
+      description: Get all agents with their reputation scores and permission levels
+      operationId: getAgents
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agent'
+                  count:
+                    type: integer
+                    example: 3
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/governance/agents/{agent_id}:
+    get:
+      tags:
+        - Agents
+      summary: Get agent details
+      description: Get detailed information about a specific agent including reputation, permissions, and recent events
+      operationId: getAgentDetails
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: Unique identifier of the agent
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent_id:
+                    type: string
+                    format: uuid
+                  reputation:
+                    $ref: '#/components/schemas/Reputation'
+                  permissions:
+                    $ref: '#/components/schemas/PermissionSummary'
+                  recent_events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReputationEvent'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/governance/events:
+    get:
+      tags:
+        - Events
+      summary: Get reputation events
+      description: Get reputation event history with optional filtering by agent
+      operationId: getEvents
+      parameters:
+        - name: agent_id
+          in: query
+          required: false
+          description: Filter events by agent ID
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of events to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 1000
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReputationEvent'
+                  count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/governance/costs:
+    get:
+      tags:
+        - Costs
+      summary: Get cost statistics
+      description: Get cost tracking statistics for a specific period
+      operationId: getCosts
+      parameters:
+        - name: trace_id
+          in: query
+          required: false
+          description: Trace ID to filter costs
+          schema:
+            type: string
+            default: system
+        - name: period
+          in: query
+          required: false
+          description: Time period for cost tracking
+          schema:
+            type: string
+            enum: [daily, hourly, task, all]
+            default: daily
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/BudgetStatus'
+                  - $ref: '#/components/schemas/CostSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/governance/violations:
+    get:
+      tags:
+        - Violations
+      summary: Get policy violations
+      description: Get policy violation records with optional filtering
+      operationId: getViolations
+      parameters:
+        - name: agent_id
+          in: query
+          required: false
+          description: Filter violations by agent ID
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of violations to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 1000
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  violations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Violation'
+                  count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/governance/statistics:
+    get:
+      tags:
+        - Statistics
+      summary: Get system statistics
+      description: Get overall governance system statistics including reputation and cost data
+      operationId: getStatistics
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reputation:
+                    $ref: '#/components/schemas/ReputationStatistics'
+                  costs:
+                    $ref: '#/components/schemas/CostSummary'
+                  timestamp:
+                    type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/governance/leaderboard:
+    get:
+      tags:
+        - Statistics
+      summary: Get agent leaderboard
+      description: Get agent reputation leaderboard ranked by score
+      operationId: getLeaderboard
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of agents to return
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leaderboard:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agent'
+                  count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/governance/health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check governance system health and component status
+      operationId: healthCheck
+      security: []  # No authentication required for health check
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  governance_available:
+                    type: boolean
+                  components:
+                    type: object
+                    properties:
+                      cost_tracker:
+                        type: string
+                        enum: [available, degraded, unavailable]
+                      reputation_engine:
+                        type: string
+                        enum: [available, degraded, unavailable]
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from authentication endpoint
+
+  schemas:
+    Agent:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        agent_type:
+          type: string
+          example: "ops"
+        reputation_score:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          example: 850
+        permission_level:
+          type: string
+          enum: [sandbox_only, staging_access, prod_low_risk, prod_full_access]
+          example: "prod_low_risk"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Reputation:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+        score:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        permission_level:
+          type: string
+          enum: [sandbox_only, staging_access, prod_low_risk, prod_full_access]
+        total_events:
+          type: integer
+        success_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    PermissionSummary:
+      type: object
+      properties:
+        current_level:
+          type: string
+          enum: [sandbox_only, staging_access, prod_low_risk, prod_full_access]
+        allowed_operations:
+          type: array
+          items:
+            type: string
+        restrictions:
+          type: array
+          items:
+            type: string
+
+    ReputationEvent:
+      type: object
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+          enum: [task_success, task_failure, budget_exceeded, permission_denied, violation_detected]
+        delta:
+          type: integer
+          description: Change in reputation score
+        reason:
+          type: string
+        trace_id:
+          type: string
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    BudgetStatus:
+      type: object
+      properties:
+        period:
+          type: string
+          enum: [daily, hourly, task]
+        usage:
+          type: object
+          properties:
+            tokens:
+              type: integer
+            usd:
+              type: number
+              format: float
+        limits:
+          type: object
+          properties:
+            tokens:
+              type: integer
+            usd:
+              type: number
+              format: float
+        within_budget:
+          type: boolean
+        alert_level:
+          type: string
+          enum: [ok, warning, critical]
+
+    CostSummary:
+      type: object
+      properties:
+        daily:
+          $ref: '#/components/schemas/BudgetStatus'
+        hourly:
+          $ref: '#/components/schemas/BudgetStatus'
+        task:
+          $ref: '#/components/schemas/BudgetStatus'
+
+    Violation:
+      type: object
+      properties:
+        violation_id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        violation_type:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        description:
+          type: string
+        detected_at:
+          type: string
+          format: date-time
+        resolved:
+          type: boolean
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ReputationStatistics:
+      type: object
+      properties:
+        total_agents:
+          type: integer
+        average_score:
+          type: number
+          format: float
+        total_events:
+          type: integer
+        success_rate:
+          type: number
+          format: float
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Authorization header missing"
+            message: "Access denied. Please provide a valid JWT token."
+
+    ServiceUnavailable:
+      description: Governance system not available
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Governance system not available"

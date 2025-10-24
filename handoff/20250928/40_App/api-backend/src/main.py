@@ -9,6 +9,7 @@ from src.routes.agent import bp as agent_bp
 from src.routes.tenant import bp as tenant_bp
 from src.routes.faq import bp as faq_bp
 from src.routes.vectors import bp as vectors_bp
+from src.routes.governance import bp as governance_bp
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
@@ -98,7 +99,7 @@ def add_cors_headers(response):
     if origin in cors_origins or is_vercel_preview(origin):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
     
     return response
@@ -106,7 +107,7 @@ def add_cors_headers(response):
 cors_config = {
     "origins": cors_origins,
     "supports_credentials": True,
-    "allow_headers": ["Content-Type", "Authorization"],
+    "allow_headers": ["Content-Type", "Authorization", "X-Request-ID"],
     "expose_headers": ["Content-Type", "Authorization"],
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
 }
@@ -130,6 +131,7 @@ app.register_blueprint(agent_bp)
 app.register_blueprint(tenant_bp)
 app.register_blueprint(faq_bp)
 app.register_blueprint(vectors_bp)
+app.register_blueprint(governance_bp)
 
 if BACKEND_SERVICES_AVAILABLE:
     try:

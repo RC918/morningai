@@ -18,6 +18,7 @@ export const AVAILABLE_FEATURES = {
   APPROVALS: 'approvals',
   HISTORY: 'history',
   COSTS: 'costs',
+  GOVERNANCE: 'governance',
   SETTINGS: 'settings',
   CHECKOUT: 'checkout'
 }

@@ -5,3 +5,5 @@ pytest-asyncio==1.2.0
 redis==5.0.1
 requests==2.31.0
 pydantic>=2.10.0
+PyYAML>=6.0
+supabase==2.6.0

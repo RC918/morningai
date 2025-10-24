@@ -1,0 +1,27 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "/",
+        "/login",
+        "/pricing",
+        "/dashboard",
+        "/settings"
+      ],
+      "numberOfRuns": 3,
+      "startServerCommand": "cd frontend-dashboard-deploy && pnpm preview --port 4173",
+      "startServerReadyPattern": "Local:",
+      "settings": {
+        "preset": "desktop",
+        "formFactor": "desktop",
+        "throttlingMethod": "simulate",
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
+      },
+      "puppeteerScript": "frontend-dashboard-deploy/lhci-puppeteer-auth.js"
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lhci"
+    }
+  }
+}
