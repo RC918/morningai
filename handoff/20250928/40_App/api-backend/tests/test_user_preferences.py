@@ -11,32 +11,31 @@ from src.models.user import User, db
 from src.middleware.auth_middleware import create_admin_token
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def client():
-    """Create test client"""
+    """Create test client with app context"""
     app.config['TESTING'] = True
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     
-    with app.test_client() as client:
+    with app.test_client() as test_client:
         with app.app_context():
             db.create_all()
-            yield client
+            yield test_client
             db.session.remove()
             db.drop_all()
 
 
 @pytest.fixture
 def test_user(client):
-    """Create a test user"""
-    with app.app_context():
-        user = User(
-            username='testuser',
-            email='test@example.com',
-            created_at=datetime(2025, 1, 1)
-        )
-        db.session.add(user)
-        db.session.commit()
-        user_id = user.id
+    """Create a test user within the client's app context"""
+    user = User(
+        username='testuser',
+        email='test@example.com',
+        created_at=datetime(2025, 1, 1)
+    )
+    db.session.add(user)
+    db.session.commit()
+    user_id = user.id
     return user_id
 
 
@@ -217,74 +216,69 @@ class TestUserModel:
     
     def test_get_preferences_empty(self, client):
         """Test get_preferences returns empty dict for new user"""
-        with app.app_context():
-            user = User(username='test', email='test@example.com')
-            db.session.add(user)
-            db.session.commit()
-            
-            prefs = user.get_preferences()
-            assert prefs == {}
+        user = User(username='test', email='test@example.com')
+        db.session.add(user)
+        db.session.commit()
+        
+        prefs = user.get_preferences()
+        assert prefs == {}
     
     def test_set_and_get_preferences(self, client):
         """Test setting and getting preferences"""
-        with app.app_context():
-            user = User(username='test', email='test@example.com')
-            db.session.add(user)
-            db.session.commit()
-            
-            test_prefs = {'key1': 'value1', 'key2': 123}
-            user.set_preferences(test_prefs)
-            db.session.commit()
-            
-            retrieved_prefs = user.get_preferences()
-            assert retrieved_prefs == test_prefs
+        user = User(username='test', email='test@example.com')
+        db.session.add(user)
+        db.session.commit()
+        
+        test_prefs = {'key1': 'value1', 'key2': 123}
+        user.set_preferences(test_prefs)
+        db.session.commit()
+        
+        retrieved_prefs = user.get_preferences()
+        assert retrieved_prefs == test_prefs
     
     def test_preferences_json_serialization(self, client):
         """Test that preferences are properly JSON serialized"""
-        with app.app_context():
-            user = User(username='test', email='test@example.com')
-            db.session.add(user)
-            db.session.commit()
-            
-            complex_prefs = {
-                'nested': {'a': 1, 'b': [2, 3]},
-                'list': [1, 2, 3],
-                'bool': True,
-                'null': None
-            }
-            user.set_preferences(complex_prefs)
-            db.session.commit()
-            
-            assert isinstance(user.preferences, str)
-            
-            retrieved = user.get_preferences()
-            assert retrieved == complex_prefs
+        user = User(username='test', email='test@example.com')
+        db.session.add(user)
+        db.session.commit()
+        
+        complex_prefs = {
+            'nested': {'a': 1, 'b': [2, 3]},
+            'list': [1, 2, 3],
+            'bool': True,
+            'null': None
+        }
+        user.set_preferences(complex_prefs)
+        db.session.commit()
+        
+        assert isinstance(user.preferences, str)
+        
+        retrieved = user.get_preferences()
+        assert retrieved == complex_prefs
     
     def test_preferences_invalid_json_returns_empty(self, client):
         """Test that invalid JSON in preferences returns empty dict"""
-        with app.app_context():
-            user = User(username='test', email='test@example.com')
-            user.preferences = 'invalid json {'
-            db.session.add(user)
-            db.session.commit()
-            
-            prefs = user.get_preferences()
-            assert prefs == {}
+        user = User(username='test', email='test@example.com')
+        user.preferences = 'invalid json {'
+        db.session.add(user)
+        db.session.commit()
+        
+        prefs = user.get_preferences()
+        assert prefs == {}
     
     def test_user_to_dict_includes_created_at(self, client):
         """Test that to_dict includes created_at field"""
-        with app.app_context():
-            user = User(
-                username='test',
-                email='test@example.com',
-                created_at=datetime(2025, 10, 24, 12, 0, 0)
-            )
-            db.session.add(user)
-            db.session.commit()
-            
-            user_dict = user.to_dict()
-            assert 'created_at' in user_dict
-            assert user_dict['created_at'] == '2025-10-24T12:00:00'
+        user = User(
+            username='test',
+            email='test@example.com',
+            created_at=datetime(2025, 10, 24, 12, 0, 0)
+        )
+        db.session.add(user)
+        db.session.commit()
+        
+        user_dict = user.to_dict()
+        assert 'created_at' in user_dict
+        assert user_dict['created_at'] == '2025-10-24T12:00:00'
 
 
 class TestNotificationContextIntegration:
