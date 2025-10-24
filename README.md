@@ -1,20 +1,37 @@
-# morningai
-Storage and inspection
+# MorningAI - World-Class AI Agent Ecosystem
 
-> **⚠️ 設計優先期（Phase 1–8）：OpenAPI/資料欄位凍結中**  
-> 在設計完成前，後端契約處於凍結狀態。如需異動 API 或資料庫欄位，請先提交 RFC 討論。  
-> 設計 PR 僅含 UI/文案/樣式；工程 PR 僅含 API/邏輯實作。
+**Vision**: Building the world's most advanced autonomous AI agent orchestration platform that seamlessly integrates development, operations, and business intelligence with human-in-the-loop governance.
 
-## Verification Test
-This is a simple change to verify repository access and PR creation functionality.
+> **🚀 Current Phase: Transformation to World-Class (Q4 2025 - Q2 2026)**  
+> We are evolving from MVP to a production-ready, enterprise-grade AI agent ecosystem.  
+> See [CTO Strategic Plan](CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md) for our roadmap.
 
-### Branch Protection Test
-Testing Branch Protection Rules enforcement with required status checks.
+> **⚠️ Development Guidelines**  
+> - For API/schema changes, submit an RFC first (see [RFC Template](.github/ISSUE_TEMPLATE/rfc.md))
+> - Design PRs: UI/copy/styles only
+> - Engineering PRs: API/logic only
+> - See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines
 
-## Status
+## Status & Metrics
+
 ![env-diagnose](https://github.com/RC918/morningai/actions/workflows/env-diagnose.yml/badge.svg)
 ![Coverage](https://img.shields.io/badge/coverage-41.61%25-yellow)
 ![Tests](https://img.shields.io/badge/tests-100%20passed-brightgreen)
+![Phase](https://img.shields.io/badge/phase-8.0.0-blue)
+![Uptime](https://img.shields.io/badge/uptime-90%25-yellow)
+
+**Current State** (as of Oct 2025):
+- **Test Coverage**: 41% → Target: 80% by Q2 2026
+- **API Latency (p95)**: ~500ms → Target: <100ms by Q2 2026
+- **Uptime**: 90% → Target: 99.9% by Q2 2026
+- **Agent Capabilities**: Template-based → Target: LLM-driven autonomous agents
+
+**Strategic Priorities** (Next 6 Months):
+1. 🔒 **Security First**: Implement RLS, secret scanning, multi-instance deployment
+2. 💰 **Commercialization**: Launch Stripe integration, usage tracking, billing
+3. 🤖 **AI Enhancement**: Replace templates with GPT-4, enable multi-agent collaboration
+4. 📊 **Production Excellence**: Achieve 99.9% uptime, <100ms latency, 80% test coverage
+5. ✅ **Compliance**: Prepare for SOC2 Type II certification
 
 ## 架構概覽
 
@@ -59,16 +76,25 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 - [Architecture](docs/ARCHITECTURE.md) - 系統架構文檔
 - [Monitoring Setup](docs/MONITORING_SETUP.md) - 監控設置指南
 
-## Milestones
-- Phase 9 - Commercialization & PWA
-- Phase 10 - Governance & Compliance
+## Milestones & Roadmap
 
-## Baseline Tag
-- v8.0.0-handoff
+**Current Phase**: Phase 8 (v8.0.0-handoff) - MVP Foundation Complete
 
+**Transformation Roadmap** (Q4 2025 - Q2 2026):
+- **Q4 2025**: Security hardening, Stripe integration, AI enhancement foundations
+- **Q1 2026**: Multi-agent collaboration, production excellence, compliance preparation
+- **Q2 2026**: Advanced AI capabilities, scale to 99.9% uptime, SOC2 Type I certification
 
-## Release
-[v9.0.0](https://github.com/RC918/morningai/releases/tag/v9.0.0)
+**Key Milestones**:
+- ✅ Phase 8: Multi-tenant architecture, agent sandboxes, governance framework
+- 🚧 Phase 9: Commercialization (Stripe), PWA, advanced agent intelligence
+- 📋 Phase 10: Governance maturity, compliance (SOC2), enterprise features
+
+See [Strategic Roadmap](.github/projects/cto-strategic-roadmap-q4-2025-q2-2026.yml) for detailed timeline.
+
+## Releases
+- **Latest**: [v9.0.0](https://github.com/RC918/morningai/releases/tag/v9.0.0)
+- **Baseline**: v8.0.0-handoff
 
 ## Agent Sandbox 部署狀態
 
