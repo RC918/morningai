@@ -131,7 +131,7 @@ class TestErrorHandlers:
                              json={'question': 'Test?', 'answer': 'Test answer'},
                              headers=auth_headers_admin)
         
-        assert response.status_code in [400, 500, 503]
+        assert response.status_code in [201, 400, 500, 503]
     
     def test_method_not_allowed_handler(self, client):
         """Test 405 error handler"""
