@@ -37,3 +37,6 @@ frontend-dashboard-deploy/playwright/.auth/
 
 *storybook.log
 frontend-dashboard-deploy/storybook-static/
+
+# jscpd reports
+jscpd-report/
