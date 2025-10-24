@@ -1,108 +1,60 @@
-# System Architecture of MorningAI
+# Handling Redis Outage in MorningAI
 
-MorningAI is a robust, multi-tenant SaaS platform designed to enhance productivity through autonomous agent systems for code generation, comprehensive FAQ generation, documentation management, and seamless multi-platform integration. Its architecture is built to support real-time task orchestration and vector memory storage efficiently. Below is an in-depth overview of the system's architecture, designed to help developers navigate and utilize MorningAI effectively.
+Redis plays a crucial role in MorningAI's infrastructure, particularly for task orchestration and real-time operations. A Redis outage can impact various functionalities, from task queuing to session management. This FAQ aims to guide developers through steps to mitigate and resolve issues arising from a Redis outage, ensuring minimal disruption to the MorningAI platform.
 
-## Overview
+## Understanding the Impact of a Redis Outage
 
-The MorningAI platform leverages a modern technology stack that includes:
+When Redis becomes unavailable, the following features in MorningAI are directly affected:
 
-- **Frontend**: Developed with React, utilizing Vite for build optimization and TailwindCSS for styling.
-- **Backend**: Python with Flask serves as the core backend framework, enhanced with Gunicorn for multi-worker support.
-- **Database**: PostgreSQL managed via Supabase, incorporating Row Level Security (RLS) for data integrity and security.
-- **Queue System**: Redis Queue (RQ) facilitates asynchronous task processing, equipped with worker heartbeat monitoring for reliability.
-- **Orchestration**: LangGraph is used for orchestrating agent workflows, ensuring efficient task management.
-- **AI Integration**: OpenAI's GPT-4 powers content generation, providing advanced natural language processing capabilities.
-- **Deployment**: Render.com hosts the application, benefiting from its integrated CI/CD pipelines for streamlined deployments.
+- **Task Queuing:** MorningAI uses Redis Queue (RQ) for managing background jobs. An outage means tasks cannot be queued or processed.
+- **Real-Time Orchestration:** Real-time task orchestration relies on Redis for managing state and communication between distributed components.
+- **Session Management:** If Redis is used for session storage, an outage may result in user session loss or inability to create new sessions.
 
-### Detailed Architecture
+## Immediate Steps During an Outage
 
-MorningAI's architecture is designed to be scalable and resilient, ensuring high availability and performance. Here's a breakdown:
+1. **Identify the Scope**: Determine if the outage is due to network issues, resource limitations, or configuration errors.
+2. **Check System Health**: Use monitoring tools or logs to assess the health of the Redis instance.
+   ```bash
+   redis-cli ping
+   ```
+3. **Enable Read-Only Mode if Necessary**: To prevent data inconsistency, consider enabling a read-only mode that allows users to access data without making changes.
 
-#### Frontend
+## Recovery Strategies
 
-```jsx
-// src/App.jsx
-import React from 'react';
-import { BrowserRouter as Router, Route } from 'react-router-dom';
-import HomePage from './pages/HomePage';
-import 'tailwindcss/tailwind.css';
+1. **Restart Redis Service**: Sometimes, a simple restart can resolve temporary issues.
+   ```bash
+   systemctl restart redis.service
+   ```
+2. **Assess Data Integrity**: After service restoration, check for any data inconsistencies or loss, especially for tasks that were queued but not processed.
+3. **Scale Resources**: If the outage was due to resource constraints, consider scaling your Redis deployment vertically (more powerful instance) or horizontally (additional instances).
 
-function App() {
-  return (
-    <Router>
-      <Route path="/" component={HomePage} />
-    </Router>
-  );
-}
+## Preventive Measures
 
-export default App;
-```
+- **Regular Backups**: Ensure you have regular backups of your Redis data to aid in recovery in case of data loss.
+- **High Availability Setup**: Implement a high availability setup using Redis Sentinel or Cluster to minimize downtime risks.
+- **Monitoring and Alerts**: Use tools like Prometheus or New Relic to monitor Redis performance metrics and set up alerts for abnormal patterns.
 
-This snippet demonstrates the application's entry point using React Router for page navigation and TailwindCSS for styling.
+## Troubleshooting Common Issues
 
-#### Backend
+### Connection Errors
 
-```python
-# app.py
-from flask import Flask
-from flask_gunicorn import GunicornApp
+Ensure your application's configuration matches the Redis server settings. Check firewall rules and network policies that might block communication between your application servers and Redis.
 
-app = Flask(__name__)
+### Performance Degradation
 
-@app.route("/")
-def hello_world():
-    return "Hello, MorningAI!"
+Investigate slow queries using the `SLOWLOG` command and consider optimizing these operations. Monitor memory usage and configure eviction policies appropriately.
 
-if __name__ == "__main__":
-    GunicornApp(app).run()
-```
+### Data Inconsistency
 
-A basic Flask application setup with Gunicorn integration illustrates how the backend serves HTTP requests.
+After an outage, ensure that tasks affected during the downtime are requeued or processed as needed. Validate session data integrity for user management functionalities.
 
-#### Database Integration
+## Related Documentation Links
 
-Supabase integration ensures secure and scalable database management:
-
-```sql
--- Create a table with RLS enabled
-CREATE TABLE documents (
-    id SERIAL PRIMARY KEY,
-    content TEXT,
-    tenant_id INTEGER
-);
-
--- Enable Row Level Security
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
-```
-
-This SQL snippet shows how to create a database table with RLS enabled in Supabase.
-
-### Common Troubleshooting Tips
-
-**Issue: Failed Deployment on Render.com**
-- Ensure your `render.yaml` file is correctly configured with the appropriate service specifications.
-- Check the logs provided by Render.com for specific error messages that can guide troubleshooting.
-
-**Issue: Tasks Stuck in Redis Queue**
-- Verify that Redis workers are online and adequately scaled to handle the workload. Use `rq info` command to monitor queue status.
-- Inspect worker heartbeat logs to identify any workers that might have become unresponsive.
-
-**Issue: Database Connection Errors**
-- Confirm that your Supabase connection strings are correctly configured in your application settings.
-- Ensure network rules and permissions in Supabase allow connections from your application's deployment environment.
-
-### Related Documentation Links
-
-For more detailed information on each component of MorningAI's system architecture, please refer to the following documentation resources:
-
-- [React Documentation](https://reactjs.org/docs/getting-started.html)
-- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
-- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
-- [Supabase Documentation](https://supabase.io/docs)
+- [Redis Command Reference](https://redis.io/commands)
 - [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
-- [Render.com Deployment Guides](https://render.com/docs)
+- [High Availability with Redis](https://redis.io/topics/ha)
 
-By understanding MorningAI's comprehensive system architecture, developers can better leverage its capabilities to build efficient, scalable applications.
+For more detailed information on configuring high availability options and performance tuning in Redis, please refer to the official documentation provided by [Redis](https://redis.io/documentation).
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -110,7 +62,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `83b0b691-c324-4341-8c6a-f4cbc6869bd3`
+- Task: Test question during Redis outage
+- Trace ID: `27bb8884-7e2e-402d-9b0c-5ebfd39b2e8b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
