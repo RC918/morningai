@@ -46,6 +46,15 @@ def mock_redis():
         yield mock
 
 @pytest.fixture
+def mock_rate_limit_redis():
+    """Mock rate limit Redis client"""
+    with patch('src.middleware.rate_limit.redis_client') as mock:
+        mock_pipeline = MagicMock()
+        mock_pipeline.execute.return_value = [None, 5, None, None]  # request_count = 5
+        mock.pipeline.return_value = mock_pipeline
+        yield mock
+
+@pytest.fixture
 def mock_faq_agent_available():
     """Mock FAQ_AGENT_AVAILABLE to True"""
     with patch('src.routes.faq.FAQ_AGENT_AVAILABLE', True):
@@ -153,7 +162,7 @@ class TestAuthentication:
 class TestRateLimiting:
     """Test rate limiting headers and functionality"""
     
-    def test_rate_limit_headers_present(self, client, user_token, mock_redis, mock_faq_search_tool):
+    def test_rate_limit_headers_present(self, client, user_token, mock_redis, mock_rate_limit_redis, mock_faq_search_tool):
         """All responses include X-RateLimit-* headers"""
         response = client.get(
             '/api/faq/search?q=redis',
