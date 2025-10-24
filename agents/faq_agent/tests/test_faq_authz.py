@@ -4,25 +4,12 @@ Tests JWT authentication and role-based access control
 """
 import pytest
 from unittest.mock import patch, AsyncMock
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-api_backend_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'handoff', '20250928', '40_App', 'api-backend')
-sys.path.insert(0, os.path.join(api_backend_path, 'src'))
-sys.path.insert(0, api_backend_path)
 
 @pytest.fixture
 def app():
     """Create test Flask app"""
     from flask import Flask
     from routes.faq import bp
-    
-    os.environ['JWT_SECRET_KEY'] = 'test-secret-key-for-ci'
-    os.environ['TESTING'] = 'true'
-    os.environ['SUPABASE_URL'] = 'https://test.supabase.co'
-    os.environ['SUPABASE_SERVICE_ROLE_KEY'] = 'test-key'
-    os.environ['OPENAI_API_KEY'] = 'test-openai-key'
     
     app = Flask(__name__)
     app.config['TESTING'] = True

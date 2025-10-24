@@ -134,10 +134,8 @@ def test_search_missing_query(client, user_token):
 
 def test_search_has_more_flag(client, user_token):
     """Test that has_more flag is set correctly"""
-    with patch('src.routes.faq.FAQSearchTool') as mock_tool_class:
-        mock_instance = AsyncMock()
-        mock_tool_class.return_value = mock_instance
-        mock_instance.search.return_value = {
+    with patch('agents.faq_agent.tools.faq_search_tool.FAQSearchTool.search', new_callable=AsyncMock) as mock_search:
+        mock_search.return_value = {
             'success': True,
             'results': [{'id': str(i)} for i in range(11)],
             'count': 11
