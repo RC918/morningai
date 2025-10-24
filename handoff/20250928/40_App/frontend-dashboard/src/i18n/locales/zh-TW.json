@@ -126,6 +126,21 @@
     "addWidget": "添加組件",
     "selectWidget": "選擇組件",
     "removeWidget": "移除小工具",
+    "saveStatus": {
+      "saved": "已保存",
+      "savedWithTime": "已保存 · {{time}}",
+      "saving": "保存中...",
+      "unsaved": "有未保存的變更",
+      "error": "保存失敗",
+      "retry": "重試",
+      "retryLabel": "重試保存",
+      "timeAgo": {
+        "seconds": "{{count}}秒前",
+        "minutes": "{{count}}分鐘前",
+        "hours": "{{count}}小時前",
+        "days": "{{count}}天前"
+      }
+    },
     "decisions": {
       "cpuOptimization": "CPU優化策略",
       "cacheOptimization": "緩存優化",
