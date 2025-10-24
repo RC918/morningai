@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "buildCommand": "pnpm --filter frontend-dashboard build",
-  "installCommand": "pnpm install",
+  "installCommand": "pnpm install --prod=false",
   "outputDirectory": "handoff/20250928/40_App/frontend-dashboard/dist",
   "rewrites": [
     {
