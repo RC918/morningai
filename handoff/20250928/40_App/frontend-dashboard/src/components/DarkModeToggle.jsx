@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/contexts/ThemeContext'
 import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from 'react-i18next'
 
 export const DarkModeToggle = ({ variant = 'default' }) => {
   const { t } = useTranslation()
-  const { theme, setTheme, systemTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -17,7 +17,14 @@ export const DarkModeToggle = ({ variant = 'default' }) => {
     return null
   }
 
-  const currentTheme = theme === 'system' ? systemTheme : theme
+  const getSystemTheme = () => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    }
+    return 'light'
+  }
+
+  const currentTheme = theme === 'system' ? getSystemTheme() : theme
   const isDark = currentTheme === 'dark'
 
   const toggleTheme = () => {
