@@ -345,7 +345,12 @@ class TestFAQOODALoop:
         
         mock_tools['mgmt'].get_stats.return_value = {
             'success': True,
-            'stats': {}
+            'stats': {'total_faqs': 10, 'category_count': 3}
+        }
+        
+        mock_tools['mgmt'].get_categories.return_value = {
+            'success': True,
+            'categories': ['general', 'technical', 'billing']
         }
         
         mock_tools['search'].search.return_value = {

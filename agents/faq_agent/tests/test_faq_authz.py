@@ -35,32 +35,14 @@ def client(app):
 @pytest.fixture
 def admin_token():
     """Create admin JWT token"""
-    import jwt
-    from datetime import datetime, timedelta
-    
-    secret = os.getenv('JWT_SECRET_KEY', 'test-secret-key-for-ci')
-    payload = {
-        'user_id': 'admin-123',
-        'email': 'admin@test.com',
-        'role': 'admin',
-        'exp': datetime.utcnow() + timedelta(hours=1)
-    }
-    return jwt.encode(payload, secret, algorithm='HS256')
+    from middleware.auth_middleware import create_admin_token
+    return create_admin_token()
 
 @pytest.fixture
 def user_token():
     """Create user JWT token"""
-    import jwt
-    from datetime import datetime, timedelta
-    
-    secret = os.getenv('JWT_SECRET_KEY', 'test-secret-key-for-ci')
-    payload = {
-        'user_id': 'user-123',
-        'email': 'user@test.com',
-        'role': 'user',
-        'exp': datetime.utcnow() + timedelta(hours=1)
-    }
-    return jwt.encode(payload, secret, algorithm='HS256')
+    from middleware.auth_middleware import create_user_token
+    return create_user_token()
 
 def test_search_requires_jwt(client):
     """Test that search endpoint requires JWT authentication"""
@@ -82,11 +64,12 @@ def test_search_with_invalid_jwt(client):
     data = response.get_json()
     assert 'error' in data
 
-@pytest.mark.asyncio
-async def test_search_with_valid_jwt(client, user_token):
+def test_search_with_valid_jwt(client, user_token):
     """Test that search works with valid user JWT"""
-    with patch('agents.faq_agent.tools.faq_search_tool.FAQSearchTool.search', new_callable=AsyncMock) as mock_search:
-        mock_search.return_value = {
+    with patch('src.routes.faq.FAQSearchTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.search.return_value = {
             'success': True,
             'results': [],
             'count': 0
@@ -149,11 +132,12 @@ def test_delete_requires_admin(client, user_token):
     
     assert response.status_code == 403
 
-@pytest.mark.asyncio
-async def test_create_with_admin_token(client, admin_token):
+def test_create_with_admin_token(client, admin_token):
     """Test that admin can create FAQ"""
-    with patch('agents.faq_agent.tools.faq_management_tool.FAQManagementTool.create_faq', new_callable=AsyncMock) as mock_create:
-        mock_create.return_value = {
+    with patch('src.routes.faq.FAQManagementTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.create_faq.return_value = {
             'success': True,
             'faq': {'id': 'new-id', 'question': 'Q', 'answer': 'A'}
         }
@@ -166,11 +150,12 @@ async def test_create_with_admin_token(client, admin_token):
         
         assert response.status_code == 201
 
-@pytest.mark.asyncio
-async def test_update_with_admin_token(client, admin_token):
+def test_update_with_admin_token(client, admin_token):
     """Test that admin can update FAQ"""
-    with patch('agents.faq_agent.tools.faq_management_tool.FAQManagementTool.update_faq', new_callable=AsyncMock) as mock_update:
-        mock_update.return_value = {'success': True}
+    with patch('src.routes.faq.FAQManagementTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.update_faq.return_value = {'success': True}
         
         response = client.put(
             '/api/faq/test-id',
@@ -180,11 +165,12 @@ async def test_update_with_admin_token(client, admin_token):
         
         assert response.status_code == 200
 
-@pytest.mark.asyncio
-async def test_delete_with_admin_token(client, admin_token):
+def test_delete_with_admin_token(client, admin_token):
     """Test that admin can delete FAQ"""
-    with patch('agents.faq_agent.tools.faq_management_tool.FAQManagementTool.delete_faq', new_callable=AsyncMock) as mock_delete:
-        mock_delete.return_value = {'success': True}
+    with patch('src.routes.faq.FAQManagementTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.delete_faq.return_value = {'success': True}
         
         response = client.delete(
             '/api/faq/test-id',

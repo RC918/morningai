@@ -52,11 +52,12 @@ def user_token():
     from middleware.auth_middleware import create_user_token
     return create_user_token()
 
-@pytest.mark.asyncio
-async def test_create_faq_invalidates_search_cache(client, mock_redis, admin_token):
+def test_create_faq_invalidates_search_cache(client, mock_redis, admin_token):
     """Test that creating FAQ invalidates search cache"""
-    with patch('agents.faq_agent.tools.faq_management_tool.FAQManagementTool.create_faq', new_callable=AsyncMock) as mock_create:
-        mock_create.return_value = {
+    with patch('src.routes.faq.FAQManagementTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.create_faq.return_value = {
             'success': True,
             'faq': {
                 'id': 'test-id-123',
@@ -76,11 +77,12 @@ async def test_create_faq_invalidates_search_cache(client, mock_redis, admin_tok
         mock_redis.scan_iter.assert_any_call('faq:search:*')
         mock_redis.scan_iter.assert_any_call('faq:categories:*')
 
-@pytest.mark.asyncio
-async def test_update_faq_invalidates_caches(client, mock_redis, admin_token):
+def test_update_faq_invalidates_caches(client, mock_redis, admin_token):
     """Test that updating FAQ invalidates both search and item caches"""
-    with patch('agents.faq_agent.tools.faq_management_tool.FAQManagementTool.update_faq', new_callable=AsyncMock) as mock_update:
-        mock_update.return_value = {
+    with patch('src.routes.faq.FAQManagementTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.update_faq.return_value = {
             'success': True
         }
         
@@ -95,11 +97,12 @@ async def test_update_faq_invalidates_caches(client, mock_redis, admin_token):
         mock_redis.scan_iter.assert_any_call('faq:search:*')
         mock_redis.scan_iter.assert_any_call('faq:item:*')
 
-@pytest.mark.asyncio
-async def test_delete_faq_invalidates_caches(client, mock_redis, admin_token):
+def test_delete_faq_invalidates_caches(client, mock_redis, admin_token):
     """Test that deleting FAQ invalidates both search and item caches"""
-    with patch('agents.faq_agent.tools.faq_management_tool.FAQManagementTool.delete_faq', new_callable=AsyncMock) as mock_delete:
-        mock_delete.return_value = {
+    with patch('src.routes.faq.FAQManagementTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.delete_faq.return_value = {
             'success': True
         }
         
@@ -113,11 +116,12 @@ async def test_delete_faq_invalidates_caches(client, mock_redis, admin_token):
         mock_redis.scan_iter.assert_any_call('faq:search:*')
         mock_redis.scan_iter.assert_any_call('faq:item:*')
 
-@pytest.mark.asyncio
-async def test_search_caches_results(client, mock_redis, user_token):
+def test_search_caches_results(client, mock_redis, user_token):
     """Test that search results are cached"""
-    with patch('agents.faq_agent.tools.faq_search_tool.FAQSearchTool.search', new_callable=AsyncMock) as mock_search:
-        mock_search.return_value = {
+    with patch('src.routes.faq.FAQSearchTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.search.return_value = {
             'success': True,
             'results': [{'id': '1', 'question': 'Q1'}],
             'count': 1

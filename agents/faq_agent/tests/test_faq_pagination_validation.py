@@ -35,11 +35,12 @@ def user_token():
     from middleware.auth_middleware import create_user_token
     return create_user_token()
 
-@pytest.mark.asyncio
-async def test_search_pagination_default(client, user_token):
+def test_search_pagination_default(client, user_token):
     """Test search with default pagination"""
-    with patch('agents.faq_agent.tools.faq_search_tool.FAQSearchTool.search', new_callable=AsyncMock) as mock_search:
-        mock_search.return_value = {
+    with patch('src.routes.faq.FAQSearchTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.search.return_value = {
             'success': True,
             'results': [{'id': str(i)} for i in range(10)],
             'count': 10
@@ -57,11 +58,12 @@ async def test_search_pagination_default(client, user_token):
         assert data['data']['pagination']['page'] == 1
         assert data['data']['pagination']['page_size'] == 10
 
-@pytest.mark.asyncio
-async def test_search_pagination_custom(client, user_token):
+def test_search_pagination_custom(client, user_token):
     """Test search with custom pagination"""
-    with patch('agents.faq_agent.tools.faq_search_tool.FAQSearchTool.search', new_callable=AsyncMock) as mock_search:
-        mock_search.return_value = {
+    with patch('src.routes.faq.FAQSearchTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.search.return_value = {
             'success': True,
             'results': [{'id': str(i)} for i in range(25)],
             'count': 25
@@ -130,11 +132,12 @@ def test_search_missing_query(client, user_token):
     
     assert response.status_code in [400, 422]
 
-@pytest.mark.asyncio
-async def test_search_has_more_flag(client, user_token):
+def test_search_has_more_flag(client, user_token):
     """Test that has_more flag is set correctly"""
-    with patch('agents.faq_agent.tools.faq_search_tool.FAQSearchTool.search', new_callable=AsyncMock) as mock_search:
-        mock_search.return_value = {
+    with patch('src.routes.faq.FAQSearchTool') as mock_tool_class:
+        mock_instance = AsyncMock()
+        mock_tool_class.return_value = mock_instance
+        mock_instance.search.return_value = {
             'success': True,
             'results': [{'id': str(i)} for i in range(11)],
             'count': 11
