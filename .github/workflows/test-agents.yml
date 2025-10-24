@@ -46,6 +46,8 @@ jobs:
           pytest tests/ -v --tb=short --disable-warnings
         env:
           PYTHONPATH: ${{ github.workspace }}/agents/faq_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
   
   test-ops-agent:
     name: Ops Agent Tests
@@ -79,6 +81,8 @@ jobs:
           pytest tests/ -v --tb=short --disable-warnings
         env:
           PYTHONPATH: ${{ github.workspace }}/agents/ops_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
   
   test-dev-agent:
     name: Dev Agent Tests
@@ -112,3 +116,5 @@ jobs:
           pytest tests/ -v --tb=short --disable-warnings
         env:
           PYTHONPATH: ${{ github.workspace }}/agents/dev_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
