@@ -8,10 +8,19 @@ from unittest.mock import patch, MagicMock
 
 @pytest.fixture
 def client():
-    """Create test client"""
+    """Create test client with database setup"""
     from src.main import app
+    from src.models.user import db
+    
     app.config['TESTING'] = True
-    return app.test_client()
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    
+    with app.test_client() as test_client:
+        with app.app_context():
+            db.create_all()
+            yield test_client
+            db.session.remove()
+            db.drop_all()
 
 
 class TestAdditionalEndpointCoverage:
