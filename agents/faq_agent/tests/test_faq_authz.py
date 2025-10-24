@@ -20,6 +20,9 @@ def app():
     
     os.environ['JWT_SECRET_KEY'] = 'test-secret-key-for-ci'
     os.environ['TESTING'] = 'true'
+    os.environ['SUPABASE_URL'] = 'https://test.supabase.co'
+    os.environ['SUPABASE_SERVICE_ROLE_KEY'] = 'test-key'
+    os.environ['OPENAI_API_KEY'] = 'test-openai-key'
     
     app = Flask(__name__)
     app.config['TESTING'] = True
