@@ -54,7 +54,7 @@ class TestLangGraphCI:
         assert result["current_step"] == 0
         assert isinstance(result["plan"], list)
     
-    @patch('langgraph_orchestrator.execute')
+    @patch('graph.execute')
     def test_executor_node_success(self, mock_execute):
         """Test executor node handles successful execution"""
         mock_execute.return_value = ("https://github.com/test/pr/1", "success", "test-123")
@@ -83,7 +83,7 @@ class TestLangGraphCI:
         assert result["error"] is None
         assert result["current_step"] == 1
     
-    @patch('langgraph_orchestrator.execute')
+    @patch('graph.execute')
     def test_executor_node_error_handling(self, mock_execute):
         """Test executor node handles errors gracefully"""
         mock_execute.side_effect = Exception("Test error")
@@ -175,7 +175,7 @@ class TestLangGraphCI:
     @pytest.mark.integration
     def test_full_workflow_mock(self):
         """Integration test with mocked dependencies"""
-        with patch('langgraph_orchestrator.execute') as mock_execute:
+        with patch('graph.execute') as mock_execute:
             mock_execute.return_value = ("https://github.com/test/pr/1", "success", "test-123")
             
             app = create_orchestrator_graph()

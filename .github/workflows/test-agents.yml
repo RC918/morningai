@@ -19,6 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping || exit 1"
+          --health-interval 3s
+          --health-retries 20
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,6 +57,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/agents/faq_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET_KEY: test-secret-key-for-ci
           TESTING: true
   
   test-ops-agent:
@@ -99,6 +110,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 3s
+          --health-retries 20
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping || exit 1"
+          --health-interval 3s
+          --health-retries 20
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -127,4 +160,6 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/agents/dev_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           TESTING: true
