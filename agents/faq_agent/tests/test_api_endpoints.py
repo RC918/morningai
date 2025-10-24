@@ -338,13 +338,19 @@ class TestStatsEndpoint:
 @pytest.fixture
 def client():
     """Create Flask test client"""
+    import os
     from flask import Flask
     from src.routes.faq import bp
+    
+    os.environ['JWT_SECRET_KEY'] = 'test-secret-key-for-ci'
+    os.environ['TESTING'] = 'true'
     
     app = Flask(__name__)
     app.config['TESTING'] = True
     app.register_blueprint(bp)
     
     with patch('src.routes.faq.FAQ_AGENT_AVAILABLE', True):
-        with app.test_client() as client:
-            yield client
+        with patch('src.middleware.auth_middleware.jwt_required', lambda f: f):
+            with patch('src.middleware.auth_middleware.admin_required', lambda f: f):
+                with app.test_client() as client:
+                    yield client

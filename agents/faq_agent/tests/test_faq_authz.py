@@ -18,6 +18,9 @@ def app():
     from flask import Flask
     from routes.faq import bp
     
+    os.environ['JWT_SECRET_KEY'] = 'test-secret-key-for-ci'
+    os.environ['TESTING'] = 'true'
+    
     app = Flask(__name__)
     app.config['TESTING'] = True
     app.register_blueprint(bp)
@@ -32,14 +35,32 @@ def client(app):
 @pytest.fixture
 def admin_token():
     """Create admin JWT token"""
-    from middleware.auth_middleware import create_admin_token
-    return create_admin_token()
+    import jwt
+    from datetime import datetime, timedelta
+    
+    secret = os.getenv('JWT_SECRET_KEY', 'test-secret-key-for-ci')
+    payload = {
+        'user_id': 'admin-123',
+        'email': 'admin@test.com',
+        'role': 'admin',
+        'exp': datetime.utcnow() + timedelta(hours=1)
+    }
+    return jwt.encode(payload, secret, algorithm='HS256')
 
 @pytest.fixture
 def user_token():
     """Create user JWT token"""
-    from middleware.auth_middleware import create_user_token
-    return create_user_token()
+    import jwt
+    from datetime import datetime, timedelta
+    
+    secret = os.getenv('JWT_SECRET_KEY', 'test-secret-key-for-ci')
+    payload = {
+        'user_id': 'user-123',
+        'email': 'user@test.com',
+        'role': 'user',
+        'exp': datetime.utcnow() + timedelta(hours=1)
+    }
+    return jwt.encode(payload, secret, algorithm='HS256')
 
 def test_search_requires_jwt(client):
     """Test that search endpoint requires JWT authentication"""

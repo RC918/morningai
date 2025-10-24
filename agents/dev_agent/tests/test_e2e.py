@@ -27,6 +27,10 @@ def wait_for_sandbox(timeout: int = TEST_TIMEOUT) -> bool:
     return False
 
 
+@pytest.mark.skipif(
+    True,  # Skip in CI - requires sandbox server
+    reason="Requires Dev Agent sandbox server running on localhost:8080"
+)
 class TestDevAgentSandbox:
     """Test Dev Agent Sandbox functionality"""
     

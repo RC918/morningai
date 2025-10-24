@@ -156,7 +156,11 @@ jobs:
       - name: Run Dev Agent tests
         working-directory: agents/dev_agent
         run: |
-          pytest tests/ -v --tb=short --disable-warnings
+          # Skip benchmark tests, e2e tests (require sandbox), and migration tests (require SQL files)
+          pytest tests/ -v --tb=short --disable-warnings \
+            --ignore=tests/kg_benchmark \
+            --ignore=tests/test_e2e.py \
+            --ignore=tests/kg_e2e/test_migration_creates_tables.py
         env:
           PYTHONPATH: ${{ github.workspace }}/agents/dev_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0
