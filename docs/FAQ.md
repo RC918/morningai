@@ -1,52 +1,63 @@
-# Handling Redis Outages in MorningAI
+# Test Retry Mechanism in MorningAI
 
-When MorningAI encounters a Redis outage, it can affect real-time task orchestration, impacting the platform's ability to process tasks efficiently. Understanding how to navigate through such outages is crucial for maintaining the stability and performance of MorningAI applications.
+MorningAI implements a robust test retry mechanism to ensure the reliability and stability of code before it's deployed. This FAQ is designed to help developers understand and utilize this feature within the MorningAI platform effectively.
 
-## Comprehensive Explanation
+## Understanding the Test Retry Mechanism
 
-Redis, utilized by MorningAI for queue management with Redis Queue (RQ), plays a critical role in task scheduling and execution. An outage can halt the task processing, leading to delays or failures in autonomous agent system operations, multi-platform integrations, and real-time task orchestrations.
+The test retry mechanism in MorningAI is designed to automatically rerun failed tests a configurable number of times before marking them as failures. This approach helps mitigate issues caused by transient conditions such as network latency, temporary service outages, or flaky tests.
 
-### Code Examples
+### How It Works
 
-While direct interaction with Redis is managed internally by RQ and Flask-RQ2 integrations, ensuring your application gracefully handles disconnections is essential. Below is an example of how you might implement a simple retry mechanism in Python when initializing your Redis connection:
+When a test fails during the CI/CD pipeline execution, the retry mechanism kicks in based on the rules defined in the configuration file. If the test passes on any subsequent attempt, it is marked as passed for the pipeline execution, reducing the likelihood of false negatives impacting development workflows.
 
-```python
-import redis
-from redis.exceptions import ConnectionError
-import time
+### Configuration
 
-def connect_to_redis(host='localhost', port=6379, retries=5):
-    r = None
-    for attempt in range(retries):
-        try:
-            r = redis.Redis(host=host, port=port)
-            print("Connected to Redis")
-            break
-        except ConnectionError as e:
-            print(f"Connection failed on attempt {attempt+1} of {retries}: {e}")
-            time.sleep(1)  # Wait before retrying
-    return r
+To configure test retries in MorningAI, navigate to your project settings within the repository at `RC918/morningai`. In the CI/CD configuration file (commonly `.gitlab-ci.yml` or `.github/workflows/ci.yml`), you can specify the retry policy.
 
-redis_connection = connect_to_redis()
+Example configuration snippet for a GitLab CI pipeline:
+
+```yaml
+test_job:
+  script: pytest
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - unknown_failure
 ```
 
-This example tries to establish a connection to Redis with a simple exponential backoff strategy. Adapting such strategies helps maintain application resilience during temporary outages.
+This configuration will retry any test job up to two additional times if it fails due to system failures or unknown errors.
+
+### Code Example for Implementing Retries in Tests Directly
+
+If using pytest, you can leverage the `pytest-rerunfailures` plugin to add retries directly in your tests:
+
+```bash
+pip install pytest-rerunfailures
+```
+
+Then, modify your pytest command as follows:
+
+```bash
+pytest --reruns 3
+```
+
+This will rerun any failed tests up to three times.
 
 ### Related Documentation Links
 
-- Redis Queue (RQ) Documentation: [https://python-rq.org/](https://python-rq.org/)
-- Redis Python Client (redis-py) Documentation: [https://redis-py.readthedocs.io/en/stable/](https://redis-py.readthedocs.io/en/stable/)
-- Flask-RQ2 Documentation: [https://flask-rq2.readthedocs.io/en/latest/](https://flask-rq2.readthedocs.io/en/latest/)
+- [GitLab CI/CD Pipeline Configuration](https://docs.gitlab.com/ee/ci/yaml/)
+- [GitHub Actions Workflow Syntax](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)
+- [Pytest RerunFailures Plugin](https://github.com/pytest-dev/pytest-rerunfailures)
 
-### Common Troubleshooting Tips
+## Common Troubleshooting Tips
 
-1. **Verify Redis Server Status**: Ensure that the Redis server is running and accessible. Use commands like `redis-cli ping` which should return `PONG` if the server is up.
-2. **Check Network Configuration**: Confirm that there are no network issues blocking communication between your application and the Redis server.
-3. **Monitor Redis Logs**: Review the logs for any errors or warnings that could indicate problems with the server or its configuration.
-4. **Implement Retry Logic**: As shown in the code example above, implementing retry logic can help your application recover from temporary connectivity issues.
-5. **Configure Timeouts and Heartbeats**: Properly configuring timeout settings and heartbeats can help identify and mitigate connection issues more quickly.
+- **Ensure Consistent Environment**: Flakiness can often be reduced by ensuring that tests run in a consistent environment. Use Docker containers or similar technologies to standardize test environments.
+- **Review Test Logs**: Always review logs from failed tests before and after retries. This can provide insights into whether an issue is truly transient or indicative of a deeper problem.
+- **Adjust Retry Count Carefully**: While retries can help with flakiness, too many retries might mask real issues. Start with a low number of retries and adjust based on observed behavior.
+- **Isolate Flaky Tests**: If certain tests are consistently flaky, consider isolating them from your main test suite until they can be stabilized.
 
-Handling a Redis outage effectively requires preparation and understanding of how your application interacts with Redis services. By implementing robust error handling and recovery mechanisms, you can ensure that MorningAI remains resilient against such disruptions.
+By understanding and properly configuring the test retry mechanism in MorningAI, developers can significantly improve their development workflow and reduce interruptions caused by transient test failures.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -54,7 +65,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test question during Redis outage
-- Trace ID: `d2b55ffe-58f8-4727-909d-3d9ad10f75f5`
+- Task: Test retry success
+- Trace ID: `ffaf9265-954e-4433-8376-0935b86cab69`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
