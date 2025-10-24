@@ -1,0 +1,23 @@
+{
+  "threshold": 0,
+  "reporters": ["html", "json", "console"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/*.min.js",
+    "**/dist/**",
+    "**/build/**",
+    "**/.next/**",
+    "**/.vite/**",
+    "**/coverage/**",
+    "**/*.test.js",
+    "**/*.test.jsx",
+    "**/*.spec.js",
+    "**/*.spec.jsx",
+    "**/*.stories.jsx"
+  ],
+  "format": ["javascript", "jsx", "typescript", "tsx"],
+  "mode": "strict",
+  "minLines": 5,
+  "minTokens": 50,
+  "output": "./jscpd-report"
+}
