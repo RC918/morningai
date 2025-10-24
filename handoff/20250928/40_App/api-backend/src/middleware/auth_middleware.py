@@ -221,11 +221,11 @@ def generate_jwt_token(user_data, expires_hours=24):
     
     return jwt.encode(payload, jwt_secret, algorithm='HS256')
 
-def create_admin_token():
+def create_admin_token(user_id=1, username='admin'):
     """Create admin JWT token for testing purposes"""
     admin_data = {
-        'id': 1,
-        'username': 'admin',
+        'id': user_id,
+        'username': username,
         'role': 'admin'
     }
     return generate_jwt_token(admin_data)
