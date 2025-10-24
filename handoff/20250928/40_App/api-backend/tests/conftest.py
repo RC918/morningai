@@ -7,6 +7,7 @@ import sys
 import os
 from pathlib import Path
 import pytest
+from unittest.mock import patch
 
 backend_dir = Path(__file__).parent.parent
 if str(backend_dir) not in sys.path:
