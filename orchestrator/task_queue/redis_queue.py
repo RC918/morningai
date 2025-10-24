@@ -88,7 +88,10 @@ class RedisQueue:
             
             # Only add SSL config for TLS connections
             if self.redis_url.startswith("rediss://"):
-                connection_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+                connection_kwargs["ssl"] = ssl_context
                 logger.info("Connecting to Redis with TLS (rediss://)")
             elif self.redis_url.startswith("redis://"):
                 logger.info("Connecting to Redis without TLS (redis://)")
