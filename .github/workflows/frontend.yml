@@ -17,11 +17,9 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.4.1
+          version: 9.15.1
       - name: Install dependencies
-        run: |
-          cd frontend-dashboard-deploy
-          pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Create environment files for CI
         run: |
           cd frontend-dashboard-deploy
@@ -37,6 +35,16 @@ jobs:
           cd frontend-dashboard-deploy
           pnpm run build
           pnpm run lint
+      
+      - name: Build handoff frontends
+        run: |
+          pnpm build:dashboard
+          pnpm build:owner
+      
+      - name: Lint handoff frontends
+        run: |
+          pnpm lint:dashboard
+          pnpm lint:owner
       
       - name: Smoke Tests
         run: |

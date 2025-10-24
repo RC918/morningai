@@ -68,7 +68,42 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 
 詳細架構文檔：[Owner Console README](handoff/20250928/40_App/owner-console/README.md)
 
-## 開發貢獻流程
+## 開發環境設置
+
+### 依賴管理
+
+本專案使用 **pnpm workspaces** 進行 monorepo 依賴管理：
+
+```bash
+# 安裝 pnpm（如果尚未安裝）
+npm install -g pnpm
+
+# 安裝所有依賴
+pnpm install
+
+# 構建所有應用
+pnpm build
+
+# 構建特定應用
+pnpm build:dashboard    # Tenant Dashboard
+pnpm build:owner        # Owner Console
+
+# 開發模式
+pnpm dev                # Tenant Dashboard
+pnpm dev:owner          # Owner Console
+
+# 運行測試
+pnpm test               # 所有測試
+pnpm test:dashboard     # Dashboard 測試
+pnpm test:owner         # Owner Console 測試
+
+# Lint
+pnpm lint               # 所有應用
+pnpm lint:dashboard     # Dashboard lint
+pnpm lint:owner         # Owner Console lint
+```
+
+### 開發貢獻流程
 
 請參閱以下文件了解專案的開發規範與 CI/CD 流程：
 - **[本地開發設定](docs/setup_local.md)** - 快速啟動指南與常見問題排除

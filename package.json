@@ -1,0 +1,30 @@
+{
+  "name": "morningai-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Morning AI - Monorepo with pnpm workspaces",
+  "scripts": {
+    "dev": "pnpm --filter frontend-dashboard dev",
+    "dev:owner": "pnpm --filter owner-console dev",
+    "build": "pnpm -r build",
+    "build:dashboard": "pnpm --filter frontend-dashboard build",
+    "build:owner": "pnpm --filter owner-console build",
+    "lint": "pnpm -r lint",
+    "lint:dashboard": "pnpm --filter frontend-dashboard lint",
+    "lint:owner": "pnpm --filter owner-console lint",
+    "test": "pnpm -r test",
+    "test:dashboard": "pnpm --filter frontend-dashboard test",
+    "test:owner": "pnpm --filter owner-console test",
+    "clean": "pnpm -r exec rm -rf node_modules dist build .next",
+    "clean:cache": "rm -rf node_modules/.cache .pnpm-store"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "devDependencies": {},
+  "pnpm": {
+    "overrides": {}
+  }
+}

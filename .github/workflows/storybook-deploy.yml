@@ -35,17 +35,16 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.4.1
+          version: 9.15.1
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
-          cache-dependency-path: 'frontend-dashboard-deploy/pnpm-lock.yaml'
+          cache-dependency-path: 'pnpm-lock.yaml'
       
       - name: Install dependencies
-        working-directory: frontend-dashboard-deploy
         run: pnpm install --frozen-lockfile
       
       - name: Build Storybook
