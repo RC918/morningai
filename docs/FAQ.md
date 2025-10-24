@@ -1,76 +1,77 @@
-# E2E Test FAQ for MorningAI
+# MorningAI System Architecture
 
-End-to-End (E2E) testing is a critical component of ensuring the reliability and functionality of the MorningAI platform. It simulates real-user scenarios to validate the system as a whole, from the frontend through to the backend, database, and integration layers. This FAQ aims to guide developers on how to effectively utilize E2E tests within the MorningAI project.
+The MorningAI platform is designed as a multi-tenant Software as a Service (SaaS) solution, leveraging a modern stack to offer autonomous code generation, documentation management, and real-time task orchestration. This section provides an overview of the system architecture, aimed at helping developers understand and effectively utilize the MorningAI platform.
 
-## What is E2E Testing in MorningAI?
+## Overview
 
-E2E testing in MorningAI involves automated testing strategies that simulate user behaviors against the platform to ensure all integrated components function as expected. This includes interactions with the React frontend, Flask backend, PostgreSQL database via Supabase, Redis Queue tasks, and any third-party integrations.
+MorningAI's architecture is built to support scalability, performance, and ease of integration. It consists of several key components:
 
-## How to Set Up E2E Tests?
+- **Frontend:** Developed with React, Vite, and TailwindCSS for a responsive and modern user interface.
+- **Backend:** Python and Flask are used for server-side logic, with Gunicorn serving as the WSGI HTTP Server to manage multiple worker processes.
+- **Database:** PostgreSQL, enhanced with Row Level Security (RLS) via Supabase for secure data storage and vector memory storage.
+- **Queue System:** Redis Queue (RQ) is utilized for managing background jobs with worker heartbeat monitoring to ensure reliability.
+- **Orchestration:** LangGraph orchestrates agent workflows, facilitating complex task management.
+- **AI Layer:** Integrates OpenAI's GPT-4 for cutting-edge content generation capabilities.
+- **Deployment:** Hosted on Render.com with continuous integration and delivery (CI/CD) pipelines in place for streamlined updates.
 
-### Prerequisites
+### Code Examples
 
-- Ensure you have Node.js installed for running JavaScript-based E2E tests.
-- Install all project dependencies by navigating to your project directory and running `npm install`.
+#### Flask Application Initialization
 
-### Setting Up Test Environment
+```python
+from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/RC918/morningai.git
-   cd morningai
-   ```
-
-2. Install E2E testing tools like Cypress or Puppeteer. For Cypress, run:
-   ```bash
-   npm install cypress --save-dev
-   ```
-
-3. Configure your `.env` file with necessary environment variables for accessing the database, API keys, etc.
-
-4. Prepare your test data and scripts based on realistic user scenarios that interact with MorningAI's features.
-
-### Running E2E Tests
-
-To execute your E2E tests using Cypress as an example:
-
-```bash
-npx cypress open
-```
-or for headless execution:
-```bash
-npx cypress run
+app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app)
 ```
 
-## Code Example
+#### Gunicorn Configuration
 
-Here's a simple example of an E2E test script using Cypress that tests user login functionality:
+Example `gunicorn.conf.py`:
 
-```javascript
-describe('Login Test', () => {
-  it('Visits the login page and logs in', () => {
-    cy.visit('/login')
-    cy.get('input[name=username]').type('testuser')
-    cy.get('input[name=password]').type('password')
-    cy.get('form').submit()
-    cy.url().should('include', '/dashboard')
-  })
-})
+```python
+workers = 4
+bind = '0.0.0.0:8000'
+worker_class = 'gevent'
 ```
 
-## Related Documentation Links
+#### Redis Queue Setup
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- Puppeteer GitHub: [https://github.com/puppeteer/puppeteer](https://github.com/puppeteer/puppeteer)
-- MorningAI Repository: [https://github.com/RC918/morningai](https://github.com/RC918/morningai)
+```python
+import redis
+from rq import Queue
 
-## Common Troubleshooting Tips
+r = redis.Redis()
+q = Queue(connection=r)
 
-- **Tests Failing Unexpectedly**: Ensure your environment variables are correctly set up and that external services (databases, third-party APIs) are accessible.
-- **Timeouts or Slow Tests**: Adjust timeout settings within your testing framework. Consider mocking external services or databases if real interactions are not essential for certain tests.
-- **Flaky Tests**: Try to isolate and identify any non-deterministic behavior in your tests or application code. Ensure you're waiting for necessary elements or responses before proceeding in your test scripts.
+def background_task():
+    # Your background task code here
+    pass
 
-Remember, consistent, reliable E2E tests are invaluable for maintaining high-quality software. Regularly review and update your test cases to cover new features or changes within the platform.
+job = q.enqueue(background_task)
+```
+
+### Related Documentation Links
+
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.1.x/)
+- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Render.com Deployment Documentation](https://render.com/docs)
+
+### Common Troubleshooting Tips
+
+**Issue**: Worker processes hang or fail to start  
+**Solution**: Ensure Gunicorn is properly configured with adequate workers and that Redis Queue has sufficient resources available. Check the logs for any specific error messages.
+
+**Issue**: Database connection errors  
+**Solution**: Verify your Supabase credentials and database URL. Ensure that your database is running and accessible from your application environment.
+
+**Issue**: Frontend not updating after deployment  
+**Solution**: Confirm that your CI/CD pipeline on Render.com has successfully completed. Clear browser cache or use a hard refresh to ensure the latest version is loaded.
+
+For more detailed troubleshooting guides, refer to the respective component documentation linked above.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -78,7 +79,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `b141498c-e922-4fd5-b369-795f30ff3b9b`
+- Task: What is the system architecture?
+- Trace ID: `86b935d4-b99b-425d-8b45-88d8e2780cdc`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
