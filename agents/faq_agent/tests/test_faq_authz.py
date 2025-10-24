@@ -8,12 +8,15 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+api_backend_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'handoff', '20250928', '40_App', 'api-backend')
+sys.path.insert(0, os.path.join(api_backend_path, 'src'))
+sys.path.insert(0, api_backend_path)
 
 @pytest.fixture
 def app():
     """Create test Flask app"""
     from flask import Flask
-    from handoff.20250928.40_App.api_backend.src.routes.faq import bp
+    from routes.faq import bp
     
     app = Flask(__name__)
     app.config['TESTING'] = True
@@ -29,13 +32,13 @@ def client(app):
 @pytest.fixture
 def admin_token():
     """Create admin JWT token"""
-    from src.middleware.auth_middleware import create_admin_token
+    from middleware.auth_middleware import create_admin_token
     return create_admin_token()
 
 @pytest.fixture
 def user_token():
     """Create user JWT token"""
-    from src.middleware.auth_middleware import create_user_token
+    from middleware.auth_middleware import create_user_token
     return create_user_token()
 
 def test_search_requires_jwt(client):

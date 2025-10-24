@@ -1,0 +1,107 @@
+name: App Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/**'
+      - '.github/workflows/test-apps.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/**'
+      - '.github/workflows/test-apps.yml'
+
+jobs:
+  test-api-backend:
+    name: API Backend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        working-directory: handoff/20250928/40_App/api-backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run API Backend tests
+        working-directory: handoff/20250928/40_App/api-backend
+        run: |
+          pytest tests/ -v --tb=short --disable-warnings
+        env:
+          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}
+          FLASK_ENV: testing
+          TESTING: true
+  
+  test-orchestrator:
+    name: Orchestrator Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        working-directory: handoff/20250928/40_App/orchestrator
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-test.txt ]; then pip install -r requirements-test.txt; fi
+      
+      - name: Run Orchestrator tests
+        working-directory: handoff/20250928/40_App/orchestrator
+        run: |
+          pytest tests/ -v --tb=short --disable-warnings
+        env:
+          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}
+  
+  test-frontend-dashboard:
+    name: Frontend Dashboard Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      
+      - name: Install dependencies
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        run: pnpm exec playwright install --with-deps chromium
+      
+      - name: Run Frontend Dashboard tests
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        run: pnpm test

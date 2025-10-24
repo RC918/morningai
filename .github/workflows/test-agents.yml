@@ -1,0 +1,102 @@
+name: Agent Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'agents/**'
+      - '.github/workflows/test-agents.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'agents/**'
+      - '.github/workflows/test-agents.yml'
+
+jobs:
+  test-faq-agent:
+    name: FAQ Agent Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        working-directory: agents/faq_agent
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run FAQ Agent tests
+        working-directory: agents/faq_agent
+        run: |
+          pytest tests/ -v --tb=short --disable-warnings
+        env:
+          PYTHONPATH: ${{ github.workspace }}/agents/faq_agent:${{ github.workspace }}
+  
+  test-ops-agent:
+    name: Ops Agent Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        working-directory: agents/ops_agent
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run Ops Agent tests
+        working-directory: agents/ops_agent
+        run: |
+          pytest tests/ -v --tb=short --disable-warnings
+        env:
+          PYTHONPATH: ${{ github.workspace }}/agents/ops_agent:${{ github.workspace }}
+  
+  test-dev-agent:
+    name: Dev Agent Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        working-directory: agents/dev_agent
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run Dev Agent tests
+        working-directory: agents/dev_agent
+        run: |
+          pytest tests/ -v --tb=short --disable-warnings
+        env:
+          PYTHONPATH: ${{ github.workspace }}/agents/dev_agent:${{ github.workspace }}
