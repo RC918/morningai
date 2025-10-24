@@ -1,49 +1,31 @@
 # Gitleaks Ignore File
 # Add false positives here to prevent Gitleaks from flagging them
 #
+# ⚠️ SECURITY WARNING: Be SPECIFIC with ignores to avoid missing real secrets
 # Format: Use exact fingerprints from Gitleaks output
 # Example: /path/file.ext:rule-id:line-number
+#
+# AVOID broad wildcards like *.md:*:* which can miss real secrets in docs
 
-# Documentation examples with placeholder tokens
-/path/OPTIMIZATION_COMPLETION_REPORT.md:curl-auth-header:134
-/path/OPTIMIZATION_COMPLETION_REPORT.md:curl-auth-header:138
-/path/PR562_CRITICAL_FIXES_GUIDE.md:curl-auth-header:362
-/path/SUPABASE_RLS_SECURITY_AUDIT_REPORT.md:curl-auth-header:220
+# Specific documentation examples with placeholder tokens
+# (Review and update these periodically)
+OPTIMIZATION_COMPLETION_REPORT.md:curl-auth-header:134
+OPTIMIZATION_COMPLETION_REPORT.md:curl-auth-header:138
+PR562_CRITICAL_FIXES_GUIDE.md:curl-auth-header:362
+SUPABASE_RLS_SECURITY_AUDIT_REPORT.md:curl-auth-header:220
 
-# Test/example Stripe keys in workflow files
-/path/.github/workflows/frontend.yml:stripe-access-token:28
-/path/.github/workflows/frontend.yml:stripe-access-token:31
+# Specific workflow files with known placeholder credentials
+.github/workflows/frontend.yml:stripe-access-token:28
+.github/workflows/frontend.yml:stripe-access-token:31
 
-# Documentation files with example credentials (use wildcards for flexibility)
-*OPTIMIZATION_COMPLETION_REPORT.md:curl-auth-header:*
-*PR562_CRITICAL_FIXES_GUIDE.md:curl-auth-header:*
-*SUPABASE_RLS_SECURITY_AUDIT_REPORT.md:curl-auth-header:*
-*SECURITY*.md:*:*
-*GUIDE.md:*:*
+# ⚠️ REVIEW REQUIRED: Add specific line numbers for each false positive
+# DO NOT use broad wildcards like *.md:*:* or **/tests/**:*:*
+# Instead, add specific files and line numbers as they are identified
 
-# Workflow files with placeholder credentials
-*.github/workflows/*.yml:stripe-access-token:*
-*.github/workflows/*.yml:*:*
+# Example of CORRECT format (specific):
+# docs/API_GUIDE.md:generic-api-key:42
+# tests/test_auth.py:generic-api-key:156
 
-# All markdown documentation files
-*.md:*:*
-
-# Test and fixture files
-**/tests/**:*:*
-**/__tests__/**:*:*
-**/fixtures/**:*:*
-**/mocks/**:*:*
-
-# Example configuration files
-.env.example:*:*
-env_schema.yaml:*:*
-
-# Build artifacts and dependencies
-dist/**:*:*
-build/**:*:*
-.next/**:*:*
-.turbo/**:*:*
-node_modules/**:*:*
-package-lock.json:*:*
-pnpm-lock.yaml:*:*
-poetry.lock:*:*
+# Example of INCORRECT format (too broad - DO NOT USE):
+# *.md:*:*
+# **/tests/**:*:*
