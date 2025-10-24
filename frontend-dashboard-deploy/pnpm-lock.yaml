@@ -198,9 +198,6 @@ importers:
       '@storybook/addon-a11y':
         specifier: 8.6.14
         version: 8.6.14(storybook@8.6.14)
-      '@storybook/addon-docs':
-        specifier: ^9.1.13
-        version: 9.1.13(@types/react@19.1.15)(storybook@8.6.14)
       '@storybook/addon-essentials':
         specifier: 8.6.14
         version: 8.6.14(@types/react@19.1.15)(storybook@8.6.14)
@@ -1801,11 +1798,6 @@ packages:
     peerDependencies:
       storybook: ^8.6.14
 
-  '@storybook/addon-docs@9.1.13':
-    resolution: {integrity: sha512-V1nCo7bfC3kQ5VNVq0VDcHsIhQf507m+BxMA5SIYiwdJHljH2BXpW2fL3FFn9gv9Wp57AEEzhm+wh4zANaJgkg==}
-    peerDependencies:
-      storybook: ^9.1.13
-
   '@storybook/addon-essentials@8.6.14':
     resolution: {integrity: sha512-5ZZSHNaW9mXMOFkoPyc3QkoNGdJHETZydI62/OASR0lmPlJ1065TNigEo5dJddmZNn0/3bkE8eKMAzLnO5eIdA==}
     peerDependencies:
@@ -1891,11 +1883,6 @@ packages:
     peerDependencies:
       storybook: ^8.6.14
 
-  '@storybook/csf-plugin@9.1.13':
-    resolution: {integrity: sha512-EMpzYuyt9FDcxxfBChWzfId50y8QMpdenviEQ8m+pa6c+ANx3pC5J6t7y0khD8TQu815sTy+nc6cc8PC45dPUA==}
-    peerDependencies:
-      storybook: ^9.1.13
-
   '@storybook/experimental-addon-test@8.6.14':
     resolution: {integrity: sha512-Ey1WFTRXSx6Tcv2vpxW16fhk03xQKUmsdg0yWKz9llkNVTGqmL5CNMWZ7j1ZnBGneeRJOvxNsz83SwBRrr588A==}
     peerDependencies:
@@ -1942,13 +1929,6 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0-beta
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0-beta
       storybook: ^8.6.14
-
-  '@storybook/react-dom-shim@9.1.13':
-    resolution: {integrity: sha512-/tMr9TmV3+98GEQO0S03k4gtKHGCpv9+k9Dmnv+TJK3TBz7QsaFEzMwe3gCgoTaebLACyVveDiZkWnCYAWB6NA==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0-beta
-      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0-beta
-      storybook: ^9.1.13
 
   '@storybook/react-vite@8.6.14':
     resolution: {integrity: sha512-FZU0xMPxa4/TO87FgcWwappOxLBHZV5HSRK5K+2bJD7rFJAoNorbHvB4Q1zvIAk7eCMjkr2GPCPHx9PRB9vJFg==}
@@ -6755,19 +6735,6 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@storybook/addon-docs@9.1.13(@types/react@19.1.15)(storybook@8.6.14)':
-    dependencies:
-      '@mdx-js/react': 3.1.1(@types/react@19.1.15)(react@19.1.1)
-      '@storybook/csf-plugin': 9.1.13(storybook@8.6.14)
-      '@storybook/icons': 1.6.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      '@storybook/react-dom-shim': 9.1.13(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@8.6.14)
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
-      storybook: 8.6.14
-      ts-dedent: 2.2.0
-    transitivePeerDependencies:
-      - '@types/react'
-
   '@storybook/addon-essentials@8.6.14(@types/react@19.1.15)(storybook@8.6.14)':
     dependencies:
       '@storybook/addon-actions': 8.6.14(storybook@8.6.14)
@@ -6876,11 +6843,6 @@ snapshots:
       storybook: 8.6.14
       unplugin: 1.16.1
 
-  '@storybook/csf-plugin@9.1.13(storybook@8.6.14)':
-    dependencies:
-      storybook: 8.6.14
-      unplugin: 1.16.1
-
   '@storybook/experimental-addon-test@8.6.14(@vitest/browser@4.0.2(vite@6.3.6(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1)(yaml@2.8.1))(vitest@4.0.2(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1)(yaml@2.8.1)))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@8.6.14)(vitest@4.0.2(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1)(yaml@2.8.1))':
     dependencies:
       '@storybook/global': 5.0.0
@@ -6920,12 +6882,6 @@ snapshots:
       storybook: 8.6.14
 
   '@storybook/react-dom-shim@8.6.14(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@8.6.14)':
-    dependencies:
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
-      storybook: 8.6.14
-
-  '@storybook/react-dom-shim@9.1.13(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(storybook@8.6.14)':
     dependencies:
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
