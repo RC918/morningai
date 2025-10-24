@@ -107,6 +107,12 @@ jobs:
         working-directory: handoff/20250928/40_App/frontend-dashboard
         run: pnpm exec playwright install --with-deps chromium
       
+      - name: Create environment files for smoke tests
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        run: |
+          touch .env.production .env.local
+          mkdir -p dist
+      
       - name: Run Frontend Dashboard tests
         working-directory: handoff/20250928/40_App/frontend-dashboard
         run: |

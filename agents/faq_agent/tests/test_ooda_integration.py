@@ -10,10 +10,10 @@ from datetime import datetime
 @pytest.fixture
 def mock_tools():
     """Mock all FAQ tools"""
-    with patch('agents.faq_agent.faq_agent_ooda.FAQ_TOOLS_AVAILABLE', True):
-        with patch('agents.faq_agent.faq_agent_ooda.FAQSearchTool') as mock_search:
-            with patch('agents.faq_agent.faq_agent_ooda.FAQManagementTool') as mock_mgmt:
-                with patch('agents.faq_agent.faq_agent_ooda.EmbeddingTool') as mock_embed:
+    with patch('faq_agent_ooda.FAQ_TOOLS_AVAILABLE', True):
+        with patch('faq_agent_ooda.FAQSearchTool') as mock_search:
+            with patch('faq_agent_ooda.FAQManagementTool') as mock_mgmt:
+                with patch('faq_agent_ooda.EmbeddingTool') as mock_embed:
                     search_instance = AsyncMock()
                     mgmt_instance = AsyncMock()
                     embed_instance = AsyncMock()
@@ -35,7 +35,7 @@ class TestFAQOODALoop:
 
     async def test_search_task_execution(self, mock_tools):
         """Test OODA loop for search task"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA, FAQTaskType
+        from faq_agent_ooda import FAQAgentOODA, FAQTaskType
         
         mock_tools['mgmt'].get_stats.return_value = {
             'success': True,
@@ -79,7 +79,7 @@ class TestFAQOODALoop:
 
     async def test_create_task_execution(self, mock_tools):
         """Test OODA loop for create task"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA, FAQTaskType
+        from faq_agent_ooda import FAQAgentOODA, FAQTaskType
         
         mock_tools['mgmt'].get_stats.return_value = {
             'success': True,
@@ -104,7 +104,7 @@ class TestFAQOODALoop:
 
     async def test_analyze_task_execution(self, mock_tools):
         """Test OODA loop for analyze task"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA, FAQTaskType
+        from faq_agent_ooda import FAQAgentOODA, FAQTaskType
         
         mock_tools['mgmt'].get_stats.return_value = {
             'success': True,
@@ -136,7 +136,7 @@ class TestFAQOODALoop:
 
     async def test_task_type_inference(self, mock_tools):
         """Test automatic task type inference"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA, FAQTaskType
+        from faq_agent_ooda import FAQAgentOODA, FAQTaskType
         
         mock_tools['mgmt'].get_stats.return_value = {
             'success': True,
@@ -159,7 +159,7 @@ class TestFAQOODALoop:
 
     async def test_max_iterations_limit(self, mock_tools):
         """Test that OODA loop respects max iterations"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA
+        from faq_agent_ooda import FAQAgentOODA
         
         mock_tools['mgmt'].get_stats.return_value = {
             'success': True,
@@ -182,7 +182,7 @@ class TestFAQOODALoop:
 
     async def test_observe_phase_data_collection(self, mock_tools):
         """Test that observe phase collects appropriate data"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA, FAQAgentState
+        from faq_agent_ooda import FAQAgentOODA, FAQAgentState
         
         mock_tools['mgmt'].get_stats.return_value = {
             'success': True,
@@ -222,7 +222,7 @@ class TestFAQOODALoop:
 
     async def test_orient_phase_strategy_generation(self, mock_tools):
         """Test that orient phase generates strategies"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA, FAQAgentState
+        from faq_agent_ooda import FAQAgentOODA, FAQAgentState
         
         agent = FAQAgentOODA()
         
@@ -251,7 +251,7 @@ class TestFAQOODALoop:
 
     async def test_decide_phase_action_planning(self, mock_tools):
         """Test that decide phase creates action plan"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA, FAQAgentState
+        from faq_agent_ooda import FAQAgentOODA, FAQAgentState
         
         agent = FAQAgentOODA()
         
@@ -286,7 +286,7 @@ class TestFAQOODALoop:
 
     async def test_act_phase_execution(self, mock_tools):
         """Test that act phase executes actions"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA, FAQAgentState
+        from faq_agent_ooda import FAQAgentOODA, FAQAgentState
         
         mock_tools['search'].search.return_value = {
             'success': True,
@@ -327,7 +327,7 @@ class TestFAQOODALoop:
 
     async def test_error_handling(self, mock_tools):
         """Test error handling in OODA loop"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA
+        from faq_agent_ooda import FAQAgentOODA
         
         mock_tools['mgmt'].get_stats.side_effect = Exception("Simulated error")
         
@@ -341,7 +341,7 @@ class TestFAQOODALoop:
 
     async def test_decision_trace_completeness(self, mock_tools):
         """Test that decision trace captures all phases"""
-        from agents.faq_agent.faq_agent_ooda import FAQAgentOODA
+        from faq_agent_ooda import FAQAgentOODA
         
         mock_tools['mgmt'].get_stats.return_value = {
             'success': True,
@@ -375,7 +375,7 @@ class TestFAQOODALoop:
 
 def test_faq_agent_ooda_creation():
     """Test FAQ Agent OODA factory function"""
-    from agents.faq_agent.faq_agent_ooda import create_faq_agent_ooda, FAQ_TOOLS_AVAILABLE
+    from faq_agent_ooda import create_faq_agent_ooda, FAQ_TOOLS_AVAILABLE
     
     if FAQ_TOOLS_AVAILABLE:
         agent = create_faq_agent_ooda()
