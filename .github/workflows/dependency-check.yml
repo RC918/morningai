@@ -91,13 +91,13 @@ jobs:
                 echo "vercel_uses_yarn=true" >> $GITHUB_OUTPUT
                 echo "❌ vercel.json uses yarn in installCommand"
                 exit 1
+              elif echo "$INSTALL_CMD" | grep -q "pnpm"; then
+                echo "vercel_uses_pnpm=true" >> $GITHUB_OUTPUT
+                echo "✅ vercel.json correctly uses pnpm"
               elif echo "$INSTALL_CMD" | grep -q "npm"; then
                 echo "vercel_uses_npm=true" >> $GITHUB_OUTPUT
                 echo "❌ vercel.json uses npm in installCommand (should use pnpm)"
                 exit 1
-              elif echo "$INSTALL_CMD" | grep -q "pnpm"; then
-                echo "vercel_uses_pnpm=true" >> $GITHUB_OUTPUT
-                echo "✅ vercel.json correctly uses pnpm"
               fi
             else
               echo "⚠️ vercel.json does not specify installCommand"
