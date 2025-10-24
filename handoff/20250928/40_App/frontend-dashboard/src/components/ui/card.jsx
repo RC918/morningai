@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 
 function Card({
   className,
+  interactive = false,
   ...props
 }) {
   return (
@@ -11,6 +12,7 @@ function Card({
       data-slot="card"
       className={cn(
         "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        interactive && "card-hover cursor-pointer",
         className
       )}
       {...props} />

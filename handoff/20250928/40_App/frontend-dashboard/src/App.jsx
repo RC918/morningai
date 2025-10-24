@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ThemeProvider } from 'next-themes'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TolgeeProvider } from '@tolgee/react'
 import { Toaster } from '@/components/ui/toaster'
 import { toast } from '@/lib/toast-with-announcement'
@@ -27,6 +27,7 @@ import { tolgee } from '@/i18n/config'
 import './App.css'
 import './styles/mobile-optimizations.css'
 import './styles/motion-governance.css'
+import './styles/micro-interactions.css'
 import './styles/theme-apple.css'
 
 const Dashboard = lazy(() => import('@/components/Dashboard'))
@@ -285,7 +286,7 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider defaultTheme="system" storageKey="morningai-theme">
       <TolgeeProvider tolgee={tolgee} fallback={<PageLoader message="Loading translations..." />}>
         <NotificationProvider>
           <AppContent />
