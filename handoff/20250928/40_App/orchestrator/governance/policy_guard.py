@@ -17,10 +17,12 @@ class PolicyGuard:
     
     def __init__(self, policies_path: Optional[str] = None):
         if policies_path is None:
-            policies_path = os.path.join(
-                os.path.dirname(__file__),
-                '../../../../config/policies.yaml'
-            )
+            policies_path = os.getenv('POLICIES_PATH')
+            if policies_path is None:
+                policies_path = os.path.join(
+                    os.path.dirname(__file__),
+                    '../../../../config/policies.yaml'
+                )
         
         self.policies_path = policies_path
         self.policies = self._load_policies()
