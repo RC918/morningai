@@ -901,6 +901,13 @@
     "statusError": "Error",
     "statusInfo": "Info"
   },
+  "form": {
+    "required": "required",
+    "optional": "optional",
+    "fieldRequired": "This field is required",
+    "invalidEmail": "Please enter a valid email address",
+    "invalidFormat": "Invalid format"
+  },
   "accessibility": {
     "skipToContent": "Skip to main content",
     "closeDialog": "Close dialog",
