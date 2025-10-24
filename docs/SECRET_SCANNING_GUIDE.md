@@ -13,10 +13,18 @@ This guide explains the secret scanning system implemented to prevent accidental
 
 ### Tools Used
 
-1. **Gitleaks** - Fast, lightweight secret scanner
-2. **TruffleHog** - Deep secret scanner with verification capabilities
+1. **Gitleaks v2** - Fast, lightweight secret scanner (latest stable)
+2. **TruffleHog v3.82.13** - Deep secret scanner with verification capabilities (pinned version)
 
 Both tools run automatically on every push and pull request to protect the repository from credential leaks.
+
+### Security Improvements (2025-10-24)
+
+**✅ Version Pinning**: TruffleHog pinned to v3.82.13 to avoid breaking changes from main branch  
+**✅ Performance Optimization**: PR scans use 100 commits, full scans only on main branch  
+**✅ Tightened Configuration**: Removed broad wildcards, specific ignores only  
+**✅ Monitoring**: Added scan metrics and performance tracking  
+**✅ Verified Secrets Only**: TruffleHog configured with --only-verified flag
 
 ---
 
