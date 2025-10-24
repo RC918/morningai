@@ -339,18 +339,24 @@ class TestStatsEndpoint:
 def client():
     """Create Flask test client"""
     import os
+    import sys
     from flask import Flask
-    from src.routes.faq import bp
+    
+    api_backend_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'handoff', '20250928', '40_App', 'api-backend')
+    sys.path.insert(0, os.path.join(api_backend_path, 'src'))
+    sys.path.insert(0, api_backend_path)
     
     os.environ['JWT_SECRET_KEY'] = 'test-secret-key-for-ci'
     os.environ['TESTING'] = 'true'
     
-    app = Flask(__name__)
-    app.config['TESTING'] = True
-    app.register_blueprint(bp)
-    
-    with patch('src.routes.faq.FAQ_AGENT_AVAILABLE', True):
-        with patch('src.middleware.auth_middleware.jwt_required', lambda f: f):
-            with patch('src.middleware.auth_middleware.admin_required', lambda f: f):
+    with patch('src.middleware.auth_middleware.jwt_required', lambda f: f):
+        with patch('src.middleware.auth_middleware.admin_required', lambda f: f):
+            with patch('src.routes.faq.FAQ_AGENT_AVAILABLE', True):
+                from src.routes.faq import bp
+                
+                app = Flask(__name__)
+                app.config['TESTING'] = True
+                app.register_blueprint(bp)
+                
                 with app.test_client() as client:
                     yield client
