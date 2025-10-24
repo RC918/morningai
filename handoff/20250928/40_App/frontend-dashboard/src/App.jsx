@@ -27,6 +27,7 @@ import { tolgee } from '@/i18n/config'
 import './App.css'
 import './styles/mobile-optimizations.css'
 import './styles/motion-governance.css'
+import './styles/micro-interactions.css'
 import './styles/theme-apple.css'
 
 const Dashboard = lazy(() => import('@/components/Dashboard'))
