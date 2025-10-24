@@ -27,18 +27,20 @@ jobs:
       - name: Pull translations for Frontend Dashboard
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
-          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
-          TOLGEE_API_URL: https://app.tolgee.io
+          TOLGEE_API_KEY: ${{ secrets.VITE_TOLGEE_API_KEY }}
+          TOLGEE_API_URL: ${{ secrets.VITE_TOLGEE_API_URL }}
+          TOLGEE_PROJECT_ID: ${{ secrets.VITE_TOLGEE_PROJECT_ID }}
         run: |
-          tolgee pull --api-key "$TOLGEE_API_KEY" --api-url "$TOLGEE_API_URL" --project-id 23882 --path ./src/i18n/locales
+          tolgee pull --api-key "$TOLGEE_API_KEY" --api-url "$TOLGEE_API_URL" --project-id "$TOLGEE_PROJECT_ID" --path ./src/i18n/locales
 
       - name: Pull translations for Owner Console
         working-directory: handoff/20250928/40_App/owner-console
         env:
-          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
-          TOLGEE_API_URL: https://app.tolgee.io
+          TOLGEE_API_KEY: ${{ secrets.VITE_TOLGEE_API_KEY }}
+          TOLGEE_API_URL: ${{ secrets.VITE_TOLGEE_API_URL }}
+          TOLGEE_PROJECT_ID: ${{ secrets.VITE_TOLGEE_PROJECT_ID }}
         run: |
-          tolgee pull --api-key "$TOLGEE_API_KEY" --api-url "$TOLGEE_API_URL" --project-id 23882 --path ./src/locales
+          tolgee pull --api-key "$TOLGEE_API_KEY" --api-url "$TOLGEE_API_URL" --project-id "$TOLGEE_PROJECT_ID" --path ./src/locales
 
       - name: Create PR if changes
         uses: peter-evans/create-pull-request@v6
