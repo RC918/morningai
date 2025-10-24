@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { toast } from '@/lib/toast-with-announcement'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
+import GlobalSearch from '@/components/GlobalSearch'
 import LoginPage from '@/components/LoginPage'
 import SignupPage from '@/components/SignupPage'
 import LandingPage from '@/components/LandingPage'
@@ -272,6 +273,7 @@ function AppContent() {
               </main>
               
                 <Toaster />
+                <GlobalSearch />
               </div>
             )}
           </div>
