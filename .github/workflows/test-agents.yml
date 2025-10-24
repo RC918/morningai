@@ -41,7 +41,7 @@ jobs:
         run: |
           pytest tests/ -v --tb=short --disable-warnings
         env:
-          PYTHONPATH: ${{ github.workspace }}/agents/faq_agent:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/agents/faq_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
   
   test-ops-agent:
     name: Ops Agent Tests
@@ -70,7 +70,7 @@ jobs:
         run: |
           pytest tests/ -v --tb=short --disable-warnings
         env:
-          PYTHONPATH: ${{ github.workspace }}/agents/ops_agent:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/agents/ops_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
   
   test-dev-agent:
     name: Dev Agent Tests
@@ -99,4 +99,4 @@ jobs:
         run: |
           pytest tests/ -v --tb=short --disable-warnings
         env:
-          PYTHONPATH: ${{ github.workspace }}/agents/dev_agent:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/agents/dev_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
