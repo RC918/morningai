@@ -1,60 +1,59 @@
-# Testing Sentry `trace_id` Integration in MorningAI
+# System Architecture of MorningAI
 
-In this section, we'll cover how to test and ensure that Sentry's `trace_id` integration functions correctly within the MorningAI platform. This is crucial for monitoring, error tracking, and ensuring a smooth operational flow across the system's microservices.
+MorningAI leverages a modern, scalable, and robust architecture designed to provide an efficient and reliable service for autonomous code generation, FAQ documentation management, and multi-platform integration. Understanding the system architecture is crucial for developers looking to integrate with or contribute to MorningAI. This section aims to give a comprehensive overview of our system architecture.
 
-## Understanding `trace_id` in Sentry
+## Overview
 
-Sentry utilizes `trace_id` to track and aggregate errors and performance issues across distributed systems. This identifier helps developers link errors to specific transactions or traces, providing a clearer context for debugging and resolution.
+MorningAI's architecture is built around several core components that work together to deliver a seamless experience:
 
-## Integration in MorningAI
+- **Frontend**: Developed using React, Vite, and TailwindCSS for a responsive and modern user interface.
+- **Backend**: Powered by Python with Flask serving as the web framework, and Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests.
+- **Database**: Utilizes PostgreSQL for data storage, enhanced with Supabase for additional functionalities like Row Level Security (RLS), which ensures data isolation across different tenants.
+- **Queue System**: Implements Redis Queue (RQ) to manage background tasks efficiently, allowing real-time task orchestration and worker heartbeat monitoring to ensure reliability.
+- **Orchestration**: Uses LangGraph for managing agent workflows, ensuring tasks are executed in an orderly and optimized manner.
+- **AI Engine**: Integrates OpenAI GPT-4 for generating content dynamically, including code snippets and FAQ documentation.
+- **Deployment**: Hosted on Render.com with continuous integration and delivery (CI/CD) practices in place to streamline updates and maintain high availability.
 
-MorningAI integrates Sentry for real-time error tracking and performance monitoring. Each autonomous agent, task, or process within the platform is assigned a unique `trace_id`, allowing developers to monitor activities and troubleshoot issues effectively.
+### Code Examples
 
-### Prerequisites
-
-- Ensure you have access to the RC918/morningai repository.
-- Sentry account with access to the MorningAI project.
-- Relevant environment variables must be configured (`SENTRY_DSN`, etc.).
-
-### Code Example: Generating and Using `trace_id`
-
-When an autonomous agent initiates a task, MorningAI generates a `trace_id`. Here's how it's integrated:
+While detailed code examples specific to each component might be too extensive for this document, here's a brief example of how a Flask application could be initialized within our backend structure:
 
 ```python
-import sentry_sdk
+from flask import Flask
+from config import Config
 
-sentry_sdk.init(dsn="your_sentry_dsn")
+app = Flask(__name__)
+app.config.from_object(Config)
 
-def generate_trace_id():
-    from sentry_sdk import Hub
-    trace_id = Hub.current.trace_id
-    return trace_id
-
-def task_handler():
-    trace_id = generate_trace_id()
-    # Log or pass this trace_id as needed
-    print(f"Handling task with trace ID: {trace_id}")
+if __name__ == "__main__":
+    app.run()
 ```
 
-Replace `"your_sentry_dsn"` with your actual Sentry DSN. This code snippet demonstrates initializing Sentry SDK, generating a `trace_id`, and using it within a task handler function.
+This simple example shows the initialization of a Flask application with configurations loaded from an external `Config` class. For more specific examples related to other components like React setups or RQ usage, developers should refer to the respective directories within the repository at `RC918/morningai`.
 
 ### Related Documentation Links
 
-- [Sentry Documentation](https://docs.sentry.io/)
-- [MorningAI Code Repository](https://github.com/RC918/morningai)
-- [Python SDK for Sentry](https://docs.sentry.io/platforms/python/)
+For further details on each component of our system architecture, please refer to the following documentation:
 
-### Troubleshooting Tips
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- PostgreSQL/Supabase: [https://supabase.io/docs](https://supabase.io/docs)
+- Redis Queue (RQ): [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- OpenAI GPT: [https://beta.openai.com/docs/](https://beta.openai.com/docs/)
+- Render.com CI/CD: [https://render.com/docs](https://render.com/docs)
 
-**Issue**: Missing `trace_id` in Sentry transactions.
+### Common Troubleshooting Tips
 
-**Solution**: Ensure that Sentry is correctly initialized at the start of your application. Verify that the DSN is correctly set in your environment variables.
+**Issue:** Application does not start properly due to database connection errors.
+**Solution:** Verify that the PostgreSQL database credentials are correct and that the Supabase instance is accessible. Ensure that environment variables are properly configured.
 
-**Issue**: Errors not linking with `trace_id`.
+**Issue:** Tasks queued in Redis Queue are not being processed.
+**Solution:** Check that RQ workers are running and monitor their heartbeat. Ensure there's no network partitioning or connectivity issues between your application servers and Redis.
 
-**Solution**: Check if the `trace_id` is correctly passed and logged within your tasks or error handlers. Confirm that the Sentry SDK version supports automatic tracing.
+**Issue:** Changes pushed do not reflect in the deployed application on Render.com.
+**Solution:** Ensure that CI/CD pipelines are correctly configured in Render.com settings. Check build logs for any errors during deployment.
 
-For further issues or questions, consult the [Sentry Forums](https://forum.sentry.io/) or reach out to the support team through your Sentry account dashboard.
+This FAQ aims to provide a starting point for understanding MorningAI's system architecture. For more detailed inquiries or specific issues not covered here, developers should consult the project's repository documentation or reach out through the project's issue tracker.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -62,7 +61,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test Sentry trace_id
-- Trace ID: `aa7661d8-4396-4fca-85b7-4bf74d4d90b0`
+- Task: What is the system architecture?
+- Trace ID: `4e68305a-8e2a-4fed-b633-390b282cd18b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
