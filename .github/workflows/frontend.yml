@@ -19,9 +19,8 @@ jobs:
         with:
           version: 9.15.1
       - name: Install dependencies
-        run: |
-          cd frontend-dashboard-deploy
-          pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
+      
       - name: Create environment files for CI
         run: |
           cd frontend-dashboard-deploy
@@ -32,11 +31,11 @@ jobs:
           echo "STRIPE_SECRET_KEY=sk_test_placeholder" >> .env.local
           echo "STRIPE_WEBHOOK_SECRET=whsec_placeholder" >> .env.local
       
-      - name: Build and test frontend
-        run: |
-          cd frontend-dashboard-deploy
-          pnpm run build
-          pnpm run lint
+      - name: Build frontend with Turborepo
+        run: pnpm run build --filter=frontend-dashboard-storybook
+      
+      - name: Lint frontend with Turborepo
+        run: pnpm run lint --filter=frontend-dashboard-storybook
       
       - name: Smoke Tests
         run: |
