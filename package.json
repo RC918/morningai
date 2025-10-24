@@ -6,20 +6,21 @@
   "scripts": {
     "dev": "pnpm --filter frontend-dashboard dev",
     "dev:owner": "pnpm --filter owner-console dev",
-    "build": "pnpm -r build",
-    "build:dashboard": "pnpm --filter frontend-dashboard build",
-    "build:owner": "pnpm --filter owner-console build",
-    "lint": "pnpm -r lint",
-    "lint:dashboard": "pnpm --filter frontend-dashboard lint",
-    "lint:owner": "pnpm --filter owner-console lint",
-    "test": "pnpm -r test",
-    "test:dashboard": "pnpm --filter frontend-dashboard test",
-    "test:owner": "pnpm --filter owner-console test",
-    "typecheck": "pnpm -r typecheck",
-    "typecheck:dashboard": "pnpm --filter frontend-dashboard typecheck",
-    "typecheck:owner": "pnpm --filter owner-console typecheck",
+    "build": "turbo run build",
+    "build:dashboard": "turbo run build --filter=frontend-dashboard",
+    "build:owner": "turbo run build --filter=owner-console",
+    "lint": "turbo run lint",
+    "lint:dashboard": "turbo run lint --filter=frontend-dashboard",
+    "lint:owner": "turbo run lint --filter=owner-console",
+    "test": "turbo run test",
+    "test:dashboard": "turbo run test --filter=frontend-dashboard",
+    "test:owner": "turbo run test --filter=owner-console",
+    "test:e2e": "turbo run test:e2e",
+    "typecheck": "turbo run typecheck",
+    "typecheck:dashboard": "turbo run typecheck --filter=frontend-dashboard",
+    "typecheck:owner": "turbo run typecheck --filter=owner-console",
     "clean": "pnpm -r exec rm -rf node_modules dist build .next",
-    "clean:cache": "rm -rf node_modules/.cache .pnpm-store"
+    "clean:cache": "rm -rf node_modules/.cache .pnpm-store .turbo"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -27,6 +28,7 @@
   },
   "packageManager": "pnpm@9.15.1",
   "devDependencies": {
+    "turbo": "^2.5.8",
     "typescript": "5.9.3"
   },
   "pnpm": {

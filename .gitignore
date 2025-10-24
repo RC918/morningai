@@ -40,3 +40,4 @@ frontend-dashboard-deploy/storybook-static/
 
 # jscpd reports
 jscpd-report/
+.turbo/
