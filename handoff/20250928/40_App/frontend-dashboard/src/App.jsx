@@ -19,6 +19,7 @@ import { OfflineIndicator } from '@/components/feedback/OfflineIndicator'
 import { SkipToContent } from '@/components/SkipToContent'
 import { applyDesignTokens } from '@/lib/design-tokens'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
+import { reportWebVitals } from '@/lib/performance'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
 import { supabase, getSession, signInWithOAuth } from '@/lib/supabaseClient'
@@ -285,6 +286,23 @@ function AppContent() {
 }
 
 function App() {
+  useEffect(() => {
+    reportWebVitals((metric) => {
+      if (import.meta.env.DEV) {
+        console.log(`[Web Vitals] ${metric.name}:`, metric.value, metric)
+      }
+      
+      if (import.meta.env.PROD && window.gtag) {
+        window.gtag('event', metric.name, {
+          value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
+          event_category: 'Web Vitals',
+          event_label: metric.id,
+          non_interaction: true,
+        })
+      }
+    })
+  }, [])
+
   return (
     <ThemeProvider defaultTheme="system" storageKey="morningai-theme">
       <TolgeeProvider tolgee={tolgee} fallback={<PageLoader message="Loading translations..." />}>

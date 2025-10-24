@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import AppleHero from './AppleHero'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { DarkModeToggle } from './DarkModeToggle'
+import { LazyImage } from '@/components/ui/lazy-image'
 
 const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
   const { t } = useTranslation()
@@ -54,7 +55,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
       <header className="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img 
+            <LazyImage 
               src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
               alt="Morning AI" 
               className="w-10 h-10 rounded-lg"
@@ -271,7 +272,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex items-center gap-3">
-                <img 
+                <LazyImage 
                   src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
                   alt="Morning AI" 
                   className="w-10 h-10 rounded-lg shadow-sm"
