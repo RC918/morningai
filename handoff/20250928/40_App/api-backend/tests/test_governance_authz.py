@@ -257,3 +257,65 @@ class TestPolicyGuardRiskRouting:
         
         requires_approval = guard.requires_human_approval([], 'low_risk')
         assert requires_approval is False
+
+
+class TestPolicyGuardComplexPermissions:
+    """Test complex permission scenarios with multiple tools and roles"""
+    
+    def test_permission_level_hierarchy(self, valid_policy_file, monkeypatch):
+        """Test that permission levels follow correct hierarchy"""
+        monkeypatch.setenv('POLICIES_PATH', valid_policy_file)
+        
+        from governance.policy_guard import PolicyGuard
+        
+        guard = PolicyGuard()
+        
+        assert guard._has_permission_level('prod_full_access', 'sandbox_only') is True
+        assert guard._has_permission_level('prod_full_access', 'staging_access') is True
+        assert guard._has_permission_level('prod_full_access', 'prod_low_risk') is True
+        assert guard._has_permission_level('prod_full_access', 'prod_full_access') is True
+        
+        assert guard._has_permission_level('sandbox_only', 'sandbox_only') is True
+        assert guard._has_permission_level('sandbox_only', 'staging_access') is False
+        assert guard._has_permission_level('sandbox_only', 'prod_low_risk') is False
+        assert guard._has_permission_level('sandbox_only', 'prod_full_access') is False
+    
+    def test_unrestricted_tool_access(self, valid_policy_file, monkeypatch):
+        """Test that tools not in restricted list are accessible to all"""
+        monkeypatch.setenv('POLICIES_PATH', valid_policy_file)
+        
+        from governance.policy_guard import PolicyGuard
+        
+        guard = PolicyGuard()
+        
+        assert guard.check_tool_permission('read', 'execute', 'sandbox_only') is True
+        assert guard.check_tool_permission('write', 'execute', 'sandbox_only') is True
+        assert guard.check_tool_permission('search', 'execute', 'sandbox_only') is True
+    
+    def test_network_wildcard_domain_matching(self, valid_policy_file, monkeypatch):
+        """Test wildcard domain matching for network access"""
+        monkeypatch.setenv('POLICIES_PATH', valid_policy_file)
+        
+        from governance.policy_guard import PolicyGuard
+        
+        guard = PolicyGuard()
+        
+        assert guard.check_network_access('api.github.com') is True
+        assert guard.check_network_access('raw.github.com') is True
+        assert guard.check_network_access('gist.github.com') is True
+        assert guard.check_network_access('github.com') is True
+        
+        with pytest.raises(Exception):
+            guard.check_network_access('github.org')
+    
+    def test_file_access_with_nested_wildcards(self, valid_policy_file, monkeypatch):
+        """Test file access with wildcard patterns"""
+        monkeypatch.setenv('POLICIES_PATH', valid_policy_file)
+        
+        from governance.policy_guard import PolicyGuard
+        
+        guard = PolicyGuard()
+        
+        assert guard.check_file_access('/tmp/test.txt') is True
+        
+        assert guard.check_file_access('/home/test.txt') is True
