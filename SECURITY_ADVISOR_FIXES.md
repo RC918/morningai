@@ -7,20 +7,22 @@
 ### ✅ 1. Materialized View in API - `public.daily_cost_summary`
 **狀態**: 已透過 Migration 017 修復
 
-**問題**: Materialized view 可透過 API 存取但未啟用 RLS
+**問題**: Materialized view 可透過 API 存取但未設定存取權限
 
 **修復方式**:
-- 啟用 RLS: `ALTER MATERIALIZED VIEW public.daily_cost_summary ENABLE ROW LEVEL SECURITY`
-- 建立 policies 限制存取權限（service_role 和 authenticated）
+- 使用 GRANT/REVOKE 控制存取權限（PostgreSQL 不支援 materialized views 的 RLS）
+- 撤銷 PUBLIC 的所有權限
+- 授予 service_role 和 authenticated 讀取權限（SELECT）
 
 ### ✅ 2. Materialized View in API - `public.vector_visualization`
 **狀態**: 已透過 Migration 017 修復
 
-**問題**: Materialized view 可透過 API 存取但未啟用 RLS
+**問題**: Materialized view 可透過 API 存取但未設定存取權限
 
 **修復方式**:
-- 啟用 RLS: `ALTER MATERIALIZED VIEW public.vector_visualization ENABLE ROW LEVEL SECURITY`
-- 建立 policies 限制存取權限（service_role 和 authenticated）
+- 使用 GRANT/REVOKE 控制存取權限（PostgreSQL 不支援 materialized views 的 RLS）
+- 撤銷 PUBLIC 的所有權限
+- 授予 service_role 和 authenticated 讀取權限（SELECT）
 
 ### ⚠️ 3. Leaked Password Protection Disabled
 **狀態**: 需要手動啟用
@@ -57,25 +59,26 @@
 
 ## 🔍 驗證方式
 
-### 驗證 RLS 已啟用
+### 驗證權限已設定
 ```sql
--- 檢查 daily_cost_summary RLS 狀態
+-- 檢查 materialized views 的 ACL 權限
 SELECT 
-    schemaname, 
-    tablename, 
-    rowsecurity 
-FROM pg_tables 
-WHERE tablename IN ('daily_cost_summary', 'vector_visualization');
+    c.relname,
+    c.relacl
+FROM pg_class c
+JOIN pg_namespace n ON c.relnamespace = n.oid
+WHERE n.nspname = 'public' 
+AND c.relname IN ('daily_cost_summary', 'vector_visualization');
 
--- 檢查 policies
+-- 檢查特定角色的權限
 SELECT 
-    schemaname,
-    tablename,
-    policyname,
-    roles,
-    cmd
-FROM pg_policies
-WHERE tablename IN ('daily_cost_summary', 'vector_visualization');
+    table_name,
+    grantee,
+    privilege_type
+FROM information_schema.role_table_grants
+WHERE table_schema = 'public' 
+AND table_name IN ('daily_cost_summary', 'vector_visualization')
+ORDER BY table_name, grantee;
 ```
 
 ### 驗證存取權限
@@ -84,7 +87,7 @@ WHERE tablename IN ('daily_cost_summary', 'vector_visualization');
 SELECT COUNT(*) FROM public.daily_cost_summary;
 SELECT COUNT(*) FROM public.vector_visualization;
 
--- 測試 anon 使用者無法存取（應該回傳 0 或錯誤）
+-- 測試 anon 使用者無法存取（應該回傳權限錯誤）
 SET ROLE anon;
 SELECT COUNT(*) FROM public.daily_cost_summary;  -- 應該失敗
 RESET ROLE;
@@ -92,10 +95,17 @@ RESET ROLE;
 
 ## 📝 技術細節
 
-### Materialized Views 的 RLS
-- Materialized views 支援 RLS，但需要明確啟用
-- RLS policies 的運作方式與一般 tables 相同
-- 只有符合 policy 條件的 rows 會被回傳
+### Materialized Views 的權限控制
+- **重要**: PostgreSQL **不支援** materialized views 的 Row Level Security (RLS)
+- RLS 只能用於普通 tables，不能用於 materialized views
+- 因此使用 GRANT/REVOKE 來控制存取權限
+- 這是 PostgreSQL 的限制，不是 Supabase 的限制
+
+### 權限模型
+- `PUBLIC`: 撤銷所有權限（預設情況下任何人都可以存取）
+- `service_role`: 授予 SELECT 權限（backend 服務使用）
+- `authenticated`: 授予 SELECT 權限（已登入的 Dashboard 使用者）
+- `anon`: 無權限（未登入的使用者無法存取）
 
 ### Leaked Password Protection
 - 使用 [Have I Been Pwned](https://haveibeenpwned.com/) API
@@ -120,8 +130,14 @@ RESET ROLE;
 
 ## ❓ 常見問題
 
-### Q: 為什麼 materialized views 需要 RLS？
-A: 雖然我們已經用 GRANT/REVOKE 限制權限，但 Supabase Security Advisor 建議所有可透過 API 存取的物件都應該啟用 RLS，提供額外的安全層。
+### Q: 為什麼不使用 RLS 而是使用 GRANT/REVOKE？
+A: PostgreSQL **不支援** materialized views 的 Row Level Security (RLS)。這是 PostgreSQL 的限制，不是 Supabase 的限制。因此我們使用 GRANT/REVOKE 來控制存取權限，這是 materialized views 唯一可用的權限控制方式。
+
+### Q: GRANT/REVOKE 和 RLS 有什麼差別？
+A: 
+- **GRANT/REVOKE**: 控制哪些**角色**可以存取整個 table/view（粗粒度）
+- **RLS**: 控制哪些**使用者**可以存取哪些**特定 rows**（細粒度）
+- 對於 materialized views，我們只能使用 GRANT/REVOKE
 
 ### Q: 啟用 Leaked Password Protection 會影響現有使用者嗎？
 A: 不會。這個功能只在新使用者註冊或現有使用者變更密碼時生效。現有密碼不會被檢查。
@@ -130,4 +146,4 @@ A: 不會。這個功能只在新使用者註冊或現有使用者變更密碼�
 A: Supabase 會拒絕該密碼並要求使用者選擇不同的密碼。
 
 ### Q: 這些修復會影響效能嗎？
-A: RLS 對 materialized views 的效能影響極小，因為這些 views 主要由 service_role 存取。Leaked Password Protection 只在註冊/變更密碼時執行，不影響日常操作。
+A: GRANT/REVOKE 對效能沒有影響，因為權限檢查在 PostgreSQL 層級進行。Leaked Password Protection 只在註冊/變更密碼時執行，不影響日常操作。

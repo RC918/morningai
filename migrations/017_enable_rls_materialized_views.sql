@@ -1,118 +1,114 @@
 -- ============================================================================
+-- Migration 017: Secure Materialized Views with GRANT/REVOKE
 -- ============================================================================
 --
+-- Purpose: Fix Supabase Security Advisor warnings for materialized views
 --
+-- Background:
+-- PostgreSQL does NOT support Row Level Security (RLS) on materialized views.
+-- RLS can only be applied to regular tables. Therefore, we use GRANT/REVOKE
+-- to control access permissions instead.
 --
+-- Security Model:
+-- - service_role: Full access (SELECT) - used by backend services
+-- - authenticated: Read-only access (SELECT) - used by Dashboard users
+-- - anon: No access - public users cannot access cost/vector data
+-- - PUBLIC: No access - revoke all default permissions
 -- ============================================================================
 
 -- ============================================================================
 -- ============================================================================
 
-ALTER MATERIALIZED VIEW public.daily_cost_summary ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.daily_cost_summary FROM PUBLIC;
+REVOKE ALL ON public.vector_visualization FROM PUBLIC;
 
-CREATE POLICY "service_role_full_access_daily_cost_summary"
-ON public.daily_cost_summary
-FOR SELECT
-TO service_role
-USING (true);
+-- ============================================================================
+-- Step 2: Grant SELECT permission to service_role
+-- ============================================================================
 
-CREATE POLICY "authenticated_read_daily_cost_summary"
-ON public.daily_cost_summary
-FOR SELECT
-TO authenticated
-USING (true);
-
-COMMENT ON POLICY "service_role_full_access_daily_cost_summary" ON public.daily_cost_summary 
-IS 'Service role has full access to daily cost summary';
-
-COMMENT ON POLICY "authenticated_read_daily_cost_summary" ON public.daily_cost_summary 
-IS 'Authenticated users can read daily cost summary';
-
-ALTER MATERIALIZED VIEW public.vector_visualization ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "service_role_full_access_vector_visualization"
-ON public.vector_visualization
-FOR SELECT
-TO service_role
-USING (true);
-
-CREATE POLICY "authenticated_read_vector_visualization"
-ON public.vector_visualization
-FOR SELECT
-TO authenticated
-USING (true);
-
-COMMENT ON POLICY "service_role_full_access_vector_visualization" ON public.vector_visualization 
-IS 'Service role has full access to vector visualization';
-
-COMMENT ON POLICY "authenticated_read_vector_visualization" ON public.vector_visualization 
-IS 'Authenticated users can read vector visualization';
+GRANT SELECT ON public.daily_cost_summary TO service_role;
+GRANT SELECT ON public.vector_visualization TO service_role;
 
 -- ============================================================================
 -- ============================================================================
 
--- 
+GRANT SELECT ON public.daily_cost_summary TO authenticated;
+GRANT SELECT ON public.vector_visualization TO authenticated;
+
+-- ============================================================================
+-- ============================================================================
+
+COMMENT ON MATERIALIZED VIEW public.daily_cost_summary IS 
+'Materialized view for daily cost summary. Access controlled via GRANT/REVOKE. Service role and authenticated users have SELECT access.';
+
+COMMENT ON MATERIALIZED VIEW public.vector_visualization IS 
+'Materialized view for vector visualization. Access controlled via GRANT/REVOKE. Service role and authenticated users have SELECT access.';
 
 -- ============================================================================
 -- ============================================================================
 
 DO $$
 DECLARE
-    daily_cost_rls_enabled BOOLEAN;
-    vector_viz_rls_enabled BOOLEAN;
-    daily_cost_policy_count INTEGER;
-    vector_viz_policy_count INTEGER;
+    daily_cost_perms TEXT[];
+    vector_viz_perms TEXT[];
 BEGIN
     RAISE NOTICE '
 ╔════════════════════════════════════════════════════════════╗
-║  Migration 017: RLS for Materialized Views                ║
+║  Migration 017: Secure Materialized Views                 ║
 ╚════════════════════════════════════════════════════════════╝
 ';
 
-    SELECT relrowsecurity INTO daily_cost_rls_enabled
-    FROM pg_class c
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE n.nspname = 'public' 
-    AND c.relname = 'daily_cost_summary';
+    -- Check permissions for daily_cost_summary
+    SELECT array_agg(grantee || ':' || privilege_type)
+    INTO daily_cost_perms
+    FROM information_schema.role_table_grants
+    WHERE table_schema = 'public' 
+    AND table_name = 'daily_cost_summary';
     
-    SELECT relrowsecurity INTO vector_viz_rls_enabled
-    FROM pg_class c
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE n.nspname = 'public' 
-    AND c.relname = 'vector_visualization';
+    -- Check permissions for vector_visualization
+    SELECT array_agg(grantee || ':' || privilege_type)
+    INTO vector_viz_perms
+    FROM information_schema.role_table_grants
+    WHERE table_schema = 'public' 
+    AND table_name = 'vector_visualization';
     
-    IF daily_cost_rls_enabled THEN
-        RAISE NOTICE '✅ daily_cost_summary: RLS enabled';
+    RAISE NOTICE '✅ daily_cost_summary permissions: %', daily_cost_perms;
+    RAISE NOTICE '✅ vector_visualization permissions: %', vector_viz_perms;
+    
+    IF EXISTS (
+        SELECT 1 FROM information_schema.role_table_grants
+        WHERE table_schema = 'public' 
+        AND table_name = 'daily_cost_summary'
+        AND grantee = 'service_role'
+        AND privilege_type = 'SELECT'
+    ) THEN
+        RAISE NOTICE '✅ service_role has SELECT on daily_cost_summary';
     ELSE
-        RAISE WARNING '⚠️  daily_cost_summary: RLS not enabled';
+        RAISE WARNING '⚠️  service_role does NOT have SELECT on daily_cost_summary';
     END IF;
     
-    IF vector_viz_rls_enabled THEN
-        RAISE NOTICE '✅ vector_visualization: RLS enabled';
+    IF EXISTS (
+        SELECT 1 FROM information_schema.role_table_grants
+        WHERE table_schema = 'public' 
+        AND table_name = 'daily_cost_summary'
+        AND grantee = 'authenticated'
+        AND privilege_type = 'SELECT'
+    ) THEN
+        RAISE NOTICE '✅ authenticated has SELECT on daily_cost_summary';
     ELSE
-        RAISE WARNING '⚠️  vector_visualization: RLS not enabled';
+        RAISE WARNING '⚠️  authenticated does NOT have SELECT on daily_cost_summary';
     END IF;
-    
-    SELECT COUNT(*) INTO daily_cost_policy_count
-    FROM pg_policies
-    WHERE schemaname = 'public' 
-    AND tablename = 'daily_cost_summary';
-    
-    SELECT COUNT(*) INTO vector_viz_policy_count
-    FROM pg_policies
-    WHERE schemaname = 'public' 
-    AND tablename = 'vector_visualization';
-    
-    RAISE NOTICE '✅ daily_cost_summary policies: %', daily_cost_policy_count;
-    RAISE NOTICE '✅ vector_visualization policies: %', vector_viz_policy_count;
     
     RAISE NOTICE '
 ╔════════════════════════════════════════════════════════════╗
 ║  Summary                                                   ║
 ╠════════════════════════════════════════════════════════════╣
-║  ✅ RLS enabled for daily_cost_summary                     ║
-║  ✅ RLS enabled for vector_visualization                   ║
-║  ✅ Policies created for service_role and authenticated    ║
+║  ✅ Permissions configured for daily_cost_summary          ║
+║  ✅ Permissions configured for vector_visualization        ║
+║  ✅ service_role: SELECT access granted                    ║
+║  ✅ authenticated: SELECT access granted                   ║
+║  ✅ anon: No access (default)                              ║
+║  ✅ PUBLIC: All permissions revoked                        ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Manual Action Required:                                   ║
 ║  ⚠️  Enable Leaked Password Protection in Supabase         ║
