@@ -1,9 +1,15 @@
-# name: "CTO Strategic Roadmap: Q4 2025 - Q2 2026"
+# name: "CTO Strategic Roadmap: Q4 2025 - Q2 2026 (Integrated)"
 description: >
   World-Class AI Agent Ecosystem Transformation Roadmap
-  Based on CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md
-  Timeline: October 2025 - June 2026 (9 months)
-  Budget: $359,078-409,808
+  Integrated from three strategic assessments:
+  - CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md
+  - CTO Strategic Assessment (PR #664)
+  - MVP Journey Report
+  
+  See CTO_STRATEGIC_INTEGRATION_ANALYSIS.md for detailed integration analysis.
+  
+  Timeline: October 2025 - June 2026 (24 weeks / ~6 months)
+  Budget: $322,450 (24 weeks) / $352k (6 months extrapolated)
 type: board
 
 columns:
@@ -107,6 +113,55 @@ cards:
       
       **Related**: CTO Strategic Plan Part I, Section 1.2
     column: 🔴 P0 Critical (Immediate)
+  
+  # Agent MVP - P0 (Week 1-2)
+  - title: "🤖 Implement LLM-Driven Planner (orchestrator/llm/planner.py)"
+    note: |
+      **Priority**: P0 - AGENT MVP
+      **Timeline**: Week 1-2 (Oct 2025)
+      **Owner**: CTO + AI/ML Engineer
+      **Effort**: High
+      
+      **Tasks**:
+      - Create orchestrator/llm/planner.py module
+      - Integrate GPT-4 for dynamic task decomposition
+      - Replace hardcoded steps with context-aware planning
+      - Analyze codebase context before planning
+      - Add planning accuracy metrics
+      
+      **Success Criteria**:
+      - Dynamic plans generated based on goal complexity
+      - Planning accuracy ≥ 90%
+      - Context-aware (analyzes repo before planning)
+      - Handles multiple task types (not just FAQ)
+      
+      **Related**: CTO Integration Analysis, Week 1-2
+      **Source**: CTO Strategic Assessment (PR #664)
+    column: 🔴 P0 Critical (Immediate)
+  
+  - title: "💻 Implement GPT-4 Code Generator (orchestrator/llm/code_generator.py)"
+    note: |
+      **Priority**: P0 - AGENT MVP
+      **Timeline**: Week 1-2 (Oct 2025)
+      **Owner**: CTO + AI/ML Engineer
+      **Effort**: High
+      
+      **Tasks**:
+      - Create orchestrator/llm/code_generator.py module
+      - Integrate GPT-4 for code generation
+      - Add LSP tools for code analysis
+      - Implement fix generation logic
+      - Add quality validation
+      
+      **Success Criteria**:
+      - Generates code fixes automatically
+      - Fix success rate ≥ 70%
+      - Uses LSP for context
+      - Quality score ≥ 7/10
+      
+      **Related**: CTO Integration Analysis, Week 1-2
+      **Source**: CTO Strategic Assessment (PR #664)
+    column: 🔴 P0 Critical (Immediate)
 
   # ========================================
   # P1 HIGH PRIORITY - 30 DAYS
@@ -203,9 +258,15 @@ cards:
   - title: "💳 Stripe Integration MVP (Subscription Creation)"
     note: |
       **Priority**: P1 - COMMERCIALIZATION
-      **Timeline**: Week 1-2 (Nov 2025)
+      **Timeline**: Week 7-8 (Dec 2025) - ADJUSTED from Week 1-2
       **Owner**: Backend Engineer + Product Manager
       **Effort**: Medium
+      
+      **Rationale for Timeline Adjustment**:
+      - Moved from Week 1-2 to Week 7-8 to avoid resource conflicts
+      - Requires stable multi-instance backend (Week 3-4)
+      - Agent MVP takes priority (Week 1-6)
+      - Reduces risk of rushed implementation
       
       **Tasks**:
       - Implement subscription creation API
@@ -221,6 +282,7 @@ cards:
       - Test mode fully working
       
       **Related**: CTO Strategic Plan Part IV, Section 4.1
+      **Updated**: CTO Integration Analysis (Timeline Conflict Resolution)
     column: 🟡 P1 High Priority (30 days)
   
   - title: "📊 Implement Usage Tracking & Metering"
