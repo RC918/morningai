@@ -27,7 +27,7 @@ jobs:
       - name: Pull translations from Tolgee
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
-          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+          TOLGEE_API_KEY: ${{ secrets.VITE_TOLGEE_API_KEY }}
         run: |
           tolgee login "$TOLGEE_API_KEY"
           tolgee pull --project-id=23882 --path ./src/i18n/locales
