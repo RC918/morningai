@@ -1,6 +1,9 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "remoteCache": {
+    "enabled": true
+  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -14,11 +17,9 @@
       ]
     },
     "lint": {
-      "dependsOn": ["^build"],
       "outputs": []
     },
     "typecheck": {
-      "dependsOn": ["^build"],
       "outputs": []
     },
     "test": {
