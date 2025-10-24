@@ -1,0 +1,78 @@
+# Gitleaks Configuration
+# https://github.com/gitleaks/gitleaks
+
+title = "MorningAI Gitleaks Configuration"
+
+# Paths to exclude from scanning
+[allowlist]
+description = "Allowlist for false positives"
+
+# Exclude entire paths
+paths = [
+    # Documentation files
+    '''.*\.md$''',
+    '''.*README.*''',
+    '''.*CHANGELOG.*''',
+    '''.*GUIDE.*''',
+    '''.*REPORT.*''',
+    
+    # Test files
+    '''.*/tests/.*''',
+    '''.*/test_.*\.py$''',
+    '''.*/__tests__/.*''',
+    '''.*/fixtures/.*''',
+    '''.*/mocks/.*''',
+    '''.*\.test\..*''',
+    '''.*\.spec\..*''',
+    
+    # Build artifacts
+    '''.*/dist/.*''',
+    '''.*/build/.*''',
+    '''.*/\.next/.*''',
+    '''.*/\.turbo/.*''',
+    '''.*/node_modules/.*''',
+    '''.*/__pycache__/.*''',
+    '''.*/\.pytest_cache/.*''',
+    '''.*/coverage/.*''',
+    
+    # Lock files
+    '''.*package-lock\.json$''',
+    '''.*pnpm-lock\.yaml$''',
+    '''.*poetry\.lock$''',
+    '''.*yarn\.lock$''',
+    
+    # Example/template files
+    '''.*\.example$''',
+    '''.*\.template$''',
+    '''.*env_schema\.yaml$''',
+    
+    # Backup files
+    '''.*\.sql$''',
+    '''.*backup.*\.sql$''',
+]
+
+# Regex patterns to exclude
+regexes = [
+    # Placeholder/example credentials
+    '''(sk_test_placeholder|your_api_key_here|YOUR_JWT_TOKEN|your-api-key|invalid-token|example-token)''',
+    
+    # Test/mock credentials
+    '''(test_key_|mock_|dummy_|fake_|example_)''',
+    
+    # Documentation placeholders
+    '''(PLACEHOLDER|EXAMPLE|YOUR_.*_HERE)''',
+]
+
+# Stop words (case-insensitive)
+stopwords = [
+    "placeholder",
+    "example",
+    "test",
+    "mock",
+    "dummy",
+    "fake",
+    "sample",
+    "your_api_key",
+    "your_token",
+    "invalid",
+]
