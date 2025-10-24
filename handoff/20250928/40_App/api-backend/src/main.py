@@ -178,9 +178,21 @@ def get_health_payload():
         except Exception as e:
             db_status = f"error: {str(e)[:100]}"
         
+        redis_info = {"status": "not_configured"}
+        try:
+            from src.utils.redis_client import get_redis_connection_info
+            redis_info = get_redis_connection_info()
+            redis_info["status"] = "connected"
+        except Exception as e:
+            redis_info = {
+                "status": "error",
+                "error": str(e)[:100]
+            }
+        
         return {
             "status": "healthy" if db_status == "connected" else "degraded",
             "database": str(db_status),
+            "redis": redis_info,
             "phase": str(os.environ.get('APP_PHASE', 'Phase 8: Self-service Dashboard & Reporting Center')),
             "version": str(os.environ.get('APP_VERSION', '8.0.0')),
             "timestamp": datetime.datetime.now().isoformat(),

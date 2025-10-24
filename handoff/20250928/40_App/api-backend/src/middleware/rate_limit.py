@@ -3,26 +3,15 @@ import time
 import logging
 from functools import wraps
 from flask import request, jsonify
-from redis import Redis, ConnectionError as RedisConnectionError
+from redis import ConnectionError as RedisConnectionError
 
 logger = logging.getLogger(__name__)
 
 redis_client = None
 try:
-    redis_url = os.getenv("REDIS_URL")
-    if not redis_url:
-        logger.warning("REDIS_URL not set, rate limiting will be disabled")
-        redis_client = None
-    else:
-        redis_client = Redis.from_url(
-            redis_url,
-            decode_responses=True,
-            socket_connect_timeout=5,
-            socket_timeout=5,
-            retry_on_timeout=True
-        )
-        redis_client.ping()
-        logger.info(f"Rate limit Redis connection established to {redis_url.split('@')[-1] if '@' in redis_url else redis_url.split('//')[1].split('/')[0]}")
+    from src.utils.redis_client import get_redis_client
+    redis_client = get_redis_client()
+    logger.info("Rate limit Redis connection established")
 except Exception as e:
     logger.warning(f"Rate limit Redis unavailable, rate limiting will be disabled: {e}")
     redis_client = None
