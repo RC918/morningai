@@ -1,77 +1,108 @@
-# MorningAI System Architecture
+# System Architecture of MorningAI
 
-The MorningAI platform is designed as a multi-tenant Software as a Service (SaaS) solution, leveraging a modern stack to offer autonomous code generation, documentation management, and real-time task orchestration. This section provides an overview of the system architecture, aimed at helping developers understand and effectively utilize the MorningAI platform.
+MorningAI is a robust, multi-tenant SaaS platform designed to enhance productivity through autonomous agent systems for code generation, comprehensive FAQ generation, documentation management, and seamless multi-platform integration. Its architecture is built to support real-time task orchestration and vector memory storage efficiently. Below is an in-depth overview of the system's architecture, designed to help developers navigate and utilize MorningAI effectively.
 
 ## Overview
 
-MorningAI's architecture is built to support scalability, performance, and ease of integration. It consists of several key components:
+The MorningAI platform leverages a modern technology stack that includes:
 
-- **Frontend:** Developed with React, Vite, and TailwindCSS for a responsive and modern user interface.
-- **Backend:** Python and Flask are used for server-side logic, with Gunicorn serving as the WSGI HTTP Server to manage multiple worker processes.
-- **Database:** PostgreSQL, enhanced with Row Level Security (RLS) via Supabase for secure data storage and vector memory storage.
-- **Queue System:** Redis Queue (RQ) is utilized for managing background jobs with worker heartbeat monitoring to ensure reliability.
-- **Orchestration:** LangGraph orchestrates agent workflows, facilitating complex task management.
-- **AI Layer:** Integrates OpenAI's GPT-4 for cutting-edge content generation capabilities.
-- **Deployment:** Hosted on Render.com with continuous integration and delivery (CI/CD) pipelines in place for streamlined updates.
+- **Frontend**: Developed with React, utilizing Vite for build optimization and TailwindCSS for styling.
+- **Backend**: Python with Flask serves as the core backend framework, enhanced with Gunicorn for multi-worker support.
+- **Database**: PostgreSQL managed via Supabase, incorporating Row Level Security (RLS) for data integrity and security.
+- **Queue System**: Redis Queue (RQ) facilitates asynchronous task processing, equipped with worker heartbeat monitoring for reliability.
+- **Orchestration**: LangGraph is used for orchestrating agent workflows, ensuring efficient task management.
+- **AI Integration**: OpenAI's GPT-4 powers content generation, providing advanced natural language processing capabilities.
+- **Deployment**: Render.com hosts the application, benefiting from its integrated CI/CD pipelines for streamlined deployments.
 
-### Code Examples
+### Detailed Architecture
 
-#### Flask Application Initialization
+MorningAI's architecture is designed to be scalable and resilient, ensuring high availability and performance. Here's a breakdown:
+
+#### Frontend
+
+```jsx
+// src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Route } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import 'tailwindcss/tailwind.css';
+
+function App() {
+  return (
+    <Router>
+      <Route path="/" component={HomePage} />
+    </Router>
+  );
+}
+
+export default App;
+```
+
+This snippet demonstrates the application's entry point using React Router for page navigation and TailwindCSS for styling.
+
+#### Backend
 
 ```python
+# app.py
 from flask import Flask
-from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_gunicorn import GunicornApp
 
 app = Flask(__name__)
-app.wsgi_app = ProxyFix(app.wsgi_app)
+
+@app.route("/")
+def hello_world():
+    return "Hello, MorningAI!"
+
+if __name__ == "__main__":
+    GunicornApp(app).run()
 ```
 
-#### Gunicorn Configuration
+A basic Flask application setup with Gunicorn integration illustrates how the backend serves HTTP requests.
 
-Example `gunicorn.conf.py`:
+#### Database Integration
 
-```python
-workers = 4
-bind = '0.0.0.0:8000'
-worker_class = 'gevent'
+Supabase integration ensures secure and scalable database management:
+
+```sql
+-- Create a table with RLS enabled
+CREATE TABLE documents (
+    id SERIAL PRIMARY KEY,
+    content TEXT,
+    tenant_id INTEGER
+);
+
+-- Enable Row Level Security
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ```
 
-#### Redis Queue Setup
-
-```python
-import redis
-from rq import Queue
-
-r = redis.Redis()
-q = Queue(connection=r)
-
-def background_task():
-    # Your background task code here
-    pass
-
-job = q.enqueue(background_task)
-```
-
-### Related Documentation Links
-
-- [Flask Documentation](https://flask.palletsprojects.com/en/2.1.x/)
-- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
-- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
-- [Supabase Documentation](https://supabase.io/docs)
-- [Render.com Deployment Documentation](https://render.com/docs)
+This SQL snippet shows how to create a database table with RLS enabled in Supabase.
 
 ### Common Troubleshooting Tips
 
-**Issue**: Worker processes hang or fail to start  
-**Solution**: Ensure Gunicorn is properly configured with adequate workers and that Redis Queue has sufficient resources available. Check the logs for any specific error messages.
+**Issue: Failed Deployment on Render.com**
+- Ensure your `render.yaml` file is correctly configured with the appropriate service specifications.
+- Check the logs provided by Render.com for specific error messages that can guide troubleshooting.
 
-**Issue**: Database connection errors  
-**Solution**: Verify your Supabase credentials and database URL. Ensure that your database is running and accessible from your application environment.
+**Issue: Tasks Stuck in Redis Queue**
+- Verify that Redis workers are online and adequately scaled to handle the workload. Use `rq info` command to monitor queue status.
+- Inspect worker heartbeat logs to identify any workers that might have become unresponsive.
 
-**Issue**: Frontend not updating after deployment  
-**Solution**: Confirm that your CI/CD pipeline on Render.com has successfully completed. Clear browser cache or use a hard refresh to ensure the latest version is loaded.
+**Issue: Database Connection Errors**
+- Confirm that your Supabase connection strings are correctly configured in your application settings.
+- Ensure network rules and permissions in Supabase allow connections from your application's deployment environment.
 
-For more detailed troubleshooting guides, refer to the respective component documentation linked above.
+### Related Documentation Links
+
+For more detailed information on each component of MorningAI's system architecture, please refer to the following documentation resources:
+
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [Render.com Deployment Guides](https://render.com/docs)
+
+By understanding MorningAI's comprehensive system architecture, developers can better leverage its capabilities to build efficient, scalable applications.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -80,6 +111,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `86b935d4-b99b-425d-8b45-88d8e2780cdc`
+- Trace ID: `83b0b691-c324-4341-8c6a-f4cbc6869bd3`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
