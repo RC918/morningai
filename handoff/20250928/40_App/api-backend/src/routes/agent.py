@@ -42,8 +42,13 @@ class FAQRequest(BaseModel):
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
+
+redis_url = os.getenv("REDIS_URL")
+if not redis_url:
+    raise RuntimeError("REDIS_URL environment variable is required but not set")
+
 redis_client = Redis.from_url(
-    os.getenv("REDIS_URL", "redis://localhost:6379/0"), 
+    redis_url, 
     decode_responses=True,
     socket_connect_timeout=5,
     socket_timeout=30,
@@ -51,7 +56,7 @@ redis_client = Redis.from_url(
     retry_on_timeout=True
 )
 redis_client_rq = Redis.from_url(
-    os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    redis_url,
     socket_connect_timeout=5,
     socket_timeout=30,
     retry=retry,

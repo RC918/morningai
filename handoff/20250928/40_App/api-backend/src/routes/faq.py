@@ -42,8 +42,13 @@ else:
 bp = Blueprint("faq", __name__, url_prefix="/api/faq")
 
 retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
+
+redis_url = os.getenv("REDIS_URL")
+if not redis_url:
+    raise RuntimeError("REDIS_URL environment variable is required but not set")
+
 redis_client = Redis.from_url(
-    os.getenv("REDIS_URL", "redis://localhost:6379/0"), 
+    redis_url, 
     decode_responses=True,
     socket_connect_timeout=5,
     socket_timeout=30,

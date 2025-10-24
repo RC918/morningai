@@ -4,6 +4,10 @@ import datetime
 import asyncio
 import re
 
+orchestrator_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../orchestrator'))
+if os.path.exists(orchestrator_path) and orchestrator_path not in sys.path:
+    sys.path.insert(0, orchestrator_path)
+
 from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
 from src.routes.tenant import bp as tenant_bp
@@ -540,7 +544,11 @@ def generate_report():
             return Response(csv_data, mimetype='text/csv', 
                           headers={'Content-Disposition': f'attachment; filename=report_{report_type}_{time_range}.csv'})
         else:
-            return jsonify(report_data)
+            from dataclasses import asdict
+            report_dict = asdict(report_data)
+            if 'generated_at' in report_dict and isinstance(report_dict['generated_at'], datetime.datetime):
+                report_dict['generated_at'] = report_dict['generated_at'].isoformat()
+            return jsonify(report_dict)
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
