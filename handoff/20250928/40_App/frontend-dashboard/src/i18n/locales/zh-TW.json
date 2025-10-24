@@ -901,6 +901,13 @@
     "statusError": "錯誤",
     "statusInfo": "資訊"
   },
+  "form": {
+    "required": "必填",
+    "optional": "選填",
+    "fieldRequired": "此欄位為必填",
+    "invalidEmail": "請輸入有效的電子郵件地址",
+    "invalidFormat": "格式無效"
+  },
   "accessibility": {
     "skipToContent": "跳至主要內容",
     "closeDialog": "關閉對話框",
