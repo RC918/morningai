@@ -1,63 +1,100 @@
-# Test Retry Mechanism in MorningAI
+# System Architecture of MorningAI
 
-MorningAI implements a robust test retry mechanism to ensure the reliability and stability of code before it's deployed. This FAQ is designed to help developers understand and utilize this feature within the MorningAI platform effectively.
+MorningAI is designed as a scalable, multi-tenant SaaS platform that leverages modern technologies to provide autonomous code generation, FAQ and documentation management, and seamless integration across multiple messaging platforms. The architecture is built to support real-time task orchestration and efficient memory storage for optimal performance and reliability. Below is a detailed explanation of the system architecture, including key components and their interactions.
 
-## Understanding the Test Retry Mechanism
+## Core Components
 
-The test retry mechanism in MorningAI is designed to automatically rerun failed tests a configurable number of times before marking them as failures. This approach helps mitigate issues caused by transient conditions such as network latency, temporary service outages, or flaky tests.
+### Frontend
+- **Technologies Used**: React, Vite, TailwindCSS
+- **Purpose**: Provides the user interface for interacting with MorningAI services.
+- **Path in Repository**: `/frontend`
+- **Example**:
+  ```javascript
+  import React from 'react';
+  import ReactDOM from 'react-dom';
+  import './index.css';
+  import App from './App';
 
-### How It Works
+  ReactDOM.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+    document.getElementById('root')
+  );
+  ```
 
-When a test fails during the CI/CD pipeline execution, the retry mechanism kicks in based on the rules defined in the configuration file. If the test passes on any subsequent attempt, it is marked as passed for the pipeline execution, reducing the likelihood of false negatives impacting development workflows.
+### Backend
+- **Technologies Used**: Python, Flask, Gunicorn with multi-worker support
+- **Purpose**: Handles business logic, data processing, and serves API requests.
+- **Path in Repository**: `/backend`
+- **Configuration Example**:
+  ```python
+  from flask import Flask
+  app = Flask(__name__)
 
-### Configuration
+  @app.route('/')
+  def hello_world():
+      return 'Hello, World!'
+  
+  if __name__ == '__main__':
+      app.run()
+  ```
 
-To configure test retries in MorningAI, navigate to your project settings within the repository at `RC918/morningai`. In the CI/CD configuration file (commonly `.gitlab-ci.yml` or `.github/workflows/ci.yml`), you can specify the retry policy.
+### Database
+- **Technology Used**: PostgreSQL (Supabase) with Row Level Security
+- **Purpose**: Stores user data, agent configurations, and task execution logs securely.
+- **Path in Repository**: Configuration details can be found under `/backend/config`.
+  
+### Queue System
+- **Technology Used**: Redis Queue (RQ) with worker heartbeat monitoring
+- **Purpose**: Manages task queues for asynchronous execution of tasks.
+- **Example**:
+  ```python
+  from rq import Queue
+  from redis import Redis
+  redis_conn = Redis()
+  q = Queue(connection=redis_conn)
 
-Example configuration snippet for a GitLab CI pipeline:
+  def background_task(n):
+      """ Function that returns len(n) and simulates a delay """
+      import time
+      time.sleep(1)
+      return len(n)
 
-```yaml
-test_job:
-  script: pytest
-  retry:
-    max: 2
-    when:
-      - runner_system_failure
-      - unknown_failure
-```
+  job = q.enqueue(background_task, 'http://example.com')
+  ```
 
-This configuration will retry any test job up to two additional times if it fails due to system failures or unknown errors.
+### AI Integration
+- **Technology Used**: OpenAI GPT-4 for content generation and LangGraph for agent workflows.
+- **Purpose**: Powers the autonomous agent system for code generation and FAQ content creation.
+  
+### Deployment & CI/CD
+- **Platform Used**: Render.com
+- **Purpose**: Facilitates continuous integration and delivery for seamless updates to the MorningAI platform.
 
-### Code Example for Implementing Retries in Tests Directly
+## Related Documentation Links
 
-If using pytest, you can leverage the `pytest-rerunfailures` plugin to add retries directly in your tests:
+For more detailed information on each component:
 
-```bash
-pip install pytest-rerunfailures
-```
-
-Then, modify your pytest command as follows:
-
-```bash
-pytest --reruns 3
-```
-
-This will rerun any failed tests up to three times.
-
-### Related Documentation Links
-
-- [GitLab CI/CD Pipeline Configuration](https://docs.gitlab.com/ee/ci/yaml/)
-- [GitHub Actions Workflow Syntax](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)
-- [Pytest RerunFailures Plugin](https://github.com/pytest-dev/pytest-rerunfailures)
+1. [React Documentation](https://reactjs.org/docs/getting-started.html)
+2. [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+3. [Supabase Documentation](https://supabase.io/docs)
+4. [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+5. [OpenAI API Documentation](https://beta.openai.com/docs/)
 
 ## Common Troubleshooting Tips
 
-- **Ensure Consistent Environment**: Flakiness can often be reduced by ensuring that tests run in a consistent environment. Use Docker containers or similar technologies to standardize test environments.
-- **Review Test Logs**: Always review logs from failed tests before and after retries. This can provide insights into whether an issue is truly transient or indicative of a deeper problem.
-- **Adjust Retry Count Carefully**: While retries can help with flakiness, too many retries might mask real issues. Start with a low number of retries and adjust based on observed behavior.
-- **Isolate Flaky Tests**: If certain tests are consistently flaky, consider isolating them from your main test suite until they can be stabilized.
+### Backend Service Not Responding
 
-By understanding and properly configuring the test retry mechanism in MorningAI, developers can significantly improve their development workflow and reduce interruptions caused by transient test failures.
+Ensure Gunicorn is properly configured with workers set according to your server's capacity. Check `gunicorn.conf.py` for configurations.
+
+### Database Connection Issues
+
+Verify your Supabase credentials are correctly set in your backend configuration file. Ensure Row Level Security policies do not unintentionally block queries.
+
+### Task Queue Delays
+
+Monitor the Redis Queue dashboard for failed jobs or check the worker logs for errors. Ensure Redis is running and accessible by your backend service.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -65,7 +102,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test retry success
-- Trace ID: `ffaf9265-954e-4433-8376-0935b86cab69`
+- Task: What is the system architecture?
+- Trace ID: `235a9aca-7bbd-49ed-bb29-ed912c403b59`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
