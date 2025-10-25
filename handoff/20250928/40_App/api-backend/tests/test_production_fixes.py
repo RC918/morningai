@@ -35,8 +35,8 @@ class TestRedisConfiguration:
     def test_agent_redis_url_required(self):
         """Test that agent.py requires REDIS_URL"""
         with patch.dict(os.environ, {}, clear=True):
-            # Should raise RuntimeError when REDIS_URL not set
-            with pytest.raises(RuntimeError, match="REDIS_URL environment variable is required"):
+            # Should raise ValueError when REDIS_URL not set (from get_secure_redis_url)
+            with pytest.raises(ValueError, match="No REDIS_URL environment variable found"):
                 import importlib
                 import src.routes.agent as agent_module
                 importlib.reload(agent_module)
@@ -44,8 +44,8 @@ class TestRedisConfiguration:
     def test_faq_redis_url_required(self):
         """Test that faq.py requires REDIS_URL"""
         with patch.dict(os.environ, {}, clear=True):
-            # Should raise RuntimeError when REDIS_URL not set
-            with pytest.raises(RuntimeError, match="REDIS_URL environment variable is required"):
+            # Should raise ValueError when REDIS_URL not set (from get_secure_redis_url)
+            with pytest.raises(ValueError, match="No REDIS_URL environment variable found"):
                 import importlib
                 import src.routes.faq as faq_module
                 importlib.reload(faq_module)

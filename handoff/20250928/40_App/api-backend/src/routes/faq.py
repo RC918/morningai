@@ -2,6 +2,7 @@ import os
 import json
 import hashlib
 import logging
+import ssl
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
@@ -14,6 +15,7 @@ import asyncio
 from functools import wraps
 from src.middleware.auth_middleware import jwt_required, admin_required
 from src.middleware.rate_limit import rate_limit
+from src.utils.redis_config import get_secure_redis_url
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..'))
 
@@ -43,18 +45,20 @@ bp = Blueprint("faq", __name__, url_prefix="/api/faq")
 
 retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
 
-redis_url = os.getenv("REDIS_URL")
-if not redis_url:
-    raise RuntimeError("REDIS_URL environment variable is required but not set")
+redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
 
-redis_client = Redis.from_url(
-    redis_url, 
-    decode_responses=True,
-    socket_connect_timeout=5,
-    socket_timeout=30,
-    retry=retry,
-    retry_on_timeout=True
-)
+redis_kwargs = {
+    "decode_responses": True,
+    "socket_connect_timeout": 5,
+    "socket_timeout": 30,
+    "retry": retry,
+    "retry_on_timeout": True
+}
+
+if redis_url.startswith("rediss://"):
+    redis_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+
+redis_client = Redis.from_url(redis_url, **redis_kwargs)
 
 CACHE_TTL = int(os.getenv("FAQ_CACHE_TTL", "300"))
 OPENAI_MAX_DAILY_COST = float(os.getenv("OPENAI_MAX_DAILY_COST", "20.0"))
