@@ -368,3 +368,206 @@ a:focus-visible {
     transform: none;
   }
 }
+
+/* ============================================
+   Apple-Level Typography System
+   ============================================ */
+
+/* Typography Utility Classes - iOS Style */
+
+/* Display Styles */
+.text-display-1 {
+  font-size: var(--font-size-display1, 3.5rem);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.text-display-2 {
+  font-size: var(--font-size-display2, 3rem);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.text-display-3 {
+  font-size: var(--font-size-display3, 2.5rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+/* Title Styles */
+.text-large-title {
+  font-size: var(--font-size-large, 2.125rem);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.text-title-1 {
+  font-size: var(--font-size-title1, 1.75rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.3;
+}
+
+.text-title-2 {
+  font-size: var(--font-size-title2, 1.375rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.35;
+}
+
+.text-title-3 {
+  font-size: var(--font-size-title3, 1.25rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.4;
+}
+
+/* Body Styles */
+.text-headline {
+  font-size: var(--font-size-headline, 1.0625rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.45;
+}
+
+.text-body {
+  font-size: var(--font-size-body, 1.0625rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
+}
+
+.text-callout {
+  font-size: var(--font-size-callout, 1rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
+}
+
+.text-subhead {
+  font-size: var(--font-size-subhead, 0.9375rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
+}
+
+/* Small Text Styles */
+.text-footnote {
+  font-size: var(--font-size-footnote, 0.8125rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
+}
+
+.text-caption-1 {
+  font-size: var(--font-size-caption1, 0.75rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
+}
+
+.text-caption-2 {
+  font-size: var(--font-size-caption2, 0.6875rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
+}
+
+/* Responsive Typography - Fluid Scaling */
+.text-responsive-display {
+  font-size: clamp(2.5rem, 2rem + 2vw, 3.5rem);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.text-responsive-title {
+  font-size: clamp(1.5rem, 1.25rem + 1vw, 1.75rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.3;
+}
+
+.text-responsive-body {
+  font-size: clamp(1rem, 0.9rem + 0.3vw, 1.0625rem);
+  line-height: 1.5;
+}
+
+/* Font Weight Utilities */
+.font-light {
+  font-weight: var(--font-weight-light, 300);
+}
+
+.font-normal {
+  font-weight: var(--font-weight-normal, 400);
+}
+
+.font-medium {
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.font-semibold {
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.font-bold {
+  font-weight: var(--font-weight-bold, 700);
+}
+
+/* Line Height Utilities */
+.leading-tight {
+  line-height: var(--line-height-tight, 1.25);
+}
+
+.leading-normal {
+  line-height: var(--line-height-normal, 1.5);
+}
+
+.leading-relaxed {
+  line-height: var(--line-height-relaxed, 1.75);
+}
+
+/* Letter Spacing Utilities */
+.tracking-tighter {
+  letter-spacing: -0.02em;
+}
+
+.tracking-tight {
+  letter-spacing: -0.01em;
+}
+
+.tracking-normal {
+  letter-spacing: 0;
+}
+
+.tracking-wide {
+  letter-spacing: 0.01em;
+}
+
+.tracking-wider {
+  letter-spacing: 0.05em;
+}
+
+/* Text Truncation */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.text-truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Text Balance (for headlines) */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Text Pretty (for body text) */
+.text-pretty {
+  text-wrap: pretty;
+}
