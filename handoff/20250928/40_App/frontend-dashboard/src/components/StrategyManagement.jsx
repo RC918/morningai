@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { 
   Settings, 
   Plus, 
@@ -73,10 +73,10 @@ const StrategyManagement = () => {
           <h1 className="text-3xl font-bold text-gray-900">{t('strategy.title')}</h1>
           <p className="text-gray-600 mt-1">{t('strategy.description')}</p>
         </div>
-        <Button className="flex items-center gap-2">
+        <AppleButton className="flex items-center gap-2" variant="primary">
           <Plus className="w-4 h-4" />
           {t('strategy.addStrategy')}
-        </Button>
+        </AppleButton>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -154,9 +154,9 @@ const StrategyManagement = () => {
                   <Badge className={getStatusColor(strategy.status)}>
                     {t(`strategy.status.${strategy.status}`)}
                   </Badge>
-                  <Button variant="outline" size="sm">
+                  <AppleButton variant="outline" size="sm">
                     <Settings className="w-4 h-4" />
-                  </Button>
+                  </AppleButton>
                 </div>
               </div>
             ))}

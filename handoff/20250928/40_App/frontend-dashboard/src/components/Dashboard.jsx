@@ -10,7 +10,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
@@ -46,15 +46,16 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode, t })
       className={`relative transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-lg'} ${isEditMode ? 'cursor-move' : ''}`}
     >
       {isEditMode && (
-        <Button
+        <AppleButton
           variant="destructive"
           size="sm"
           className="absolute top-2 right-2 z-10 shadow-md"
           onClick={() => onRemove(index)}
           aria-label={t('dashboard.removeWidget')}
+          haptic="heavy"
         >
           <Trash2 className="w-4 h-4" aria-hidden="true" />
-        </Button>
+        </AppleButton>
       )}
       {widget.component}
     </div>
@@ -310,40 +311,42 @@ const Dashboard = () => {
       <div className="flex space-x-2">
         {isEditMode && (
           <>
-            <Button
+            <AppleButton
               variant="outline"
               size="sm"
               onClick={undo}
               disabled={!canUndo}
               aria-label={t('dashboard.undo')}
               title={`${t('dashboard.undo')} (Cmd/Ctrl+Z)`}
+              haptic="light"
             >
               <Undo2 className="w-4 h-4 mr-2" aria-hidden="true" />
               {t('dashboard.undo')}
-            </Button>
-            <Button
+            </AppleButton>
+            <AppleButton
               variant="outline"
               size="sm"
               onClick={redo}
               disabled={!canRedo}
               aria-label={t('dashboard.redo')}
               title={`${t('dashboard.redo')} (Cmd/Ctrl+Shift+Z)`}
+              haptic="light"
             >
               <Redo2 className="w-4 h-4 mr-2" aria-hidden="true" />
               {t('dashboard.redo')}
-            </Button>
+            </AppleButton>
           </>
         )}
-        <Button
-          variant={showReportCenter ? "default" : "outline"}
+        <AppleButton
+          variant={showReportCenter ? "primary" : "outline"}
           onClick={() => setShowReportCenter(!showReportCenter)}
         >
           <FileText className="w-4 h-4 mr-2" />
           {t('reportCenter.title')}
-        </Button>
+        </AppleButton>
         {!showReportCenter && (
-          <Button
-            variant={isEditMode ? "default" : "outline"}
+          <AppleButton
+            variant={isEditMode ? "primary" : "outline"}
             onClick={() => {
               setIsEditMode(!isEditMode)
               if (isEditMode) saveDashboardLayout()
@@ -351,7 +354,7 @@ const Dashboard = () => {
           >
             <Settings className="w-4 h-4 mr-2" />
             {isEditMode ? t('dashboard.finishEditing') : t('dashboard.customize')}
-          </Button>
+          </AppleButton>
         )}
       </div>
     </div>
@@ -360,10 +363,10 @@ const Dashboard = () => {
   const WidgetAddDialog = () => (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full h-32 border-dashed">
+        <AppleButton variant="outline" className="w-full h-32 border-dashed">
           <Plus className="w-8 h-8 mb-2" />
           <span>{t('dashboard.addWidget')}</span>
-        </Button>
+        </AppleButton>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -371,7 +374,7 @@ const Dashboard = () => {
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
           {availableWidgets.map((widget) => (
-            <Button
+            <AppleButton
               key={widget.id}
               variant="outline"
               className="h-20 flex-col"
@@ -382,7 +385,7 @@ const Dashboard = () => {
             >
               <Grid3X3 className="w-6 h-6 mb-2" />
               <span className="text-xs">{widget.name}</span>
-            </Button>
+            </AppleButton>
           ))}
         </div>
       </DialogContent>
@@ -547,9 +550,9 @@ const Dashboard = () => {
                 {t('dashboard.editInstructions')}
               </p>
               <div className="flex justify-center space-x-2">
-                <Button onClick={() => setDashboardLayout(getDefaultWidgets())}>
+                <AppleButton onClick={() => setDashboardLayout(getDefaultWidgets())}>
                   {t('dashboard.resetLayout')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>
