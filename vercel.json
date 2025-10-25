@@ -1,5 +1,5 @@
 {
   "buildCommand": null,
-  "outputDirectory": "storybook",
+  "outputDirectory": "dashboard",
   "installCommand": null
 }
