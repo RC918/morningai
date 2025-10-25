@@ -76,16 +76,19 @@ const WIPPage = ({
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${
                       milestone.completed ? 'bg-green-500' : 'bg-gray-300'
-                    }`} />
+                    }`}
+                    />
                     <span className={`font-medium ${
                       milestone.completed ? 'text-gray-900' : 'text-gray-600'
-                    }`}>
+                    }`}
+                    >
                       {milestone.name}
                     </span>
                   </div>
                   <span className={`text-sm ${
                     milestone.completed ? 'text-green-600' : 'text-gray-600'
-                  }`}>
+                  }`}
+                  >
                     {milestone.date}
                   </span>
                 </div>

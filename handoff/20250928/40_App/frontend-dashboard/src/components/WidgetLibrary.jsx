@@ -189,7 +189,8 @@ const TaskExecutionWidget = ({ data }) => {
               <Badge variant={
                 task?.status === 'completed' ? 'default' : 
                 task?.status === 'running' ? 'secondary' : 'outline'
-              }>
+              }
+              >
                 {task?.status === 'completed' ? t('widgets.taskExecution.completed') : 
                  task?.status === 'running' ? t('widgets.taskExecution.running') : t('widgets.taskExecution.pending')}
               </Badge>
