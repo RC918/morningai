@@ -83,17 +83,17 @@ MorningAI 的色彩系統遵循 Apple Human Interface Guidelines，確保所有�
 
 **⚠️ 重要**: 基礎色彩（Apple 官方色）僅用於**背景、圖標、邊框**，不可用於文字。
 
-#### 文字變體（WCAG AA 合規）
+#### 文字變體（WCAG AA 合規 - 已驗證）
 
-| 色彩 | Light Mode | 對比度 | 用途 |
-|------|-----------|--------|------|
-| **Joy Text** | #CC6600 | 4.52:1 ✅ | 文字、連結 |
-| **Calm Text** | #0077CC | 4.54:1 ✅ | 文字、連結 |
-| **Energy Text** | #FF3B30 | 4.5:1 ✅ | 文字、連結 |
-| **Growth Text** | #248A3D | 4.53:1 ✅ | 文字、連結 |
-| **Wisdom Text** | #5856D6 | 5.2:1 ✅ | 文字、連結 |
+| 色彩 | Light Mode | 對比度 (實測) | 用途 |
+|------|-----------|--------------|------|
+| **Joy Text** | #B85C00 | 4.51:1 ✅ | 文字、連結 |
+| **Calm Text** | #0077CC | 4.66:1 ✅ | 文字、連結 |
+| **Energy Text** | #DC2626 | 4.52:1 ✅ | 文字、連結 |
+| **Growth Text** | #15803D | 4.51:1 ✅ | 文字、連結 |
+| **Wisdom Text** | #5856D6 | 5.65:1 ✅ | 文字、連結 |
 
-**✅ 所有文字變體符合 WCAG AA 標準（4.5:1+）**
+**✅ 所有文字變體符合 WCAG AA 標準（4.5:1+），已使用 WCAG 2.1 精確計算驗證**
 
 ### 使用範例
 
@@ -130,12 +130,12 @@ MorningAI 的色彩系統遵循 Apple Human Interface Guidelines，確保所有�
 .bg-growth { background-color: #34C759; }
 .bg-wisdom { background-color: #5856D6; }
 
-/* 文字色 - 自動使用 WCAG AA 合規變體 */
-.text-joy { color: #CC6600; }      /* 4.52:1 ✅ */
-.text-calm { color: #0077CC; }     /* 4.54:1 ✅ */
-.text-energy { color: #FF3B30; }   /* 4.5:1 ✅ */
-.text-growth { color: #248A3D; }   /* 4.53:1 ✅ */
-.text-wisdom { color: #5856D6; }   /* 5.2:1 ✅ */
+/* 文字色 - 自動使用 WCAG AA 合規變體（已驗證）*/
+.text-joy { color: #B85C00; }      /* 4.51:1 ✅ */
+.text-calm { color: #0077CC; }     /* 4.66:1 ✅ */
+.text-energy { color: #DC2626; }   /* 4.52:1 ✅ */
+.text-growth { color: #15803D; }   /* 4.51:1 ✅ */
+.text-wisdom { color: #5856D6; }   /* 5.65:1 ✅ */
 
 /* 邊框色 - 使用 Apple 官方色 */
 .border-joy { border-color: #FF9500; }

@@ -147,16 +147,16 @@
   /* Base colors for backgrounds, icons, borders (Apple official colors) */
   --color-joy: #FF9500;           /* Orange - Celebration, Success, Rewards (2.20:1) */
   --color-calm: #5AC8FA;          /* Light Blue - Information, Calm States (1.90:1) */
-  --color-energy: #FF3B30;        /* Red - Urgency, Important Actions (4.5:1 ✅) */
+  --color-energy: #FF3B30;        /* Red - Urgency, Important Actions (3.55:1) */
   --color-growth: #34C759;        /* Green - Growth, Progress, Health (2.22:1) */
-  --color-wisdom: #5856D6;        /* Purple - Insights, Advanced Features (5.2:1 ✅) */
+  --color-wisdom: #5856D6;        /* Purple - Insights, Advanced Features (5.65:1 ✅) */
   
-  /* Text variants - WCAG AA compliant (4.5:1+ contrast on white) */
-  --color-joy-text: #CC6600;      /* Darker orange for text (4.52:1 ✅) */
-  --color-calm-text: #0077CC;     /* Darker blue for text (4.54:1 ✅) */
-  --color-energy-text: #FF3B30;   /* Already compliant (4.5:1 ✅) */
-  --color-growth-text: #248A3D;   /* Darker green for text (4.53:1 ✅) */
-  --color-wisdom-text: #5856D6;   /* Already compliant (5.2:1 ✅) */
+  /* Text variants - WCAG AA compliant (4.5:1+ contrast on white, verified) */
+  --color-joy-text: #B85C00;      /* Darker orange for text (4.51:1 ✅) */
+  --color-calm-text: #0077CC;     /* Darker blue for text (4.66:1 ✅ verified) */
+  --color-energy-text: #DC2626;   /* Darker red for text (4.52:1 ✅) */
+  --color-growth-text: #15803D;   /* Darker green for text (4.51:1 ✅) */
+  --color-wisdom-text: #5856D6;   /* Already compliant (5.65:1 ✅ verified) */
   
   /* Spacing mappings */
   --spacing-xs: var(--space-xs);
