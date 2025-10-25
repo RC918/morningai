@@ -33,6 +33,23 @@ class ApiClient {
         error.requestId = requestId
         error.endpoint = endpoint
         
+        if (response.status === 401) {
+          console.warn(`Authentication failed [${requestId}]: ${endpoint}`)
+          
+          localStorage.removeItem('auth_token')
+          
+          window.dispatchEvent(new CustomEvent('auth-error', {
+            detail: { endpoint, requestId, message: 'Authentication required' }
+          }))
+          
+          if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
+            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
+            window.location.href = `/login?returnUrl=${returnUrl}`
+          }
+          
+          throw error
+        }
+        
         console.error(`API Error [${requestId}]: ${endpoint} - ${error.message}`, {
           status: response.status,
           url,
