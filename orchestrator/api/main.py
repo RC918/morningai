@@ -13,9 +13,6 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../handoff/20250928/40_App/api-backend/src'))
-from utils.redis_config import get_secure_redis_url
-
 from orchestrator.task_queue.redis_queue import RedisQueue, create_redis_queue
 from orchestrator.schemas.task_schema import (
     UnifiedTask, TaskType, TaskPriority, TaskSource, TaskStatus, create_task
@@ -31,6 +28,45 @@ logger = logging.getLogger(__name__)
 redis_queue: Optional[RedisQueue] = None
 orchestrator_router: Optional[OrchestratorRouter] = None
 hitl_gate: Optional[HITLGate] = None
+
+
+def get_secure_redis_url(allow_local: bool = False) -> str:
+    """
+    Get Redis URL with TLS enforcement for production.
+    
+    Args:
+        allow_local: If True, allows redis://localhost for local development.
+                    If False (default), requires TLS for all connections.
+    
+    Returns:
+        str: Redis URL (rediss:// with TLS or redis://localhost for local dev)
+    
+    Raises:
+        ValueError: If no secure Redis configuration found
+    """
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        if redis_url.startswith("rediss://"):
+            logger.info("✅ Using Redis with TLS (rediss://)")
+            return redis_url
+        
+        if redis_url.startswith("redis://localhost") and allow_local:
+            logger.warning("⚠️ Using local Redis without TLS (development only)")
+            return redis_url
+        
+        if not redis_url.startswith("rediss://"):
+            raise ValueError(
+                "❌ REDIS_URL must use TLS (rediss://) for production. "
+                "Current URL does not use TLS. "
+                "For local development, use get_secure_redis_url(allow_local=True). "
+                f"Got: {redis_url[:20]}..."
+            )
+    
+    raise ValueError(
+        "❌ No REDIS_URL environment variable found. "
+        "Set REDIS_URL with rediss:// (TLS) for production. "
+        "For local development, use redis://localhost:6379 with allow_local=True."
+    )
 
 
 def get_redis_client():
