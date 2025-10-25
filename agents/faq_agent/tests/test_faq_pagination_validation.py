@@ -135,7 +135,7 @@ def test_search_missing_query(client, user_token):
 def test_search_has_more_flag(client, user_token):
     """Test that has_more flag is set correctly"""
     from unittest.mock import MagicMock, patch
-    import agents.faq_agent.tools.faq_search_tool
+    from routes import faq as faq_mod
     
     mock_rpc_response = MagicMock()
     mock_rpc_response.data = [
@@ -154,14 +154,17 @@ def test_search_has_more_flag(client, user_token):
         mock_client.rpc.return_value.execute.return_value = mock_rpc_response
         return mock_client
     
-    with patch.object(agents.faq_agent.tools.faq_search_tool, 'create_client', side_effect=mock_create_client):
+    with patch.object(faq_mod, 'get_cached_result', return_value=None), \
+         patch.object(faq_mod, 'set_cached_result', return_value=None), \
+         patch('agents.faq_agent.tools.faq_search_tool.create_client', side_effect=mock_create_client):
         response = client.get(
-            '/api/faq/search?q=test&page=1&page_size=10',
+            '/api/faq/search?q=has-more-pagination-test&page=1&page_size=10',
             headers={'Authorization': f'Bearer {user_token}'}
         )
         
         assert response.status_code == 200
         data = response.get_json()
+        assert not data.get('cached', False)
         assert data['data']['pagination']['has_more'] == True
 
 def test_create_faq_empty_question(client):
