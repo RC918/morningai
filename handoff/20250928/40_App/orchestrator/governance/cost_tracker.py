@@ -1,10 +1,14 @@
 """Cost Tracking System - Token and USD budget monitoring"""
 import os
+import sys
 import redis
 import yaml
 from datetime import date, datetime
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../api-backend/src'))
+from utils.redis_config import get_secure_redis_url
 
 
 class CostBudgetExceeded(Exception):
@@ -24,7 +28,10 @@ class CostTracker:
     """Track and enforce cost budgets"""
     
     def __init__(self, redis_url: Optional[str] = None, policies_path: Optional[str] = None):
-        self.redis_url = redis_url or os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        if redis_url:
+            self.redis_url = redis_url
+        else:
+            self.redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
         
         try:
             self.redis = redis.from_url(self.redis_url, decode_responses=True)

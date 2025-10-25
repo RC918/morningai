@@ -80,7 +80,11 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 else:
     SENTRY_DSN = None
 
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../api-backend/src'))
+from utils.redis_config import get_secure_redis_url
+
+redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
 RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
 
 redis_retry = RedisRetry(ExponentialBackoff(base=1, cap=10), retries=5)
