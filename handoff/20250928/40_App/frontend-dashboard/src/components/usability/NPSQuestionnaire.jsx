@@ -8,7 +8,7 @@
 
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -214,14 +214,15 @@ export function NPSQuestionnaire({ onComplete, participantId, sessionId }) {
         )}
       </CardContent>
       <CardFooter>
-        <Button 
+        <AppleButton 
           onClick={handleSubmit} 
           disabled={score === null}
           className="w-full"
           size="lg"
+          haptic="medium"
         >
           Submit NPS Survey
-        </Button>
+        </AppleButton>
       </CardFooter>
     </Card>
   )

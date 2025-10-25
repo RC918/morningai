@@ -16,7 +16,7 @@ import {
   Sparkles,
   CreditCard
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { DarkModeToggle } from './DarkModeToggle'
@@ -121,11 +121,12 @@ const Sidebar = ({ user, onLogout }) => {
             </Link>
           )}
           
-          <Button
+          <AppleButton
             variant="ghost"
-            size="sm"
+            size="icon-sm"
             onClick={() => setCollapsed(!collapsed)}
             className="p-1"
+            haptic="light"
             aria-label={collapsed ? t('accessibility.expandSection') : t('accessibility.collapseSection')}
             aria-expanded={!collapsed}
           >
@@ -134,7 +135,7 @@ const Sidebar = ({ user, onLogout }) => {
             ) : (
               <ChevronLeft className="w-4 h-4" />
             )}
-          </Button>
+          </AppleButton>
         </div>
       </div>
 
@@ -209,16 +210,17 @@ const Sidebar = ({ user, onLogout }) => {
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
           <LanguageSwitcher variant={collapsed ? 'compact' : 'default'} />
         </div>
-        <Button
+        <AppleButton
           variant="ghost"
           size="sm"
           onClick={onLogout}
           className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white`}
+          haptic="medium"
           aria-label={t('sidebar.logout')}
         >
           <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />
           {!collapsed && t('sidebar.logout')}
-        </Button>
+        </AppleButton>
       </div>
     </div>
   )
