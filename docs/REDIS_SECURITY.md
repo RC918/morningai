@@ -237,7 +237,8 @@ redis-cli INFO server | grep redis_version
 
 - [Redis Client 實作](../handoff/20250928/40_App/api-backend/src/utils/redis_client.py)
 - [環境變數配置](.env.example)
-- [安全檢查測試](../handoff/20250928/40_App/api-backend/tests/test_redis_config.py)
+- [Redis 配置測試](../handoff/20250928/40_App/api-backend/tests/test_redis_config.py)
+- [Redis 安全檢查測試](../handoff/20250928/40_App/api-backend/tests/test_redis_security.py)
 
 ## 更新歷史
 

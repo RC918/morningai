@@ -123,9 +123,20 @@ def check_redis_security() -> Dict[str, Any]:
             redis_version = info.get("redis_version", "unknown")
             
             try:
-                major, minor, patch = map(int, redis_version.split(".")[:3])
+                parts = redis_version.split(".")
+                
+                major = int(parts[0]) if len(parts) > 0 else 0
+                minor = int(parts[1]) if len(parts) > 1 else 0
+                
+                if len(parts) > 2:
+                    patch_str = parts[2].split("-")[0].split("+")[0]  # Remove suffixes
+                    patch = int(patch_str) if patch_str.isdigit() else 0
+                else:
+                    patch = 0
+                
                 version_tuple = (major, minor, patch)
-            except (ValueError, AttributeError):
+            except (ValueError, AttributeError, IndexError) as e:
+                logger.warning(f"Failed to parse Redis version '{redis_version}': {e}")
                 version_tuple = (0, 0, 0)
             
             is_vulnerable = version_tuple < (8, 2, 2)
