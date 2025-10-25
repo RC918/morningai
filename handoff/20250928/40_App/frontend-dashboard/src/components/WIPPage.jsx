@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clock, ArrowLeft, Target } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { safeInterval } from '@/lib/safeInterval'
@@ -76,16 +76,19 @@ const WIPPage = ({
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${
                       milestone.completed ? 'bg-green-500' : 'bg-gray-300'
-                    }`} />
+                    }`}
+                    />
                     <span className={`font-medium ${
                       milestone.completed ? 'text-gray-900' : 'text-gray-600'
-                    }`}>
+                    }`}
+                    >
                       {milestone.name}
                     </span>
                   </div>
                   <span className={`text-sm ${
                     milestone.completed ? 'text-green-600' : 'text-gray-600'
-                  }`}>
+                  }`}
+                  >
                     {milestone.date}
                   </span>
                 </div>
@@ -102,14 +105,14 @@ const WIPPage = ({
           </div>
 
           <div className="flex justify-center pt-4">
-            <Button 
+            <AppleButton 
               onClick={() => navigate('/dashboard')} 
               className="flex items-center gap-2"
               aria-label={t('wip.returnAriaLabel')}
             >
               <ArrowLeft className="w-4 h-4" />
               {t('wip.returnButton')}
-            </Button>
+            </AppleButton>
           </div>
         </CardContent>
       </Card>

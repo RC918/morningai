@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, ArrowLeft, Download, Mail } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -53,16 +53,16 @@ const CheckoutSuccess = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button 
+              <AppleButton 
                 onClick={() => navigate('/dashboard')}
                 className="flex-1"
                 aria-label={t('checkoutSuccess.getStartedAria')}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
                 {t('checkoutSuccess.getStarted')}
-              </Button>
+              </AppleButton>
               
-              <Button 
+              <AppleButton 
                 variant="outline" 
                 onClick={() => window.open('/api/billing/invoice/' + sessionId, '_blank')}
                 className="flex-1"
@@ -70,7 +70,7 @@ const CheckoutSuccess = () => {
               >
                 <Download className="w-4 h-4 mr-2" aria-hidden="true" />
                 {t('checkoutSuccess.downloadInvoice')}
-              </Button>
+              </AppleButton>
             </div>
           </div>
 

@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -161,21 +161,21 @@ export function MetricsAnalysisDashboard() {
         </div>
         <div className="flex gap-2">
           {!baseline ? (
-            <Button onClick={handleSetBaseline} variant="outline">
+            <AppleButton onClick={handleSetBaseline} variant="outline">
               Set as Baseline
-            </Button>
+            </AppleButton>
           ) : (
-            <Button onClick={handleClearBaseline} variant="outline">
+            <AppleButton onClick={handleClearBaseline} variant="outline">
               Clear Baseline
-            </Button>
+            </AppleButton>
           )}
-          <Button onClick={handleExport} variant="outline">
+          <AppleButton onClick={handleExport} variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
-          </Button>
-          <Button onClick={handleClearMetrics} variant="destructive">
+          </AppleButton>
+          <AppleButton onClick={handleClearMetrics} variant="destructive">
             Clear Data
-          </Button>
+          </AppleButton>
         </div>
       </div>
 

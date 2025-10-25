@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -83,10 +83,10 @@ export function ABTestDashboard() {
           <h1 className="text-3xl font-bold">A/B Testing Dashboard</h1>
           <p className="text-muted-foreground">Manage experiments and analyze results</p>
         </div>
-        <Button onClick={handleExportAll} variant="outline">
+        <AppleButton onClick={handleExportAll} variant="outline">
           <Download className="h-4 w-4 mr-2" />
           Export All Data
-        </Button>
+        </AppleButton>
       </div>
 
       <Tabs defaultValue="active-tests" className="w-full">
@@ -124,21 +124,21 @@ export function ABTestDashboard() {
                           </CardDescription>
                         </div>
                         <div className="flex gap-2">
-                          <Button
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleViewResults(test.testId)}
                           >
                             <BarChart3 className="h-4 w-4 mr-2" />
                             View Results
-                          </Button>
-                          <Button
+                          </AppleButton>
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleExportTest(test.testId)}
                           >
                             <Download className="h-4 w-4" />
-                          </Button>
+                          </AppleButton>
                         </div>
                       </div>
                     </CardHeader>

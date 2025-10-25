@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { useTranslation } from 'react-i18next'
 
 export const EmptyState = ({
@@ -35,9 +35,9 @@ export const EmptyState = ({
       </p>
       
       {action && (
-        <Button onClick={action} size="lg">
+        <AppleButton onClick={action} size="lg">
           {actionLabel || t('feedback.emptyState.defaultPrimaryAction')}
-        </Button>
+        </AppleButton>
       )}
     </motion.div>
   )

@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getErrorMessage } from '@/lib/errorMessages'
 import * as Icons from 'lucide-react'
@@ -28,14 +28,14 @@ export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }) => 
         <CardContent>
           <div className="flex gap-3 justify-center">
             {onRetry && (
-              <Button onClick={onRetry}>
+              <AppleButton onClick={onRetry}>
                 {errorInfo.action}
-              </Button>
+              </AppleButton>
             )}
             {onDismiss && (
-              <Button variant="outline" onClick={onDismiss}>
+              <AppleButton variant="outline" onClick={onDismiss}>
                 {t('feedback.close')}
-              </Button>
+              </AppleButton>
             )}
           </div>
           

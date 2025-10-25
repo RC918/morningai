@@ -1,6 +1,6 @@
 import React from 'react'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { withTranslation } from 'react-i18next'
 
@@ -89,15 +89,15 @@ class ErrorBoundary extends React.Component {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button 
+                <AppleButton 
                   onClick={this.handleRetry.bind(this)} 
                   className="flex items-center gap-2"
                   aria-label={t('errorBoundary.reloadAriaLabel')}
                 >
                   <RefreshCw className="w-4 h-4" />
                   {t('errorBoundary.reloadButton')}
-                </Button>
-                <Button 
+                </AppleButton>
+                <AppleButton 
                   variant="outline" 
                   onClick={this.handleGoHome.bind(this)}
                   className="flex items-center gap-2"
@@ -105,7 +105,7 @@ class ErrorBoundary extends React.Component {
                 >
                   <Home className="w-4 h-4" />
                   {t('errorBoundary.homeButton')}
-                </Button>
+                </AppleButton>
               </div>
 
               <div className="text-center text-sm text-gray-600">

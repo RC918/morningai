@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { 
@@ -116,10 +116,10 @@ const AgentGovernance = () => {
           </h1>
           <p className="text-gray-600 mt-1">Monitor agent reputation, permissions, and compliance</p>
         </div>
-        <Button onClick={loadGovernanceData} variant="outline">
+        <AppleButton onClick={loadGovernanceData} variant="outline">
           <Activity className="w-4 h-4 mr-2" />
           Refresh
-        </Button>
+        </AppleButton>
       </div>
 
       {statistics && (

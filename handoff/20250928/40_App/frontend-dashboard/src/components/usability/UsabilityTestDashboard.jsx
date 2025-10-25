@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -213,10 +213,10 @@ export function UsabilityTestDashboard() {
           <h1 className="text-3xl font-bold">Usability Testing Dashboard</h1>
           <p className="text-muted-foreground">Manage testing sessions and analyze results</p>
         </div>
-        <Button onClick={handleExportAllData} variant="outline">
+        <AppleButton onClick={handleExportAllData} variant="outline">
           <Download className="h-4 w-4 mr-2" />
           Export All Data
-        </Button>
+        </AppleButton>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -326,15 +326,15 @@ export function UsabilityTestDashboard() {
 
               <div className="flex gap-2">
                 {!currentSession ? (
-                  <Button onClick={handleStartSession} className="flex-1">
+                  <AppleButton onClick={handleStartSession} className="flex-1">
                     <Play className="h-4 w-4 mr-2" />
                     Start Session
-                  </Button>
+                  </AppleButton>
                 ) : (
-                  <Button onClick={handleEndSession} variant="destructive" className="flex-1">
+                  <AppleButton onClick={handleEndSession} variant="destructive" className="flex-1">
                     <Square className="h-4 w-4 mr-2" />
                     End Session & Complete Surveys
-                  </Button>
+                  </AppleButton>
                 )}
               </div>
             </CardContent>
@@ -365,27 +365,27 @@ export function UsabilityTestDashboard() {
                           </CardDescription>
                         </div>
                         <div className="flex gap-2">
-                          <Button
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleViewSession(session)}
                           >
                             <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
+                          </AppleButton>
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleExportSession(session)}
                           >
                             <Download className="h-4 w-4" />
-                          </Button>
-                          <Button
+                          </AppleButton>
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleDeleteSession(session.sessionId)}
                           >
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </AppleButton>
                         </div>
                       </div>
                     </CardHeader>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Globe, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,14 +30,14 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
     return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
-          <Button 
+          <AppleButton 
             variant="outline" 
             size="sm" 
             className={`${className} bg-white hover:bg-gray-50 shadow-md flex items-center justify-center`}
             style={{ width: '40px', height: '40px', padding: '0' }}
           >
             <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
-          </Button>
+          </AppleButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
           align="end" 
@@ -76,11 +76,11 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className={`${className} min-w-32`}>
+        <AppleButton variant="outline" className={`${className} min-w-32`}>
           <Globe className="w-4 h-4 mr-2" />
           <span className="text-lg mr-2">{currentLanguage.flag}</span>
           <span>{currentLanguage.name}</span>
-        </Button>
+        </AppleButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 

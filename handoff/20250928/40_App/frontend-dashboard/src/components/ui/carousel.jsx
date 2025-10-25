@@ -86,14 +86,16 @@ function Carousel({
         scrollNext,
         canScrollPrev,
         canScrollNext,
-      }}>
+      }}
+    >
       <div
         onKeyDownCapture={handleKeyDown}
         className={cn("relative", className)}
         role="region"
         aria-roledescription="carousel"
         data-slot="carousel"
-        {...props}>
+        {...props}
+      >
         {children}
       </div>
     </CarouselContext.Provider>
@@ -110,14 +112,16 @@ function CarouselContent({
     <div
       ref={carouselRef}
       className="overflow-hidden"
-      data-slot="carousel-content">
+      data-slot="carousel-content"
+    >
       <div
         className={cn(
           "flex",
           orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col",
           className
         )}
-        {...props} />
+        {...props}
+      />
     </div>
   );
 }
@@ -138,7 +142,8 @@ function CarouselItem({
         orientation === "horizontal" ? "pl-4" : "pt-4",
         className
       )}
-      {...props} />
+      {...props}
+    />
   );
 }
 
@@ -160,7 +165,8 @@ function CarouselPrevious({
         : "-top-12 left-1/2 -translate-x-1/2 rotate-90", className)}
       disabled={!canScrollPrev}
       onClick={scrollPrev}
-      {...props}>
+      {...props}
+    >
       <ArrowLeft />
       <span className="sr-only">Previous slide</span>
     </Button>
@@ -185,7 +191,8 @@ function CarouselNext({
         : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90", className)}
       disabled={!canScrollNext}
       onClick={scrollNext}
-      {...props}>
+      {...props}
+    >
       <ArrowRight />
       <span className="sr-only">Next slide</span>
     </Button>

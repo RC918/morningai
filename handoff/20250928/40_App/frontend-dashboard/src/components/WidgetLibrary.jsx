@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { 
@@ -189,7 +189,8 @@ const TaskExecutionWidget = ({ data }) => {
               <Badge variant={
                 task?.status === 'completed' ? 'default' : 
                 task?.status === 'running' ? 'secondary' : 'outline'
-              }>
+              }
+              >
                 {task?.status === 'completed' ? t('widgets.taskExecution.completed') : 
                  task?.status === 'running' ? t('widgets.taskExecution.running') : t('widgets.taskExecution.pending')}
               </Badge>
