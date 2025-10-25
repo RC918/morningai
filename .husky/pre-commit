@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run lint-staged for frontend-dashboard
+cd handoff/20250928/40_App/frontend-dashboard && pnpm exec lint-staged

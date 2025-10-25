@@ -71,7 +71,8 @@ function FormLabel({
       data-error={!!error}
       className={cn("data-[error=true]:text-destructive", className)}
       htmlFor={formItemId}
-      {...props} />
+      {...props}
+    />
   );
 }
 
@@ -90,7 +91,8 @@ function FormControl({
           : `${formDescriptionId} ${formMessageId}`
       }
       aria-invalid={!!error}
-      {...props} />
+      {...props}
+    />
   );
 }
 
@@ -105,7 +107,8 @@ function FormDescription({
       data-slot="form-description"
       id={formDescriptionId}
       className={cn("text-muted-foreground text-sm", className)}
-      {...props} />
+      {...props}
+    />
   );
 }
 
@@ -125,7 +128,8 @@ function FormMessage({
       data-slot="form-message"
       id={formMessageId}
       className={cn("text-destructive text-sm", className)}
-      {...props}>
+      {...props}
+    >
       {body}
     </p>
   );
