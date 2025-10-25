@@ -1,7 +1,7 @@
 # UI/UX 速查表 (一頁速查)
 
 **快速參考**: 常用命令、路徑、組件、Tokens  
-**最後更新**: 2025-10-24
+**最後更新**: 2025-10-25
 
 ---
 
@@ -13,6 +13,7 @@
 | **Design Tokens** | `docs/UX/tokens.json` |
 | **Storybook Stories** | `handoff/20250928/40_App/frontend-dashboard/src/stories/` |
 | **UI/UX 文檔** | `docs/UX/` |
+| **設計系統文檔** | `docs/UX/TYPOGRAPHY_SYSTEM.md`, `COLOR_SYSTEM.md`, `MATERIAL_SYSTEM.md`, `SHADOW_SYSTEM.md`, `SPACING_SYSTEM.md` |
 | **設計系統指南** | `DESIGN_SYSTEM_GUIDELINES.md` |
 | **完整資源指南** | `docs/UI_UX_RESOURCES.md` |
 | **Issue 狀態追蹤** | `docs/UI_UX_ISSUE_STATUS.md` |
@@ -99,18 +100,35 @@ colors.neutral[50]   // 最淺灰
 colors.neutral[900]  // 最深灰
 ```
 
-### 間距系統
+### 間距系統（8px 網格）
 
 ```javascript
-spacing.xs   // 4px
-spacing.sm   // 8px
-spacing.md   // 16px
-spacing.lg   // 24px
-spacing.xl   // 32px
-spacing.2xl  // 48px
-spacing.3xl  // 64px
-spacing.4xl  // 96px
+spacing.xs   // 4px (0.25rem) - 圖標與文字、標籤內部
+spacing.sm   // 8px (0.5rem) - 表單元素、按鈕組
+spacing.md   // 16px (1rem) - 標準間距（推薦）
+spacing.lg   // 24px (1.5rem) - 區塊間距、卡片間距
+spacing.xl   // 32px (2rem) - 頁面區域、大型卡片
+spacing.2xl  // 48px (3rem) - Hero 區域、主要內容
+spacing.3xl  // 64px (4rem) - Landing Page 大區域
+spacing.4xl  // 96px (6rem) - 頂級區域、全屏展示
 ```
+
+**Tailwind 工具類**:
+```css
+/* Padding */
+.p-1, .p-2, .p-4, .p-6, .p-8, .p-12, .p-16, .p-24
+
+/* Margin */
+.m-1, .m-2, .m-4, .m-6, .m-8, .m-12, .m-16, .m-24
+
+/* Gap (Flexbox/Grid) */
+.gap-1, .gap-2, .gap-4, .gap-6, .gap-8, .gap-12, .gap-16, .gap-24
+
+/* Space Between */
+.space-x-1, .space-x-2, .space-x-4, .space-y-1, .space-y-2, .space-y-4
+```
+
+**完整文檔**: [SPACING_SYSTEM.md](UX/SPACING_SYSTEM.md)
 
 ### 字體系統
 
