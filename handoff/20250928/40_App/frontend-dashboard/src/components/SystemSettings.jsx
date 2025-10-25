@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -113,14 +113,14 @@ const SystemSettings = () => {
                       }
                     }}
                   />
-                  <Button 
+                  <AppleButton 
                     variant="outline" 
                     size="sm" 
                     aria-label={t('settings.profile.avatar')}
                     onClick={() => document.getElementById('avatar-upload')?.click()}
                   >
                     {t('settings.profile.avatar')}
-                  </Button>
+                  </AppleButton>
                   <p className="text-sm text-gray-600 mt-1">{t('settings.profile.avatarHint')}</p>
                 </div>
               </div>
@@ -159,9 +159,9 @@ const SystemSettings = () => {
               )}
 
               <div className="flex justify-end">
-                <Button onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                <AppleButton onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
                   {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>
@@ -216,9 +216,9 @@ const SystemSettings = () => {
               )}
 
               <div className="flex justify-end">
-                <Button onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                <AppleButton onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
                   {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>
@@ -280,9 +280,9 @@ const SystemSettings = () => {
               )}
 
               <div className="flex justify-end">
-                <Button onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                <AppleButton onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
                   {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>
@@ -322,22 +322,22 @@ const SystemSettings = () => {
                   <Badge variant="outline" className="text-gray-600">
                     {t('common.comingSoon', '即將開放')}
                   </Badge>
-                  <Button 
+                  <AppleButton 
                     variant="outline" 
                     size="sm"
                     disabled
                     aria-label={t('settings.security.enable2FA', 'Enable 2FA')}
                   >
                     {t('settings.security.enable', '啟用')}
-                  </Button>
+                  </AppleButton>
                 </div>
               </div>
 
               <div className="flex justify-end gap-3">
-                <Button variant="outline">{t('actions.cancel')}</Button>
-                <Button onClick={saveToAPI} disabled={loading}>
+                <AppleButton variant="outline">{t('actions.cancel')}</AppleButton>
+                <AppleButton onClick={saveToAPI} disabled={loading}>
                   {loading ? t('settings.security.updating') : t('settings.security.updatePassword')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>

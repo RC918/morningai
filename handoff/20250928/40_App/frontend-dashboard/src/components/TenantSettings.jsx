@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTenant } from '../contexts/TenantContext';
+import { AppleButton } from './ui/apple-button';
 
 const TenantSettings = () => {
   const { tenant, loading: tenantLoading, error: tenantError } = useTenant();
@@ -107,13 +108,14 @@ const TenantSettings = () => {
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
           <h2 className="text-red-800 font-semibold mb-2">Error Loading Tenant</h2>
           <p className="text-red-600">{tenantError || error}</p>
-          <button
+          <AppleButton
             onClick={fetchTenantData}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            variant="destructive"
+            className="mt-4"
             aria-label="Retry loading tenant information"
           >
             Retry
-          </button>
+          </AppleButton>
         </div>
       </div>
     );
