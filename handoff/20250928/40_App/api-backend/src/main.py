@@ -214,12 +214,16 @@ def get_health_payload():
             "timestamp": datetime.datetime.now().isoformat()
         }
 
-@app.route('/health')
-@app.route('/healthz')
-@app.route('/api/health')
-@app.route('/api/healthz')
+@app.route('/health', methods=['GET', 'HEAD'])
+@app.route('/healthz', methods=['GET', 'HEAD'])
+@app.route('/api/health', methods=['GET', 'HEAD'])
+@app.route('/api/healthz', methods=['GET', 'HEAD'])
 def health_check():
-    """Health check endpoint with comprehensive system status"""
+    """Health check endpoint with comprehensive system status
+    
+    Supports both GET and HEAD methods for compatibility with various
+    health check systems (e.g., Render, Kubernetes, load balancers).
+    """
     health_payload = get_health_payload()
     if health_payload.get("status") == "unhealthy":
         return jsonify(health_payload), 500
