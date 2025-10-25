@@ -102,6 +102,8 @@ def get_recent_decisions():
 def get_system_health():
     """獲取系統健康狀態"""
     try:
+        from src.utils.redis_client import check_redis_security
+        
         components = {
             'ai_gateway': {
                 'status': 'healthy',
@@ -125,7 +127,23 @@ def get_system_health():
             }
         }
         
-        # 計算整體健康狀態
+        redis_security = check_redis_security()
+        redis_status = 'healthy'
+        if redis_security['status'] == 'vulnerable':
+            redis_status = 'degraded'
+        elif redis_security['status'] == 'error':
+            redis_status = 'unhealthy'
+        
+        components['redis'] = {
+            'status': redis_status,
+            'security_status': redis_security['status'],
+            'cve_2025_49844_risk': redis_security['cve_2025_49844_risk'],
+            'type': redis_security['type'],
+            'message': redis_security['message'],
+            'recommendations': redis_security.get('recommendations', []),
+            'last_check': datetime.datetime.now().isoformat()
+        }
+        
         all_healthy = all(comp['status'] == 'healthy' for comp in components.values())
         overall_status = 'healthy' if all_healthy else 'degraded'
         
