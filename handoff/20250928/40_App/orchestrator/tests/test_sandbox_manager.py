@@ -4,9 +4,14 @@ Unit tests for Agent Sandbox Manager
 """
 import pytest
 import asyncio
+import os
 from sandbox.manager import AgentSandboxManager, SandboxConfig, SandboxStatus
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    os.getenv('SANDBOX_ENABLED', 'false').lower() == 'false',
+    reason="Requires Docker and SANDBOX_ENABLED=true"
+)
 async def test_create_sandbox():
     """Test sandbox creation"""
     manager = AgentSandboxManager()

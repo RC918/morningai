@@ -281,9 +281,7 @@ class PatternLearner:
                 confidence = min(1.0, frequency / len(code_samples))
 
                 if confidence >= self.min_confidence:
-                    pattern_name = f"{language}_{pattern_type}_{
-                        hash(template) %
-                        10000}"
+                    pattern_name = f"{language}_{pattern_type}_{hash(template) % 10000}"
 
                     learned_pattern = CodePattern(
                         pattern_name=pattern_name,
@@ -299,9 +297,7 @@ class PatternLearner:
                     self.learned_patterns[pattern_name] = learned_pattern
 
         logger.info(
-            f"Learned {
-                len(learned_patterns)} patterns from {
-                len(code_samples)} samples")
+            f"Learned {len(learned_patterns)} patterns from {len(code_samples)} samples")
 
         return create_success({
             'patterns_learned': len(learned_patterns),

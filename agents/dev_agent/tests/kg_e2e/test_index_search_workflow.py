@@ -109,8 +109,7 @@ class TestIndexSearchWorkflowE2E:
 
         index_result = indexer.index_directory(temp_codebase)
 
-        assert index_result.get('success'), f"Indexing failed: {
-            index_result.get('error')}"
+        assert index_result.get('success'), f"Indexing failed: {index_result.get('error')}"
 
         data = index_result['data']
         print(f"✓ Indexed {data['total_files']} files")
@@ -132,8 +131,7 @@ class TestIndexSearchWorkflowE2E:
 
         learn_result = learner.learn_patterns(samples)
 
-        assert learn_result.get('success'), f"Pattern learning failed: {
-            learn_result.get('error')}"
+        assert learn_result.get('success'), f"Pattern learning failed: {learn_result.get('error')}"
         print(f"✓ Learned {learn_result['data']['patterns_learned']} patterns")
 
         print("\n🔎 Step 3: Searching for similar code...")
@@ -150,9 +148,7 @@ def load_data(path):
             print(f"⚠️ Query embedding failed: {query_result.get('error')}")
             pytest.skip("Cannot test search without database")
 
-        print(
-            f"✓ Generated query embedding ({
-                query_result['data']['tokens']} tokens)")
+        print(f"✓ Generated query embedding ({query_result['data']['tokens']} tokens)")
 
         if not kg_manager.db_pool:
             print("⚠️ Database not configured, skipping search test")
@@ -175,9 +171,7 @@ def load_data(path):
                 print(f"  - Distance: {results[0]['distance']:.4f}")
                 print(f"  - Preview: {results[0]['content_preview'][:50]}...")
         else:
-            print(
-                f"⚠️ Search failed (expected without DB): {
-                    search_result.get('error')}")
+            print(f"⚠️ Search failed (expected without DB): {search_result.get('error')}")
 
     def test_workflow_without_api_mock(self, temp_codebase):
         """Test workflow structure without real API (mock test)"""

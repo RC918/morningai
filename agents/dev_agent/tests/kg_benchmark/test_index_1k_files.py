@@ -88,11 +88,7 @@ class TestIndexLargeCodebaseBenchmark:
         if result.get('success'):
             data = result['data']
 
-            print(
-                f"   Total time: {
-                    elapsed:.1f}s ({
-                    elapsed /
-                    60:.2f} minutes)")
+            print(f"   Total time: {elapsed:.1f}s ({elapsed / 60:.2f} minutes)")
             print(f"   Files indexed: {data['total_files']}")
             print(f"   Successful: {data['successful']}")
             print(f"   Failed: {data['failed']}")

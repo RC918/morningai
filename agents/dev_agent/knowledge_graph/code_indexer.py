@@ -303,9 +303,7 @@ class CodeIndexer:
         )
 
         logger.info(
-            f"Indexing {
-                len(code_files)} files with {
-                self.max_workers} workers...")
+            f"Indexing {len(code_files)} files with {self.max_workers} workers...")
 
         results = []
 
