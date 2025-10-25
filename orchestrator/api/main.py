@@ -5,12 +5,16 @@ Provides HTTP endpoints for task submission and status monitoring
 """
 import logging
 import os
+import sys
 from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../handoff/20250928/40_App/api-backend/src'))
+from utils.redis_config import get_secure_redis_url
 
 from orchestrator.task_queue.redis_queue import RedisQueue, create_redis_queue
 from orchestrator.schemas.task_schema import (
@@ -43,7 +47,7 @@ async def lifespan(app: FastAPI):
     
     logger.info("Starting Orchestrator API")
     
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
     redis_queue = await create_redis_queue(redis_url=redis_url)
     
     orchestrator_router = OrchestratorRouter(redis_queue)

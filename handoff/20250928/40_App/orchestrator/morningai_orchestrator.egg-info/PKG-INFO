@@ -3,7 +3,7 @@ Name: morningai-orchestrator
 Version: 0.1.0
 Summary: Morning AI orchestrator for agent workflows
 Author: Morning AI
-Requires-Python: >=3.12
+Requires-Python: >=3.11
 Requires-Dist: langchain-community>=0.2.16
 Requires-Dist: langchain-openai>=0.1.23
 Requires-Dist: langgraph>=0.2.4
