@@ -25,39 +25,39 @@
 
 ```bash
 # 啟動 Storybook
-cd handoff/20250928/40_App/frontend-dashboard && npm run storybook
+cd handoff/20250928/40_App/frontend-dashboard && pnpm storybook
 
 # 構建 Storybook
-npm run build-storybook
+pnpm build-storybook
 ```
 
 ### 開發伺服器
 
 ```bash
 # 啟動前端開發伺服器
-cd handoff/20250928/40_App/frontend-dashboard && npm run dev
+cd handoff/20250928/40_App/frontend-dashboard && pnpm dev
 
 # 構建生產版本
-npm run build
+pnpm build
 
 # 預覽生產構建
-npm run preview
+pnpm preview
 ```
 
 ### 測試
 
 ```bash
 # 運行所有測試
-npm test
+pnpm test:e2e
 
 # 運行測試並生成覆蓋率報告
-npm run test:coverage
+pnpm test:e2e --coverage
 
 # 運行 Lint
-npm run lint
+pnpm lint
 
 # 運行 Type Check
-npm run typecheck
+pnpm typecheck
 ```
 
 ### 搜尋與查找
@@ -377,10 +377,10 @@ export const Default = {
 rm -rf node_modules/.cache
 
 # 重新安裝依賴
-npm install
+pnpm install
 
 # 重新啟動
-npm run storybook
+pnpm storybook
 ```
 
 ### 樣式不生效

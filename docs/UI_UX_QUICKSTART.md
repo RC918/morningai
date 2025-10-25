@@ -68,10 +68,10 @@ cat docs/UX/WEEK_7_8_COMPLETION_REPORT.md
 cd handoff/20250928/40_App/frontend-dashboard
 
 # 安裝依賴（首次運行）
-npm install
+pnpm install
 
 # 啟動 Storybook
-npm run storybook
+pnpm storybook
 ```
 
 瀏覽器會自動打開 `http://localhost:6006`，你可以看到所有組件的互動式文檔。
@@ -80,7 +80,7 @@ npm run storybook
 
 ```bash
 # 在前端目錄
-npm run dev
+pnpm dev
 ```
 
 應用會在 `http://localhost:5173` 啟動。
@@ -133,7 +133,7 @@ ls handoff/20250928/40_App/frontend-dashboard/src/components/ui/
 cat handoff/20250928/40_App/frontend-dashboard/src/components/ui/button.jsx
 
 # 3. 在 Storybook 中查看範例
-npm run storybook
+pnpm storybook
 # 瀏覽器打開後，左側導航找到 "Button"
 ```
 
@@ -198,7 +198,7 @@ gh pr create --title "feat(ux): Your feature" --body "Description"
 ### 常見問題
 
 **Q: 如何查找特定組件的使用方式？**  
-A: 查看 Storybook (`npm run storybook`) 或搜尋專案中的使用範例 (`rg "import.*Button" --type tsx`)
+A: 查看 Storybook (`pnpm storybook`) 或搜尋專案中的使用範例 (`rg "import.*Button" --type tsx`)
 
 **Q: 如何確保我的改動不會破壞現有樣式？**  
 A: 使用 Design Tokens 而非硬編碼值，在 `.theme-morning-ai` 容器內工作
