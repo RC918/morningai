@@ -1,8 +1,9 @@
 # Owner Console Development Plan (18 Weeks)
 **MorningAI Platform - RC918/morningai**  
-**Document Date:** 2025-10-25  
+**Document Date:** 2025-10-25 (Updated with Security Enhancements)  
 **Strategy:** Parallel Development with Agent MVP  
-**Total Budget:** $7,000-10,000 (11.3% of total budget)  
+**Total Budget:** $9,400-12,250 (includes +$1,600-2,000 for security features)  
+**Security Features:** Enhanced JWT Tokens, 2FA (TOTP), PWA with Push Notifications  
 **Timeline:** Week 1-18 (Q4 2025 - Q1 2026)
 
 ---
@@ -53,18 +54,27 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 1 Day 3-4** (Parallel with Secret Scanning):
 
-**Task 1: Connect Owner Console to Real API**
+**Task 1: Connect Owner Console to Real API + Enhanced Token Security**
 - Update API client configuration (`src/lib/api.js`)
 - Implement Owner role verification
-- Add authentication token management
+- **Add enhanced authentication token management:**
+  - JWT with Access Token (15 min) + Refresh Token (7 days)
+  - HttpOnly + Secure + SameSite=Strict cookies
+  - Automatic token refresh mechanism
+  - Token rotation on refresh
+  - Token revocation support (Redis blacklist)
 - Test API connectivity with backend
+- Implement secure session management
 
 **Deliverables:**
 - ✅ API client connected to production backend
-- ✅ Owner authentication working
+- ✅ Owner authentication working with JWT
+- ✅ Enhanced token security implemented
+- ✅ Secure cookie configuration
+- ✅ Token refresh and rotation working
 - ✅ Basic error handling implemented
 
-**Budget:** $300-400 (GPT-4 API calls for implementation)
+**Budget:** $500-700 (GPT-4 API calls for implementation + security enhancements)
 
 **Task 2: Deploy Owner Console to Production**
 - Configure Vercel environment variables
@@ -83,7 +93,34 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 2 Day 3-4** (Parallel with PostgreSQL Migration):
 
-**Task 3: Implement Basic System Monitoring**
+**Task 3: Implement 2FA (Two-Factor Authentication)**
+- **Integrate TOTP (Time-based One-Time Password):**
+  - Use `speakeasy` or `otplib` library
+  - Generate QR code for Google Authenticator / Authy
+  - Implement TOTP verification flow
+  - Generate 10 backup recovery codes
+  - Store encrypted TOTP secrets in database
+- **Enforce 2FA for Owner role:**
+  - Mandatory 2FA setup on first login
+  - 2FA verification on every login
+  - Session timeout after 30 minutes of inactivity
+  - Force re-authentication every 24 hours
+- **Additional security measures:**
+  - Login IP whitelist (optional)
+  - Email/Slack notifications on login
+  - Login history tracking
+
+**Deliverables:**
+- ✅ 2FA (TOTP) fully implemented
+- ✅ QR code generation working
+- ✅ Backup recovery codes generated
+- ✅ Mandatory 2FA for Owner role
+- ✅ Login notifications configured
+- ✅ Session management with timeout
+
+**Budget:** $500-700 (2FA implementation + security features)
+
+**Task 4: Implement Basic System Monitoring**
 - Connect to real API health check endpoints
 - Display Agent execution statistics
 - Show API response times
@@ -96,16 +133,17 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Budget:** $200-300 (Monitoring implementation)
 
-**Task 4: Add Owner Console Basic Testing**
+**Task 5: Add Owner Console Basic Testing**
 - Unit tests for critical components
 - Integration tests for API connections
-- E2E tests for authentication flow
+- E2E tests for authentication flow (including 2FA)
 - Target: 30% test coverage
 
 **Deliverables:**
 - ✅ 30% test coverage achieved
 - ✅ CI pipeline configured for Owner Console
 - ✅ Tests passing in CI
+- ✅ 2FA flow tested
 
 **Budget:** $200-300 (Test implementation)
 
@@ -113,7 +151,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 3 Day 3-4** (Parallel with Multi-Instance Deployment):
 
-**Task 5: Enhance System Monitoring**
+**Task 6: Enhance System Monitoring**
 - Add real-time Agent performance metrics
 - Implement cost tracking dashboard
 - Show API usage by Agent type
@@ -126,7 +164,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Budget:** $300-400
 
-**Task 6: Implement Basic Tenant Management**
+**Task 7: Implement Basic Tenant Management**
 - List all tenants with status
 - Add/edit tenant information
 - Manage tenant permissions
@@ -141,7 +179,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 4 Day 3-4** (Parallel with Multi-Agent Coordination):
 
-**Task 7: Add Agent Execution Logs**
+**Task 8: Add Agent Execution Logs**
 - Display Agent execution history
 - Show success/failure rates
 - Add log filtering and search
@@ -158,7 +196,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 5 Day 3-4** (Parallel with Self-Healing Implementation):
 
-**Task 8: Complete Agent Governance Page**
+**Task 9: Complete Agent Governance Page**
 - Connect to real Agent reputation data
 - Display Agent permission levels
 - Show Agent event history
@@ -173,7 +211,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 6 Day 3-4** (Parallel with E2E Testing):
 
-**Task 9: Increase Test Coverage to 40%**
+**Task 10: Increase Test Coverage to 40%**
 - Add unit tests for all pages
 - Implement integration tests for API calls
 - Add E2E tests for critical workflows
@@ -186,7 +224,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Budget:** $200-300
 
-**Task 10: UI/UX Optimization**
+**Task 11: UI/UX Optimization**
 - Improve loading states
 - Add error boundaries
 - Optimize performance
@@ -199,7 +237,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Budget:** $200-300
 
-**Phase 1 Total Budget:** $2,300-3,250
+**Phase 1 Total Budget:** $3,300-4,450 (includes Token enhancement +$200-300, 2FA +$500-700)
 
 ---
 
@@ -213,7 +251,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 7 Day 3-4** (Parallel with Stripe Integration):
 
-**Task 11: Add Billing & Revenue Page**
+**Task 12: Add Billing & Revenue Page**
 - Display Stripe subscription data
 - Show revenue analytics
 - Add MRR/ARR tracking
@@ -228,7 +266,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 8 Day 3-4** (Parallel with Usage Tracking):
 
-**Task 12: Implement Tenant Subscription Management**
+**Task 13: Implement Tenant Subscription Management**
 - Manage tenant subscriptions
 - Handle plan upgrades/downgrades
 - Process refunds and credits
@@ -241,26 +279,58 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Budget:** $400-500
 
-#### Week 9-10: Advanced Monitoring & Analytics
+#### Week 9-10: PWA Implementation & Advanced Monitoring
 
 **Week 9 Day 3-4** (Parallel with LLM Integration):
 
-**Task 13: Implement Automated Alerting**
+**Task 14: Implement PWA (Progressive Web App)**
+- **Add Service Worker:**
+  - Implement offline caching strategy
+  - Cache critical assets and API responses
+  - Handle offline/online transitions
+- **Configure manifest.json:**
+  - App name, icons, theme colors
+  - Display mode (standalone)
+  - Start URL and scope
+- **Implement Push Notifications:**
+  - Web Push API integration
+  - Notification permission handling
+  - Alert notifications (system down, high costs, etc.)
+- **Optimize for Mobile:**
+  - Responsive design improvements
+  - Touch-friendly UI elements
+  - Mobile navigation optimization
+- **Add Install Prompt:**
+  - Custom install banner
+  - Install instructions
+  - App update notifications
+
+**Deliverables:**
+- ✅ Service Worker implemented
+- ✅ Offline support working
+- ✅ manifest.json configured
+- ✅ Push notifications functional
+- ✅ Mobile-optimized UI
+- ✅ Installable as app (desktop/mobile)
+
+**Budget:** $600-800 (PWA implementation)
+
+**Task 15: Implement Automated Alerting**
 - Set up alert rules for critical metrics
-- Add email/Slack notifications
+- Add email/Slack notifications (in addition to PWA push)
 - Implement alert history
 - Create alert management interface
 
 **Deliverables:**
 - ✅ Automated alerting system
-- ✅ Multi-channel notifications
+- ✅ Multi-channel notifications (Email/Slack/Push)
 - ✅ Alert configuration interface
 
 **Budget:** $400-500
 
 **Week 10 Day 3-4** (Parallel with Agent Intelligence Enhancement):
 
-**Task 14: Add Agent Performance Analysis Tools**
+**Task 16: Add Agent Performance Analysis Tools**
 - Implement performance comparison charts
 - Add success rate trends
 - Show cost efficiency metrics
@@ -277,7 +347,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 11 Day 3-4** (Parallel with Ops_Agent Enhancement):
 
-**Task 15: Increase Test Coverage to 60%**
+**Task 17: Increase Test Coverage to 60%**
 - Add comprehensive unit tests
 - Implement integration test suite
 - Add E2E tests for all workflows
@@ -292,7 +362,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 12 Day 3-4** (Parallel with PM_Agent Activation):
 
-**Task 16: Implement Agent Permission Management**
+**Task 18: Implement Agent Permission Management**
 - Dynamic permission adjustment
 - Permission history tracking
 - Bulk permission updates
@@ -305,7 +375,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Budget:** $400-500
 
-**Task 17: UI/UX Refinement**
+**Task 19: UI/UX Refinement**
 - Implement advanced filtering
 - Add data export functionality
 - Improve dashboard customization
@@ -318,7 +388,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Budget:** $400-500
 
-**Phase 2 Total Budget:** $3,200-4,000
+**Phase 2 Total Budget:** $3,800-4,800 (includes PWA +$600-800)
 
 ---
 
@@ -332,7 +402,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 13 Day 3-4** (Parallel with Self-Healing Agents):
 
-**Task 18: Implement Automated Governance Policies**
+**Task 20: Implement Automated Governance Policies**
 - Create policy engine
 - Add automated enforcement
 - Implement policy templates
@@ -347,7 +417,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 14 Day 3-4** (Parallel with Multi-Agent Coordination):
 
-**Task 19: Add Multi-Tenant Analytics Dashboard**
+**Task 21: Add Multi-Tenant Analytics Dashboard**
 - Cross-tenant performance comparison
 - Tenant health scoring
 - Usage pattern analysis
@@ -364,7 +434,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 15 Day 3-4** (Parallel with Performance Optimization):
 
-**Task 20: Complete Platform Settings**
+**Task 22: Complete Platform Settings**
 - Advanced configuration options
 - System-wide parameter management
 - Feature flag management
@@ -379,7 +449,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 16 Day 3-4** (Parallel with Observability):
 
-**Task 21: Implement Audit Log & Compliance Reporting**
+**Task 23: Implement Audit Log & Compliance Reporting**
 - Comprehensive audit logging
 - Compliance report generation
 - Data retention management
@@ -396,7 +466,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 17 Day 3-4** (Parallel with SOC2 Gap Analysis):
 
-**Task 22: Increase Test Coverage to 80%**
+**Task 24: Increase Test Coverage to 80%**
 - Complete unit test coverage
 - Full integration test suite
 - Comprehensive E2E tests
@@ -411,7 +481,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Week 18 Day 3-4** (Parallel with Audit Logging):
 
-**Task 23: Performance Optimization & Security Hardening**
+**Task 25: Performance Optimization & Security Hardening**
 - Optimize bundle size
 - Implement code splitting
 - Add security headers
@@ -424,7 +494,7 @@ This document outlines the parallel development strategy for the Owner Console a
 
 **Budget:** $300-400
 
-**Task 24: Documentation & Training**
+**Task 26: Documentation & Training**
 - Create user documentation
 - Add inline help system
 - Create video tutorials
@@ -441,21 +511,30 @@ This document outlines the parallel development strategy for the Owner Console a
 
 ---
 
-## 💰 Budget Summary
+## 💰 Budget Summary (Updated with Security Enhancements)
 
-| Phase | Weeks | Budget | % of Total | Completion |
-|-------|-------|--------|------------|------------|
-| Phase 1 | Week 1-6 | $2,300-3,250 | 28% | 40% → 60% |
-| Phase 2 | Week 7-12 | $3,200-4,000 | 41% | 60% → 80% |
-| Phase 3 | Week 13-18 | $2,300-3,000 | 31% | 80% → 100% |
-| **Total** | **18 weeks** | **$7,800-10,250** | **100%** | **100%** |
+| Phase | Weeks | Budget | % of Total | Completion | New Features |
+|-------|-------|--------|------------|------------|--------------|
+| Phase 1 | Week 1-6 | $3,300-4,450 | 35% | 40% → 60% | Token Enhancement + 2FA |
+| Phase 2 | Week 7-12 | $3,800-4,800 | 41% | 60% → 80% | PWA Implementation |
+| Phase 3 | Week 13-18 | $2,300-3,000 | 24% | 80% → 100% | - |
+| **Total** | **18 weeks** | **$9,400-12,250** | **100%** | **100%** | **+$1,600-2,000** |
 
 **Budget Allocation:**
-- Development (GPT-4 API): $5,500-7,000 (70%)
-- Testing & QA: $1,500-2,000 (20%)
+- Development (GPT-4 API): $6,500-8,500 (69%)
+- Security Features (2FA, Token, PWA): $1,800-2,400 (19%)
+- Testing & QA: $1,500-2,000 (16%)
 - Deployment & Infrastructure: $800-1,250 (10%)
 
-**Remaining Budget for Agent MVP:** $78,510-88,510 (Total) - $7,800-10,250 (Owner Console) = **$68,260-80,710**
+**Security Enhancements Breakdown:**
+- Token Enhancement (Week 1): +$200-300
+- 2FA Implementation (Week 2): +$500-700
+- PWA Implementation (Week 9): +$600-800
+- **Total Security Investment**: +$1,300-1,800
+
+**Remaining Budget for Agent MVP:** $88,760 (Total) - $9,400-12,250 (Owner Console) = **$76,510-79,360**
+
+**Note**: Total project budget increased from $88,760 to $90,060-91,810 (+1.5-2.3%)
 
 ---
 
@@ -463,14 +542,17 @@ This document outlines the parallel development strategy for the Owner Console a
 
 ### Phase 1 (Week 1-6)
 - ✅ Owner Console deployed to production
-- ✅ API connectivity established
+- ✅ API connectivity established with enhanced JWT token security
+- ✅ 2FA (TOTP) mandatory for Owner role
+- ✅ Secure session management (30 min timeout, 24h re-auth)
 - ✅ Basic monitoring functional
 - ✅ 30-40% test coverage
 - ✅ Can monitor Agent MVP development
 
 ### Phase 2 (Week 7-12)
+- ✅ PWA implemented (installable, offline support, push notifications)
 - ✅ Billing & revenue tracking functional
-- ✅ Automated alerting operational
+- ✅ Automated alerting operational (Email/Slack/Push)
 - ✅ Agent performance analytics available
 - ✅ 60% test coverage
 - ✅ Production-ready stability

@@ -1,11 +1,12 @@
 # Week 1-6 Implementation Plan: Agent MVP Excellence
 
 **Date**: October 25, 2025  
-**Version**: 1.1 - AI-First Model with Owner Console Parallel Development  
+**Version**: 1.2 - AI-First Model with Owner Console + Security Enhancements  
 **Owner**: Ryan Chen  
 **CTO**: Devin AI  
-**Budget**: $60K-80K (24 weeks total)  
-**Focus**: Building self-developing AI Agent ecosystem + Owner Console management platform
+**Budget**: $91,810 (24 weeks total)  
+**Focus**: Building self-developing AI Agent ecosystem + secure Owner Console management platform
+**Security**: Enhanced JWT Tokens, 2FA (TOTP), PWA (Phase 2)
 
 ---
 
@@ -81,8 +82,14 @@
 **Tasks (20% time - P2 Owner Console)**:
 - [ ] Update Owner Console API client configuration (`src/lib/api.js`)
 - [ ] Implement Owner role verification
-- [ ] Add authentication token management
+- [ ] **Add enhanced authentication token management:**
+  - [ ] JWT with Access Token (15 min) + Refresh Token (7 days)
+  - [ ] HttpOnly + Secure + SameSite=Strict cookies
+  - [ ] Automatic token refresh mechanism
+  - [ ] Token rotation on refresh
+  - [ ] Token revocation support (Redis blacklist)
 - [ ] Test API connectivity with backend
+- [ ] Implement secure session management
 
 **Success Criteria**:
 - ✅ CI blocks PRs containing secrets
@@ -90,12 +97,14 @@
 - ✅ Zero test collection errors
 - ✅ All tests discoverable and runnable
 - ✅ Owner Console API client connected to production backend
-- ✅ Owner authentication working
+- ✅ Owner authentication working with enhanced JWT security
+- ✅ Token refresh and rotation working
+- ✅ Secure cookie configuration verified
 
 **Estimated Time**: 1 day (0.8 day P0 + 0.2 day P2)  
 **Risk**: Low  
 **Mitigation**: Use standard Gitleaks/TruffleHog configs  
-**Budget**: $300-400 (Owner Console API implementation)
+**Budget**: $500-700 (Owner Console API implementation + enhanced token security)
 
 ---
 
@@ -443,19 +452,30 @@
 
 ---
 
-## Owner Console Development (Week 1-6 Summary)
+## Owner Console Development (Week 1-6 Summary) - Updated with Security
 
 ### Parallel Development Tasks
 
 **Week 1 (Day 3-5)**:
-- ✅ Connect Owner Console to real API
+- ✅ Connect Owner Console to real API with **enhanced JWT token security**
+  - JWT with Access Token (15 min) + Refresh Token (7 days)
+  - HttpOnly + Secure + SameSite=Strict cookies
+  - Automatic token refresh and rotation
+  - Token revocation support (Redis blacklist)
 - ✅ Deploy to production (admin.morningai.com)
-- Budget: $400-550
+- Budget: $500-700 (+$100-150 for enhanced security)
 
 **Week 2 (Day 3-4)**:
+- ✅ **Implement 2FA (Two-Factor Authentication)**
+  - TOTP (Time-based One-Time Password) with Google Authenticator
+  - QR code generation for setup
+  - 10 backup recovery codes
+  - Mandatory 2FA for Owner role
+  - Session timeout (30 min) and re-auth (24h)
+  - Login notifications (Email/Slack)
 - ✅ Implement basic System Monitoring
-- ✅ Add Owner Console testing (30% coverage)
-- Budget: $400-600
+- ✅ Add Owner Console testing (30% coverage, including 2FA flow)
+- Budget: $900-1,300 (+$500-700 for 2FA)
 
 **Week 3 (Day 3-4)**:
 - ✅ Enhance System Monitoring with real-time metrics
@@ -477,13 +497,18 @@
 - ✅ UI/UX optimization
 - Budget: $400-600
 
-**Total Owner Console Budget (Week 1-6)**: $2,300-3,250
+**Total Owner Console Budget (Week 1-6)**: $3,300-4,450 (includes +$700-1,000 for security enhancements)
+
+**Security Enhancements**:
+- Enhanced JWT Token Management (Week 1): +$200-300
+- 2FA (TOTP) Implementation (Week 2): +$500-700
+- **Total Security Investment**: +$700-1,000
 
 ---
 
 ## Budget Tracking (Week 1-6)
 
-### Expected Costs (First 6 Weeks)
+### Expected Costs (First 6 Weeks) - Updated with Security
 
 | Category | Weekly Cost | 6 Weeks Total |
 |----------|-------------|---------------|
@@ -491,18 +516,23 @@
 | **Claude API** | $375 | $2,250 |
 | **Infrastructure** | $150 | $900 |
 | **Tools** | $35 | $210 |
-| **Owner Console** | $383-542 | $2,300-3,250 |
+| **Owner Console** | $550-742 | $3,300-4,450 |
 | **Contingency** | $200 | $1,200 |
-| **Total** | **$2,143-2,302/week** | **$12,860-13,810** |
+| **Total** | **$2,310-2,502/week** | **$13,860-15,010** |
 
 **Optional AI/ML Consultant** (if needed): $3,000/month × 1.5 months = $4,500
 
-**Total Week 1-6 Budget**: $12,860-18,310 (out of $60K-80K total)
+**Total Week 1-6 Budget**: $13,860-19,510 (out of $91,810 total)
 
 **Budget Breakdown**:
-- Agent MVP: $10,560 (81%)
-- Owner Console: $2,300-3,250 (18%)
+- Agent MVP: $10,560 (74%)
+- Owner Console (with security): $3,300-4,450 (24%)
 - Optional Consultant: $4,500 (if needed)
+
+**Budget Increase from Original Plan**:
+- Original Owner Console: $2,300-3,250
+- Updated with Security: $3,300-4,450
+- Increase: +$1,000-1,200 (+43% for Owner Console, +7% overall)
 
 ---
 
