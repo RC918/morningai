@@ -265,7 +265,7 @@ import { applyDesignTokens } from '@/lib/design-tokens'
 **本地運行**:
 ```bash
 cd handoff/20250928/40_App/frontend-dashboard
-npm run storybook
+pnpm storybook
 ```
 
 ---
