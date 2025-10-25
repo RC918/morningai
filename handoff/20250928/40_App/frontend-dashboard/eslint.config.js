@@ -3,6 +3,7 @@ import storybook from "eslint-plugin-storybook";
 
 import js from '@eslint/js';
 import globals from 'globals';
+import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
@@ -20,6 +21,7 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     },
   },
   plugins: {
+    'react': react,
     'react-hooks': reactHooks,
     'react-refresh': reactRefresh,
     'jsx-a11y': jsxA11y,
@@ -33,6 +35,12 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     ],
     'no-unused-vars': 'off',
     'no-undef': 'off',
+    'react/jsx-no-undef': 'error',
+    'react/jsx-uses-react': 'error',
+    'react/jsx-uses-vars': 'error',
+    'react/jsx-closing-tag-location': 'error',
+    'react/jsx-closing-bracket-location': 'error',
+    'react/jsx-tag-spacing': 'error',
     'jsx-a11y/aria-props': 'error',
     'jsx-a11y/aria-proptypes': 'error',
     'jsx-a11y/aria-unsupported-elements': 'error',
