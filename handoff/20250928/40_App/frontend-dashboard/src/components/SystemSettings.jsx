@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
+import { AppleInput } from '@/components/ui/apple-input'
 import { AppleButton } from '@/components/ui/apple-button'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -126,25 +126,24 @@ const SystemSettings = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">{t('settings.profile.name')}</Label>
-                  <Input
-                    id="name"
-                    value={profile.name}
-                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                    aria-describedby="name-description"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">{t('settings.profile.email')}</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profile.email}
-                    onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                    aria-describedby="email-description"
-                  />
-                </div>
+                <AppleInput
+                  id="name"
+                  label={t('settings.profile.name')}
+                  value={profile.name}
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  leftIcon={<User className="w-4 h-4" />}
+                  aria-describedby="name-description"
+                  haptic="light"
+                />
+                <AppleInput
+                  id="email"
+                  type="email"
+                  label={t('settings.profile.email')}
+                  value={profile.email}
+                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                  aria-describedby="email-description"
+                  haptic="light"
+                />
               </div>
 
               <div className="flex items-center gap-2">
@@ -296,18 +295,31 @@ const SystemSettings = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="current-password">{t('settings.security.currentPassword')}</Label>
-                  <Input id="current-password" type="password" className="mt-2" />
-                </div>
-                <div>
-                  <Label htmlFor="new-password">{t('settings.security.newPassword')}</Label>
-                  <Input id="new-password" type="password" className="mt-2" />
-                </div>
-                <div>
-                  <Label htmlFor="confirm-password">{t('settings.security.confirmPassword')}</Label>
-                  <Input id="confirm-password" type="password" className="mt-2" />
-                </div>
+                <AppleInput
+                  id="current-password"
+                  type="password"
+                  label={t('settings.security.currentPassword')}
+                  leftIcon={<Key className="w-4 h-4" />}
+                  showPasswordToggle
+                  haptic="light"
+                />
+                <AppleInput
+                  id="new-password"
+                  type="password"
+                  label={t('settings.security.newPassword')}
+                  leftIcon={<Key className="w-4 h-4" />}
+                  showPasswordToggle
+                  haptic="light"
+                  helperText={t('settings.security.passwordHelp', '密碼至少需要 8 個字元')}
+                />
+                <AppleInput
+                  id="confirm-password"
+                  type="password"
+                  label={t('settings.security.confirmPassword')}
+                  leftIcon={<Key className="w-4 h-4" />}
+                  showPasswordToggle
+                  haptic="light"
+                />
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t">

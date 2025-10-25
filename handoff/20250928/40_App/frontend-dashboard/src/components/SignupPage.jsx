@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Lock, User, AlertCircle, Loader2, Mail, CheckCircle } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { AppleInput } from '@/components/ui/apple-input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
@@ -219,74 +218,61 @@ const SignupPage = () => {
                       </motion.div>
                     )}
 
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName">{t('auth.signup.fullName', '姓名')}</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                        <Input
-                          id="fullName"
-                          name="fullName"
-                          type="text"
-                          placeholder={t('auth.signup.fullNamePlaceholder', '請輸入您的姓名')}
-                          value={formData.fullName}
-                          onChange={handleChange}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
+                    <AppleInput
+                      id="fullName"
+                      name="fullName"
+                      type="text"
+                      label={t('auth.signup.fullName', '姓名')}
+                      placeholder={t('auth.signup.fullNamePlaceholder', '請輸入您的姓名')}
+                      value={formData.fullName}
+                      onChange={handleChange}
+                      leftIcon={<User className="w-4 h-4" />}
+                      required
+                      haptic="light"
+                    />
 
-                    <div className="space-y-2">
-                      <Label htmlFor="email">{t('auth.signup.email', '電子郵件')}</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          placeholder={t('auth.signup.emailPlaceholder', '請輸入電子郵件')}
-                          value={formData.email}
-                          onChange={handleChange}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
+                    <AppleInput
+                      id="email"
+                      name="email"
+                      type="email"
+                      label={t('auth.signup.email', '電子郵件')}
+                      placeholder={t('auth.signup.emailPlaceholder', '請輸入電子郵件')}
+                      value={formData.email}
+                      onChange={handleChange}
+                      leftIcon={<Mail className="w-4 h-4" />}
+                      required
+                      haptic="light"
+                    />
 
-                    <div className="space-y-2">
-                      <Label htmlFor="password">{t('auth.signup.password', '密碼')}</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                        <Input
-                          id="password"
-                          name="password"
-                          type="password"
-                          placeholder={t('auth.signup.passwordPlaceholder', '至少 6 個字元')}
-                          value={formData.password}
-                          onChange={handleChange}
-                          className="pl-10"
-                          required
-                          minLength={6}
-                        />
-                      </div>
-                    </div>
+                    <AppleInput
+                      id="password"
+                      name="password"
+                      type="password"
+                      label={t('auth.signup.password', '密碼')}
+                      placeholder={t('auth.signup.passwordPlaceholder', '至少 6 個字元')}
+                      value={formData.password}
+                      onChange={handleChange}
+                      leftIcon={<Lock className="w-4 h-4" />}
+                      showPasswordToggle
+                      required
+                      minLength={6}
+                      haptic="light"
+                      helperText={t('auth.signup.passwordHelp', '密碼至少需要 6 個字元')}
+                    />
 
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword">{t('auth.signup.confirmPassword', '確認密碼')}</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                        <Input
-                          id="confirmPassword"
-                          name="confirmPassword"
-                          type="password"
-                          placeholder={t('auth.signup.confirmPasswordPlaceholder', '再次輸入密碼')}
-                          value={formData.confirmPassword}
-                          onChange={handleChange}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
+                    <AppleInput
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      label={t('auth.signup.confirmPassword', '確認密碼')}
+                      placeholder={t('auth.signup.confirmPasswordPlaceholder', '再次輸入密碼')}
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      leftIcon={<Lock className="w-4 h-4" />}
+                      showPasswordToggle
+                      required
+                      haptic="light"
+                    />
 
                     <motion.div
                       whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
