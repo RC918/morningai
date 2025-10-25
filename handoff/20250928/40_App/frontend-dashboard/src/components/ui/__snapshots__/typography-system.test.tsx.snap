@@ -1,0 +1,99 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Typography System - Snapshot Tests > matches snapshot for all body styles 1`] = `
+<div>
+  <div>
+    <p
+      class="text-headline"
+    >
+      Headline
+    </p>
+    <p
+      class="text-body"
+    >
+      Body
+    </p>
+    <p
+      class="text-callout"
+    >
+      Callout
+    </p>
+    <p
+      class="text-subhead"
+    >
+      Subhead
+    </p>
+  </div>
+</div>
+`;
+
+exports[`Typography System - Snapshot Tests > matches snapshot for all display styles 1`] = `
+<div>
+  <div>
+    <h1
+      class="text-display-1"
+    >
+      Display 1
+    </h1>
+    <h1
+      class="text-display-2"
+    >
+      Display 2
+    </h1>
+    <h1
+      class="text-display-3"
+    >
+      Display 3
+    </h1>
+  </div>
+</div>
+`;
+
+exports[`Typography System - Snapshot Tests > matches snapshot for all small text styles 1`] = `
+<div>
+  <div>
+    <p
+      class="text-footnote"
+    >
+      Footnote
+    </p>
+    <p
+      class="text-caption-1"
+    >
+      Caption 1
+    </p>
+    <p
+      class="text-caption-2"
+    >
+      Caption 2
+    </p>
+  </div>
+</div>
+`;
+
+exports[`Typography System - Snapshot Tests > matches snapshot for all title styles 1`] = `
+<div>
+  <div>
+    <h1
+      class="text-large-title"
+    >
+      Large Title
+    </h1>
+    <h2
+      class="text-title-1"
+    >
+      Title 1
+    </h2>
+    <h3
+      class="text-title-2"
+    >
+      Title 2
+    </h3>
+    <h4
+      class="text-title-3"
+    >
+      Title 3
+    </h4>
+  </div>
+</div>
+`;
