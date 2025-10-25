@@ -561,6 +561,412 @@ Test typography rendering in:
 
 ---
 
+## Browser Compatibility
+
+### Modern CSS Features
+
+Our typography system uses modern CSS features that require recent browser versions. Below is a comprehensive compatibility guide.
+
+#### CSS Custom Properties (CSS Variables)
+
+**Status**: ✅ Fully Supported
+
+```css
+.text-body {
+  font-size: var(--font-size-body, 1.0625rem);
+}
+```
+
+**Browser Support**:
+- Chrome 49+ (March 2016) ✅
+- Firefox 31+ (July 2014) ✅
+- Safari 9.1+ (March 2016) ✅
+- Edge 15+ (April 2017) ✅
+- iOS Safari 9.3+ ✅
+- Chrome Android 49+ ✅
+
+**Fallback Strategy**: All CSS variables include fallback values
+```css
+font-size: var(--font-size-body, 1.0625rem); /* Fallback: 1.0625rem */
+```
+
+**Impact**: IE 11 not supported (project requirement)
+
+---
+
+#### CSS `clamp()` Function (Responsive Typography)
+
+**Status**: ✅ Well Supported
+
+```css
+.text-responsive-display {
+  font-size: clamp(2.5rem, 2rem + 2vw, 3.5rem);
+}
+```
+
+**Browser Support**:
+- Chrome 79+ (December 2019) ✅
+- Firefox 75+ (April 2020) ✅
+- Safari 13.1+ (March 2020) ✅
+- Edge 79+ (January 2020) ✅
+- iOS Safari 13.4+ ✅
+- Chrome Android 79+ ✅
+
+**Fallback Strategy**: Use fixed font sizes for older browsers
+```css
+/* Fallback for older browsers */
+.text-responsive-display {
+  font-size: 3rem; /* Fixed size */
+  font-size: clamp(2.5rem, 2rem + 2vw, 3.5rem); /* Progressive enhancement */
+}
+```
+
+**Impact**: Older browsers (pre-2020) will see fixed font sizes instead of fluid scaling. Content remains readable.
+
+---
+
+#### `text-wrap: balance` and `text-wrap: pretty`
+
+**Status**: ⚠️ Modern Browsers Only (2023+)
+
+```css
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+```
+
+**Browser Support**:
+
+**`text-wrap: balance`**:
+- Chrome 114+ (May 2023) ✅
+- Edge 114+ (June 2023) ✅
+- Safari 17.4+ (March 2024) ✅
+- Firefox 121+ (December 2023) ✅
+
+**`text-wrap: pretty`**:
+- Chrome 117+ (September 2023) ✅
+- Edge 117+ (September 2023) ✅
+- Safari 17.5+ (May 2024) ✅
+- Firefox 121+ (December 2023) ✅
+
+**Fallback Strategy**: Graceful degradation
+```css
+.text-balance {
+  text-wrap: balance;
+  /* Older browsers ignore this property and use default wrapping */
+}
+```
+
+**Impact**: 
+- ✅ Modern browsers (2023+): Balanced, visually pleasing text wrapping
+- ⚠️ Older browsers: Standard text wrapping (no visual breakage)
+- 📊 Global browser support: ~85% (as of October 2024)
+
+**Recommendation**: Safe to use. Older browsers will display text normally without any visual issues.
+
+---
+
+#### `-webkit-line-clamp` (Text Truncation)
+
+**Status**: ✅ Well Supported (with prefix)
+
+```css
+.text-truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+```
+
+**Browser Support**:
+- Chrome 6+ (2010) ✅
+- Firefox 68+ (July 2019) ✅
+- Safari 5+ (2010) ✅
+- Edge 17+ (April 2018) ✅
+- iOS Safari 5+ ✅
+- Chrome Android 18+ ✅
+
+**Fallback Strategy**: Show full text
+```css
+.text-truncate-2 {
+  overflow: hidden;
+  /* Older browsers will show full text without truncation */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+```
+
+**Impact**: Excellent support. Older browsers show full text (acceptable fallback).
+
+---
+
+#### Variable Fonts
+
+**Status**: ✅ Well Supported
+
+```css
+font-family: Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+font-variation-settings: 'wght' 500;
+```
+
+**Browser Support**:
+- Chrome 62+ (October 2017) ✅
+- Firefox 62+ (September 2018) ✅
+- Safari 11+ (September 2017) ✅
+- Edge 17+ (April 2018) ✅
+- iOS Safari 11+ ✅
+- Chrome Android 62+ ✅
+
+**Fallback Strategy**: System fonts
+```css
+/* If Inter fails to load, fall back to system fonts */
+font-family: Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+```
+
+**Impact**: Excellent support. System fonts provide consistent fallback.
+
+---
+
+### Browser Support Matrix
+
+| Feature | Chrome | Firefox | Safari | Edge | iOS Safari | Chrome Android | Support Level |
+|---------|--------|---------|--------|------|------------|----------------|---------------|
+| CSS Variables | 49+ | 31+ | 9.1+ | 15+ | 9.3+ | 49+ | ✅ Excellent |
+| `clamp()` | 79+ | 75+ | 13.1+ | 79+ | 13.4+ | 79+ | ✅ Good |
+| `text-wrap: balance` | 114+ | 121+ | 17.4+ | 114+ | 17.4+ | 114+ | ⚠️ Modern |
+| `text-wrap: pretty` | 117+ | 121+ | 17.5+ | 117+ | 17.5+ | 117+ | ⚠️ Modern |
+| `-webkit-line-clamp` | 6+ | 68+ | 5+ | 17+ | 5+ | 18+ | ✅ Excellent |
+| Variable Fonts | 62+ | 62+ | 11+ | 17+ | 11+ | 62+ | ✅ Excellent |
+
+---
+
+### Minimum Browser Requirements
+
+**Recommended Minimum Versions** (for full feature support):
+
+- **Chrome**: 114+ (May 2023)
+- **Firefox**: 121+ (December 2023)
+- **Safari**: 17.4+ (March 2024)
+- **Edge**: 114+ (June 2023)
+- **iOS Safari**: 17.4+ (March 2024)
+- **Chrome Android**: 114+ (May 2023)
+
+**Acceptable Minimum Versions** (with graceful degradation):
+
+- **Chrome**: 79+ (December 2019)
+- **Firefox**: 75+ (April 2020)
+- **Safari**: 13.1+ (March 2020)
+- **Edge**: 79+ (January 2020)
+- **iOS Safari**: 13.4+ (March 2020)
+- **Chrome Android**: 79+ (December 2019)
+
+---
+
+### Testing Recommendations
+
+#### 1. Test in Target Browsers
+
+**Priority 1** (Must test):
+- Chrome (latest)
+- Safari (latest)
+- Firefox (latest)
+- Mobile Safari (iOS 16+)
+
+**Priority 2** (Should test):
+- Edge (latest)
+- Chrome Android (latest)
+- Samsung Internet (latest)
+
+**Priority 3** (Nice to have):
+- Safari (iOS 15)
+- Firefox ESR
+
+#### 2. Feature Detection
+
+Use feature detection for modern CSS:
+
+```javascript
+// Check for text-wrap support
+const supportsTextWrap = CSS.supports('text-wrap', 'balance');
+
+if (supportsTextWrap) {
+  document.body.classList.add('supports-text-wrap');
+}
+```
+
+```css
+/* Apply text-wrap only if supported */
+.supports-text-wrap .text-balance {
+  text-wrap: balance;
+}
+```
+
+#### 3. Progressive Enhancement
+
+Always provide fallbacks:
+
+```css
+/* Base styles (all browsers) */
+.heading {
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+/* Enhanced styles (modern browsers) */
+@supports (font-size: clamp(1rem, 2vw, 3rem)) {
+  .heading {
+    font-size: clamp(1.5rem, 2vw + 1rem, 2.5rem);
+  }
+}
+```
+
+---
+
+### Known Issues and Workarounds
+
+#### Issue 1: `text-wrap: balance` in Firefox
+
+**Problem**: Firefox 121-126 had rendering bugs with `text-wrap: balance` on long paragraphs.
+
+**Workaround**: Limit usage to headings and short paragraphs (< 4 lines).
+
+```css
+/* Safe usage */
+h1, h2, h3 {
+  text-wrap: balance;
+  max-width: 50ch; /* Limit line length */
+}
+
+/* Avoid for long paragraphs */
+p {
+  /* Don't use text-wrap: balance here */
+}
+```
+
+**Status**: Fixed in Firefox 127+ (June 2024)
+
+---
+
+#### Issue 2: Variable Font Rendering on Windows
+
+**Problem**: Some Windows systems render variable fonts with poor hinting.
+
+**Workaround**: Use `font-smooth` and `text-rendering` properties.
+
+```css
+body {
+  font-family: Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+```
+
+---
+
+#### Issue 3: `clamp()` with `calc()` in Safari 13
+
+**Problem**: Safari 13.0 had bugs with nested `calc()` inside `clamp()`.
+
+**Workaround**: Simplify calculations or use Safari 13.1+.
+
+```css
+/* Problematic in Safari 13.0 */
+font-size: clamp(1rem, calc(1rem + 2vw), 3rem);
+
+/* Better compatibility */
+font-size: clamp(1rem, 1rem + 2vw, 3rem);
+```
+
+**Status**: Fixed in Safari 13.1+ (March 2020)
+
+---
+
+### Performance Considerations
+
+#### Variable Fonts
+
+**Impact**: Minimal performance impact. Variable fonts are often smaller than loading multiple font weights.
+
+```
+Traditional: 
+- Regular (400): 120KB
+- Medium (500): 125KB
+- Bold (700): 130KB
+Total: 375KB
+
+Variable Font:
+- Inter Variable: 280KB
+Savings: 95KB (25% smaller)
+```
+
+#### CSS Custom Properties
+
+**Impact**: Negligible. CSS variables have minimal performance overhead.
+
+#### `text-wrap: balance`
+
+**Impact**: Slight layout cost. Browser recalculates text wrapping.
+
+**Recommendation**: Use sparingly on headings, not on large blocks of text.
+
+---
+
+### Migration Path for Legacy Browsers
+
+If you need to support older browsers (pre-2020):
+
+#### 1. Provide Fixed Font Sizes
+
+```css
+/* Fallback for older browsers */
+.text-display-1 {
+  font-size: 3.5rem; /* Fixed size */
+}
+
+/* Progressive enhancement for modern browsers */
+@supports (font-size: clamp(1rem, 2vw, 3rem)) {
+  .text-display-1 {
+    font-size: clamp(2.5rem, 2rem + 2vw, 3.5rem);
+  }
+}
+```
+
+#### 2. Polyfill CSS Variables (Not Recommended)
+
+```html
+<!-- Only if you MUST support IE 11 -->
+<script src="https://cdn.jsdelivr.net/npm/css-vars-ponyfill@2"></script>
+<script>
+  cssVars({
+    include: 'style,link[rel="stylesheet"]',
+    onlyLegacy: true
+  });
+</script>
+```
+
+**Note**: We don't recommend supporting IE 11. Focus on modern browsers.
+
+---
+
+### Accessibility and Browser Support
+
+**Important**: All typography features degrade gracefully. Older browsers will display text with:
+- ✅ Correct font sizes (using fallback values)
+- ✅ Proper contrast ratios
+- ✅ Readable line heights
+- ✅ Semantic HTML structure
+
+**No accessibility features are lost in older browsers.**
+
+---
+
 ## Resources
 
 ### Apple Human Interface Guidelines
@@ -572,13 +978,20 @@ Test typography rendering in:
 - [WCAG 2.1 Level AA](https://www.w3.org/WAI/WCAG21/quickref/)
 - [Contrast Checker](https://webaim.org/resources/contrastchecker/)
 
+### Browser Compatibility
+- [Can I Use - CSS Variables](https://caniuse.com/css-variables)
+- [Can I Use - CSS clamp()](https://caniuse.com/css-math-functions)
+- [Can I Use - text-wrap](https://caniuse.com/mdn-css_properties_text-wrap)
+- [MDN - CSS text-wrap](https://developer.mozilla.org/en-US/docs/Web/CSS/text-wrap)
+
 ### Tools
 - [Type Scale Calculator](https://typescale.com/)
 - [Modular Scale](https://www.modularscale.com/)
 - [Inter Font](https://rsms.me/inter/)
+- [BrowserStack](https://www.browserstack.com/) - Cross-browser testing
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: 2025-10-24  
+**Version**: 1.1.0  
+**Last Updated**: 2025-10-25  
 **Maintained by**: UI/UX Team
