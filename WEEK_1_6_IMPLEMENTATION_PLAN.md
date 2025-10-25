@@ -1,11 +1,11 @@
 # Week 1-6 Implementation Plan: Agent MVP Excellence
 
-**Date**: October 24, 2025  
-**Version**: 1.0 - AI-First Model  
+**Date**: October 25, 2025  
+**Version**: 1.1 - AI-First Model with Owner Console Parallel Development  
 **Owner**: Ryan Chen  
 **CTO**: Devin AI  
 **Budget**: $60K-80K (24 weeks total)  
-**Focus**: Building self-developing AI Agent ecosystem
+**Focus**: Building self-developing AI Agent ecosystem + Owner Console management platform
 
 ---
 
@@ -21,6 +21,13 @@
 - Multi-Agent coordination working (Dev_Agent + Ops_Agent)
 - Self-healing capabilities implemented (60%+ auto-resolution)
 - Test coverage increased to 50%
+- Owner Console deployed and monitoring Agent MVP (30-40% complete)
+
+**Parallel Development Strategy**:
+- 80% time allocation: Agent MVP (P0 tasks)
+- 20% time allocation: Owner Console (P2 tasks)
+- Owner Console budget: $2,300-3,250 (Week 1-6)
+- See [OWNER_CONSOLE_DEVELOPMENT_PLAN.md](OWNER_CONSOLE_DEVELOPMENT_PLAN.md) for details
 
 ---
 
@@ -57,12 +64,12 @@
 
 ---
 
-### Day 3: Secret Scanning & Test Fixes (P0 Security + Quality)
+### Day 3: Secret Scanning & Test Fixes + Owner Console API Connection (P0 Security + P2 Owner Console)
 
 **Owner**: Devin AI  
-**Goal**: Add secret scanning to CI and fix test collection errors
+**Goal**: Add secret scanning to CI, fix test collection errors, and connect Owner Console to API
 
-**Tasks**:
+**Tasks (80% time - P0)**:
 - [ ] Add Gitleaks action to `.github/workflows/`
 - [ ] Add TruffleHog scanning
 - [ ] Configure to block PRs with secrets
@@ -71,24 +78,33 @@
 - [ ] Verify all 35 tests are runnable
 - [ ] Update CI to fail on collection errors
 
+**Tasks (20% time - P2 Owner Console)**:
+- [ ] Update Owner Console API client configuration (`src/lib/api.js`)
+- [ ] Implement Owner role verification
+- [ ] Add authentication token management
+- [ ] Test API connectivity with backend
+
 **Success Criteria**:
 - ✅ CI blocks PRs containing secrets
 - ✅ Full git history scanned
 - ✅ Zero test collection errors
 - ✅ All tests discoverable and runnable
+- ✅ Owner Console API client connected to production backend
+- ✅ Owner authentication working
 
-**Estimated Time**: 1 day  
+**Estimated Time**: 1 day (0.8 day P0 + 0.2 day P2)  
 **Risk**: Low  
-**Mitigation**: Use standard Gitleaks/TruffleHog configs
+**Mitigation**: Use standard Gitleaks/TruffleHog configs  
+**Budget**: $300-400 (Owner Console API implementation)
 
 ---
 
-### Day 4-5: LLM Planner Foundation (P0 Agent MVP)
+### Day 4-5: LLM Planner Foundation + Owner Console Deployment (P0 Agent MVP + P2 Owner Console)
 
 **Owner**: Devin AI  
-**Goal**: Create foundation for LLM-driven dynamic planning
+**Goal**: Create foundation for LLM-driven dynamic planning and deploy Owner Console
 
-**Tasks**:
+**Tasks (80% time - P0 Agent MVP)**:
 - [ ] Create `orchestrator/llm/` directory structure
 - [ ] Create `orchestrator/llm/planner.py` module
 - [ ] Integrate GPT-4 API with OpenAI SDK
@@ -97,15 +113,27 @@
 - [ ] Write first dynamic planning test (simple task)
 - [ ] Document LLM Planner architecture
 
+**Tasks (20% time - P2 Owner Console)**:
+- [ ] Configure Vercel environment variables for Owner Console
+  - `VITE_API_BASE_URL=https://morningai-backend-v2.onrender.com`
+  - `VITE_OWNER_CONSOLE=true`
+- [ ] Deploy Owner Console to production URL (admin.morningai.com)
+- [ ] Verify deployment and SSL certificates
+- [ ] Test production access and authentication
+
 **Success Criteria**:
 - ✅ GPT-4 API integration working
 - ✅ Basic planning prompt generates task decomposition
 - ✅ Context-aware (can analyze codebase structure)
 - ✅ At least 1 test passing
+- ✅ Owner Console deployed to production URL
+- ✅ SSL certificates configured
+- ✅ Production authentication working
 
-**Estimated Time**: 2 days  
+**Estimated Time**: 2 days (1.6 days P0 + 0.4 days P2)  
 **Risk**: High (new architecture)  
-**Mitigation**: Start simple, iterate quickly
+**Mitigation**: Start simple, iterate quickly  
+**Budget**: $100-150 (Owner Console deployment)
 
 ---
 
@@ -415,6 +443,44 @@
 
 ---
 
+## Owner Console Development (Week 1-6 Summary)
+
+### Parallel Development Tasks
+
+**Week 1 (Day 3-5)**:
+- ✅ Connect Owner Console to real API
+- ✅ Deploy to production (admin.morningai.com)
+- Budget: $400-550
+
+**Week 2 (Day 3-4)**:
+- ✅ Implement basic System Monitoring
+- ✅ Add Owner Console testing (30% coverage)
+- Budget: $400-600
+
+**Week 3 (Day 3-4)**:
+- ✅ Enhance System Monitoring with real-time metrics
+- ✅ Implement basic Tenant Management
+- Budget: $500-700
+
+**Week 4 (Day 3-4)**:
+- ✅ Add Agent execution logs
+- ✅ Implement log filtering and search
+- Budget: $300-400
+
+**Week 5 (Day 3-4)**:
+- ✅ Complete Agent Governance page with real data
+- ✅ Implement reputation ranking system
+- Budget: $300-400
+
+**Week 6 (Day 3-4)**:
+- ✅ Increase test coverage to 40%
+- ✅ UI/UX optimization
+- Budget: $400-600
+
+**Total Owner Console Budget (Week 1-6)**: $2,300-3,250
+
+---
+
 ## Budget Tracking (Week 1-6)
 
 ### Expected Costs (First 6 Weeks)
@@ -425,12 +491,18 @@
 | **Claude API** | $375 | $2,250 |
 | **Infrastructure** | $150 | $900 |
 | **Tools** | $35 | $210 |
+| **Owner Console** | $383-542 | $2,300-3,250 |
 | **Contingency** | $200 | $1,200 |
-| **Total** | **$1,760/week** | **$10,560** |
+| **Total** | **$2,143-2,302/week** | **$12,860-13,810** |
 
 **Optional AI/ML Consultant** (if needed): $3,000/month × 1.5 months = $4,500
 
-**Total Week 1-6 Budget**: $10,560-15,060 (out of $60K-80K total)
+**Total Week 1-6 Budget**: $12,860-18,310 (out of $60K-80K total)
+
+**Budget Breakdown**:
+- Agent MVP: $10,560 (81%)
+- Owner Console: $2,300-3,250 (18%)
+- Optional Consultant: $4,500 (if needed)
 
 ---
 
