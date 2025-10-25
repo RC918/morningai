@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { 
   FileText, 
   Search, 
@@ -187,22 +187,24 @@ export const EmptyStateLibrary = ({
         transition={{ delay: 0.5 }}
       >
         {primaryAction && (
-          <Button 
+          <AppleButton 
             onClick={primaryAction} 
             size="lg"
             className="shadow-lg hover:shadow-xl transition-shadow"
+            haptic="medium"
           >
             {primaryActionLabel || t('feedback.emptyState.defaultPrimaryAction')}
-          </Button>
+          </AppleButton>
         )}
         {secondaryAction && (
-          <Button 
+          <AppleButton 
             onClick={secondaryAction} 
             variant="outline"
             size="lg"
+            haptic="light"
           >
             {secondaryActionLabel || t('feedback.emptyState.defaultSecondaryAction')}
-          </Button>
+          </AppleButton>
         )}
       </motion.div>
     </motion.div>
