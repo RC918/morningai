@@ -140,7 +140,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
               whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
               whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
             >
-              <Button
+              <AppleButton
                 size="lg"
                 className="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 px-8 py-6 text-lg"
                 onClick={onGetStarted}
@@ -153,7 +153,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
               whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
               whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
             >
-              <Button
+              <AppleButton
                 size="lg"
                 variant="outline"
                 className="px-8 py-6 text-lg border-gray-300 dark:border-gray-700"

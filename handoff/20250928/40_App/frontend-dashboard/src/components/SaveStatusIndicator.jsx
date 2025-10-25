@@ -58,7 +58,7 @@ export const SaveStatusIndicator = ({ status, lastSaved, error, onRetry }) => {
         {config.text}
       </span>
       {config.action && (
-        <Button
+        <AppleButton
           variant="ghost"
           size="sm"
           onClick={config.action.onClick}

@@ -49,7 +49,7 @@ export const DarkModeToggle = ({ variant = 'default' }) => {
   }
 
   return (
-    <Button
+    <AppleButton
       variant="ghost"
       size="icon"
       onClick={toggleTheme}

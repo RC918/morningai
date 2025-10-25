@@ -322,7 +322,7 @@ const SignupPage = () => {
                     </div>
 
                     <div className="mt-6 grid grid-cols-3 gap-3">
-                      <Button
+                      <AppleButton
                         type="button"
                         variant="outline"
                         onClick={() => handleSSOSignup('google')}
@@ -350,7 +350,7 @@ const SignupPage = () => {
                         </svg>
                       </AppleButton>
 
-                      <Button
+                      <AppleButton
                         type="button"
                         variant="outline"
                         onClick={() => handleSSOSignup('apple')}
@@ -363,7 +363,7 @@ const SignupPage = () => {
                         </svg>
                       </AppleButton>
 
-                      <Button
+                      <AppleButton
                         type="button"
                         variant="outline"
                         onClick={() => handleSSOSignup('github')}

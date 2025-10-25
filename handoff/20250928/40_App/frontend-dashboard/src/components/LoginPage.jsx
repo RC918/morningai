@@ -247,7 +247,7 @@ const LoginPage = ({ onLogin }) => {
                 </div>
 
                 <div className="mt-6 grid grid-cols-3 gap-3">
-                  <Button
+                  <AppleButton
                     type="button"
                     variant="outline"
                     onClick={() => handleSSOLogin('google')}
@@ -275,7 +275,7 @@ const LoginPage = ({ onLogin }) => {
                     </svg>
                   </AppleButton>
 
-                  <Button
+                  <AppleButton
                     type="button"
                     variant="outline"
                     onClick={() => handleSSOLogin('apple')}
@@ -288,7 +288,7 @@ const LoginPage = ({ onLogin }) => {
                     </svg>
                   </AppleButton>
 
-                  <Button
+                  <AppleButton
                     type="button"
                     variant="outline"
                     onClick={() => handleSSOLogin('github')}

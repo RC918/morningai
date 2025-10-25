@@ -69,14 +69,14 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
           <div className="flex items-center gap-4">
             <DarkModeToggle variant="compact" />
             <LanguageSwitcher variant="compact" />
-            <Button
+            <AppleButton
               variant="ghost"
               onClick={onNavigateToLogin}
               className="text-gray-600 dark:text-gray-600"
             >
               {t('landing.nav.login')}
             </AppleButton>
-            <Button
+            <AppleButton
               className="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900"
               onClick={handleGetStarted}
             >
@@ -123,7 +123,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                     whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
                     whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
                   >
-                    <Button
+                    <AppleButton
                       size="lg"
                       variant="outline"
                       className="w-full justify-start gap-3 h-14 text-base"
@@ -138,7 +138,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                     whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
                     whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
                   >
-                    <Button
+                    <AppleButton
                       size="lg"
                       variant="outline"
                       className="w-full justify-start gap-3 h-14 text-base"
@@ -153,7 +153,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                     whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
                     whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
                   >
-                    <Button
+                    <AppleButton
                       size="lg"
                       variant="outline"
                       className="w-full justify-start gap-3 h-14 text-base"
@@ -179,7 +179,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                     whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
                     whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
                   >
-                    <Button
+                    <AppleButton
                       size="lg"
                       variant="ghost"
                       className="w-full h-14 text-base"

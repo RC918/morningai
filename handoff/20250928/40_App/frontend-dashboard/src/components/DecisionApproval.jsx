@@ -421,14 +421,14 @@ const DecisionApproval = () => {
                         </div>
                         
                         <div className="flex items-center justify-end space-x-3">
-                          <Button
+                          <AppleButton
                             variant="outline"
                             onClick={() => handleReject(decision.id, approvalComment)}
                           >
                             <XCircle className="w-4 h-4 mr-2" />
                             {t('approval.reject')}
                           </AppleButton>
-                          <Button
+                          <AppleButton
                             onClick={() => handleApprove(decision.id, approvalComment)}
                           >
                             <CheckCircle className="w-4 h-4 mr-2" />
@@ -439,7 +439,7 @@ const DecisionApproval = () => {
                     </DialogContent>
                   </Dialog>
                   
-                  <Button
+                  <AppleButton
                     variant="outline"
                     onClick={() => handleReject(decision.id, 'Manual rejection')}
                   >
@@ -447,7 +447,7 @@ const DecisionApproval = () => {
                     {t('approval.reject')}
                   </AppleButton>
                   
-                  <Button
+                  <AppleButton
                     onClick={() => handleApprove(decision.id)}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
