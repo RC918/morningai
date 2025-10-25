@@ -7,8 +7,15 @@ from datetime import date, datetime
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../api-backend/src'))
-from utils.redis_config import get_secure_redis_url
+try:
+    _api_backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../api-backend/src'))
+    if _api_backend_path not in sys.path:
+        sys.path.insert(0, _api_backend_path)
+    from utils.redis_config import get_secure_redis_url
+except ImportError:
+    def get_secure_redis_url(allow_local: bool = False) -> str:
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        return redis_url
 
 
 class CostBudgetExceeded(Exception):

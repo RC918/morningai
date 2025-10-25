@@ -13,12 +13,15 @@ def get_secure_redis_url(allow_local: bool = False) -> str:
     """
     Get Redis URL with TLS enforcement for production.
     
+    NOTE: This function only returns standard Redis URLs (redis:// or rediss://).
+    For Upstash REST API (HTTPS), use create_redis_client() from redis_client.py instead.
+    
     Args:
         allow_local: If True, allows redis://localhost for local development.
                     If False (default), requires TLS for all connections.
     
     Returns:
-        str: Redis URL (Upstash HTTPS or rediss:// with TLS)
+        str: Redis URL (rediss:// with TLS or redis://localhost for local dev)
     
     Raises:
         ValueError: If no secure Redis configuration found
@@ -28,11 +31,6 @@ def get_secure_redis_url(allow_local: bool = False) -> str:
         
         redis_url = get_secure_redis_url(allow_local=True)
     """
-    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
-    if upstash_url:
-        logger.info("✅ Using Upstash Redis (HTTPS)")
-        return upstash_url
-    
     redis_url = os.getenv("REDIS_URL")
     if redis_url:
         if redis_url.startswith("rediss://"):
@@ -52,9 +50,9 @@ def get_secure_redis_url(allow_local: bool = False) -> str:
             )
     
     raise ValueError(
-        "❌ No Redis configuration found. "
-        "Set UPSTASH_REDIS_REST_URL (recommended) or REDIS_URL environment variable. "
-        "For production, REDIS_URL must use TLS (rediss://)."
+        "❌ No REDIS_URL environment variable found. "
+        "Set REDIS_URL with rediss:// (TLS) for production. "
+        "For local development, use redis://localhost:6379 with allow_local=True."
     )
 
 
