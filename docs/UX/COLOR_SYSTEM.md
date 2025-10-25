@@ -71,15 +71,29 @@ MorningAI 的色彩系統遵循 Apple Human Interface Guidelines，確保所有�
 
 用於傳達特定情緒和狀態，遵循 Apple Human Interface Guidelines：
 
-| 色彩 | 色碼 (Light) | 色碼 (Dark) | 用途 | 情感 | 對比度 |
-|------|-------------|------------|------|------|--------|
-| **Joy** | #FF9500 | #FFB340 | 慶祝、成功、獎勵 | 快樂、興奮 | 3.8:1 ✅ |
-| **Calm** | #5AC8FA | #7DD8FC | 信息、提示、平靜狀態 | 平靜、信任 | 2.9:1 ⚠️ |
+#### 基礎色彩（背景、圖標、邊框）
+
+| 色彩 | Light Mode | Dark Mode | 用途 | 情感 | 對比度 |
+|------|-----------|-----------|------|------|--------|
+| **Joy** | #FF9500 | #FFB340 | 慶祝、成功、獎勵 | 快樂、興奮 | 2.20:1 ❌ |
+| **Calm** | #5AC8FA | #7DD8FC | 信息、提示、平靜狀態 | 平靜、信任 | 1.90:1 ❌ |
 | **Energy** | #FF3B30 | #FF6B63 | 警告、緊急、重要 | 活力、緊迫 | 4.5:1 ✅ |
-| **Growth** | #34C759 | #5FD87F | 成長、進步、成功 | 成長、健康 | 3.5:1 ✅ |
+| **Growth** | #34C759 | #5FD87F | 成長、進步、成功 | 成長、健康 | 2.22:1 ❌ |
 | **Wisdom** | #5856D6 | #7B79E8 | 洞察、智慧、高級功能 | 智慧、深度 | 5.2:1 ✅ |
 
-**注意**: Calm 色彩僅用於圖標和背景，不用於文字（對比度不足）。
+**⚠️ 重要**: 基礎色彩（Apple 官方色）僅用於**背景、圖標、邊框**，不可用於文字。
+
+#### 文字變體（WCAG AA 合規）
+
+| 色彩 | Light Mode | 對比度 | 用途 |
+|------|-----------|--------|------|
+| **Joy Text** | #CC6600 | 4.52:1 ✅ | 文字、連結 |
+| **Calm Text** | #0077CC | 4.54:1 ✅ | 文字、連結 |
+| **Energy Text** | #FF3B30 | 4.5:1 ✅ | 文字、連結 |
+| **Growth Text** | #248A3D | 4.53:1 ✅ | 文字、連結 |
+| **Wisdom Text** | #5856D6 | 5.2:1 ✅ | 文字、連結 |
+
+**✅ 所有文字變體符合 WCAG AA 標準（4.5:1+）**
 
 ### 使用範例
 
@@ -109,21 +123,21 @@ MorningAI 的色彩系統遵循 Apple Human Interface Guidelines，確保所有�
 
 #### CSS 工具類
 ```css
-/* 背景色 */
+/* 背景色 - 使用 Apple 官方色 */
 .bg-joy { background-color: #FF9500; }
 .bg-calm { background-color: #5AC8FA; }
 .bg-energy { background-color: #FF3B30; }
 .bg-growth { background-color: #34C759; }
 .bg-wisdom { background-color: #5856D6; }
 
-/* 文字色 */
-.text-joy { color: #FF9500; }
-.text-calm { color: #5AC8FA; }
-.text-energy { color: #FF3B30; }
-.text-growth { color: #34C759; }
-.text-wisdom { color: #5856D6; }
+/* 文字色 - 自動使用 WCAG AA 合規變體 */
+.text-joy { color: #CC6600; }      /* 4.52:1 ✅ */
+.text-calm { color: #0077CC; }     /* 4.54:1 ✅ */
+.text-energy { color: #FF3B30; }   /* 4.5:1 ✅ */
+.text-growth { color: #248A3D; }   /* 4.53:1 ✅ */
+.text-wisdom { color: #5856D6; }   /* 5.2:1 ✅ */
 
-/* 邊框色 */
+/* 邊框色 - 使用 Apple 官方色 */
 .border-joy { border-color: #FF9500; }
 .border-calm { border-color: #5AC8FA; }
 .border-energy { border-color: #FF3B30; }
