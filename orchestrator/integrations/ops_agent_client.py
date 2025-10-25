@@ -5,7 +5,12 @@ Connects Ops Agent to the Orchestrator
 """
 import logging
 import asyncio
+import os
+import sys
 from typing import Dict, Any, Optional
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../handoff/20250928/40_App/api-backend/src'))
+from utils.redis_config import get_secure_redis_url
 
 from orchestrator import RedisQueue, UnifiedTask, TaskType, create_task
 from orchestrator.schemas.event_schema import EventType
@@ -254,9 +259,12 @@ class OpsAgentClient:
         await self.redis_queue.enqueue_task(deploy_task)
 
 
-async def start_ops_agent_client(redis_url: str = "redis://localhost:6379"):
+async def start_ops_agent_client(redis_url: Optional[str] = None):
     """Start Ops Agent client"""
     from orchestrator import create_redis_queue
+    
+    if not redis_url:
+        redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
     
     queue = await create_redis_queue(redis_url)
     client = OpsAgentClient(queue)

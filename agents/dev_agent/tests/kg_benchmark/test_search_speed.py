@@ -93,11 +93,7 @@ class TestSearchSpeedBenchmark:
 
             times.append(elapsed)
             results_count = result['data']['count']
-            print(
-                f"     Search {
-                    i +
-                    1}: {
-                    elapsed:.1f}ms ({results_count} results)")
+            print(f"     Search {i + 1}: {elapsed:.1f}ms ({results_count} results)")
 
         if times:
             p50 = statistics.median(times)
@@ -123,9 +119,7 @@ class TestSearchSpeedBenchmark:
                 print(f"   ⚠️ P95 target missed ({p95:.1f}ms >= 50ms)")
 
             if p95 >= 50:
-                print(
-                    f"\n   ℹ️  Note: P95 search latency is {
-                        p95:.1f}ms (target: <50ms)")
+                print(f"\n   ℹ️  Note: P95 search latency is {p95:.1f}ms (target: <50ms)")
                 print(f"      This may be acceptable depending on:")
                 print(f"      - Database size and index parameters")
                 print(f"      - Network latency to database")
@@ -149,13 +143,9 @@ class TestSearchSpeedBenchmark:
         print(f"   ✓ Query executed in {elapsed:.1f}ms")
 
         if not result.get('success'):
-            print(
-                f"   ℹ️  Expected error (no database): {
-                    result.get('error')}")
+            print(f"   ℹ️  Expected error (no database): {result.get('error')}")
         else:
-            print(
-                f"   ✓ Query succeeded, found {
-                    result['data']['count']} results")
+            print(f"   ✓ Query succeeded, found {result['data']['count']} results")
 
 
 if __name__ == '__main__':

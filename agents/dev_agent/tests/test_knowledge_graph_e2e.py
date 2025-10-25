@@ -94,8 +94,7 @@ class TestKnowledgeGraphManager:
                 print("✓ Embedding generation works")
             else:
                 print(
-                    f"⚠ Embedding generation failed (expected in test): {
-                        result.get('error')}")
+                    f"⚠ Embedding generation failed (expected in test): {result.get('error')}")
 
     def test_kg_manager_health_check(self, kg_manager):
         """Test KG manager health check"""
@@ -277,8 +276,7 @@ logging.debug("Debug message")
         assert result['total_samples'] == 3
 
         print(
-            f"✓ Learned {
-                result['patterns_learned']} patterns from samples")
+            f"✓ Learned {result['patterns_learned']} patterns from samples")
 
     def test_find_pattern_matches(self, learner):
         """Test finding pattern matches"""

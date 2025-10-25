@@ -80,14 +80,12 @@ class KnowledgeGraphManager:
         """Initialize PostgreSQL connection pool"""
         try:
             db_url = self.supabase_url.replace(
-                'https://', 'postgresql://postgres:')
+                'https://', 'postgresql://postgresql:')
             db_url = db_url.replace(
                 '.supabase.co', '.supabase.co:5432/postgres')
 
             if self.supabase_password:
-                db_url = db_url.replace(
-                    'postgres:', f'postgres:{
-                        self.supabase_password}@')
+                db_url = db_url.replace('postgresql:', f'postgresql:{self.supabase_password}@')
 
             self.db_pool = pool.ThreadedConnectionPool(
                 minconn=1,
@@ -124,18 +122,14 @@ class KnowledgeGraphManager:
         if len(self.request_times) >= self.MAX_REQUESTS_PER_MINUTE:
             sleep_time = 60 - (current_time - self.request_times[0])
             if sleep_time > 0:
-                logger.warning(
-                    f"Rate limit reached, sleeping for {
-                        sleep_time:.2f}s")
+                logger.warning(f"Rate limit reached, sleeping for {sleep_time:.2f}s")
                 time.sleep(sleep_time)
 
         total_tokens = sum(t for _, t in self.token_usage)
         if total_tokens + tokens > self.MAX_TOKENS_PER_MINUTE:
             sleep_time = 60 - (current_time - self.token_usage[0][0])
             if sleep_time > 0:
-                logger.warning(
-                    f"Token limit reached, sleeping for {
-                        sleep_time:.2f}s")
+                logger.warning(f"Token limit reached, sleeping for {sleep_time:.2f}s")
                 time.sleep(sleep_time)
 
         self.request_times.append(current_time)
@@ -156,9 +150,7 @@ class KnowledgeGraphManager:
         if daily_cost >= self.max_daily_cost:
             return create_error(
                 ErrorCode.RATE_LIMIT_EXCEEDED,
-                f"Daily cost limit exceeded: ${
-                    daily_cost:.4f} >= ${
-                    self.max_daily_cost:.4f}",
+                f"Daily cost limit exceeded: ${daily_cost:.4f} >= ${self.max_daily_cost:.4f}",
                 hint="Wait until tomorrow or increase OPENAI_MAX_DAILY_COST")
 
         return None
@@ -218,9 +210,7 @@ class KnowledgeGraphManager:
                     self.cache.set(content, embedding, self.EMBEDDING_MODEL)
                     self.cache.record_api_call(token_count, cost)
 
-                logger.debug(
-                    f"Generated embedding: {token_count} tokens, ${
-                        cost:.6f}")
+                logger.debug(f"Generated embedding: {token_count} tokens, ${cost:.6f}")
 
                 return create_success({
                     'embedding': embedding,

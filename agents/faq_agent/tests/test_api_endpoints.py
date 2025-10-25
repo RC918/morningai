@@ -57,9 +57,10 @@ class TestFAQSearchEndpoint:
         response = client.get('/api/faq/search?q=test')
         
         assert response.status_code == 200
-        data = response.get_json()
+        json_data = response.get_json()
+        assert 'data' in json_data
+        data = json_data['data']
         assert data['query'] == 'test'
-        assert data['count'] == 1
         assert len(data['results']) == 1
         assert data['results'][0]['question'] == 'Test question'
 
@@ -67,33 +68,33 @@ class TestFAQSearchEndpoint:
         """Test search with missing query parameter"""
         response = client.get('/api/faq/search')
         
-        assert response.status_code == 400
+        assert response.status_code == 422
         data = response.get_json()
         assert 'error' in data
-        assert data['error']['code'] == 'invalid_input'
+        assert data['error']['code'] == 'validation_error'
 
     def test_search_empty_query(self, client):
         """Test search with empty query"""
         response = client.get('/api/faq/search?q=')
         
-        assert response.status_code == 400
+        assert response.status_code == 422
         data = response.get_json()
         assert 'error' in data
 
     def test_search_with_limit(self, client, mock_search_tool, mock_redis):
-        """Test search with custom limit"""
+        """Test search with custom page_size"""
         mock_search_tool.search.return_value = {
             'success': True,
             'results': [],
             'count': 0
         }
 
-        response = client.get('/api/faq/search?q=test&limit=5')
+        response = client.get('/api/faq/search?q=test&page_size=5')
         
         assert response.status_code == 200
         mock_search_tool.search.assert_called_with(
             query='test',
-            limit=5,
+            limit=6,
             category=None
         )
 
@@ -110,7 +111,7 @@ class TestFAQSearchEndpoint:
         assert response.status_code == 200
         mock_search_tool.search.assert_called_with(
             query='test',
-            limit=10,
+            limit=11,
             category='billing'
         )
 
@@ -119,16 +120,21 @@ class TestFAQSearchEndpoint:
         cached_data = {
             'query': 'test',
             'results': [{'id': '123', 'question': 'Cached'}],
-            'count': 1,
-            'cached': False
+            'pagination': {
+                'page': 1,
+                'page_size': 10,
+                'total_results': 1,
+                'has_more': False
+            }
         }
         mock_redis.get.return_value = json.dumps(cached_data)
 
         response = client.get('/api/faq/search?q=test')
         
         assert response.status_code == 200
-        data = response.get_json()
-        assert data['cached'] == True
+        json_data = response.get_json()
+        assert json_data['cached'] == True
+        data = json_data['data']
         assert data['results'][0]['question'] == 'Cached'
 
 
@@ -151,7 +157,9 @@ class TestGetFAQEndpoint:
         response = client.get('/api/faq/123')
         
         assert response.status_code == 200
-        data = response.get_json()
+        json_data = response.get_json()
+        assert 'data' in json_data
+        data = json_data['data']
         assert 'faq' in data
         assert data['faq']['id'] == '123'
 
@@ -176,7 +184,7 @@ class TestCreateFAQEndpoint:
         """Test successful FAQ creation"""
         mock_mgmt_tool.create_faq.return_value = {
             'success': True,
-            'faq_id': '123'
+            'faq': {'id': '123'}
         }
 
         response = client.post('/api/faq', json={
@@ -187,7 +195,9 @@ class TestCreateFAQEndpoint:
         })
         
         assert response.status_code == 201
-        data = response.get_json()
+        json_data = response.get_json()
+        assert 'data' in json_data
+        data = json_data['data']
         assert data['faq_id'] == '123'
         assert 'message' in data
 
@@ -197,9 +207,9 @@ class TestCreateFAQEndpoint:
             'question': 'Test'
         })
         
-        assert response.status_code == 400
+        assert response.status_code == 422
         data = response.get_json()
-        assert data['error']['code'] == 'invalid_input'
+        assert data['error']['code'] == 'validation_error'
 
     def test_create_faq_empty_question(self, client):
         """Test create FAQ with empty question"""
@@ -208,7 +218,7 @@ class TestCreateFAQEndpoint:
             'answer': 'Test answer'
         })
         
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_create_faq_cache_invalidation(self, client, mock_mgmt_tool, mock_redis):
         """Test that cache is invalidated after creation"""
@@ -239,7 +249,9 @@ class TestUpdateFAQEndpoint:
         })
         
         assert response.status_code == 200
-        data = response.get_json()
+        json_data = response.get_json()
+        assert 'data' in json_data
+        data = json_data['data']
         assert data['faq_id'] == '123'
 
     def test_update_faq_not_found(self, client, mock_mgmt_tool, mock_redis):
@@ -261,7 +273,7 @@ class TestUpdateFAQEndpoint:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert 'No fields to update' in data['error']['message']
+        assert data['error']['code'] == 'invalid_input'
 
 
 class TestDeleteFAQEndpoint:
@@ -276,7 +288,9 @@ class TestDeleteFAQEndpoint:
         response = client.delete('/api/faq/123')
         
         assert response.status_code == 200
-        data = response.get_json()
+        json_data = response.get_json()
+        assert 'data' in json_data
+        data = json_data['data']
         assert data['faq_id'] == '123'
 
     def test_delete_faq_not_found(self, client, mock_mgmt_tool, mock_redis):
@@ -308,7 +322,9 @@ class TestCategoriesEndpoint:
         response = client.get('/api/faq/categories')
         
         assert response.status_code == 200
-        data = response.get_json()
+        json_data = response.get_json()
+        assert 'data' in json_data
+        data = json_data['data']
         assert data['count'] == 2
         assert len(data['categories']) == 2
 
@@ -330,7 +346,9 @@ class TestStatsEndpoint:
         response = client.get('/api/faq/stats')
         
         assert response.status_code == 200
-        data = response.get_json()
+        json_data = response.get_json()
+        assert 'data' in json_data
+        data = json_data['data']
         assert 'stats' in data
         assert data['stats']['total_faqs'] == 100
 
@@ -338,13 +356,25 @@ class TestStatsEndpoint:
 @pytest.fixture
 def client():
     """Create Flask test client"""
+    import os
+    import sys
     from flask import Flask
-    from src.routes.faq import bp
     
-    app = Flask(__name__)
-    app.config['TESTING'] = True
-    app.register_blueprint(bp)
+    api_backend_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'handoff', '20250928', '40_App', 'api-backend')
+    sys.path.insert(0, os.path.join(api_backend_path, 'src'))
+    sys.path.insert(0, api_backend_path)
     
-    with patch('src.routes.faq.FAQ_AGENT_AVAILABLE', True):
-        with app.test_client() as client:
-            yield client
+    os.environ['JWT_SECRET_KEY'] = 'test-secret-key-for-ci'
+    os.environ['TESTING'] = 'true'
+    
+    with patch('src.middleware.auth_middleware.jwt_required', lambda f: f):
+        with patch('src.middleware.auth_middleware.admin_required', lambda f: f):
+            with patch('src.routes.faq.FAQ_AGENT_AVAILABLE', True):
+                from src.routes.faq import bp
+                
+                app = Flask(__name__)
+                app.config['TESTING'] = True
+                app.register_blueprint(bp)
+                
+                with app.test_client() as client:
+                    yield client
