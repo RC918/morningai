@@ -1,7 +1,6 @@
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
+import { AppleInput } from '@/components/ui/apple-input'
 import { AlertCircle } from 'lucide-react'
 
 /**
@@ -40,46 +39,22 @@ export const FormField = ({
   ].filter(Boolean).join(' ') || undefined
   
   return (
-    <div className="space-y-2">
-      <Label htmlFor={fieldId}>
-        {label}
-        {required && (
-          <span className="text-error-500 ml-1" aria-label={t('form.required', 'required')}>
-            *
-          </span>
-        )}
-      </Label>
-      
-      {description && (
-        <p id={descriptionId} className="text-sm text-muted-foreground">
-          {description}
-        </p>
-      )}
-      
-      <Input
-        id={fieldId}
-        name={name}
-        type={type}
-        aria-invalid={hasError}
-        aria-describedby={ariaDescribedBy}
-        aria-required={required}
-        {...inputProps}
-        {...props}
-      />
-      
-      {hasError && (
-        <div
-          id={errorId}
-          role="alert"
-          aria-live="assertive"
-          aria-atomic="true"
-          className="flex items-start gap-2 text-sm text-error-600"
-        >
-          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+    <AppleInput
+      id={fieldId}
+      name={name}
+      type={type}
+      label={label}
+      required={required}
+      helperText={description}
+      state={hasError ? 'error' : 'default'}
+      errorText={error}
+      aria-invalid={hasError}
+      aria-describedby={ariaDescribedBy}
+      aria-required={required}
+      haptic="light"
+      {...inputProps}
+      {...props}
+    />
   )
 }
 

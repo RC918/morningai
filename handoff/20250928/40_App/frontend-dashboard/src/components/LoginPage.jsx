@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Lock, User, AlertCircle, Loader2 } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { AppleInput } from '@/components/ui/apple-input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
@@ -179,39 +178,32 @@ const LoginPage = ({ onLogin }) => {
                   </motion.div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="username">{t('auth.login.username')}</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                    <Input
-                      id="username"
-                      name="username"
-                      type="text"
-                      placeholder={t('auth.login.usernamePlaceholder')}
-                      value={credentials.username}
-                      onChange={handleChange}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+                <AppleInput
+                  id="username"
+                  name="username"
+                  type="text"
+                  label={t('auth.login.username')}
+                  placeholder={t('auth.login.usernamePlaceholder')}
+                  value={credentials.username}
+                  onChange={handleChange}
+                  leftIcon={<User className="w-4 h-4" />}
+                  required
+                  haptic="light"
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">{t('auth.login.password')}</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      placeholder={t('auth.login.passwordPlaceholder')}
-                      value={credentials.password}
-                      onChange={handleChange}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+                <AppleInput
+                  id="password"
+                  name="password"
+                  type="password"
+                  label={t('auth.login.password')}
+                  placeholder={t('auth.login.passwordPlaceholder')}
+                  value={credentials.password}
+                  onChange={handleChange}
+                  leftIcon={<Lock className="w-4 h-4" />}
+                  showPasswordToggle
+                  required
+                  haptic="light"
+                />
 
                 <motion.div
                   whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}

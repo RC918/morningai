@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { AppleInput } from '@/components/ui/apple-input'
 import { Badge } from '@/components/ui/badge'
 import { SEARCH_CATEGORIES, getSearchableItems } from '@/lib/searchRegistry'
 
@@ -170,16 +170,18 @@ export const GlobalSearch = () => {
       <DialogContent className="max-w-2xl p-0 gap-0">
         <DialogHeader className="px-4 pt-4 pb-2 border-b">
           <div className="flex items-center gap-2">
-            <Search className="w-5 h-5 text-gray-600" />
-            <Input
+            <AppleInput
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value)
                 setSelectedIndex(0)
               }}
               placeholder={t('search.placeholder')}
+              leftIcon={<Search className="w-5 h-5" />}
+              variant="filled"
               className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-lg"
               autoFocus
+              haptic="none"
             />
             <div className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
               <Command className="w-3 h-3" />

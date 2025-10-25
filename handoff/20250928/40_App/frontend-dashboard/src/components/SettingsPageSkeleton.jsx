@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Input } from '@/components/ui/input'
+import { AppleInput } from '@/components/ui/apple-input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -208,15 +208,14 @@ const SettingsPageSkeleton = () => {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="auto_refresh">{t('settings.preferences.autoRefresh')}</Label>
-                <Input
-                  id="auto_refresh"
-                  type="number"
-                  value={settings?.user_preferences?.auto_refresh}
-                  onChange={(e) => updateSetting('user_preferences', 'auto_refresh', parseInt(e.target.value))}
-                />
-              </div>
+              <AppleInput
+                id="auto_refresh"
+                type="number"
+                label={t('settings.preferences.autoRefresh')}
+                value={settings?.user_preferences?.auto_refresh}
+                onChange={(e) => updateSetting('user_preferences', 'auto_refresh', parseInt(e.target.value))}
+                haptic="light"
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -283,15 +282,14 @@ const SettingsPageSkeleton = () => {
 
               <Separator />
 
-              <div className="space-y-2">
-                <Label htmlFor="session_timeout">{t('settings.security.sessionTimeout')}</Label>
-                <Input
-                  id="session_timeout"
-                  type="number"
-                  value={settings?.security_settings?.session_timeout}
-                  onChange={(e) => updateSetting('security_settings', 'session_timeout', parseInt(e.target.value))}
-                />
-              </div>
+              <AppleInput
+                id="session_timeout"
+                type="number"
+                label={t('settings.security.sessionTimeout')}
+                value={settings?.security_settings?.session_timeout}
+                onChange={(e) => updateSetting('security_settings', 'session_timeout', parseInt(e.target.value))}
+                haptic="light"
+              />
 
               <div className="flex items-center justify-between">
                 <div>
@@ -328,38 +326,35 @@ const SettingsPageSkeleton = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="risk_threshold">{t('settings.system.riskThreshold')}</Label>
-                <Input
-                  id="risk_threshold"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="1"
-                  value={settings?.system_config?.risk_threshold}
-                  onChange={(e) => updateSetting('system_config', 'risk_threshold', parseFloat(e.target.value))}
-                />
-              </div>
+              <AppleInput
+                id="risk_threshold"
+                type="number"
+                label={t('settings.system.riskThreshold')}
+                step="0.1"
+                min="0"
+                max="1"
+                value={settings?.system_config?.risk_threshold}
+                onChange={(e) => updateSetting('system_config', 'risk_threshold', parseFloat(e.target.value))}
+                haptic="light"
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="monitoring_interval">{t('settings.system.monitoringInterval')}</Label>
-                <Input
-                  id="monitoring_interval"
-                  type="number"
-                  value={settings?.system_config?.monitoring_interval}
-                  onChange={(e) => updateSetting('system_config', 'monitoring_interval', parseInt(e.target.value))}
-                />
-              </div>
+              <AppleInput
+                id="monitoring_interval"
+                type="number"
+                label={t('settings.system.monitoringInterval')}
+                value={settings?.system_config?.monitoring_interval}
+                onChange={(e) => updateSetting('system_config', 'monitoring_interval', parseInt(e.target.value))}
+                haptic="light"
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="api_rate_limit">{t('settings.system.apiRateLimit')}</Label>
-                <Input
-                  id="api_rate_limit"
-                  type="number"
-                  value={settings?.system_config?.api_rate_limit}
-                  onChange={(e) => updateSetting('system_config', 'api_rate_limit', parseInt(e.target.value))}
-                />
-              </div>
+              <AppleInput
+                id="api_rate_limit"
+                type="number"
+                label={t('settings.system.apiRateLimit')}
+                value={settings?.system_config?.api_rate_limit}
+                onChange={(e) => updateSetting('system_config', 'api_rate_limit', parseInt(e.target.value))}
+                haptic="light"
+              />
             </CardContent>
           </Card>
         </TabsContent>
