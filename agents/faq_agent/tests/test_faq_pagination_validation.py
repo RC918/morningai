@@ -132,23 +132,37 @@ def test_search_missing_query(client, user_token):
     
     assert response.status_code in [400, 422]
 
-def test_search_has_more_flag(client, user_token):
+def test_search_has_more_flag(client, user_token, monkeypatch):
     """Test that has_more flag is set correctly"""
-    with patch('agents.faq_agent.tools.faq_search_tool.FAQSearchTool.search', new_callable=AsyncMock) as mock_search:
-        mock_search.return_value = {
-            'success': True,
-            'results': [{'id': str(i)} for i in range(11)],
-            'count': 11
+    from unittest.mock import MagicMock
+    
+    mock_rpc_response = MagicMock()
+    mock_rpc_response.data = [
+        {
+            'id': str(i),
+            'question': f'Question {i}',
+            'answer': f'Answer {i}',
+            'category': 'test',
+            'similarity': 0.9
         }
-        
-        response = client.get(
-            '/api/faq/search?q=test&page=1&page_size=10',
-            headers={'Authorization': f'Bearer {user_token}'}
-        )
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data['data']['pagination']['has_more'] == True
+        for i in range(11)
+    ]
+    
+    def mock_create_client(*args, **kwargs):
+        mock_client = MagicMock()
+        mock_client.rpc.return_value.execute.return_value = mock_rpc_response
+        return mock_client
+    
+    monkeypatch.setattr('agents.faq_agent.tools.faq_search_tool.create_client', mock_create_client)
+    
+    response = client.get(
+        '/api/faq/search?q=test&page=1&page_size=10',
+        headers={'Authorization': f'Bearer {user_token}'}
+    )
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['data']['pagination']['has_more'] == True
 
 def test_create_faq_empty_question(client):
     """Test that empty question returns 422"""

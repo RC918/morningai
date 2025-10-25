@@ -27,7 +27,9 @@ def mock_external_services():
         mock_search_client = MagicMock()
         mock_rpc_response = MagicMock()
         mock_rpc_response.data = []
-        mock_search_client.rpc.return_value.execute.return_value = mock_rpc_response
+        mock_rpc_call = MagicMock()
+        mock_rpc_call.execute.return_value = mock_rpc_response
+        mock_search_client.rpc.return_value = mock_rpc_call
         mock_search_client.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value.data = {}
         mock_supabase_search.return_value = mock_search_client
         
