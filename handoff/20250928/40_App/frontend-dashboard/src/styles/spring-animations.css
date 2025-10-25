@@ -1,0 +1,483 @@
+/**
+ * Spring Animations CSS - Apple-Level UI/UX
+ * CSS-based spring animations and haptic feedback styles
+ */
+
+/* ============================================================================
+   Haptic Feedback Animations
+   ============================================================================ */
+
+@keyframes haptic-light {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.98); }
+}
+
+@keyframes haptic-medium {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.96); }
+}
+
+@keyframes haptic-heavy {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.94); }
+  70% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+@keyframes haptic-success {
+  0% { transform: scale(1); }
+  20% { transform: scale(0.95); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes haptic-warning {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+@keyframes haptic-error {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-5px); }
+  20% { transform: translateX(5px); }
+  30% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+@keyframes haptic-selection {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.99); }
+}
+
+/* Haptic feedback classes */
+.haptic-light {
+  animation: haptic-light 100ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.haptic-medium {
+  animation: haptic-medium 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.haptic-heavy {
+  animation: haptic-heavy 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.haptic-success {
+  animation: haptic-success 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.haptic-warning {
+  animation: haptic-warning 300ms ease-in-out;
+}
+
+.haptic-error {
+  animation: haptic-error 500ms ease-in-out;
+}
+
+.haptic-selection {
+  animation: haptic-selection 80ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================================
+   Spring-based Transitions
+   ============================================================================ */
+
+/* Gentle spring */
+.spring-gentle {
+  transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition-duration: 600ms;
+}
+
+/* Default spring */
+.spring-default {
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-duration: 500ms;
+}
+
+/* Bouncy spring */
+.spring-bouncy {
+  transition-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  transition-duration: 700ms;
+}
+
+/* Snappy spring */
+.spring-snappy {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 400ms;
+}
+
+/* Smooth spring */
+.spring-smooth {
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition-duration: 800ms;
+}
+
+/* Wobbly spring */
+.spring-wobbly {
+  transition-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  transition-duration: 900ms;
+}
+
+/* ============================================================================
+   Button Press Animations
+   ============================================================================ */
+
+@keyframes button-press {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+@keyframes button-press-heavy {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+.btn-spring-press {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-spring-press:active {
+  transform: scale(0.95);
+}
+
+.btn-spring-press-heavy:active {
+  transform: scale(0.92);
+}
+
+/* ============================================================================
+   Pop Animations (iOS-style)
+   ============================================================================ */
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pop-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+.pop-in {
+  animation: pop-in 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pop-out {
+  animation: pop-out 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================================
+   Bounce Animations (Success Feedback)
+   ============================================================================ */
+
+@keyframes bounce-success {
+  0% { transform: scale(1); }
+  20% { transform: scale(1.1); }
+  50% { transform: scale(0.95); }
+  80% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.bounce-success {
+  animation: bounce-success 600ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* ============================================================================
+   Slide Animations (Sheet/Modal)
+   ============================================================================ */
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-up {
+  animation: slide-up 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.slide-down {
+  animation: slide-down 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.slide-left {
+  animation: slide-left 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.slide-right {
+  animation: slide-right 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================================
+   Shake Animation (Error Feedback)
+   ============================================================================ */
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-10px); }
+  20% { transform: translateX(10px); }
+  30% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  50% { transform: translateX(-5px); }
+  60% { transform: translateX(5px); }
+}
+
+.shake {
+  animation: shake 500ms ease-in-out;
+}
+
+/* ============================================================================
+   Pulse Animation (Notification)
+   ============================================================================ */
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+.pulse {
+  animation: pulse 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+/* ============================================================================
+   Expand/Collapse Animations
+   ============================================================================ */
+
+@keyframes expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+    transform: scale(1);
+  }
+}
+
+@keyframes collapse {
+  from {
+    opacity: 1;
+    max-height: 1000px;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    transform: scale(0.95);
+  }
+}
+
+.expand {
+  animation: expand 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.collapse {
+  animation: collapse 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================================
+   Loading/Spinner Animations
+   ============================================================================ */
+
+@keyframes spin-spring {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-spring {
+  animation: spin-spring 1s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+/* ============================================================================
+   Hover Effects (Spring-based)
+   ============================================================================ */
+
+.spring-hover-lift {
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.spring-hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+.spring-hover-scale {
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.spring-hover-scale:hover {
+  transform: scale(1.05);
+}
+
+.spring-hover-glow {
+  transition: box-shadow 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.spring-hover-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+/* ============================================================================
+   Focus Effects (Accessibility)
+   ============================================================================ */
+
+.focus-spring {
+  transition: outline 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              outline-offset 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.focus-spring:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Stagger Animations (Children)
+   ============================================================================ */
+
+.stagger-children > * {
+  animation: fade-in-up 500ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 450ms; }
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   Reduced Motion Support
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .haptic-light,
+  .haptic-medium,
+  .haptic-heavy,
+  .haptic-success,
+  .haptic-warning,
+  .haptic-error,
+  .haptic-selection,
+  .pop-in,
+  .pop-out,
+  .bounce-success,
+  .slide-up,
+  .slide-down,
+  .slide-left,
+  .slide-right,
+  .shake,
+  .pulse,
+  .expand,
+  .collapse,
+  .spin-spring {
+    animation: none !important;
+  }
+  
+  .spring-hover-lift:hover,
+  .spring-hover-scale:hover {
+    transform: none !important;
+  }
+}
+
+/* ============================================================================
+   Dark Mode Support
+   ============================================================================ */
+
+.dark .spring-hover-glow:hover {
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.4);
+}
+
+.dark .focus-spring:focus-visible {
+  outline-color: rgba(96, 165, 250, 0.6);
+}
