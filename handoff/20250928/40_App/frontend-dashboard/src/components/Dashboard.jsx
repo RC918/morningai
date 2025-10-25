@@ -455,7 +455,7 @@ const Dashboard = () => {
                     <Line 
                       type="monotone" 
                       dataKey="cpu" 
-                      stroke="#3b82f6" 
+                      stroke="#007AFF" 
                       strokeWidth={2}
                       name="CPU (%)"
                     />

@@ -74,8 +74,8 @@
 }
 
 .input-focus-glow:focus {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  border-color: rgb(59, 130, 246);
+  box-shadow: 0 0 0 3px rgba(0, 81, 208, 0.1);
+  border-color: rgb(0, 81, 208);
 }
 
 /* Checkbox/Radio Animation */
@@ -293,7 +293,7 @@
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
+  background: linear-gradient(45deg, #007AFF, #8b5cf6, #ec4899);
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: -1;
