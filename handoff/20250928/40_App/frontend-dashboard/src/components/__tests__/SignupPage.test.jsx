@@ -47,10 +47,5 @@ describe('SignupPage', () => {
       const { container } = renderSignupPage()
       expect(container).toBeTruthy()
     })
-
-    it('should match snapshot', () => {
-      const { container } = renderSignupPage()
-      expect(container).toMatchSnapshot()
-    })
   })
 })

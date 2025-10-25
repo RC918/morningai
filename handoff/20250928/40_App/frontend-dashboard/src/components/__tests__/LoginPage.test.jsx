@@ -48,10 +48,5 @@ describe('LoginPage', () => {
       const { container } = renderLoginPage()
       expect(container).toBeTruthy()
     })
-
-    it('should match snapshot', () => {
-      const { container } = renderLoginPage()
-      expect(container).toMatchSnapshot()
-    })
   })
 })

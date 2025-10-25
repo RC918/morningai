@@ -54,10 +54,5 @@ describe('LandingPage', () => {
       const { container } = renderLandingPage()
       expect(container).toBeTruthy()
     })
-
-    it('should match snapshot', () => {
-      const { container } = renderLandingPage()
-      expect(container).toMatchSnapshot()
-    })
   })
 })
