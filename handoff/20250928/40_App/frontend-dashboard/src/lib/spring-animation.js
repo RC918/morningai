@@ -5,7 +5,14 @@
  * Based on Apple Human Interface Guidelines and iOS 26.1 design patterns
  */
 
-import { prefersReducedMotion } from './motion-utils.js';
+
+/**
+ * Check if user prefers reduced motion
+ */
+const prefersReducedMotion = () => {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
 
 
 /**
