@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
@@ -314,9 +314,9 @@ const CheckoutPage = () => {
                         value={discountCode}
                         onChange={(e) => setDiscountCode(e.target.value)}
                       />
-                      <Button variant="outline" size="sm" aria-label={t('checkout.applyDiscount')}>
+                      <AppleButton variant="outline" size="sm" aria-label={t('checkout.applyDiscount')}>
                         {t('checkout.apply')}
-                      </Button>
+                      </AppleButton>
                     </div>
                   </div>
                   
@@ -336,7 +336,7 @@ const CheckoutPage = () => {
                     </span>
                   </div>
                   
-                  <Button 
+                  <AppleButton 
                     className="w-full" 
                     size="lg"
                     onClick={handleCheckout}
@@ -344,7 +344,7 @@ const CheckoutPage = () => {
                   >
                     <Shield className="w-4 h-4 mr-2" aria-hidden="true" />
                     {t('checkout.secureCheckout')}
-                  </Button>
+                  </AppleButton>
                   
                   <div className="text-xs text-gray-600 text-center">
                     <Shield className="w-3 h-3 inline mr-1" />

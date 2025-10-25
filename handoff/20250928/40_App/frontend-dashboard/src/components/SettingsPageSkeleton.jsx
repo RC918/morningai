@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -111,14 +111,14 @@ const SettingsPageSkeleton = () => {
           <p className="text-gray-600">{t('settings.description')}</p>
         </div>
         {hasChanges && (
-          <Button onClick={saveSettings} disabled={saving}>
+          <AppleButton onClick={saveSettings} disabled={saving}>
             {saving ? (
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
             ) : (
               <Save className="w-4 h-4 mr-2" />
             )}
             {saving ? t('settings.saving') : t('settings.saveChanges')}
-          </Button>
+          </AppleButton>
         )}
       </div>
 
@@ -408,12 +408,12 @@ const SettingsPageSkeleton = () => {
               </div>
 
               <div className="flex space-x-2">
-                <Button variant="outline">
+                <AppleButton variant="outline">
                   {t('settings.billing.updatePaymentMethod')}
-                </Button>
-                <Button variant="outline">
+                </AppleButton>
+                <AppleButton variant="outline">
                   {t('settings.billing.viewBillingHistory')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { Moon, Sun } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { useTranslation } from 'react-i18next'
 
 export const DarkModeToggle = ({ variant = 'default' }) => {
@@ -62,7 +62,7 @@ export const DarkModeToggle = ({ variant = 'default' }) => {
       ) : (
         <Moon className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
       )}
-    </Button>
+    </AppleButton>
   )
 }
 

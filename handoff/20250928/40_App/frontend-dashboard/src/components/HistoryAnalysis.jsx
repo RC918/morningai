@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
   TrendingUp, 
@@ -85,10 +85,10 @@ const HistoryAnalysis = () => {
               <SelectItem value="90d">{t('history.periods.90d')}</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <AppleButton variant="outline">
             <Calendar className="w-4 h-4 mr-2" />
             {t('history.customRange')}
-          </Button>
+          </AppleButton>
         </div>
       </div>
 
@@ -181,9 +181,9 @@ const HistoryAnalysis = () => {
                     ))}
                   </div>
                 </div>
-                <Button variant="ghost" size="sm">
+                <AppleButton variant="ghost" size="sm">
                   {t('history.viewDetails')}
-                </Button>
+                </AppleButton>
               </div>
             ))}
           </div>

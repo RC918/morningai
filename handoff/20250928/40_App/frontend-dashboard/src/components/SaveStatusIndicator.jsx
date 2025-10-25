@@ -1,6 +1,6 @@
 import { Check, Loader2, AlertCircle, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 
 const formatRelativeTime = (date, t) => {
   const now = new Date()
@@ -65,7 +65,7 @@ export const SaveStatusIndicator = ({ status, lastSaved, error, onRetry }) => {
           aria-label={t('dashboard.saveStatus.retryLabel')}
         >
           {config.action.label}
-        </Button>
+        </AppleButton>
       )}
     </div>
   )

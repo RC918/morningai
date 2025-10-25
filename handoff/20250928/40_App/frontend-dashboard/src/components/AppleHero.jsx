@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import { ArrowRight, Sparkles, TrendingUp, Shield } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 
 const AppleHero = ({ onGetStarted, onLearnMore }) => {
   const { t } = useTranslation()
@@ -147,7 +147,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
               >
                 {t('landing.hero.cta.primary')}
                 <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
+              </AppleButton>
             </motion.div>
             <motion.div
               whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
@@ -160,7 +160,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
                 onClick={onLearnMore}
               >
                 {t('landing.hero.cta.secondary')}
-              </Button>
+              </AppleButton>
             </motion.div>
           </motion.div>
         </motion.div>

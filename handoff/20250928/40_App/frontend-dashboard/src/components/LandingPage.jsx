@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion, useInView } from 'framer-motion'
 import { Chrome, Apple as AppleIcon, Github } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Card, CardContent } from '@/components/ui/card'
 import AppleHero from './AppleHero'
 import { LanguageSwitcher } from './LanguageSwitcher'
@@ -75,13 +75,13 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
               className="text-gray-600 dark:text-gray-600"
             >
               {t('landing.nav.login')}
-            </Button>
+            </AppleButton>
             <Button
               className="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900"
               onClick={handleGetStarted}
             >
               {t('landing.nav.getStarted')}
-            </Button>
+            </AppleButton>
           </div>
         </nav>
       </header>
@@ -131,7 +131,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                     >
                       <Chrome className="w-5 h-5" />
                       {t('landing.sso.google')}
-                    </Button>
+                    </AppleButton>
                   </motion.div>
 
                   <motion.div
@@ -146,7 +146,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                     >
                       <AppleIcon className="w-5 h-5" />
                       {t('landing.sso.apple')}
-                    </Button>
+                    </AppleButton>
                   </motion.div>
 
                   <motion.div
@@ -161,7 +161,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                     >
                       <Github className="w-5 h-5" />
                       {t('landing.sso.github')}
-                    </Button>
+                    </AppleButton>
                   </motion.div>
 
                   <div className="relative my-6">
@@ -186,7 +186,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
                       onClick={onNavigateToLogin}
                     >
                       {t('landing.sso.emailLogin')}
-                    </Button>
+                    </AppleButton>
                   </motion.div>
                 </CardContent>
               </Card>

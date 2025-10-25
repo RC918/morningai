@@ -10,7 +10,7 @@ import {
   Zap,
   Info
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -395,10 +395,10 @@ const DecisionApproval = () => {
                 <div className="flex items-center justify-end space-x-3 mt-6">
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" onClick={() => setSelectedDecision(decision)}>
+                      <AppleButton variant="outline" onClick={() => setSelectedDecision(decision)}>
                         <Info className="w-4 h-4 mr-2" />
                         {t('approval.detailsButton')}
-                      </Button>
+                      </AppleButton>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl">
                       <DialogHeader>
@@ -427,13 +427,13 @@ const DecisionApproval = () => {
                           >
                             <XCircle className="w-4 h-4 mr-2" />
                             {t('approval.reject')}
-                          </Button>
+                          </AppleButton>
                           <Button
                             onClick={() => handleApprove(decision.id, approvalComment)}
                           >
                             <CheckCircle className="w-4 h-4 mr-2" />
                             {t('approval.approve')}
-                          </Button>
+                          </AppleButton>
                         </div>
                       </div>
                     </DialogContent>
@@ -445,14 +445,14 @@ const DecisionApproval = () => {
                   >
                     <XCircle className="w-4 h-4 mr-2" />
                     {t('approval.reject')}
-                  </Button>
+                  </AppleButton>
                   
                   <Button
                     onClick={() => handleApprove(decision.id)}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
                     {t('approval.approve')}
-                  </Button>
+                  </AppleButton>
                 </div>
               </CardContent>
             </Card>
