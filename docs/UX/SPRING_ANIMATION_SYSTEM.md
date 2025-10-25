@@ -534,13 +534,13 @@ items.forEach(item => animateItem(item));
 
 ```html
 <!-- 提升效果 -->
-<div class="hover-lift">懸停提升</div>
+<div class="spring-hover-lift">懸停提升</div>
 
 <!-- 縮放效果 -->
-<div class="hover-scale">懸停縮放</div>
+<div class="spring-hover-scale">懸停縮放</div>
 
 <!-- 發光效果 -->
-<div class="hover-glow">懸停發光</div>
+<div class="spring-hover-glow">懸停發光</div>
 ```
 
 ### 動畫類

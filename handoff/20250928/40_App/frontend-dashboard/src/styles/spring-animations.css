@@ -360,28 +360,28 @@
    Hover Effects (Spring-based)
    ============================================================================ */
 
-.hover-lift {
+.spring-hover-lift {
   transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
               box-shadow 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.hover-lift:hover {
+.spring-hover-lift:hover {
   transform: translateY(-2px);
 }
 
-.hover-scale {
+.spring-hover-scale {
   transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.hover-scale:hover {
+.spring-hover-scale:hover {
   transform: scale(1.05);
 }
 
-.hover-glow {
+.spring-hover-glow {
   transition: box-shadow 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.hover-glow:hover {
+.spring-hover-glow:hover {
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
 }
 
@@ -464,8 +464,8 @@
     animation: none !important;
   }
   
-  .hover-lift:hover,
-  .hover-scale:hover {
+  .spring-hover-lift:hover,
+  .spring-hover-scale:hover {
     transform: none !important;
   }
 }
@@ -474,7 +474,7 @@
    Dark Mode Support
    ============================================================================ */
 
-.dark .hover-glow:hover {
+.dark .spring-hover-glow:hover {
   box-shadow: 0 0 20px rgba(96, 165, 250, 0.4);
 }
 

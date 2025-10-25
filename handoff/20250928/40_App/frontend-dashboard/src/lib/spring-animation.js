@@ -441,6 +441,7 @@ let animationMetrics = {
 
 /**
  * Track animation performance
+ * Returns a cleanup function to prevent memory leaks
  */
 export const trackAnimation = (animationId) => {
   animationMetrics.totalAnimations++;
@@ -449,8 +450,12 @@ export const trackAnimation = (animationId) => {
   let lastTime = performance.now();
   let frameCount = 0;
   let fps = [];
+  let rafId = null;
+  let isActive = true;
   
   const measureFrame = () => {
+    if (!isActive) return;
+    
     const currentTime = performance.now();
     const delta = currentTime - lastTime;
     
@@ -466,16 +471,25 @@ export const trackAnimation = (animationId) => {
     lastTime = currentTime;
     frameCount++;
     
-    if (frameCount < 60) {
-      requestAnimationFrame(measureFrame);
+    if (frameCount < 60 && isActive) {
+      rafId = requestAnimationFrame(measureFrame);
     } else {
       const avgFPS = fps.reduce((sum, f) => sum + f, 0) / fps.length;
       animationMetrics.averageFPS = (animationMetrics.averageFPS + avgFPS) / 2;
       animationMetrics.activeAnimations--;
+      rafId = null;
     }
   };
   
-  requestAnimationFrame(measureFrame);
+  rafId = requestAnimationFrame(measureFrame);
+  
+  return () => {
+    isActive = false;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      animationMetrics.activeAnimations--;
+    }
+  };
 };
 
 /**

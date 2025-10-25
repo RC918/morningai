@@ -290,11 +290,11 @@ export const ButtonInteractions: Story = {
               Heavy Press
             </button>
             
-            <button className="hover-lift px-6 py-3 bg-indigo-600 text-white rounded-lg shadow-md">
+            <button className="spring-hover-lift px-6 py-3 bg-indigo-600 text-white rounded-lg shadow-md">
               Hover Lift
             </button>
             
-            <button className="hover-scale px-6 py-3 bg-pink-600 text-white rounded-lg shadow-md">
+            <button className="spring-hover-scale px-6 py-3 bg-pink-600 text-white rounded-lg shadow-md">
               Hover Scale
             </button>
           </div>
