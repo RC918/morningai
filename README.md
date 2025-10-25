@@ -91,6 +91,10 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 - ✅ **16 個 PRs 合併** - 10,000+ 行代碼
 - ✅ **完整測試框架** - 可用性測試、A/B 測試、指標分析
 
+**🚀 新人快速上手**:
+- **[UI/UX 快速上手指南](docs/UI_UX_QUICKSTART.md)** - ⚡ 5 分鐘快速入門（新人必讀）
+- **[UI/UX 速查表](docs/UI_UX_CHEATSHEET.md)** - 📋 一頁速查表（常用命令、組件、Tokens）
+
 **核心文檔**:
 - **[UI/UX 資源指南](docs/UI_UX_RESOURCES.md)** - 🎨 中心化資源索引（設計系統、組件庫、預覽環境）
 - **[UI/UX Issue 狀態追蹤](docs/UI_UX_ISSUE_STATUS.md)** - 📊 完整進度追蹤（100% 完成）
