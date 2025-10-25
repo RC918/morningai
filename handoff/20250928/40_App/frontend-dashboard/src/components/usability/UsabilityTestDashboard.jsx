@@ -365,21 +365,21 @@ export function UsabilityTestDashboard() {
                           </CardDescription>
                         </div>
                         <div className="flex gap-2">
-                          <Button
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleViewSession(session)}
                           >
                             <Eye className="h-4 w-4" />
                           </AppleButton>
-                          <Button
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleExportSession(session)}
                           >
                             <Download className="h-4 w-4" />
                           </AppleButton>
-                          <Button
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleDeleteSession(session.sessionId)}

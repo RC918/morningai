@@ -124,7 +124,7 @@ export function ABTestDashboard() {
                           </CardDescription>
                         </div>
                         <div className="flex gap-2">
-                          <Button
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleViewResults(test.testId)}
@@ -132,7 +132,7 @@ export function ABTestDashboard() {
                             <BarChart3 className="h-4 w-4 mr-2" />
                             View Results
                           </AppleButton>
-                          <Button
+                          <AppleButton
                             size="sm"
                             variant="outline"
                             onClick={() => handleExportTest(test.testId)}

@@ -94,7 +94,8 @@ const Sidebar = ({ user, onLogout }) => {
   return (
     <div className={`bg-white dark:bg-gray-900 shadow-lg transition-all duration-300 ${
       collapsed ? 'w-16' : 'w-64'
-    }`}>
+    }`}
+    >
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           {collapsed ? (
@@ -162,7 +163,7 @@ const Sidebar = ({ user, onLogout }) => {
       </div>
 
       <nav className="flex-1 p-4" aria-label={t('sidebar.navigation', 'Main navigation')}>
-        <ul className="space-y-2" role="list">
+        <ul className="space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.path)
