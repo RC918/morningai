@@ -1,0 +1,117 @@
+{
+  "totalPackages": 230,
+  "totalDependencies": 178,
+  "totalDevDependencies": 208,
+  "dependenciesWithConflicts": 13,
+  "devDependenciesWithConflicts": 46,
+  "topConflicts": [
+    {
+      "name": "@babel/parser",
+      "versionCount": 4,
+      "versions": [
+        "^7.27.1",
+        "^7.27.2",
+        "^7.20.7",
+        "^7.1.0"
+      ]
+    },
+    {
+      "name": "@babel/types",
+      "versionCount": 3,
+      "versions": [
+        "^7.27.1",
+        "^7.20.7",
+        "^7.0.0"
+      ]
+    },
+    {
+      "name": "debug",
+      "versionCount": 3,
+      "versions": [
+        "^4.1.0",
+        "^4.3.1",
+        "^4.3.2"
+      ]
+    },
+    {
+      "name": "@radix-ui/react-collapsible",
+      "versionCount": 2,
+      "versions": [
+        "^1.1.10",
+        "1.1.10"
+      ]
+    },
+    {
+      "name": "@radix-ui/react-dialog",
+      "versionCount": 2,
+      "versions": [
+        "^1.1.13",
+        "1.1.13"
+      ]
+    },
+    {
+      "name": "@radix-ui/react-slot",
+      "versionCount": 2,
+      "versions": [
+        "^1.2.2",
+        "1.2.2"
+      ]
+    },
+    {
+      "name": "@radix-ui/react-toggle",
+      "versionCount": 2,
+      "versions": [
+        "^1.1.8",
+        "1.1.8"
+      ]
+    },
+    {
+      "name": "tailwindcss",
+      "versionCount": 2,
+      "versions": [
+        "^4.1.7",
+        "4.1.7"
+      ]
+    },
+    {
+      "name": "zod",
+      "versionCount": 2,
+      "versions": [
+        "^3.24.4",
+        "^3.23.8"
+      ]
+    },
+    {
+      "name": "@jridgewell/trace-mapping",
+      "versionCount": 2,
+      "versions": [
+        "^0.3.24",
+        "^0.3.25"
+      ]
+    },
+    {
+      "name": "@ampproject/remapping",
+      "versionCount": 2,
+      "versions": [
+        "^2.2.0",
+        "^2.3.0"
+      ]
+    },
+    {
+      "name": "globals",
+      "versionCount": 2,
+      "versions": [
+        "^11.1.0",
+        "^14.0.0"
+      ]
+    },
+    {
+      "name": "@jridgewell/sourcemap-codec",
+      "versionCount": 2,
+      "versions": [
+        "^1.4.10",
+        "^1.4.14"
+      ]
+    }
+  ]
+}
