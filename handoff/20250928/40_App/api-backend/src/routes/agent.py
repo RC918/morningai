@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import logging
+import ssl
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
@@ -10,6 +11,7 @@ from redis.backoff import ExponentialBackoff
 from rq import Queue
 from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
+from src.utils.redis_config import get_secure_redis_url
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from redis_queue.worker import run_orchestrator_task
 
@@ -43,25 +45,33 @@ bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
 
-redis_url = os.getenv("REDIS_URL")
-if not redis_url:
-    raise RuntimeError("REDIS_URL environment variable is required but not set")
+redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
 
-redis_client = Redis.from_url(
-    redis_url, 
-    decode_responses=True,
-    socket_connect_timeout=5,
-    socket_timeout=30,
-    retry=retry,
-    retry_on_timeout=True
-)
-redis_client_rq = Redis.from_url(
-    redis_url,
-    socket_connect_timeout=5,
-    socket_timeout=30,
-    retry=retry,
-    retry_on_timeout=True
-)
+redis_kwargs = {
+    "decode_responses": True,
+    "socket_connect_timeout": 5,
+    "socket_timeout": 30,
+    "retry": retry,
+    "retry_on_timeout": True
+}
+
+if redis_url.startswith("rediss://"):
+    redis_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+
+redis_client = Redis.from_url(redis_url, **redis_kwargs)
+
+redis_kwargs_rq = {
+    "socket_connect_timeout": 5,
+    "socket_timeout": 30,
+    "retry": retry,
+    "retry_on_timeout": True
+}
+
+if redis_url.startswith("rediss://"):
+    redis_kwargs_rq["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+
+redis_client_rq = Redis.from_url(redis_url, **redis_kwargs_rq)
+
 RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
 q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
