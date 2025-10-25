@@ -18,7 +18,8 @@
 
 **關鍵資訊**：
 - **專案定位**: 世界級 AI Agent 編排平台
-- **技術棧**: React + Vite (前端), FastAPI + Python (後端), Supabase (資料庫)
+- **技術棧**: React 19 + Vite 6 + Tailwind CSS 4 (前端), Flask 3 + SQLAlchemy 2 (後端), Redis 5 (快取)
+- **包管理器**: pnpm 9.15.1+ (Monorepo with Turbo)
 - **架構**: 三層分離（Owner Console, Tenant Dashboard, API Backend）
 - **當前階段**: Phase 8 → Phase 9 (MVP to World-Class 轉型)
 
@@ -61,7 +62,7 @@
 
 ### 第三步：熟悉工具與流程 (30 分鐘)
 
-- [ ] 啟動 Storybook: `cd handoff/20250928/40_App/frontend-dashboard && npm run storybook`
+- [ ] 啟動 Storybook: `cd handoff/20250928/40_App/frontend-dashboard && pnpm install && pnpm storybook`
 - [ ] 瀏覽組件庫: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
 - [ ] 查看 Vercel 預覽環境（在 PR 中查看）
 - [ ] 了解如何提交 Design PR
@@ -77,7 +78,7 @@
 - Design Tokens: `docs/UX/tokens.json`
 - 設計系統指南: `DESIGN_SYSTEM_GUIDELINES.md`
 - UI/UX 速查表: `docs/UI_UX_CHEATSHEET.md`
-- Storybook: `npm run storybook`
+- Storybook: `pnpm storybook` (在 frontend-dashboard 目錄)
 
 ---
 
@@ -96,11 +97,12 @@
 
 ### 第二步：設置本地開發環境 (30 分鐘)
 
-- [ ] 安裝依賴: `cd handoff/20250928/40_App/frontend-dashboard && npm install`
-- [ ] 啟動開發伺服器: `npm run dev`
-- [ ] 啟動 Storybook: `npm run storybook`
-- [ ] 運行測試: `npm test`
-- [ ] 運行 Lint: `npm run lint`
+- [ ] 安裝依賴: `cd handoff/20250928/40_App/frontend-dashboard && pnpm install`
+- [ ] 啟動開發伺服器: `pnpm dev`
+- [ ] 啟動 Storybook: `pnpm storybook`
+- [ ] 運行 E2E 測試: `pnpm test:e2e`
+- [ ] 運行 Lint: `pnpm lint`
+- [ ] 運行 TypeScript 檢查: `pnpm typecheck`
 
 ### 第三步：了解核心功能 (45 分鐘)
 
@@ -127,8 +129,9 @@
 **前端工程師常用資源**：
 - UI/UX 速查表: `docs/UI_UX_CHEATSHEET.md`
 - 組件庫: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
-- Storybook: `npm run storybook`
-- 測試命令: `npm test`, `npm run lint`, `npm run typecheck`
+- Storybook: `pnpm storybook` (在 frontend-dashboard 目錄)
+- 測試命令: `pnpm test:e2e`, `pnpm lint`, `pnpm typecheck`
+- Monorepo 根目錄命令: `pnpm dev`, `pnpm build`, `pnpm test`
 
 ---
 
@@ -147,9 +150,11 @@
 
 - [ ] 安裝依賴: `cd handoff/20250928/40_App/api-backend && pip install -r requirements.txt`
 - [ ] 設置環境變數（參考 [環境變數 Schema](docs/config/env_schema.md)）
-- [ ] 啟動 API 伺服器: `python -m src.main`
+  - 最低限度：5 個必需變數（JWT_SECRET_KEY, ADMIN_PASSWORD, SECRET_KEY, DATABASE_URL, REDIS_URL）
+- [ ] 啟動 Redis: `docker run -d -p 6379:6379 redis:7-alpine`
+- [ ] 啟動 API 伺服器: `cd src && python main.py`
 - [ ] 運行測試: `pytest`
-- [ ] 檢查測試覆蓋率: `pytest --cov`
+- [ ] 檢查測試覆蓋率: `pytest --cov=src`
 
 ### 第三步：了解核心功能 (45 分鐘)
 
@@ -179,7 +184,9 @@
 - Agent Governance Framework: `docs/GOVERNANCE_FRAMEWORK.md`
 - Database Schema: `DATABASE_SCHEMA_ANALYSIS.md`
 - 環境變數 Schema: `docs/config/env_schema.md`
-- 測試命令: `pytest`, `pytest --cov`
+- 本地開發設定: `docs/setup_local.md`
+- 測試命令: `pytest`, `pytest --cov=src`
+- 健康檢查: `curl http://localhost:5001/health`
 
 ---
 
@@ -266,8 +273,8 @@
 **A**: 
 ```bash
 cd handoff/20250928/40_App/frontend-dashboard
-npm install
-npm run storybook
+pnpm install
+pnpm storybook
 ```
 
 瀏覽器會自動打開 `http://localhost:6006`。
@@ -275,8 +282,9 @@ npm run storybook
 ### Q: 如何運行測試？
 
 **A**: 
-- **前端**: `cd handoff/20250928/40_App/frontend-dashboard && npm test`
+- **前端**: `cd handoff/20250928/40_App/frontend-dashboard && pnpm test:e2e`
 - **後端**: `cd handoff/20250928/40_App/api-backend && pytest`
+- **從根目錄**: `pnpm test` (運行所有測試)
 
 ### Q: 我遇到問題該怎麼辦？
 

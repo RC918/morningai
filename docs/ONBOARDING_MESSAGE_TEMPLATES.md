@@ -64,8 +64,8 @@ Hi [姓名],
 3. **啟動 Storybook**（10 分鐘）
    ```bash
    cd handoff/20250928/40_App/frontend-dashboard
-   npm install
-   npm run storybook
+   pnpm install
+   pnpm storybook
    ```
 
 📋 重要規則：
@@ -98,10 +98,10 @@ Hi [姓名],
    ```bash
    git clone https://github.com/RC918/morningai.git
    cd morningai/handoff/20250928/40_App/frontend-dashboard
-   npm install
-   npm run dev          # 啟動開發伺服器
-   npm run storybook    # 啟動 Storybook
-   npm test             # 運行測試
+   pnpm install
+   pnpm dev          # 啟動開發伺服器
+   pnpm storybook    # 啟動 Storybook
+   pnpm test:e2e             # 運行測試
    ```
 
 2. **了解架構**（30 分鐘）
@@ -148,7 +148,7 @@ Hi [姓名],
    git clone https://github.com/RC918/morningai.git
    cd morningai/handoff/20250928/40_App/api-backend
    pip install -r requirements.txt
-   python -m src.main    # 啟動 API 伺服器
+   cd src && python main.py    # 啟動 API 伺服器
    pytest                # 運行測試
    ```
 
@@ -283,8 +283,8 @@ Best regards,
 3. 啟動開發環境:
    ```
    cd handoff/20250928/40_App/frontend-dashboard
-   npm install && npm run dev
-   npm run storybook
+   pnpm install && pnpm dev
+   pnpm storybook
    ```
 
 📋 重要：Engineering PR 只能改動 **/api/**, **/src/**
@@ -306,7 +306,7 @@ Best regards,
    ```
    cd handoff/20250928/40_App/api-backend
    pip install -r requirements.txt
-   python -m src.main
+   cd src && python main.py
    ```
 
 📋 重要：API 變更需要先提 RFC Issue
