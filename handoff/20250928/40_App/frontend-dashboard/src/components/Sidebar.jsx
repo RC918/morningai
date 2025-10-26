@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { DarkModeToggle } from './DarkModeToggle'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { AccessibilityTriggerButton } from '@/components/ui/apple-accessibility-settings'
 
 const Sidebar = ({ user, onLogout }) => {
   const { t } = useTranslation()
@@ -210,6 +211,10 @@ const Sidebar = ({ user, onLogout }) => {
         <div className={`flex ${collapsed ? 'flex-col gap-2' : 'gap-2'}`}>
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
           <LanguageSwitcher variant={collapsed ? 'compact' : 'default'} />
+          <AccessibilityTriggerButton 
+            variant={collapsed ? 'icon' : 'full'}
+            className={collapsed ? 'w-full' : ''}
+          />
         </div>
         <AppleButton
           variant="ghost"
