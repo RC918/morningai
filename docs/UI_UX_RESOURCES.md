@@ -1,6 +1,6 @@
 # MorningAI UI/UX 資源指南
 
-**最後更新**: 2025-10-25  
+**最後更新**: 2025-10-26  
 **維護者**: UI/UX 團隊  
 **目的**: 提供團隊成員快速查找和利用 UI/UX 資源的中心化指南
 
@@ -208,6 +208,86 @@
 - ✅ 597 行文檔（SPACING_SYSTEM.md）
 - **狀態**: ✅ 已合併至 main
 
+### Phase 2 Week 6-7: Apple 組件系統
+
+**🎉 Phase 2 Week 6-7 完成！** (2025-10-26)
+- ✅ **5 個 Apple 組件** - 完整的 Apple-Level 組件系統
+- ✅ **165 個單元測試** - 100% 通過率
+- ✅ **60+ Storybook stories** - 互動式組件展示
+- ✅ **3000+ 行文檔** - 完整的組件文檔
+- ✅ **4 個 Provider 整合** - 全域 Hook 支援
+- ✅ **1 個關鍵 Bug 修復** - Storybook 部署競態條件
+
+#### Task 1: AppleLiveActivity 組件
+
+**PR #809**: [Phase 2 Week 6-7 Task 1 - Apple Live Activity Component](https://github.com/RC918/morningai/pull/809)
+- ✅ 實時活動通知組件
+- ✅ 進度條支援
+- ✅ 自動消失功能
+- ✅ 33 個單元測試（100% 通過）
+- ✅ 12 個 Storybook stories
+- ✅ 600+ 行文檔（APPLE_LIVE_ACTIVITY_SYSTEM.md）
+- **狀態**: ✅ 已合併至 main
+
+#### Task 2: AppleControlCenter 組件
+
+**PR #810**: [Phase 2 Week 6-7 Task 2 - Apple Control Center Component](https://github.com/RC918/morningai/pull/810)
+- ✅ 控制中心 UI 組件
+- ✅ 快速設置面板
+- ✅ 滑動手勢支援
+- ✅ 33 個單元測試（100% 通過）
+- ✅ 12 個 Storybook stories
+- ✅ 600+ 行文檔（APPLE_CONTROL_CENTER_SYSTEM.md）
+- **狀態**: ✅ 已合併至 main
+
+#### Task 3: AppleSpotlight 組件
+
+**PR #813**: [Phase 2 Week 6-7 Task 3 - Apple Spotlight Component](https://github.com/RC918/morningai/pull/813)
+- ✅ Spotlight 搜尋組件
+- ✅ Cmd+K / Ctrl+K 快捷鍵
+- ✅ 搜尋歷史記錄
+- ✅ 33 個單元測試（100% 通過）
+- ✅ 12 個 Storybook stories
+- ✅ 600+ 行文檔（APPLE_SPOTLIGHT_SYSTEM.md）
+- **狀態**: ✅ 已合併至 main
+
+#### Task 4: AppleActionSheet 組件
+
+**PR #814**: [Phase 2 Week 6-7 Task 4 - Apple Action Sheet Component](https://github.com/RC918/morningai/pull/814)
+- ✅ Action Sheet 組件
+- ✅ 多種操作樣式（default, destructive, cancel）
+- ✅ 觸覺反饋支援
+- ✅ 33 個單元測試（100% 通過）
+- ✅ 12 個 Storybook stories
+- ✅ 700+ 行文檔（APPLE_ACTION_SHEET_SYSTEM.md）
+- **狀態**: ✅ 已合併至 main
+
+#### Task 5: ApplePicker 組件
+
+**PR #815**: [Phase 2 Week 6-7 Task 5 - Apple Picker Component](https://github.com/RC918/morningai/pull/815)
+- ✅ iOS 風格選擇器組件
+- ✅ 滾輪式選擇介面
+- ✅ 多列選擇支援
+- ✅ 33 個單元測試（100% 通過）
+- ✅ 12 個 Storybook stories
+- ✅ 600+ 行文檔（APPLE_PICKER_SYSTEM.md）
+- **狀態**: ✅ 已合併至 main
+
+#### 額外工作
+
+**PR #816**: [fix(ci): Prevent Storybook deployment race condition](https://github.com/RC918/morningai/pull/816)
+- ✅ 修復 Storybook 部署競態條件
+- ✅ 防止多個部署同時運行
+- ✅ 改進 CI/CD 穩定性
+- **狀態**: ✅ 已合併至 main
+
+**PR #817**: [feat(ux): Integrate all Apple component Providers into App](https://github.com/RC918/morningai/pull/817)
+- ✅ 整合 4 個 Provider（ActionSheet, Spotlight, ControlCenter, LiveActivity）
+- ✅ 全域 Hook 支援
+- ✅ 零破壞性變更
+- ✅ 運行時測試通過（8/8）
+- **狀態**: ✅ 已合併至 main
+
 ---
 
 ## 🎨 設計系統
@@ -281,6 +361,78 @@ import { applyDesignTokens } from '@/lib/design-tokens'
 - **Animation.md**: 動效規範與最佳實踐
 - **Accessibility.md**: 無障礙性指南
 - **Responsive.md**: 響應式設計規範
+
+---
+
+## 🌍 國際化 (i18n)
+
+### 技術架構
+
+**Morning AI 使用 Tolgee + i18next 混合架構**:
+
+- **Tolgee**: 提供 in-context 翻譯 UI 和雲端翻譯管理
+- **i18next**: 提供核心翻譯引擎和 React 整合
+- **react-i18next**: 提供 React hooks (`useTranslation`)
+
+### 支援語言
+
+| 語言 | 檔案大小 | 狀態 |
+|------|---------|------|
+| 英文 (en-US) | 34,591 bytes | ✅ 完整 |
+| 繁體中文 (zh-TW) | 32,529 bytes | ✅ 完整 |
+| 德文 (de) | 539 bytes | ⚠️ 未完整 |
+| 法文 (fr) | 551 bytes | ⚠️ 未完整 |
+
+### 使用方式
+
+```javascript
+import { useTranslation } from 'react-i18next'
+
+function MyComponent() {
+  const { t } = useTranslation()
+  
+  return (
+    <div>
+      <h1>{t('common.title')}</h1>
+      <p>{t('common.description', { param: value })}</p>
+    </div>
+  )
+}
+```
+
+### 翻譯檔案位置
+
+```
+handoff/20250928/40_App/frontend-dashboard/src/i18n/
+├── config.js        # i18next 配置
+├── tolgee.js        # Tolgee 配置
+└── locales/
+    ├── en-US.json   # 英文翻譯
+    └── zh-TW.json   # 繁體中文翻譯
+```
+
+### 相關文檔
+
+- **[I18N_STRATEGY.md](I18N_STRATEGY.md)** - 完整的國際化策略與工作流程
+- **[i18n 架構分析報告](/tmp/i18n_architecture_analysis.md)** - 詳細的技術架構分析
+
+### 關鍵特性
+
+✅ **Tolgee 特性**:
+- In-context 翻譯 UI (開發環境)
+- 雲端翻譯管理
+- 靜態翻譯檔案支援
+
+✅ **i18next 特性**:
+- 自訂語言偵測器 (localStorage + 瀏覽器語言)
+- 參數化翻譯 (interpolation)
+- 命名空間支援
+- 深色模式支援
+
+✅ **翻譯覆蓋率**:
+- 支援命名空間: common, auth, sidebar, feedback, phase3Welcome, dashboard, strategy, cost, wip
+- 294+ 翻譯 keys
+- 雙語完整覆蓋 (en-US, zh-TW)
 
 ---
 
@@ -457,6 +609,7 @@ A:
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - 系統架構
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - 貢獻指南
 - [DESIGN_SYSTEM_GUIDELINES.md](../DESIGN_SYSTEM_GUIDELINES.md) - 設計系統指南
+- [I18N_STRATEGY.md](I18N_STRATEGY.md) - 國際化策略與 Tolgee + i18next 架構
 
 ### 工具
 - [Vercel Dashboard](https://vercel.com/morning-ai) - 部署管理
@@ -474,5 +627,5 @@ A:
 - 發現文檔錯誤或過時信息時
 
 **維護者**: UI/UX 團隊  
-**最後更新**: 2025-10-25  
-**版本**: 1.1.0
+**最後更新**: 2025-10-26  
+**版本**: 1.2.0
