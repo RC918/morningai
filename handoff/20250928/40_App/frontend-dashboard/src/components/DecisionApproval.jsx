@@ -11,12 +11,12 @@ import {
   Info
 } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Progress } from '@/components/ui/progress'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
+import { Badge } from '@morningai/shared-ui'
+import { Textarea } from '@morningai/shared-ui'
+import { Label } from '@morningai/shared-ui'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@morningai/shared-ui'
+import { Progress } from '@morningai/shared-ui'
 import { useToast } from '@/hooks/use-toast'
 import { safeInterval } from '@/lib/safeInterval'
 

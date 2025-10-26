@@ -7,12 +7,12 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
+import { Label } from '@morningai/shared-ui'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@morningai/shared-ui'
+import { Alert, AlertDescription } from '@morningai/shared-ui'
+import { Badge } from '@morningai/shared-ui'
 import { 
   Download, 
   TrendingUp, 

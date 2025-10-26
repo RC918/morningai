@@ -1,4 +1,4 @@
-import { Skeleton } from '@/components/ui/skeleton'
+import { Skeleton } from '@morningai/shared-ui'
 import { motion } from 'framer-motion'
 
 export const DashboardSkeleton = () => {

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useTranslation } from 'react-i18next'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TolgeeProvider } from '@tolgee/react'
-import { Toaster } from '@/components/ui/toaster'
+import { Toaster } from '@morningai/shared-ui'
 import { toast } from '@/lib/toast-with-announcement'
 import { AppleLiveActivity } from '@/components/ui/apple-live-activity'
 import { AppleActionSheet } from '@/components/ui/apple-action-sheet'

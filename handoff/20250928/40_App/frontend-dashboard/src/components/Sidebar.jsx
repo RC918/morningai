@@ -17,7 +17,7 @@ import {
   CreditCard
 } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@morningai/shared-ui'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { DarkModeToggle } from './DarkModeToggle'
 import { LanguageSwitcher } from './LanguageSwitcher'

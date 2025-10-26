@@ -16,8 +16,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui';
+import { Alert, AlertDescription } from '@morningai/shared-ui';
 import { supabase, getSession } from '@/lib/supabaseClient';
 
 const AuthCallback = () => {

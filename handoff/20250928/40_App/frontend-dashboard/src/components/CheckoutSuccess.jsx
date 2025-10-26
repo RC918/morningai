@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@morningai/shared-ui'
 import { CheckCircle, ArrowLeft, Download, Mail } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 

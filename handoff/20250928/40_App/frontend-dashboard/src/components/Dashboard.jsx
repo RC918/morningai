@@ -7,11 +7,11 @@ import {
   Clock, DollarSign, Cpu, MemoryStick, Zap, Settings, Download,
   Plus, Trash2, Edit3, FileText, Grid3X3, Undo2, Redo2
 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
+import { Badge } from '@morningai/shared-ui'
+import { Progress } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@morningai/shared-ui'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { WidgetLibrary, getWidgetComponent } from './WidgetLibrary'
 import ReportCenter from './ReportCenter'

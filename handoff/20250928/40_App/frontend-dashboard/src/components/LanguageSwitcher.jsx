@@ -7,7 +7,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@morningai/shared-ui'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const languages = [

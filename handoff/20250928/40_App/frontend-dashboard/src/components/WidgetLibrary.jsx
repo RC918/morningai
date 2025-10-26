@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
+import { Badge } from '@morningai/shared-ui'
+import { Progress } from '@morningai/shared-ui'
 import { 
   Cpu, MemoryStick, Zap, Activity, Clock, AlertTriangle, 
   CheckCircle, TrendingUp, TrendingDown, DollarSign 

@@ -100,8 +100,10 @@ jobs:
           version: 9.15.1
       
       - name: Install dependencies
-        working-directory: handoff/20250928/40_App/frontend-dashboard
         run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
       
       - name: Install Playwright browsers
         working-directory: handoff/20250928/40_App/frontend-dashboard

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { Button } from './button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './card';
-import { Input } from './input';
+import { Button } from '@morningai/shared-ui';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@morningai/shared-ui';
+import { Input } from '@morningai/shared-ui';
 import { Spinner, Skeleton, LoadingDots, ProgressBar, PulseLoader } from './loading-states';
 
 const meta = {

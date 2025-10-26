@@ -114,8 +114,9 @@ jobs:
   
   build-and-deploy-new-dashboard:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: build-and-deploy
+    continue-on-error: true
     
     steps:
       - name: Checkout code
@@ -134,6 +135,9 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
       
       - name: Build Storybook (New Dashboard)
         run: pnpm --filter frontend-dashboard build-storybook

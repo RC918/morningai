@@ -9,9 +9,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@morningai/shared-ui'
 import { AppleInput } from '@/components/ui/apple-input'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@morningai/shared-ui'
 import { SEARCH_CATEGORIES, getSearchableItems } from '@/lib/searchRegistry'
 
 const CATEGORY_ICONS = {
