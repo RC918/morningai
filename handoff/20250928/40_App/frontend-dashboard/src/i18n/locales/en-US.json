@@ -916,5 +916,45 @@
   },
   "sheet": {
     "close": "Close sheet"
+  },
+  "accessibility": {
+    "title": "Accessibility Settings",
+    "subtitle": "Customize your experience",
+    "settings": "Accessibility",
+    "openSettings": "Open accessibility settings",
+    "reset": "Reset to Defaults",
+    "done": "Done",
+    "reducedMotion": {
+      "title": "Reduced Motion",
+      "description": "Minimize animations and transitions"
+    },
+    "highContrast": {
+      "title": "High Contrast",
+      "description": "Increase color contrast for better visibility"
+    },
+    "fontSize": {
+      "title": "Font Size",
+      "description": "Adjust text size for better readability",
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large",
+      "extraLarge": "Extra Large"
+    },
+    "screenReader": {
+      "title": "Screen Reader Announcements",
+      "description": "Enable live region announcements"
+    },
+    "keyboardShortcuts": {
+      "title": "Keyboard Shortcuts",
+      "description": "Enable keyboard navigation shortcuts"
+    },
+    "focusIndicators": {
+      "title": "Focus Indicators",
+      "description": "Customize keyboard focus visibility",
+      "default": "Default",
+      "defaultDesc": "Standard focus outline",
+      "enhanced": "Enhanced",
+      "enhancedDesc": "High visibility focus outline"
+    }
   }
 }

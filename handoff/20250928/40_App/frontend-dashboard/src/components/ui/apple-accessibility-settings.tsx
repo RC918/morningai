@@ -230,13 +230,74 @@ const AccessibilitySettingsPanel: React.FC = () => {
   const { t } = useTranslation()
   const { settings, updateSetting, resetSettings, isOpen, close } = useAccessibilitySettings()
   const panelRef = React.useRef<HTMLDivElement>(null)
+  const previousFocusRef = React.useRef<HTMLElement | null>(null)
   const announce = useScreenReaderAnnouncement()
 
   useEffect(() => {
     if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement
+      
+      setTimeout(() => {
+        if (panelRef.current) {
+          const firstFocusable = panelRef.current.querySelector<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+          firstFocusable?.focus()
+        }
+      }, 100)
+      
       announce('Accessibility settings opened', 'polite')
     }
+
+    return () => {
+      if (!isOpen && previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+        previousFocusRef.current.focus()
+      }
+    }
   }, [isOpen, announce])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        close()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isOpen, close])
+
+  useEffect(() => {
+    if (!isOpen || !panelRef.current) return
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+
+      const focusableElements = panelRef.current!.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault()
+          lastElement?.focus()
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault()
+          firstElement?.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleTab)
+    return () => document.removeEventListener('keydown', handleTab)
+  }, [isOpen])
 
   const handleReset = () => {
     resetSettings()
@@ -443,9 +504,79 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
   )
 }
 
+export const AccessibilityTriggerButton: React.FC<{
+  className?: string
+  variant?: 'icon' | 'text' | 'full'
+}> = ({ className, variant = 'icon' }) => {
+  const { open } = useAccessibilitySettings()
+  const { t } = useTranslation()
+
+  if (variant === 'text') {
+    return (
+      <button
+        onClick={open}
+        className={cn(
+          'px-4 py-2 rounded-lg text-sm font-medium',
+          'text-gray-700 dark:text-gray-300',
+          'hover:bg-gray-100 dark:hover:bg-gray-800',
+          'active:bg-gray-200 dark:active:bg-gray-700',
+          'transition-colors',
+          'focus:outline-none focus:ring-2 focus:ring-blue-500',
+          className
+        )}
+        aria-label={t('accessibility.openSettings', 'Open accessibility settings')}
+      >
+        {t('accessibility.settings', 'Accessibility')}
+      </button>
+    )
+  }
+
+  if (variant === 'full') {
+    return (
+      <button
+        onClick={open}
+        className={cn(
+          'flex items-center gap-3 px-4 py-3 rounded-lg',
+          'text-gray-700 dark:text-gray-300',
+          'hover:bg-gray-100 dark:hover:bg-gray-800',
+          'active:bg-gray-200 dark:active:bg-gray-700',
+          'transition-colors',
+          'focus:outline-none focus:ring-2 focus:ring-blue-500',
+          className
+        )}
+        aria-label={t('accessibility.openSettings', 'Open accessibility settings')}
+      >
+        <Settings className="w-5 h-5" />
+        <span className="text-sm font-medium">
+          {t('accessibility.settings', 'Accessibility')}
+        </span>
+      </button>
+    )
+  }
+
+  return (
+    <button
+      onClick={open}
+      className={cn(
+        'p-2 rounded-full',
+        'text-gray-700 dark:text-gray-300',
+        'hover:bg-gray-100 dark:hover:bg-gray-800',
+        'active:bg-gray-200 dark:active:bg-gray-700',
+        'transition-colors',
+        'focus:outline-none focus:ring-2 focus:ring-blue-500',
+        className
+      )}
+      aria-label={t('accessibility.openSettings', 'Open accessibility settings')}
+    >
+      <Settings className="w-5 h-5" />
+    </button>
+  )
+}
+
 export const AppleAccessibilitySettings = {
   Provider: AccessibilityProvider,
-  useSettings: useAccessibilitySettings
+  useSettings: useAccessibilitySettings,
+  TriggerButton: AccessibilityTriggerButton
 }
 
 export type { AccessibilitySettings, AccessibilityContextValue }
