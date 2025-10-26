@@ -2,6 +2,7 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { getSpringConfig, triggerHaptic } from "@/lib/spring-animation"
+import { useAccessibleTabs, useScreenReaderAnnouncement } from "@/hooks/use-accessibility"
 
 /**
  * AppleTabBar - iOS-style bottom tab navigation
@@ -67,6 +68,7 @@ function AppleTabBarItem({
   const { value: selectedValue, onValueChange } = React.useContext(AppleTabBarContext)
   const isActive = value === selectedValue
   const itemRef = React.useRef(null)
+  const { announce } = useScreenReaderAnnouncement()
 
   const handleClick = React.useCallback((e) => {
     if (disabled) return
@@ -75,9 +77,19 @@ function AppleTabBarItem({
       triggerHaptic(itemRef.current, 'light')
     }
     
+    announce(`${label} tab selected`, 'polite')
     onValueChange?.(value)
     onClick?.(e)
-  }, [disabled, value, onValueChange, onClick])
+  }, [disabled, value, onValueChange, onClick, label, announce])
+
+  const handleKeyDown = React.useCallback((e) => {
+    if (disabled) return
+    
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleClick(e)
+    }
+  }, [disabled, handleClick])
 
   const springConfig = getSpringConfig('snappy')
 
@@ -87,8 +99,10 @@ function AppleTabBarItem({
       role="tab"
       aria-selected={isActive}
       aria-label={label}
+      tabIndex={isActive ? 0 : -1}
       disabled={disabled}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       className={cn(
         "relative flex flex-col items-center justify-center",
         "min-w-[64px] flex-1 max-w-[120px]",

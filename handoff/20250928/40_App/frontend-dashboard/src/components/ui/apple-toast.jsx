@@ -4,6 +4,7 @@ import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
+import { useScreenReaderAnnouncement } from '@/hooks/use-accessibility'
 
 const ToastContext = createContext(null)
 
@@ -51,8 +52,15 @@ const toastVariants = {
 const Toast = ({ id, title, description, variant = 'default', duration = 5000, onDismiss }) => {
   const { t } = useTranslation()
   const toastRef = useRef(null)
+  const { announce } = useScreenReaderAnnouncement()
   const variantConfig = toastVariants[variant] || toastVariants.default
   const Icon = variantConfig.icon
+
+  useEffect(() => {
+    const message = `${title}${description ? ': ' + description : ''}`
+    const priority = variant === 'error' ? 'assertive' : 'polite'
+    announce(message, priority)
+  }, [title, description, variant, announce])
 
   useEffect(() => {
     if (duration) {

@@ -2,6 +2,7 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { getSpringConfig, triggerHaptic } from "@/lib/spring-animation"
+import { useScreenReaderAnnouncement } from "@/hooks/use-accessibility"
 
 /**
  * AppleSegmentedControl - iOS-style segmented picker
@@ -71,6 +72,7 @@ function AppleSegmentedControlItem({
   const { value: selectedValue, onValueChange } = React.useContext(AppleSegmentedControlContext)
   const isActive = value === selectedValue
   const itemRef = React.useRef(null)
+  const { announce } = useScreenReaderAnnouncement()
 
   const handleClick = React.useCallback((e) => {
     if (disabled) return
@@ -79,9 +81,10 @@ function AppleSegmentedControlItem({
       triggerHaptic(itemRef.current, 'light')
     }
     
+    announce(`${children} selected`, 'polite')
     onValueChange?.(value)
     onClick?.(e)
-  }, [disabled, value, onValueChange, onClick])
+  }, [disabled, value, onValueChange, onClick, children, announce])
 
   const handleKeyDown = React.useCallback((e) => {
     if (disabled) return
