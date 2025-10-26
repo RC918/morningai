@@ -162,7 +162,11 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
       {/* Compact View */}
       <motion.div
         layout
-        className="px-4 py-3"
+        onClick={expandable ? handleToggleExpand : undefined}
+        className={cn(
+          'px-4 py-3',
+          expandable && 'cursor-pointer hover:bg-white/5 active:bg-white/10 transition-colors'
+        )}
       >
         <div className="flex items-center gap-3">
           {/* Icon */}
