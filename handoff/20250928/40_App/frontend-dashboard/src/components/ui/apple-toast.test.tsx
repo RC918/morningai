@@ -186,7 +186,7 @@ describe('AppleToast', () => {
       const button = screen.getByText('Show Simple Toast')
       await userEvent.click(button)
 
-      expect(screen.getByText('Simple message')).toBeInTheDocument()
+      expect(screen.getAllByText('Simple message')[0]).toBeInTheDocument()
     })
   })
 
@@ -246,16 +246,20 @@ describe('AppleToast', () => {
       const showButton = screen.getByText('Show Multiple Toasts')
       await userEvent.click(showButton)
 
-      expect(screen.getByText('Toast 1')).toBeInTheDocument()
-      expect(screen.getByText('Toast 2')).toBeInTheDocument()
-      expect(screen.getByText('Toast 3')).toBeInTheDocument()
+      expect(screen.getAllByText('Toast 1')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('Toast 2')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('Toast 3')[0]).toBeInTheDocument()
 
       const dismissButton = screen.getByText('Dismiss All')
       await userEvent.click(dismissButton)
 
-      expect(screen.queryByText('Toast 1')).not.toBeInTheDocument()
-      expect(screen.queryByText('Toast 2')).not.toBeInTheDocument()
-      expect(screen.queryByText('Toast 3')).not.toBeInTheDocument()
+      const visibleToast1 = screen.queryAllByText('Toast 1').filter(el => !el.classList.contains('sr-only'))
+      const visibleToast2 = screen.queryAllByText('Toast 2').filter(el => !el.classList.contains('sr-only'))
+      const visibleToast3 = screen.queryAllByText('Toast 3').filter(el => !el.classList.contains('sr-only'))
+      
+      expect(visibleToast1.length).toBe(0)
+      expect(visibleToast2.length).toBe(0)
+      expect(visibleToast3.length).toBe(0)
     })
   })
 
@@ -283,9 +287,9 @@ describe('AppleToast', () => {
       const button = screen.getByText('Show Multiple')
       await userEvent.click(button)
 
-      expect(screen.getByText('First')).toBeInTheDocument()
-      expect(screen.getByText('Second')).toBeInTheDocument()
-      expect(screen.getByText('Third')).toBeInTheDocument()
+      expect(screen.getAllByText('First')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('Second')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('Third')[0]).toBeInTheDocument()
     })
   })
 
@@ -359,7 +363,7 @@ describe('AppleToast', () => {
       const button = screen.getByText('Show Toast')
       await userEvent.click(button)
 
-      expect(screen.getByText('Test Toast')).toBeInTheDocument()
+      expect(screen.getAllByText('Test Toast')[0]).toBeInTheDocument()
 
       expect(toastInstance).toBeDefined()
       expect(toastInstance.id).toBeDefined()
@@ -367,7 +371,10 @@ describe('AppleToast', () => {
 
       act(() => { toastInstance.dismiss() })
 
-      expect(screen.queryByText('Test Toast')).not.toBeInTheDocument()
+      const visibleToasts = screen.queryAllByText('Test Toast').filter(
+        el => !el.classList.contains('sr-only')
+      )
+      expect(visibleToasts.length).toBe(0)
     })
   })
 

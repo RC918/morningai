@@ -159,6 +159,13 @@
   --color-growth-text: #15803D;   /* Darker green for text (4.51:1 ✅) */
   --color-wisdom-text: #5856D6;   /* Already compliant (5.65:1 ✅ verified) */
   
+  /* WCAG AAA compliant colors (7:1+ contrast on white) */
+  --color-primary-aaa: #005A9C;   /* 7.12:1 contrast ratio */
+  --color-success-aaa: #0D5C3D;   /* 7.05:1 contrast ratio */
+  --color-error-aaa: #A91C1C;     /* 7.32:1 contrast ratio */
+  --color-warning-aaa: #92400E;   /* 7.18:1 contrast ratio */
+  --color-info-aaa: #005A9C;      /* 7.12:1 contrast ratio */
+  
   /* Spacing mappings */
   --spacing-xs: var(--space-xs);
   --spacing-sm: var(--space-sm);

@@ -5,6 +5,7 @@ import { Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { getSpringConfig, triggerHaptic } from "@/lib/spring-animation"
+import { useScreenReaderAnnouncement } from "@/hooks/use-accessibility"
 
 const appleInputVariants = cva(
   "flex w-full rounded-xl border bg-background/80 backdrop-blur-sm text-base transition-all outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
@@ -63,8 +64,17 @@ function AppleInput({
   const [showPassword, setShowPassword] = React.useState(false)
   const [hasValue, setHasValue] = React.useState(!!value || !!props.defaultValue)
   const inputRef = React.useRef(null)
+  const { announce } = useScreenReaderAnnouncement()
 
   const inputType = type === "password" && showPassword ? "text" : type
+
+  React.useEffect(() => {
+    if (state === "error" && errorText) {
+      announce(`Error: ${errorText}`, 'assertive')
+    } else if (state === "success" && successText) {
+      announce(`Success: ${successText}`, 'polite')
+    }
+  }, [state, errorText, successText, announce])
 
   const handleFocus = React.useCallback((e) => {
     setIsFocused(true)

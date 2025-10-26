@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
+import { useAccessibleDialog, useScreenReaderAnnouncement } from '@/hooks/use-accessibility'
 
 const SheetContext = createContext(null)
 
@@ -33,23 +34,25 @@ const Sheet = ({
   onClose 
 }) => {
   const { t } = useTranslation()
-  const sheetRef = useRef(null)
-  const previousFocusRef = useRef(null)
+  const { announce } = useScreenReaderAnnouncement()
+  const { dialogProps, dialogRef } = useAccessibleDialog(true)
+  
   const y = useMotionValue(0)
   const opacity = useTransform(y, [0, 300], [1, 0])
 
   const handleClose = useCallback(() => {
-    if (sheetRef.current) {
-      triggerHaptic(sheetRef.current, 'light')
+    if (dialogRef.current) {
+      triggerHaptic(dialogRef.current, 'light')
     }
+    announce(t('sheet.closed', 'Sheet closed'), 'polite')
     onClose(id)
-  }, [id, onClose])
+  }, [id, onClose, announce, t, dialogRef])
 
   const handleDragEnd = (event, info) => {
     const shouldClose = info.velocity.y > 500 || info.offset.y > 150
     if (shouldClose) {
-      if (sheetRef.current) {
-        triggerHaptic(sheetRef.current, 'medium')
+      if (dialogRef.current) {
+        triggerHaptic(dialogRef.current, 'medium')
       }
       onClose(id)
     }
@@ -62,45 +65,10 @@ const Sheet = ({
   }
 
   useEffect(() => {
-    previousFocusRef.current = document.activeElement
-
-    if (sheetRef.current) {
-      sheetRef.current.focus()
+    if (title) {
+      announce(t('sheet.opened', `Sheet opened: ${title}`), 'polite')
     }
-
-    return () => {
-      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
-        previousFocusRef.current.focus()
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleTab = (e) => {
-      if (e.key !== 'Tab' || !sheetRef.current) return
-
-      const focusableElements = sheetRef.current.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      )
-      const firstElement = focusableElements[0]
-      const lastElement = focusableElements[focusableElements.length - 1]
-
-      if (e.shiftKey) {
-        if (document.activeElement === firstElement) {
-          e.preventDefault()
-          lastElement?.focus()
-        }
-      } else {
-        if (document.activeElement === lastElement) {
-          e.preventDefault()
-          firstElement?.focus()
-        }
-      }
-    }
-
-    document.addEventListener('keydown', handleTab)
-    return () => document.removeEventListener('keydown', handleTab)
-  }, [])
+  }, [title, announce, t])
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -132,10 +100,7 @@ const Sheet = ({
 
       {/* Sheet Content */}
       <motion.div
-        ref={sheetRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
+        {...dialogProps}
         aria-labelledby={title ? `sheet-title-${id}` : undefined}
         aria-describedby={description ? `sheet-desc-${id}` : undefined}
         drag="y"

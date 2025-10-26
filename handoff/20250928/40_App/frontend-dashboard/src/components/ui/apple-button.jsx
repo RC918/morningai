@@ -12,21 +12,21 @@ const appleButtonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-primary text-primary-foreground shadow-sm hover:shadow-md focus-visible:ring-primary/30 active:shadow-sm",
+          "bg-primary-aaa text-white shadow-sm hover:shadow-md focus-visible:ring-primary/30 active:shadow-sm",
         secondary:
           "bg-secondary text-secondary-foreground shadow-sm hover:shadow-md focus-visible:ring-secondary/30 active:shadow-sm",
         destructive:
-          "bg-destructive text-white shadow-sm hover:shadow-md focus-visible:ring-destructive/30 active:shadow-sm",
+          "bg-error-aaa text-white shadow-sm hover:shadow-md focus-visible:ring-destructive/30 active:shadow-sm",
         outline:
           "border border-input bg-background/80 backdrop-blur-sm shadow-xs hover:bg-accent hover:text-accent-foreground focus-visible:ring-primary/20 active:bg-accent/80",
         ghost:
           "hover:bg-accent/80 hover:text-accent-foreground focus-visible:ring-primary/20 active:bg-accent",
         link:
-          "text-primary underline-offset-4 hover:underline focus-visible:ring-primary/20",
+          "text-primary-aaa underline-offset-4 hover:underline focus-visible:ring-primary/20",
         filled:
           "bg-accent text-accent-foreground shadow-xs hover:shadow-sm focus-visible:ring-accent/30 active:shadow-xs",
         tinted:
-          "bg-primary/10 text-primary hover:bg-primary/20 focus-visible:ring-primary/30 active:bg-primary/15",
+          "bg-primary/10 text-primary-aaa hover:bg-primary/20 focus-visible:ring-primary/30 active:bg-primary/15",
       },
       size: {
         sm: "h-8 rounded-lg gap-1.5 px-3 text-sm has-[>svg]:px-2.5",
