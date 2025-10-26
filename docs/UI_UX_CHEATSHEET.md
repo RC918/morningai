@@ -77,6 +77,25 @@ rg "useUndoRedo" --type tsx
 ls handoff/20250928/40_App/frontend-dashboard/src/components/ui/
 ```
 
+### 無障礙測試 (Phase 3)
+
+```bash
+# 運行無障礙煙霧測試
+cd handoff/20250928/40_App/frontend-dashboard
+node scripts/accessibility-smoke-test.js
+
+# 運行 axe-core 自動化測試
+pnpm test -- apple-button.test.tsx
+pnpm test -- apple-input.test.tsx
+
+# 查看無障礙測試指南
+cat docs/MANUAL_TESTING_SCREEN_READERS.md
+cat docs/MANUAL_TESTING_KEYBOARD_NAVIGATION.md
+
+# 查看 WCAG AAA 合規文檔
+cat docs/WCAG_AAA_COMPLIANCE.md
+```
+
 ---
 
 ## 🎨 Design Tokens 快速參考
@@ -259,6 +278,31 @@ animation.easing.linear     // linear
 | Lazy Image | `lazy-image.jsx` | 懶加載圖片 |
 | Empty State | `empty-state.jsx` | 空狀態 |
 | Loading States | `loading-states.jsx` | 加載狀態 |
+
+### Apple 組件系統 (Phase 2-3)
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| AppleButton | `apple-button.tsx` | iOS 風格按鈕（4 種變體，3 種尺寸，Spring 動畫） |
+| AppleInput | `apple-input.tsx` | iOS 風格輸入框（浮動標籤，錯誤/成功狀態） |
+| AppleDynamicToast | `apple-dynamic-toast.tsx` | iOS 風格輕提示（4 種變體，自動消失） |
+| AppleModal | `apple-modal.tsx` | iOS 風格對話框（Backdrop blur，Focus trap） |
+| AppleSheet | `apple-sheet.tsx` | iOS 風格底部抽屜（拖動關閉，Snap points） |
+| AppleTabBar | `apple-tab-bar.tsx` | iOS 風格標籤欄（活動指示器，Badge 支援） |
+| AppleSegmentedControl | `apple-segmented-control.tsx` | iOS 風格分段控制器（滑動指示器） |
+| AppleLiveActivity | `apple-live-activity.tsx` | iOS 風格實時活動（進度條，自動消失） |
+| AppleControlCenter | `apple-control-center.tsx` | iOS 風格控制中心（快速設置面板） |
+| AppleSpotlight | `apple-spotlight.tsx` | iOS 風格 Spotlight 搜尋（Cmd+K） |
+| AppleActionSheet | `apple-action-sheet.tsx` | iOS 風格操作表（多種操作樣式） |
+| ApplePicker | `apple-picker.tsx` | iOS 風格選擇器（滾輪式選擇） |
+
+**無障礙支援** (Phase 3):
+- ✅ WCAG AAA 合規
+- ✅ 完整的 ARIA 標籤和角色
+- ✅ 鍵盤導航支援
+- ✅ 螢幕閱讀器優化
+- ✅ Focus trap 和焦點管理
+- ✅ Live region 公告
 
 ---
 
