@@ -17,6 +17,15 @@ vi.mock('@/components/ui/apple-button', () => ({
   AppleButton: ({ children, ...props }) => <button {...props}>{children}</button>
 }))
 
+vi.mock('@/components/ui/apple-input', () => ({
+  AppleInput: ({ label, ...props }) => (
+    <div>
+      {label && <label>{label}</label>}
+      <input {...props} />
+    </div>
+  )
+}))
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
