@@ -6,6 +6,9 @@ import { TolgeeProvider } from '@tolgee/react'
 import { Toaster } from '@/components/ui/toaster'
 import { toast } from '@/lib/toast-with-announcement'
 import { AppleLiveActivity } from '@/components/ui/apple-live-activity'
+import { AppleActionSheet } from '@/components/ui/apple-action-sheet'
+import { AppleSpotlight } from '@/components/ui/apple-spotlight'
+import { AppleControlCenter } from '@/components/ui/apple-control-center'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Sidebar from '@/components/Sidebar'
 import GlobalSearch from '@/components/GlobalSearch'
@@ -308,9 +311,15 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="morningai-theme">
       <TolgeeProvider tolgee={tolgee} fallback={<PageLoader message="Loading translations..." />}>
         <NotificationProvider>
-          <AppleLiveActivity.Provider position="top">
-            <AppContent />
-          </AppleLiveActivity.Provider>
+          <AppleActionSheet.Provider>
+            <AppleSpotlight.Provider>
+              <AppleControlCenter.Provider>
+                <AppleLiveActivity.Provider position="top">
+                  <AppContent />
+                </AppleLiveActivity.Provider>
+              </AppleControlCenter.Provider>
+            </AppleSpotlight.Provider>
+          </AppleActionSheet.Provider>
         </NotificationProvider>
       </TolgeeProvider>
     </ThemeProvider>
