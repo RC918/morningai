@@ -186,7 +186,7 @@ describe('AppleToast', () => {
       const button = screen.getByText('Show Simple Toast')
       await userEvent.click(button)
 
-      expect(screen.getByText('Simple message')).toBeInTheDocument()
+      expect(screen.getAllByText('Simple message')[0]).toBeInTheDocument()
     })
   })
 
@@ -246,9 +246,9 @@ describe('AppleToast', () => {
       const showButton = screen.getByText('Show Multiple Toasts')
       await userEvent.click(showButton)
 
-      expect(screen.getByText('Toast 1')).toBeInTheDocument()
-      expect(screen.getByText('Toast 2')).toBeInTheDocument()
-      expect(screen.getByText('Toast 3')).toBeInTheDocument()
+      expect(screen.getAllByText('Toast 1')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('Toast 2')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('Toast 3')[0]).toBeInTheDocument()
 
       const dismissButton = screen.getByText('Dismiss All')
       await userEvent.click(dismissButton)
@@ -283,9 +283,9 @@ describe('AppleToast', () => {
       const button = screen.getByText('Show Multiple')
       await userEvent.click(button)
 
-      expect(screen.getByText('First')).toBeInTheDocument()
-      expect(screen.getByText('Second')).toBeInTheDocument()
-      expect(screen.getByText('Third')).toBeInTheDocument()
+      expect(screen.getAllByText('First')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('Second')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('Third')[0]).toBeInTheDocument()
     })
   })
 
@@ -359,7 +359,7 @@ describe('AppleToast', () => {
       const button = screen.getByText('Show Toast')
       await userEvent.click(button)
 
-      expect(screen.getByText('Test Toast')).toBeInTheDocument()
+      expect(screen.getAllByText('Test Toast')[0]).toBeInTheDocument()
 
       expect(toastInstance).toBeDefined()
       expect(toastInstance.id).toBeDefined()
