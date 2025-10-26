@@ -1,14 +1,14 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@morningai/shared-ui'
+import { Label } from '@morningai/shared-ui'
 import { AppleInput } from '@/components/ui/apple-input'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
+import { Switch } from '@morningai/shared-ui'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@morningai/shared-ui'
+import { Avatar, AvatarFallback, AvatarImage } from '@morningai/shared-ui'
+import { Badge } from '@morningai/shared-ui'
 import { 
   User, 
   Bell, 

@@ -3,8 +3,24 @@
   "version": "0.1.0",
   "description": "Shared UI components for MorningAI monorepo",
   "main": "dist/index.js",
-  "module": "dist/index.esm.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./utils": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./animations": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./tokens.json": "./src/tokens.json"
+  },
   "files": [
     "dist"
   ],

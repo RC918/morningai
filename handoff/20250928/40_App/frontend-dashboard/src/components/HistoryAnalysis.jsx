@@ -1,7 +1,7 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
+import { Badge } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@morningai/shared-ui'
 import { 
   TrendingUp, 
   TrendingDown,

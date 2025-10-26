@@ -1,5 +1,5 @@
 import { AppleButton } from '@/components/ui/apple-button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { getErrorMessage } from '@/lib/errorMessages'
 import * as Icons from 'lucide-react'
 import { motion } from 'framer-motion'

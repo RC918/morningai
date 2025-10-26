@@ -7,11 +7,11 @@
  */
 
 import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Label } from '@morningai/shared-ui'
+import { Textarea } from '@morningai/shared-ui'
+import { Alert, AlertDescription } from '@morningai/shared-ui'
 import { CheckCircle2, AlertCircle, ThumbsUp, Minus, ThumbsDown } from 'lucide-react'
 import { NPSCalculator } from '@/lib/usability-testing'
 

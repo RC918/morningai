@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@morningai/shared-ui'
+import { Badge } from '@morningai/shared-ui'
+import { Label } from '@morningai/shared-ui'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@morningai/shared-ui'
 import { 
   Download, FileText, Calendar, Clock, CheckCircle, 
   AlertCircle, Loader2, BarChart3, TrendingUp 

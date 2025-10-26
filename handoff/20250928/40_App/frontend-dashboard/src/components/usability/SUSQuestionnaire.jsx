@@ -7,11 +7,11 @@
  */
 
 import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Label } from '@morningai/shared-ui'
+import { RadioGroup, RadioGroupItem } from '@morningai/shared-ui'
+import { Alert, AlertDescription } from '@morningai/shared-ui'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
 import { SUSCalculator } from '@/lib/usability-testing'
 

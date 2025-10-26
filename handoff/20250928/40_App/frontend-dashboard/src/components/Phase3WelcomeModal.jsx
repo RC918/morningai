@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from '@morningai/shared-ui';
 import { AppleButton } from '@/components/ui/apple-button';
 import { Users, Shield, UserCog } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Progress } from '@/components/ui/progress'
+import { Progress } from '@morningai/shared-ui'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 

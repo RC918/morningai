@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { Badge } from '@morningai/shared-ui'
+import { Separator } from '@morningai/shared-ui'
 import { AppleInput } from '@/components/ui/apple-input'
-import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Label } from '@morningai/shared-ui'
+import { RadioGroup, RadioGroupItem } from '@morningai/shared-ui'
+import { Skeleton } from '@morningai/shared-ui'
 import { 
   CreditCard, 
   Shield, 
