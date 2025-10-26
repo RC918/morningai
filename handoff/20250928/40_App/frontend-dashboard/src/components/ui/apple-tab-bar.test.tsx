@@ -12,6 +12,7 @@ describe('AppleTabBar', () => {
       </AppleTabBar>
     )
     
+    expect(screen.getByRole('navigation')).toBeInTheDocument()
     expect(screen.getByRole('tablist')).toBeInTheDocument()
     expect(screen.getByLabelText('Home')).toBeInTheDocument()
     expect(screen.getByLabelText('Search')).toBeInTheDocument()
@@ -125,8 +126,8 @@ describe('AppleTabBar', () => {
       </AppleTabBar>
     )
     
-    const tablist = screen.getByRole('tablist')
-    expect(tablist).toHaveClass('custom-class')
+    const nav = screen.getByRole('navigation')
+    expect(nav).toHaveClass('custom-class')
   })
 
   it('handles custom onClick handler', () => {
@@ -157,8 +158,11 @@ describe('AppleTabBar', () => {
       </AppleTabBar>
     )
     
+    const nav = screen.getByRole('navigation')
+    expect(nav).toHaveAttribute('aria-label', 'Main navigation')
+    
     const tablist = screen.getByRole('tablist')
-    expect(tablist).toHaveAttribute('aria-label', 'Main navigation')
+    expect(tablist).toBeInTheDocument()
     
     const tabs = screen.getAllByRole('tab')
     tabs.forEach(tab => {

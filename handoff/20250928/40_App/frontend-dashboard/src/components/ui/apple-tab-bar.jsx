@@ -36,7 +36,6 @@ function AppleTabBar({
   return (
     <AppleTabBarContext.Provider value={{ value, onValueChange }}>
       <nav
-        role="tablist"
         aria-label="Main navigation"
         className={cn(
           "fixed bottom-0 left-0 right-0 z-50",
@@ -47,7 +46,7 @@ function AppleTabBar({
         )}
         {...props}
       >
-        <div className="flex items-center justify-around px-2 py-1">
+        <div role="tablist" className="flex items-center justify-around px-2 py-1">
           {children}
         </div>
       </nav>
