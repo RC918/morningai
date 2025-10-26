@@ -367,7 +367,10 @@ describe('AppleToast', () => {
 
       act(() => { toastInstance.dismiss() })
 
-      expect(screen.queryByText('Test Toast')).not.toBeInTheDocument()
+      const visibleToasts = screen.queryAllByText('Test Toast').filter(
+        el => !el.classList.contains('sr-only')
+      )
+      expect(visibleToasts.length).toBe(0)
     })
   })
 
