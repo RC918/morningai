@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { ApplePicker, createDatePickerColumns, createTimePickerColumns, PickerColumn } from './apple-picker'
 import React from 'react'
 
+vi.mock('@/hooks/use-accessibility', () => ({
+  useScreenReaderAnnouncement: () => vi.fn()
+}))
+
 describe('ApplePicker', () => {
   describe('Basic Rendering', () => {
     it('renders single column picker', () => {

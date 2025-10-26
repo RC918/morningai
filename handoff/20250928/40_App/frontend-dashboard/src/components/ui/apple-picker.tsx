@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
+import { useScreenReaderAnnouncement } from '@/hooks/use-accessibility'
 
 export type PickerOption = {
   value: string | number
@@ -29,7 +30,8 @@ const PickerWheel = ({
   onChange,
   height = 216,
   itemHeight = 36,
-  visibleItems = 5
+  visibleItems = 5,
+  columnId
 }: {
   options: PickerOption[]
   selectedIndex?: number
@@ -37,6 +39,7 @@ const PickerWheel = ({
   height?: number
   itemHeight?: number
   visibleItems?: number
+  columnId?: string
 }) => {
   const wheelRef = useRef<HTMLDivElement>(null)
   const y = useMotionValue(0)
@@ -44,6 +47,7 @@ const PickerWheel = ({
   const isDragging = useRef(false)
   const startY = useRef(0)
   const startOffset = useRef(0)
+  const announce = useScreenReaderAnnouncement()
 
   const getOffsetFromIndex = (index: number) => {
     return -index * itemHeight
@@ -70,10 +74,18 @@ const PickerWheel = ({
       triggerHaptic(wheelRef.current, 'light')
     }
     
+    const selectedOption = options[index]
+    if (selectedOption) {
+      const message = columnId 
+        ? `${columnId}: ${selectedOption.label}` 
+        : selectedOption.label
+      announce(message, 'polite')
+    }
+    
     if (onChange) {
       onChange(index)
     }
-  }, [y, itemHeight, onChange])
+  }, [y, itemHeight, onChange, options, columnId, announce])
 
   const handleDragStart = (e: React.PointerEvent) => {
     isDragging.current = true
@@ -116,6 +128,18 @@ const PickerWheel = ({
     snapToIndex(newIndex)
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const newIndex = Math.max(0, currentIndex - 1)
+      snapToIndex(newIndex)
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const newIndex = Math.min(options.length - 1, currentIndex + 1)
+      snapToIndex(newIndex)
+    }
+  }
+
   useEffect(() => {
     y.set(getOffsetFromIndex(selectedIndex))
     setCurrentIndex(selectedIndex)
@@ -126,7 +150,12 @@ const PickerWheel = ({
   return (
     <div
       ref={wheelRef}
-      className="relative overflow-hidden select-none"
+      role="listbox"
+      aria-label={columnId ? `${columnId} picker` : 'Picker'}
+      aria-activedescendant={`picker-option-${currentIndex}`}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="relative overflow-hidden select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-xl"
       style={{ height }}
       onPointerDown={handleDragStart}
       onPointerMove={handleDrag}
@@ -194,6 +223,9 @@ const PickerWheel = ({
             return (
               <motion.div
                 key={option.value}
+                id={`picker-option-${index}`}
+                role="option"
+                aria-selected={index === currentIndex}
                 style={{
                   opacity,
                   scale,
@@ -254,6 +286,7 @@ export const ApplePicker = ({
             height={height}
             itemHeight={itemHeight}
             visibleItems={visibleItems}
+            columnId={column.id}
           />
         </div>
       ))}
