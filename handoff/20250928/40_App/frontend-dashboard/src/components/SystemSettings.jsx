@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { AppleInput } from '@/components/ui/apple-input'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -113,38 +113,37 @@ const SystemSettings = () => {
                       }
                     }}
                   />
-                  <Button 
+                  <AppleButton 
                     variant="outline" 
                     size="sm" 
                     aria-label={t('settings.profile.avatar')}
                     onClick={() => document.getElementById('avatar-upload')?.click()}
                   >
                     {t('settings.profile.avatar')}
-                  </Button>
+                  </AppleButton>
                   <p className="text-sm text-gray-600 mt-1">{t('settings.profile.avatarHint')}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">{t('settings.profile.name')}</Label>
-                  <Input
-                    id="name"
-                    value={profile.name}
-                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                    aria-describedby="name-description"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">{t('settings.profile.email')}</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profile.email}
-                    onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                    aria-describedby="email-description"
-                  />
-                </div>
+                <AppleInput
+                  id="name"
+                  label={t('settings.profile.name')}
+                  value={profile.name}
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  leftIcon={<User className="w-4 h-4" />}
+                  aria-describedby="name-description"
+                  haptic="light"
+                />
+                <AppleInput
+                  id="email"
+                  type="email"
+                  label={t('settings.profile.email')}
+                  value={profile.email}
+                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                  aria-describedby="email-description"
+                  haptic="light"
+                />
               </div>
 
               <div className="flex items-center gap-2">
@@ -159,9 +158,9 @@ const SystemSettings = () => {
               )}
 
               <div className="flex justify-end">
-                <Button onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                <AppleButton onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
                   {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>
@@ -216,9 +215,9 @@ const SystemSettings = () => {
               )}
 
               <div className="flex justify-end">
-                <Button onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                <AppleButton onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
                   {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>
@@ -280,9 +279,9 @@ const SystemSettings = () => {
               )}
 
               <div className="flex justify-end">
-                <Button onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                <AppleButton onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
                   {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>
@@ -296,18 +295,31 @@ const SystemSettings = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="current-password">{t('settings.security.currentPassword')}</Label>
-                  <Input id="current-password" type="password" className="mt-2" />
-                </div>
-                <div>
-                  <Label htmlFor="new-password">{t('settings.security.newPassword')}</Label>
-                  <Input id="new-password" type="password" className="mt-2" />
-                </div>
-                <div>
-                  <Label htmlFor="confirm-password">{t('settings.security.confirmPassword')}</Label>
-                  <Input id="confirm-password" type="password" className="mt-2" />
-                </div>
+                <AppleInput
+                  id="current-password"
+                  type="password"
+                  label={t('settings.security.currentPassword')}
+                  leftIcon={<Key className="w-4 h-4" />}
+                  showPasswordToggle
+                  haptic="light"
+                />
+                <AppleInput
+                  id="new-password"
+                  type="password"
+                  label={t('settings.security.newPassword')}
+                  leftIcon={<Key className="w-4 h-4" />}
+                  showPasswordToggle
+                  haptic="light"
+                  helperText={t('settings.security.passwordHelp', '密碼至少需要 8 個字元')}
+                />
+                <AppleInput
+                  id="confirm-password"
+                  type="password"
+                  label={t('settings.security.confirmPassword')}
+                  leftIcon={<Key className="w-4 h-4" />}
+                  showPasswordToggle
+                  haptic="light"
+                />
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t">
@@ -322,22 +334,22 @@ const SystemSettings = () => {
                   <Badge variant="outline" className="text-gray-600">
                     {t('common.comingSoon', '即將開放')}
                   </Badge>
-                  <Button 
+                  <AppleButton 
                     variant="outline" 
                     size="sm"
                     disabled
                     aria-label={t('settings.security.enable2FA', 'Enable 2FA')}
                   >
                     {t('settings.security.enable', '啟用')}
-                  </Button>
+                  </AppleButton>
                 </div>
               </div>
 
               <div className="flex justify-end gap-3">
-                <Button variant="outline">{t('actions.cancel')}</Button>
-                <Button onClick={saveToAPI} disabled={loading}>
+                <AppleButton variant="outline">{t('actions.cancel')}</AppleButton>
+                <AppleButton onClick={saveToAPI} disabled={loading}>
                   {loading ? t('settings.security.updating') : t('settings.security.updatePassword')}
-                </Button>
+                </AppleButton>
               </div>
             </CardContent>
           </Card>

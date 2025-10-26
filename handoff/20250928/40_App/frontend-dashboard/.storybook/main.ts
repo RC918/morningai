@@ -19,11 +19,32 @@ const config: StorybookConfig = {
   docs: {
     autodocs: 'tag'
   },
+  features: {
+    storyStoreV7: true,
+    buildStoriesJson: true,
+  },
   async viteFinal(config) {
     return mergeConfig(config, {
       plugins: config.plugins?.filter(
         (plugin: any) => plugin && plugin.name !== 'vite-plugin-pwa'
       ),
+      optimizeDeps: {
+        include: [
+          'react',
+          'react-dom',
+          '@storybook/react',
+        ],
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              'react-vendor': ['react', 'react-dom'],
+              'storybook-vendor': ['@storybook/react'],
+            },
+          },
+        },
+      },
     });
   },
 };

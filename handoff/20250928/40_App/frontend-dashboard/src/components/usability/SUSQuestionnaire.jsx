@@ -8,7 +8,7 @@
 
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -198,14 +198,14 @@ export function SUSQuestionnaire({ onComplete, participantId, sessionId }) {
         )}
       </CardContent>
       <CardFooter>
-        <Button 
+        <AppleButton 
           onClick={handleSubmit} 
           disabled={!isComplete}
           className="w-full"
           size="lg"
         >
           Submit SUS Questionnaire
-        </Button>
+        </AppleButton>
       </CardFooter>
     </Card>
   )

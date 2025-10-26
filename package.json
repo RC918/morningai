@@ -20,7 +20,8 @@
     "typecheck:dashboard": "turbo run typecheck --filter=frontend-dashboard",
     "typecheck:owner": "turbo run typecheck --filter=owner-console",
     "clean": "pnpm -r exec rm -rf node_modules dist build .next",
-    "clean:cache": "rm -rf node_modules/.cache .pnpm-store .turbo"
+    "clean:cache": "rm -rf node_modules/.cache .pnpm-store .turbo",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -28,6 +29,8 @@
   },
   "packageManager": "pnpm@9.15.1",
   "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "turbo": "^2.5.8",
     "typescript": "5.9.3"
   },

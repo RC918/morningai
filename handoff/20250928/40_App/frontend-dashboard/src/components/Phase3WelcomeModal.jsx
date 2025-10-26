@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { AppleButton } from '@/components/ui/apple-button';
 import { Users, Shield, UserCog } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -70,12 +70,12 @@ export function Phase3WelcomeModal({ isOpen, onClose }) {
         </div>
         
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <AppleButton variant="outline" onClick={onClose} haptic="light">
             {t('phase3Welcome.laterButton')}
-          </Button>
-          <Button onClick={handleGoToSettings}>
+          </AppleButton>
+          <AppleButton onClick={handleGoToSettings} haptic="medium">
             {t('phase3Welcome.settingsButton')}
-          </Button>
+          </AppleButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
@@ -190,7 +190,7 @@ const ReportCenter = () => {
           )}
 
           <div className="flex space-x-2">
-            <Button 
+            <AppleButton 
               onClick={() => generateReport('pdf')} 
               disabled={isGenerating}
               className="flex-1"
@@ -201,8 +201,8 @@ const ReportCenter = () => {
                 <Download className="w-4 h-4 mr-2" />
               )}
               {t('reportCenter.generation.generatePDF')}
-            </Button>
-            <Button 
+            </AppleButton>
+            <AppleButton 
               variant="outline" 
               onClick={() => generateReport('csv')} 
               disabled={isGenerating}
@@ -214,7 +214,7 @@ const ReportCenter = () => {
                 <Download className="w-4 h-4 mr-2" />
               )}
               {t('reportCenter.generation.exportCSV')}
-            </Button>
+            </AppleButton>
           </div>
         </CardContent>
       </Card>
@@ -247,9 +247,9 @@ const ReportCenter = () => {
                      report.status === 'generating' ? t('reportCenter.status.generating') : t('reportCenter.status.unknown')}
                   </Badge>
                   {report.status === 'completed' && (
-                    <Button variant="outline" size="sm">
+                    <AppleButton variant="outline" size="sm">
                       <Download className="w-4 h-4" />
-                    </Button>
+                    </AppleButton>
                   )}
                 </div>
               </div>
@@ -272,7 +272,7 @@ const ReportCenter = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Button 
+            <AppleButton 
               variant="outline" 
               className="h-20 flex-col"
               onClick={() => {
@@ -284,8 +284,8 @@ const ReportCenter = () => {
             >
               <TrendingUp className="w-6 h-6 mb-2" />
               <span className="text-xs">{t('reportCenter.quickActions.dailyPerformance')}</span>
-            </Button>
-            <Button 
+            </AppleButton>
+            <AppleButton 
               variant="outline" 
               className="h-20 flex-col"
               onClick={() => {
@@ -297,8 +297,8 @@ const ReportCenter = () => {
             >
               <CheckCircle className="w-6 h-6 mb-2" />
               <span className="text-xs">{t('reportCenter.quickActions.weeklyTasks')}</span>
-            </Button>
-            <Button 
+            </AppleButton>
+            <AppleButton 
               variant="outline" 
               className="h-20 flex-col"
               onClick={() => {
@@ -310,8 +310,8 @@ const ReportCenter = () => {
             >
               <BarChart3 className="w-6 h-6 mb-2" />
               <span className="text-xs">{t('reportCenter.quickActions.monthlyResilience')}</span>
-            </Button>
-            <Button 
+            </AppleButton>
+            <AppleButton 
               variant="outline" 
               className="h-20 flex-col"
               onClick={() => {
@@ -323,7 +323,7 @@ const ReportCenter = () => {
             >
               <FileText className="w-6 h-6 mb-2" />
               <span className="text-xs">{t('reportCenter.quickActions.monthlyCost')}</span>
-            </Button>
+            </AppleButton>
           </div>
         </CardContent>
       </Card>

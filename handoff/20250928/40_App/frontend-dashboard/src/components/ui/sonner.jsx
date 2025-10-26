@@ -17,7 +17,8 @@ const Toaster = ({
           "--normal-border": "var(--border)"
         }
       }
-      {...props} />
+      {...props}
+    />
   );
 }
 

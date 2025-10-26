@@ -20,14 +20,16 @@ export const TokenExample = () => {
       backgroundColor: 'var(--bg-primary)',
       borderRadius: 'var(--radius-lg)',
       boxShadow: 'var(--shadow-md)'
-    }}>
+    }}
+    >
       {/* Title - using typography tokens */}
       <h2 style={{
         fontSize: 'var(--font-size-2xl)',
         fontWeight: 'var(--font-weight-bold)',
         color: 'var(--text-primary)',
         marginBottom: 'var(--spacing-4)'
-      }}>
+      }}
+      >
         {t('tokenExample.title')}
       </h2>
 
@@ -37,7 +39,8 @@ export const TokenExample = () => {
         color: 'var(--text-secondary)',
         lineHeight: 'var(--line-height-relaxed)',
         marginBottom: 'var(--spacing-6)'
-      }}>
+      }}
+      >
         {t('tokenExample.description')}
       </p>
 
@@ -46,7 +49,8 @@ export const TokenExample = () => {
         display: 'flex',
         gap: 'var(--spacing-3)',
         marginBottom: 'var(--spacing-6)'
-      }}>
+      }}
+      >
         <button style={{
           padding: 'var(--spacing-2) var(--spacing-4)',
           backgroundColor: 'var(--color-primary)',
@@ -98,20 +102,23 @@ export const TokenExample = () => {
         border: '1px solid var(--border-primary)',
         borderRadius: 'var(--radius-md)',
         marginBottom: 'var(--spacing-4)'
-      }}>
+      }}
+      >
         <h3 style={{
           fontSize: 'var(--font-size-lg)',
           fontWeight: 'var(--font-weight-semibold)',
           color: 'var(--text-primary)',
           marginBottom: 'var(--spacing-2)'
-        }}>
+        }}
+        >
           {t('tokenExample.cardTitle')}
         </h3>
         <p style={{
           fontSize: 'var(--font-size-sm)',
           color: 'var(--text-secondary)',
           lineHeight: 'var(--line-height-normal)'
-        }}>
+        }}
+        >
           {t('tokenExample.cardDescription')}
         </p>
       </div>
@@ -121,7 +128,8 @@ export const TokenExample = () => {
         display: 'flex',
         gap: 'var(--spacing-2)',
         flexWrap: 'wrap'
-      }}>
+      }}
+      >
         <span style={{
           padding: 'var(--spacing-1) var(--spacing-3)',
           backgroundColor: 'var(--color-success-light)',
@@ -129,7 +137,8 @@ export const TokenExample = () => {
           borderRadius: 'var(--radius-full)',
           fontSize: 'var(--font-size-xs)',
           fontWeight: 'var(--font-weight-medium)'
-        }}>
+        }}
+        >
           {t('tokenExample.statusSuccess')}
         </span>
         <span style={{
@@ -139,7 +148,8 @@ export const TokenExample = () => {
           borderRadius: 'var(--radius-full)',
           fontSize: 'var(--font-size-xs)',
           fontWeight: 'var(--font-weight-medium)'
-        }}>
+        }}
+        >
           {t('tokenExample.statusWarning')}
         </span>
         <span style={{
@@ -149,7 +159,8 @@ export const TokenExample = () => {
           borderRadius: 'var(--radius-full)',
           fontSize: 'var(--font-size-xs)',
           fontWeight: 'var(--font-weight-medium)'
-        }}>
+        }}
+        >
           {t('tokenExample.statusError')}
         </span>
         <span style={{
@@ -159,7 +170,8 @@ export const TokenExample = () => {
           borderRadius: 'var(--radius-full)',
           fontSize: 'var(--font-size-xs)',
           fontWeight: 'var(--font-weight-medium)'
-        }}>
+        }}
+        >
           {t('tokenExample.statusInfo')}
         </span>
       </div>

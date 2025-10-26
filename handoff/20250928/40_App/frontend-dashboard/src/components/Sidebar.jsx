@@ -16,11 +16,12 @@ import {
   Sparkles,
   CreditCard
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AppleButton } from '@/components/ui/apple-button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { DarkModeToggle } from './DarkModeToggle'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { AccessibilityTriggerButton } from '@/components/ui/apple-accessibility-settings'
 
 const Sidebar = ({ user, onLogout }) => {
   const { t } = useTranslation()
@@ -94,7 +95,8 @@ const Sidebar = ({ user, onLogout }) => {
   return (
     <div className={`bg-white dark:bg-gray-900 shadow-lg transition-all duration-300 ${
       collapsed ? 'w-16' : 'w-64'
-    }`}>
+    }`}
+    >
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           {collapsed ? (
@@ -121,11 +123,12 @@ const Sidebar = ({ user, onLogout }) => {
             </Link>
           )}
           
-          <Button
+          <AppleButton
             variant="ghost"
-            size="sm"
+            size="icon-sm"
             onClick={() => setCollapsed(!collapsed)}
             className="p-1"
+            haptic="light"
             aria-label={collapsed ? t('accessibility.expandSection') : t('accessibility.collapseSection')}
             aria-expanded={!collapsed}
           >
@@ -134,7 +137,7 @@ const Sidebar = ({ user, onLogout }) => {
             ) : (
               <ChevronLeft className="w-4 h-4" />
             )}
-          </Button>
+          </AppleButton>
         </div>
       </div>
 
@@ -161,7 +164,7 @@ const Sidebar = ({ user, onLogout }) => {
       </div>
 
       <nav className="flex-1 p-4" aria-label={t('sidebar.navigation', 'Main navigation')}>
-        <ul className="space-y-2" role="list">
+        <ul className="space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.path)
@@ -208,17 +211,22 @@ const Sidebar = ({ user, onLogout }) => {
         <div className={`flex ${collapsed ? 'flex-col gap-2' : 'gap-2'}`}>
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
           <LanguageSwitcher variant={collapsed ? 'compact' : 'default'} />
+          <AccessibilityTriggerButton 
+            variant={collapsed ? 'icon' : 'full'}
+            className={collapsed ? 'w-full' : ''}
+          />
         </div>
-        <Button
+        <AppleButton
           variant="ghost"
           size="sm"
           onClick={onLogout}
           className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white`}
+          haptic="medium"
           aria-label={t('sidebar.logout')}
         >
           <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />
           {!collapsed && t('sidebar.logout')}
-        </Button>
+        </AppleButton>
       </div>
     </div>
   )

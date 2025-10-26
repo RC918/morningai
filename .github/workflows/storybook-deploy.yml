@@ -31,7 +31,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -72,6 +72,7 @@ jobs:
           destination_dir: storybook
           cname: storybook.morningai.app
           enable_jekyll: false
+          keep_files: true
       
       - name: Upload Storybook artifact (PR only)
         if: github.event_name == 'pull_request'
@@ -114,6 +115,7 @@ jobs:
   build-and-deploy-new-dashboard:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: build-and-deploy
     
     steps:
       - name: Checkout code
@@ -145,6 +147,7 @@ jobs:
           publish_branch: gh-pages-storybook
           destination_dir: dashboard
           enable_jekyll: false
+          keep_files: true
       
       - name: Upload Storybook artifact (PR only)
         if: github.event_name == 'pull_request'
