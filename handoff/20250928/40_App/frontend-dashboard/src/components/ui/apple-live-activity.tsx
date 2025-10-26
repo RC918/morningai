@@ -5,9 +5,56 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
 
-const LiveActivityContext = createContext(null)
+type LiveActivityVariant = 'default' | 'primary' | 'success' | 'warning' | 'error'
+type ActionVariant = 'primary' | 'secondary'
+type Position = 'top' | 'bottom'
 
-export const useAppleLiveActivity = () => {
+interface LiveActivityAction {
+  id: string
+  label: string
+  variant: ActionVariant
+  onPress?: () => void
+}
+
+interface LiveActivityConfig {
+  id?: string
+  title: string
+  subtitle?: string
+  icon?: React.ReactNode | string
+  progress?: number
+  status?: string
+  variant?: LiveActivityVariant
+  expandable?: boolean
+  metadata?: Record<string, string>
+  actions?: LiveActivityAction[]
+}
+
+interface LiveActivityProps extends LiveActivityConfig {
+  id: string
+  onDismiss: (id: string) => void
+  onAction?: (activityId: string, actionId: string) => void
+}
+
+interface LiveActivityContextValue {
+  addActivity: (options: LiveActivityConfig) => {
+    id: string
+    update: (updates: Partial<LiveActivityConfig>) => void
+    dismiss: () => void
+  }
+  updateActivity: (id: string, updates: Partial<LiveActivityConfig>) => void
+  dismissActivity: (id: string) => void
+  dismissAll: () => void
+  activities: LiveActivityProps[]
+}
+
+interface LiveActivityProviderProps {
+  children: React.ReactNode
+  position?: Position
+}
+
+const LiveActivityContext = createContext<LiveActivityContextValue | null>(null)
+
+export const useAppleLiveActivity = (): LiveActivityContextValue => {
   const context = useContext(LiveActivityContext)
   if (!context) {
     throw new Error('useAppleLiveActivity must be used within AppleLiveActivityProvider')
@@ -15,7 +62,7 @@ export const useAppleLiveActivity = () => {
   return context
 }
 
-const LiveActivity = ({
+const LiveActivity: React.FC<LiveActivityProps> = ({
   id,
   title,
   subtitle,
@@ -31,7 +78,7 @@ const LiveActivity = ({
 }) => {
   const { t } = useTranslation()
   const [isExpanded, setIsExpanded] = useState(false)
-  const activityRef = useRef(null)
+  const activityRef = useRef<HTMLDivElement>(null)
 
   const handleToggleExpand = () => {
     if (!expandable) return
@@ -49,14 +96,14 @@ const LiveActivity = ({
     onDismiss(id)
   }
 
-  const handleAction = (actionId) => {
+  const handleAction = (actionId: string) => {
     if (activityRef.current) {
       triggerHaptic(activityRef.current, 'light')
     }
     onAction?.(id, actionId)
   }
 
-  const variantStyles = {
+  const variantStyles: Record<LiveActivityVariant, string> = {
     default: 'bg-gray-900/90 dark:bg-gray-800/90 border-gray-700/20',
     primary: 'bg-blue-500/90 dark:bg-blue-600/90 border-blue-400/20',
     success: 'bg-green-500/90 dark:bg-green-600/90 border-green-400/20',
@@ -105,7 +152,7 @@ const LiveActivity = ({
               {typeof icon === 'string' ? (
                 <span className="text-xl">{icon}</span>
               ) : (
-                React.cloneElement(icon, { className: 'w-5 h-5 text-white' })
+                React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5 text-white' })
               )}
             </motion.div>
           )}
@@ -242,12 +289,15 @@ const LiveActivity = ({
 
 const MAX_ACTIVITIES = 3
 
-export const AppleLiveActivityProvider = ({ children, position = 'top' }) => {
-  const [activities, setActivities] = useState([])
+export const AppleLiveActivityProvider: React.FC<LiveActivityProviderProps> = ({ 
+  children, 
+  position = 'top' 
+}) => {
+  const [activities, setActivities] = useState<LiveActivityProps[]>([])
 
-  const addActivity = useCallback((options) => {
+  const addActivity = useCallback((options: LiveActivityConfig) => {
     const id = options.id || Math.random().toString(36).substr(2, 9)
-    const newActivity = {
+    const newActivity: LiveActivityProps = {
       id,
       title: options.title,
       subtitle: options.subtitle,
@@ -257,7 +307,8 @@ export const AppleLiveActivityProvider = ({ children, position = 'top' }) => {
       actions: options.actions || [],
       metadata: options.metadata,
       variant: options.variant || 'default',
-      expandable: options.expandable !== false
+      expandable: options.expandable !== false,
+      onDismiss: dismissActivity
     }
     
     setActivities(prev => {
@@ -268,12 +319,12 @@ export const AppleLiveActivityProvider = ({ children, position = 'top' }) => {
     
     return {
       id,
-      update: (updates) => updateActivity(id, updates),
+      update: (updates: Partial<LiveActivityConfig>) => updateActivity(id, updates),
       dismiss: () => dismissActivity(id)
     }
   }, [])
 
-  const updateActivity = useCallback((id, updates) => {
+  const updateActivity = useCallback((id: string, updates: Partial<LiveActivityConfig>) => {
     setActivities(prev =>
       prev.map(activity =>
         activity.id === id ? { ...activity, ...updates } : activity
@@ -281,7 +332,7 @@ export const AppleLiveActivityProvider = ({ children, position = 'top' }) => {
     )
   }, [])
 
-  const dismissActivity = useCallback((id) => {
+  const dismissActivity = useCallback((id: string) => {
     setActivities(prev => prev.filter(a => a.id !== id))
   }, [])
 
@@ -289,13 +340,13 @@ export const AppleLiveActivityProvider = ({ children, position = 'top' }) => {
     setActivities([])
   }, [])
 
-  const handleAction = useCallback((activityId, actionId) => {
+  const handleAction = useCallback((activityId: string, actionId: string) => {
     const activity = activities.find(a => a.id === activityId)
     const action = activity?.actions?.find(a => a.id === actionId)
     action?.onPress?.()
   }, [activities])
 
-  const contextValue = {
+  const contextValue: LiveActivityContextValue = {
     addActivity,
     updateActivity,
     dismissActivity,
@@ -303,7 +354,7 @@ export const AppleLiveActivityProvider = ({ children, position = 'top' }) => {
     activities
   }
 
-  const positionStyles = {
+  const positionStyles: Record<Position, string> = {
     top: 'top-4',
     bottom: 'bottom-4'
   }
@@ -339,4 +390,15 @@ export const AppleLiveActivityProvider = ({ children, position = 'top' }) => {
 export const AppleLiveActivity = {
   Provider: AppleLiveActivityProvider,
   useLiveActivity: useAppleLiveActivity
+}
+
+export type {
+  LiveActivityVariant,
+  ActionVariant,
+  Position,
+  LiveActivityAction,
+  LiveActivityConfig,
+  LiveActivityProps,
+  LiveActivityContextValue,
+  LiveActivityProviderProps
 }

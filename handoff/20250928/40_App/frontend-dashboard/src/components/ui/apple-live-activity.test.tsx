@@ -2,8 +2,18 @@ import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { AppleLiveActivity } from './apple-live-activity'
+import { AppleLiveActivity, type LiveActivityConfig } from './apple-live-activity'
 import { Download, Music } from 'lucide-react'
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, defaultValue?: string) => defaultValue || key
+  })
+}))
+
+vi.mock('@/lib/spring-animation', () => ({
+  triggerHaptic: vi.fn()
+}))
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <AppleLiveActivity.Provider>{children}</AppleLiveActivity.Provider>

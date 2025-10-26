@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { AppleLiveActivity } from './apple-live-activity'
+import { AppleLiveActivity, type LiveActivityConfig } from './apple-live-activity'
 import { Download, Music, Timer, Package, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
