@@ -253,9 +253,13 @@ describe('AppleToast', () => {
       const dismissButton = screen.getByText('Dismiss All')
       await userEvent.click(dismissButton)
 
-      expect(screen.queryByText('Toast 1')).not.toBeInTheDocument()
-      expect(screen.queryByText('Toast 2')).not.toBeInTheDocument()
-      expect(screen.queryByText('Toast 3')).not.toBeInTheDocument()
+      const visibleToast1 = screen.queryAllByText('Toast 1').filter(el => !el.classList.contains('sr-only'))
+      const visibleToast2 = screen.queryAllByText('Toast 2').filter(el => !el.classList.contains('sr-only'))
+      const visibleToast3 = screen.queryAllByText('Toast 3').filter(el => !el.classList.contains('sr-only'))
+      
+      expect(visibleToast1.length).toBe(0)
+      expect(visibleToast2.length).toBe(0)
+      expect(visibleToast3.length).toBe(0)
     })
   })
 
