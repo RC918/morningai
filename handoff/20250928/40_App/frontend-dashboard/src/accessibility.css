@@ -28,7 +28,7 @@
 }
 
 .text-error-aaa {
-  color: #B91C1C; /* 7.21:1 contrast ratio */
+  color: #A91C1C; /* 7.32:1 contrast ratio */
 }
 
 .text-warning-aaa {
@@ -54,8 +54,8 @@
 }
 
 .bg-error-aaa {
-  background-color: #B91C1C;
-  color: #FFFFFF; /* 7.21:1 contrast ratio */
+  background-color: #A91C1C;
+  color: #FFFFFF; /* 7.32:1 contrast ratio */
 }
 
 .bg-warning-aaa {

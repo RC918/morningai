@@ -17,6 +17,8 @@ import {
   isKeyboardAccessible,
   hasAccessibleName,
   getAccessibilityIssues,
+  prefersReducedMotion,
+  isHighContrastMode,
 } from './accessibility'
 
 describe('Color Contrast Utilities', () => {
@@ -37,7 +39,7 @@ describe('Color Contrast Utilities', () => {
     })
     
     it('should calculate correct contrast ratio for error color', () => {
-      const ratio = getContrastRatio('#B91C1C', '#FFFFFF')
+      const ratio = getContrastRatio('#A91C1C', '#FFFFFF')
       expect(ratio).toBeGreaterThan(7)
     })
     
@@ -67,7 +69,7 @@ describe('Color Contrast Utilities', () => {
     })
     
     it('should pass AAA for error text color', () => {
-      const result = checkWCAGAAA('#B91C1C', '#FFFFFF', false)
+      const result = checkWCAGAAA('#A91C1C', '#FFFFFF', false)
       expect(result.compliant).toBe(true)
       expect(result.level).toBe('AAA')
     })
@@ -79,7 +81,7 @@ describe('Color Contrast Utilities', () => {
     })
     
     it('should handle large text with lower requirements', () => {
-      const result = checkWCAGAAA('#60a5fa', '#FFFFFF', true)
+      const result = checkWCAGAAA('#2563eb', '#FFFFFF', true)
       expect(result.level).toBe('AAA')
     })
     
@@ -205,7 +207,7 @@ describe('WCAG AAA Color Standards', () => {
   const aaaColors = {
     primary: '#005A9C',
     success: '#0D5C3D',
-    error: '#B91C1C',
+    error: '#A91C1C',
     warning: '#92400E',
     info: '#005A9C',
   }
@@ -244,7 +246,6 @@ describe('Focus Management', () => {
 
 describe('Motion Preferences', () => {
   it('should detect reduced motion preference', () => {
-    const { prefersReducedMotion } = require('./accessibility')
     const result = prefersReducedMotion()
     expect(typeof result).toBe('boolean')
   })
@@ -252,7 +253,6 @@ describe('Motion Preferences', () => {
 
 describe('High Contrast Mode', () => {
   it('should detect high contrast mode', () => {
-    const { isHighContrastMode } = require('./accessibility')
     const result = isHighContrastMode()
     expect(typeof result).toBe('boolean')
   })
