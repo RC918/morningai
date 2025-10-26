@@ -34,15 +34,16 @@ const Sheet = ({
 }) => {
   const { t } = useTranslation()
   const sheetRef = useRef(null)
+  const previousFocusRef = useRef(null)
   const y = useMotionValue(0)
   const opacity = useTransform(y, [0, 300], [1, 0])
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (sheetRef.current) {
       triggerHaptic(sheetRef.current, 'light')
     }
     onClose(id)
-  }
+  }, [id, onClose])
 
   const handleDragEnd = (event, info) => {
     const shouldClose = info.velocity.y > 500 || info.offset.y > 150
@@ -61,6 +62,47 @@ const Sheet = ({
   }
 
   useEffect(() => {
+    previousFocusRef.current = document.activeElement
+
+    if (sheetRef.current) {
+      sheetRef.current.focus()
+    }
+
+    return () => {
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+        previousFocusRef.current.focus()
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleTab = (e) => {
+      if (e.key !== 'Tab' || !sheetRef.current) return
+
+      const focusableElements = sheetRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault()
+          lastElement?.focus()
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault()
+          firstElement?.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleTab)
+    return () => document.removeEventListener('keydown', handleTab)
+  }, [])
+
+  useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
         handleClose()
@@ -68,7 +110,7 @@ const Sheet = ({
     }
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
-  }, [id])
+  }, [handleClose])
 
   return (
     <motion.div
@@ -91,6 +133,11 @@ const Sheet = ({
       {/* Sheet Content */}
       <motion.div
         ref={sheetRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? `sheet-title-${id}` : undefined}
+        aria-describedby={description ? `sheet-desc-${id}` : undefined}
         drag="y"
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={0.2}
@@ -125,12 +172,18 @@ const Sheet = ({
           <div className="flex items-start justify-between px-6 py-4 border-b border-gray-200/50 dark:border-gray-700/50">
             <div className="flex-1 min-w-0">
               {title && (
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white leading-tight">
+                <h2 
+                  id={`sheet-title-${id}`}
+                  className="text-xl font-semibold text-gray-900 dark:text-white leading-tight"
+                >
                   {title}
                 </h2>
               )}
               {description && (
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                <p 
+                  id={`sheet-desc-${id}`}
+                  className="mt-1 text-sm text-gray-600 dark:text-gray-400"
+                >
                   {description}
                 </p>
               )}

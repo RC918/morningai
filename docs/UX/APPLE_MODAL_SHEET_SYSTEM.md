@@ -398,15 +398,15 @@ aria-modal="true"
 
 - Modal/sheet titles are announced when opened
 - Close buttons have descriptive labels
-- Focus is trapped within modal/sheet
-- Focus returns to trigger element on close
+- Focus is trapped within modal/sheet ✅
+- Focus returns to trigger element on close ✅
 
-### Focus Management
+### Keyboard Support
 
-1. When modal/sheet opens, focus moves to first focusable element
-2. Tab key cycles through focusable elements
-3. Escape key closes modal/sheet
-4. On close, focus returns to trigger element
+1. **Escape key** closes modal/sheet ✅
+2. **Tab key** cycles through focusable elements within modal/sheet ✅
+3. **Shift+Tab** cycles backwards through focusable elements ✅
+4. **Focus restoration** returns focus to trigger element on close ✅
 
 ---
 
@@ -662,28 +662,28 @@ sheet.openSheet({
 
 ### Planned Features
 
-1. **Multiple Positions** (P1)
+1. **Accessibility Improvements** (P2)
+   - Better screen reader announcements
+   - Additional keyboard shortcuts
+   - ARIA live regions for dynamic updates
+
+2. **Multiple Positions** (P1)
    - Top, left, right positions for sheets
    - Corner modals
 
-2. **Stacking Behavior** (P1)
+3. **Stacking Behavior** (P1)
    - Better handling of multiple modals/sheets
    - Z-index management
 
-3. **Custom Animations** (P2)
+4. **Custom Animations** (P2)
    - Allow custom spring configurations
    - Custom enter/exit animations
 
-4. **Preset Templates** (P2)
+5. **Preset Templates** (P2)
    - Alert dialog preset
    - Confirmation dialog preset
    - Form modal preset
    - Action sheet preset
-
-5. **Accessibility Improvements** (P1)
-   - Focus trap
-   - Better screen reader announcements
-   - Keyboard shortcuts
 
 ---
 
