@@ -2,6 +2,16 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, defaultValue?: string) => defaultValue || key
+  })
+}))
+
+vi.mock('@/lib/spring-animation', () => ({
+  triggerHaptic: vi.fn()
+}))
+
 // Mock framer-motion before importing the component
 vi.mock('framer-motion', () => {
   const React = require('react')

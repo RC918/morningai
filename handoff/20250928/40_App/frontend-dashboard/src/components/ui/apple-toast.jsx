@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { colors, spacing } from '@/lib/design-tokens'
+import { triggerHaptic } from '@/lib/spring-animation'
 
 const ToastContext = createContext(null)
 
@@ -48,6 +49,8 @@ const toastVariants = {
 }
 
 const Toast = ({ id, title, description, variant = 'default', duration = 5000, onDismiss }) => {
+  const { t } = useTranslation()
+  const toastRef = useRef(null)
   const variantConfig = toastVariants[variant] || toastVariants.default
   const Icon = variantConfig.icon
 
@@ -60,8 +63,16 @@ const Toast = ({ id, title, description, variant = 'default', duration = 5000, o
     }
   }, [id, duration, onDismiss])
 
+  const handleDismiss = () => {
+    if (toastRef.current) {
+      triggerHaptic(toastRef.current, 'light')
+    }
+    onDismiss(id)
+  }
+
   return (
     <motion.div
+      ref={toastRef}
       layout
       initial={{ opacity: 0, y: -50, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -77,6 +88,9 @@ const Toast = ({ id, title, description, variant = 'default', duration = 5000, o
       dragElastic={0.2}
       onDragEnd={(e, { offset, velocity }) => {
         if (offset.y < -50 || velocity.y < -500) {
+          if (toastRef.current) {
+            triggerHaptic(toastRef.current, 'medium')
+          }
           onDismiss(id)
         }
       }}
@@ -114,20 +128,22 @@ const Toast = ({ id, title, description, variant = 'default', duration = 5000, o
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        onClick={() => onDismiss(id)}
+        onClick={handleDismiss}
         className={cn(
           'flex-shrink-0 rounded-full p-1',
           'hover:bg-white/20 active:bg-white/30',
           'transition-colors duration-150',
           variantConfig.iconColor
         )}
-        aria-label="Close notification"
+        aria-label={t('toast.closeNotification', 'Close notification')}
       >
         <X className="h-4 w-4" />
       </motion.button>
     </motion.div>
   )
 }
+
+const MAX_TOASTS = 5
 
 export const AppleToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([])
@@ -142,7 +158,10 @@ export const AppleToastProvider = ({ children }) => {
       duration: options.duration !== undefined ? options.duration : 5000
     }
     
-    setToasts(prev => [...prev, newToast])
+    setToasts(prev => {
+      const updated = [...prev, newToast]
+      return updated.slice(-MAX_TOASTS)
+    })
     
     return {
       id,
