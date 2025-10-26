@@ -910,5 +910,11 @@
   },
   "toast": {
     "closeNotification": "關閉通知"
+  },
+  "modal": {
+    "close": "關閉對話框"
+  },
+  "sheet": {
+    "close": "關閉底部彈出"
   }
 }

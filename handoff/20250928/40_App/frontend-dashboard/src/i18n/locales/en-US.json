@@ -910,5 +910,11 @@
   },
   "toast": {
     "closeNotification": "Close notification"
+  },
+  "modal": {
+    "close": "Close modal"
+  },
+  "sheet": {
+    "close": "Close sheet"
   }
 }
