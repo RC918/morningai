@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react'
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
+import { useScreenReaderAnnouncement, useFocusTrap } from '@/hooks/use-accessibility'
 
 type ControlSize = '1x1' | '2x1' | '1x2' | '2x2'
 type ControlVariant = 'default' | 'primary' | 'success' | 'warning' | 'danger'
@@ -63,6 +64,7 @@ const ControlCard: React.FC<{
   const [isPressed, setIsPressed] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
+  const announce = useScreenReaderAnnouncement()
 
   const handlePressStart = () => {
     setIsPressed(true)
@@ -90,6 +92,10 @@ const ControlCard: React.FC<{
 
     if (!isExpanded) {
       onPress(control.id)
+      announce(
+        `${control.title} ${control.active ? t('controlCenter.activated', 'activated') : t('controlCenter.deactivated', 'deactivated')}`,
+        'polite'
+      )
     }
   }
 
@@ -156,6 +162,16 @@ const ControlCard: React.FC<{
         onTouchStart={handlePressStart}
         onTouchEnd={handlePressEnd}
         onTouchCancel={handlePressCancel}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handlePressEnd()
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`${control.title}${control.subtitle ? `, ${control.subtitle}` : ''}${control.active ? ', active' : ''}`}
+        aria-pressed={control.active}
         className={cn(
           'relative rounded-3xl backdrop-blur-xl border overflow-hidden',
           'cursor-pointer select-none',
@@ -246,6 +262,12 @@ const ControlCard: React.FC<{
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setIsExpanded(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        setIsExpanded(false)
+                      }
+                    }}
                     className="p-2 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors"
                     aria-label={t('controlCenter.close', 'Close')}
                   >
@@ -260,7 +282,14 @@ const ControlCard: React.FC<{
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleActionPress(action.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleActionPress(action.id)
+                        }
+                      }}
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 transition-colors"
+                      aria-label={action.label}
                     >
                       {action.icon && (
                         <div className="text-white">
@@ -290,14 +319,31 @@ export const AppleControlCenterProvider: React.FC<ControlCenterProviderProps> = 
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [controls, setControls] = useState<Control[]>(initialControls)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const announce = useScreenReaderAnnouncement()
+  
+  useFocusTrap(panelRef, isOpen)
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        close()
+      }
+    }
+    
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [isOpen])
 
   const open = useCallback(() => {
     setIsOpen(true)
-  }, [])
+    announce('Control Center opened', 'polite')
+  }, [announce])
 
   const close = useCallback(() => {
     setIsOpen(false)
-  }, [])
+    announce('Control Center closed', 'polite')
+  }, [announce])
 
   const toggle = useCallback(() => {
     setIsOpen(prev => !prev)
@@ -343,6 +389,7 @@ export const AppleControlCenterProvider: React.FC<ControlCenterProviderProps> = 
 
             {/* Control Center Panel */}
             <motion.div
+              ref={panelRef}
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
@@ -351,6 +398,9 @@ export const AppleControlCenterProvider: React.FC<ControlCenterProviderProps> = 
                 stiffness: 500,
                 damping: 30
               }}
+              role="dialog"
+              aria-label="Control Center"
+              aria-modal="true"
               className="fixed right-4 top-4 z-40 w-full max-w-md"
             >
               <div className="bg-gray-900/95 backdrop-blur-xl rounded-3xl border border-white/20 p-6 shadow-2xl">
