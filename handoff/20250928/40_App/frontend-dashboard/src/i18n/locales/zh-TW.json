@@ -916,5 +916,45 @@
   },
   "sheet": {
     "close": "關閉底部彈出"
+  },
+  "accessibility": {
+    "title": "無障礙設定",
+    "subtitle": "自訂您的體驗",
+    "settings": "無障礙",
+    "openSettings": "開啟無障礙設定",
+    "reset": "重置為預設值",
+    "done": "完成",
+    "reducedMotion": {
+      "title": "減少動畫",
+      "description": "最小化動畫和過渡效果"
+    },
+    "highContrast": {
+      "title": "高對比度",
+      "description": "增加色彩對比度以提高可見度"
+    },
+    "fontSize": {
+      "title": "字體大小",
+      "description": "調整文字大小以提高可讀性",
+      "small": "小",
+      "medium": "中",
+      "large": "大",
+      "extraLarge": "特大"
+    },
+    "screenReader": {
+      "title": "螢幕閱讀器通知",
+      "description": "啟用即時區域通知"
+    },
+    "keyboardShortcuts": {
+      "title": "鍵盤快捷鍵",
+      "description": "啟用鍵盤導航快捷鍵"
+    },
+    "focusIndicators": {
+      "title": "焦點指示器",
+      "description": "自訂鍵盤焦點可見度",
+      "default": "預設",
+      "defaultDesc": "標準焦點輪廓",
+      "enhanced": "增強",
+      "enhancedDesc": "高可見度焦點輪廓"
+    }
   }
 }

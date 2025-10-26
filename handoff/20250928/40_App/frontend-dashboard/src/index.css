@@ -748,3 +748,64 @@ a:focus-visible {
 .dark .text-wisdom {
   color: #7B79E8; /* Lighter for dark mode (WCAG AA on dark bg) */
 }
+
+/* Accessibility Settings Styles */
+
+/* Reduced Motion */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* High Contrast Mode */
+.high-contrast {
+  --tw-bg-opacity: 1;
+  --tw-text-opacity: 1;
+}
+
+.high-contrast * {
+  border-color: currentColor !important;
+}
+
+.high-contrast button,
+.high-contrast a,
+.high-contrast input,
+.high-contrast select,
+.high-contrast textarea {
+  outline: 2px solid currentColor !important;
+  outline-offset: 2px !important;
+}
+
+/* Font Size Settings */
+[data-font-size="small"] {
+  font-size: 14px;
+}
+
+[data-font-size="medium"] {
+  font-size: 16px;
+}
+
+[data-font-size="large"] {
+  font-size: 18px;
+}
+
+[data-font-size="extra-large"] {
+  font-size: 20px;
+}
+
+/* Enhanced Focus Indicators */
+[data-focus-indicators="enhanced"] *:focus {
+  outline: 3px solid #3b82f6 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
+}
+
+[data-focus-indicators="enhanced"] *:focus-visible {
+  outline: 3px solid #3b82f6 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
+}
