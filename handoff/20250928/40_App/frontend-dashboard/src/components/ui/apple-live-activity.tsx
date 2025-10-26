@@ -139,6 +139,8 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
     <motion.div
       ref={activityRef}
       layout
+      role="region"
+      aria-label={`${title}${subtitle ? `, ${subtitle}` : ''}`}
       initial={{ opacity: 0, scale: 0.95, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: -20 }}
@@ -160,21 +162,7 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
       {/* Compact View */}
       <motion.div
         layout
-        onClick={handleToggleExpand}
-        onKeyDown={(e) => {
-          if (expandable && (e.key === 'Enter' || e.key === ' ')) {
-            e.preventDefault()
-            handleToggleExpand()
-          }
-        }}
-        role="button"
-        tabIndex={0}
-        {...(expandable && { 'aria-expanded': isExpanded })}
-        aria-label={`${title}${subtitle ? `, ${subtitle}` : ''}`}
-        className={cn(
-          'px-4 py-3 cursor-pointer',
-          expandable && 'hover:bg-white/5 active:bg-white/10 transition-colors'
-        )}
+        className="px-4 py-3"
       >
         <div className="flex items-center gap-3">
           {/* Icon */}
@@ -205,7 +193,14 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
             {/* Progress Bar */}
             {progress !== undefined && (
               <motion.div layout className="mt-2">
-                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div 
+                  className="h-1.5 bg-white/20 rounded-full overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={Math.round(progress)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={t('liveActivity.progress', `Progress: ${Math.round(progress)}%`, { progress: Math.round(progress) })}
+                >
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
