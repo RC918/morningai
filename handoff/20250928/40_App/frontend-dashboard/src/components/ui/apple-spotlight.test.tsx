@@ -15,6 +15,11 @@ vi.mock('@/lib/spring-animation', () => ({
   triggerHaptic: vi.fn()
 }))
 
+vi.mock('@/hooks/use-accessibility', () => ({
+  useScreenReaderAnnouncement: () => vi.fn(),
+  useFocusTrap: () => {}
+}))
+
 const TestWrapper = ({ children, onSearch, maxRecentSearches }: {
   children: React.ReactNode
   onSearch?: (query: string) => SearchResult[]
