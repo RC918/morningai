@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AppleButton } from '@/components/ui/apple-button'
-import { Input } from '@/components/ui/input'
+import { AppleInput } from '@/components/ui/apple-input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -289,27 +289,26 @@ export function UsabilityTestDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="participant-id">Participant ID *</Label>
-                <Input
-                  id="participant-id"
-                  placeholder="e.g., P001, P002, ..."
-                  value={participantId}
-                  onChange={(e) => setParticipantId(e.target.value)}
-                  disabled={!!currentSession}
-                />
-              </div>
+              <AppleInput
+                id="participant-id"
+                label="Participant ID *"
+                placeholder="e.g., P001, P002, ..."
+                value={participantId}
+                onChange={(e) => setParticipantId(e.target.value)}
+                disabled={!!currentSession}
+                required
+                haptic="light"
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="session-id">Session ID (optional)</Label>
-                <Input
-                  id="session-id"
-                  placeholder="Auto-generated if left empty"
-                  value={sessionId}
-                  onChange={(e) => setSessionId(e.target.value)}
-                  disabled={!!currentSession}
-                />
-              </div>
+              <AppleInput
+                id="session-id"
+                label="Session ID (optional)"
+                placeholder="Auto-generated if left empty"
+                value={sessionId}
+                onChange={(e) => setSessionId(e.target.value)}
+                disabled={!!currentSession}
+                haptic="light"
+              />
 
               {currentSession && (
                 <Alert>

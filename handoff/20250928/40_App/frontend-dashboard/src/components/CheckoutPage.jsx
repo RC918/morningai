@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AppleButton } from '@/components/ui/apple-button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Input } from '@/components/ui/input'
+import { AppleInput } from '@/components/ui/apple-input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -305,19 +305,19 @@ const CheckoutPage = () => {
                   
                   <Separator />
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="discount">{t('checkout.discountCode')}</Label>
-                    <div className="flex space-x-2">
-                      <Input
-                        id="discount"
-                        placeholder={t('checkout.discountPlaceholder')}
-                        value={discountCode}
-                        onChange={(e) => setDiscountCode(e.target.value)}
-                      />
-                      <AppleButton variant="outline" size="sm" aria-label={t('checkout.applyDiscount')}>
-                        {t('checkout.apply')}
-                      </AppleButton>
-                    </div>
+                  <div className="flex space-x-2">
+                    <AppleInput
+                      id="discount"
+                      label={t('checkout.discountCode')}
+                      placeholder={t('checkout.discountPlaceholder')}
+                      value={discountCode}
+                      onChange={(e) => setDiscountCode(e.target.value)}
+                      className="flex-1"
+                      haptic="light"
+                    />
+                    <AppleButton variant="outline" size="sm" aria-label={t('checkout.applyDiscount')} className="mt-auto">
+                      {t('checkout.apply')}
+                    </AppleButton>
                   </div>
                   
                   {checkoutData?.discounts?.length > 0 && (
