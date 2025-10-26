@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./materials.css";
+@import "./accessibility.css";
 
 /* Font optimization - Week 6 Performance */
 /* Use system fonts as fallback for faster initial render */
