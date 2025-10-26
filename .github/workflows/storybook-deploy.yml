@@ -72,6 +72,7 @@ jobs:
           destination_dir: storybook
           cname: storybook.morningai.app
           enable_jekyll: false
+          keep_files: true
       
       - name: Upload Storybook artifact (PR only)
         if: github.event_name == 'pull_request'
@@ -145,6 +146,7 @@ jobs:
           publish_branch: gh-pages-storybook
           destination_dir: dashboard
           enable_jekyll: false
+          keep_files: true
       
       - name: Upload Storybook artifact (PR only)
         if: github.event_name == 'pull_request'
