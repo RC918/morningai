@@ -4,6 +4,7 @@ import { X, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
+import { useScreenReaderAnnouncement } from '@/hooks/use-accessibility'
 
 type LiveActivityVariant = 'default' | 'primary' | 'success' | 'warning' | 'error'
 type ActionVariant = 'primary' | 'secondary'
@@ -79,6 +80,21 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
   const { t } = useTranslation()
   const [isExpanded, setIsExpanded] = useState(false)
   const activityRef = useRef<HTMLDivElement>(null)
+  const announce = useScreenReaderAnnouncement()
+  const previousProgressRef = useRef<number | undefined>(progress)
+
+  useEffect(() => {
+    if (progress !== undefined && previousProgressRef.current !== undefined) {
+      const diff = Math.abs(progress - previousProgressRef.current)
+      if (diff >= 10) {
+        announce(
+          t('liveActivity.progressUpdate', `Progress: ${Math.round(progress)}%`, { progress: Math.round(progress) }),
+          'polite'
+        )
+      }
+    }
+    previousProgressRef.current = progress
+  }, [progress, announce, t])
 
   const handleToggleExpand = () => {
     if (!expandable) return
@@ -86,13 +102,21 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
     if (activityRef.current) {
       triggerHaptic(activityRef.current, 'light')
     }
-    setIsExpanded(!isExpanded)
+    const newState = !isExpanded
+    setIsExpanded(newState)
+    announce(
+      newState 
+        ? t('liveActivity.expanded', 'Activity expanded') 
+        : t('liveActivity.collapsed', 'Activity collapsed'),
+      'polite'
+    )
   }
 
   const handleDismiss = () => {
     if (activityRef.current) {
       triggerHaptic(activityRef.current, 'medium')
     }
+    announce(t('liveActivity.dismissed', 'Activity dismissed'), 'polite')
     onDismiss(id)
   }
 
@@ -137,6 +161,16 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
       <motion.div
         layout
         onClick={handleToggleExpand}
+        onKeyDown={(e) => {
+          if (expandable && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault()
+            handleToggleExpand()
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        {...(expandable && { 'aria-expanded': isExpanded })}
+        aria-label={`${title}${subtitle ? `, ${subtitle}` : ''}`}
         className={cn(
           'px-4 py-3 cursor-pointer',
           expandable && 'hover:bg-white/5 active:bg-white/10 transition-colors'
@@ -203,6 +237,13 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleToggleExpand()
+                  }
+                }}
                 className="p-1.5 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors"
                 aria-label={isExpanded ? t('liveActivity.collapse', 'Collapse') : t('liveActivity.expand', 'Expand')}
               >
@@ -220,6 +261,13 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
               onClick={(e) => {
                 e.stopPropagation()
                 handleDismiss()
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleDismiss()
+                }
               }}
               className="p-1.5 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors"
               aria-label={t('liveActivity.dismiss', 'Dismiss')}
@@ -266,6 +314,12 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleAction(action.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleAction(action.id)
+                        }
+                      }}
                       className={cn(
                         'flex-1 px-4 py-2 rounded-xl font-medium text-sm',
                         'transition-colors duration-150',
@@ -273,6 +327,7 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
                           ? 'bg-white text-gray-900 hover:bg-white/90 active:bg-white/80'
                           : 'bg-white/10 text-white hover:bg-white/20 active:bg-white/30'
                       )}
+                      aria-label={action.label}
                     >
                       {action.label}
                     </motion.button>
@@ -294,6 +349,11 @@ export const AppleLiveActivityProvider: React.FC<LiveActivityProviderProps> = ({
   position = 'top' 
 }) => {
   const [activities, setActivities] = useState<LiveActivityProps[]>([])
+  const announce = useScreenReaderAnnouncement()
+
+  const dismissActivity = useCallback((id: string) => {
+    setActivities(prev => prev.filter(a => a.id !== id))
+  }, [])
 
   const addActivity = useCallback((options: LiveActivityConfig) => {
     const id = options.id || Math.random().toString(36).substr(2, 9)
@@ -317,12 +377,17 @@ export const AppleLiveActivityProvider: React.FC<LiveActivityProviderProps> = ({
       return updated.slice(-MAX_ACTIVITIES)
     })
     
+    announce(
+      `${options.title}${options.subtitle ? `, ${options.subtitle}` : ''}`,
+      'polite'
+    )
+    
     return {
       id,
       update: (updates: Partial<LiveActivityConfig>) => updateActivity(id, updates),
       dismiss: () => dismissActivity(id)
     }
-  }, [])
+  }, [announce, dismissActivity])
 
   const updateActivity = useCallback((id: string, updates: Partial<LiveActivityConfig>) => {
     setActivities(prev =>
@@ -330,10 +395,6 @@ export const AppleLiveActivityProvider: React.FC<LiveActivityProviderProps> = ({
         activity.id === id ? { ...activity, ...updates } : activity
       )
     )
-  }, [])
-
-  const dismissActivity = useCallback((id: string) => {
-    setActivities(prev => prev.filter(a => a.id !== id))
   }, [])
 
   const dismissAll = useCallback(() => {

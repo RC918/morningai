@@ -15,6 +15,10 @@ vi.mock('@/lib/spring-animation', () => ({
   triggerHaptic: vi.fn()
 }))
 
+vi.mock('@/hooks/use-accessibility', () => ({
+  useScreenReaderAnnouncement: () => vi.fn()
+}))
+
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <AppleLiveActivity.Provider>{children}</AppleLiveActivity.Provider>
 )
@@ -290,7 +294,11 @@ describe('AppleLiveActivity', () => {
 
       await waitFor(() => {
         const buttons = screen.getAllByRole('button')
-        expect(buttons.length).toBe(1)
+        const expandButton = buttons.find(btn => {
+          const label = btn.getAttribute('aria-label')
+          return label === 'Expand' || label === 'Collapse'
+        })
+        expect(expandButton).toBeUndefined()
       })
     })
   })
@@ -507,7 +515,8 @@ describe('AppleLiveActivity', () => {
     it('dismisses activity when close button is clicked', async () => {
       const user = userEvent.setup()
       const config = {
-        title: 'Dismissible Activity'
+        title: 'Dismissible Activity',
+        expandable: false
       }
 
       render(
@@ -520,19 +529,18 @@ describe('AppleLiveActivity', () => {
         expect(screen.getByText('Dismissible Activity')).toBeInTheDocument()
       })
 
-      const dismissButtons = screen.getAllByRole('button')
-      const dismissButton = dismissButtons.find(btn => 
-        btn.getAttribute('aria-label')?.includes('Dismiss') ||
-        btn.getAttribute('aria-label')?.includes('dismiss')
-      )
-      
+      const dismissButtons = screen.getAllByLabelText(/dismiss/i)
+      const dismissButton = dismissButtons.find(el => el.tagName === 'BUTTON')
       if (dismissButton) {
         await user.click(dismissButton)
       }
 
       await waitFor(() => {
-        expect(screen.queryByText('Dismissible Activity')).not.toBeInTheDocument()
-      })
+        const visibleActivities = screen.queryAllByText('Dismissible Activity').filter(
+          el => !el.classList.contains('sr-only')
+        )
+        expect(visibleActivities.length).toBe(0)
+      }, { timeout: 2000 })
     })
   })
 

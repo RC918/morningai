@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, Clock, TrendingUp, Hash, File, Folder, User, Settings } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { triggerHaptic } from '@/lib/spring-animation'
+import { useScreenReaderAnnouncement, useFocusTrap } from '@/hooks/use-accessibility'
 
 type SearchResultType = 'recent' | 'suggestion' | 'file' | 'folder' | 'user' | 'setting' | 'action'
 
@@ -82,23 +83,36 @@ const SearchResultItem: React.FC<{
 }> = ({ result, isSelected, onSelect, onHover }) => {
   const { t } = useTranslation()
   const itemRef = useRef<HTMLDivElement>(null)
+  const announce = useScreenReaderAnnouncement()
 
   const handleClick = () => {
     if (itemRef.current) {
       triggerHaptic(itemRef.current, 'light')
     }
+    announce(`Selected ${result.title}`, 'polite')
     onSelect()
   }
 
   return (
     <motion.div
       ref={itemRef}
+      id={`result-${result.id}`}
+      role="option"
+      aria-selected={isSelected}
+      aria-label={`${result.title}${result.subtitle ? `, ${result.subtitle}` : ''}${result.category ? `, ${result.category}` : ''}`}
       className={`
         flex items-center gap-3 px-4 py-3 cursor-pointer rounded-xl transition-all
         ${isSelected ? 'bg-blue-500/20 border border-blue-500/30' : 'hover:bg-white/5'}
       `}
       onClick={handleClick}
       onMouseEnter={onHover}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleClick()
+        }
+      }}
+      tabIndex={0}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -148,6 +162,9 @@ const SpotlightPanel: React.FC = () => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const announce = useScreenReaderAnnouncement()
+  
+  useFocusTrap(panelRef, isOpen)
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -157,7 +174,10 @@ const SpotlightPanel: React.FC = () => {
 
   useEffect(() => {
     setSelectedIndex(0)
-  }, [results])
+    if (results.length > 0) {
+      announce(`${results.length} ${t('results found', 'results found')}`, 'polite')
+    }
+  }, [results, announce, t])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -220,6 +240,9 @@ const SpotlightPanel: React.FC = () => {
           />
           <motion.div
             ref={panelRef}
+            role="dialog"
+            aria-label="Spotlight Search"
+            aria-modal="true"
             className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -243,6 +266,11 @@ const SpotlightPanel: React.FC = () => {
                   className="flex-1 bg-transparent text-white placeholder-white/50 outline-none text-base"
                   autoComplete="off"
                   spellCheck="false"
+                  role="searchbox"
+                  aria-label="Search"
+                  aria-autocomplete="list"
+                  aria-controls="search-results"
+                  aria-activedescendant={results[selectedIndex] ? `result-${results[selectedIndex].id}` : undefined}
                 />
                 {searchQuery && (
                   <button
@@ -255,7 +283,7 @@ const SpotlightPanel: React.FC = () => {
                 )}
               </div>
 
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-96 overflow-y-auto" id="search-results" role="listbox">
                 {showRecentSearches && (
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -264,7 +292,14 @@ const SpotlightPanel: React.FC = () => {
                       </h3>
                       <button
                         onClick={handleClearRecent}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            handleClearRecent()
+                          }
+                        }}
                         className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                        aria-label="Clear recent searches"
                       >
                         {t('Clear', 'Clear')}
                       </button>
@@ -346,16 +381,19 @@ export const AppleSpotlightProvider: React.FC<SpotlightProviderProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const announce = useScreenReaderAnnouncement()
 
   const open = useCallback(() => {
     setIsOpen(true)
-  }, [])
+    announce('Spotlight opened', 'polite')
+  }, [announce])
 
   const close = useCallback(() => {
     setIsOpen(false)
     setSearchQuery('')
     setResults([])
-  }, [])
+    announce('Spotlight closed', 'polite')
+  }, [announce])
 
   const toggle = useCallback(() => {
     setIsOpen((prev) => !prev)

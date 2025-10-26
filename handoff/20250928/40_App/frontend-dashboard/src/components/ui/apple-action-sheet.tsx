@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
+import { useScreenReaderAnnouncement } from '@/hooks/use-accessibility'
 
 export type ActionSheetAction = {
   id: string
@@ -46,16 +47,18 @@ const ActionSheet = ({
 }) => {
   const sheetRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
+  const announce = useScreenReaderAnnouncement()
 
   const handleClose = useCallback(() => {
     if (sheetRef.current) {
       triggerHaptic(sheetRef.current, 'light')
     }
+    announce('Action sheet closed', 'polite')
     if (options.onCancel) {
       options.onCancel()
     }
     onClose()
-  }, [onClose, options])
+  }, [onClose, options, announce])
 
   const handleActionSelect = useCallback((action: ActionSheetAction) => {
     if (action.disabled) return
@@ -64,9 +67,10 @@ const ActionSheet = ({
       triggerHaptic(sheetRef.current, action.destructive ? 'medium' : 'light')
     }
     
+    announce(`${action.label} selected`, 'polite')
     action.onSelect()
     onClose()
-  }, [onClose])
+  }, [onClose, announce])
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -82,12 +86,17 @@ const ActionSheet = ({
       firstButton?.focus()
     }
 
+    const message = options.title 
+      ? `Action sheet opened: ${options.title}` 
+      : 'Action sheet opened'
+    announce(message, 'polite')
+
     return () => {
       if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
         previousFocusRef.current.focus()
       }
     }
-  }, [])
+  }, [announce, options.title])
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -196,6 +205,8 @@ const ActionSheet = ({
                 key={action.id}
                 onClick={() => handleActionSelect(action)}
                 disabled={action.disabled}
+                aria-label={action.destructive ? `${action.label} (destructive action)` : action.label}
+                aria-disabled={action.disabled}
                 whileHover={!action.disabled ? { scale: 1.02 } : undefined}
                 whileTap={!action.disabled ? { scale: 0.98 } : undefined}
                 initial={{ opacity: 0, y: 20 }}
@@ -228,9 +239,9 @@ const ActionSheet = ({
           </div>
         </div>
 
-        {/* Cancel Button */}
         <motion.button
           onClick={handleClose}
+          aria-label="Cancel"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           initial={{ opacity: 0, y: 20 }}

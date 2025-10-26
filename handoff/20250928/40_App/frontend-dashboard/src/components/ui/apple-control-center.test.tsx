@@ -15,6 +15,11 @@ vi.mock('@/lib/spring-animation', () => ({
   triggerHaptic: vi.fn()
 }))
 
+vi.mock('@/hooks/use-accessibility', () => ({
+  useScreenReaderAnnouncement: () => vi.fn(),
+  useFocusTrap: () => {}
+}))
+
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <AppleControlCenter.Provider>{children}</AppleControlCenter.Provider>
 )

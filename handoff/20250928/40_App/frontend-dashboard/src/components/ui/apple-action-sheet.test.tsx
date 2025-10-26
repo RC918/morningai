@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { AppleActionSheet, ActionSheetAction } from './apple-action-sheet'
 import React from 'react'
 
+vi.mock('@/hooks/use-accessibility', () => ({
+  useScreenReaderAnnouncement: () => vi.fn()
+}))
+
 const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <AppleActionSheet.Provider>
