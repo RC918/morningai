@@ -1,10 +1,20 @@
-import { Check, Loader2, AlertCircle, XCircle } from 'lucide-react'
+import React from 'react'
+import { Check, Loader2, AlertCircle, XCircle, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AppleButton } from '@/components/ui/apple-button'
 
-const formatRelativeTime = (date, t) => {
+type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error'
+
+interface SaveStatusIndicatorProps {
+  status: SaveStatus
+  lastSaved?: Date
+  error?: string
+  onRetry?: () => void
+}
+
+const formatRelativeTime = (date: Date, t: (key: string, options?: any) => string): string => {
   const now = new Date()
-  const diff = Math.floor((now - date) / 1000)
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
   
   if (diff < 60) return t('dashboard.saveStatus.timeAgo.seconds', { count: diff })
   if (diff < 3600) return t('dashboard.saveStatus.timeAgo.minutes', { count: Math.floor(diff / 60) })
@@ -12,10 +22,16 @@ const formatRelativeTime = (date, t) => {
   return t('dashboard.saveStatus.timeAgo.days', { count: Math.floor(diff / 86400) })
 }
 
-export const SaveStatusIndicator = ({ status, lastSaved, error, onRetry }) => {
+export const SaveStatusIndicator = ({ status, lastSaved, error, onRetry }: SaveStatusIndicatorProps): React.ReactElement => {
   const { t } = useTranslation()
   
-  const statusConfig = {
+  const statusConfig: Record<SaveStatus, {
+    icon: LucideIcon
+    text: string
+    className: string
+    iconClassName: string
+    action?: { label: string; onClick?: () => void }
+  }> = {
     saved: {
       icon: Check,
       text: lastSaved 
@@ -46,7 +62,7 @@ export const SaveStatusIndicator = ({ status, lastSaved, error, onRetry }) => {
   }
   
   const config = statusConfig[status] || statusConfig.saved
-  const Icon = config.icon
+  const Icon: LucideIcon = config.icon
   
   return (
     <div className="flex items-center gap-2" role="status" aria-live="polite">

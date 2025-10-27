@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clock, ArrowLeft, Target } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
@@ -7,19 +7,32 @@ import { Progress } from '@morningai/shared-ui'
 import { safeInterval } from '@/lib/safeInterval'
 import { useTranslation } from 'react-i18next'
 
+interface Milestone {
+  name: string
+  completed: boolean
+  date: string
+}
+
+interface WIPPageProps {
+  title?: string
+  description?: string
+  redirectSeconds?: number
+  milestones?: Milestone[]
+}
+
 const WIPPage = ({ 
   title, 
   description,
   redirectSeconds = 3,
   milestones = []
-}) => {
+}: WIPPageProps): React.ReactElement => {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [countdown, setCountdown] = useState(redirectSeconds)
+  const [countdown, setCountdown] = useState<number>(redirectSeconds)
 
   useEffect(() => {
     const cleanup = safeInterval(() => {
-      setCountdown(prev => {
+      setCountdown((prev: number) => {
         if (prev <= 1) {
           navigate('/dashboard')
           return 0
@@ -31,7 +44,7 @@ const WIPPage = ({
     return cleanup
   }, [navigate])
 
-  const defaultMilestones = [
+  const defaultMilestones: Milestone[] = [
     { name: t('wip.milestones.requirementAnalysis'), completed: true, date: t('wip.milestones.completed') },
     { name: t('wip.milestones.uiuxDesign'), completed: true, date: t('wip.milestones.completed') },
     { name: t('wip.milestones.backendApi'), completed: false, date: t('wip.milestones.inProgress') },
@@ -39,9 +52,9 @@ const WIPPage = ({
     { name: t('wip.milestones.testing'), completed: false, date: t('wip.milestones.pending') }
   ]
 
-  const displayMilestones = milestones.length > 0 ? milestones : defaultMilestones
-  const completedCount = displayMilestones.filter(m => m.completed).length
-  const progressPercentage = (completedCount / displayMilestones.length) * 100
+  const displayMilestones: Milestone[] = milestones.length > 0 ? milestones : defaultMilestones
+  const completedCount: number = displayMilestones.filter((m: Milestone) => m.completed).length
+  const progressPercentage: number = (completedCount / displayMilestones.length) * 100
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Globe, Check } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
@@ -10,18 +10,29 @@ import {
 } from '@morningai/shared-ui'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const languages = [
+interface Language {
+  code: string
+  name: string
+  flag: string
+}
+
+interface LanguageSwitcherProps {
+  variant?: 'default' | 'compact'
+  className?: string
+}
+
+const languages: Language[] = [
   { code: 'en-US', name: 'English', flag: '🇺🇸' },
   { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' }
 ]
 
-export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
+export const LanguageSwitcher = ({ variant = 'default', className = '' }: LanguageSwitcherProps): React.ReactElement => {
   const { i18n } = useTranslation()
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState<boolean>(false)
 
-  const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0]
+  const currentLanguage: Language = languages.find((lang: Language) => lang.code === i18n.language) || languages[0]
 
-  const changeLanguage = (langCode) => {
+  const changeLanguage = (langCode: string): void => {
     i18n.changeLanguage(langCode)
     setIsOpen(false)
   }
