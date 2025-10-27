@@ -86,7 +86,7 @@ const SettingsPageSkeleton = (): React.ReactElement => {
 
   const updateSetting = (category: string, key: string, value: unknown): void => {
     setSettings((prev: SettingsData | null) => ({
-      ...prev,
+      ...(prev ?? {}),
       [category]: {
         ...(prev?.[category] as Record<string, unknown> || {}),
         [key]: value
@@ -97,7 +97,7 @@ const SettingsPageSkeleton = (): React.ReactElement => {
 
   const updateNestedSetting = (category: string, parentKey: string, key: string, value: unknown): void => {
     setSettings((prev: SettingsData | null) => ({
-      ...prev,
+      ...(prev ?? {}),
       [category]: {
         ...(prev?.[category] as Record<string, unknown> || {}),
         [parentKey]: {

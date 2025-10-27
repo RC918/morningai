@@ -58,13 +58,12 @@ interface CostsData {
   daily?: DailyCost
 }
 
-interface ReputationData {
+interface Statistics {
   total_agents?: number
   average_score?: number
-}
-
-interface Statistics {
-  reputation?: ReputationData
+  agents_by_level?: Record<string, number>
+  high_reputation_agents?: number
+  low_reputation_agents?: number
   costs?: CostsData
 }
 
@@ -186,7 +185,7 @@ const AgentGovernance = (): React.ReactElement => {
                 <Shield className="w-5 h-5 text-blue-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
-                {statistics.reputation?.total_agents || 0}
+                {statistics.total_agents || 0}
               </p>
             </CardContent>
           </Card>
@@ -198,7 +197,7 @@ const AgentGovernance = (): React.ReactElement => {
                 <TrendingUp className="w-5 h-5 text-green-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
-                {statistics.reputation?.average_score?.toFixed(0) || 100}
+                {statistics.average_score?.toFixed(0) || 100}
               </p>
             </CardContent>
           </Card>
