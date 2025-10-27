@@ -90,7 +90,9 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode, t }:
 
   return (
     <div
-      ref={(node) => drag(drop(node))}
+      ref={(node) => {
+        drag(drop(node))
+      }}
       className={`relative transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-lg'} ${isEditMode ? 'cursor-move' : ''}`}
     >
       {isEditMode && (
@@ -430,7 +432,10 @@ const Dashboard = (): React.ReactElement => {
               className="h-20 flex-col"
               onClick={(): void => {
                 addWidget(widget.id)
-                document.querySelector('[data-state="open"]')?.click()
+                const element = document.querySelector('[data-state="open"]')
+                if (element && 'click' in element) {
+                  (element as HTMLElement).click()
+                }
               }}
             >
               <Grid3X3 className="w-6 h-6 mb-2" />

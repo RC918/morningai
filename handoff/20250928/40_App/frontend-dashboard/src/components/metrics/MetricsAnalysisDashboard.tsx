@@ -6,7 +6,7 @@
  * @component
  */
 
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@morningai/shared-ui'
@@ -25,48 +25,26 @@ import {
 } from 'lucide-react'
 import { getMetricsReport, exportMetricsData, MetricsCollector } from '@/lib/metrics-analysis'
 
-type MetricStatus = 'good' | 'excellent' | 'needs_improvement' | 'poor' | string
-
-interface MetricsReport {
-  generated_at: string
-  summary: {
-    total_metrics: number
-    categories: string[]
-  }
-  task_performance?: {
-    success_rate: number
-    successful_tasks: number
-    total_tasks: number
-    avg_completion_time: number
-  }
-  web_vitals?: Record<string, unknown>
-  ux_metrics?: Record<string, unknown>
-  errors?: unknown[]
-  trends?: Record<string, unknown>
-  regression?: Record<string, unknown>
-  recommendations?: string[]
-}
-
-export function MetricsAnalysisDashboard(): React.ReactElement {
-  const [report, setReport] = useState<MetricsReport | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [baseline, setBaseline] = useState<MetricsReport | null>(null)
+export function MetricsAnalysisDashboard() {
+  const [report, setReport] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [baseline, setBaseline] = useState(null)
 
   useEffect(() => {
     loadReport()
   }, [])
 
-  const loadReport = (): void => {
+  const loadReport = () => {
     setLoading(true)
     try {
-      const metrics: unknown[] = MetricsCollector.loadMetrics()
+      const metrics = MetricsCollector.loadMetrics()
       if (metrics.length === 0) {
         setReport(null)
         setLoading(false)
         return
       }
 
-      const analysisReport: MetricsReport = getMetricsReport(baseline)
+      const analysisReport = getMetricsReport(baseline)
       setReport(analysisReport)
     } catch (error) {
       console.error('Failed to generate report:', error)
@@ -75,18 +53,18 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
     }
   }
 
-  const handleExport = (): void => {
-    const data: unknown = exportMetricsData()
-    const blob: Blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url: string = URL.createObjectURL(blob)
-    const a: HTMLAnchorElement = document.createElement('a')
+  const handleExport = () => {
+    const data = exportMetricsData()
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
     a.href = url
     a.download = `metrics-report-${Date.now()}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
 
-  const handleSetBaseline = (): void => {
+  const handleSetBaseline = () => {
     if (report) {
       setBaseline(report)
       alert('Baseline set successfully! Future reports will compare against this baseline.')
@@ -94,12 +72,12 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
     }
   }
 
-  const handleClearBaseline = (): void => {
+  const handleClearBaseline = () => {
     setBaseline(null)
     loadReport()
   }
 
-  const handleClearMetrics = (): void => {
+  const handleClearMetrics = () => {
     if (confirm('Are you sure you want to clear all metrics data? This cannot be undone.')) {
       MetricsCollector.clearMetrics()
       setReport(null)
@@ -107,7 +85,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
     }
   }
 
-  const getStatusIcon = (status: MetricStatus): React.ReactElement => {
+  const getStatusIcon = (status) => {
     switch (status) {
       case 'good':
       case 'excellent':
@@ -121,8 +99,8 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
     }
   }
 
-  const getStatusBadge = (status: MetricStatus): React.ReactElement => {
-    const variants: Record<string, string> = {
+  const getStatusBadge = (status) => {
+    const variants = {
       good: 'default',
       excellent: 'default',
       needs_improvement: 'secondary',
