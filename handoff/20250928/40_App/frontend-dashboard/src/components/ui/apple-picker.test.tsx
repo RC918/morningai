@@ -5,7 +5,7 @@ import { ApplePicker, createDatePickerColumns, createTimePickerColumns, PickerCo
 import React from 'react'
 
 vi.mock('@/hooks/use-accessibility', () => ({
-  useScreenReaderAnnouncement: () => vi.fn()
+  useScreenReaderAnnouncement: () => ({ announce: vi.fn() })
 }))
 
 describe('ApplePicker', () => {

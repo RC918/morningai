@@ -6,7 +6,7 @@ import { ApplePicker, PickerColumn } from './apple-picker'
 expect.extend(toHaveNoViolations)
 
 vi.mock('@/hooks/use-accessibility', () => ({
-  useScreenReaderAnnouncement: () => vi.fn()
+  useScreenReaderAnnouncement: () => ({ announce: vi.fn() })
 }))
 
 describe('ApplePicker Accessibility', () => {
