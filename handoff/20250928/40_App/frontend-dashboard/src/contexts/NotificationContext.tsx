@@ -1,7 +1,12 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import apiClient from '@/lib/api';
 
-const NotificationContext = createContext();
+interface NotificationContextValue {
+  showPhase3Welcome: boolean;
+  dismissWelcome: () => Promise<void>;
+}
+
+const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
 
 export function NotificationProvider({ children }) {
   const [showPhase3Welcome, setShowPhase3Welcome] = useState(false);
