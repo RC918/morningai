@@ -230,3 +230,5 @@ export const AppleModal = {
   Provider: AppleModalProvider,
   useModal: useAppleModal
 }
+
+export type { ModalSize, ModalOptions, ModalProps, ModalContextValue, ModalProviderProps }

@@ -324,10 +324,8 @@ export const AppleControlCenterProvider: React.FC<ControlCenterProviderProps> = 
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [controls, setControls] = useState<Control[]>(initialControls)
-  const panelRef = useRef<HTMLDivElement>(null)
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen)
   const { announce } = useScreenReaderAnnouncement()
-  
-  useFocusTrap(panelRef)
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

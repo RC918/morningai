@@ -161,10 +161,8 @@ const SpotlightPanel: React.FC = () => {
 
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen)
   const { announce } = useScreenReaderAnnouncement()
-  
-  useFocusTrap(panelRef)
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
