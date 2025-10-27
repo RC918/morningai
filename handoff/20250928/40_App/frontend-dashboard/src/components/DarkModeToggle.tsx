@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { Moon, Sun } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
 import { useTranslation } from 'react-i18next'
 
-export const DarkModeToggle = ({ variant = 'default' }) => {
+interface DarkModeToggleProps {
+  variant?: 'default' | 'compact'
+}
+
+export const DarkModeToggle = ({ variant = 'default' }: DarkModeToggleProps): React.ReactElement | null => {
   const { t } = useTranslation()
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState<boolean>(false)
 
   useEffect(() => {
     setMounted(true)
@@ -17,17 +21,17 @@ export const DarkModeToggle = ({ variant = 'default' }) => {
     return null
   }
 
-  const getSystemTheme = () => {
+  const getSystemTheme = (): 'dark' | 'light' => {
     if (typeof window !== 'undefined') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     }
     return 'light'
   }
 
-  const currentTheme = theme === 'system' ? getSystemTheme() : theme
-  const isDark = currentTheme === 'dark'
+  const currentTheme: string = theme === 'system' ? getSystemTheme() : theme
+  const isDark: boolean = currentTheme === 'dark'
 
-  const toggleTheme = () => {
+  const toggleTheme = (): void => {
     setTheme(isDark ? 'light' : 'dark')
   }
 
