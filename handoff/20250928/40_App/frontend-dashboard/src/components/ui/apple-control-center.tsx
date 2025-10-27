@@ -189,7 +189,8 @@ const ControlCard: React.FC<{
             <div className={cn(
               'flex items-center justify-center',
               control.active ? 'text-white' : 'text-white/70'
-            )}>
+            )}
+            >
               {React.cloneElement(control.icon as React.ReactElement, {
                 className: 'w-6 h-6'
               })}
@@ -198,7 +199,8 @@ const ControlCard: React.FC<{
               <div className={cn(
                 'text-sm font-medium',
                 control.active ? 'text-white' : 'text-white/70'
-              )}>
+              )}
+              >
                 {control.value}
               </div>
             )}
@@ -209,7 +211,8 @@ const ControlCard: React.FC<{
             <div className={cn(
               'font-semibold text-sm leading-tight',
               control.active ? 'text-white' : 'text-white/90'
-            )}>
+            )}
+            >
               {control.title}
             </div>
             {control.subtitle && (

@@ -88,7 +88,8 @@ describe('AppleModal', () => {
             title: 'Test Modal',
             description: 'Test Description',
             children: <div>Modal Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -115,7 +116,8 @@ describe('AppleModal', () => {
           <button onClick={() => modal.openModal({
             title: 'Test',
             children: <div>Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -140,7 +142,8 @@ describe('AppleModal', () => {
             title: 'Test',
             showClose: false,
             children: <div>Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -166,7 +169,8 @@ describe('AppleModal', () => {
           <button onClick={() => modal.openModal({
             title: 'Test Modal',
             children: <div>Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -195,7 +199,8 @@ describe('AppleModal', () => {
             <button onClick={() => {
               modal.openModal({ title: 'Modal 1', children: <div>Content 1</div> })
               modal.openModal({ title: 'Modal 2', children: <div>Content 2</div> })
-            }}>
+            }}
+            >
               Open Multiple
             </button>
             <button onClick={() => modal.closeAll()}>
@@ -230,7 +235,8 @@ describe('AppleModal', () => {
             title: 'Large Modal',
             size: 'lg',
             children: <div>Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -261,7 +267,8 @@ describe('AppleModal', () => {
               title: 'Test Modal',
               children: <div>Content</div>
             })
-          }}>
+          }}
+          >
             Open
           </button>
         )

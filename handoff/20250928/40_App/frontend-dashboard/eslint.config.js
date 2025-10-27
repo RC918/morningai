@@ -7,6 +7,7 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
+import tseslint from 'typescript-eslint';
 
 export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.storybook', '**/*.stories.tsx', 'playwright-report'] }, {
   files: ['**/*.{js,jsx,ts,tsx}'],
@@ -14,6 +15,7 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     ecmaVersion: 2020,
     sourceType: 'module',
     globals: globals.browser,
+    parser: tseslint.parser,
     parserOptions: {
       ecmaFeatures: {
         jsx: true,
