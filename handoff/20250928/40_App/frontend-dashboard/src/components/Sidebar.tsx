@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { 
@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  CreditCard
+  CreditCard,
+  type LucideIcon
 } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
 import { Avatar, AvatarFallback, AvatarImage } from '@morningai/shared-ui'
@@ -23,12 +24,32 @@ import { DarkModeToggle } from './DarkModeToggle'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { AccessibilityTriggerButton } from '@/components/ui/apple-accessibility-settings'
 
-const Sidebar = ({ user, onLogout }) => {
+interface User {
+  name?: string
+  role?: string
+  avatar?: string
+}
+
+interface MenuItem {
+  path: string
+  icon: LucideIcon
+  label: string
+  description: string
+  badge?: string
+  feature: string
+}
+
+interface SidebarProps {
+  user: User
+  onLogout: () => void
+}
+
+const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
   const { t } = useTranslation()
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState<boolean>(false)
   const location = useLocation()
 
-  const allMenuItems = [
+  const allMenuItems: MenuItem[] = [
     {
       path: '/dashboard',
       icon: LayoutDashboard,
@@ -88,9 +109,9 @@ const Sidebar = ({ user, onLogout }) => {
     }
   ]
 
-  const menuItems = allMenuItems.filter(item => isFeatureEnabled(item.feature))
+  const menuItems: MenuItem[] = allMenuItems.filter((item: MenuItem) => isFeatureEnabled(item.feature))
 
-  const isActive = (path) => location.pathname === path
+  const isActive = (path: string): boolean => location.pathname === path
 
   return (
     <div className={`bg-white dark:bg-gray-900 shadow-lg transition-all duration-300 ${
@@ -165,9 +186,9 @@ const Sidebar = ({ user, onLogout }) => {
 
       <nav className="flex-1 p-4" aria-label={t('sidebar.navigation', 'Main navigation')}>
         <ul className="space-y-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.path)
+          {menuItems.map((item: MenuItem) => {
+            const Icon: LucideIcon = item.icon
+            const active: boolean = isActive(item.path)
             
             return (
               <li key={item.path}>

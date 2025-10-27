@@ -1,14 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
-import { ArrowRight, Sparkles, TrendingUp, Shield } from 'lucide-react'
+import { ArrowRight, Sparkles, TrendingUp, Shield, type LucideIcon } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
 
-const AppleHero = ({ onGetStarted, onLearnMore }) => {
+interface Feature {
+  icon: LucideIcon
+  title: string
+  description: string
+}
+
+interface AppleHeroProps {
+  onGetStarted: () => void
+  onLearnMore: () => void
+}
+
+const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactElement => {
   const { t } = useTranslation()
-  const containerRef = useRef(null)
-  const featuresRef = useRef(null)
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const containerRef = useRef<HTMLElement>(null)
+  const featuresRef = useRef<HTMLDivElement>(null)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false)
   
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -21,16 +32,16 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
   const featuresInView = useInView(featuresRef, { once: true, margin: "-100px" })
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const mediaQuery: MediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
     
-    const handleChange = (e) => setPrefersReducedMotion(e.matches)
+    const handleChange = (e: MediaQueryListEvent): void => setPrefersReducedMotion(e.matches)
     mediaQuery.addEventListener('change', handleChange)
     
     return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
 
-  const features = [
+  const features: Feature[] = [
     {
       icon: Sparkles,
       title: t('landing.hero.features.ai.title'),
@@ -166,8 +177,8 @@ const AppleHero = ({ onGetStarted, onLearnMore }) => {
         </motion.div>
 
         <div ref={featuresRef} className="mt-20 grid grid-cols-1 sm:grid-cols-3 gap-8">
-          {features.map((feature, index) => {
-            const Icon = feature.icon
+          {features.map((feature: Feature, index: number) => {
+            const Icon: LucideIcon = feature.icon
             return (
               <motion.div
                 key={index}
