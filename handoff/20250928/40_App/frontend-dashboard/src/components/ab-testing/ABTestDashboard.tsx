@@ -25,10 +25,37 @@ import {
 } from 'lucide-react'
 import abTestManager, { calculateABTestResults, exportAllABTestData } from '@/lib/ab-testing'
 
+interface ABTestVariant {
+  variant_id: string
+  variant_name: string
+  assignments: number
+  conversions: number
+  conversion_rate: number
+  click_rate: number
+}
+
+interface ABTestSignificance {
+  is_significant: boolean
+  confidence_level: string
+  z_score: number
+  p_value: number
+  lift: string
+  winner: string
+}
+
+interface ABTestResults {
+  test_id: string
+  total_assignments: number
+  total_conversions: number
+  variants: Record<string, ABTestVariant>
+  significance?: ABTestSignificance
+  calculated_at: string
+}
+
 export function ABTestDashboard() {
-  const [tests, setTests] = useState([])
-  const [selectedTest, setSelectedTest] = useState(null)
-  const [results, setResults] = useState(null)
+  const [tests, setTests] = useState<any[]>([])
+  const [selectedTest, setSelectedTest] = useState<string | null>(null)
+  const [results, setResults] = useState<ABTestResults | null>(null)
 
   useEffect(() => {
     loadTests()
@@ -39,10 +66,10 @@ export function ABTestDashboard() {
     setTests(allTests)
   }
 
-  const handleViewResults = (testId) => {
+  const handleViewResults = (testId: string) => {
     try {
       const testResults = calculateABTestResults(testId)
-      setResults(testResults)
+      setResults(testResults as ABTestResults)
       setSelectedTest(testId)
     } catch (error) {
       console.error('Failed to calculate results:', error)
@@ -61,7 +88,7 @@ export function ABTestDashboard() {
     URL.revokeObjectURL(url)
   }
 
-  const handleExportTest = (testId) => {
+  const handleExportTest = (testId: string) => {
     const test = abTestManager.getTest(testId)
     if (!test) return
 
