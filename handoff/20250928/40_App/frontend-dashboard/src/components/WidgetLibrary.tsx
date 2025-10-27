@@ -237,7 +237,7 @@ const CircuitBreakersWidget = ({ data }) => {
     else if (typeof circuitBreakers === 'object') {
       circuitBreakersArray = Object.entries(circuitBreakers)
         .filter(([key, value]) => key && value !== null && value !== undefined)
-        .map(([name, state]) => ({
+        .map(([name, state]: [string, any]) => ({
           name: String(name),
           state: typeof state === 'string' ? state : 
                  (state?.state && typeof state.state === 'string' ? state.state : 'unknown')

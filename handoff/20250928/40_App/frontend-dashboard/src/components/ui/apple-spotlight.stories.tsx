@@ -29,7 +29,7 @@ const meta = {
 } satisfies Meta<typeof AppleSpotlight.Provider>
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<any>
 
 const SpotlightDemo = ({ onSearch }: { onSearch?: (query: string) => SearchResult[] }) => {
   const { useSpotlight } = AppleSpotlight

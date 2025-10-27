@@ -35,12 +35,12 @@ export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }: Err
         <CardContent>
           <div className="flex gap-3 justify-center">
             {onRetry && (
-              <AppleButton onClick={onRetry} variant="default" size="md" className="">
+              <AppleButton onClick={onRetry} variant="primary" size="default" className="">
                 {errorInfo.action}
               </AppleButton>
             )}
             {onDismiss && (
-              <AppleButton variant="outline" onClick={onDismiss} size="md" className="">
+              <AppleButton variant="outline" onClick={onDismiss} size="default" className="">
                 {t('feedback.close')}
               </AppleButton>
             )}

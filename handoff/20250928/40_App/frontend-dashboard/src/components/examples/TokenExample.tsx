@@ -64,10 +64,10 @@ export const TokenExample = () => {
           boxShadow: 'var(--shadow-sm)'
         }}
         onMouseEnter={(e) => {
-          e.target.style.backgroundColor = 'var(--color-primary-hover)'
+          (e.target as HTMLButtonElement).style.backgroundColor = 'var(--color-primary-hover)'
         }}
         onMouseLeave={(e) => {
-          e.target.style.backgroundColor = 'var(--color-primary)'
+          (e.target as HTMLButtonElement).style.backgroundColor = 'var(--color-primary)'
         }}
         >
           Primary Button
@@ -85,10 +85,10 @@ export const TokenExample = () => {
           transition: 'all var(--transition-base)'
         }}
         onMouseEnter={(e) => {
-          e.target.style.backgroundColor = 'var(--color-secondary-hover)'
+          (e.target as HTMLButtonElement).style.backgroundColor = 'var(--color-secondary-hover)'
         }}
         onMouseLeave={(e) => {
-          e.target.style.backgroundColor = 'var(--color-secondary)'
+          (e.target as HTMLButtonElement).style.backgroundColor = 'var(--color-secondary)'
         }}
         >
           Secondary Button

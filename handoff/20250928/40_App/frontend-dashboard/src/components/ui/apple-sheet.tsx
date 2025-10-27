@@ -255,3 +255,5 @@ export const AppleSheet = {
   Provider: AppleSheetProvider,
   useSheet: useAppleSheet
 }
+
+export type { SheetSize, SheetOptions, SheetProps, SheetContextValue }

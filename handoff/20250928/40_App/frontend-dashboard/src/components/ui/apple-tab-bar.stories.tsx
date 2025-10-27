@@ -69,7 +69,7 @@ function App() {
 } satisfies Meta<typeof AppleTabBar>
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<any>
 
 function TabBarDemo({ initialValue = 'home' }: { initialValue?: string }) {
   const [value, setValue] = useState(initialValue)

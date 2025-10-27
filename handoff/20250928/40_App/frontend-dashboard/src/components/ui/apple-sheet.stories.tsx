@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { AppleSheetProvider, useAppleSheet } from './apple-sheet'
+import { AppleSheetProvider, useAppleSheet, type SheetSize } from './apple-sheet'
 import { AppleButton } from './apple-button'
 
 const meta: Meta<typeof AppleSheetProvider> = {
@@ -14,7 +14,7 @@ const meta: Meta<typeof AppleSheetProvider> = {
 export default meta
 type Story = StoryObj<typeof AppleSheetProvider>
 
-const SheetDemo = ({ size = 'md', showClose = true, showHandle = true }) => {
+const SheetDemo = ({ size = 'md' as SheetSize, showClose = true, showHandle = true }) => {
   const sheet = useAppleSheet()
 
   const handleOpen = () => {

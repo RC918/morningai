@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { AppleModalProvider, useAppleModal } from './apple-modal'
+import { AppleModalProvider, useAppleModal, type ModalSize } from './apple-modal'
 import { AppleButton } from './apple-button'
 
 const meta: Meta<typeof AppleModalProvider> = {
@@ -14,7 +14,7 @@ const meta: Meta<typeof AppleModalProvider> = {
 export default meta
 type Story = StoryObj<typeof AppleModalProvider>
 
-const ModalDemo = ({ size = 'md', showClose = true }) => {
+const ModalDemo = ({ size = 'md' as ModalSize, showClose = true }) => {
   const modal = useAppleModal()
 
   const handleOpen = () => {

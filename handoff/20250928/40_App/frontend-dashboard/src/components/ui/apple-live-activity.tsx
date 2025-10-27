@@ -80,7 +80,7 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
   const { t } = useTranslation()
   const [isExpanded, setIsExpanded] = useState(false)
   const activityRef = useRef<HTMLDivElement>(null)
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
   const previousProgressRef = useRef<number | undefined>(progress)
 
   useEffect(() => {
@@ -348,7 +348,7 @@ export const AppleLiveActivityProvider: React.FC<LiveActivityProviderProps> = ({
   position = 'top' 
 }) => {
   const [activities, setActivities] = useState<LiveActivityProps[]>([])
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   const dismissActivity = useCallback((id: string) => {
     setActivities(prev => prev.filter(a => a.id !== id))

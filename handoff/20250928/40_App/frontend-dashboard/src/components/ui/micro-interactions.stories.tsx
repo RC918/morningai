@@ -13,7 +13,7 @@ const meta = {
 } satisfies Meta;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<any>;
 
 export const ButtonInteractions: Story = {
   render: () => (
