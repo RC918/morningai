@@ -38,3 +38,5 @@ export async function apiClient({
   const ct = res.headers.get('content-type') || '';
   return ct.includes('application/json') ? res.json() : res.text();
 }
+
+export const customFetch = apiClient;

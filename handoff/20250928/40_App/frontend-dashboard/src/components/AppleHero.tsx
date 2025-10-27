@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion, useScroll, useTransform, useInView } from 'framer-motion'
+import { motion, useScroll, useTransform, useInView, type Variants } from 'framer-motion'
 import { ArrowRight, Sparkles, TrendingUp, Shield, type LucideIcon } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
 
@@ -59,7 +59,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
     }
   ]
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -70,7 +70,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
     }
   }
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
@@ -82,9 +82,9 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
     }
   }
 
-  const featureVariants = {
+  const featureVariants: Variants = {
     hidden: { opacity: 0, y: 30, scale: 0.95 },
-    visible: (i) => ({
+    visible: (i: number) => ({
       opacity: 1,
       y: 0,
       scale: 1,
@@ -115,13 +115,13 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <motion.div
           className="text-center space-y-8"
-          variants={prefersReducedMotion ? {} : containerVariants}
+          variants={prefersReducedMotion ? undefined : containerVariants}
           initial="hidden"
           animate="visible"
         >
           <motion.div
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm font-medium"
-            variants={prefersReducedMotion ? {} : itemVariants}
+            variants={prefersReducedMotion ? undefined : itemVariants}
           >
             <Sparkles className="w-4 h-4" />
             {t('landing.hero.badge')}
@@ -129,7 +129,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
 
           <motion.h1
             className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900 dark:text-white"
-            variants={prefersReducedMotion ? {} : itemVariants}
+            variants={prefersReducedMotion ? undefined : itemVariants}
           >
             {t('landing.hero.title.line1')}
             <br />
@@ -138,14 +138,14 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
 
           <motion.p
             className="text-xl sm:text-2xl text-gray-600 dark:text-gray-600 max-w-3xl mx-auto"
-            variants={prefersReducedMotion ? {} : itemVariants}
+            variants={prefersReducedMotion ? undefined : itemVariants}
           >
             {t('landing.hero.subtitle')}
           </motion.p>
 
           <motion.div
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-            variants={prefersReducedMotion ? {} : itemVariants}
+            variants={prefersReducedMotion ? undefined : itemVariants}
           >
             <motion.div
               whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
@@ -184,7 +184,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
                 key={index}
                 className="p-6 text-center group"
                 custom={index}
-                variants={prefersReducedMotion ? {} : featureVariants}
+                variants={prefersReducedMotion ? undefined : featureVariants}
                 initial="hidden"
                 animate={featuresInView ? "visible" : "hidden"}
                 whileHover={prefersReducedMotion ? {} : { y: -8 }}

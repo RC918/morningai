@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 import { Lock, User, AlertCircle, Loader2 } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
 import { AppleInput } from '@/components/ui/apple-input'
@@ -108,7 +108,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     }
   }
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -119,7 +119,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     }
   }
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
@@ -144,13 +144,13 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
       
       <motion.div
         className="w-full max-w-md px-4"
-        variants={prefersReducedMotion ? {} : containerVariants}
+        variants={prefersReducedMotion ? undefined : containerVariants}
         initial="hidden"
         animate="visible"
       >
         <motion.div
           className="text-center mb-8"
-          variants={prefersReducedMotion ? {} : itemVariants}
+          variants={prefersReducedMotion ? undefined : itemVariants}
         >
           <Link to="/" className="inline-block">
             <motion.div
@@ -172,7 +172,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
           <p className="text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
-        <motion.div variants={prefersReducedMotion ? {} : itemVariants}>
+        <motion.div variants={prefersReducedMotion ? undefined : itemVariants}>
           <Card>
             <CardHeader>
               <CardTitle>{t('auth.login.title')}</CardTitle>
@@ -332,7 +332,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
 
         <motion.div
           className="text-center mt-8 text-sm text-gray-600 dark:text-gray-600"
-          variants={prefersReducedMotion ? {} : itemVariants}
+          variants={prefersReducedMotion ? undefined : itemVariants}
         >
           <p>{t('app.copyright')}</p>
           <p className="mt-1">{t('app.motto')}</p>
