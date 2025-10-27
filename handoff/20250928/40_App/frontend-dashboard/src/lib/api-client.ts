@@ -38,3 +38,8 @@ export async function apiClient({
   const ct = res.headers.get('content-type') || '';
   return ct.includes('application/json') ? res.json() : res.text();
 }
+
+export async function customFetch(options: { url: string; method?: string; [key: string]: any }) {
+  const { url, method = 'GET', ...rest } = options;
+  return apiClient({ url, method, ...rest });
+}

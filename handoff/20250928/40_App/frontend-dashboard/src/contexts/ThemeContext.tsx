@@ -1,9 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-const ThemeContext = createContext({
+export type Theme = 'light' | 'dark' | 'system';
+
+interface ThemeContextType {
+  theme: string;
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType>({
   theme: 'light',
-  setTheme: () => null,
-  toggleTheme: () => null,
+  setTheme: () => {},
+  toggleTheme: () => {},
 });
 
 export const useTheme = () => {
@@ -14,7 +22,13 @@ export const useTheme = () => {
   return context;
 };
 
-export const ThemeProvider = ({ children, defaultTheme = 'system', storageKey = 'ui-theme', ...props }) => {
+interface ThemeProviderProps {
+  children: React.ReactNode;
+  defaultTheme?: Theme;
+  storageKey?: string;
+}
+
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, defaultTheme = 'system', storageKey = 'ui-theme', ...props }) => {
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(storageKey) || defaultTheme;
@@ -39,14 +53,14 @@ export const ThemeProvider = ({ children, defaultTheme = 'system', storageKey = 
     root.classList.add(theme);
   }, [theme]);
 
-  const value = {
+  const value: ThemeContextType = {
     theme,
-    setTheme: (theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
+    setTheme: (newTheme: Theme) => {
+      localStorage.setItem(storageKey, newTheme);
+      setTheme(newTheme);
     },
     toggleTheme: () => {
-      const newTheme = theme === 'light' ? 'dark' : 'light';
+      const newTheme: Theme = theme === 'light' ? 'dark' : 'light';
       localStorage.setItem(storageKey, newTheme);
       setTheme(newTheme);
     },
