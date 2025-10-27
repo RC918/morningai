@@ -2,24 +2,43 @@ import React, { useState, useEffect } from 'react';
 import { useTenant } from '../contexts/TenantContext';
 import { AppleButton } from './ui/apple-button';
 
-const TenantSettings = () => {
+interface Member {
+  id: string
+  email?: string
+  display_name?: string
+  role: string
+  created_at?: string
+}
+
+interface TenantInfo {
+  member_count?: number
+  task_count?: number
+}
+
+interface ApiErrorResponse {
+  error?: {
+    message?: string
+  }
+}
+
+const TenantSettings = (): React.ReactElement => {
   const { tenant, loading: tenantLoading, error: tenantError } = useTenant();
-  const [members, setMembers] = useState([]);
-  const [tenantInfo, setTenantInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [updatingMember, setUpdatingMember] = useState(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updatingMember, setUpdatingMember] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTenantData();
   }, []);
 
-  const fetchTenantData = async () => {
+  const fetchTenantData = async (): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
+      const token: string | null = localStorage.getItem('token');
       
       if (!token) {
         setError('Not authenticated');
@@ -27,7 +46,7 @@ const TenantSettings = () => {
         return;
       }
 
-      const [membersRes, infoRes] = await Promise.all([
+      const [membersRes, infoRes]: [Response, Response] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/members`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -46,26 +65,26 @@ const TenantSettings = () => {
         throw new Error('Failed to fetch tenant data');
       }
 
-      const membersData = await membersRes.json();
-      const infoData = await infoRes.json();
+      const membersData: { members?: Member[] } = await membersRes.json();
+      const infoData: TenantInfo = await infoRes.json();
 
       setMembers(membersData.members || []);
       setTenantInfo(infoData);
       setLoading(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching tenant data:', err);
-      setError(err.message || 'Failed to load tenant data');
+      setError(err instanceof Error ? err.message : 'Failed to load tenant data');
       setLoading(false);
     }
   };
 
-  const updateMemberRole = async (memberId, newRole) => {
+  const updateMemberRole = async (memberId: string, newRole: string): Promise<void> => {
     try {
       setUpdatingMember(memberId);
 
-      const token = localStorage.getItem('token');
+      const token: string | null = localStorage.getItem('token');
       
-      const response = await fetch(
+      const response: Response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/members/${memberId}`,
         {
           method: 'PUT',
@@ -78,15 +97,15 @@ const TenantSettings = () => {
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: ApiErrorResponse = await response.json();
         throw new Error(errorData.error?.message || 'Failed to update member role');
       }
 
       await fetchTenantData();
       setUpdatingMember(null);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error updating member role:', err);
-      alert(`Failed to update member: ${err.message}`);
+      alert(`Failed to update member: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setUpdatingMember(null);
     }
   };
