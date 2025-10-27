@@ -26,7 +26,10 @@ export function ThemeSelect(): React.ReactElement {
   return (
     <select
       value={theme}
-      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTheme(e.target.value)}
+      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value as 'light' | 'dark' | 'system';
+        setTheme(value);
+      }}
       className="bg-background border border-input rounded-md px-3 py-2 text-sm"
     >
       <option value="light">Light</option>

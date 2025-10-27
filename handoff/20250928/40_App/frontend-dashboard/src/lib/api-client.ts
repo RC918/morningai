@@ -39,4 +39,8 @@ export async function apiClient({
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
-export const customFetch = apiClient;
+export function customFetch(
+  args: Omit<Parameters<typeof apiClient>[0], 'method'> & { method?: string }
+): ReturnType<typeof apiClient> {
+  return apiClient({ method: args.method ?? 'GET', ...args });
+}
