@@ -18,7 +18,7 @@ const meta = {
 } satisfies Meta<typeof AppleLiveActivity.Provider>
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<any>
 
 const LiveActivityDemo = ({ config }: { config: any }) => {
   const { useLiveActivity } = AppleLiveActivity

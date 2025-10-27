@@ -24,7 +24,7 @@ const meta = {
 } satisfies Meta
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<any>
 
 /**
  * ## 主色系統

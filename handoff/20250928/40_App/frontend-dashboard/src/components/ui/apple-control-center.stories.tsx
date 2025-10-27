@@ -35,7 +35,7 @@ const meta = {
 } satisfies Meta<typeof AppleControlCenter.Provider>
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<any>
 
 const ControlCenterDemo = ({ controls }: { controls: Control[] }) => {
   const { useControlCenter } = AppleControlCenter

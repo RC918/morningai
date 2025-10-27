@@ -17,7 +17,7 @@ const meta = {
 } satisfies Meta<typeof AppleToastProvider>
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<any>
 
 const ToastDemo = () => {
   const toast = useAppleToast()

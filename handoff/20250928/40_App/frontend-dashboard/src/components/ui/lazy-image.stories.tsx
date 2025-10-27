@@ -11,7 +11,7 @@ const meta = {
 } satisfies Meta<typeof LazyImage>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<any>;
 
 export const Default: Story = {
   render: () => (

@@ -86,7 +86,7 @@ export const SpringPresets: Story = {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
           <h3 className="text-lg font-semibold mb-4">技術參數</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {Object.entries(springPresets).map(([name, config]) => (
+            {Object.entries(springPresets).map(([name, config]: [string, any]) => (
               <div key={name} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <h4 className="font-semibold capitalize mb-2">{name}</h4>
                 <div className="text-sm space-y-1 text-gray-600 dark:text-gray-300">
