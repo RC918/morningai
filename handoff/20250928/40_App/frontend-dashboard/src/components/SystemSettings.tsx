@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@morningai/shared-ui'
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import useSettingsStore from '@/stores/settingsStore'
 
-const SystemSettings = () => {
+const SystemSettings = (): React.ReactElement => {
   const { t, i18n } = useTranslation()
   const {
     profile,
@@ -35,12 +35,12 @@ const SystemSettings = () => {
     saveToAPI
   } = useSettingsStore()
 
-  const handleLanguageChange = (language) => {
+  const handleLanguageChange = (language: string): void => {
     setLanguage(language)
     i18n.changeLanguage(language)
   }
 
-  const handleThemeChange = (theme) => {
+  const handleThemeChange = (theme: string): void => {
     setTheme(theme)
   }
 
@@ -102,12 +102,12 @@ const SystemSettings = () => {
                     id="avatar-upload"
                     accept="image/jpeg,image/png,image/gif"
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const file: File | undefined = e.target.files?.[0]
                       if (file) {
-                        const reader = new FileReader()
-                        reader.onloadend = () => {
-                          setProfile({ ...profile, avatar: reader.result })
+                        const reader: FileReader = new FileReader()
+                        reader.onloadend = (): void => {
+                          setProfile({ ...profile, avatar: reader.result as string })
                         }
                         reader.readAsDataURL(file)
                       }
@@ -130,7 +130,7 @@ const SystemSettings = () => {
                   id="name"
                   label={t('settings.profile.name')}
                   value={profile.name}
-                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfile({ ...profile, name: e.target.value })}
                   leftIcon={<User className="w-4 h-4" />}
                   aria-describedby="name-description"
                   haptic="light"
@@ -140,7 +140,7 @@ const SystemSettings = () => {
                   type="email"
                   label={t('settings.profile.email')}
                   value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfile({ ...profile, email: e.target.value })}
                   aria-describedby="email-description"
                   haptic="light"
                 />
@@ -240,7 +240,7 @@ const SystemSettings = () => {
                 </div>
                 <Switch
                   checked={preferences.notifications.email}
-                  onCheckedChange={(checked) =>
+                  onCheckedChange={(checked: boolean) =>
                     setNotifications({ ...preferences.notifications, email: checked })
                   }
                 />
@@ -253,7 +253,7 @@ const SystemSettings = () => {
                 </div>
                 <Switch
                   checked={preferences.notifications.desktop}
-                  onCheckedChange={(checked) =>
+                  onCheckedChange={(checked: boolean) =>
                     setNotifications({ ...preferences.notifications, desktop: checked })
                   }
                 />
@@ -266,7 +266,7 @@ const SystemSettings = () => {
                 </div>
                 <Switch
                   checked={preferences.notifications.aiSuggestions}
-                  onCheckedChange={(checked) =>
+                  onCheckedChange={(checked: boolean) =>
                     setNotifications({ ...preferences.notifications, aiSuggestions: checked })
                   }
                 />

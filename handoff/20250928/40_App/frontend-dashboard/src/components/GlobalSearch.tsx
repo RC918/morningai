@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
-  Search, FileText, Settings, BarChart3, Command, ArrowRight
+  Search, FileText, Settings, BarChart3, Command, ArrowRight, LucideIcon
 } from 'lucide-react'
 import {
   Dialog,
@@ -14,7 +14,19 @@ import { AppleInput } from '@/components/ui/apple-input'
 import { Badge } from '@morningai/shared-ui'
 import { SEARCH_CATEGORIES, getSearchableItems } from '@/lib/searchRegistry'
 
-const CATEGORY_ICONS = {
+interface SearchItem {
+  id: string
+  title: string
+  description?: string
+  category: string
+  path?: string
+  action?: () => void
+  keywords?: string[]
+  weight: number
+  score?: number
+}
+
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
   [SEARCH_CATEGORIES.PAGES]: FileText,
   [SEARCH_CATEGORIES.WIDGETS]: BarChart3,
   [SEARCH_CATEGORIES.SETTINGS]: Settings,
@@ -34,27 +46,27 @@ const CATEGORY_ICONS = {
  * - Recent searches
  * - Quick actions
  */
-export const GlobalSearch = () => {
+export const GlobalSearch = (): React.ReactElement => {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [isOpen, setIsOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const [recentSearches, setRecentSearches] = useState([])
+  const [isOpen, setIsOpen] = useState<boolean>(false)
+  const [query, setQuery] = useState<string>('')
+  const [selectedIndex, setSelectedIndex] = useState<number>(0)
+  const [recentSearches, setRecentSearches] = useState<SearchItem[]>([])
 
-  const searchableItems = useMemo(() => getSearchableItems(t), [t])
+  const searchableItems: SearchItem[] = useMemo(() => getSearchableItems(t), [t])
 
-  const fuzzySearch = useCallback((searchQuery, items) => {
+  const fuzzySearch = useCallback((searchQuery: string, items: SearchItem[]): SearchItem[] => {
     if (!searchQuery.trim()) return []
 
     const lowerQuery = searchQuery.toLowerCase()
     const queryWords = lowerQuery.split(/\s+/)
 
-    const scored = items.map(item => {
-      let score = 0
-      const lowerTitle = item.title.toLowerCase()
-      const lowerDescription = item.description?.toLowerCase() || ''
-      const keywords = item.keywords || []
+    const scored: SearchItem[] = items.map((item: SearchItem): SearchItem => {
+      let score: number = 0
+      const lowerTitle: string = item.title.toLowerCase()
+      const lowerDescription: string = item.description?.toLowerCase() || ''
+      const keywords: string[] = item.keywords || []
 
       if (lowerTitle === lowerQuery) {
         score += 100 * item.weight
@@ -64,15 +76,15 @@ export const GlobalSearch = () => {
         score += 30 * item.weight
       }
 
-      queryWords.forEach(word => {
+      queryWords.forEach((word: string) => {
         if (lowerTitle.includes(word)) score += 20 * item.weight
         if (lowerDescription.includes(word)) score += 10 * item.weight
-        if (keywords.some(k => k.includes(word))) score += 15 * item.weight
+        if (keywords.some((k: string) => k.includes(word))) score += 15 * item.weight
       })
 
-      const titleWords = lowerTitle.split(/\s+/)
-      queryWords.forEach(queryWord => {
-        titleWords.forEach(titleWord => {
+      const titleWords: string[] = lowerTitle.split(/\s+/)
+      queryWords.forEach((queryWord: string) => {
+        titleWords.forEach((titleWord: string) => {
           if (titleWord.startsWith(queryWord)) {
             score += 5 * item.weight
           }
@@ -83,24 +95,24 @@ export const GlobalSearch = () => {
     })
 
     return scored
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .filter((item: SearchItem) => (item.score ?? 0) > 0)
+      .sort((a: SearchItem, b: SearchItem) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, 10)
   }, [])
 
-  const searchResults = useMemo(() => {
+  const searchResults: SearchItem[] = useMemo(() => {
     return fuzzySearch(query, searchableItems)
   }, [query, searchableItems, fuzzySearch])
 
-  const handleSelect = useCallback((item) => {
+  const handleSelect = useCallback((item: SearchItem): void => {
     if (item.path) {
       navigate(item.path)
     } else if (item.action) {
       item.action()
     }
 
-    setRecentSearches(prev => {
-      const filtered = prev.filter(s => s.id !== item.id)
+    setRecentSearches((prev: SearchItem[]) => {
+      const filtered: SearchItem[] = prev.filter((s: SearchItem) => s.id !== item.id)
       return [item, ...filtered].slice(0, 5)
     })
 
@@ -110,7 +122,7 @@ export const GlobalSearch = () => {
   }, [navigate])
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         setIsOpen(prev => !prev)
@@ -131,8 +143,8 @@ export const GlobalSearch = () => {
   useEffect(() => {
     if (!isOpen) return
 
-    const handleKeyDown = (e) => {
-      const results = query ? searchResults : recentSearches
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      const results: SearchItem[] = query ? searchResults : recentSearches
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()
@@ -153,8 +165,8 @@ export const GlobalSearch = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, query, searchResults, recentSearches, selectedIndex, handleSelect])
 
-  const getCategoryLabel = (category) => {
-    const labels = {
+  const getCategoryLabel = (category: string): string => {
+    const labels: Record<string, string> = {
       [SEARCH_CATEGORIES.PAGES]: t('search.categories.pages'),
       [SEARCH_CATEGORIES.WIDGETS]: t('search.categories.widgets'),
       [SEARCH_CATEGORIES.SETTINGS]: t('search.categories.settings'),
@@ -163,7 +175,7 @@ export const GlobalSearch = () => {
     return labels[category] || category
   }
 
-  const displayResults = query ? searchResults : recentSearches
+  const displayResults: SearchItem[] = query ? searchResults : recentSearches
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -205,9 +217,9 @@ export const GlobalSearch = () => {
             </div>
           )}
 
-          {displayResults.map((item, index) => {
-            const Icon = CATEGORY_ICONS[item.category] || FileText
-            const isSelected = index === selectedIndex
+          {displayResults.map((item: SearchItem, index: number) => {
+            const Icon: LucideIcon = CATEGORY_ICONS[item.category] || FileText
+            const isSelected: boolean = index === selectedIndex
 
             return (
               <button
