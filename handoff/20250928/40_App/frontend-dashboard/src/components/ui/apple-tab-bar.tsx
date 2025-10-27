@@ -22,10 +22,18 @@ import { useAccessibleTabs, useScreenReaderAnnouncement } from "@/hooks/use-acce
  * </AppleTabBar>
  */
 
-const AppleTabBarContext = React.createContext({
-  value: "",
-  onValueChange: () => {},
-})
+interface AppleTabBarContextValue {
+  value: string
+  onValueChange: (value: string) => void
+}
+
+const AppleTabBarContext = React.createContext<AppleTabBarContextValue | null>(null)
+
+interface AppleTabBarProps extends React.HTMLAttributes<HTMLElement> {
+  value: string
+  onValueChange: (value: string) => void
+  children: React.ReactNode
+}
 
 function AppleTabBar({
   value,
@@ -33,7 +41,7 @@ function AppleTabBar({
   className,
   children,
   ...props
-}) {
+}: AppleTabBarProps) {
   return (
     <AppleTabBarContext.Provider value={{ value, onValueChange }}>
       <nav
@@ -55,6 +63,14 @@ function AppleTabBar({
   )
 }
 
+interface AppleTabBarItemProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'value'> {
+  value: string
+  icon: React.ReactNode
+  label: string
+  badge?: number
+  disabled?: boolean
+}
+
 function AppleTabBarItem({
   value,
   icon,
@@ -64,13 +80,17 @@ function AppleTabBarItem({
   className,
   onClick,
   ...props
-}) {
-  const { value: selectedValue, onValueChange } = React.useContext(AppleTabBarContext)
+}: AppleTabBarItemProps) {
+  const context = React.useContext(AppleTabBarContext)
+  if (!context) {
+    throw new Error('AppleTabBarItem must be used within AppleTabBar')
+  }
+  const { value: selectedValue, onValueChange } = context
   const isActive = value === selectedValue
-  const itemRef = React.useRef(null)
+  const itemRef = React.useRef<HTMLButtonElement>(null)
   const { announce } = useScreenReaderAnnouncement()
 
-  const handleClick = React.useCallback((e) => {
+  const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled) return
     
     if (itemRef.current) {
@@ -82,12 +102,12 @@ function AppleTabBarItem({
     onClick?.(e)
   }, [disabled, value, onValueChange, onClick, label, announce])
 
-  const handleKeyDown = React.useCallback((e) => {
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (disabled) return
     
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
-      handleClick(e)
+      handleClick(e as unknown as React.MouseEvent<HTMLButtonElement>)
     }
   }, [disabled, handleClick])
 

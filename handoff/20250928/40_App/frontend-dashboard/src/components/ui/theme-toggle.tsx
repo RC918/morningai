@@ -3,7 +3,7 @@ import { Moon, Sun } from 'lucide-react';
 import { Button } from '@morningai/shared-ui';
 import { useTheme } from '../../contexts/ThemeContext';
 
-export function ThemeToggle() {
+export function ThemeToggle(): React.ReactElement {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -20,13 +20,13 @@ export function ThemeToggle() {
   );
 }
 
-export function ThemeSelect() {
+export function ThemeSelect(): React.ReactElement {
   const { theme, setTheme } = useTheme();
 
   return (
     <select
       value={theme}
-      onChange={(e) => setTheme(e.target.value)}
+      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTheme(e.target.value)}
       className="bg-background border border-input rounded-md px-3 py-2 text-sm"
     >
       <option value="light">Light</option>

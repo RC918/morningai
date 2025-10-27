@@ -1,6 +1,17 @@
 import { motion } from 'framer-motion'
 import { AppleButton } from '@/components/ui/apple-button'
 import { useTranslation } from 'react-i18next'
+import { LucideIcon } from 'lucide-react'
+
+interface EmptyStateProps {
+  icon?: LucideIcon
+  title: string
+  description: string
+  action?: () => void
+  actionLabel?: string
+  illustration?: string
+  className?: string
+}
 
 export const EmptyState = ({
   icon: Icon,
@@ -10,7 +21,7 @@ export const EmptyState = ({
   actionLabel,
   illustration,
   className = ''
-}) => {
+}: EmptyStateProps): React.ReactElement => {
   const { t } = useTranslation()
   return (
     <motion.div
@@ -35,7 +46,7 @@ export const EmptyState = ({
       </p>
       
       {action && (
-        <AppleButton onClick={action} size="lg">
+        <AppleButton onClick={action} size="lg" variant="default" className="">
           {actionLabel || t('feedback.emptyState.defaultPrimaryAction')}
         </AppleButton>
       )}

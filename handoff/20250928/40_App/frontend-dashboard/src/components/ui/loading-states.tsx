@@ -1,8 +1,15 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-export function Spinner({ className, size = 'md' }) {
-  const sizeClasses = {
+type SpinnerSize = 'sm' | 'md' | 'lg'
+
+interface SpinnerProps {
+  className?: string
+  size?: SpinnerSize
+}
+
+export function Spinner({ className, size = 'md' }: SpinnerProps): React.ReactElement {
+  const sizeClasses: Record<SpinnerSize, string> = {
     sm: 'w-4 h-4',
     md: 'w-6 h-6',
     lg: 'w-8 h-8',
@@ -23,8 +30,15 @@ export function Spinner({ className, size = 'md' }) {
   );
 }
 
-export function Skeleton({ className, variant = 'default' }) {
-  const variants = {
+type SkeletonVariant = 'default' | 'text' | 'title' | 'avatar' | 'button' | 'card'
+
+interface SkeletonProps {
+  className?: string
+  variant?: SkeletonVariant
+}
+
+export function Skeleton({ className, variant = 'default' }: SkeletonProps): React.ReactElement {
+  const variants: Record<SkeletonVariant, string> = {
     default: 'h-4 w-full',
     text: 'h-4 w-3/4',
     title: 'h-6 w-1/2',
@@ -45,7 +59,11 @@ export function Skeleton({ className, variant = 'default' }) {
   );
 }
 
-export function LoadingDots({ className }) {
+interface LoadingDotsProps {
+  className?: string
+}
+
+export function LoadingDots({ className }: LoadingDotsProps): React.ReactElement {
   return (
     <div className={cn('flex space-x-1', className)} role="status" aria-label="Loading">
       <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -56,7 +74,13 @@ export function LoadingDots({ className }) {
   );
 }
 
-export function ProgressBar({ value = 0, className, showLabel = false }) {
+interface ProgressBarProps {
+  value?: number
+  className?: string
+  showLabel?: boolean
+}
+
+export function ProgressBar({ value = 0, className, showLabel = false }: ProgressBarProps): React.ReactElement {
   return (
     <div className={cn('w-full', className)}>
       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
@@ -65,8 +89,8 @@ export function ProgressBar({ value = 0, className, showLabel = false }) {
           style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
           role="progressbar"
           aria-valuenow={value}
-          aria-valuemin="0"
-          aria-valuemax="100"
+          aria-valuemin={0}
+          aria-valuemax={100}
         />
       </div>
       {showLabel && (
@@ -78,7 +102,11 @@ export function ProgressBar({ value = 0, className, showLabel = false }) {
   );
 }
 
-export function PulseLoader({ className }) {
+interface PulseLoaderProps {
+  className?: string
+}
+
+export function PulseLoader({ className }: PulseLoaderProps): React.ReactElement {
   return (
     <div className={cn('flex space-x-2', className)} role="status" aria-label="Loading">
       <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />
