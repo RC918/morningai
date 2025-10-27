@@ -110,7 +110,7 @@ const CostAnalysis = (): React.ReactElement => {
   const displayData: CostData = costData || mockCostData
   const currentUsage: number = costData?.usage?.usd || mockCostData.currentMonth || 0
   const budgetLimit: number = costData?.limits?.usd || mockCostData.budget || 0
-  const budgetUsagePercentage: number = (currentUsage / budgetLimit) * 100
+  const budgetUsagePercentage: number = budgetLimit > 0 ? (currentUsage / budgetLimit) * 100 : 0
 
   if (loading && !costData) {
     return (

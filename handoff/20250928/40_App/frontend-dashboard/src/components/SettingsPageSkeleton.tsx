@@ -59,7 +59,7 @@ interface SettingsData {
   security_settings?: SecuritySettings
   system_config?: SystemConfig
   billing_info?: BillingInfo
-  [key: string]: any
+  [key: string]: unknown
 }
 
 const SettingsPageSkeleton = (): React.ReactElement => {
@@ -84,24 +84,24 @@ const SettingsPageSkeleton = (): React.ReactElement => {
     }
   }
 
-  const updateSetting = (category: string, key: string, value: any): void => {
+  const updateSetting = (category: string, key: string, value: unknown): void => {
     setSettings((prev: SettingsData | null) => ({
       ...prev,
       [category]: {
-        ...(prev?.[category] || {}),
+        ...(prev?.[category] as Record<string, unknown> || {}),
         [key]: value
       }
     }))
     setHasChanges(true)
   }
 
-  const updateNestedSetting = (category: string, parentKey: string, key: string, value: any): void => {
+  const updateNestedSetting = (category: string, parentKey: string, key: string, value: unknown): void => {
     setSettings((prev: SettingsData | null) => ({
       ...prev,
       [category]: {
-        ...(prev?.[category] || {}),
+        ...(prev?.[category] as Record<string, unknown> || {}),
         [parentKey]: {
-          ...(prev?.[category]?.[parentKey] || {}),
+          ...((prev?.[category] as Record<string, unknown>)?.[parentKey] as Record<string, unknown> || {}),
           [key]: value
         }
       }

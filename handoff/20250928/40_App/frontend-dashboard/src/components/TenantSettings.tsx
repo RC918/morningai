@@ -15,6 +15,12 @@ interface TenantInfo {
   task_count?: number
 }
 
+interface ApiErrorResponse {
+  error?: {
+    message?: string
+  }
+}
+
 const TenantSettings = (): React.ReactElement => {
   const { tenant, loading: tenantLoading, error: tenantError } = useTenant();
   const [members, setMembers] = useState<Member[]>([]);
@@ -65,9 +71,9 @@ const TenantSettings = (): React.ReactElement => {
       setMembers(membersData.members || []);
       setTenantInfo(infoData);
       setLoading(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching tenant data:', err);
-      setError(err.message || 'Failed to load tenant data');
+      setError(err instanceof Error ? err.message : 'Failed to load tenant data');
       setLoading(false);
     }
   };
@@ -91,15 +97,15 @@ const TenantSettings = (): React.ReactElement => {
       );
 
       if (!response.ok) {
-        const errorData: any = await response.json();
+        const errorData: ApiErrorResponse = await response.json();
         throw new Error(errorData.error?.message || 'Failed to update member role');
       }
 
       await fetchTenantData();
       setUpdatingMember(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error updating member role:', err);
-      alert(`Failed to update member: ${err.message}`);
+      alert(`Failed to update member: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setUpdatingMember(null);
     }
   };
