@@ -1,65 +1,62 @@
-# E2E Test FAQ for MorningAI
+# System Architecture of MorningAI
 
-End-to-end (E2E) testing is a critical phase in the development lifecycle of the MorningAI platform, ensuring that the system operates as expected from start to finish. This guide aims to address common questions and provide clarity on our E2E testing procedures.
+MorningAI leverages a robust, scalable architecture designed to support autonomous agent systems for code generation, FAQ generation, documentation management, multi-platform integration, real-time task orchestration, and vector memory storage. This architecture is built using a combination of modern technologies and frameworks to ensure high performance, reliability, and scalability.
 
-## What is E2E Testing?
+## Overview
 
-E2E testing involves validating the entire software application from start to end. It ensures that the interaction between various components of the MorningAI platform, including integration with external dependencies like databases and third-party services, functions correctly under simulated real-world scenarios.
+The system architecture of MorningAI is divided into several key components:
 
-## How to Run E2E Tests in MorningAI?
+- **Frontend**: Implemented with React and styled using TailwindCSS. The project setup is optimized with Vite for fast development and production builds.
+- **Backend**: The server-side logic is powered by Flask, a Python web framework. Gunicorn serves as the WSGI HTTP Server to handle requests with multi-worker support for handling concurrent users efficiently.
+- **Database**: PostgreSQL is used for data storage, augmented with Row Level Security (RLS) for enhanced data protection. Supabase adds an additional layer of functionality to PostgreSQL, including pgvector for vector memory storage.
+- **Queue System**: Redis Queue (RQ) is utilized for managing background tasks and real-time task orchestration. It allows the system to process tasks asynchronously, improving the application's overall performance.
+- **Orchestration**: LangGraph is employed for managing agent workflows, ensuring that each component interacts seamlessly and efficiently.
+- **AI Integration**: OpenAI's GPT-4 powers the autonomous agents for content generation, providing state-of-the-art natural language understanding and generation capabilities.
+- **Deployment**: The platform is deployed on Render.com with continuous integration and continuous deployment (CI/CD) pipelines in place to ensure smooth updates and maintenance.
 
-MorningAI utilizes a combination of tools for E2E testing. Here's a simple example using Cypress, an open-source tool preferred for its ease of use and powerful testing capabilities.
+## Code Examples
 
-1. **Setup Cypress**:
-   Ensure Cypress is installed in your development environment. If not, you can install it by running:
+While specific code examples would depend on the task at hand, here's a basic outline on setting up a Flask application with Gunicorn:
 
-   ```bash
-   npm install cypress --save-dev
-   ```
+```python
+# app.py
+from flask import Flask
+app = Flask(__name__)
 
-2. **Running Tests**:
-   Navigate to the root directory of the `RC918/morningai` repository and run:
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
+```
 
-   ```bash
-   npx cypress open
-   ```
+To run this application with Gunicorn:
 
-   This command opens the Cypress Test Runner, where you can select and run individual test suites.
+```bash
+gunicorn -w 4 app:app
+```
 
-3. **Sample Test Code**:
-   Below is an example of a simple test case written for Cypress that checks if the homepage loads successfully:
-
-   ```javascript
-   describe('Homepage Load Test', () => {
-     it('successfully loads', () => {
-       cy.visit('/') // change '/' to your MorningAI homepage URL
-       cy.contains('Welcome to MorningAI') // Adjust this text to match your homepage's welcome message.
-     })
-   })
-   ```
-
-4. **Configuration**:
-    Configuration settings can be adjusted in `cypress.json` located at the root of your project. This file allows you to set various options like base URL, test timeouts, and environment variables.
+This command tells Gunicorn to start 4 worker processes (`-w 4`) running the `app` module (`app:app`).
 
 ## Related Documentation Links
 
-- [Cypress Documentation](https://docs.cypress.io)
-- [MorningAI GitHub Repository](https://github.com/RC918/morningai) - Refer to `docs/FAQ.md` for more FAQs.
-- [Supabase Documentation](https://supabase.com/docs) - For database interactions within tests.
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [TailwindCSS Documentation](https://tailwindcss.com/docs)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Gunicorn Documentation](https://docs.gunicorn.org/en/stable/)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [OpenAI API Documentation](https://beta.openai.com/docs/)
 
-## Common Troubleshooting Tips
+## Troubleshooting Tips
 
-### Tests Fail to Connect to Localhost
+1. **Issue**: Application not starting due to port conflicts.
+   - **Solution**: Ensure that the port specified for Gunicorn or Flask isn't already in use. You can specify a different port using the `-b` flag with Gunicorn.
+2. **Issue**: Database connection errors.
+   - **Solution**: Verify your database credentials and connection strings. Ensure that your PostgreSQL service is running if you're hosting it locally.
+3. **Issue**: Background tasks not executing as expected.
+   - **Solution**: Check that your Redis server is up and running. Ensure that RQ workers are started and monitoring the correct queues.
 
-Ensure your local server is running before executing tests. If running inside Docker or another containerized environment, ensure network configurations allow Cypress to access your application.
-
-### Timeout Errors During Tests
-
-Adjust timeout settings in `cypress.json` or directly within your test scripts using `cy.visit()` or `cy.get()` commands with `{ timeout: 10000 }` option (or any other value suitable for your needs).
-
-### Failing Tests After Recent Code Changes
-
-Always ensure your tests are up-to-date with recent changes in the application logic or UI. A failing test could indicate a bug introduced in the latest changes or a need to update the test itself.
+This architecture provides a solid foundation for developing scalable applications capable of handling complex workflows and large volumes of data efficiently.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -67,7 +64,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `7bf4b4b1-ab42-44a1-abda-7cf6d1e6f99c`
+- Task: What is the system architecture?
+- Trace ID: `f146dcdd-80ea-4aa0-a034-c3a56fa5a622`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
