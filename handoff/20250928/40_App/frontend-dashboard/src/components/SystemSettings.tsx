@@ -107,7 +107,10 @@ const SystemSettings = (): React.ReactElement => {
                       if (file) {
                         const reader: FileReader = new FileReader()
                         reader.onloadend = (): void => {
-                          setProfile({ ...profile, avatar: reader.result as string })
+                          const res = reader.result
+                          if (typeof res === 'string') {
+                            setProfile({ ...profile, avatar: res })
+                          }
                         }
                         reader.readAsDataURL(file)
                       }

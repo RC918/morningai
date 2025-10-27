@@ -148,9 +148,11 @@ export const GlobalSearch = (): React.ReactElement => {
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()
+        if (results.length === 0) return
         setSelectedIndex(prev => (prev + 1) % results.length)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
+        if (results.length === 0) return
         setSelectedIndex(prev => (prev - 1 + results.length) % results.length)
       } else if (e.key === 'Enter' && results[selectedIndex]) {
         e.preventDefault()
