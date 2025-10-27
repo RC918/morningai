@@ -1,7 +1,7 @@
 import { Skeleton } from '@morningai/shared-ui'
 import { motion } from 'framer-motion'
 
-export const DashboardSkeleton = (): JSX.Element => {
+export const DashboardSkeleton = (): React.ReactElement => {
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -34,7 +34,7 @@ interface TableSkeletonProps {
   rows?: number
 }
 
-export const TableSkeleton = ({ rows = 5 }: TableSkeletonProps): JSX.Element => {
+export const TableSkeleton = ({ rows = 5 }: TableSkeletonProps): React.ReactElement => {
   return (
     <div className="space-y-3">
       <Skeleton className="h-10 w-full" />
@@ -52,7 +52,7 @@ export const TableSkeleton = ({ rows = 5 }: TableSkeletonProps): JSX.Element => 
   )
 }
 
-export const CardSkeleton = (): JSX.Element => {
+export const CardSkeleton = (): React.ReactElement => {
   return (
     <div className="border rounded-lg p-6 space-y-4">
       <Skeleton className="h-6 w-3/4" />
@@ -66,7 +66,7 @@ export const CardSkeleton = (): JSX.Element => {
   )
 }
 
-export const FormSkeleton = (): JSX.Element => {
+export const FormSkeleton = (): React.ReactElement => {
   return (
     <div className="space-y-6">
       {[1, 2, 3].map((i: number) => (
@@ -84,7 +84,7 @@ interface ListSkeletonProps {
   items?: number
 }
 
-export const ListSkeleton = ({ items = 5 }: ListSkeletonProps): JSX.Element => {
+export const ListSkeleton = ({ items = 5 }: ListSkeletonProps): React.ReactElement => {
   return (
     <div className="space-y-3">
       {Array.from({ length: items }).map((_, i: number) => (

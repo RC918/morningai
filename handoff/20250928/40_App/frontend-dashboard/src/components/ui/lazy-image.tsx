@@ -25,7 +25,8 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({
   const [isLoaded, setIsLoaded] = React.useState<boolean>(false)
   const [isInView, setIsInView] = React.useState<boolean>(false)
   const [hasError, setHasError] = React.useState<boolean>(false)
-  const imgRef = React.useRef<HTMLDivElement>(null)
+  const imgRef = React.useRef<HTMLImageElement>(null)
+  const containerRef = React.useRef<HTMLDivElement>(null)
   const observerRef = React.useRef<IntersectionObserver | null>(null)
 
   React.useImperativeHandle(ref, () => imgRef.current)
@@ -49,8 +50,8 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({
       }
     )
 
-    if (imgRef.current) {
-      observerRef.current.observe(imgRef.current)
+    if (containerRef.current) {
+      observerRef.current.observe(containerRef.current)
     }
 
     return () => {
@@ -70,7 +71,7 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({
 
   return (
     <div
-      ref={imgRef}
+      ref={containerRef}
       className={cn("relative overflow-hidden", className)}
       {...props}
     >
@@ -115,6 +116,7 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({
       {/* Actual image - only load when in view */}
       {isInView && (
         <img
+          ref={imgRef}
           src={src}
           alt={alt}
           loading="lazy"

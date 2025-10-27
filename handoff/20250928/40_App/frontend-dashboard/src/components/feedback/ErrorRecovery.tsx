@@ -6,13 +6,13 @@ import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 
 interface ErrorRecoveryProps {
-  error: Error & { requestId?: string }
+  error: { status?: number; message?: string; requestId?: string }
   onRetry?: () => void
   onDismiss?: () => void
   className?: string
 }
 
-export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }: ErrorRecoveryProps): JSX.Element => {
+export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }: ErrorRecoveryProps): React.ReactElement => {
   const { t } = useTranslation()
   const errorInfo = getErrorMessage(error)
   const Icon = Icons[errorInfo.icon] || Icons.AlertCircle
@@ -35,12 +35,12 @@ export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }: Err
         <CardContent>
           <div className="flex gap-3 justify-center">
             {onRetry && (
-              <AppleButton onClick={onRetry}>
+              <AppleButton onClick={onRetry} variant="default" size="md" className="">
                 {errorInfo.action}
               </AppleButton>
             )}
             {onDismiss && (
-              <AppleButton variant="outline" onClick={onDismiss}>
+              <AppleButton variant="outline" onClick={onDismiss} size="md" className="">
                 {t('feedback.close')}
               </AppleButton>
             )}

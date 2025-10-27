@@ -3,7 +3,7 @@ import { Moon, Sun } from 'lucide-react';
 import { Button } from '@morningai/shared-ui';
 import { useTheme } from '../../contexts/ThemeContext';
 
-export function ThemeToggle(): JSX.Element {
+export function ThemeToggle(): React.ReactElement {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -20,7 +20,7 @@ export function ThemeToggle(): JSX.Element {
   );
 }
 
-export function ThemeSelect(): JSX.Element {
+export function ThemeSelect(): React.ReactElement {
   const { theme, setTheme } = useTheme();
 
   return (

@@ -8,7 +8,7 @@ interface SpinnerProps {
   size?: SpinnerSize
 }
 
-export function Spinner({ className, size = 'md' }: SpinnerProps): JSX.Element {
+export function Spinner({ className, size = 'md' }: SpinnerProps): React.ReactElement {
   const sizeClasses: Record<SpinnerSize, string> = {
     sm: 'w-4 h-4',
     md: 'w-6 h-6',
@@ -37,7 +37,7 @@ interface SkeletonProps {
   variant?: SkeletonVariant
 }
 
-export function Skeleton({ className, variant = 'default' }: SkeletonProps): JSX.Element {
+export function Skeleton({ className, variant = 'default' }: SkeletonProps): React.ReactElement {
   const variants: Record<SkeletonVariant, string> = {
     default: 'h-4 w-full',
     text: 'h-4 w-3/4',
@@ -63,7 +63,7 @@ interface LoadingDotsProps {
   className?: string
 }
 
-export function LoadingDots({ className }: LoadingDotsProps): JSX.Element {
+export function LoadingDots({ className }: LoadingDotsProps): React.ReactElement {
   return (
     <div className={cn('flex space-x-1', className)} role="status" aria-label="Loading">
       <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -80,7 +80,7 @@ interface ProgressBarProps {
   showLabel?: boolean
 }
 
-export function ProgressBar({ value = 0, className, showLabel = false }: ProgressBarProps): JSX.Element {
+export function ProgressBar({ value = 0, className, showLabel = false }: ProgressBarProps): React.ReactElement {
   return (
     <div className={cn('w-full', className)}>
       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
@@ -106,7 +106,7 @@ interface PulseLoaderProps {
   className?: string
 }
 
-export function PulseLoader({ className }: PulseLoaderProps): JSX.Element {
+export function PulseLoader({ className }: PulseLoaderProps): React.ReactElement {
   return (
     <div className={cn('flex space-x-2', className)} role="status" aria-label="Loading">
       <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />

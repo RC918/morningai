@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { WifiOff, Wifi } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-export const OfflineIndicator = (): JSX.Element => {
+export const OfflineIndicator = (): React.ReactElement => {
   const { t } = useTranslation()
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine)
   const [showReconnected, setShowReconnected] = useState<boolean>(false)

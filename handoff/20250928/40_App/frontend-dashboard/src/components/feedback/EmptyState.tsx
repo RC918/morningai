@@ -21,7 +21,7 @@ export const EmptyState = ({
   actionLabel,
   illustration,
   className = ''
-}: EmptyStateProps): JSX.Element => {
+}: EmptyStateProps): React.ReactElement => {
   const { t } = useTranslation()
   return (
     <motion.div
@@ -46,7 +46,7 @@ export const EmptyState = ({
       </p>
       
       {action && (
-        <AppleButton onClick={action} size="lg">
+        <AppleButton onClick={action} size="lg" variant="default" className="">
           {actionLabel || t('feedback.emptyState.defaultPrimaryAction')}
         </AppleButton>
       )}
