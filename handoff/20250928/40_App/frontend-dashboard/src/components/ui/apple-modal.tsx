@@ -231,4 +231,4 @@ export const AppleModal = {
   useModal: useAppleModal
 }
 
-export type { ModalSize, ModalOptions, ModalProps, ModalContextValue, ModalProviderProps }
+export type { ModalSize, ModalOptions, ModalProps, ModalContextValue }
