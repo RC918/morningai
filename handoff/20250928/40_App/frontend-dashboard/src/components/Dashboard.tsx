@@ -37,7 +37,7 @@ interface DraggableWidgetProps {
 }
 
 interface SaveStatus {
-  status: 'saved' | 'saving' | 'error'
+  status: 'saved' | 'saving' | 'error' | 'unsaved'
   lastSaved: Date | null
   error: string | null
 }

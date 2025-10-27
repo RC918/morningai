@@ -30,16 +30,125 @@ import { usabilityTest, SUSCalculator, NPSCalculator } from '@/lib/usability-tes
 import SUSQuestionnaire from './SUSQuestionnaire'
 import NPSQuestionnaire from './NPSQuestionnaire'
 
-interface Session {
-  id: string
-  participantId: string
+interface Task {
+  taskId: string
+  taskName: string
+  description: string
   startTime: number
-  endTime?: number
-  [key: string]: unknown
+  endTime: number | null
+  duration: number | null
+  success: boolean | null
+  errors: Array<{
+    timestamp: number
+    type: string
+    description: string
+  }>
+  interactions: Array<{
+    timestamp: number
+    action: string
+    target: string
+    metadata: Record<string, unknown>
+    taskId: string | null
+  }>
+  notes: Array<{
+    timestamp: number
+    text: string
+  }>
 }
 
-interface SurveyResult {
-  [key: string]: unknown
+interface SessionSummary {
+  session_id: string
+  participant_id: string
+  total_duration_ms: number
+  total_duration_minutes: number
+  tasks_total: number
+  tasks_completed: number
+  tasks_successful: number
+  tasks_failed: number
+  success_rate: string
+  total_errors: number
+  total_interactions: number
+  avg_task_duration_ms: number
+  avg_task_duration_seconds: number
+  tasks: Array<{
+    task_id: string
+    task_name: string
+    duration_seconds: number | null
+    success: boolean | null
+    errors: number
+    interactions: number
+  }>
+}
+
+interface Session {
+  participantId: string
+  sessionId: string
+  startTime: number
+  tasks: Task[]
+  interactions: Array<{
+    timestamp: number
+    action: string
+    target: string
+    metadata: Record<string, unknown>
+    taskId: string | null
+  }>
+  currentTask: Task | null
+  isRecording: boolean
+  startSession: () => void
+  startTask: (taskId: string, taskName: string, description: string) => void
+  endTask: (success: boolean, notes?: string) => void
+  recordError: (errorType: string, description: string) => void
+  recordInteraction: (action: string, target: string, metadata?: Record<string, unknown>) => void
+  addNote: (note: string) => void
+  endSession: () => SessionSummary
+  getSessionSummary: () => SessionSummary
+  exportData: () => {
+    session_id: string
+    participant_id: string
+    start_time: string
+    end_time: string | null
+    tasks: Task[]
+    interactions: Array<{
+      timestamp: number
+      action: string
+      target: string
+      metadata: Record<string, unknown>
+      taskId: string | null
+    }>
+    summary: SessionSummary
+  }
+}
+
+interface SUSResult {
+  participant_id: string
+  session_id: string
+  timestamp: string
+  sus_score: number
+  sus_grade: string
+  sus_adjective: string
+  responses: number[]
+}
+
+interface NPSResult {
+  participant_id: string
+  session_id: string
+  timestamp: string
+  nps_score: number
+  nps_category: string
+  nps_rating: string
+  comment?: string
+}
+
+interface OverallSummary {
+  total_sessions: number
+  total_participants: number
+  total_tasks: number
+  completed_tasks: number
+  successful_tasks: number
+  success_rate: string
+  avg_sus_score: string
+  nps_score: string | number
+  nps_rating: string
 }
 
 export function UsabilityTestDashboard(): React.ReactElement {
@@ -50,8 +159,8 @@ export function UsabilityTestDashboard(): React.ReactElement {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
   const [showSUS, setShowSUS] = useState<boolean>(false)
   const [showNPS, setShowNPS] = useState<boolean>(false)
-  const [susResults, setSusResults] = useState<SurveyResult[]>([])
-  const [npsResults, setNpsResults] = useState<SurveyResult[]>([])
+  const [susResults, setSusResults] = useState<SUSResult[]>([])
+  const [npsResults, setNpsResults] = useState<NPSResult[]>([])
 
   useEffect(() => {
     loadSessions()
@@ -69,8 +178,8 @@ export function UsabilityTestDashboard(): React.ReactElement {
 
   const loadSurveyResults = (): void => {
     try {
-      const sus: SurveyResult[] = JSON.parse(localStorage.getItem('sus_results') || '[]')
-      const nps: SurveyResult[] = JSON.parse(localStorage.getItem('nps_results') || '[]')
+      const sus: SUSResult[] = JSON.parse(localStorage.getItem('sus_results') || '[]')
+      const nps: NPSResult[] = JSON.parse(localStorage.getItem('nps_results') || '[]')
       setSusResults(sus)
       setNpsResults(nps)
     } catch (error) {
@@ -92,22 +201,22 @@ export function UsabilityTestDashboard(): React.ReactElement {
   const handleEndSession = (): void => {
     if (!currentSession) return
 
-    const summary: unknown = usabilityTest.end()
+    const summary: SessionSummary = usabilityTest.end()
     setCurrentSession(null)
     setShowSUS(true)
     loadSessions()
   }
 
-  const handleSUSComplete = (result: SurveyResult): void => {
-    const updated: SurveyResult[] = [...susResults, result]
+  const handleSUSComplete = (result: SUSResult): void => {
+    const updated: SUSResult[] = [...susResults, result]
     setSusResults(updated)
     localStorage.setItem('sus_results', JSON.stringify(updated))
     setShowSUS(false)
     setShowNPS(true)
   }
 
-  const handleNPSComplete = (result: SurveyResult): void => {
-    const updated: SurveyResult[] = [...npsResults, result]
+  const handleNPSComplete = (result: NPSResult): void => {
+    const updated: NPSResult[] = [...npsResults, result]
     setNpsResults(updated)
     localStorage.setItem('nps_results', JSON.stringify(updated))
     setShowNPS(false)
@@ -123,26 +232,26 @@ export function UsabilityTestDashboard(): React.ReactElement {
     if (confirm('Are you sure you want to delete this session?')) {
       usabilityTest.deleteSession(sessionId)
       loadSessions()
-      if (selectedSession?.id === sessionId) {
+      if (selectedSession?.sessionId === sessionId) {
         setSelectedSession(null)
       }
     }
   }
 
   const handleExportSession = (session: Session): void => {
-    const data: unknown = (session as any).exportData()
+    const data = session.exportData()
     const blob: Blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url: string = URL.createObjectURL(blob)
     const a: HTMLAnchorElement = document.createElement('a')
     a.href = url
-    a.download = `usability-test-${session.id}.json`
+    a.download = `usability-test-${session.sessionId}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
 
   const handleExportAllData = (): void => {
-    const allData: Record<string, unknown> = {
-      sessions: sessions.map((s: Session) => (s as any).exportData()),
+    const allData = {
+      sessions: sessions.map((s: Session) => s.exportData()),
       sus_results: susResults,
       nps_results: npsResults,
       summary: calculateOverallSummary(),
@@ -158,25 +267,25 @@ export function UsabilityTestDashboard(): React.ReactElement {
     URL.revokeObjectURL(url)
   }
 
-  const calculateOverallSummary = (): Record<string, unknown> => {
-    const completedSessions: Session[] = sessions.filter((s: Session) => !(s as any).isRecording)
+  const calculateOverallSummary = (): OverallSummary => {
+    const completedSessions: Session[] = sessions.filter((s: Session) => !s.isRecording)
     
-    const totalTasks: number = completedSessions.reduce((sum: number, s: Session) => sum + (s as any).tasks.length, 0)
+    const totalTasks: number = completedSessions.reduce((sum: number, s: Session) => sum + s.tasks.length, 0)
     const completedTasks: number = completedSessions.reduce(
-      (sum: number, s: Session) => sum + (s as any).tasks.filter((t: any) => t.endTime !== null).length, 
+      (sum: number, s: Session) => sum + s.tasks.filter((t: Task) => t.endTime !== null).length, 
       0
     )
     const successfulTasks: number = completedSessions.reduce(
-      (sum: number, s: Session) => sum + (s as any).tasks.filter((t: any) => t.success === true).length, 
+      (sum: number, s: Session) => sum + s.tasks.filter((t: Task) => t.success === true).length, 
       0
     )
 
     const avgSUS: number | null = susResults.length > 0
-      ? susResults.reduce((sum: number, r: SurveyResult) => sum + (r as any).sus_score, 0) / susResults.length
+      ? susResults.reduce((sum: number, r: SUSResult) => sum + r.sus_score, 0) / susResults.length
       : null
 
-    const npsScores: number[] = npsResults.map((r: SurveyResult) => (r as any).nps_score)
-    const npsResult: any = npsScores.length > 0 ? NPSCalculator.calculate(npsScores) : null
+    const npsScores: number[] = npsResults.map((r: NPSResult) => r.nps_score)
+    const npsResult: { nps: number; rating: string } | null = npsScores.length > 0 ? NPSCalculator.calculate(npsScores) : null
 
     return {
       total_sessions: completedSessions.length,
@@ -191,7 +300,7 @@ export function UsabilityTestDashboard(): React.ReactElement {
     }
   }
 
-  const summary: Record<string, unknown> = calculateOverallSummary()
+  const summary: OverallSummary = calculateOverallSummary()
 
   if (showSUS) {
     return (
@@ -361,9 +470,9 @@ export function UsabilityTestDashboard(): React.ReactElement {
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {sessions.map((session: Session) => {
-                const summary: any = (session as any).getSessionSummary()
+                const summary: SessionSummary = session.getSessionSummary()
                 return (
-                  <Card key={(session as any).sessionId}>
+                  <Card key={session.sessionId}>
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
@@ -392,7 +501,7 @@ export function UsabilityTestDashboard(): React.ReactElement {
                           <AppleButton
                             size="sm"
                             variant="outline"
-                            onClick={(): void => handleDeleteSession((session as any).sessionId)}
+                            onClick={(): void => handleDeleteSession(session.sessionId)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </AppleButton>
@@ -437,7 +546,7 @@ export function UsabilityTestDashboard(): React.ReactElement {
                   <p className="text-muted-foreground text-sm">No SUS results yet</p>
                 ) : (
                   <div className="space-y-2">
-                    {susResults.map((result: SurveyResult, index: number) => (
+                    {susResults.map((result: SUSResult, index: number) => (
                       <div key={index} className="flex justify-between items-center p-2 border rounded">
                         <div>
                           <div className="font-medium">{result.participant_id}</div>
@@ -465,7 +574,7 @@ export function UsabilityTestDashboard(): React.ReactElement {
                   <p className="text-muted-foreground text-sm">No NPS results yet</p>
                 ) : (
                   <div className="space-y-2">
-                    {npsResults.map((result: SurveyResult, index: number) => (
+                    {npsResults.map((result: NPSResult, index: number) => (
                       <div key={index} className="flex justify-between items-center p-2 border rounded">
                         <div>
                           <div className="font-medium">{result.participant_id}</div>
