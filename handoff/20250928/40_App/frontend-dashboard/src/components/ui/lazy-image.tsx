@@ -5,7 +5,15 @@ import { cn } from "@/lib/utils"
  * LazyImage component with Intersection Observer for lazy loading
  * Includes loading placeholder and WebP support with fallback
  */
-const LazyImage = React.forwardRef(({
+interface LazyImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'onLoad' | 'onError'> {
+  src: string
+  alt: string
+  placeholderClassName?: string
+  onLoad?: (e: React.SyntheticEvent<HTMLImageElement>) => void
+  onError?: (e: React.SyntheticEvent<HTMLImageElement>) => void
+}
+
+const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({
   src,
   alt,
   className,
@@ -14,11 +22,11 @@ const LazyImage = React.forwardRef(({
   onError,
   ...props
 }, ref) => {
-  const [isLoaded, setIsLoaded] = React.useState(false)
-  const [isInView, setIsInView] = React.useState(false)
-  const [hasError, setHasError] = React.useState(false)
-  const imgRef = React.useRef(null)
-  const observerRef = React.useRef(null)
+  const [isLoaded, setIsLoaded] = React.useState<boolean>(false)
+  const [isInView, setIsInView] = React.useState<boolean>(false)
+  const [hasError, setHasError] = React.useState<boolean>(false)
+  const imgRef = React.useRef<HTMLDivElement>(null)
+  const observerRef = React.useRef<IntersectionObserver | null>(null)
 
   React.useImperativeHandle(ref, () => imgRef.current)
 
@@ -50,12 +58,12 @@ const LazyImage = React.forwardRef(({
     }
   }, [])
 
-  const handleLoad = (e) => {
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     setIsLoaded(true)
     onLoad?.(e)
   }
 
-  const handleError = (e) => {
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     setHasError(true)
     onError?.(e)
   }
@@ -132,7 +140,7 @@ LazyImage.displayName = "LazyImage"
  * @param {string} extension - Original extension (png, jpg, etc.)
  * @returns {string} - Image URL with WebP if supported
  */
-const getOptimizedImageUrl = (filename, extension = 'png') => {
+const getOptimizedImageUrl = (filename: string, extension: string = 'png'): string => {
   const supportsWebP = (() => {
     const canvas = document.createElement('canvas')
     if (canvas.getContext && canvas.getContext('2d')) {
@@ -149,18 +157,30 @@ const getOptimizedImageUrl = (filename, extension = 'png') => {
 /**
  * Picture component with multiple sources for responsive images
  */
-const ResponsiveImage = React.forwardRef(({
+interface ImageSource {
+  srcSet: string
+  media?: string
+  type?: string
+}
+
+interface ResponsiveImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+  src: string
+  alt: string
+  sources?: ImageSource[]
+}
+
+const ResponsiveImage = React.forwardRef<HTMLImageElement, ResponsiveImageProps>(({
   src,
   alt,
   sources = [],
   className,
   ...props
 }, ref) => {
-  const [isLoaded, setIsLoaded] = React.useState(false)
+  const [isLoaded, setIsLoaded] = React.useState<boolean>(false)
 
   return (
     <picture className={cn("block", className)}>
-      {sources.map((source, index) => (
+      {sources.map((source: ImageSource, index: number) => (
         <source
           key={index}
           srcSet={source.srcSet}
