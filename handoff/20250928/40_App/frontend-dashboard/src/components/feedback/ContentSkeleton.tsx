@@ -1,7 +1,7 @@
 import { Skeleton } from '@morningai/shared-ui'
 import { motion } from 'framer-motion'
 
-export const DashboardSkeleton = () => {
+export const DashboardSkeleton = (): JSX.Element => {
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -30,11 +30,15 @@ export const DashboardSkeleton = () => {
   )
 }
 
-export const TableSkeleton = ({ rows = 5 }) => {
+interface TableSkeletonProps {
+  rows?: number
+}
+
+export const TableSkeleton = ({ rows = 5 }: TableSkeletonProps): JSX.Element => {
   return (
     <div className="space-y-3">
       <Skeleton className="h-10 w-full" />
-      {Array.from({ length: rows }).map((_, i) => (
+      {Array.from({ length: rows }).map((_, i: number) => (
         <motion.div
           key={i}
           initial={{ opacity: 0 }}
@@ -48,7 +52,7 @@ export const TableSkeleton = ({ rows = 5 }) => {
   )
 }
 
-export const CardSkeleton = () => {
+export const CardSkeleton = (): JSX.Element => {
   return (
     <div className="border rounded-lg p-6 space-y-4">
       <Skeleton className="h-6 w-3/4" />
@@ -62,10 +66,10 @@ export const CardSkeleton = () => {
   )
 }
 
-export const FormSkeleton = () => {
+export const FormSkeleton = (): JSX.Element => {
   return (
     <div className="space-y-6">
-      {[1, 2, 3].map((i) => (
+      {[1, 2, 3].map((i: number) => (
         <div key={i} className="space-y-2">
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-10 w-full" />
@@ -76,10 +80,14 @@ export const FormSkeleton = () => {
   )
 }
 
-export const ListSkeleton = ({ items = 5 }) => {
+interface ListSkeletonProps {
+  items?: number
+}
+
+export const ListSkeleton = ({ items = 5 }: ListSkeletonProps): JSX.Element => {
   return (
     <div className="space-y-3">
-      {Array.from({ length: items }).map((_, i) => (
+      {Array.from({ length: items }).map((_, i: number) => (
         <motion.div
           key={i}
           initial={{ opacity: 0, x: -20 }}

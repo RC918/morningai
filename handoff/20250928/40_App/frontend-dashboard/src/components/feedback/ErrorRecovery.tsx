@@ -5,7 +5,14 @@ import * as Icons from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 
-export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }) => {
+interface ErrorRecoveryProps {
+  error: Error & { requestId?: string }
+  onRetry?: () => void
+  onDismiss?: () => void
+  className?: string
+}
+
+export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }: ErrorRecoveryProps): JSX.Element => {
   const { t } = useTranslation()
   const errorInfo = getErrorMessage(error)
   const Icon = Icons[errorInfo.icon] || Icons.AlertCircle
