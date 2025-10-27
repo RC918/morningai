@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
@@ -21,18 +21,66 @@ import useUndoRedo from '@/hooks/useUndoRedo'
 import apiClient from '@/lib/api'
 import { safeInterval } from '@/lib/safeInterval'
 
-const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode, t }) => {
+interface Widget {
+  id: string
+  type: string
+  component: React.ReactNode | null
+}
+
+interface DraggableWidgetProps {
+  widget: Widget
+  index: number
+  moveWidget: (fromIndex: number, toIndex: number) => void
+  onRemove: (index: number) => void
+  isEditMode: boolean
+  t: (key: string) => string
+}
+
+interface SaveStatus {
+  status: 'saved' | 'saving' | 'error'
+  lastSaved: Date | null
+  error: string | null
+}
+
+interface SystemMetrics {
+  cpu_usage: number
+  memory_usage: number
+  response_time: number
+  error_rate: number
+  active_strategies: number
+  pending_approvals: number
+  cost_today: number
+  cost_saved: number
+}
+
+interface Decision {
+  id: number
+  timestamp: string
+  strategy: string
+  status: string
+  impact: string
+  confidence: number
+}
+
+interface PerformanceDataPoint {
+  time: string
+  cpu: number
+  memory: number
+  response_time: number
+}
+
+const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode, t }: DraggableWidgetProps): React.ReactElement => {
   const [{ isDragging }, drag] = useDrag({
     type: 'widget',
     item: { index },
-    collect: (monitor) => ({
+    collect: (monitor): { isDragging: boolean } => ({
       isDragging: monitor.isDragging(),
     }),
   })
 
   const [, drop] = useDrop({
     accept: 'widget',
-    hover: (draggedItem) => {
+    hover: (draggedItem: { index: number }): void => {
       if (draggedItem.index !== index) {
         moveWidget(draggedItem.index, index)
         draggedItem.index = index
@@ -62,14 +110,14 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode, t })
   )
 }
 
-const Dashboard = () => {
+const Dashboard = (): React.ReactElement => {
   const { t } = useTranslation()
-  const [isLoading, setIsLoading] = useState(true)
-  const [isEditMode, setIsEditMode] = useState(false)
-  const [showReportCenter, setShowReportCenter] = useState(false)
-  const [availableWidgets, setAvailableWidgets] = useState([])
-  const [dashboardData, setDashboardData] = useState({})
-  const [saveStatus, setSaveStatus] = useState({
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [isEditMode, setIsEditMode] = useState<boolean>(false)
+  const [showReportCenter, setShowReportCenter] = useState<boolean>(false)
+  const [availableWidgets, setAvailableWidgets] = useState<Widget[]>([])
+  const [dashboardData, setDashboardData] = useState<Record<string, unknown>>({})
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>({
     status: 'saved',
     lastSaved: null,
     error: null
@@ -82,8 +130,8 @@ const Dashboard = () => {
     redo,
     canUndo,
     canRedo
-  } = useUndoRedo([])
-  const [systemMetrics, setSystemMetrics] = useState({
+  } = useUndoRedo<Widget[]>([])
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({
     cpu_usage: 72,
     memory_usage: 68,
     response_time: 145,
@@ -94,7 +142,7 @@ const Dashboard = () => {
     cost_saved: 123.45
   })
 
-  const [recentDecisions, setRecentDecisions] = useState([
+  const [recentDecisions, setRecentDecisions] = useState<Decision[]>([
     {
       id: 1,
       timestamp: '2024-01-01T14:30:00Z',
@@ -121,7 +169,7 @@ const Dashboard = () => {
     }
   ])
 
-  const [performanceData, setPerformanceData] = useState([
+  const [performanceData, setPerformanceData] = useState<PerformanceDataPoint[]>([
     { time: '12:00', cpu: 65, memory: 60, response_time: 120 },
     { time: '12:30', cpu: 70, memory: 65, response_time: 135 },
     { time: '13:00', cpu: 75, memory: 70, response_time: 150 },
@@ -131,11 +179,11 @@ const Dashboard = () => {
   ])
 
 
-  const loadDashboardLayout = useCallback(async () => {
+  const loadDashboardLayout = useCallback(async (): Promise<void> => {
     try {
-      const layout = await apiClient.request('/dashboard/layouts?user_id=default')
+      const layout: { widgets?: Widget[] } = await apiClient.request('/dashboard/layouts?user_id=default')
       if (layout.widgets) {
-        setDashboardLayout(layout.widgets.map(widget => ({
+        setDashboardLayout(layout.widgets.map((widget: Widget): Widget => ({
           ...widget,
           component: null
         })))
@@ -148,18 +196,18 @@ const Dashboard = () => {
     }
   }, [])
 
-  const loadAvailableWidgets = useCallback(async () => {
+  const loadAvailableWidgets = useCallback(async (): Promise<void> => {
     try {
-      const response = await apiClient.getDashboardWidgets()
+      const response: { widgets?: Widget[] } = await apiClient.getDashboardWidgets()
       setAvailableWidgets(response.widgets || [])
     } catch (error) {
       console.error('Failed to load available widgets:', error)
     }
   }, [])
 
-  const loadDashboardData = useCallback(async () => {
+  const loadDashboardData = useCallback(async (): Promise<void> => {
     try {
-      const data = await apiClient.getDashboardData()
+      const data: Record<string, unknown> = await apiClient.getDashboardData()
       setDashboardData(data)
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
@@ -197,7 +245,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (!isEditMode) return
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
         e.preventDefault()
         if (e.shiftKey) {
@@ -213,7 +261,7 @@ const Dashboard = () => {
   }, [isEditMode, undo, redo])
 
 
-  const saveDashboardLayout = async () => {
+  const saveDashboardLayout = async (): Promise<void> => {
     setSaveStatus({ status: 'saving', lastSaved: saveStatus.lastSaved, error: null })
     
     try {
@@ -221,56 +269,58 @@ const Dashboard = () => {
         method: 'POST',
         body: JSON.stringify({
           user_id: 'default',
-          layout: { widgets: dashboardLayout.map(w => ({ id: w.id, position: w.position })) }
+          layout: { widgets: dashboardLayout.map((w: Widget) => ({ id: w.id, position: (w as any).position })) }
         })
       })
       setSaveStatus({ status: 'saved', lastSaved: new Date(), error: null })
     } catch (error) {
       console.error('Failed to save dashboard layout:', error)
+      const errorMessage: string = error instanceof Error ? error.message : '保存失敗'
       setSaveStatus({ 
         status: 'error', 
         lastSaved: saveStatus.lastSaved, 
-        error: error.message || '保存失敗'
+        error: errorMessage
       })
     }
   }
 
-  const getDefaultWidgets = () => [
-    { id: 'cpu_usage', position: { x: 0, y: 0, w: 6, h: 4 } },
-    { id: 'memory_usage', position: { x: 6, y: 0, w: 6, h: 4 } },
-    { id: 'response_time', position: { x: 0, y: 4, w: 6, h: 4 } },
-    { id: 'error_rate', position: { x: 6, y: 4, w: 6, h: 4 } },
-    { id: 'active_strategies', position: { x: 0, y: 8, w: 4, h: 3 } },
-    { id: 'pending_approvals', position: { x: 4, y: 8, w: 4, h: 3 } },
-    { id: 'task_execution', position: { x: 8, y: 8, w: 4, h: 6 } }
+  const getDefaultWidgets = (): Widget[] => [
+    { id: 'cpu_usage', type: 'metric', component: null },
+    { id: 'memory_usage', type: 'metric', component: null },
+    { id: 'response_time', type: 'metric', component: null },
+    { id: 'error_rate', type: 'metric', component: null },
+    { id: 'active_strategies', type: 'metric', component: null },
+    { id: 'pending_approvals', type: 'metric', component: null },
+    { id: 'task_execution', type: 'metric', component: null }
   ]
 
-  const moveWidget = useCallback((dragIndex, hoverIndex) => {
-    setDashboardLayout(prev => {
-      const newLayout = [...prev]
-      const draggedWidget = newLayout[dragIndex]
+  const moveWidget = useCallback((dragIndex: number, hoverIndex: number): void => {
+    setDashboardLayout((prev: Widget[]): Widget[] => {
+      const newLayout: Widget[] = [...prev]
+      const draggedWidget: Widget = newLayout[dragIndex]
       newLayout.splice(dragIndex, 1)
       newLayout.splice(hoverIndex, 0, draggedWidget)
       return newLayout
     })
-    setSaveStatus(prev => ({ ...prev, status: 'unsaved' }))
+    setSaveStatus((prev: SaveStatus): SaveStatus => ({ ...prev, status: 'unsaved' as const }))
   }, [])
 
-  const removeWidget = useCallback((index) => {
-    setDashboardLayout(prev => prev.filter((_, i) => i !== index))
-    setSaveStatus(prev => ({ ...prev, status: 'unsaved' }))
+  const removeWidget = useCallback((index: number): void => {
+    setDashboardLayout((prev: Widget[]): Widget[] => prev.filter((_: Widget, i: number) => i !== index))
+    setSaveStatus((prev: SaveStatus): SaveStatus => ({ ...prev, status: 'unsaved' as const }))
   }, [])
 
-  const addWidget = (widgetId) => {
-    const newWidget = {
+  const addWidget = (widgetId: string): void => {
+    const newWidget: Widget = {
       id: widgetId,
-      position: { x: 0, y: 0, w: 6, h: 4 }
+      type: 'custom',
+      component: null
     }
-    setDashboardLayout(prev => [...prev, newWidget])
-    setSaveStatus(prev => ({ ...prev, status: 'unsaved' }))
+    setDashboardLayout((prev: Widget[]): Widget[] => [...prev, newWidget])
+    setSaveStatus((prev: SaveStatus): SaveStatus => ({ ...prev, status: 'unsaved' as const }))
   }
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string): string => {
     switch (status) {
       case 'executed': return 'bg-green-100 text-green-800'
       case 'pending': return 'bg-yellow-100 text-yellow-800'
@@ -279,7 +329,7 @@ const Dashboard = () => {
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string): React.ReactElement => {
     switch (status) {
       case 'executed': return <CheckCircle className="w-4 h-4" />
       case 'pending': return <Clock className="w-4 h-4" />
@@ -288,7 +338,7 @@ const Dashboard = () => {
     }
   }
 
-  const DashboardToolbar = () => (
+  const DashboardToolbar = (): React.ReactElement => (
     <div className="flex justify-between items-center mb-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -360,7 +410,7 @@ const Dashboard = () => {
     </div>
   )
 
-  const WidgetAddDialog = () => (
+  const WidgetAddDialog = (): React.ReactElement => (
     <Dialog>
       <DialogTrigger asChild>
         <AppleButton variant="outline" className="w-full h-32 border-dashed">
@@ -373,18 +423,18 @@ const Dashboard = () => {
           <DialogTitle>{t('dashboard.selectWidget')}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-          {availableWidgets.map((widget) => (
+          {availableWidgets.map((widget: Widget) => (
             <AppleButton
               key={widget.id}
               variant="outline"
               className="h-20 flex-col"
-              onClick={() => {
+              onClick={(): void => {
                 addWidget(widget.id)
-                document.querySelector('[data-state="open"]')?.click() // Close dialog
+                document.querySelector('[data-state="open"]')?.click()
               }}
             >
               <Grid3X3 className="w-6 h-6 mb-2" />
-              <span className="text-xs">{widget.name}</span>
+              <span className="text-xs">{(widget as any).name}</span>
             </AppleButton>
           ))}
         </div>
