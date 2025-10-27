@@ -80,7 +80,22 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 else:
     SENTRY_DSN = None
 
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+redis_url = os.getenv("REDIS_URL")
+if not redis_url:
+    import sys
+    _api_backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../api-backend/src'))
+    if _api_backend_path not in sys.path:
+        sys.path.insert(0, _api_backend_path)
+    
+    try:
+        from utils.redis_config import get_secure_redis_url
+        redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+    except (ImportError, ValueError) as e:
+        redis_url = "redis://localhost:6379/0"
+        logger.warning(f"⚠️ Failed to get secure Redis URL: {e}, using fallback: {redis_url}")
+else:
+    if not redis_url.startswith("rediss://") and not redis_url.startswith("redis://localhost"):
+        logger.warning(f"⚠️ Redis URL does not use TLS: {redis_url[:30]}...")
 RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
 
 redis_retry = RedisRetry(ExponentialBackoff(base=1, cap=10), retries=5)

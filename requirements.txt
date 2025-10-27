@@ -1,20 +1,74 @@
-flask
+# Core web frameworks
+flask>=3.1.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Database
+psycopg2-binary>=2.9.0
+pgvector>=0.2.0
+SQLAlchemy>=2.0.0
+Flask-SQLAlchemy>=3.1.0
+supabase>=2.0.0
+
+# Redis & Task Queue
+redis>=5.0.0
+upstash-redis>=1.0.0
+rq>=1.16.0
+
+# Authentication & Security
+PyJWT>=2.8.0
 jwt
-psycopg2-binary
-redis
-requests
-aiohttp
 cryptography
-pyyaml
-pytest
-flake8
+
+# HTTP & API
+requests>=2.31.0
+aiohttp>=3.9.0
+httpx>=0.25.0
+flask-cors>=6.0.0
+
+# AI & LLM
+openai>=1.0.0
+langchain-core>=0.1.0
 langgraph>=1.0.0
-langchain-core
-openai
-pgvector
-tiktoken
-pytest-asyncio
-flask-babel>=4.0.0
+tiktoken>=0.5.0
+
+# Data Processing
+pandas>=2.1.0
+numpy
 scikit-learn>=1.3.0
 plotly>=5.18.0
-pandas>=2.1.0
+
+# Configuration & Environment
+python-dotenv>=1.0.0
+pyyaml>=6.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.2.0
+
+# Code Quality
+flake8
+
+# Development Tools
+flask-babel>=4.0.0
+gitpython>=3.1.0
+PyGithub>=2.4.0
+
+# Monitoring
+sentry-sdk>=2.19.0
+psutil>=5.9.0
+
+# Utilities
+click>=8.2.0
+packaging
+typing_extensions>=4.15.0
+
+# Optional - Development
+playwright>=1.40.0
+python-lsp-server[all]>=1.10.0
+tree-sitter>=0.21.1
+ast-grep-py>=0.1.0; platform_system != "Windows"
+pygit2>=1.13.0
+gunicorn

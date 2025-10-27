@@ -44,8 +44,7 @@ def hello_world():
 
         elapsed = time.time() - start_time
 
-        assert result.get('success'), f"Embedding generation failed: {
-            result.get('error')}"
+        assert result.get('success'), f"Embedding generation failed: {result.get('error')}"
 
         data = result['data']
         assert 'embedding' in data, "Embedding not in response"
@@ -54,8 +53,7 @@ def hello_world():
         assert 'cached' in data, "Cache status not in response"
 
         embedding = data['embedding']
-        assert len(embedding) == 1536, f"Wrong embedding dimensions: {
-            len(embedding)}"
+        assert len(embedding) == 1536, f"Wrong embedding dimensions: {len(embedding)}"
         assert all(isinstance(x, float)
                    for x in embedding), "Embedding values not float"
 

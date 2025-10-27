@@ -84,9 +84,86 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 - [Architecture](docs/ARCHITECTURE.md) - 系統架構文檔
 - [Monitoring Setup](docs/MONITORING_SETUP.md) - 監控設置指南
 
+### UI/UX 設計系統
+
+**🎉 8-Week Roadmap 已完成！** (2025-10-24)
+- ✅ **18/18 Issues 完成** - 100% 完成率
+- ✅ **16 個 PRs 合併** - 10,000+ 行代碼
+- ✅ **完整測試框架** - 可用性測試、A/B 測試、指標分析
+
+**🎨 Phase 1 Week 1-3 完成！** (2025-10-25)
+- ✅ **5 個核心設計系統** - Apple-Level 設計系統基礎
+- ✅ **Spring 動畫系統** - iOS 風格彈性動畫
+- ✅ **2500+ 行文檔** - 完整的設計系統文檔
+- ✅ **80+ Storybook stories** - 互動式設計系統展示
+- ✅ **100% CI 通過率** - 所有 PR 品質評分 60/60
+
+**🎉 Phase 2 Week 4-7 完成！** (2025-10-26)
+- ✅ **12 個 Apple 組件** - 完整的 Apple-Level 組件系統
+- ✅ **完整遷移** - 所有頁面遷移至新組件
+- ✅ **165 個單元測試** - 100% 通過率
+- ✅ **60+ Storybook stories** - 互動式組件展示
+- ✅ **3000+ 行文檔** - 完整的組件文檔
+- ✅ **4 個 Provider 整合** - 全域 Hook 支援
+
+**🎉 Phase 3 Week 8-10 完成！** (2025-10-26)
+- ✅ **WCAG AAA 合規** - 完整的無障礙支援
+- ✅ **10 個組件增強** - 所有 Apple 組件無障礙優化
+- ✅ **自動化測試** - axe-core 整合
+- ✅ **2,500+ 行測試文檔** - 螢幕閱讀器與鍵盤導航測試指南
+- ✅ **4,643 行 Week 10 文檔** - 性能優化、UX 測試、視覺一致性、跨平台兼容性
+
+**核心設計系統**:
+1. **[字體系統](docs/UX/TYPOGRAPHY_SYSTEM.md)** - 13 級字體大小，5 種字重，3 種行高
+2. **[色彩系統](docs/UX/COLOR_SYSTEM.md)** - 5 種情感色彩，完整語義色彩，深色模式
+3. **[材質系統](docs/UX/MATERIAL_SYSTEM.md)** - 5 級毛玻璃效果，深色模式支援
+4. **[陰影系統](docs/UX/SHADOW_SYSTEM.md)** - 5 級陰影，彩色陰影，深色模式支援
+5. **[間距系統](docs/UX/SPACING_SYSTEM.md)** - 8 級間距，8px 網格，響應式支援
+
+**🚀 新人快速上手**:
+- **[UI/UX 快速上手指南](docs/UI_UX_QUICKSTART.md)** - ⚡ 5 分鐘快速入門（新人必讀）
+- **[UI/UX 速查表](docs/UI_UX_CHEATSHEET.md)** - 📋 一頁速查表（常用命令、組件、Tokens）
+
+**核心文檔**:
+- **[UI/UX 資源指南](docs/UI_UX_RESOURCES.md)** - 🎨 中心化資源索引（設計系統、組件庫、預覽環境）
+- **[UI/UX Issue 狀態追蹤](docs/UI_UX_ISSUE_STATUS.md)** - 📊 完整進度追蹤（100% 完成）
+- [全面 UI/UX 審查報告](docs/UX/COMPREHENSIVE_UI_UX_AUDIT_REPORT.md) - 83/100 分評估報告
+- [設計系統增強路線圖](docs/UX/DESIGN_SYSTEM_ENHANCEMENT_ROADMAP.md) - 8 週執行計畫
+- [Week 7-8 完成報告](docs/UX/WEEK_7_8_COMPLETION_REPORT.md) - 測試與分析框架實作報告
+- [設計系統指南](DESIGN_SYSTEM_GUIDELINES.md) - 設計規範與最佳實踐
+
+**Phase 3 文檔** (Week 8-10):
+- [WCAG AAA 合規文檔](handoff/20250928/40_App/frontend-dashboard/docs/WCAG_AAA_COMPLIANCE.md) - 完整的無障礙規範
+- [Phase 3 完成報告](handoff/20250928/40_App/frontend-dashboard/docs/PHASE3_COMPLETION_REPORT.md) - 1,005 行完整總結
+- [路線圖完成狀態](handoff/20250928/40_App/frontend-dashboard/docs/ROADMAP_COMPLETION_STATUS.md) - 10 週路線圖總結
+- [性能優化建議](handoff/20250928/40_App/frontend-dashboard/docs/PHASE3_WEEK10_PERFORMANCE_OPTIMIZATION.md) - 616 行優化指南
+- [UX 測試清單](handoff/20250928/40_App/frontend-dashboard/docs/PHASE3_WEEK10_UX_TESTING_CHECKLIST.md) - 691 行測試清單
+- [視覺一致性審查](handoff/20250928/40_App/frontend-dashboard/docs/PHASE3_WEEK10_VISUAL_CONSISTENCY_AUDIT.md) - 785 行審查報告
+- [跨平台兼容性指南](handoff/20250928/40_App/frontend-dashboard/docs/PHASE3_WEEK10_CROSS_PLATFORM_COMPATIBILITY.md) - 854 行兼容性指南
+
+**已實現功能**:
+- ✅ Landing Page & SEO 優化
+- ✅ 空狀態與骨架屏
+- ✅ 移動端優化
+- ✅ 動效治理
+- ✅ Token 作用域化
+- ✅ Storybook 文檔系統
+- ✅ 撤銷/重做功能
+- ✅ 全局搜尋 (Cmd+K)
+- ✅ 暗色主題
+- ✅ 微互動增強
+- ✅ 性能優化（圖片懶加載、字體優化、WebP 支援）
+- ✅ 可用性測試框架（SUS/NPS 問卷）
+- ✅ A/B 測試系統（統計分析）
+- ✅ 指標分析框架（Web Vitals 監控）
+- ✅ Apple 組件系統（12 個組件：Button、Input、Toast、Modal、Sheet、TabBar、SegmentedControl、LiveActivity、ControlCenter、Spotlight、ActionSheet、Picker）
+- ✅ WCAG AAA 無障礙合規（10 個組件增強、axe-core 自動化測試、無障礙設定面板）
+- ✅ 手動測試指南（2,500+ 行：螢幕閱讀器測試、鍵盤導航測試）
+
 ### 安全與決策
 - [Security Advisor 修復指南](SECURITY_ADVISOR_FIXES.md) - Supabase 安全警告處理說明
 - [技術決策記錄](docs/TECHNICAL_DECISIONS.md) - 重要技術決策的背景、理由和後果
+- **[Redis 安全要求](docs/REDIS_SECURITY.md)** - CVE-2025-49844 (RediShell) 防護指南
 
 ### 故障排除
 - [Worker Deployment Troubleshooting](docs/WORKER_DEPLOYMENT_TROUBLESHOOTING.md) - Worker 部署故障排除指南

@@ -55,21 +55,12 @@ class TestEmbeddingSpeedBenchmark:
                 elapsed = (time.time() - start) * 1000  # Convert to ms
 
                 if not result.get('success'):
-                    print(
-                        f"    ⚠️ Attempt {
-                            i +
-                            1} failed: {
-                            result.get('error')}")
+                    print(f"    ⚠️ Attempt {i + 1} failed: {result.get('error')}")
                     continue
 
                 times.append(elapsed)
                 all_times.append(elapsed)
-                print(
-                    f"    Attempt {
-                        i +
-                        1}: {
-                        elapsed:.1f}ms (cached: {
-                        result.get('cached', False)})")
+                print(f"    Attempt {i + 1}: {elapsed:.1f}ms (cached: {result.get('cached', False)})")
 
             if times:
                 avg = statistics.mean(times)
@@ -100,9 +91,7 @@ class TestEmbeddingSpeedBenchmark:
                 print(f"   ⚠️ P95 target missed ({p95:.1f}ms >= 200ms)")
 
             if p95 >= 200:
-                print(
-                    f"\n   ℹ️  Note: P95 latency is {
-                        p95:.1f}ms (target: <200ms)")
+                print(f"\n   ℹ️  Note: P95 latency is {p95:.1f}ms (target: <200ms)")
                 print(f"      This may be acceptable for real-world usage")
                 print(f"      Factors: network latency, OpenAI API response time")
 

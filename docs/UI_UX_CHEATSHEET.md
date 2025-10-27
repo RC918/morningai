@@ -1,0 +1,466 @@
+# UI/UX 速查表 (一頁速查)
+
+**快速參考**: 常用命令、路徑、組件、Tokens  
+**最後更新**: 2025-10-25
+
+---
+
+## 📂 關鍵路徑
+
+| 資源 | 路徑 |
+|------|------|
+| **組件庫** | `handoff/20250928/40_App/frontend-dashboard/src/components/ui/` |
+| **Design Tokens** | `docs/UX/tokens.json` |
+| **Storybook Stories** | `handoff/20250928/40_App/frontend-dashboard/src/stories/` |
+| **UI/UX 文檔** | `docs/UX/` |
+| **設計系統文檔** | `docs/UX/TYPOGRAPHY_SYSTEM.md`, `COLOR_SYSTEM.md`, `MATERIAL_SYSTEM.md`, `SHADOW_SYSTEM.md`, `SPACING_SYSTEM.md` |
+| **設計系統指南** | `DESIGN_SYSTEM_GUIDELINES.md` |
+| **完整資源指南** | `docs/UI_UX_RESOURCES.md` |
+| **Issue 狀態追蹤** | `docs/UI_UX_ISSUE_STATUS.md` |
+
+---
+
+## ⚡ 常用命令
+
+### Storybook
+
+```bash
+# 啟動 Storybook
+cd handoff/20250928/40_App/frontend-dashboard && pnpm storybook
+
+# 構建 Storybook
+pnpm build-storybook
+```
+
+### 開發伺服器
+
+```bash
+# 啟動前端開發伺服器
+cd handoff/20250928/40_App/frontend-dashboard && pnpm dev
+
+# 構建生產版本
+pnpm build
+
+# 預覽生產構建
+pnpm preview
+```
+
+### 測試
+
+```bash
+# 運行所有測試
+pnpm test:e2e
+
+# 運行測試並生成覆蓋率報告
+pnpm test:e2e --coverage
+
+# 運行 Lint
+pnpm lint
+
+# 運行 Type Check
+pnpm typecheck
+```
+
+### 搜尋與查找
+
+```bash
+# 搜尋組件使用範例
+rg "import.*Button" --type tsx
+
+# 搜尋 Design Token 使用
+rg "theme-morning-ai" --type tsx
+
+# 查找特定功能實作
+rg "useUndoRedo" --type tsx
+
+# 列出所有組件
+ls handoff/20250928/40_App/frontend-dashboard/src/components/ui/
+```
+
+### 無障礙測試 (Phase 3)
+
+```bash
+# 運行無障礙煙霧測試
+cd handoff/20250928/40_App/frontend-dashboard
+node scripts/accessibility-smoke-test.js
+
+# 運行 axe-core 自動化測試
+pnpm test -- apple-button.test.tsx
+pnpm test -- apple-input.test.tsx
+
+# 查看無障礙測試指南
+cat docs/MANUAL_TESTING_SCREEN_READERS.md
+cat docs/MANUAL_TESTING_KEYBOARD_NAVIGATION.md
+
+# 查看 WCAG AAA 合規文檔
+cat docs/WCAG_AAA_COMPLIANCE.md
+```
+
+---
+
+## 🎨 Design Tokens 快速參考
+
+### 色彩系統
+
+```javascript
+// Primary Colors (9 levels: 50-900)
+colors.primary[500]  // 主色
+colors.primary[600]  // 深色變體
+colors.primary[400]  // 淺色變體
+
+// Semantic Colors
+colors.success[500]  // 成功狀態
+colors.error[500]    // 錯誤狀態
+colors.warning[500]  // 警告狀態
+colors.info[500]     // 資訊狀態
+
+// Neutral Colors
+colors.neutral[50]   // 最淺灰
+colors.neutral[900]  // 最深灰
+```
+
+### 間距系統（8px 網格）
+
+```javascript
+spacing.xs   // 4px (0.25rem) - 圖標與文字、標籤內部
+spacing.sm   // 8px (0.5rem) - 表單元素、按鈕組
+spacing.md   // 16px (1rem) - 標準間距（推薦）
+spacing.lg   // 24px (1.5rem) - 區塊間距、卡片間距
+spacing.xl   // 32px (2rem) - 頁面區域、大型卡片
+spacing.2xl  // 48px (3rem) - Hero 區域、主要內容
+spacing.3xl  // 64px (4rem) - Landing Page 大區域
+spacing.4xl  // 96px (6rem) - 頂級區域、全屏展示
+```
+
+**Tailwind 工具類**:
+```css
+/* Padding */
+.p-1, .p-2, .p-4, .p-6, .p-8, .p-12, .p-16, .p-24
+
+/* Margin */
+.m-1, .m-2, .m-4, .m-6, .m-8, .m-12, .m-16, .m-24
+
+/* Gap (Flexbox/Grid) */
+.gap-1, .gap-2, .gap-4, .gap-6, .gap-8, .gap-12, .gap-16, .gap-24
+
+/* Space Between */
+.space-x-1, .space-x-2, .space-x-4, .space-y-1, .space-y-2, .space-y-4
+```
+
+**完整文檔**: [SPACING_SYSTEM.md](UX/SPACING_SYSTEM.md)
+
+### 字體系統
+
+```javascript
+typography.fontFamily.sans   // Inter
+typography.fontFamily.mono   // IBM Plex Mono
+
+typography.fontSize.xs       // 12px
+typography.fontSize.sm       // 14px
+typography.fontSize.base     // 16px
+typography.fontSize.lg       // 18px
+typography.fontSize.xl       // 20px
+typography.fontSize.2xl      // 24px
+typography.fontSize.3xl      // 30px
+typography.fontSize.4xl      // 36px
+```
+
+### 圓角系統
+
+```javascript
+borderRadius.sm   // 4px
+borderRadius.md   // 8px
+borderRadius.lg   // 12px
+borderRadius.xl   // 16px
+borderRadius.2xl  // 24px
+borderRadius.full // 9999px (完全圓形)
+```
+
+### 陰影系統
+
+```javascript
+shadows.xs   // 微小陰影
+shadows.sm   // 小陰影
+shadows.md   // 中等陰影
+shadows.lg   // 大陰影
+shadows.xl   // 超大陰影
+shadows.2xl  // 最大陰影
+```
+
+### 動畫系統
+
+```javascript
+// 時長
+animation.duration.fast    // 150ms
+animation.duration.normal  // 300ms
+animation.duration.slow    // 500ms
+animation.duration.slower  // 1000ms
+
+// 緩動曲線
+animation.easing.easeIn     // cubic-bezier(0.4, 0, 1, 1)
+animation.easing.easeOut    // cubic-bezier(0, 0, 0.2, 1)
+animation.easing.easeInOut  // cubic-bezier(0.4, 0, 0.2, 1)
+animation.easing.linear     // linear
+```
+
+---
+
+## 🧩 核心組件清單
+
+### 表單組件
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| Button | `button.jsx` | 按鈕（6 種變體，3 種尺寸） |
+| Input | `input.jsx` | 輸入框 |
+| Textarea | `textarea.jsx` | 文本域 |
+| Select | `select.jsx` | 下拉選單 |
+| Checkbox | `checkbox.jsx` | 複選框 |
+| Radio Group | `radio-group.jsx` | 單選按鈕組 |
+| Switch | `switch.jsx` | 開關 |
+| Slider | `slider.jsx` | 滑桿 |
+
+### 佈局組件
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| Card | `card.jsx` | 卡片容器 |
+| Separator | `separator.jsx` | 分隔線 |
+| Aspect Ratio | `aspect-ratio.jsx` | 寬高比容器 |
+| Scroll Area | `scroll-area.jsx` | 滾動區域 |
+
+### 導航組件
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| Navigation Menu | `navigation-menu.jsx` | 導航菜單 |
+| Tabs | `tabs.jsx` | 標籤頁 |
+| Accordion | `accordion.jsx` | 手風琴 |
+| Breadcrumb | `breadcrumb.jsx` | 麵包屑 |
+| Pagination | `pagination.jsx` | 分頁 |
+
+### 反饋組件
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| Dialog | `dialog.jsx` | 對話框 |
+| Alert Dialog | `alert-dialog.jsx` | 警告對話框 |
+| Toast | `toast.jsx` | 輕提示 |
+| Alert | `alert.jsx` | 警告 |
+| Skeleton | `skeleton.jsx` | 骨架屏 |
+| Progress | `progress.jsx` | 進度條 |
+| Spinner | `spinner.jsx` | 加載動畫 |
+
+### 數據展示組件
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| Table | `table.jsx` | 表格 |
+| Chart | `chart.jsx` | 圖表 |
+| Avatar | `avatar.jsx` | 頭像 |
+| Badge | `badge.jsx` | 徽章 |
+| Calendar | `calendar.jsx` | 日曆 |
+
+### 互動組件
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| Popover | `popover.jsx` | 彈出框 |
+| Tooltip | `tooltip.jsx` | 工具提示 |
+| Dropdown Menu | `dropdown-menu.jsx` | 下拉菜單 |
+| Context Menu | `context-menu.jsx` | 右鍵菜單 |
+| Command | `command.jsx` | 命令面板 (Cmd+K) |
+
+### 特殊組件
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| Lazy Image | `lazy-image.jsx` | 懶加載圖片 |
+| Empty State | `empty-state.jsx` | 空狀態 |
+| Loading States | `loading-states.jsx` | 加載狀態 |
+
+### Apple 組件系統 (Phase 2-3)
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| AppleButton | `apple-button.tsx` | iOS 風格按鈕（4 種變體，3 種尺寸，Spring 動畫） |
+| AppleInput | `apple-input.tsx` | iOS 風格輸入框（浮動標籤，錯誤/成功狀態） |
+| AppleDynamicToast | `apple-dynamic-toast.tsx` | iOS 風格輕提示（4 種變體，自動消失） |
+| AppleModal | `apple-modal.tsx` | iOS 風格對話框（Backdrop blur，Focus trap） |
+| AppleSheet | `apple-sheet.tsx` | iOS 風格底部抽屜（拖動關閉，Snap points） |
+| AppleTabBar | `apple-tab-bar.tsx` | iOS 風格標籤欄（活動指示器，Badge 支援） |
+| AppleSegmentedControl | `apple-segmented-control.tsx` | iOS 風格分段控制器（滑動指示器） |
+| AppleLiveActivity | `apple-live-activity.tsx` | iOS 風格實時活動（進度條，自動消失） |
+| AppleControlCenter | `apple-control-center.tsx` | iOS 風格控制中心（快速設置面板） |
+| AppleSpotlight | `apple-spotlight.tsx` | iOS 風格 Spotlight 搜尋（Cmd+K） |
+| AppleActionSheet | `apple-action-sheet.tsx` | iOS 風格操作表（多種操作樣式） |
+| ApplePicker | `apple-picker.tsx` | iOS 風格選擇器（滾輪式選擇） |
+
+**無障礙支援** (Phase 3):
+- ✅ WCAG AAA 合規
+- ✅ 完整的 ARIA 標籤和角色
+- ✅ 鍵盤導航支援
+- ✅ 螢幕閱讀器優化
+- ✅ Focus trap 和焦點管理
+- ✅ Live region 公告
+
+---
+
+## 📋 PR 規則速查
+
+### Design PR (設計師)
+
+**✅ 允許改動**:
+- `docs/UX/**`
+- `docs/UX/tokens.json`
+- `docs/**.md`
+- `frontend/樣式與文案`
+
+**❌ 禁止改動**:
+- `handoff/**/30_API/openapi/**`
+- `**/api/**`
+- `**/src/**` 的後端與 API 相關檔
+
+### Engineering PR (工程師)
+
+**✅ 允許改動**:
+- `**/api/**`
+- `**/src/**`
+- `handoff/**/30_API/openapi/**`
+
+**❌ 禁止改動**:
+- `docs/UX/**` 與設計稿資源
+
+### API 變更流程
+
+1. **建立 RFC Issue** (label: `rfc`)
+2. **等待 Owner 核准**
+3. **提交工程 PR**
+
+---
+
+## 🔗 快速連結
+
+### GitHub
+
+- [UI/UX Milestone #6](https://github.com/RC918/morningai/milestone/6)
+- [UI/UX Issues](https://github.com/RC918/morningai/issues?q=is%3Aissue+label%3Aux)
+- [UI/UX PRs](https://github.com/RC918/morningai/pulls?q=is%3Apr+label%3Aux)
+
+### 文檔
+
+- [UI/UX 快速上手](docs/UI_UX_QUICKSTART.md) - 5 分鐘入門
+- [UI/UX 資源指南](docs/UI_UX_RESOURCES.md) - 完整資源索引
+- [UI/UX Issue 狀態](docs/UI_UX_ISSUE_STATUS.md) - 進度追蹤
+- [CONTRIBUTING.md](CONTRIBUTING.md) - 貢獻指南
+- [DESIGN_SYSTEM_GUIDELINES.md](DESIGN_SYSTEM_GUIDELINES.md) - 設計系統指南
+
+### 預覽環境
+
+- Vercel 預覽連結: 在 PR 頁面查看
+- Chromatic Storybook: 在 PR 頁面查看
+
+---
+
+## 💡 常見任務模板
+
+### 使用現有組件
+
+```jsx
+import { Button } from '@/components/ui/button'
+
+<Button variant="primary" size="md">
+  Click me
+</Button>
+```
+
+### 使用 Design Tokens
+
+```jsx
+import { applyDesignTokens } from '@/lib/design-tokens'
+
+// 在 App.jsx 中應用
+<div className="theme-morning-ai">
+  {/* 所有內容 */}
+</div>
+```
+
+### 創建新組件
+
+```jsx
+// src/components/ui/my-component.jsx
+import * as React from 'react'
+import { cn } from '@/lib/utils'
+
+const MyComponent = React.forwardRef(({ className, ...props }, ref) => {
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "rounded-md border p-4", // 使用 Tailwind + Tokens
+        className
+      )}
+      {...props}
+    />
+  )
+})
+MyComponent.displayName = "MyComponent"
+
+export { MyComponent }
+```
+
+### 創建 Storybook Story
+
+```jsx
+// src/stories/MyComponent.stories.jsx
+import { MyComponent } from '@/components/ui/my-component'
+
+export default {
+  title: 'Components/MyComponent',
+  component: MyComponent,
+  tags: ['autodocs'],
+}
+
+export const Default = {
+  args: {
+    children: 'Hello World',
+  },
+}
+```
+
+---
+
+## 🆘 故障排除
+
+### Storybook 無法啟動
+
+```bash
+# 清除緩存
+rm -rf node_modules/.cache
+
+# 重新安裝依賴
+pnpm install
+
+# 重新啟動
+pnpm storybook
+```
+
+### 樣式不生效
+
+1. 確認在 `.theme-morning-ai` 容器內
+2. 確認使用 Design Tokens 而非硬編碼值
+3. 檢查 Tailwind 配置是否正確
+
+### 組件找不到
+
+```bash
+# 搜尋組件位置
+rg "export.*MyComponent" --type tsx
+
+# 檢查 import 路徑
+rg "import.*MyComponent" --type tsx
+```
+
+---
+
+**提示**: 將此速查表加入書籤，隨時查閱！

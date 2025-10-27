@@ -1,6 +1,12 @@
 README.md
 graph.py
 setup.py
+governance/__init__.py
+governance/cost_tracker.py
+governance/permission_checker.py
+governance/policy_guard.py
+governance/reputation_engine.py
+governance/violation_detector.py
 llm/__init__.py
 llm/faq_generator.py
 memory/__init__.py
@@ -18,6 +24,7 @@ redis_queue/logger_util.py
 redis_queue/worker.py
 tests/test_faq_generator.py
 tests/test_graph.py
+tests/test_langgraph_ci.py
 tests/test_mcp_client_with_mock.py
 tests/test_ops_agent_sandbox.py
 tests/test_sandbox_manager.py

@@ -7,6 +7,7 @@ import sys
 import os
 from pathlib import Path
 import pytest
+from unittest.mock import patch
 
 backend_dir = Path(__file__).parent.parent
 if str(backend_dir) not in sys.path:
@@ -37,3 +38,42 @@ def disable_sentry_in_tests(monkeypatch):
     monkeypatch.delenv("SENTRY_DSN", raising=False)
     monkeypatch.setenv("SENTRY_ENABLED", "false")
     monkeypatch.setenv("TESTING", "true")
+
+
+@pytest.fixture
+def admin_token():
+    """Generate admin JWT token for testing"""
+    from src.middleware.auth_middleware import create_admin_token
+    return create_admin_token()
+
+
+@pytest.fixture
+def analyst_token():
+    """Generate analyst JWT token for testing"""
+    from src.middleware.auth_middleware import create_analyst_token
+    return create_analyst_token()
+
+
+@pytest.fixture
+def user_token():
+    """Generate user JWT token for testing"""
+    from src.middleware.auth_middleware import create_user_token
+    return create_user_token()
+
+
+@pytest.fixture
+def auth_headers_admin(admin_token):
+    """Generate Authorization headers with admin token"""
+    return {"Authorization": f"Bearer {admin_token}"}
+
+
+@pytest.fixture
+def auth_headers_analyst(analyst_token):
+    """Generate Authorization headers with analyst token"""
+    return {"Authorization": f"Bearer {analyst_token}"}
+
+
+@pytest.fixture
+def auth_headers_user(user_token):
+    """Generate Authorization headers with user token"""
+    return {"Authorization": f"Bearer {user_token}"}

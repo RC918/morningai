@@ -119,7 +119,7 @@ export const moveFocus = (container, reverse = false) => {
 export const addFocusIndicator = (element) => {
   if (!element) return
   
-  element.style.outline = '2px solid #3b82f6'
+  element.style.outline = '2px solid #0051D0'
   element.style.outlineOffset = '2px'
 }
 

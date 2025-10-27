@@ -1,0 +1,362 @@
+import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@morningai/shared-ui'
+import { Label } from '@morningai/shared-ui'
+import { AppleInput } from '@/components/ui/apple-input'
+import { AppleButton } from '@/components/ui/apple-button'
+import { Switch } from '@morningai/shared-ui'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@morningai/shared-ui'
+import { Avatar, AvatarFallback, AvatarImage } from '@morningai/shared-ui'
+import { Badge } from '@morningai/shared-ui'
+import { 
+  User, 
+  Bell, 
+  Shield, 
+  Palette,
+  Globe,
+  Key
+} from 'lucide-react'
+import useSettingsStore from '@/stores/settingsStore'
+
+const SystemSettings = () => {
+  const { t, i18n } = useTranslation()
+  const {
+    profile,
+    preferences,
+    loading,
+    error,
+    setProfile,
+    setPreferences,
+    setLanguage,
+    setTheme,
+    setNotifications,
+    loadFromAPI,
+    saveToAPI
+  } = useSettingsStore()
+
+  const handleLanguageChange = (language) => {
+    setLanguage(language)
+    i18n.changeLanguage(language)
+  }
+
+  const handleThemeChange = (theme) => {
+    setTheme(theme)
+  }
+
+  useEffect(() => {
+    loadFromAPI().catch(console.warn)
+  }, [loadFromAPI])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', preferences.theme)
+    if (preferences.theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [preferences.theme])
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">{t('settings.title')}</h1>
+        <p className="text-gray-600 mt-1">{t('settings.description')}</p>
+      </div>
+
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto">
+          <TabsTrigger value="profile" className="flex items-center gap-2">
+            <User className="w-4 h-4" />
+            <span className="hidden sm:inline">{t('settings.tabs.profile')}</span>
+          </TabsTrigger>
+          <TabsTrigger value="preferences" className="flex items-center gap-2">
+            <Palette className="w-4 h-4" />
+            <span className="hidden sm:inline">{t('settings.tabs.preferences')}</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <Bell className="w-4 h-4" />
+            <span className="hidden sm:inline">{t('settings.tabs.notifications')}</span>
+          </TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            <span className="hidden sm:inline">{t('settings.tabs.security')}</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('settings.profile.title')}</CardTitle>
+              <CardDescription>{t('settings.profile.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Avatar className="w-20 h-20">
+                  <AvatarImage src={profile.avatar} alt={t('settings.profile.avatar')} />
+                  <AvatarFallback>RC</AvatarFallback>
+                </Avatar>
+                <div>
+                  <input
+                    type="file"
+                    id="avatar-upload"
+                    accept="image/jpeg,image/png,image/gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onloadend = () => {
+                          setProfile({ ...profile, avatar: reader.result })
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                  />
+                  <AppleButton 
+                    variant="outline" 
+                    size="sm" 
+                    aria-label={t('settings.profile.avatar')}
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                  >
+                    {t('settings.profile.avatar')}
+                  </AppleButton>
+                  <p className="text-sm text-gray-600 mt-1">{t('settings.profile.avatarHint')}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <AppleInput
+                  id="name"
+                  label={t('settings.profile.name')}
+                  value={profile.name}
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  leftIcon={<User className="w-4 h-4" />}
+                  aria-describedby="name-description"
+                  haptic="light"
+                />
+                <AppleInput
+                  id="email"
+                  type="email"
+                  label={t('settings.profile.email')}
+                  value={profile.email}
+                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                  aria-describedby="email-description"
+                  haptic="light"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Badge>{profile.role}</Badge>
+                <span className="text-sm text-gray-600">{t('settings.profile.role')}</span>
+              </div>
+
+              {error && (
+                <div className="text-red-600 text-sm" role="alert" aria-live="polite">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <AppleButton onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                  {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
+                </AppleButton>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="preferences" className="space-y-6">
+          <Card className="overflow-visible">
+            <CardHeader>
+              <CardTitle>{t('settings.preferences.title')}</CardTitle>
+              <CardDescription>{t('settings.preferences.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 overflow-visible">
+              <div className="space-y-2">
+                <Label htmlFor="language" className="flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  {t('settings.preferences.language')}
+                </Label>
+                <Select value={preferences.language} onValueChange={handleLanguageChange}>
+                  <SelectTrigger id="language">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="z-50">
+                    <SelectItem value="zh-TW">繁體中文</SelectItem>
+                    <SelectItem value="zh-CN">简体中文</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="ja">日本語</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="theme" className="flex items-center gap-2">
+                  <Palette className="w-4 h-4" />
+                  {t('settings.preferences.theme')}
+                </Label>
+                <Select value={preferences.theme} onValueChange={handleThemeChange}>
+                  <SelectTrigger id="theme">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="z-50">
+                    <SelectItem value="light">{t('settings.preferences.themeLight')}</SelectItem>
+                    <SelectItem value="dark">{t('settings.preferences.themeDark')}</SelectItem>
+                    <SelectItem value="auto">{t('settings.preferences.themeAuto')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {error && (
+                <div className="text-red-600 text-sm" role="alert" aria-live="polite">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <AppleButton onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                  {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
+                </AppleButton>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('settings.notifications.title')}</CardTitle>
+              <CardDescription>{t('settings.notifications.description')}</CardDescription>
+              <Badge variant="outline" className="mt-2 w-fit">
+                {t('common.comingSoon', '即將開放')}
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-6 opacity-60 pointer-events-none">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('settings.notifications.email')}</Label>
+                  <p className="text-sm text-gray-600">{t('settings.notifications.emailDescription')}</p>
+                </div>
+                <Switch
+                  checked={preferences.notifications.email}
+                  onCheckedChange={(checked) =>
+                    setNotifications({ ...preferences.notifications, email: checked })
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('settings.notifications.desktop')}</Label>
+                  <p className="text-sm text-gray-600">{t('settings.notifications.desktopDescription')}</p>
+                </div>
+                <Switch
+                  checked={preferences.notifications.desktop}
+                  onCheckedChange={(checked) =>
+                    setNotifications({ ...preferences.notifications, desktop: checked })
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('settings.notifications.aiSuggestions')}</Label>
+                  <p className="text-sm text-gray-600">{t('settings.notifications.aiSuggestionsDescription')}</p>
+                </div>
+                <Switch
+                  checked={preferences.notifications.aiSuggestions}
+                  onCheckedChange={(checked) =>
+                    setNotifications({ ...preferences.notifications, aiSuggestions: checked })
+                  }
+                />
+              </div>
+
+              {error && (
+                <div className="text-red-600 text-sm" role="alert" aria-live="polite">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <AppleButton onClick={saveToAPI} disabled={loading} aria-label={t('settings.profile.saveChanges')}>
+                  {loading ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
+                </AppleButton>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('settings.security.title')}</CardTitle>
+              <CardDescription>{t('settings.security.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <AppleInput
+                  id="current-password"
+                  type="password"
+                  label={t('settings.security.currentPassword')}
+                  leftIcon={<Key className="w-4 h-4" />}
+                  showPasswordToggle
+                  haptic="light"
+                />
+                <AppleInput
+                  id="new-password"
+                  type="password"
+                  label={t('settings.security.newPassword')}
+                  leftIcon={<Key className="w-4 h-4" />}
+                  showPasswordToggle
+                  haptic="light"
+                  helperText={t('settings.security.passwordHelp', '密碼至少需要 8 個字元')}
+                />
+                <AppleInput
+                  id="confirm-password"
+                  type="password"
+                  label={t('settings.security.confirmPassword')}
+                  leftIcon={<Key className="w-4 h-4" />}
+                  showPasswordToggle
+                  haptic="light"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    <Key className="w-4 h-4" />
+                    {t('settings.security.twoFactor')}
+                  </Label>
+                  <p className="text-sm text-gray-600">{t('settings.security.twoFactorDescription')}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-gray-600">
+                    {t('common.comingSoon', '即將開放')}
+                  </Badge>
+                  <AppleButton 
+                    variant="outline" 
+                    size="sm"
+                    disabled
+                    aria-label={t('settings.security.enable2FA', 'Enable 2FA')}
+                  >
+                    {t('settings.security.enable', '啟用')}
+                  </AppleButton>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <AppleButton variant="outline">{t('actions.cancel')}</AppleButton>
+                <AppleButton onClick={saveToAPI} disabled={loading}>
+                  {loading ? t('settings.security.updating') : t('settings.security.updatePassword')}
+                </AppleButton>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
+export default SystemSettings

@@ -18,6 +18,11 @@ ops_agent_dir = os.path.dirname(os.path.abspath(__file__))
 if ops_agent_dir not in sys.path:
     sys.path.insert(0, ops_agent_dir)
 
+api_backend_path = os.path.join(project_root, 'handoff/20250928/40_App/api-backend/src')
+if api_backend_path not in sys.path:
+    sys.path.insert(0, api_backend_path)
+
+from utils.redis_config import get_secure_redis_url
 from orchestrator import RedisQueue, create_redis_queue, UnifiedTask
 from ops_agent_ooda import OpsAgentOODA
 
@@ -67,7 +72,10 @@ class OpsAgentWorker:
             team_id: Vercel team ID
             poll_interval: Polling interval in seconds
         """
-        self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
+        if redis_url:
+            self.redis_url = redis_url
+        else:
+            self.redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
         self.vercel_token = vercel_token or os.getenv("VERCEL_TOKEN_NEW")
         self.team_id = team_id or os.getenv("VERCEL_TEAM_ID")
         self.poll_interval = poll_interval

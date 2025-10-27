@@ -214,12 +214,16 @@ def get_health_payload():
             "timestamp": datetime.datetime.now().isoformat()
         }
 
-@app.route('/health')
-@app.route('/healthz')
-@app.route('/api/health')
-@app.route('/api/healthz')
+@app.route('/health', methods=['GET', 'HEAD'])
+@app.route('/healthz', methods=['GET', 'HEAD'])
+@app.route('/api/health', methods=['GET', 'HEAD'])
+@app.route('/api/healthz', methods=['GET', 'HEAD'])
 def health_check():
-    """Health check endpoint with comprehensive system status"""
+    """Health check endpoint with comprehensive system status
+    
+    Supports both GET and HEAD methods for compatibility with various
+    health check systems (e.g., Render, Kubernetes, load balancers).
+    """
     health_payload = get_health_payload()
     if health_payload.get("status") == "unhealthy":
         return jsonify(health_payload), 500
@@ -1012,6 +1016,22 @@ def settings():
         return jsonify({"message": "Settings saved successfully", "data": data})
 
 if __name__ == '__main__':
+    try:
+        from src.utils.redis_client import check_redis_security
+        redis_security = check_redis_security()
+        
+        if redis_security['status'] == 'vulnerable':
+            logger.critical(f"⚠️ Redis Security Warning: {redis_security['message']}")
+            logger.critical(f"CVE-2025-49844 Risk: {redis_security['cve_2025_49844_risk']}")
+            for rec in redis_security.get('recommendations', []):
+                logger.warning(f"  - {rec}")
+        elif redis_security['status'] == 'secure':
+            logger.info(f"✅ Redis Security Check: {redis_security['message']}")
+        else:
+            logger.warning(f"⚠️ Redis Security Check: {redis_security['message']}")
+    except Exception as e:
+        logger.warning(f"Failed to check Redis security on startup: {e}")
+    
     port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_ENV') != 'production'
     app.run(host='0.0.0.0', port=port, debug=debug)

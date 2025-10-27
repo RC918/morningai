@@ -78,9 +78,10 @@ jobs:
       - name: Run tests with coverage
         env:
           REDIS_URL: redis://localhost:6379/0
+          TESTING: true
         run: |
           cd handoff/20250928/40_App/api-backend
-          python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=40 -v
+          python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=74 -v
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
