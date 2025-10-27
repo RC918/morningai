@@ -39,4 +39,7 @@ export async function apiClient({
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
-export const customFetch = apiClient;
+export async function customFetch(options: { url: string; method?: string; [key: string]: any }) {
+  const { url, method = 'GET', ...rest } = options;
+  return apiClient({ url, method, ...rest });
+}

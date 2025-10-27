@@ -7,6 +7,15 @@ interface ImportMetaEnv {
   readonly VITE_STRIPE_PUBLISHABLE_KEY: string
   readonly VITE_ENABLE_ANALYTICS: string
   readonly VITE_ENABLE_SENTRY: string
+  readonly VITE_USE_MOCK: string
+  readonly VITE_PHASE3_DEPLOYMENT_DATE: string
+  readonly VITE_FEATURES: string
+  readonly VITE_PHASE: string
+  readonly VITE_SUPABASE_URL: string
+  readonly VITE_SUPABASE_ANON_KEY: string
+  readonly VITE_TOLGEE_API_URL: string
+  readonly VITE_TOLGEE_API_KEY: string
+  readonly VITE_TOLGEE_PROJECT_ID: string
   readonly MODE: string
   readonly DEV: boolean
   readonly PROD: boolean
@@ -18,12 +27,7 @@ interface ImportMeta {
 }
 
 interface Window {
-  Sentry?: {
-    captureException: (error: Error, context?: any) => void
-    captureMessage: (message: string, level?: string) => void
-    setUser: (user: any) => void
-    setContext: (name: string, context: any) => void
-  }
+  Sentry?: typeof import('@sentry/react')
   gtag?: (
     command: 'config' | 'event' | 'set',
     targetId: string,
