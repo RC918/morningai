@@ -6,7 +6,25 @@ import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
 import { useAccessibleDialog, useScreenReaderAnnouncement } from '@/hooks/use-accessibility'
 
-const ModalContext = createContext(null)
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
+
+interface ModalOptions {
+  id?: string
+  title?: string
+  description?: string
+  children: React.ReactNode
+  size?: ModalSize
+  showClose?: boolean
+}
+
+interface ModalContextValue {
+  openModal: (options: Omit<ModalOptions, 'id'>) => { id: string; close: () => void }
+  closeModal: (id: string) => void
+  closeAll: () => void
+  modals: ModalOptions[]
+}
+
+const ModalContext = createContext<ModalContextValue | null>(null)
 
 export const useAppleModal = () => {
   const context = useContext(ModalContext)
@@ -16,13 +34,18 @@ export const useAppleModal = () => {
   return context
 }
 
-const modalSizes = {
+const modalSizes: Record<ModalSize, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-xl',
   '2xl': 'max-w-2xl',
   full: 'max-w-full mx-4'
+}
+
+interface ModalProps extends ModalOptions {
+  id: string
+  onClose: (id: string) => void
 }
 
 const Modal = ({ 
@@ -33,7 +56,7 @@ const Modal = ({
   size = 'md',
   showClose = true,
   onClose 
-}) => {
+}: ModalProps) => {
   const { t } = useTranslation()
   const { announce } = useScreenReaderAnnouncement()
   
@@ -47,7 +70,7 @@ const Modal = ({
     onClose(id)
   }, [id, onClose, announce, t, dialogRef])
 
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       handleClose()
     }
@@ -60,7 +83,7 @@ const Modal = ({
   }, [title, announce, t])
 
   useEffect(() => {
-    const handleEscape = (e) => {
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         handleClose()
       }
@@ -158,12 +181,12 @@ const Modal = ({
   )
 }
 
-export const AppleModalProvider = ({ children }) => {
-  const [modals, setModals] = useState([])
+export const AppleModalProvider = ({ children }: { children: React.ReactNode }) => {
+  const [modals, setModals] = useState<ModalOptions[]>([])
 
-  const openModal = useCallback((options) => {
+  const openModal = useCallback((options: Omit<ModalOptions, 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9)
-    const newModal = {
+    const newModal: ModalOptions = {
       id,
       ...options
     }

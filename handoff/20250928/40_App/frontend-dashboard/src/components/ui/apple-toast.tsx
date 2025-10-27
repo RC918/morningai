@@ -1,12 +1,33 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-react'
+import { X, CheckCircle2, AlertCircle, Info, AlertTriangle, LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
 import { useScreenReaderAnnouncement } from '@/hooks/use-accessibility'
 
-const ToastContext = createContext(null)
+type ToastVariant = 'success' | 'error' | 'warning' | 'info' | 'default'
+
+interface ToastOptions {
+  id?: string
+  title: string
+  description?: string
+  variant?: ToastVariant
+  duration?: number | null
+}
+
+interface ToastContextValue {
+  toast: (options: ToastOptions | string) => { id: string; dismiss: () => void }
+  success: (title: string, description?: string) => { id: string; dismiss: () => void }
+  error: (title: string, description?: string) => { id: string; dismiss: () => void }
+  warning: (title: string, description?: string) => { id: string; dismiss: () => void }
+  info: (title: string, description?: string) => { id: string; dismiss: () => void }
+  dismiss: (id: string) => void
+  dismissAll: () => void
+  toasts: ToastOptions[]
+}
+
+const ToastContext = createContext<ToastContextValue | null>(null)
 
 export const useAppleToast = () => {
   const context = useContext(ToastContext)
@@ -16,7 +37,14 @@ export const useAppleToast = () => {
   return context
 }
 
-const toastVariants = {
+interface ToastVariantConfig {
+  icon: LucideIcon | null
+  bgColor: string
+  iconColor: string
+  borderColor: string
+}
+
+const toastVariants: Record<ToastVariant, ToastVariantConfig> = {
   success: {
     icon: CheckCircle2,
     bgColor: 'bg-green-500/90 dark:bg-green-600/90',
@@ -49,9 +77,14 @@ const toastVariants = {
   }
 }
 
-const Toast = ({ id, title, description, variant = 'default', duration = 5000, onDismiss }) => {
+interface ToastProps extends ToastOptions {
+  id: string
+  onDismiss: (id: string) => void
+}
+
+const Toast = ({ id, title, description, variant = 'default', duration = 5000, onDismiss }: ToastProps) => {
   const { t } = useTranslation()
-  const toastRef = useRef(null)
+  const toastRef = useRef<HTMLDivElement>(null)
   const { announce } = useScreenReaderAnnouncement()
   const variantConfig = toastVariants[variant] || toastVariants.default
   const Icon = variantConfig.icon
@@ -153,17 +186,17 @@ const Toast = ({ id, title, description, variant = 'default', duration = 5000, o
 
 const MAX_TOASTS = 5
 
-export const AppleToastProvider = ({ children }) => {
-  const [toasts, setToasts] = useState([])
+export const AppleToastProvider = ({ children }: { children: React.ReactNode }) => {
+  const [toasts, setToasts] = useState<ToastOptions[]>([])
 
-  const toast = useCallback((options) => {
+  const toast = useCallback((options: ToastOptions | string) => {
     const id = Math.random().toString(36).substr(2, 9)
-    const newToast = {
+    const newToast: ToastOptions = {
       id,
-      title: options.title || options,
-      description: options.description,
-      variant: options.variant || 'default',
-      duration: options.duration !== undefined ? options.duration : 5000
+      title: typeof options === 'string' ? options : options.title,
+      description: typeof options === 'string' ? undefined : options.description,
+      variant: typeof options === 'string' ? 'default' : (options.variant || 'default'),
+      duration: typeof options === 'string' ? 5000 : (options.duration !== undefined ? options.duration : 5000)
     }
     
     setToasts(prev => {

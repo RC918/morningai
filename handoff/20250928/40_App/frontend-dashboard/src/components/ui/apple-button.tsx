@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
-import { cva } from "class-variance-authority"
+import { cva, type VariantProps } from "class-variance-authority"
 import { motion } from "framer-motion"
 
 import { cn } from "@/lib/utils"
@@ -51,6 +51,12 @@ const appleButtonVariants = cva(
   }
 )
 
+export interface AppleButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof appleButtonVariants> {
+  asChild?: boolean
+}
+
 function AppleButton({
   className,
   variant,
@@ -61,11 +67,11 @@ function AppleButton({
   children,
   onClick,
   ...props
-}) {
-  const buttonRef = React.useRef(null)
+}: AppleButtonProps) {
+  const buttonRef = React.useRef<HTMLButtonElement>(null)
   const Comp = asChild ? Slot : motion.button
 
-  const handleClick = React.useCallback((e) => {
+  const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled) return
     
     if (haptic !== "none" && buttonRef.current) {
