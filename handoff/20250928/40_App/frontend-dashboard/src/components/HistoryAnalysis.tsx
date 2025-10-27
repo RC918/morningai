@@ -1,3 +1,4 @@
+import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { Badge } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
@@ -12,9 +13,23 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-const HistoryAnalysis = () => {
+type ImpactType = 'positive' | 'negative' | 'neutral'
+type EventType = 'optimization' | 'scaling' | 'alert'
+type StatusType = 'completed' | 'resolved' | 'pending'
+
+interface HistoryEvent {
+  id: number
+  date: string
+  type: EventType
+  title: string
+  impact: ImpactType
+  metrics: Record<string, number>
+  status: StatusType
+}
+
+const HistoryAnalysis = (): React.ReactElement => {
   const { t } = useTranslation()
-  const mockHistory = [
+  const mockHistory: HistoryEvent[] = [
     {
       id: 1,
       date: '2024-01-15',
@@ -44,7 +59,7 @@ const HistoryAnalysis = () => {
     }
   ]
 
-  const getImpactIcon = (impact) => {
+  const getImpactIcon = (impact: ImpactType): React.ReactElement => {
     switch (impact) {
       case 'positive':
         return <TrendingUp className="w-4 h-4 text-green-600" />
@@ -55,7 +70,7 @@ const HistoryAnalysis = () => {
     }
   }
 
-  const getImpactColor = (impact) => {
+  const getImpactColor = (impact: ImpactType): string => {
     switch (impact) {
       case 'positive':
         return 'bg-green-100 text-green-800'

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { Badge } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
@@ -18,24 +18,79 @@ import {
 import { useTranslation } from 'react-i18next'
 import { customFetch } from '@/lib/api-client'
 
-const AgentGovernance = () => {
+type PermissionLevel = 'prod_full_access' | 'prod_low_risk' | 'staging_access' | 'sandbox_only'
+type EventType = 'task_success' | 'task_failure' | 'budget_exceeded' | 'permission_denied'
+
+interface Agent {
+  agent_id: string
+  agent_type: string
+  reputation_score: number
+  permission_level: PermissionLevel
+}
+
+interface GovernanceEvent {
+  event_id: string
+  event_type: EventType
+  created_at: string
+  reason?: string
+  delta: number
+  trace_id?: string
+}
+
+interface Violation {
+  violation_id: string
+  violation_type: string
+  detected_at: string
+  description: string
+  severity: string
+  resolved?: boolean
+}
+
+interface CostData {
+  usd?: number
+}
+
+interface DailyCost {
+  usage?: CostData
+}
+
+interface CostsData {
+  daily?: DailyCost
+}
+
+interface ReputationData {
+  total_agents?: number
+  average_score?: number
+}
+
+interface Statistics {
+  reputation?: ReputationData
+  costs?: CostsData
+}
+
+const AgentGovernance = (): React.ReactElement => {
   const { t } = useTranslation()
-  const [loading, setLoading] = useState(true)
-  const [agents, setAgents] = useState([])
-  const [events, setEvents] = useState([])
-  const [violations, setViolations] = useState([])
-  const [statistics, setStatistics] = useState(null)
-  const [selectedAgent, setSelectedAgent] = useState(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [events, setEvents] = useState<GovernanceEvent[]>([])
+  const [violations, setViolations] = useState<Violation[]>([])
+  const [statistics, setStatistics] = useState<Statistics | null>(null)
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
 
   useEffect(() => {
     loadGovernanceData()
   }, [])
 
-  const loadGovernanceData = async () => {
+  const loadGovernanceData = async (): Promise<void> => {
     try {
       setLoading(true)
       
-      const [agentsData, eventsData, violationsData, statsData] = await Promise.all([
+      const [agentsData, eventsData, violationsData, statsData]: [
+        { agents?: Agent[] },
+        { events?: GovernanceEvent[] },
+        { violations?: Violation[] },
+        Statistics
+      ] = await Promise.all([
         customFetch({ url: '/api/governance/agents' }),
         customFetch({ url: '/api/governance/events?limit=50' }),
         customFetch({ url: '/api/governance/violations?limit=50' }),
@@ -53,7 +108,7 @@ const AgentGovernance = () => {
     }
   }
 
-  const getPermissionLevelColor = (level) => {
+  const getPermissionLevelColor = (level: PermissionLevel): string => {
     switch (level) {
       case 'prod_full_access':
         return 'bg-green-100 text-green-800 border-green-300'
@@ -68,8 +123,8 @@ const AgentGovernance = () => {
     }
   }
 
-  const getPermissionLevelLabel = (level) => {
-    const labels = {
+  const getPermissionLevelLabel = (level: PermissionLevel): string => {
+    const labels: Record<PermissionLevel, string> = {
       'prod_full_access': 'Production Full',
       'prod_low_risk': 'Production Low Risk',
       'staging_access': 'Staging',
@@ -78,7 +133,7 @@ const AgentGovernance = () => {
     return labels[level] || level
   }
 
-  const getEventTypeIcon = (eventType) => {
+  const getEventTypeIcon = (eventType: EventType): React.ReactElement => {
     switch (eventType) {
       case 'task_success':
         return <CheckCircle className="w-4 h-4 text-green-600" />
@@ -93,7 +148,7 @@ const AgentGovernance = () => {
     }
   }
 
-  const formatTimestamp = (timestamp) => {
+  const formatTimestamp = (timestamp: string | undefined): string => {
     if (!timestamp) return 'N/A'
     return new Date(timestamp).toLocaleString()
   }

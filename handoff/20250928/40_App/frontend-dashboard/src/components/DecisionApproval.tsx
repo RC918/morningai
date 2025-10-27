@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   CheckCircle, 
@@ -20,10 +20,60 @@ import { Progress } from '@morningai/shared-ui'
 import { useToast } from '@/hooks/use-toast'
 import { safeInterval } from '@/lib/safeInterval'
 
-const DecisionApproval = () => {
+type PriorityLevel = 'critical' | 'high' | 'medium' | 'low'
+type RiskLevel = 'very_low' | 'low' | 'medium' | 'high' | 'very_high'
+type ActionType = 'scale_up' | 'optimize_cache' | 'adjust_connection_pool' | 'failover' | 'notify_team'
+type TriggerType = 'high_cpu_usage' | 'database_connection_exhaustion' | 'service_failure'
+
+interface Action {
+  type: ActionType
+  description: string
+  estimated_time: string
+}
+
+interface Strategy {
+  name: string
+  description: string
+  actions: Action[]
+}
+
+interface Trigger {
+  type: TriggerType
+  value: number | string
+  threshold: number | string
+  duration: string
+}
+
+interface PredictedImpact {
+  cpu_reduction?: number
+  response_time_improvement?: number
+  cost_increase: number
+  confidence: number
+  database_performance?: number
+  availability_restoration?: number
+  user_impact_reduction?: number
+}
+
+interface RiskAssessment {
+  level: RiskLevel
+  factors: string[]
+}
+
+interface Decision {
+  id: string
+  timestamp: string
+  strategy: Strategy
+  trigger: Trigger
+  predicted_impact: PredictedImpact
+  risk_assessment: RiskAssessment
+  priority: PriorityLevel
+  auto_approve_in: number
+}
+
+const DecisionApproval = (): React.ReactElement => {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const [pendingDecisions, setPendingDecisions] = useState([
+  const [pendingDecisions, setPendingDecisions] = useState<Decision[]>([
     {
       id: 'decision_001',
       timestamp: '2024-01-01T14:30:00Z',
@@ -115,14 +165,14 @@ const DecisionApproval = () => {
     }
   ])
 
-  const [selectedDecision, setSelectedDecision] = useState(null)
-  const [approvalComment, setApprovalComment] = useState('')
+  const [selectedDecision, setSelectedDecision] = useState<Decision | null>(null)
+  const [approvalComment, setApprovalComment] = useState<string>('')
 
   useEffect(() => {
     // Simulate auto-countdown using safeInterval
     const cleanup = safeInterval(() => {
-      setPendingDecisions(prev => 
-        prev.map(decision => ({
+      setPendingDecisions((prev: Decision[]) => 
+        prev.map((decision: Decision) => ({
           ...decision,
           auto_approve_in: Math.max(0, decision.auto_approve_in - 1)
         }))
@@ -132,7 +182,7 @@ const DecisionApproval = () => {
     return cleanup
   }, [])
 
-  const handleApprove = async (decisionId, comment = '') => {
+  const handleApprove = async (decisionId: string, comment: string = ''): Promise<void> => {
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
       
@@ -157,7 +207,7 @@ const DecisionApproval = () => {
     }
   }
 
-  const handleReject = async (decisionId, comment) => {
+  const handleReject = async (decisionId: string, comment: string): Promise<void> => {
     if (!comment.trim()) {
       toast({
         title: t('approval.rejectReasonRequired'),
@@ -191,7 +241,7 @@ const DecisionApproval = () => {
     }
   }
 
-  const getPriorityColor = (priority) => {
+  const getPriorityColor = (priority: PriorityLevel): string => {
     switch (priority) {
       case 'critical': return 'bg-red-100 text-red-800 border-red-200'
       case 'high': return 'bg-orange-100 text-orange-800 border-orange-200'
@@ -201,7 +251,7 @@ const DecisionApproval = () => {
     }
   }
 
-  const getRiskColor = (level) => {
+  const getRiskColor = (level: RiskLevel): string => {
     switch (level) {
       case 'very_low': return 'text-green-600'
       case 'low': return 'text-green-500'
@@ -212,9 +262,9 @@ const DecisionApproval = () => {
     }
   }
 
-  const formatTimeRemaining = (seconds) => {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
+  const formatTimeRemaining = (seconds: number): string => {
+    const minutes: number = Math.floor(seconds / 60)
+    const remainingSeconds: number = seconds % 60
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
