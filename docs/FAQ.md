@@ -1,72 +1,65 @@
 # E2E Test FAQ for MorningAI
 
-End-to-end (E2E) testing is a crucial aspect of ensuring the reliability and functionality of the MorningAI platform. This FAQ aims to guide developers through the process of understanding, implementing, and troubleshooting E2E tests within the MorningAI environment.
+End-to-end (E2E) testing is a critical phase in the development lifecycle of the MorningAI platform, ensuring that the system operates as expected from start to finish. This guide aims to address common questions and provide clarity on our E2E testing procedures.
 
 ## What is E2E Testing?
 
-End-to-end testing is a technique used to test whether the flow of an application, from start to finish, behaves as expected. In the context of MorningAI, it involves testing the integration between all layers of the platform, from frontend interactions in React to backend processes in Flask and database transactions in PostgreSQL (Supabase), ensuring that they work together seamlessly.
+E2E testing involves validating the entire software application from start to end. It ensures that the interaction between various components of the MorningAI platform, including integration with external dependencies like databases and third-party services, functions correctly under simulated real-world scenarios.
 
-## How to Implement E2E Tests in MorningAI?
+## How to Run E2E Tests in MorningAI?
 
-To implement E2E tests in MorningAI, you should follow these general steps:
+MorningAI utilizes a combination of tools for E2E testing. Here's a simple example using Cypress, an open-source tool preferred for its ease of use and powerful testing capabilities.
 
-1. **Setup Test Environment**: Ensure your local or CI/CD environment is configured to run tests. For MorningAI, this includes setting up instances of React, Flask, and PostgreSQL with test-specific configurations.
+1. **Setup Cypress**:
+   Ensure Cypress is installed in your development environment. If not, you can install it by running:
 
-```bash
-# Example setup for a test environment
-export FLASK_ENV=test
-export DATABASE_URL=postgresql://test_user:test_password@localhost/test_db
-```
+   ```bash
+   npm install cypress --save-dev
+   ```
 
-2. **Use Testing Frameworks**: Choose and set up an appropriate E2E testing framework. Cypress or Puppeteer are recommended for React applications.
+2. **Running Tests**:
+   Navigate to the root directory of the `RC918/morningai` repository and run:
 
-```javascript
-// Example Cypress test
-describe('MorningAI Login Flow', () => {
-  it('successfully logs in', () => {
-    cy.visit('/login')
-    cy.get('input[name=username]').type('testuser')
-    cy.get('input[name=password]').type('password')
-    cy.get('form').submit()
-    cy.url().should('include', '/dashboard')
-  })
-})
-```
+   ```bash
+   npx cypress open
+   ```
 
-3. **Run Tests**: Execute your tests regularly during development and as part of your CI/CD pipeline.
+   This command opens the Cypress Test Runner, where you can select and run individual test suites.
 
-```bash
-# Running Cypress tests
-npx cypress run
-```
+3. **Sample Test Code**:
+   Below is an example of a simple test case written for Cypress that checks if the homepage loads successfully:
 
-4. **Review Results**: Analyze test outcomes and fix any identified issues.
+   ```javascript
+   describe('Homepage Load Test', () => {
+     it('successfully loads', () => {
+       cy.visit('/') // change '/' to your MorningAI homepage URL
+       cy.contains('Welcome to MorningAI') // Adjust this text to match your homepage's welcome message.
+     })
+   })
+   ```
+
+4. **Configuration**:
+    Configuration settings can be adjusted in `cypress.json` located at the root of your project. This file allows you to set various options like base URL, test timeouts, and environment variables.
 
 ## Related Documentation Links
 
-- Cypress Documentation: [https://www.cypress.io/docs](https://www.cypress.io/docs)
-- Puppeteer GitHub: [https://github.com/puppeteer/puppeteer](https://github.com/puppeteer/puppeteer)
-- Flask Testing: [https://flask.palletsprojects.com/en/latest/testing/](https://flask.palletsprojects.com/en/latest/testing/)
-- Supabase Documentation: [https://supabase.io/docs](https://supabase.io/docs)
+- [Cypress Documentation](https://docs.cypress.io)
+- [MorningAI GitHub Repository](https://github.com/RC918/morningai) - Refer to `docs/FAQ.md` for more FAQs.
+- [Supabase Documentation](https://supabase.com/docs) - For database interactions within tests.
 
 ## Common Troubleshooting Tips
 
-1. **Flaky Tests**: If tests pass inconsistently, investigate potential timing issues or external dependencies. Using `cy.wait()` in Cypress can help stabilize flaky tests by waiting for specific resources.
+### Tests Fail to Connect to Localhost
 
-2. **Database State**: Ensure each test starts with a clean database state to avoid cross-test contamination. Utilize setup and teardown hooks to reset database states.
+Ensure your local server is running before executing tests. If running inside Docker or another containerized environment, ensure network configurations allow Cypress to access your application.
 
-```javascript
-// Cypress example for resetting database before each test
-beforeEach(() => {
-  cy.exec('psql -d test_db -c "truncate table users restart identity;"')
-})
-```
+### Timeout Errors During Tests
 
-3. **Debugging Failures**: Use screenshots or video recordings when tests fail. Both Cypress and Puppeteer offer these features out-of-the-box.
+Adjust timeout settings in `cypress.json` or directly within your test scripts using `cy.visit()` or `cy.get()` commands with `{ timeout: 10000 }` option (or any other value suitable for your needs).
 
-4. **CI/CD Integration Issues**: Ensure your CI/CD environment variables match those expected by your application and that all services required by the test are available in your CI/CD pipeline.
+### Failing Tests After Recent Code Changes
 
-By adhering to these guidelines and utilizing the resources provided, developers can effectively implement and troubleshoot E2E tests within the MorningAI platform, ensuring a robust and reliable application.
+Always ensure your tests are up-to-date with recent changes in the application logic or UI. A failing test could indicate a bug introduced in the latest changes or a need to update the test itself.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -75,6 +68,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: E2E test FAQ update
-- Trace ID: `68206d6c-ca9c-4f1d-87d8-8d633211a1a6`
+- Trace ID: `7bf4b4b1-ab42-44a1-abda-7cf6d1e6f99c`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
