@@ -23,10 +23,23 @@ import { useScreenReaderAnnouncement } from "@/hooks/use-accessibility"
  * </AppleSegmentedControl>
  */
 
-const AppleSegmentedControlContext = React.createContext({
+interface AppleSegmentedControlContextValue {
+  value: string
+  onValueChange: (value: string) => void
+}
+
+const AppleSegmentedControlContext = React.createContext<AppleSegmentedControlContextValue>({
   value: "",
   onValueChange: () => {},
 })
+
+type SegmentedControlSize = "sm" | "default" | "lg"
+
+export interface AppleSegmentedControlProps extends React.HTMLAttributes<HTMLDivElement> {
+  value: string
+  onValueChange: (value: string) => void
+  size?: SegmentedControlSize
+}
 
 function AppleSegmentedControl({
   value,
@@ -35,7 +48,7 @@ function AppleSegmentedControl({
   children,
   size = "default",
   ...props
-}) {
+}: AppleSegmentedControlProps) {
   const segments = React.Children.toArray(children)
   
   return (
@@ -61,6 +74,10 @@ function AppleSegmentedControl({
   )
 }
 
+export interface AppleSegmentedControlItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  value: string
+}
+
 function AppleSegmentedControlItem({
   value,
   disabled = false,
@@ -68,13 +85,13 @@ function AppleSegmentedControlItem({
   children,
   onClick,
   ...props
-}) {
+}: AppleSegmentedControlItemProps) {
   const { value: selectedValue, onValueChange } = React.useContext(AppleSegmentedControlContext)
   const isActive = value === selectedValue
-  const itemRef = React.useRef(null)
+  const itemRef = React.useRef<HTMLButtonElement>(null)
   const { announce } = useScreenReaderAnnouncement()
 
-  const handleClick = React.useCallback((e) => {
+  const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled) return
     
     if (itemRef.current) {
@@ -86,12 +103,12 @@ function AppleSegmentedControlItem({
     onClick?.(e)
   }, [disabled, value, onValueChange, onClick, children, announce])
 
-  const handleKeyDown = React.useCallback((e) => {
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (disabled) return
     
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
-      handleClick(e)
+      handleClick(e as unknown as React.MouseEvent<HTMLButtonElement>)
     }
   }, [disabled, handleClick])
 

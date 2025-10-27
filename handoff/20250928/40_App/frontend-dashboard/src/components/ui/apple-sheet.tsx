@@ -1,12 +1,31 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
 import { useAccessibleDialog, useScreenReaderAnnouncement } from '@/hooks/use-accessibility'
 
-const SheetContext = createContext(null)
+type SheetSize = 'sm' | 'md' | 'lg' | 'full'
+
+interface SheetOptions {
+  id?: string
+  title?: string
+  description?: string
+  children: React.ReactNode
+  size?: SheetSize
+  showClose?: boolean
+  showHandle?: boolean
+}
+
+interface SheetContextValue {
+  openSheet: (options: Omit<SheetOptions, 'id'>) => { id: string; close: () => void }
+  closeSheet: (id: string) => void
+  closeAll: () => void
+  sheets: SheetOptions[]
+}
+
+const SheetContext = createContext<SheetContextValue | null>(null)
 
 export const useAppleSheet = () => {
   const context = useContext(SheetContext)
@@ -16,11 +35,16 @@ export const useAppleSheet = () => {
   return context
 }
 
-const sheetSizes = {
+const sheetSizes: Record<SheetSize, string> = {
   sm: 'max-h-[40vh]',
   md: 'max-h-[60vh]',
   lg: 'max-h-[80vh]',
   full: 'h-[calc(100vh-2rem)]'
+}
+
+interface SheetProps extends SheetOptions {
+  id: string
+  onClose: (id: string) => void
 }
 
 const Sheet = ({ 
@@ -32,7 +56,7 @@ const Sheet = ({
   showClose = true,
   showHandle = true,
   onClose 
-}) => {
+}: SheetProps) => {
   const { t } = useTranslation()
   const { announce } = useScreenReaderAnnouncement()
   const { dialogProps, dialogRef } = useAccessibleDialog(true)
@@ -48,7 +72,7 @@ const Sheet = ({
     onClose(id)
   }, [id, onClose, announce, t, dialogRef])
 
-  const handleDragEnd = (event, info) => {
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const shouldClose = info.velocity.y > 500 || info.offset.y > 150
     if (shouldClose) {
       if (dialogRef.current) {
@@ -58,7 +82,7 @@ const Sheet = ({
     }
   }
 
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       handleClose()
     }
@@ -71,7 +95,7 @@ const Sheet = ({
   }, [title, announce, t])
 
   useEffect(() => {
-    const handleEscape = (e) => {
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         handleClose()
       }
@@ -182,12 +206,12 @@ const Sheet = ({
   )
 }
 
-export const AppleSheetProvider = ({ children }) => {
-  const [sheets, setSheets] = useState([])
+export const AppleSheetProvider = ({ children }: { children: React.ReactNode }) => {
+  const [sheets, setSheets] = useState<SheetOptions[]>([])
 
-  const openSheet = useCallback((options) => {
+  const openSheet = useCallback((options: Omit<SheetOptions, 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9)
-    const newSheet = {
+    const newSheet: SheetOptions = {
       id,
       ...options
     }
