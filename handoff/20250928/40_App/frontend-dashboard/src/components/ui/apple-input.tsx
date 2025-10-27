@@ -1,6 +1,6 @@
 import * as React from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { cva } from "class-variance-authority"
+import { cva, type VariantProps } from "class-variance-authority"
 import { Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -38,6 +38,19 @@ const appleInputVariants = cva(
   }
 )
 
+export interface AppleInputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'>,
+    VariantProps<typeof appleInputVariants> {
+  label?: string
+  helperText?: string
+  errorText?: string
+  successText?: string
+  showPasswordToggle?: boolean
+  leftIcon?: React.ReactNode
+  rightIcon?: React.ReactNode
+  haptic?: "none" | "light" | "medium" | "heavy"
+}
+
 function AppleInput({
   className,
   type = "text",
@@ -59,11 +72,11 @@ function AppleInput({
   onChange,
   value,
   ...props
-}) {
+}: AppleInputProps) {
   const [isFocused, setIsFocused] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
   const [hasValue, setHasValue] = React.useState(!!value || !!props.defaultValue)
-  const inputRef = React.useRef(null)
+  const inputRef = React.useRef<HTMLInputElement>(null)
   const { announce } = useScreenReaderAnnouncement()
 
   const inputType = type === "password" && showPassword ? "text" : type
@@ -76,7 +89,7 @@ function AppleInput({
     }
   }, [state, errorText, successText, announce])
 
-  const handleFocus = React.useCallback((e) => {
+  const handleFocus = React.useCallback((e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(true)
     if (haptic !== "none" && inputRef.current) {
       triggerHaptic(inputRef.current, haptic)
@@ -84,12 +97,12 @@ function AppleInput({
     onFocus?.(e)
   }, [haptic, onFocus])
 
-  const handleBlur = React.useCallback((e) => {
+  const handleBlur = React.useCallback((e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(false)
     onBlur?.(e)
   }, [onBlur])
 
-  const handleChange = React.useCallback((e) => {
+  const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setHasValue(e.target.value.length > 0)
     onChange?.(e)
   }, [onChange])
