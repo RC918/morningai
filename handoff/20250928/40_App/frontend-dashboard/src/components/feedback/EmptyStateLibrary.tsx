@@ -148,7 +148,7 @@ export const EmptyStateLibrary = ({
 
   return (
     <motion.div
-      variants={emptyStateVariants}
+      variants={emptyStateVariants as any}
       initial="hidden"
       animate="visible"
       className={`flex flex-col items-center justify-center py-12 px-4 ${className}`}
@@ -160,18 +160,18 @@ export const EmptyStateLibrary = ({
           aria-hidden="true"
           role="presentation"
           className="w-64 h-64 mb-6"
-          variants={floatingVariants}
+          variants={floatingVariants as any}
           animate="animate"
         />
       ) : (
         <motion.div
-          variants={iconVariants}
+          variants={iconVariants as any}
           initial="hidden"
           animate="visible"
           className={`w-24 h-24 ${currentVariant.bgColor} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}
         >
           <motion.div
-            variants={floatingVariants}
+            variants={floatingVariants as any}
             animate="animate"
           >
             <Icon className={`w-12 h-12 ${currentVariant.iconColor}`} />

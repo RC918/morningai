@@ -69,7 +69,7 @@ export const BrandLoader = ({
     return (
       <div className="flex items-center space-x-3">
         <motion.div
-          variants={logoVariants}
+          variants={logoVariants as any}
           initial="initial"
           animate="animate"
           className={`${currentSize.container} rounded-xl flex items-center justify-center shadow-lg`}
@@ -91,7 +91,7 @@ export const BrandLoader = ({
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
       <div className="relative">
         <motion.div
-          variants={pulseVariants}
+          variants={pulseVariants as any}
           animate="animate"
           className={`absolute inset-0 ${currentSize.container} bg-gradient-to-br from-blue-400 to-purple-600 rounded-2xl blur-xl`}
         />
@@ -100,7 +100,7 @@ export const BrandLoader = ({
           <motion.div
             key={i}
             custom={i}
-            variants={sparkleVariants}
+            variants={sparkleVariants as any}
             animate="animate"
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           >
@@ -109,7 +109,7 @@ export const BrandLoader = ({
         ))}
 
         <motion.div
-          variants={logoVariants}
+          variants={logoVariants as any}
           initial="initial"
           animate="animate"
           className={`relative ${currentSize.container} rounded-2xl flex items-center justify-center shadow-2xl`}
