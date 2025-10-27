@@ -24,6 +24,72 @@ export type ApplePickerProps = {
   className?: string
 }
 
+const PickerItem = ({
+  option,
+  index,
+  y,
+  itemHeight,
+  halfVisible,
+  currentIndex,
+  getOffsetFromIndex,
+  snapToIndex
+}: {
+  option: PickerOption
+  index: number
+  y: any
+  itemHeight: number
+  halfVisible: number
+  currentIndex: number
+  getOffsetFromIndex: (index: number) => number
+  snapToIndex: (index: number) => void
+}) => {
+  const offset = useTransform(
+    y,
+    (value) => {
+      const itemOffset = getOffsetFromIndex(index)
+      const distance = (value - itemOffset) / itemHeight
+      return distance
+    }
+  )
+
+  const opacity = useTransform(
+    offset,
+    [-halfVisible, -1, 0, 1, halfVisible],
+    [0.3, 0.5, 1, 0.5, 0.3]
+  )
+
+  const scale = useTransform(
+    offset,
+    [-halfVisible, -1, 0, 1, halfVisible],
+    [0.7, 0.85, 1, 0.85, 0.7]
+  )
+
+  const rotateX = useTransform(
+    offset,
+    [-halfVisible, 0, halfVisible],
+    [30, 0, -30]
+  )
+
+  return (
+    <motion.div
+      key={option.value}
+      id={`picker-option-${index}`}
+      role="option"
+      aria-selected={index === currentIndex}
+      style={{
+        opacity,
+        scale,
+        rotateX,
+        height: itemHeight
+      }}
+      className="flex items-center justify-center text-base font-medium text-gray-900 dark:text-white cursor-pointer"
+      onClick={() => snapToIndex(index)}
+    >
+      {option.label}
+    </motion.div>
+  )
+}
+
 const PickerWheel = ({
   options,
   selectedIndex = 0,
@@ -192,53 +258,19 @@ const PickerWheel = ({
         }}
       >
         <div style={{ paddingTop: `${(height - itemHeight) / 2}px`, paddingBottom: `${(height - itemHeight) / 2}px` }}>
-          {options.map((option, index) => {
-            const offset = useTransform(
-              y,
-              (value) => {
-                const itemOffset = getOffsetFromIndex(index)
-                const distance = (value - itemOffset) / itemHeight
-                return distance
-              }
-            )
-
-            const opacity = useTransform(
-              offset,
-              [-halfVisible, -1, 0, 1, halfVisible],
-              [0.3, 0.5, 1, 0.5, 0.3]
-            )
-
-            const scale = useTransform(
-              offset,
-              [-halfVisible, -1, 0, 1, halfVisible],
-              [0.7, 0.85, 1, 0.85, 0.7]
-            )
-
-            const rotateX = useTransform(
-              offset,
-              [-halfVisible, 0, halfVisible],
-              [30, 0, -30]
-            )
-
-            return (
-              <motion.div
-                key={option.value}
-                id={`picker-option-${index}`}
-                role="option"
-                aria-selected={index === currentIndex}
-                style={{
-                  opacity,
-                  scale,
-                  rotateX,
-                  height: itemHeight
-                }}
-                className="flex items-center justify-center text-base font-medium text-gray-900 dark:text-white cursor-pointer"
-                onClick={() => snapToIndex(index)}
-              >
-                {option.label}
-              </motion.div>
-            )
-          })}
+          {options.map((option, index) => (
+            <PickerItem
+              key={option.value}
+              option={option}
+              index={index}
+              y={y}
+              itemHeight={itemHeight}
+              halfVisible={halfVisible}
+              currentIndex={currentIndex}
+              getOffsetFromIndex={getOffsetFromIndex}
+              snapToIndex={snapToIndex}
+            />
+          ))}
         </div>
       </motion.div>
     </div>

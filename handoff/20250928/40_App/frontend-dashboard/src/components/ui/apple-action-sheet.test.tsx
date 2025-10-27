@@ -33,7 +33,8 @@ const TestComponent = () => {
             onSelect: () => console.log('Action 1')
           }
         ]
-      })}>
+      })}
+      >
         Show
       </button>
       <button onClick={hide}>Hide</button>
@@ -142,7 +143,8 @@ describe('AppleActionSheet', () => {
             title: 'Test',
             actions: [{ id: '1', label: 'Action', onSelect: () => {} }],
             cancelLabel: 'Go Back'
-          })}>
+          })}
+          >
             Show
           </button>
         )
@@ -180,7 +182,8 @@ describe('AppleActionSheet', () => {
                 onSelect
               }
             ]
-          })}>
+          })}
+          >
             Show
           </button>
         )
@@ -219,7 +222,8 @@ describe('AppleActionSheet', () => {
                 onSelect: () => {}
               }
             ]
-          })}>
+          })}
+          >
             Show
           </button>
         )
@@ -262,7 +266,8 @@ describe('AppleActionSheet', () => {
                 onSelect
               }
             ]
-          })}>
+          })}
+          >
             Show
           </button>
         )
@@ -307,7 +312,8 @@ describe('AppleActionSheet', () => {
                 onSelect: () => {}
               }
             ]
-          })}>
+          })}
+          >
             Show
           </button>
         )
@@ -342,7 +348,8 @@ describe('AppleActionSheet', () => {
               { id: '2', label: 'Action 2', onSelect: () => {} },
               { id: '3', label: 'Action 3', onSelect: () => {} }
             ]
-          })}>
+          })}
+          >
             Show
           </button>
         )
@@ -399,7 +406,8 @@ describe('AppleActionSheet', () => {
             title: 'Test',
             actions: [{ id: '1', label: 'Action', onSelect: () => {} }],
             onCancel
-          })}>
+          })}
+          >
             Show
           </button>
         )
@@ -552,7 +560,8 @@ describe('AppleActionSheet', () => {
         return (
           <button onClick={() => show({
             actions: [{ id: '1', label: 'Action', onSelect: () => {} }]
-          })}>
+          })}
+          >
             Show
           </button>
         )
@@ -582,7 +591,8 @@ describe('AppleActionSheet', () => {
           <button onClick={() => show({
             title: 'Title Only',
             actions: [{ id: '1', label: 'Action', onSelect: () => {} }]
-          })}>
+          })}
+          >
             Show
           </button>
         )
@@ -619,7 +629,8 @@ describe('AppleActionSheet', () => {
                 onSelect: () => {}
               }
             ]
-          })}>
+          })}
+          >
             Show
           </button>
         )

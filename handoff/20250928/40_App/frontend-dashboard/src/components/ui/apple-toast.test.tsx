@@ -227,7 +227,8 @@ describe('AppleToast', () => {
               toast.success('Toast 1')
               toast.info('Toast 2')
               toast.warning('Toast 3')
-            }}>
+            }}
+            >
               Show Multiple Toasts
             </button>
             <button onClick={() => toast.dismissAll()}>
@@ -272,7 +273,8 @@ describe('AppleToast', () => {
             toast.success('First')
             toast.error('Second')
             toast.info('Third')
-          }}>
+          }}
+          >
             Show Multiple
           </button>
         )
@@ -348,7 +350,8 @@ describe('AppleToast', () => {
         return (
           <button onClick={() => {
             toastInstance = toast.success('Test Toast')
-          }}>
+          }}
+          >
             Show Toast
           </button>
         )
@@ -388,7 +391,8 @@ describe('AppleToast', () => {
             description: 'Custom description',
             variant: 'info',
             duration: 0
-          })}>
+          })}
+          >
             Show Custom
           </button>
         )

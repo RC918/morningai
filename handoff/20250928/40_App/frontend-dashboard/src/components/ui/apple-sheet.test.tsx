@@ -88,7 +88,8 @@ describe('AppleSheet', () => {
             title: 'Test Sheet',
             description: 'Test Description',
             children: <div>Sheet Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -115,7 +116,8 @@ describe('AppleSheet', () => {
           <button onClick={() => sheet.openSheet({
             title: 'Test',
             children: <div>Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -141,7 +143,8 @@ describe('AppleSheet', () => {
             title: 'Test',
             showHandle: false,
             children: <div>Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -166,7 +169,8 @@ describe('AppleSheet', () => {
           <button onClick={() => sheet.openSheet({
             title: 'Test',
             children: <div>Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -192,7 +196,8 @@ describe('AppleSheet', () => {
           <button onClick={() => sheet.openSheet({
             title: 'Test Sheet',
             children: <div>Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -221,7 +226,8 @@ describe('AppleSheet', () => {
             <button onClick={() => {
               sheet.openSheet({ title: 'Sheet 1', children: <div>Content 1</div> })
               sheet.openSheet({ title: 'Sheet 2', children: <div>Content 2</div> })
-            }}>
+            }}
+            >
               Open Multiple
             </button>
             <button onClick={() => sheet.closeAll()}>
@@ -256,7 +262,8 @@ describe('AppleSheet', () => {
             title: 'Large Sheet',
             size: 'lg',
             children: <div>Content</div>
-          })}>
+          })}
+          >
             Open
           </button>
         )
@@ -287,7 +294,8 @@ describe('AppleSheet', () => {
               title: 'Test Sheet',
               children: <div>Content</div>
             })
-          }}>
+          }}
+          >
             Open
           </button>
         )
