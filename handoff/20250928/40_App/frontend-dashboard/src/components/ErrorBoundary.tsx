@@ -2,10 +2,21 @@ import React from 'react'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
-import { withTranslation } from 'react-i18next'
+import { withTranslation, WithTranslation } from 'react-i18next'
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
+interface ErrorBoundaryProps extends WithTranslation {
+  children: React.ReactNode
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean
+  error: Error | null
+  errorInfo: React.ErrorInfo | null
+  errorId: string | null
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { 
       hasError: false, 
@@ -15,14 +26,14 @@ class ErrorBoundary extends React.Component {
     }
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { 
       hasError: true,
       errorId: Math.random().toString(36).substr(2, 9)
     }
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     this.setState({
       error,
       errorInfo
@@ -44,7 +55,7 @@ class ErrorBoundary extends React.Component {
     console.error('Error Boundary caught an error:', error, errorInfo)
   }
 
-  handleRetry() {
+  handleRetry(): void {
     this.setState({ 
       hasError: false, 
       error: null, 
@@ -53,7 +64,7 @@ class ErrorBoundary extends React.Component {
     })
   }
 
-  handleGoHome() {
+  handleGoHome(): void {
     window.location.href = '/dashboard'
   }
 

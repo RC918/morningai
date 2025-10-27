@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
@@ -12,27 +12,44 @@ import { LanguageSwitcher } from './LanguageSwitcher'
 import apiClient from '@/lib/api'
 import { signInWithOAuth } from '@/lib/supabaseClient'
 
-const LoginPage = ({ onLogin }) => {
+interface Credentials {
+  username: string
+  password: string
+}
+
+interface User {
+  id: number
+  name: string
+  username: string
+  role: string
+  avatar: string | null
+}
+
+interface LoginPageProps {
+  onLogin: (user: User, token: string) => void
+}
+
+const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
   const { t } = useTranslation()
-  const [credentials, setCredentials] = useState({
+  const [credentials, setCredentials] = useState<Credentials>({
     username: '',
     password: ''
   })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string>('')
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false)
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const mediaQuery: MediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
     
-    const handleChange = (e) => setPrefersReducedMotion(e.matches)
+    const handleChange = (e: MediaQueryListEvent): void => setPrefersReducedMotion(e.matches)
     mediaQuery.addEventListener('change', handleChange)
     
     return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -47,14 +64,14 @@ const LoginPage = ({ onLogin }) => {
       }
     } catch (error) {
       if (credentials.username === 'admin' && credentials.password === 'admin123') {
-        const mockUser = {
+        const mockUser: User = {
           id: 1,
           name: t('sidebar.user.defaultName'),
           username: 'admin',
           role: t('sidebar.user.defaultRole'),
           avatar: null
         }
-        const mockToken = 'mock-jwt-token-' + Date.now()
+        const mockToken: string = 'mock-jwt-token-' + Date.now()
         onLogin(mockUser, mockToken)
       } else {
         setError(t('auth.login.loginError'))
@@ -64,14 +81,14 @@ const LoginPage = ({ onLogin }) => {
     }
   }
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setCredentials({
       ...credentials,
       [e.target.name]: e.target.value
     })
   }
 
-  const handleSSOLogin = async (provider) => {
+  const handleSSOLogin = async (provider: string): Promise<void> => {
     try {
       setLoading(true)
       setError('')
