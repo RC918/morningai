@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
@@ -12,31 +12,56 @@ import {
 } from 'lucide-react'
 import apiClient from '@/lib/api'
 
-const ReportCenter = () => {
+type KnownReportType = 'performance' | 'task_tracking' | 'resilience' | 'financial'
+type KnownReportFormat = 'pdf' | 'csv' | 'json'
+type KnownReportStatus = 'completed' | 'failed' | 'generating' | 'pending'
+
+type ReportType = KnownReportType | (string & {})
+type ReportFormat = KnownReportFormat | (string & {})
+type ReportStatus = KnownReportStatus | (string & {})
+
+interface ReportTemplate {
+  id: string
+  name: string
+  description: string
+  metrics: string[]
+}
+
+interface ReportHistoryItem {
+  id: number
+  name: string
+  type: ReportType
+  generated_at: string
+  format: ReportFormat
+  status: ReportStatus
+  file_path?: string | null
+}
+
+const ReportCenter = (): React.ReactElement => {
   const { t } = useTranslation()
-  const [reportType, setReportType] = useState('performance')
-  const [timeRange, setTimeRange] = useState('24h')
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [reportHistory, setReportHistory] = useState([])
-  const [reportTemplates, setReportTemplates] = useState([])
+  const [reportType, setReportType] = useState<string>('performance')
+  const [timeRange, setTimeRange] = useState<string>('24h')
+  const [isGenerating, setIsGenerating] = useState<boolean>(false)
+  const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([])
+  const [reportTemplates, setReportTemplates] = useState<ReportTemplate[]>([])
 
   useEffect(() => {
     loadReportTemplates()
     loadReportHistory()
   }, [])
 
-  const loadReportTemplates = async () => {
+  const loadReportTemplates = async (): Promise<void> => {
     try {
-      const templates = await apiClient.getReportTemplates()
+      const templates: ReportTemplate[] = await apiClient.getReportTemplates()
       setReportTemplates(templates)
     } catch (error) {
       console.error('Failed to load report templates:', error)
     }
   }
 
-  const loadReportHistory = async () => {
+  const loadReportHistory = async (): Promise<void> => {
     try {
-      const history = await apiClient.getReportHistory()
+      const history: ReportHistoryItem[] = await apiClient.getReportHistory()
       setReportHistory(history)
     } catch (error) {
       console.error('Failed to load report history:', error)
@@ -69,18 +94,27 @@ const ReportCenter = () => {
     }
   }
 
-  const generateReport = async (format) => {
+  const generateReport = async (format: string): Promise<void> => {
     setIsGenerating(true)
     try {
-      const result = await apiClient.generateReport({
+      // TODO: Backend returns file download for pdf/csv, JSON for json.
+      // apiClient.request() currently assumes all responses are JSON, which fails for binary responses.
+      // Need: 1) Add blob/binary response support to apiClient
+      //       2) Implement proper file download handling in UI
+      //       3) Define discriminated union type based on format parameter
+      // Backend reference: handoff/20250928/40_App/api-backend/src/main.py:547-586
+      const result: unknown = await apiClient.generateReport({
         type: reportType,
         time_range: timeRange,
         format: format
       })
 
-      if (result.success && result.download_url) {
-        window.open(result.download_url, '_blank')
-        setTimeout(loadReportHistory, 1000)
+      if (result && typeof result === 'object' && 'success' in result && 'download_url' in result) {
+        const typedResult = result as { success?: boolean; download_url?: string }
+        if (typedResult.success && typedResult.download_url) {
+          window.open(typedResult.download_url, '_blank')
+          setTimeout(loadReportHistory, 1000)
+        }
       } else {
         console.log('Report data:', result)
       }
@@ -91,7 +125,7 @@ const ReportCenter = () => {
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: ReportStatus | string): React.ReactElement => {
     switch (status) {
       case 'completed':
         return <CheckCircle className="w-4 h-4 text-green-600" />
@@ -104,7 +138,7 @@ const ReportCenter = () => {
     }
   }
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: ReportStatus | string): string => {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-800'
@@ -117,7 +151,7 @@ const ReportCenter = () => {
     }
   }
 
-  const getReportTypeIcon = (type) => {
+  const getReportTypeIcon = (type: ReportType | string): React.ReactElement => {
     switch (type) {
       case 'performance':
         return <TrendingUp className="w-4 h-4" />
@@ -130,7 +164,7 @@ const ReportCenter = () => {
     }
   }
 
-  const selectedTemplate = reportTemplates.find(t => t.id === reportType)
+  const selectedTemplate: ReportTemplate | undefined = reportTemplates.find((t: ReportTemplate) => t.id === reportType)
 
   return (
     <div className="space-y-6">
@@ -180,7 +214,7 @@ const ReportCenter = () => {
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600 mb-2">{selectedTemplate.description}</p>
               <div className="flex flex-wrap gap-1">
-                {selectedTemplate.metrics.map((metric, index) => (
+                {selectedTemplate.metrics.map((metric: string, index: number) => (
                   <Badge key={index} variant="outline" className="text-xs">
                     {metric}
                   </Badge>
@@ -229,7 +263,7 @@ const ReportCenter = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {reportHistory.map((report) => (
+            {reportHistory.map((report: ReportHistoryItem) => (
               <div key={report.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center space-x-3">
                   {getStatusIcon(report.status)}
