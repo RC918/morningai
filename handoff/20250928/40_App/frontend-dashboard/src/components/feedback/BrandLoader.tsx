@@ -1,21 +1,28 @@
+import React from 'react'
 import { motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+interface BrandLoaderProps {
+  message?: string
+  size?: 'small' | 'default' | 'large'
+  variant?: 'full' | 'inline'
+}
 
 export const BrandLoader = ({ 
   message, 
   size = 'default',
   variant = 'full'
-}) => {
+}: BrandLoaderProps): React.ReactElement => {
   const { t } = useTranslation()
-  const displayMessage = message || t('feedback.loading')
-  const sizes = {
+  const displayMessage: string = message || t('feedback.loading')
+  const sizes: Record<'small' | 'default' | 'large', { container: string; icon: string; text: string }> = {
     small: { container: 'w-12 h-12', icon: 'w-6 h-6', text: 'text-sm' },
     default: { container: 'w-20 h-20', icon: 'w-10 h-10', text: 'text-xl' },
     large: { container: 'w-32 h-32', icon: 'w-16 h-16', text: 'text-2xl' }
   }
 
-  const currentSize = sizes[size]
+  const currentSize: { container: string; icon: string; text: string } = sizes[size]
 
   const logoVariants = {
     initial: { scale: 0.8, opacity: 0 },
@@ -32,7 +39,7 @@ export const BrandLoader = ({
   }
 
   const sparkleVariants = {
-    animate: (i) => ({
+    animate: (i: number) => ({
       scale: [0, 1, 0],
       opacity: [0, 1, 0],
       x: [0, Math.cos(i * 60 * Math.PI / 180) * 40, 0],

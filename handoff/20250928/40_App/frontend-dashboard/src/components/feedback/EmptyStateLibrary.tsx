@@ -1,3 +1,4 @@
+import React from 'react'
 import { motion } from 'framer-motion'
 import { AppleButton } from '@/components/ui/apple-button'
 import { 
@@ -12,9 +13,25 @@ import {
   XCircle,
   Clock,
   TrendingUp,
-  Zap
+  Zap,
+  type LucideIcon
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+type EmptyStateVariant = 'default' | 'search' | 'noData' | 'error' | 'success' | 'warning' | 'loading' | 'premium'
+
+interface EmptyStateLibraryProps {
+  variant?: EmptyStateVariant
+  icon?: LucideIcon
+  title?: string
+  description?: string
+  primaryAction?: () => void
+  primaryActionLabel?: string
+  secondaryAction?: () => void
+  secondaryActionLabel?: string
+  illustration?: string
+  className?: string
+}
 
 const emptyStateVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
@@ -65,7 +82,7 @@ export const EmptyStateLibrary = ({
   secondaryActionLabel,
   illustration,
   className = ''
-}) => {
+}: EmptyStateLibraryProps): React.ReactElement => {
   const { t } = useTranslation()
   const variants = {
     default: {
@@ -211,7 +228,7 @@ export const EmptyStateLibrary = ({
   )
 }
 
-export const NoDataState = (props) => {
+export const NoDataState = (props: Omit<EmptyStateLibraryProps, 'variant'>): React.ReactElement => {
   const { t } = useTranslation()
   return (
     <EmptyStateLibrary
@@ -223,7 +240,7 @@ export const NoDataState = (props) => {
   )
 }
 
-export const NoSearchResults = (props) => {
+export const NoSearchResults = (props: Omit<EmptyStateLibraryProps, 'variant'>): React.ReactElement => {
   const { t } = useTranslation()
   return (
     <EmptyStateLibrary
@@ -235,7 +252,7 @@ export const NoSearchResults = (props) => {
   )
 }
 
-export const ErrorState = (props) => {
+export const ErrorState = (props: Omit<EmptyStateLibraryProps, 'variant'>): React.ReactElement => {
   const { t } = useTranslation()
   return (
     <EmptyStateLibrary
@@ -247,7 +264,7 @@ export const ErrorState = (props) => {
   )
 }
 
-export const SuccessState = (props) => {
+export const SuccessState = (props: Omit<EmptyStateLibraryProps, 'variant'>): React.ReactElement => {
   const { t } = useTranslation()
   return (
     <EmptyStateLibrary
@@ -259,7 +276,7 @@ export const SuccessState = (props) => {
   )
 }
 
-export const LoadingState = (props) => {
+export const LoadingState = (props: Omit<EmptyStateLibraryProps, 'variant'>): React.ReactElement => {
   const { t } = useTranslation()
   return (
     <EmptyStateLibrary
@@ -271,7 +288,7 @@ export const LoadingState = (props) => {
   )
 }
 
-export const PremiumFeatureState = (props) => {
+export const PremiumFeatureState = (props: Omit<EmptyStateLibraryProps, 'variant'>): React.ReactElement => {
   const { t } = useTranslation()
   return (
     <EmptyStateLibrary
