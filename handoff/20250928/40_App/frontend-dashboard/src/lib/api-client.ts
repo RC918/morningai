@@ -3,7 +3,34 @@ const API_BASE_URL =
   (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') ||
   'https://morningai-backend-v2.onrender.com';
 
-export async function apiClient({
+export async function apiClient<T>(
+  url: string,
+  options?: RequestInit
+): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
+  }
+
+  const ct = res.headers.get('content-type') || '';
+  const data = ct.includes('application/json') ? await res.json() : await res.text();
+  
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as T;
+}
+
+export async function apiClientLegacy({
   url,
   method,
   params,
@@ -41,5 +68,5 @@ export async function apiClient({
 
 export async function customFetch(options: { url: string; method?: string; [key: string]: any }) {
   const { url, method = 'GET', ...rest } = options;
-  return apiClient({ url, method, ...rest });
+  return apiClientLegacy({ url, method, ...rest });
 }

@@ -249,7 +249,7 @@ export function useAccessibleDialog(isOpen: boolean) {
 export function useAccessibleTooltip() {
   const [isVisible, setIsVisible] = useState(false)
   const [tooltipId] = useState(() => `tooltip-${Math.random().toString(36).substr(2, 9)}`)
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   
   const show = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
