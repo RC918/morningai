@@ -1,21 +1,33 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Progress } from '@morningai/shared-ui'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
+
+interface ProgressStep {
+  title: string
+  description?: string
+}
+
+interface ProgressLoaderProps {
+  steps?: ProgressStep[]
+  currentStep?: number
+  estimatedTime?: number
+}
 
 export const ProgressLoader = ({ 
   steps = [],
   currentStep = 0,
   estimatedTime = 5000 
-}) => {
+}: ProgressLoaderProps): React.ReactElement => {
   const { t } = useTranslation()
-  const [progress, setProgress] = useState(0)
+  const [progress, setProgress] = useState<number>(0)
   
   useEffect(() => {
-    let raf, mounted = true
-    const tick = () => {
+    let raf: number
+    let mounted = true
+    const tick = (): void => {
       if (!mounted) return
-      setProgress(prev => {
+      setProgress((prev: number) => {
         const target = ((currentStep + 1) / steps.length) * 100
         return Math.min(prev + 1, target)
       })

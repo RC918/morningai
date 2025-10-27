@@ -1,9 +1,14 @@
+import React from 'react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 
-export const PageLoader = ({ message }) => {
+interface PageLoaderProps {
+  message?: string
+}
+
+export const PageLoader = ({ message }: PageLoaderProps): React.ReactElement => {
   const { t } = useTranslation()
-  const displayMessage = message || t('feedback.loading')
+  const displayMessage: string = message || t('feedback.loading')
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <motion.div
