@@ -1,65 +1,74 @@
-# E2E Test FAQ for MorningAI
+# MorningAI System Architecture
 
-End-to-end (E2E) testing is a critical phase in the development lifecycle of the MorningAI platform, ensuring that the system operates as expected from start to finish. This guide aims to address common questions and provide clarity on our E2E testing procedures.
+The MorningAI platform is designed as a scalable, multi-tenant Software as a Service (SaaS) solution, focusing on automating tasks such as code generation, FAQ documentation management, and integrating with multiple platforms like Telegram, LINE, and Messenger. The architecture is built to support real-time task orchestration and vector memory storage for enhanced performance and flexibility. Below is a comprehensive overview of the MorningAI system architecture, including key components and technologies involved.
 
-## What is E2E Testing?
+## Key Components and Technologies
 
-E2E testing involves validating the entire software application from start to end. It ensures that the interaction between various components of the MorningAI platform, including integration with external dependencies like databases and third-party services, functions correctly under simulated real-world scenarios.
+### Frontend
+- **Technology Stack**: The frontend is developed using React for building user interfaces along with Vite for bundling and TailwindCSS for styling.
+- **Path**: `client/src`
+- **Code Example**:
+  ```javascript
+  import React from 'react';
+  import ReactDOM from 'react-dom';
+  import './index.css';
+  import App from './App';
 
-## How to Run E2E Tests in MorningAI?
+  ReactDOM.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+    document.getElementById('root')
+  );
+  ```
 
-MorningAI utilizes a combination of tools for E2E testing. Here's a simple example using Cypress, an open-source tool preferred for its ease of use and powerful testing capabilities.
+### Backend
+- **Technology Stack**: Python with Flask framework is used for the backend API development. Gunicorn serves as the HTTP server with multi-worker support for handling concurrent requests.
+- **Database**: PostgreSQL through Supabase with Row Level Security ensures secure data access and storage. The use of pgvector within Supabase facilitates vector memory storage capabilities.
+- **Queue**: Redis Queue (RQ) is utilized for managing background tasks, with worker heartbeat monitoring to ensure reliability.
+- **Orchestration**: LangGraph manages agent workflows within the system, enabling efficient task execution and automation.
+- **AI Integration**: OpenAI's GPT-4 powers content generation tasks, including FAQ generation and code suggestions.
+- **Path**: `server/`
+- **Code Example**:
+  ```python
+  from flask import Flask
+  app = Flask(__name__)
 
-1. **Setup Cypress**:
-   Ensure Cypress is installed in your development environment. If not, you can install it by running:
+  @app.route('/')
+  def hello_world():
+      return 'Hello, World!'
+  
+  if __name__ == '__main__':
+      app.run()
+  ```
 
-   ```bash
-   npm install cypress --save-dev
-   ```
-
-2. **Running Tests**:
-   Navigate to the root directory of the `RC918/morningai` repository and run:
-
-   ```bash
-   npx cypress open
-   ```
-
-   This command opens the Cypress Test Runner, where you can select and run individual test suites.
-
-3. **Sample Test Code**:
-   Below is an example of a simple test case written for Cypress that checks if the homepage loads successfully:
-
-   ```javascript
-   describe('Homepage Load Test', () => {
-     it('successfully loads', () => {
-       cy.visit('/') // change '/' to your MorningAI homepage URL
-       cy.contains('Welcome to MorningAI') // Adjust this text to match your homepage's welcome message.
-     })
-   })
-   ```
-
-4. **Configuration**:
-    Configuration settings can be adjusted in `cypress.json` located at the root of your project. This file allows you to set various options like base URL, test timeouts, and environment variables.
+### Deployment
+- **Platform**: Render.com is used for hosting both frontend and backend services, providing seamless CI/CD integration for automatic deployments upon code changes.
+- **Configuration File Path**: `.render/`
 
 ## Related Documentation Links
-
-- [Cypress Documentation](https://docs.cypress.io)
-- [MorningAI GitHub Repository](https://github.com/RC918/morningai) - Refer to `docs/FAQ.md` for more FAQs.
-- [Supabase Documentation](https://supabase.com/docs) - For database interactions within tests.
+For further details on each component and how they interact within the MorningAI ecosystem, refer to the following documentation:
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- PostgreSQL via Supabase: [https://supabase.io/docs](https://supabase.io/docs)
+- Redis Queue (RQ): [http://python-rq.org/](http://python-rq.org/)
+- Render.com CI/CD: [https://render.com/docs](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-### Tests Fail to Connect to Localhost
+### Database Connection Issues
+Ensure that your Supabase credentials are correctly configured in your application settings. Verify the connection string and permissions.
 
-Ensure your local server is running before executing tests. If running inside Docker or another containerized environment, ensure network configurations allow Cypress to access your application.
+### Worker Failures in Redis Queue
+Check the worker logs for any errors or exceptions thrown during task execution. Ensure that Redis server is up and running without any connectivity issues.
 
-### Timeout Errors During Tests
+### Deployment Failures on Render.com
+Review the deployment logs in Render.com dashboard for specific error messages. Common issues include configuration errors in `.render` files or failed health checks.
 
-Adjust timeout settings in `cypress.json` or directly within your test scripts using `cy.visit()` or `cy.get()` commands with `{ timeout: 10000 }` option (or any other value suitable for your needs).
+### Frontend Build Errors
+Ensure all dependencies are correctly installed and compatible versions are used. Check for syntax errors or missing imports in your React components.
 
-### Failing Tests After Recent Code Changes
-
-Always ensure your tests are up-to-date with recent changes in the application logic or UI. A failing test could indicate a bug introduced in the latest changes or a need to update the test itself.
+By understanding these components and following the provided guidelines, developers can effectively work with and contribute to the MorningAI platform.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -67,7 +76,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `7bf4b4b1-ab42-44a1-abda-7cf6d1e6f99c`
+- Task: What is the system architecture?
+- Trace ID: `585f2eef-745d-4545-b69c-9dc99be8a2b1`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
