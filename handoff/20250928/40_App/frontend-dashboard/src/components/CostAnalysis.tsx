@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { Badge } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
@@ -15,20 +15,59 @@ import {
 import { useTranslation } from 'react-i18next'
 import { customFetch } from '@/lib/api-client'
 
-const CostAnalysis = () => {
+type TrendType = 'up' | 'down' | 'stable'
+type AlertType = 'warning' | 'info' | 'critical'
+type PeriodType = 'daily' | 'hourly' | 'task'
+
+interface CostBreakdownItem {
+  category: string
+  cost: number
+  percentage: number
+  trend: TrendType
+}
+
+interface CostAlert {
+  type: AlertType
+  message: string
+}
+
+interface CostDataUsage {
+  usd: number
+  tokens?: number
+}
+
+interface CostDataLimits {
+  usd: number
+  tokens?: number
+}
+
+interface CostData {
+  usage?: CostDataUsage
+  limits?: CostDataLimits
+  within_budget?: boolean
+  alert_level?: AlertType
+  currentMonth?: number
+  lastMonth?: number
+  budget?: number
+  trend?: TrendType
+  breakdown?: CostBreakdownItem[]
+  alerts?: CostAlert[]
+}
+
+const CostAnalysis = (): React.ReactElement => {
   const { t } = useTranslation()
-  const [loading, setLoading] = useState(true)
-  const [costData, setCostData] = useState(null)
-  const [period, setPeriod] = useState('daily')
+  const [loading, setLoading] = useState<boolean>(true)
+  const [costData, setCostData] = useState<CostData | null>(null)
+  const [period, setPeriod] = useState<PeriodType>('daily')
 
   useEffect(() => {
     loadCostData()
   }, [period])
 
-  const loadCostData = async () => {
+  const loadCostData = async (): Promise<void> => {
     try {
       setLoading(true)
-      const data = await customFetch({ 
+      const data: CostData = await customFetch({ 
         url: `/api/governance/costs?period=${period}&trace_id=system` 
       })
       setCostData(data)
@@ -40,24 +79,24 @@ const CostAnalysis = () => {
     }
   }
 
-  const mockCostData = {
+  const mockCostData: CostData = {
     currentMonth: 1245.50,
     lastMonth: 980.30,
     budget: 2000,
-    trend: 'up',
+    trend: 'up' as TrendType,
     breakdown: [
-      { category: t('cost.categories.aiService'), cost: 680.20, percentage: 54.6, trend: 'up' },
-      { category: t('cost.categories.compute'), cost: 345.80, percentage: 27.8, trend: 'stable' },
-      { category: t('cost.categories.storage'), cost: 142.50, percentage: 11.4, trend: 'down' },
-      { category: t('cost.categories.network'), cost: 77.00, percentage: 6.2, trend: 'up' }
+      { category: t('cost.categories.aiService'), cost: 680.20, percentage: 54.6, trend: 'up' as TrendType },
+      { category: t('cost.categories.compute'), cost: 345.80, percentage: 27.8, trend: 'stable' as TrendType },
+      { category: t('cost.categories.storage'), cost: 142.50, percentage: 11.4, trend: 'down' as TrendType },
+      { category: t('cost.categories.network'), cost: 77.00, percentage: 6.2, trend: 'up' as TrendType }
     ],
     alerts: [
-      { type: 'warning', message: t('cost.alerts.aiServiceIncrease') },
-      { type: 'info', message: t('cost.alerts.budgetExceeded') }
+      { type: 'warning' as AlertType, message: t('cost.alerts.aiServiceIncrease') },
+      { type: 'info' as AlertType, message: t('cost.alerts.budgetExceeded') }
     ]
   }
 
-  const getTrendIcon = (trend) => {
+  const getTrendIcon = (trend: TrendType): React.ReactElement => {
     switch (trend) {
       case 'up':
         return <TrendingUp className="w-4 h-4 text-red-600" />
@@ -68,10 +107,10 @@ const CostAnalysis = () => {
     }
   }
 
-  const displayData = costData || mockCostData
-  const currentUsage = costData?.usage?.usd || mockCostData.currentMonth
-  const budgetLimit = costData?.limits?.usd || mockCostData.budget
-  const budgetUsagePercentage = (currentUsage / budgetLimit) * 100
+  const displayData: CostData = costData || mockCostData
+  const currentUsage: number = costData?.usage?.usd || mockCostData.currentMonth || 0
+  const budgetLimit: number = costData?.limits?.usd || mockCostData.budget || 0
+  const budgetUsagePercentage: number = (currentUsage / budgetLimit) * 100
 
   if (loading && !costData) {
     return (

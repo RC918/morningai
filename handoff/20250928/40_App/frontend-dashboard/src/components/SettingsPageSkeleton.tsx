@@ -26,20 +26,56 @@ import {
 import { colors, spacing, typography } from '@/lib/design-tokens'
 import apiClient from '@/lib/api'
 
-const SettingsPageSkeleton = () => {
+interface UserPreferences {
+  theme?: string
+  language?: string
+  timezone?: string
+  auto_refresh?: number
+  notifications?: Record<string, boolean>
+}
+
+interface SecuritySettings {
+  two_factor_enabled?: boolean
+  session_timeout?: number
+  audit_logging?: boolean
+}
+
+interface SystemConfig {
+  auto_approval?: boolean
+  risk_threshold?: number
+  monitoring_interval?: number
+  api_rate_limit?: number
+}
+
+interface BillingInfo {
+  current_plan?: string
+  billing_cycle?: string
+  next_billing_date?: string
+  payment_method?: string
+}
+
+interface SettingsData {
+  user_preferences?: UserPreferences
+  security_settings?: SecuritySettings
+  system_config?: SystemConfig
+  billing_info?: BillingInfo
+  [key: string]: any
+}
+
+const SettingsPageSkeleton = (): React.ReactElement => {
   const { t } = useTranslation()
-  const [loading, setLoading] = useState(true)
-  const [settings, setSettings] = useState(null)
-  const [hasChanges, setHasChanges] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [settings, setSettings] = useState<SettingsData | null>(null)
+  const [hasChanges, setHasChanges] = useState<boolean>(false)
+  const [saving, setSaving] = useState<boolean>(false)
 
   useEffect(() => {
     loadSettings()
   }, [])
 
-  const loadSettings = async () => {
+  const loadSettings = async (): Promise<void> => {
     try {
-      const data = await apiClient.getSettings()
+      const data: SettingsData = await apiClient.getSettings()
       setSettings(data)
       setLoading(false)
     } catch (error) {
@@ -48,24 +84,24 @@ const SettingsPageSkeleton = () => {
     }
   }
 
-  const updateSetting = (category, key, value) => {
-    setSettings(prev => ({
+  const updateSetting = (category: string, key: string, value: any): void => {
+    setSettings((prev: SettingsData | null) => ({
       ...prev,
       [category]: {
-        ...prev[category],
+        ...(prev?.[category] || {}),
         [key]: value
       }
     }))
     setHasChanges(true)
   }
 
-  const updateNestedSetting = (category, parentKey, key, value) => {
-    setSettings(prev => ({
+  const updateNestedSetting = (category: string, parentKey: string, key: string, value: any): void => {
+    setSettings((prev: SettingsData | null) => ({
       ...prev,
       [category]: {
-        ...prev[category],
+        ...(prev?.[category] || {}),
         [parentKey]: {
-          ...prev[category][parentKey],
+          ...(prev?.[category]?.[parentKey] || {}),
           [key]: value
         }
       }
@@ -73,7 +109,7 @@ const SettingsPageSkeleton = () => {
     setHasChanges(true)
   }
 
-  const saveSettings = async () => {
+  const saveSettings = async (): Promise<void> => {
     setSaving(true)
     try {
       const result = await apiClient.saveSettings(settings)
