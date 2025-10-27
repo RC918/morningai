@@ -64,7 +64,7 @@ const ControlCard: React.FC<{
   const [isPressed, setIsPressed] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   const handlePressStart = () => {
     setIsPressed(true)
@@ -191,9 +191,10 @@ const ControlCard: React.FC<{
               control.active ? 'text-white' : 'text-white/70'
             )}
             >
-              {React.cloneElement(control.icon as React.ReactElement, {
-                className: 'w-6 h-6'
-              })}
+              {React.isValidElement(control.icon) 
+                ? React.cloneElement(control.icon, { className: 'w-6 h-6' } as any)
+                : control.icon
+              }
             </div>
             {control.value !== undefined && (
               <div className={cn(
@@ -296,9 +297,10 @@ const ControlCard: React.FC<{
                     >
                       {action.icon && (
                         <div className="text-white">
-                          {React.cloneElement(action.icon as React.ReactElement, {
-                            className: 'w-5 h-5'
-                          })}
+                          {React.isValidElement(action.icon)
+                            ? React.cloneElement(action.icon, { className: 'w-5 h-5' } as any)
+                            : action.icon
+                          }
                         </div>
                       )}
                       <span className="text-white font-medium">
@@ -323,9 +325,9 @@ export const AppleControlCenterProvider: React.FC<ControlCenterProviderProps> = 
   const [isOpen, setIsOpen] = useState(false)
   const [controls, setControls] = useState<Control[]>(initialControls)
   const panelRef = useRef<HTMLDivElement>(null)
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
   
-  useFocusTrap(panelRef, isOpen)
+  useFocusTrap(panelRef)
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
