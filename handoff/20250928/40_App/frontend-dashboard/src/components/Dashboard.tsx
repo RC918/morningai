@@ -25,6 +25,11 @@ interface Widget {
   id: string
   type: string
   component: React.ReactNode | null
+  name?: string
+  position?: {
+    x: number
+    y: number
+  }
 }
 
 interface DraggableWidgetProps {
@@ -271,7 +276,7 @@ const Dashboard = (): React.ReactElement => {
         method: 'POST',
         body: JSON.stringify({
           user_id: 'default',
-          layout: { widgets: dashboardLayout.map((w: Widget) => ({ id: w.id, position: (w as any).position })) }
+          layout: { widgets: dashboardLayout.map((w: Widget) => ({ id: w.id, position: w.position })) }
         })
       })
       setSaveStatus({ status: 'saved', lastSaved: new Date(), error: null })
@@ -439,7 +444,7 @@ const Dashboard = (): React.ReactElement => {
               }}
             >
               <Grid3X3 className="w-6 h-6 mb-2" />
-              <span className="text-xs">{(widget as any).name}</span>
+              <span className="text-xs">{widget.name}</span>
             </AppleButton>
           ))}
         </div>

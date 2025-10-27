@@ -6,7 +6,7 @@
  * @component
  */
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@morningai/shared-ui'
@@ -25,26 +25,92 @@ import {
 } from 'lucide-react'
 import { getMetricsReport, exportMetricsData, MetricsCollector } from '@/lib/metrics-analysis'
 
-export function MetricsAnalysisDashboard() {
-  const [report, setReport] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [baseline, setBaseline] = useState(null)
+type MetricStatus = 'good' | 'excellent' | 'needs_improvement' | 'poor'
+
+interface WebVitalData {
+  status: MetricStatus
+  current: number
+  average: number
+  p90: number
+  count: number
+}
+
+interface UXMetricsTTV {
+  status: MetricStatus
+  average: number
+  median: number
+  p90: number
+  count: number
+}
+
+interface TaskPerformance {
+  success_rate: number
+  successful_tasks: number
+  total_tasks: number
+  avg_completion_time: number
+  avg_duration: number
+  status: MetricStatus
+  failed_tasks: number
+}
+
+interface ErrorData {
+  error_rate: number
+  total_errors: number
+}
+
+interface RegressionData {
+  baseline: number
+  current: number
+  improved: boolean
+  change_percent: number
+}
+
+interface Recommendation {
+  priority: 'high' | 'medium' | 'low'
+  message: string
+  suggestion: string
+}
+
+interface MetricsReport {
+  generated_at: string
+  summary: {
+    total_metrics: number
+    categories: string[]
+  }
+  task_performance?: TaskPerformance
+  web_vitals?: Record<string, WebVitalData>
+  ux_metrics?: {
+    ttv?: UXMetricsTTV
+  }
+  errors?: ErrorData
+  trends?: Record<string, unknown>
+  regression?: {
+    web_vitals?: Record<string, RegressionData>
+    task_success_rate?: RegressionData
+  }
+  recommendations?: Recommendation[]
+}
+
+export function MetricsAnalysisDashboard(): React.ReactElement {
+  const [report, setReport] = useState<MetricsReport | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [baseline, setBaseline] = useState<MetricsReport | null>(null)
 
   useEffect(() => {
     loadReport()
   }, [])
 
-  const loadReport = () => {
+  const loadReport = (): void => {
     setLoading(true)
     try {
-      const metrics = MetricsCollector.loadMetrics()
+      const metrics: unknown[] = MetricsCollector.loadMetrics()
       if (metrics.length === 0) {
         setReport(null)
         setLoading(false)
         return
       }
 
-      const analysisReport = getMetricsReport(baseline)
+      const analysisReport: MetricsReport = getMetricsReport(baseline)
       setReport(analysisReport)
     } catch (error) {
       console.error('Failed to generate report:', error)
@@ -53,18 +119,18 @@ export function MetricsAnalysisDashboard() {
     }
   }
 
-  const handleExport = () => {
-    const data = exportMetricsData()
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
+  const handleExport = (): void => {
+    const data: unknown = exportMetricsData()
+    const blob: Blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url: string = URL.createObjectURL(blob)
+    const a: HTMLAnchorElement = document.createElement('a')
     a.href = url
     a.download = `metrics-report-${Date.now()}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
 
-  const handleSetBaseline = () => {
+  const handleSetBaseline = (): void => {
     if (report) {
       setBaseline(report)
       alert('Baseline set successfully! Future reports will compare against this baseline.')
@@ -72,12 +138,12 @@ export function MetricsAnalysisDashboard() {
     }
   }
 
-  const handleClearBaseline = () => {
+  const handleClearBaseline = (): void => {
     setBaseline(null)
     loadReport()
   }
 
-  const handleClearMetrics = () => {
+  const handleClearMetrics = (): void => {
     if (confirm('Are you sure you want to clear all metrics data? This cannot be undone.')) {
       MetricsCollector.clearMetrics()
       setReport(null)
@@ -85,7 +151,7 @@ export function MetricsAnalysisDashboard() {
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: MetricStatus): React.ReactElement => {
     switch (status) {
       case 'good':
       case 'excellent':
@@ -99,8 +165,8 @@ export function MetricsAnalysisDashboard() {
     }
   }
 
-  const getStatusBadge = (status) => {
-    const variants = {
+  const getStatusBadge = (status: MetricStatus): React.ReactElement => {
+    const variants: Record<MetricStatus, string> = {
       good: 'default',
       excellent: 'default',
       needs_improvement: 'secondary',

@@ -410,6 +410,90 @@ on:
 - [ ] 設置適當的 `timeout-minutes`
 - [ ] 有 `concurrency` 控制（如果適用）
 
+## TypeScript 類型檢查規範
+
+### 標準 TypeCheck 命令
+
+**前端專案** (frontend-dashboard, owner-console):
+```bash
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm run typecheck
+```
+
+**重要說明**:
+- 錯誤數量可能因環境而異（Storybook 檔案包含/排除）
+- **標準**: PR 不得引入新的 TypeScript 錯誤
+- **驗證方式**: 比較 main 分支和 PR 分支的錯誤差異
+
+### 驗證流程
+
+1. **記錄 main 分支錯誤數**:
+```bash
+git checkout main
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm run typecheck 2>&1 | grep "error TS" > /tmp/main_errors.txt
+wc -l /tmp/main_errors.txt
+```
+
+2. **記錄 PR 分支錯誤數**:
+```bash
+git checkout your-pr-branch
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm run typecheck 2>&1 | grep "error TS" > /tmp/pr_errors.txt
+wc -l /tmp/pr_errors.txt
+```
+
+3. **比較差異**:
+```bash
+# 查看新增的錯誤
+diff /tmp/main_errors.txt /tmp/pr_errors.txt | grep "^>"
+
+# 查看修復的錯誤
+diff /tmp/main_errors.txt /tmp/pr_errors.txt | grep "^<"
+```
+
+### 類型標註最佳實踐
+
+1. **完整的介面定義**
+   - 避免使用 `Record<string, unknown>` 作為主要類型
+   - 為所有已知屬性定義明確的類型
+   - 使用 `unknown` 而非 `any` 處理未知類型
+
+2. **避免 `as any` 轉型**
+   - 優先擴展介面定義
+   - 使用可選屬性 (`name?: string`)
+   - 使用類型守衛 (`if ('property' in object)`)
+
+3. **函式類型標註**
+   - 所有函式參數加上類型
+   - 所有函式加上回傳類型
+   - React 元件使用 `React.ReactElement` 或 `React.FC`
+
+**範例**:
+```typescript
+// ✅ 好的類型定義
+interface MetricsReport {
+  generated_at: string
+  web_vitals?: Record<string, WebVitalData>  // 使用具體的 value 類型
+  recommendations?: Recommendation[]
+}
+
+interface WebVitalData {
+  status: 'good' | 'excellent' | 'needs_improvement' | 'poor'
+  current: number
+  average: number
+  p90: number
+  count: number
+}
+
+// ❌ 不好的類型定義
+interface MetricsReport {
+  generated_at: string
+  web_vitals?: Record<string, unknown>  // 過於泛型
+  recommendations?: unknown[]
+}
+```
+
 ## 驗收標準
 
 所有 PR 需通過：
@@ -425,7 +509,7 @@ on:
 
 3. **CI 檢查**
    - Lint 檢查通過
-   - Type 檢查通過
+   - Type 檢查通過（**不得引入新錯誤**）
    - Build 成功
 
 4. **Post-deploy Health 斷言**
