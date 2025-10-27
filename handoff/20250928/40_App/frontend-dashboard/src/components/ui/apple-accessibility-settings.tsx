@@ -54,7 +54,7 @@ const ToggleSwitch: React.FC<{
   description?: string
   icon?: React.ReactNode
 }> = ({ checked, onChange, label, description, icon }) => {
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   const handleToggle = () => {
     const newValue = !checked
@@ -102,7 +102,7 @@ const FontSizeSelector: React.FC<{
   onChange: (value: AccessibilitySettings['fontSize']) => void
 }> = ({ value, onChange }) => {
   const { t } = useTranslation()
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   const options: Array<{ value: AccessibilitySettings['fontSize']; label: string }> = [
     { value: 'small', label: t('accessibility.fontSize.small', 'Small') },
@@ -163,7 +163,7 @@ const FocusIndicatorSelector: React.FC<{
   onChange: (value: AccessibilitySettings['focusIndicators']) => void
 }> = ({ value, onChange }) => {
   const { t } = useTranslation()
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   const options: Array<{ value: AccessibilitySettings['focusIndicators']; label: string; description: string }> = [
     {
@@ -231,7 +231,7 @@ const AccessibilitySettingsPanel: React.FC = () => {
   const { settings, updateSetting, resetSettings, isOpen, close } = useAccessibilitySettings()
   const panelRef = React.useRef<HTMLDivElement>(null)
   const previousFocusRef = React.useRef<HTMLElement | null>(null)
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   useEffect(() => {
     if (isOpen) {

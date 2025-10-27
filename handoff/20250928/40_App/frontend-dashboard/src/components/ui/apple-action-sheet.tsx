@@ -47,7 +47,7 @@ const ActionSheet = ({
 }) => {
   const sheetRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   const handleClose = useCallback(() => {
     if (sheetRef.current) {

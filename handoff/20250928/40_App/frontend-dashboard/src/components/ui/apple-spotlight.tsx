@@ -83,7 +83,7 @@ const SearchResultItem: React.FC<{
 }> = ({ result, isSelected, onSelect, onHover }) => {
   const { t } = useTranslation()
   const itemRef = useRef<HTMLDivElement>(null)
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   const handleClick = () => {
     if (itemRef.current) {
@@ -162,9 +162,9 @@ const SpotlightPanel: React.FC = () => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
   
-  useFocusTrap(panelRef, isOpen)
+  useFocusTrap(panelRef)
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -381,7 +381,7 @@ export const AppleSpotlightProvider: React.FC<SpotlightProviderProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [recentSearches, setRecentSearches] = useState<string[]>([])
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   const open = useCallback(() => {
     setIsOpen(true)

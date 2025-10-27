@@ -113,7 +113,7 @@ const PickerWheel = ({
   const isDragging = useRef(false)
   const startY = useRef(0)
   const startOffset = useRef(0)
-  const announce = useScreenReaderAnnouncement()
+  const { announce } = useScreenReaderAnnouncement()
 
   const getOffsetFromIndex = (index: number) => {
     return -index * itemHeight
