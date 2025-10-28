@@ -4,7 +4,7 @@ import { ChevronDownIcon } from "lucide-react"
 
 import { cn } from "../../utils"
 
-interface AccordionProps extends React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Root> {}
+type AccordionProps = React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Root>
 
 function Accordion({
   ...props

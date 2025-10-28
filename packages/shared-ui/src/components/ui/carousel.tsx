@@ -179,8 +179,6 @@ function CarouselItem({
 
 interface CarouselPreviousProps extends React.ComponentPropsWithoutRef<typeof Button> {
   className?: string;
-  variant?: "outline" | "default" | "destructive" | "secondary" | "ghost" | "link" | "filled" | "tinted";
-  size?: "default" | "sm" | "lg" | "icon";
 }
 
 function CarouselPrevious({
@@ -210,8 +208,6 @@ function CarouselPrevious({
 
 interface CarouselNextProps extends React.ComponentPropsWithoutRef<typeof Button> {
   className?: string;
-  variant?: "outline" | "default" | "destructive" | "secondary" | "ghost" | "link" | "filled" | "tinted";
-  size?: "default" | "sm" | "lg" | "icon";
 }
 
 function CarouselNext({

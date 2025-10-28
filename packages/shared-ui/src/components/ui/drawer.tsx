@@ -3,7 +3,7 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "../../utils"
 
-interface DrawerProps extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Root> {}
+type DrawerProps = React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Root>
 
 function Drawer({
   ...props

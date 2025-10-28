@@ -6,19 +6,18 @@ import { MinusIcon } from "lucide-react"
 
 import { cn } from "../../utils"
 
-interface InputOTPProps extends React.ComponentPropsWithoutRef<typeof OTPInput> {
-  className?: string;
-  containerClassName?: string;
-}
+type InputOTPProps = React.ComponentPropsWithoutRef<typeof OTPInput>
 
 function InputOTP({
   className,
   containerClassName,
+  maxLength = 6,
   ...props
 }: InputOTPProps) {
   return (
     <OTPInput
       data-slot="input-otp"
+      maxLength={maxLength}
       containerClassName={cn("flex items-center gap-2 has-disabled:opacity-50", containerClassName)}
       className={cn("disabled:cursor-not-allowed", className)}
       {...props} />

@@ -35,10 +35,11 @@ function useChart() {
   return context
 }
 
-interface ChartContainerProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ChartContainerProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
   id?: string;
   className?: string;
   config: ChartConfig;
+  children: React.ReactElement;
 }
 
 function ChartContainer({
