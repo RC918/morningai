@@ -28,7 +28,42 @@
 
 ---
 
-## 📋 Phase 2: Render Staging Services Setup (下週執行)
+## ✅ Phase 2 Complete (已完成)
+
+### What's Been Done
+
+1. **✅ Backend Staging Service**
+   - Service Name: `morningai-backend-v2-stg`
+   - URL: https://morningai-backend-v2-stg.onrender.com
+   - Branch: `develop`
+   - Runtime: Python 3
+   - Status: ✅ Healthy
+   - Database: ✅ Connected (Supabase PostgreSQL)
+   - Redis: ✅ Connected (Upstash, TLS enabled)
+
+2. **✅ Orchestrator Staging Service**
+   - Service Name: `morningai-orchestrator-api-stg`
+   - URL: https://morningai-orchestrator-api-stg.onrender.com
+   - Branch: `develop`
+   - Runtime: Docker
+   - Status: ✅ Healthy
+   - Redis: ✅ Connected (TLS)
+   - Queue: ✅ Active (354 tasks)
+
+3. **✅ Environment Variables Configured**
+   - ORCHESTRATOR_JWT_SECRET: ✅ (48 characters)
+   - REDIS_URL: ✅ (rediss:// with TLS)
+   - DATABASE_URL: ✅ (Staging Supabase)
+   - All required variables: ✅ Set
+
+4. **✅ Health Checks Verified**
+   - Backend `/healthz`: ✅ Passing
+   - Orchestrator `/health`: ✅ Passing
+   - All services operational: ✅
+
+---
+
+## 📋 Phase 2: Render Staging Services Setup (完整記錄)
 
 ### Overview
 
@@ -141,27 +176,40 @@ HITL_APPROVAL_ENABLED=false
 | **Name** | `morningai-orchestrator-api-stg` |
 | **Region** | Oregon (US West) or Tokyo (Asia) |
 | **Branch** | `develop` |
-| **Root Directory** | `handoff/20250928/40_App/orchestrator` |
-| **Runtime** | Python 3 |
-| **Build Command** | `pip install -e .` |
-| **Start Command** | `uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 2` |
+| **Root Directory** | `.` (repository root) |
+| **Runtime** | Docker |
+| **Docker Build Context** | `.` |
+| **Dockerfile Path** | `orchestrator/Dockerfile` |
 | **Instance Type** | Starter ($7/month) |
 | **Auto-Deploy** | Yes (on push to `develop`) |
 
 #### Environment Variables
 
-**Same as Backend API** (複製上面的環境變數)
-
-Additional orchestrator-specific variables:
+**Critical Variables** (必須設定):
 
 ```bash
-# Orchestrator
-ORCHESTRATOR_MODE=api
-MCP_SERVER_URL=http://localhost:8080
+# Environment
+ENVIRONMENT=staging
+PORT=8000
 
-# Task Queue
+# Security (REQUIRED)
+ORCHESTRATOR_JWT_SECRET=[生成 48+ 字元密鑰]
+
+# Redis (REQUIRED)
+REDIS_URL=[從生產環境複製，必須是 rediss:// 開頭]
+
+# Optional but Recommended
+REDIS_KEY_PREFIX=stg:
 RQ_QUEUE_NAME=orchestrator-staging
+ORCHESTRATOR_CORS_ORIGINS=https://morningai-staging.vercel.app,http://localhost:5173
+SENTRY_ENVIRONMENT=staging
+LOG_LEVEL=INFO
 ```
+
+**重要提醒**:
+- `ORCHESTRATOR_JWT_SECRET`: 必須至少 32 字元，建議 48 字元
+- `REDIS_URL`: 必須使用 `rediss://` (雙 s) 表示 TLS 加密
+- 每個 Render 服務都有獨立的環境變數，需要單獨設定
 
 ---
 
@@ -413,24 +461,31 @@ pytest --cov=src --cov-fail-under=74 -v
 - [x] Create Supabase staging project
 - [x] Receive staging credentials
 
-### Phase 2 (下週執行)
-- [ ] Create `morningai-backend-v2-stg` on Render
-- [ ] Configure environment variables
-- [ ] Enable auto-suspend
-- [ ] Create `morningai-orchestrator-api-stg` on Render
-- [ ] Configure environment variables
-- [ ] Test health checks
+### Phase 2 (完成 ✅)
+- [x] Create `morningai-backend-v2-stg` on Render
+- [x] Configure backend environment variables
+- [x] Test backend health check
+- [x] Create `morningai-orchestrator-api-stg` on Render
+- [x] Configure orchestrator environment variables (ORCHESTRATOR_JWT_SECRET, REDIS_URL)
+- [x] Fix Docker configuration for orchestrator
+- [x] Test orchestrator health check
+- [x] Verify database connections
+- [x] Verify Redis connections (TLS)
+- [x] Verify all services operational
 
-### Phase 3 (可選)
+### Phase 3 (可選 - 建議暫不執行)
 - [ ] Configure Vercel staging domain
 - [ ] Add staging environment variables to Vercel
 - [ ] Test end-to-end flow
+
+**決策**: 目前不建立前端 staging，使用本地前端 + staging backend 測試即可
 
 ### Phase 4 (未來)
 - [ ] Add remaining 4 services (workers) to staging
 - [ ] Set up staging monitoring dashboard
 - [ ] Document staging runbooks
 - [ ] Create staging data seed scripts
+- [ ] Set up automated staging data cleanup (monthly)
 
 ---
 
@@ -466,5 +521,15 @@ If you encounter issues:
 
 ---
 
+## 🎉 Staging Environment Complete!
+
+**Status**: ✅ **Fully Operational**
+
+**Services**:
+- ✅ Backend Staging: https://morningai-backend-v2-stg.onrender.com
+- ✅ Orchestrator Staging: https://morningai-orchestrator-api-stg.onrender.com
+- ✅ Staging Database: Supabase PostgreSQL (dckisglnlemvpvmyvnut)
+- ✅ Staging Redis: Upstash (shared with production, key prefix: `stg:`)
+
 **Last Updated**: 2025-10-28
-**Status**: Phase 1 Complete ✅, Phase 2 Ready to Execute
+**Status**: Phase 1 & 2 Complete ✅, Ready for Development Use

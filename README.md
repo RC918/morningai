@@ -68,10 +68,40 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 
 詳細架構文檔：[Owner Console README](handoff/20250928/40_App/owner-console/README.md)
 
+## 環境架構
+
+MorningAI 採用多環境部署架構，確保開發、測試和生產環境的隔離：
+
+### 🚀 Production Environment (生產環境)
+- **Backend API**: https://morningai-backend-v2.onrender.com
+- **Orchestrator API**: https://morningai-orchestrator-api.onrender.com
+- **Frontend**: https://morningai.vercel.app
+- **Database**: Supabase PostgreSQL (production)
+- **Branch**: `main`
+
+### 🧪 Staging Environment (測試環境) ✅
+- **Backend API**: https://morningai-backend-v2-stg.onrender.com
+- **Orchestrator API**: https://morningai-orchestrator-api-stg.onrender.com
+- **Database**: Supabase PostgreSQL (staging: dckisglnlemvpvmyvnut)
+- **Redis**: Upstash (shared, key prefix: `stg:`)
+- **Branch**: `develop`
+- **Status**: ✅ Fully Operational
+- **文檔**: [Staging Setup Guide](docs/ops/STAGING_SETUP_GUIDE.md)
+
+### 💻 Local Development (本地開發)
+- **Backend**: `http://localhost:8000`
+- **Frontend**: `http://localhost:5173`
+- **文檔**: [本地開發設定](docs/setup_local.md)
+
+**部署流程**: Feature Branch → `develop` (Staging) → `main` (Production)
+
+---
+
 ## 開發貢獻流程
 
 請參閱以下文件了解專案的開發規範與 CI/CD 流程：
 - **[本地開發設定](docs/setup_local.md)** - 快速啟動指南與常見問題排除
+- **[Staging 環境指南](docs/ops/STAGING_SETUP_GUIDE.md)** - 完整的 staging 環境設置與使用指南
 - [貢獻規則](docs/CONTRIBUTING.md) - 分工規則、API 變更流程、驗收標準
 - [CI 工作流矩陣](docs/ci_matrix.md) - 完整的 GitHub Actions 工作流說明、觸發條件、Branch Protection 規則
 - [管理腳本指南](docs/scripts_overview.md) - 標準化管理腳本的使用方式與安全注意事項
