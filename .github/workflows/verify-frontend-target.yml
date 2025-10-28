@@ -1,0 +1,37 @@
+name: Verify Frontend Build Target
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'vercel.json'
+      - '.github/workflows/verify-frontend-target.yml'
+  pull_request:
+    paths:
+      - 'vercel.json'
+      - '.github/workflows/verify-frontend-target.yml'
+
+jobs:
+  verify-target:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify vercel.json points to production frontend
+        run: |
+          echo "🔍 Checking vercel.json configuration..."
+          
+          if ! grep -q "handoff/20250928/40_App/frontend-dashboard" vercel.json; then
+            echo "❌ ERROR: vercel.json does not point to production frontend"
+            echo ""
+            echo "Expected: handoff/20250928/40_App/frontend-dashboard"
+            echo "Current vercel.json content:"
+            cat vercel.json
+            echo ""
+            echo "See ADR-001 for frontend-of-record decision"
+            exit 1
+          fi
+          
+          echo "✅ Vercel config correctly points to production frontend"
+          echo "   Target: handoff/20250928/40_App/frontend-dashboard"
