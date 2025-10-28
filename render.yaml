@@ -13,6 +13,8 @@ services:
     envVars:
       - key: FLASK_ENV
         value: production
+      - key: ENVIRONMENT
+        value: production
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
