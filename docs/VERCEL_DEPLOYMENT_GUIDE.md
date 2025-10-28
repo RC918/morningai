@@ -106,7 +106,7 @@
 
 **症狀**：
 ```
-Running "cd frontend-dashboard-deploy && pnpm install"
+Running "cd handoff/20250928/40_App/frontend-dashboard && pnpm install"
 ERR_INVALID_THIS
 ```
 
