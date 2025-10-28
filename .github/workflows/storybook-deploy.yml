@@ -58,14 +58,20 @@ jobs:
       - name: Build Storybook
         run: pnpm --filter frontend-dashboard build-storybook
       
+      - name: Prepare publish directory with redirect
+        run: |
+          mkdir -p storybook_publish/storybook
+          cp -r handoff/20250928/40_App/frontend-dashboard/storybook-static/* storybook_publish/storybook/
+          mkdir -p storybook_publish/dashboard
+          cp storybook_publish/dashboard/index.html storybook_publish/dashboard/ || echo "Redirect file will be committed separately"
+      
       - name: Deploy to GitHub Pages (main branch only)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./handoff/20250928/40_App/frontend-dashboard/storybook-static
+          publish_dir: ./storybook_publish
           publish_branch: gh-pages-storybook
-          destination_dir: storybook
           cname: storybook.morningai.app
           enable_jekyll: false
           keep_files: true
