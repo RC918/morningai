@@ -5,8 +5,7 @@ const path = require('path');
 
 const packages = [
   'handoff/20250928/40_App/frontend-dashboard/package.json',
-  'handoff/20250928/40_App/owner-console/package.json',
-  'frontend-dashboard-deploy/package.json'
+  'handoff/20250928/40_App/owner-console/package.json'
 ];
 
 const loadPackageJson = (filePath) => {

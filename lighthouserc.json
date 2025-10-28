@@ -7,7 +7,7 @@
         "/pricing"
       ],
       "numberOfRuns": 1,
-      "startServerCommand": "cd frontend-dashboard-deploy && pnpm preview --port 4173",
+      "startServerCommand": "cd handoff/20250928/40_App/frontend-dashboard && pnpm preview --port 4173",
       "startServerReadyPattern": "Local:",
       "settings": {
         "preset": "desktop",

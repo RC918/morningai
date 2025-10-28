@@ -5,13 +5,13 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'frontend-dashboard-deploy/**'
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
       - '.github/workflows/lhci.yml'
       - 'lighthouserc.json'
   push:
     branches: [main]
     paths:
-      - 'frontend-dashboard-deploy/**'
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
       - '.github/workflows/lhci.yml'
       - 'lighthouserc.*.json'
 
@@ -27,7 +27,7 @@ jobs:
       pull-requests: write
     defaults:
       run:
-        working-directory: frontend-dashboard-deploy
+        working-directory: handoff/20250928/40_App/frontend-dashboard
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,9 +49,9 @@ jobs:
 
       - name: Build shared-ui package
         run: |
-          cd ..
+          cd ../../../../..
           pnpm --filter @morningai/shared-ui build
-          cd frontend-dashboard-deploy
+          cd handoff/20250928/40_App/frontend-dashboard
 
       - name: Build application
         run: pnpm build
@@ -126,7 +126,7 @@ jobs:
       contents: write
     defaults:
       run:
-        working-directory: frontend-dashboard-deploy
+        working-directory: handoff/20250928/40_App/frontend-dashboard
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -148,9 +148,9 @@ jobs:
 
       - name: Build shared-ui package
         run: |
-          cd ..
+          cd ../../../../..
           pnpm --filter @morningai/shared-ui build
-          cd frontend-dashboard-deploy
+          cd handoff/20250928/40_App/frontend-dashboard
 
       - name: Build application
         run: pnpm build
