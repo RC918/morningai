@@ -21,6 +21,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+      
       - name: Create environment files for CI
         run: |
           cd frontend-dashboard-deploy
