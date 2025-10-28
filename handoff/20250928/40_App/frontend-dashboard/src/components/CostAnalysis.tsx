@@ -177,7 +177,7 @@ const CostAnalysis = (): React.ReactElement => {
                 {costData?.within_budget ? 'Within Budget' : 'Over Budget'}
               </Badge>
               {costData?.alert_level && (
-                <Badge variant={costData.alert_level === 'critical' ? 'destructive' : costData.alert_level === 'warning' ? 'warning' : 'outline'}>
+                <Badge variant={costData.alert_level === 'critical' ? 'destructive' : costData.alert_level === 'warning' ? 'secondary' : 'outline'}>
                   {costData.alert_level}
                 </Badge>
               )}
