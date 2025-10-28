@@ -14,7 +14,7 @@ morningai/
 ├── handoff/20250928/40_App/
 │   ├── frontend-dashboard/package.json       # Tenant Dashboard dependencies
 │   └── owner-console/package.json            # Owner Console dependencies
-└── frontend-dashboard-deploy/package.json    # Storybook deployment dependencies
+└── tools/frontend-lab/frontend-dashboard-deploy/package.json    # Archived (consolidated)
 ```
 
 ## Dependency Unification
@@ -97,7 +97,7 @@ Some dependencies are intentionally kept application-specific:
 packages:
   - 'handoff/20250928/40_App/frontend-dashboard'
   - 'handoff/20250928/40_App/owner-console'
-  - 'frontend-dashboard-deploy'
+  # - 'frontend-dashboard-deploy'  # Removed - consolidated into frontend-dashboard
 ```
 
 ### Benefits

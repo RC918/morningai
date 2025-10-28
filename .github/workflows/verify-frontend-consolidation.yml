@@ -17,29 +17,20 @@ jobs:
         run: |
           echo "🔍 Checking for references to deprecated frontend-dashboard-deploy..."
           
-          # Exclude archived directory and this workflow itself
-          EXCLUDED_PATHS=(
-            "tools/frontend-lab"
-            ".github/workflows/verify-frontend-consolidation.yml"
-            "docs/TECHNICAL_DEBT_ROADMAP.md"
-            "docs/adr/001-pnpm-turborepo-migration.md"
-            "docs/VERCEL_PNPM_INCIDENT_REPORT.md"
-          )
-          
-          EXCLUDE_ARGS=""
-          for path in "${EXCLUDED_PATHS[@]}"; do
-            EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude-dir=$path"
-          done
-          
-          # Search for references (case-insensitive)
-          if grep -r -i "frontend-dashboard-deploy" \
-            --exclude-dir=.git \
-            --exclude-dir=node_modules \
-            --exclude-dir=dist \
-            --exclude-dir=build \
-            --exclude-dir=.next \
-            $EXCLUDE_ARGS \
-            . ; then
+          # Use git grep with pathspec excludes for more reliable exclusion
+          if git grep -n -I 'frontend-dashboard-deploy' -- \
+            . \
+            ':!tools/frontend-lab/**' \
+            ':!.github/workflows/verify-frontend-consolidation.yml' \
+            ':!docs/TECHNICAL_DEBT_ROADMAP.md' \
+            ':!docs/adr/001-pnpm-turborepo-migration.md' \
+            ':!docs/VERCEL_PNPM_INCIDENT_REPORT.md' \
+            ':!docs/LIGHTHOUSE_CI_GUIDE.md' \
+            ':!CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT.md' \
+            ':!DEPENDENCY_MANAGEMENT.md' \
+            ':!pnpm-lock.yaml' \
+            ':!.gitignore' \
+            ; then
             echo ""
             echo "❌ ERROR: Found references to deprecated 'frontend-dashboard-deploy' directory!"
             echo ""

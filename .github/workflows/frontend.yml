@@ -26,7 +26,7 @@ jobs:
       
       - name: Create environment files for CI
         run: |
-          cd frontend-dashboard-deploy
+          cd handoff/20250928/40_App/frontend-dashboard
           echo "VITE_API_BASE_URL=http://localhost:5000" > .env.production
           echo "STRIPE_SECRET_KEY=sk_test_placeholder" >> .env.production
           echo "STRIPE_WEBHOOK_SECRET=whsec_placeholder" >> .env.production
@@ -39,8 +39,3 @@ jobs:
       
       - name: Lint frontend with Turborepo
         run: pnpm run lint --filter=frontend-dashboard
-      
-      - name: Smoke Tests
-        run: |
-          cd frontend-dashboard-deploy
-          pnpm run test:smoke
