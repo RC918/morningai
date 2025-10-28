@@ -232,8 +232,45 @@ def health_check():
 db_dir = os.path.join(os.path.dirname(__file__), 'database')
 os.makedirs(db_dir, exist_ok=True)
 
-# uncomment if you need to use database
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+DATABASE_URL = os.environ.get('DATABASE_URL')
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
+
+if ENVIRONMENT == 'production':
+    if not DATABASE_URL:
+        logger.critical("❌ FATAL: Production environment requires DATABASE_URL to be set")
+        raise RuntimeError("Production must have DATABASE_URL configured")
+    
+    if DATABASE_URL.startswith('sqlite'):
+        logger.critical("❌ FATAL: Production environment cannot use SQLite (ephemeral storage)")
+        raise RuntimeError("Production must use PostgreSQL, not SQLite")
+    
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+    
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(DATABASE_URL)
+        db_driver = parsed.scheme
+        db_host = parsed.hostname or 'unknown'
+        logger.info(f"✅ Database configured: {db_driver} (host: {db_host})")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not parse DATABASE_URL for logging: {e}")
+        logger.info("✅ Database configured: PostgreSQL")
+else:
+    if DATABASE_URL and not DATABASE_URL.startswith('sqlite'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(DATABASE_URL)
+            db_driver = parsed.scheme
+            db_host = parsed.hostname or 'unknown'
+            logger.info(f"ℹ️  Database configured: {db_driver} (host: {db_host})")
+        except Exception:
+            logger.info("ℹ️  Database configured: PostgreSQL")
+    else:
+        sqlite_path = os.path.join(os.path.dirname(__file__), 'database', 'app.db')
+        app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{sqlite_path}"
+        logger.info(f"ℹ️  Database configured: SQLite (path: {sqlite_path})")
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():

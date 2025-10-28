@@ -16,7 +16,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///database/app.db
+        sync: false
       - key: REDIS_URL
         sync: false
       - key: SENTRY_DSN
