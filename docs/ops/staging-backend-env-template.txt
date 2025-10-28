@@ -1,0 +1,78 @@
+# Staging Backend Environment Variables Template
+# Copy these to Render when creating morningai-backend-v2-stg service
+
+# ============================================
+# CRITICAL VARIABLES (Must be set)
+# ============================================
+
+# Environment
+ENVIRONMENT=staging
+
+# Database (Staging Supabase)
+# TODO: Replace [PASSWORD] with actual Supabase database password
+DATABASE_URL=postgresql://postgres.dckisglnlemvpvmyvnut:[PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
+SUPABASE_URL=https://dckisglnlemvpvmyvnut.supabase.co
+# TODO: Will be provided by Devin (stored securely)
+SUPABASE_ANON_KEY=[TO_BE_PROVIDED]
+SUPABASE_SERVICE_ROLE_KEY=[TO_BE_PROVIDED]
+
+# Redis
+# TODO: Copy from production morningai-backend-v2 service
+REDIS_URL=[COPY_FROM_PRODUCTION]
+
+# Database Connection Pool
+DB_POOL_SIZE=5
+DB_POOL_MAX_OVERFLOW=5
+DB_POOL_RECYCLE=3600
+DB_POOL_PRE_PING=true
+
+# Security Keys
+# TODO: Generate using: openssl rand -hex 32
+JWT_SECRET_KEY=[GENERATE_NEW]
+SECRET_KEY=[GENERATE_NEW]
+MASTER_ENCRYPTION_KEY=[GENERATE_NEW]
+
+# Monitoring
+# TODO: Copy from production or leave empty
+SENTRY_DSN=[COPY_FROM_PRODUCTION_OR_EMPTY]
+SENTRY_ENVIRONMENT=staging
+
+# Testing
+TESTING=false
+
+# ============================================
+# OPTIONAL VARIABLES (Can be added later)
+# ============================================
+
+# LLM APIs (can use same as production)
+# OPENAI_API_KEY=[COPY_FROM_PRODUCTION]
+# ANTHROPIC_API_KEY=[COPY_FROM_PRODUCTION]
+
+# External Services (optional for staging)
+# TELEGRAM_BOT_TOKEN=[COPY_FROM_PRODUCTION_OR_EMPTY]
+# SLACK_WEBHOOK_URL=[EMPTY_OR_TEST_WEBHOOK]
+
+# Feature Flags
+# HITL_APPROVAL_ENABLED=false
+
+# ============================================
+# NOTES
+# ============================================
+
+# 1. DATABASE_URL password can be found at:
+#    Supabase Dashboard → Settings → Database → Connection string (Pooler)
+#    Look for: postgresql://postgres.dckisglnlemvpvmyvnut:[PASSWORD]@...
+
+# 2. REDIS_URL can be copied from:
+#    Render Dashboard → morningai-backend-v2 → Environment → REDIS_URL
+
+# 3. Generate new secret keys using:
+#    openssl rand -hex 32
+#    (Run this command 3 times for JWT_SECRET_KEY, SECRET_KEY, MASTER_ENCRYPTION_KEY)
+
+# 4. SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY will be provided by Devin
+#    (already stored securely)
+
+# 5. After deployment, test with:
+#    curl https://morningai-backend-v2-stg.onrender.com/healthz
+#    Expected: {"phase": "Phase 8", "version": "8.0.0", "status": "healthy", "database": "connected"}
