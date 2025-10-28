@@ -48,10 +48,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared-ui package
-        run: |
-          cd ../../../../..
-          pnpm --filter @morningai/shared-ui build
-          cd handoff/20250928/40_App/frontend-dashboard
+        working-directory: ${{ github.workspace }}
+        run: pnpm --filter @morningai/shared-ui build
 
       - name: Build application
         run: pnpm build
@@ -147,10 +145,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared-ui package
-        run: |
-          cd ../../../../..
-          pnpm --filter @morningai/shared-ui build
-          cd handoff/20250928/40_App/frontend-dashboard
+        working-directory: ${{ github.workspace }}
+        run: pnpm --filter @morningai/shared-ui build
 
       - name: Build application
         run: pnpm build
