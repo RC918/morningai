@@ -46,7 +46,7 @@ export const EmptyState = ({
       </p>
       
       {action && (
-        <AppleButton onClick={action} size="lg" variant="default" className="">
+        <AppleButton onClick={action} size="lg" variant="primary" className="">
           {actionLabel || t('feedback.emptyState.defaultPrimaryAction')}
         </AppleButton>
       )}
