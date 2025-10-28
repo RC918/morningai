@@ -47,6 +47,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared-ui package
+        run: |
+          cd ..
+          pnpm --filter @morningai/shared-ui build
+          cd frontend-dashboard-deploy
+
       - name: Build application
         run: pnpm build
 
@@ -139,6 +145,12 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build shared-ui package
+        run: |
+          cd ..
+          pnpm --filter @morningai/shared-ui build
+          cd frontend-dashboard-deploy
 
       - name: Build application
         run: pnpm build
