@@ -240,7 +240,7 @@ export const AppleToastProvider = ({ children }: { children: React.ReactNode }) 
         <AnimatePresence mode="popLayout">
           {toasts.map((toast) => (
             <div key={toast.id} className="pointer-events-auto">
-              <Toast {...toast} onDismiss={dismiss} />
+              <Toast {...toast} id={toast.id!} onDismiss={dismiss} />
             </div>
           ))}
         </AnimatePresence>
