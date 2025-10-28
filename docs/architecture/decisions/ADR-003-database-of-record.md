@@ -1,9 +1,12 @@
 # ADR-003: Database-of-Record Decision
 
-**Status**: Proposed  
+**Status**: Accepted (Decision only)  
 **Date**: 2025-10-28  
 **Decision Maker**: CTO  
-**Stakeholders**: Engineering Team, DevOps, Product, CEO
+**Stakeholders**: Engineering Team, DevOps, Product, CEO  
+**Implementation Status**: Phase 1 Complete (DATABASE_URL support), Phase 2-4 Pending
+
+**Note**: This ADR documents the architectural decision to adopt Supabase PostgreSQL as the production database-of-record. The decision is accepted, but the full implementation (Alembic migrations, RLS policies, data migration) is tracked separately and will be completed over the next 2-4 weeks per the implementation plan below.
 
 ---
 

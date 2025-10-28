@@ -233,18 +233,82 @@ db_dir = os.path.join(os.path.dirname(__file__), 'database')
 os.makedirs(db_dir, exist_ok=True)
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
 
-if DATABASE_URL and not DATABASE_URL.startswith('sqlite'):
+DB_POOL_SIZE = int(os.environ.get('DB_POOL_SIZE', '10'))
+DB_POOL_MAX_OVERFLOW = int(os.environ.get('DB_POOL_MAX_OVERFLOW', '10'))
+DB_POOL_RECYCLE = int(os.environ.get('DB_POOL_RECYCLE', '3600'))
+DB_POOL_PRE_PING = os.environ.get('DB_POOL_PRE_PING', 'true').lower() == 'true'
+
+def validate_database_url(url):
+    """Validate DATABASE_URL format and scheme."""
+    if not url:
+        return False, "DATABASE_URL is empty"
+    
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        
+        if parsed.scheme not in ('postgres', 'postgresql', 'sqlite'):
+            return False, f"Invalid DATABASE_URL scheme: {parsed.scheme}"
+        
+        if parsed.scheme in ('postgres', 'postgresql') and not parsed.hostname:
+            return False, "PostgreSQL DATABASE_URL missing hostname"
+        
+        return True, "Valid"
+    except Exception as e:
+        return False, f"Invalid DATABASE_URL format: {str(e)}"
+
+if ENVIRONMENT == 'production':
+    if not DATABASE_URL:
+        app.logger.critical("❌ FATAL: Production environment requires DATABASE_URL to be set")
+        import sys
+        sys.exit(1)
+    
+    is_valid, error_msg = validate_database_url(DATABASE_URL)
+    if not is_valid:
+        app.logger.critical(f"❌ FATAL: {error_msg}")
+        import sys
+        sys.exit(1)
+    
+    if DATABASE_URL.startswith('sqlite'):
+        app.logger.critical("❌ FATAL: Production environment cannot use SQLite")
+        import sys
+        sys.exit(1)
+    
     app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_size': 10,
-        'pool_recycle': 3600,
-        'pool_pre_ping': True,  # Verify connections before using
+        'pool_size': DB_POOL_SIZE,
+        'max_overflow': DB_POOL_MAX_OVERFLOW,
+        'pool_recycle': DB_POOL_RECYCLE,
+        'pool_pre_ping': DB_POOL_PRE_PING,
     }
-    print(f"✅ Using PostgreSQL: {DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'configured'}")
+    
+    db_host = DATABASE_URL.split('@')[1].split('/')[0] if '@' in DATABASE_URL else 'configured'
+    app.logger.info(f"✅ Using PostgreSQL: {db_host} (pool_size={DB_POOL_SIZE}, max_overflow={DB_POOL_MAX_OVERFLOW})")
+
 else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
-    print(f"⚠️  Using SQLite for development: {os.path.join(os.path.dirname(__file__), 'database', 'app.db')}")
+    if DATABASE_URL and not DATABASE_URL.startswith('sqlite'):
+        is_valid, error_msg = validate_database_url(DATABASE_URL)
+        if is_valid:
+            app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+            app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+                'pool_size': DB_POOL_SIZE,
+                'max_overflow': DB_POOL_MAX_OVERFLOW,
+                'pool_recycle': DB_POOL_RECYCLE,
+                'pool_pre_ping': DB_POOL_PRE_PING,
+            }
+            db_host = DATABASE_URL.split('@')[1].split('/')[0] if '@' in DATABASE_URL else 'configured'
+            app.logger.info(f"✅ Using PostgreSQL: {db_host} (pool_size={DB_POOL_SIZE})")
+        else:
+            app.logger.warning(f"⚠️  Invalid DATABASE_URL ({error_msg}), falling back to SQLite")
+            sqlite_path = os.path.join(os.path.dirname(__file__), 'database', 'app.db')
+            app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{sqlite_path}"
+            app.logger.warning(f"⚠️  Using SQLite for development: {sqlite_path}")
+    else:
+        sqlite_path = os.path.join(os.path.dirname(__file__), 'database', 'app.db')
+        app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{sqlite_path}"
+        app.logger.info(f"ℹ️  Using SQLite for development: {sqlite_path}")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
