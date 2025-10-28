@@ -46,7 +46,7 @@ morningai/
 ├── monitoring/                 # 監控腳本和 SQL 查詢
 ├── scripts/                    # 部署和維護腳本
 ├── docs/                       # 完整文檔
-├── frontend-dashboard-deploy/  # Dashboard 部署版本 (Storybook)
+├── tools/frontend-lab/frontend-dashboard-deploy/  # Archived (consolidated)
 ├── knowledge_graph/            # 知識圖譜
 └── tests/                      # 整合測試
 
@@ -649,7 +649,7 @@ services:
 packages:
   - 'handoff/20250928/40_App/frontend-dashboard'
   - 'handoff/20250928/40_App/owner-console'
-  - 'frontend-dashboard-deploy'
+  # - 'frontend-dashboard-deploy'  # Removed - consolidated
 ```
 
 **Turborepo 配置**:
@@ -892,7 +892,7 @@ packages:
 - ✅ `docs/FAQ.md` - 常見問題
 - ✅ `README.md` - 專案概覽
 - ✅ `CONTRIBUTING.md` - 貢獻指南
-- ✅ `frontend-dashboard-deploy/docs/STORYBOOK_GUIDE.md`
+- ✅ `handoff/20250928/40_App/frontend-dashboard/docs/STORYBOOK_GUIDE.md` (consolidated)
 
 **UX 文檔**:
 - ✅ `docs/UX/USABILITY_TESTING_PLAN.md`
