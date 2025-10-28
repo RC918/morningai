@@ -28,6 +28,7 @@ jobs:
             ':!docs/LIGHTHOUSE_CI_GUIDE.md' \
             ':!CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT.md' \
             ':!DEPENDENCY_MANAGEMENT.md' \
+            ':!PROJECT_DEEP_ANALYSIS.md' \
             ':!pnpm-lock.yaml' \
             ':!.gitignore' \
             ; then
