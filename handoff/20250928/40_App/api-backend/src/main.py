@@ -272,9 +272,52 @@ else:
         logger.info(f"ℹ️  Database configured: SQLite (path: {sqlite_path})")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'pool_size': 5,
+    'max_overflow': 10,
+    'pool_timeout': 10,
+}
+
 db.init_app(app)
-with app.app_context():
-    db.create_all()
+
+def init_database_with_retry(max_retries=6, initial_delay=0.5):
+    """
+    Initialize database with exponential backoff retry logic.
+    
+    This handles transient connection issues during deployment, especially
+    with Supabase Session pooler which may briefly refuse connections during
+    cold starts or network blips.
+    
+    Retry schedule: 0.5s, 1s, 2s, 4s, 8s, 16s (total ~31.5s)
+    """
+    import time
+    
+    for attempt in range(max_retries):
+        try:
+            with app.app_context():
+                db.create_all()
+            logger.info("✅ Database tables initialized successfully")
+            return
+        except Exception as e:
+            delay = initial_delay * (2 ** attempt)
+            is_last_attempt = (attempt == max_retries - 1)
+            
+            if is_last_attempt:
+                logger.critical(f"❌ FATAL: Failed to initialize database after {max_retries} attempts: {e}")
+                raise
+            else:
+                logger.warning(f"⚠️  Database initialization attempt {attempt + 1}/{max_retries} failed: {e}")
+                logger.info(f"🔄 Retrying in {delay}s...")
+                time.sleep(delay)
+
+if ENVIRONMENT == 'production':
+    init_database_with_retry()
+else:
+    with app.app_context():
+        db.create_all()
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
