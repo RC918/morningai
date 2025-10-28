@@ -2,11 +2,15 @@ import * as React from "react"
 
 import { cn } from "../../utils"
 
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  className?: string;
+}
+
 function Input({
   className,
   type,
   ...props
-}) {
+}: InputProps) {
   return (
     <input
       type={type}
@@ -22,3 +26,4 @@ function Input({
 }
 
 export { Input }
+export type { InputProps }

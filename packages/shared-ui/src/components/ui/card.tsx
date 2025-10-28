@@ -2,11 +2,16 @@ import * as React from "react"
 
 import { cn } from "../../utils"
 
+interface CardProps extends React.ComponentPropsWithoutRef<'div'> {
+  className?: string;
+  interactive?: boolean;
+}
+
 function Card({
   className,
   interactive = false,
   ...props
-}) {
+}: CardProps) {
   return (
     <div
       data-slot="card"
@@ -19,10 +24,14 @@ function Card({
   );
 }
 
+interface CardHeaderProps extends React.ComponentPropsWithoutRef<'div'> {
+  className?: string;
+}
+
 function CardHeader({
   className,
   ...props
-}) {
+}: CardHeaderProps) {
   return (
     <div
       data-slot="card-header"
@@ -34,10 +43,14 @@ function CardHeader({
   );
 }
 
+interface CardTitleProps extends React.ComponentPropsWithoutRef<'div'> {
+  className?: string;
+}
+
 function CardTitle({
   className,
   ...props
-}) {
+}: CardTitleProps) {
   return (
     <div
       data-slot="card-title"
@@ -46,10 +59,14 @@ function CardTitle({
   );
 }
 
+interface CardDescriptionProps extends React.ComponentPropsWithoutRef<'div'> {
+  className?: string;
+}
+
 function CardDescription({
   className,
   ...props
-}) {
+}: CardDescriptionProps) {
   return (
     <div
       data-slot="card-description"
@@ -58,10 +75,14 @@ function CardDescription({
   );
 }
 
+interface CardActionProps extends React.ComponentPropsWithoutRef<'div'> {
+  className?: string;
+}
+
 function CardAction({
   className,
   ...props
-}) {
+}: CardActionProps) {
   return (
     <div
       data-slot="card-action"
@@ -73,17 +94,25 @@ function CardAction({
   );
 }
 
+interface CardContentProps extends React.ComponentPropsWithoutRef<'div'> {
+  className?: string;
+}
+
 function CardContent({
   className,
   ...props
-}) {
+}: CardContentProps) {
   return (<div data-slot="card-content" className={cn("px-6", className)} {...props} />);
+}
+
+interface CardFooterProps extends React.ComponentPropsWithoutRef<'div'> {
+  className?: string;
 }
 
 function CardFooter({
   className,
   ...props
-}) {
+}: CardFooterProps) {
   return (
     <div
       data-slot="card-footer"
@@ -100,4 +129,14 @@ export {
   CardAction,
   CardDescription,
   CardContent,
+}
+
+export type {
+  CardProps,
+  CardHeaderProps,
+  CardFooterProps,
+  CardTitleProps,
+  CardActionProps,
+  CardDescriptionProps,
+  CardContentProps,
 }
