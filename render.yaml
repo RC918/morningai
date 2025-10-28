@@ -10,6 +10,7 @@ services:
       cd ../orchestrator &&
       pip install -e .
     startCommand: cd handoff/20250928/40_App/api-backend && gunicorn -c gunicorn.conf.py src.main:app
+    healthCheckPath: /health
     envVars:
       - key: FLASK_ENV
         value: production
