@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
-import { cva } from "class-variance-authority";
+import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "../../utils"
 
@@ -35,13 +35,19 @@ const buttonVariants = cva(
   }
 )
 
+interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+}
+
 function Button({
   className,
   variant,
   size,
   asChild = false,
   ...props
-}) {
+}: ButtonProps) {
   const Comp = asChild ? Slot : "button"
 
   return (
@@ -52,5 +58,5 @@ function Button({
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants }
+export type { ButtonProps }
