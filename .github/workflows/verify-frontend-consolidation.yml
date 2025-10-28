@@ -1,0 +1,55 @@
+name: Verify Frontend Consolidation
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  check-no-old-frontend-references:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check for frontend-dashboard-deploy references
+        run: |
+          echo "🔍 Checking for references to deprecated frontend-dashboard-deploy..."
+          
+          # Exclude archived directory and this workflow itself
+          EXCLUDED_PATHS=(
+            "tools/frontend-lab"
+            ".github/workflows/verify-frontend-consolidation.yml"
+            "docs/TECHNICAL_DEBT_ROADMAP.md"
+            "docs/adr/001-pnpm-turborepo-migration.md"
+            "docs/VERCEL_PNPM_INCIDENT_REPORT.md"
+          )
+          
+          EXCLUDE_ARGS=""
+          for path in "${EXCLUDED_PATHS[@]}"; do
+            EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude-dir=$path"
+          done
+          
+          # Search for references (case-insensitive)
+          if grep -r -i "frontend-dashboard-deploy" \
+            --exclude-dir=.git \
+            --exclude-dir=node_modules \
+            --exclude-dir=dist \
+            --exclude-dir=build \
+            --exclude-dir=.next \
+            $EXCLUDE_ARGS \
+            . ; then
+            echo ""
+            echo "❌ ERROR: Found references to deprecated 'frontend-dashboard-deploy' directory!"
+            echo ""
+            echo "The frontend has been consolidated. Please use:"
+            echo "  - Directory: handoff/20250928/40_App/frontend-dashboard/"
+            echo "  - Package: frontend-dashboard"
+            echo "  - Filter: --filter frontend-dashboard"
+            echo ""
+            echo "See docs/TECHNICAL_DEBT_ROADMAP.md Issue #2 for details."
+            exit 1
+          else
+            echo "✅ No references to deprecated frontend-dashboard-deploy found!"
+          fi
