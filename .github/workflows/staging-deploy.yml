@@ -104,6 +104,8 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
       - name: Run frontend tests
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
