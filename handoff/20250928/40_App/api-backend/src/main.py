@@ -244,7 +244,14 @@ if ENVIRONMENT == 'production':
         logger.critical("❌ FATAL: Production environment cannot use SQLite (ephemeral storage)")
         raise RuntimeError("Production must use PostgreSQL, not SQLite")
     
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+    
     app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
     
     try:
         from urllib.parse import urlparse
@@ -257,7 +264,14 @@ if ENVIRONMENT == 'production':
         logger.info("✅ Database configured: PostgreSQL")
 else:
     if DATABASE_URL and not DATABASE_URL.startswith('sqlite'):
+        if DATABASE_URL.startswith("postgres://"):
+            DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+        
         app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+        }
         try:
             from urllib.parse import urlparse
             parsed = urlparse(DATABASE_URL)
@@ -270,6 +284,7 @@ else:
         sqlite_path = os.path.join(os.path.dirname(__file__), 'database', 'app.db')
         app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{sqlite_path}"
         logger.info(f"ℹ️  Database configured: SQLite (path: {sqlite_path})")
+
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
