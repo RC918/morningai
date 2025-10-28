@@ -9,10 +9,14 @@ import { useTranslation } from 'react-i18next'
 import { cn } from "../../utils"
 import { buttonVariants } from "./button";
 
+interface PaginationProps extends React.ComponentPropsWithoutRef<"nav"> {
+  className?: string;
+}
+
 function Pagination({
   className,
   ...props
-}) {
+}: PaginationProps) {
   return (
     <nav
       role="navigation"
@@ -23,10 +27,14 @@ function Pagination({
   );
 }
 
+interface PaginationContentProps extends React.ComponentPropsWithoutRef<"ul"> {
+  className?: string;
+}
+
 function PaginationContent({
   className,
   ...props
-}) {
+}: PaginationContentProps) {
   return (
     <ul
       data-slot="pagination-content"
@@ -35,10 +43,18 @@ function PaginationContent({
   );
 }
 
+interface PaginationItemProps extends React.ComponentPropsWithoutRef<"li"> {}
+
 function PaginationItem({
   ...props
-}) {
+}: PaginationItemProps) {
   return <li data-slot="pagination-item" {...props} />;
+}
+
+interface PaginationLinkProps extends React.ComponentPropsWithoutRef<"a"> {
+  className?: string;
+  isActive?: boolean;
+  size?: "default" | "sm" | "lg" | "icon";
 }
 
 function PaginationLink({
@@ -46,7 +62,7 @@ function PaginationLink({
   isActive,
   size = "icon",
   ...props
-}) {
+}: PaginationLinkProps) {
   const { t } = useTranslation()
   return (
     <a
@@ -62,10 +78,14 @@ function PaginationLink({
   );
 }
 
+interface PaginationPreviousProps extends React.ComponentPropsWithoutRef<typeof PaginationLink> {
+  className?: string;
+}
+
 function PaginationPrevious({
   className,
   ...props
-}) {
+}: PaginationPreviousProps) {
   return (
     <PaginationLink
       aria-label="Go to previous page"
@@ -78,10 +98,14 @@ function PaginationPrevious({
   );
 }
 
+interface PaginationNextProps extends React.ComponentPropsWithoutRef<typeof PaginationLink> {
+  className?: string;
+}
+
 function PaginationNext({
   className,
   ...props
-}) {
+}: PaginationNextProps) {
   return (
     <PaginationLink
       aria-label="Go to next page"
@@ -94,10 +118,14 @@ function PaginationNext({
   );
 }
 
+interface PaginationEllipsisProps extends React.ComponentPropsWithoutRef<"span"> {
+  className?: string;
+}
+
 function PaginationEllipsis({
   className,
   ...props
-}) {
+}: PaginationEllipsisProps) {
   return (
     <span
       aria-hidden
@@ -118,4 +146,14 @@ export {
   PaginationPrevious,
   PaginationNext,
   PaginationEllipsis,
+}
+
+export type {
+  PaginationProps,
+  PaginationContentProps,
+  PaginationLinkProps,
+  PaginationItemProps,
+  PaginationPreviousProps,
+  PaginationNextProps,
+  PaginationEllipsisProps,
 }

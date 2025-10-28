@@ -4,10 +4,14 @@ import * as ResizablePrimitive from "react-resizable-panels"
 
 import { cn } from "../../utils"
 
+interface ResizablePanelGroupProps extends React.ComponentPropsWithoutRef<typeof ResizablePrimitive.PanelGroup> {
+  className?: string;
+}
+
 function ResizablePanelGroup({
   className,
   ...props
-}) {
+}: ResizablePanelGroupProps) {
   return (
     <ResizablePrimitive.PanelGroup
       data-slot="resizable-panel-group"
@@ -19,17 +23,24 @@ function ResizablePanelGroup({
   );
 }
 
+interface ResizablePanelProps extends React.ComponentPropsWithoutRef<typeof ResizablePrimitive.Panel> {}
+
 function ResizablePanel({
   ...props
-}) {
+}: ResizablePanelProps) {
   return <ResizablePrimitive.Panel data-slot="resizable-panel" {...props} />;
+}
+
+interface ResizableHandleProps extends React.ComponentPropsWithoutRef<typeof ResizablePrimitive.PanelResizeHandle> {
+  withHandle?: boolean;
+  className?: string;
 }
 
 function ResizableHandle({
   withHandle,
   className,
   ...props
-}) {
+}: ResizableHandleProps) {
   return (
     <ResizablePrimitive.PanelResizeHandle
       data-slot="resizable-handle"
@@ -49,3 +60,4 @@ function ResizableHandle({
 }
 
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle }
+export type { ResizablePanelGroupProps, ResizablePanelProps, ResizableHandleProps }

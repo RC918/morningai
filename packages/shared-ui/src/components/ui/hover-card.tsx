@@ -3,16 +3,26 @@ import * as HoverCardPrimitive from "@radix-ui/react-hover-card"
 
 import { cn } from "../../utils"
 
+interface HoverCardProps extends React.ComponentPropsWithoutRef<typeof HoverCardPrimitive.Root> {}
+
 function HoverCard({
   ...props
-}) {
+}: HoverCardProps) {
   return <HoverCardPrimitive.Root data-slot="hover-card" {...props} />;
 }
 
+interface HoverCardTriggerProps extends React.ComponentPropsWithoutRef<typeof HoverCardPrimitive.Trigger> {}
+
 function HoverCardTrigger({
   ...props
-}) {
+}: HoverCardTriggerProps) {
   return (<HoverCardPrimitive.Trigger data-slot="hover-card-trigger" {...props} />);
+}
+
+interface HoverCardContentProps extends React.ComponentPropsWithoutRef<typeof HoverCardPrimitive.Content> {
+  className?: string;
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
 }
 
 function HoverCardContent({
@@ -20,7 +30,7 @@ function HoverCardContent({
   align = "center",
   sideOffset = 4,
   ...props
-}) {
+}: HoverCardContentProps) {
   return (
     <HoverCardPrimitive.Portal data-slot="hover-card-portal">
       <HoverCardPrimitive.Content
@@ -37,3 +47,4 @@ function HoverCardContent({
 }
 
 export { HoverCard, HoverCardTrigger, HoverCardContent }
+export type { HoverCardProps, HoverCardTriggerProps, HoverCardContentProps }
