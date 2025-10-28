@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as TogglePrimitive from "@radix-ui/react-toggle"
-import { cva } from "class-variance-authority";
+import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "../../utils"
 
@@ -26,12 +26,16 @@ const toggleVariants = cva(
   }
 )
 
+interface ToggleProps extends React.ComponentPropsWithoutRef<typeof TogglePrimitive.Root>, VariantProps<typeof toggleVariants> {
+  className?: string;
+}
+
 function Toggle({
   className,
   variant,
   size,
   ...props
-}) {
+}: ToggleProps) {
   return (
     <TogglePrimitive.Root
       data-slot="toggle"
@@ -42,3 +46,4 @@ function Toggle({
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { Toggle, toggleVariants }
+export type { ToggleProps }

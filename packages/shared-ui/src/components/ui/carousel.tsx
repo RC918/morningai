@@ -1,12 +1,35 @@
 "use client";
 import * as React from "react"
-import useEmblaCarousel from "embla-carousel-react";
+import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
 import { ArrowLeft, ArrowRight } from "lucide-react"
 
 import { cn } from "../../utils"
 import { Button } from "./button"
 
-const CarouselContext = React.createContext(null)
+type CarouselApi = UseEmblaCarouselType[1]
+type UseCarouselParameters = Parameters<typeof useEmblaCarousel>
+type CarouselOptions = UseCarouselParameters[0]
+type CarouselPlugin = UseCarouselParameters[1]
+
+type CarouselProps = {
+  opts?: CarouselOptions
+  plugins?: CarouselPlugin
+  orientation?: "horizontal" | "vertical"
+  setApi?: (api: CarouselApi) => void
+}
+
+type CarouselContextProps = {
+  carouselRef: ReturnType<typeof useEmblaCarousel>[0]
+  api: ReturnType<typeof useEmblaCarousel>[1]
+  scrollPrev: () => void
+  scrollNext: () => void
+  canScrollPrev: boolean
+  canScrollNext: boolean
+  orientation: "horizontal" | "vertical"
+  opts?: CarouselOptions
+} | null
+
+const CarouselContext = React.createContext<CarouselContextProps>(null)
 
 function useCarousel() {
   const context = React.useContext(CarouselContext)
@@ -18,6 +41,10 @@ function useCarousel() {
   return context
 }
 
+interface CarouselComponentProps extends React.HTMLAttributes<HTMLDivElement>, CarouselProps {
+  className?: string;
+}
+
 function Carousel({
   orientation = "horizontal",
   opts,
@@ -26,7 +53,7 @@ function Carousel({
   className,
   children,
   ...props
-}) {
+}: CarouselComponentProps) {
   const [carouselRef, api] = useEmblaCarousel({
     ...opts,
     axis: orientation === "horizontal" ? "x" : "y",
@@ -34,7 +61,7 @@ function Carousel({
   const [canScrollPrev, setCanScrollPrev] = React.useState(false)
   const [canScrollNext, setCanScrollNext] = React.useState(false)
 
-  const onSelect = React.useCallback((api) => {
+  const onSelect = React.useCallback((api: CarouselApi) => {
     if (!api) return
     setCanScrollPrev(api.canScrollPrev())
     setCanScrollNext(api.canScrollNext())
@@ -48,7 +75,7 @@ function Carousel({
     api?.scrollNext()
   }, [api])
 
-  const handleKeyDown = React.useCallback((event) => {
+  const handleKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "ArrowLeft") {
       event.preventDefault()
       scrollPrev()
@@ -100,10 +127,14 @@ function Carousel({
   );
 }
 
+interface CarouselContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string;
+}
+
 function CarouselContent({
   className,
   ...props
-}) {
+}: CarouselContentProps) {
   const { carouselRef, orientation } = useCarousel()
 
   return (
@@ -122,10 +153,14 @@ function CarouselContent({
   );
 }
 
+interface CarouselItemProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string;
+}
+
 function CarouselItem({
   className,
   ...props
-}) {
+}: CarouselItemProps) {
   const { orientation } = useCarousel()
 
   return (
@@ -142,12 +177,16 @@ function CarouselItem({
   );
 }
 
+interface CarouselPreviousProps extends React.ComponentPropsWithoutRef<typeof Button> {
+  className?: string;
+}
+
 function CarouselPrevious({
   className,
   variant = "outline",
   size = "icon",
   ...props
-}) {
+}: CarouselPreviousProps) {
   const { orientation, scrollPrev, canScrollPrev } = useCarousel()
 
   return (
@@ -167,12 +206,16 @@ function CarouselPrevious({
   );
 }
 
+interface CarouselNextProps extends React.ComponentPropsWithoutRef<typeof Button> {
+  className?: string;
+}
+
 function CarouselNext({
   className,
   variant = "outline",
   size = "icon",
   ...props
-}) {
+}: CarouselNextProps) {
   const { orientation, scrollNext, canScrollNext } = useCarousel()
 
   return (
@@ -192,4 +235,19 @@ function CarouselNext({
   );
 }
 
-export { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext };
+export { 
+  type CarouselApi,
+  Carousel, 
+  CarouselContent, 
+  CarouselItem, 
+  CarouselPrevious, 
+  CarouselNext 
+};
+
+export type {
+  CarouselProps,
+  CarouselContentProps,
+  CarouselItemProps,
+  CarouselPreviousProps,
+  CarouselNextProps,
+}

@@ -4,10 +4,14 @@ import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 
 import { cn } from "../../utils"
 
+interface MenubarProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Root> {
+  className?: string;
+}
+
 function Menubar({
   className,
   ...props
-}) {
+}: MenubarProps) {
   return (
     <MenubarPrimitive.Root
       data-slot="menubar"
@@ -19,34 +23,46 @@ function Menubar({
   );
 }
 
+interface MenubarMenuProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Menu> {}
+
 function MenubarMenu({
   ...props
-}) {
+}: MenubarMenuProps) {
   return <MenubarPrimitive.Menu data-slot="menubar-menu" {...props} />;
 }
 
+interface MenubarGroupProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Group> {}
+
 function MenubarGroup({
   ...props
-}) {
+}: MenubarGroupProps) {
   return <MenubarPrimitive.Group data-slot="menubar-group" {...props} />;
 }
 
+interface MenubarPortalProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Portal> {}
+
 function MenubarPortal({
   ...props
-}) {
+}: MenubarPortalProps) {
   return <MenubarPrimitive.Portal data-slot="menubar-portal" {...props} />;
 }
 
+interface MenubarRadioGroupProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.RadioGroup> {}
+
 function MenubarRadioGroup({
   ...props
-}) {
+}: MenubarRadioGroupProps) {
   return (<MenubarPrimitive.RadioGroup data-slot="menubar-radio-group" {...props} />);
+}
+
+interface MenubarTriggerProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Trigger> {
+  className?: string;
 }
 
 function MenubarTrigger({
   className,
   ...props
-}) {
+}: MenubarTriggerProps) {
   return (
     <MenubarPrimitive.Trigger
       data-slot="menubar-trigger"
@@ -58,13 +74,20 @@ function MenubarTrigger({
   );
 }
 
+interface MenubarContentProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Content> {
+  className?: string;
+  align?: "start" | "center" | "end";
+  alignOffset?: number;
+  sideOffset?: number;
+}
+
 function MenubarContent({
   className,
   align = "start",
   alignOffset = -4,
   sideOffset = 8,
   ...props
-}) {
+}: MenubarContentProps) {
   return (
     <MenubarPortal>
       <MenubarPrimitive.Content
@@ -81,12 +104,18 @@ function MenubarContent({
   );
 }
 
+interface MenubarItemProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Item> {
+  className?: string;
+  inset?: boolean;
+  variant?: "default" | "destructive";
+}
+
 function MenubarItem({
   className,
   inset,
   variant = "default",
   ...props
-}) {
+}: MenubarItemProps) {
   return (
     <MenubarPrimitive.Item
       data-slot="menubar-item"
@@ -100,12 +129,16 @@ function MenubarItem({
   );
 }
 
+interface MenubarCheckboxItemProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.CheckboxItem> {
+  className?: string;
+}
+
 function MenubarCheckboxItem({
   className,
   children,
   checked,
   ...props
-}) {
+}: MenubarCheckboxItemProps) {
   return (
     <MenubarPrimitive.CheckboxItem
       data-slot="menubar-checkbox-item"
@@ -126,11 +159,15 @@ function MenubarCheckboxItem({
   );
 }
 
+interface MenubarRadioItemProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.RadioItem> {
+  className?: string;
+}
+
 function MenubarRadioItem({
   className,
   children,
   ...props
-}) {
+}: MenubarRadioItemProps) {
   return (
     <MenubarPrimitive.RadioItem
       data-slot="menubar-radio-item"
@@ -150,11 +187,16 @@ function MenubarRadioItem({
   );
 }
 
+interface MenubarLabelProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Label> {
+  className?: string;
+  inset?: boolean;
+}
+
 function MenubarLabel({
   className,
   inset,
   ...props
-}) {
+}: MenubarLabelProps) {
   return (
     <MenubarPrimitive.Label
       data-slot="menubar-label"
@@ -164,10 +206,14 @@ function MenubarLabel({
   );
 }
 
+interface MenubarSeparatorProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Separator> {
+  className?: string;
+}
+
 function MenubarSeparator({
   className,
   ...props
-}) {
+}: MenubarSeparatorProps) {
   return (
     <MenubarPrimitive.Separator
       data-slot="menubar-separator"
@@ -176,10 +222,14 @@ function MenubarSeparator({
   );
 }
 
+interface MenubarShortcutProps extends React.HTMLAttributes<HTMLSpanElement> {
+  className?: string;
+}
+
 function MenubarShortcut({
   className,
   ...props
-}) {
+}: MenubarShortcutProps) {
   return (
     <span
       data-slot="menubar-shortcut"
@@ -188,10 +238,17 @@ function MenubarShortcut({
   );
 }
 
+interface MenubarSubProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Sub> {}
+
 function MenubarSub({
   ...props
-}) {
+}: MenubarSubProps) {
   return <MenubarPrimitive.Sub data-slot="menubar-sub" {...props} />;
+}
+
+interface MenubarSubTriggerProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.SubTrigger> {
+  className?: string;
+  inset?: boolean;
 }
 
 function MenubarSubTrigger({
@@ -199,7 +256,7 @@ function MenubarSubTrigger({
   inset,
   children,
   ...props
-}) {
+}: MenubarSubTriggerProps) {
   return (
     <MenubarPrimitive.SubTrigger
       data-slot="menubar-sub-trigger"
@@ -215,10 +272,14 @@ function MenubarSubTrigger({
   );
 }
 
+interface MenubarSubContentProps extends React.ComponentPropsWithoutRef<typeof MenubarPrimitive.SubContent> {
+  className?: string;
+}
+
 function MenubarSubContent({
   className,
   ...props
-}) {
+}: MenubarSubContentProps) {
   return (
     <MenubarPrimitive.SubContent
       data-slot="menubar-sub-content"
@@ -247,4 +308,23 @@ export {
   MenubarSub,
   MenubarSubTrigger,
   MenubarSubContent,
+}
+
+export type {
+  MenubarProps,
+  MenubarPortalProps,
+  MenubarMenuProps,
+  MenubarTriggerProps,
+  MenubarContentProps,
+  MenubarGroupProps,
+  MenubarSeparatorProps,
+  MenubarLabelProps,
+  MenubarItemProps,
+  MenubarShortcutProps,
+  MenubarCheckboxItemProps,
+  MenubarRadioGroupProps,
+  MenubarRadioItemProps,
+  MenubarSubProps,
+  MenubarSubTriggerProps,
+  MenubarSubContentProps,
 }

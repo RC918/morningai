@@ -6,24 +6,32 @@ import { MinusIcon } from "lucide-react"
 
 import { cn } from "../../utils"
 
+type InputOTPProps = React.ComponentPropsWithoutRef<typeof OTPInput>
+
 function InputOTP({
   className,
   containerClassName,
+  maxLength = 6,
   ...props
-}) {
+}: InputOTPProps) {
   return (
     <OTPInput
       data-slot="input-otp"
+      maxLength={maxLength}
       containerClassName={cn("flex items-center gap-2 has-disabled:opacity-50", containerClassName)}
       className={cn("disabled:cursor-not-allowed", className)}
       {...props} />
   );
 }
 
+interface InputOTPGroupProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string;
+}
+
 function InputOTPGroup({
   className,
   ...props
-}) {
+}: InputOTPGroupProps) {
   return (
     <div
       data-slot="input-otp-group"
@@ -32,11 +40,16 @@ function InputOTPGroup({
   );
 }
 
+interface InputOTPSlotProps extends React.HTMLAttributes<HTMLDivElement> {
+  index: number;
+  className?: string;
+}
+
 function InputOTPSlot({
   index,
   className,
   ...props
-}) {
+}: InputOTPSlotProps) {
   const inputOTPContext = React.useContext(OTPInputContext)
   const { char, hasFakeCaret, isActive } = inputOTPContext?.slots[index] ?? {}
 
@@ -60,9 +73,11 @@ function InputOTPSlot({
   );
 }
 
+interface InputOTPSeparatorProps extends React.HTMLAttributes<HTMLDivElement> {}
+
 function InputOTPSeparator({
   ...props
-}) {
+}: InputOTPSeparatorProps) {
   return (
     <div data-slot="input-otp-separator" role="separator" {...props}>
       <MinusIcon />
@@ -71,3 +86,4 @@ function InputOTPSeparator({
 }
 
 export { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator }
+export type { InputOTPProps, InputOTPGroupProps, InputOTPSlotProps, InputOTPSeparatorProps }

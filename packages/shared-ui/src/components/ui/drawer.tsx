@@ -3,34 +3,46 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "../../utils"
 
+type DrawerProps = React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Root>
+
 function Drawer({
   ...props
-}) {
+}: DrawerProps) {
   return <DrawerPrimitive.Root data-slot="drawer" {...props} />;
 }
 
+interface DrawerTriggerProps extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Trigger> {}
+
 function DrawerTrigger({
   ...props
-}) {
+}: DrawerTriggerProps) {
   return <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} />;
 }
 
+interface DrawerPortalProps extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Portal> {}
+
 function DrawerPortal({
   ...props
-}) {
+}: DrawerPortalProps) {
   return <DrawerPrimitive.Portal data-slot="drawer-portal" {...props} />;
 }
 
+interface DrawerCloseProps extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Close> {}
+
 function DrawerClose({
   ...props
-}) {
+}: DrawerCloseProps) {
   return <DrawerPrimitive.Close data-slot="drawer-close" {...props} />;
+}
+
+interface DrawerOverlayProps extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay> {
+  className?: string;
 }
 
 function DrawerOverlay({
   className,
   ...props
-}) {
+}: DrawerOverlayProps) {
   return (
     <DrawerPrimitive.Overlay
       data-slot="drawer-overlay"
@@ -42,11 +54,15 @@ function DrawerOverlay({
   );
 }
 
+interface DrawerContentProps extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> {
+  className?: string;
+}
+
 function DrawerContent({
   className,
   children,
   ...props
-}) {
+}: DrawerContentProps) {
   return (
     <DrawerPortal data-slot="drawer-portal">
       <DrawerOverlay />
@@ -69,10 +85,14 @@ function DrawerContent({
   );
 }
 
+interface DrawerHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string;
+}
+
 function DrawerHeader({
   className,
   ...props
-}) {
+}: DrawerHeaderProps) {
   return (
     <div
       data-slot="drawer-header"
@@ -81,10 +101,14 @@ function DrawerHeader({
   );
 }
 
+interface DrawerFooterProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string;
+}
+
 function DrawerFooter({
   className,
   ...props
-}) {
+}: DrawerFooterProps) {
   return (
     <div
       data-slot="drawer-footer"
@@ -93,10 +117,14 @@ function DrawerFooter({
   );
 }
 
+interface DrawerTitleProps extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Title> {
+  className?: string;
+}
+
 function DrawerTitle({
   className,
   ...props
-}) {
+}: DrawerTitleProps) {
   return (
     <DrawerPrimitive.Title
       data-slot="drawer-title"
@@ -105,10 +133,14 @@ function DrawerTitle({
   );
 }
 
+interface DrawerDescriptionProps extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Description> {
+  className?: string;
+}
+
 function DrawerDescription({
   className,
   ...props
-}) {
+}: DrawerDescriptionProps) {
   return (
     <DrawerPrimitive.Description
       data-slot="drawer-description"
@@ -128,4 +160,17 @@ export {
   DrawerFooter,
   DrawerTitle,
   DrawerDescription,
+}
+
+export type {
+  DrawerProps,
+  DrawerPortalProps,
+  DrawerOverlayProps,
+  DrawerTriggerProps,
+  DrawerCloseProps,
+  DrawerContentProps,
+  DrawerHeaderProps,
+  DrawerFooterProps,
+  DrawerTitleProps,
+  DrawerDescriptionProps,
 }
