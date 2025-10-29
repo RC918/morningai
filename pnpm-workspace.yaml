@@ -2,4 +2,3 @@ packages:
   - 'packages/*'
   - 'handoff/20250928/40_App/frontend-dashboard'
   - 'handoff/20250928/40_App/owner-console'
-  - 'frontend-dashboard-deploy'

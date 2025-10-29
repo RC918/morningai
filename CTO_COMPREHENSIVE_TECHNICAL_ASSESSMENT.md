@@ -45,7 +45,7 @@ morningai/
 ├── docs/UX/                   # Design system & accessibility (WCAG AAA)
 ├── config/                    # Environment schema & policies
 ├── tests/                     # Comprehensive test suites
-└── frontend-dashboard-deploy/ # Legacy deployment (being migrated)
+└── tools/frontend-lab/frontend-dashboard-deploy/ # Archived (consolidated)
 ```
 
 ### 1.2 Monorepo Structure
@@ -56,7 +56,7 @@ morningai/
 - `packages/*`
 - `handoff/20250928/40_App/frontend-dashboard`
 - `handoff/20250928/40_App/owner-console`
-- `frontend-dashboard-deploy`
+- ~~`frontend-dashboard-deploy`~~ (consolidated into `frontend-dashboard`)
 
 ### 1.3 Phase-Based Development
 
@@ -654,7 +654,7 @@ CREATE TABLE agent_reputation (
 **Deployment**: Separate Vercel project with own `vercel.json`
 
 #### 3. Frontend Dashboard Deploy (Legacy)
-**Location**: `frontend-dashboard-deploy/`  
+**Location**: ~~`frontend-dashboard-deploy/`~~ → `handoff/20250928/40_App/frontend-dashboard/` (consolidated)  
 **Status**: Being migrated to `handoff/20250928/40_App/frontend-dashboard/`  
 **Purpose**: Legacy deployment configuration
 
@@ -1360,7 +1360,7 @@ CREATE POLICY tenant_isolation ON agent_tasks
    - Effort: 3-5 days
 
 3. **Frontend Migration**
-   - `frontend-dashboard-deploy/` → `handoff/20250928/40_App/frontend-dashboard/`
+   - ✅ `frontend-dashboard-deploy/` → `handoff/20250928/40_App/frontend-dashboard/` (completed in PR #884)
    - Risk: Confusion, duplicate code
    - Effort: 1-2 days
 
@@ -1491,7 +1491,7 @@ CREATE POLICY tenant_isolation ON agent_tasks
 - Document deployment process
 
 **Priority 3: Frontend Migration**
-- Complete migration from `frontend-dashboard-deploy/`
+- ✅ Complete migration from `frontend-dashboard-deploy/` (completed in PR #884)
 - Remove legacy code
 - Update documentation
 

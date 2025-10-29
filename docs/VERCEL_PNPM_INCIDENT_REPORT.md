@@ -17,7 +17,7 @@
 Vercel 部署失敗，錯誤訊息：
 
 ```
-Running "cd frontend-dashboard-deploy && pnpm install"
+Running "cd handoff/20250928/40_App/frontend-dashboard && pnpm install"
 ERR_PNPM_FETCH_404  GET https://registry.npmjs.org/@esbuild%2flinux-x64: Not Found - 404
 ERR_INVALID_THIS
 Value of 'this' must be of type URLSearchParams
@@ -25,7 +25,7 @@ Value of 'this' must be of type URLSearchParams
 
 ### 關鍵觀察
 
-1. **錯誤的目錄名稱**：Vercel 使用 `frontend-dashboard-deploy` 而非 `frontend-dashboard`
+1. **錯誤的目錄名稱**：Vercel 使用 `frontend-dashboard-deploy` 而非 `frontend-dashboard` (已解決 - Issue #867)
 2. **錯誤的 package manager**：Vercel 使用 `pnpm install` 而非 `npm install`
 3. **錯誤的分支**：Vercel 從 `devin/1760984943-improve-test-coverage` 建置，而非當前 PR 分支
 4. **URLSearchParams 錯誤**：pnpm 內部錯誤，無法正確處理 registry 請求
@@ -63,7 +63,7 @@ Framework Preset (最低優先級)
 
 **問題**：
 - Vercel 在處理 rootDirectory 時，會與 Production Overrides 產生衝突
-- 導致實際執行的目錄變成 `frontend-dashboard-deploy`（舊目錄名）
+- 導致實際執行的目錄變成 `frontend-dashboard-deploy`（舊目錄名，已棄用）
 
 ### 3. pnpm-lock.yaml 被排除
 

@@ -599,7 +599,7 @@ const App = () => {
 **解決方案**:
 ```bash
 # 1. 安裝 Storybook
-cd frontend-dashboard-deploy
+cd handoff/20250928/40_App/frontend-dashboard
 pnpm dlx storybook@latest init
 
 # 2. 配置 Storybook

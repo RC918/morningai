@@ -13,9 +13,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const LHCI_DIR = path.join(__dirname, '../frontend-dashboard-deploy/.lighthouseci');
+const LHCI_DIR = path.join(__dirname, '../handoff/20250928/40_App/frontend-dashboard/.lighthouseci');
 const BASELINE_FILE = path.join(__dirname, '../.lhci-baseline.json');
-const OUTPUT_FILE = path.join(__dirname, '../frontend-dashboard-deploy/.lhci-diff.md');
+const OUTPUT_FILE = path.join(__dirname, '../handoff/20250928/40_App/frontend-dashboard/.lhci-diff.md');
 
 const METRICS = {
   'largest-contentful-paint': { label: 'Largest Contentful Paint (LCP)', unit: 's', divisor: 1000 },

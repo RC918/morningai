@@ -15,8 +15,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const PLAYWRIGHT_STATE_FILE = path.join(__dirname, '../frontend-dashboard-deploy/playwright/.auth/storageState.json');
-const OUTPUT_FILE = path.join(__dirname, '../frontend-dashboard-deploy/lhci-auth-inject.js');
+const PLAYWRIGHT_STATE_FILE = path.join(__dirname, '../handoff/20250928/40_App/frontend-dashboard/playwright/.auth/storageState.json');
+const OUTPUT_FILE = path.join(__dirname, '../handoff/20250928/40_App/frontend-dashboard/lhci-auth-inject.js');
 
 function extractLocalStorage() {
   try {

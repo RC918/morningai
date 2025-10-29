@@ -159,7 +159,7 @@ app.logger.info(f"Database: {db_driver} (host: {db_host})")
 ### Issue #2: Frontend Consolidation 🔴 HIGH
 
 **Problem**: Two frontend directories with different purposes but unclear separation:
-- `frontend-dashboard-deploy/`: Storybook/LHCI (pnpm@10.4.1)
+- ~~`frontend-dashboard-deploy/`: Storybook/LHCI (pnpm@10.4.1)~~ **CONSOLIDATED** ✅
 - `handoff/20250928/40_App/frontend-dashboard/`: Production (pnpm@9.15.1)
 
 **Impact**:
@@ -174,7 +174,7 @@ app.logger.info(f"Database: {db_driver} (host: {db_host})")
 ```bash
 # Move LHCI config
 cp frontend-dashboard-deploy/lhci-puppeteer-auth.js \
-   handoff/20250928/40_App/frontend-dashboard/
+   handoff/20250928/40_App/frontend-dashboard/  # ✅ DONE
 
 # Update lighthouserc.json
 sed -i 's|frontend-dashboard-deploy|handoff/20250928/40_App/frontend-dashboard|g' \
@@ -201,10 +201,10 @@ Files to update (20+ files):
 **Step 4: Remove Old Directory** (Day 4)
 ```bash
 # Option A: Delete
-git rm -rf frontend-dashboard-deploy/
+git rm -rf frontend-dashboard-deploy/  # Pending - Phase 6
 
 # Option B: Archive (safer)
-git mv frontend-dashboard-deploy/ tools/frontend-lab/
+git mv frontend-dashboard-deploy/ tools/frontend-lab/  # Alternative approach - Phase 6
 echo "# DEPRECATED: Use handoff/20250928/40_App/frontend-dashboard" > tools/frontend-lab/README.md
 ```
 

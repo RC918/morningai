@@ -509,8 +509,8 @@ Based on validation findings, provide recommendations such as:
 
 ## References
 
-- **Path Tracking Implementation**: `/frontend-dashboard-deploy/src/lib/pathTracking.js`
-- **Sentry Configuration**: `/frontend-dashboard-deploy/src/lib/sentry.js`
+- **Path Tracking Implementation**: `/handoff/20250928/40_App/frontend-dashboard/src/lib/pathTracking.js`
+- **Sentry Configuration**: `/handoff/20250928/40_App/frontend-dashboard/src/lib/sentry.js`
 - **Event Definitions**: `/docs/UX/PATH_TRACKING_SPEC.md`
 
 ---

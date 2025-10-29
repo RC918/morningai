@@ -116,6 +116,6 @@ After deploying Week 1 code:
 
 ### Related Files
 
-- Frontend tracking: `frontend-dashboard-deploy/src/App.jsx`
-- Path tracking store: `frontend-dashboard-deploy/src/stores/appStore.js`
+- Frontend tracking: `handoff/20250928/40_App/frontend-dashboard/src/App.jsx`
+- Path tracking store: `handoff/20250928/40_App/frontend-dashboard/src/stores/appStore.js`
 - Roadmap: `docs/UX/DESIGN_SYSTEM_ENHANCEMENT_ROADMAP.md`

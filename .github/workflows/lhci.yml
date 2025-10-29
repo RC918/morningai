@@ -5,13 +5,13 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'frontend-dashboard-deploy/**'
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
       - '.github/workflows/lhci.yml'
       - 'lighthouserc.json'
   push:
     branches: [main]
     paths:
-      - 'frontend-dashboard-deploy/**'
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
       - '.github/workflows/lhci.yml'
       - 'lighthouserc.*.json'
 
@@ -27,7 +27,10 @@ jobs:
       pull-requests: write
     defaults:
       run:
-        working-directory: frontend-dashboard-deploy
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,6 +49,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build shared-ui package
+        working-directory: ${{ github.workspace }}
+        run: pnpm --filter @morningai/shared-ui build
 
       - name: Build application
         run: pnpm build
@@ -69,19 +76,38 @@ jobs:
           echo "Server failed to start within 120 seconds"
           exit 1
 
+      - name: Debug preview server
+        run: |
+          echo "Testing preview server response..."
+          curl -sS http://localhost:4173/ | head -c 1000 || echo "Failed to fetch homepage"
+          echo ""
+          echo "Checking asset URLs..."
+          curl -sS http://localhost:4173/ | sed 's/</\n</g' | grep -Eo 'src="/[^"]+\.js"|href="/[^"]+\.css"' | sed -E 's/^(src|href)=//;s/"//g' | head -10 | while read asset; do
+            echo "Testing asset: $asset"
+            curl -I "http://localhost:4173$asset" 2>&1 | head -2
+          done
+
+      - name: Check for hidden CSS patterns
+        run: |
+          echo "Checking for CSS patterns that might prevent FCP..."
+          grep -RniE 'body\s*\{|visibility\s*:\s*hidden|opacity\s*:\s*0|display\s*:\s*none' dist 2>/dev/null | head -20 || echo "No problematic CSS patterns found"
+
       - name: Run Lighthouse CI (PR - fast)
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1
+        env:
+          DEBUG: lighthouse:*
+        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-features=PaintHolding" --settings.maxWaitForFcp=60000 --settings.maxWaitForLoad=120000 --settings.throttlingMethod=provided --settings.formFactor=desktop --settings.screenEmulation.mobile=false --logLevel=verbose
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lhci-artifacts-pr
-          path: .lighthouseci
+          path: handoff/20250928/40_App/frontend-dashboard/.lighthouseci
 
       - name: Generate PR comment
         if: always()
-        run: node ../scripts/make-lhci-pr-comment.js
+        working-directory: ${{ github.workspace }}
+        run: node scripts/make-lhci-pr-comment.js
 
       - name: Read PR comment
         if: always()
@@ -120,7 +146,7 @@ jobs:
       contents: write
     defaults:
       run:
-        working-directory: frontend-dashboard-deploy
+        working-directory: handoff/20250928/40_App/frontend-dashboard
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -139,6 +165,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build shared-ui package
+        working-directory: ${{ github.workspace }}
+        run: pnpm --filter @morningai/shared-ui build
 
       - name: Build application
         run: pnpm build
@@ -162,6 +192,11 @@ jobs:
           echo "Server failed to start within 120 seconds"
           exit 1
 
+      - name: Debug preview server
+        run: |
+          echo "Testing preview server response..."
+          curl -sS http://localhost:4173/ | head -c 500 || echo "Failed to fetch homepage"
+
       - name: Setup Playwright authentication
         env:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
@@ -171,21 +206,26 @@ jobs:
         run: |
           pnpm exec playwright install --with-deps chromium
           pnpm exec playwright test tests/auth.setup.spec.ts
-          node ../scripts/make-lhci-cookie.js
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+
+      - name: Generate LHCI cookie
+        working-directory: ${{ github.workspace }}
+        run: node scripts/make-lhci-cookie.js
 
       - name: Run Lighthouse CI (main - accurate)
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=3
+        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=3 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lhci-artifacts-main
-          path: .lighthouseci
+          path: handoff/20250928/40_App/frontend-dashboard/.lighthouseci
 
       - name: Update baseline and trend
         if: always()
-        run: node ../scripts/update-baseline-and-trend.js
+        working-directory: ${{ github.workspace }}
+        run: node scripts/update-baseline-and-trend.js
 
       - name: Commit baseline updates
         if: always()

@@ -18,7 +18,7 @@ Lighthouse CI 是一個自動化效能測試系統，在每個 Pull Request 和 
 **PR 階段** - 快速反饋：
 - 測試公開頁面：`/`, `/login`, `/pricing`
 - 執行次數：1 次 (約 2-3 分鐘)
-- 路徑過濾：只在 `frontend-dashboard-deploy/**` 變更時觸發
+- 路徑過濾：只在 `handoff/20250928/40_App/frontend-dashboard/**` 變更時觸發
 - 自動評論：在 PR 顯示效能對比與 delta
 
 **main 階段** - 精準基線：
@@ -47,7 +47,7 @@ Lighthouse CI 是一個自動化效能測試系統，在每個 Pull Request 和 
     "collect": {
       "url": ["/", "/login", "/pricing"],
       "numberOfRuns": 1,
-      "startServerCommand": "cd frontend-dashboard-deploy && pnpm preview --port 4173",
+      "startServerCommand": "cd handoff/20250928/40_App/frontend-dashboard && pnpm preview --port 4173",
       "settings": {
         "preset": "desktop",
         "formFactor": "desktop",
@@ -94,7 +94,7 @@ Lighthouse CI 是一個自動化效能測試系統，在每個 Pull Request 和 
 
 #### 提交 PR 時
 
-1. 修改 `frontend-dashboard-deploy/` 下的檔案
+1. 修改 `handoff/20250928/40_App/frontend-dashboard/` 下的檔案
 2. 推送到 GitHub
 3. GitHub Actions 自動執行 Lighthouse CI
 4. 等待 2-3 分鐘
@@ -135,7 +135,7 @@ Lighthouse CI 是一個自動化效能測試系統，在每個 Pull Request 和 
 
 2. **本地分析**：
    ```bash
-   cd frontend-dashboard-deploy
+   cd handoff/20250928/40_App/frontend-dashboard
    pnpm build
    pnpm preview
    # 開啟 Chrome DevTools > Performance 面板分析

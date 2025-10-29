@@ -258,7 +258,7 @@ git revert <commit-hash>
 ### 遇到的挑戰
 
 1. **包命名衝突**
-   - 問題：frontend-dashboard-deploy 與 frontend-dashboard 包名重複
+   - 問題：frontend-dashboard-deploy 與 frontend-dashboard 包名重複 (已解決 - Issue #867)
    - 解決：重命名為 frontend-dashboard-storybook
    - 影響：無破壞性影響
 

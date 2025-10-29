@@ -278,7 +278,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_recycle': 300,
     'pool_size': 5,
     'max_overflow': 10,
-    'pool_timeout': 10,
+    'pool_timeout': 10
 }
 
 db.init_app(app)
