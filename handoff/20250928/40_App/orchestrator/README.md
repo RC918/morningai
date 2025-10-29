@@ -11,8 +11,8 @@ This is the **worker layer** of the orchestrator system. It polls Redis for task
 
 **Related Components**:
 - **API**: `orchestrator/` (root) - FastAPI service for task submission
-- **Deployment**: `render.yaml` (line 51-89)
-- **Architecture Decision**: See ADR-002 for producer-consumer architecture
+- **Deployment**: [render.yaml#L55-L94](https://github.com/RC918/morningai/blob/b59625751e80476b6f99ec9f61ace76b8e64f2c1/render.yaml#L55-L94)
+- **Architecture Decision**: [ADR-002: Producer-Consumer Architecture](../../../../docs/adr/002-producer-consumer-architecture.md)
 
 ---
 

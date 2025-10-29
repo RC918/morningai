@@ -12,8 +12,8 @@ This is the **API layer** of the orchestrator system. It receives task submissio
 
 **Related Components**:
 - **Worker**: `handoff/20250928/40_App/orchestrator/` (RQ Worker - task execution engine)
-- **Deployment**: `render.yaml` (line 108-146)
-- **Architecture Decision**: See ADR-002 for producer-consumer architecture
+- **Deployment**: [render.yaml#L111-L150](https://github.com/RC918/morningai/blob/b59625751e80476b6f99ec9f61ace76b8e64f2c1/render.yaml#L111-L150)
+- **Architecture Decision**: [ADR-002: Producer-Consumer Architecture](../docs/adr/002-producer-consumer-architecture.md)
 
 ---
 
