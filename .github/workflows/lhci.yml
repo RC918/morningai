@@ -76,10 +76,36 @@ jobs:
       - name: Debug preview server
         run: |
           echo "Testing preview server response..."
-          curl -sS http://localhost:4173/ | head -c 500 || echo "Failed to fetch homepage"
+          curl -sS http://localhost:4173/ | head -c 1000 || echo "Failed to fetch homepage"
+          echo ""
+          echo "Checking asset URLs..."
+          curl -sS http://localhost:4173/ | sed 's/</\n</g' | grep -Eo 'src="/[^"]+\.js"|href="/[^"]+\.css"' | sed -E 's/^(src|href)=//;s/"//g' | head -10 | while read asset; do
+            echo "Testing asset: $asset"
+            curl -I "http://localhost:4173$asset" 2>&1 | head -2
+          done
+
+      - name: Check for runtime errors
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          node -e "
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            page.on('console', msg => console.log('CONSOLE:', msg.type(), msg.text()));
+            page.on('pageerror', err => console.log('PAGEERROR:', err.message));
+            try {
+              await page.goto('http://localhost:4173/', { waitUntil: 'networkidle', timeout: 30000 });
+              console.log('Page loaded successfully');
+            } catch (e) {
+              console.log('Page load error:', e.message);
+            }
+            await browser.close();
+          })();
+          "
 
       - name: Run Lighthouse CI (PR - fast)
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
+        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage" --settings.maxWaitForFcp=60000 --settings.maxWaitForLoad=120000 --settings.throttlingMethod=provided
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
