@@ -73,19 +73,25 @@ jobs:
           echo "Server failed to start within 120 seconds"
           exit 1
 
+      - name: Debug preview server
+        run: |
+          echo "Testing preview server response..."
+          curl -sS http://localhost:4173/ | head -c 500 || echo "Failed to fetch homepage"
+
       - name: Run Lighthouse CI (PR - fast)
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1
+        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lhci-artifacts-pr
-          path: .lighthouseci
+          path: handoff/20250928/40_App/frontend-dashboard/.lighthouseci
 
       - name: Generate PR comment
         if: always()
-        run: node ../scripts/make-lhci-pr-comment.js
+        working-directory: ${{ github.workspace }}
+        run: node scripts/make-lhci-pr-comment.js
 
       - name: Read PR comment
         if: always()
@@ -170,6 +176,11 @@ jobs:
           echo "Server failed to start within 120 seconds"
           exit 1
 
+      - name: Debug preview server
+        run: |
+          echo "Testing preview server response..."
+          curl -sS http://localhost:4173/ | head -c 500 || echo "Failed to fetch homepage"
+
       - name: Setup Playwright authentication
         env:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
@@ -179,21 +190,26 @@ jobs:
         run: |
           pnpm exec playwright install --with-deps chromium
           pnpm exec playwright test tests/auth.setup.spec.ts
-          node ../scripts/make-lhci-cookie.js
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+
+      - name: Generate LHCI cookie
+        working-directory: ${{ github.workspace }}
+        run: node scripts/make-lhci-cookie.js
 
       - name: Run Lighthouse CI (main - accurate)
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=3
+        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=3 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lhci-artifacts-main
-          path: .lighthouseci
+          path: handoff/20250928/40_App/frontend-dashboard/.lighthouseci
 
       - name: Update baseline and trend
         if: always()
-        run: node ../scripts/update-baseline-and-trend.js
+        working-directory: ${{ github.workspace }}
+        run: node scripts/update-baseline-and-trend.js
 
       - name: Commit baseline updates
         if: always()
