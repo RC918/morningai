@@ -1,89 +1,88 @@
 # E2E Test FAQ for MorningAI
 
-End-to-End (E2E) testing is a vital part of the development lifecycle within the MorningAI platform. It ensures that the system operates as expected from start to finish, mimicking real-user scenarios and interactions. This section aims to guide developers through the process of setting up, running, and troubleshooting E2E tests in the MorningAI environment.
+End-to-end (E2E) testing is a critical component of the MorningAI platform development cycle, ensuring that the system operates as expected from start to finish under various scenarios. This FAQ aims to assist developers in understanding and applying E2E testing methodologies within the MorningAI project.
 
-## Understanding E2E Testing in MorningAI
+## What is E2E Testing?
 
-E2E tests simulate real user scenarios to ensure that the entire application functions correctly in an integrated environment. In MorningAI, these tests are crucial for validating the autonomous agent system, multi-platform integration capabilities, and real-time task orchestration features.
+E2E testing involves testing the entire application — from the frontend through all backend services, to its external interfaces — to ensure all integrated components behave as expected. In the context of MorningAI, this means verifying that autonomous agent systems, documentation generation, multi-platform integrations, and real-time task orchestration work seamlessly together.
 
-### Setting Up E2E Tests
+## How to Set Up E2E Tests in MorningAI?
 
-MorningAI uses Cypress and Puppeteer for conducting E2E tests. To set up your testing environment, follow these steps:
+MorningAI uses a combination of technologies for E2E testing, primarily focusing on Cypress for frontend tests and PyTest for backend services. Here’s how you can set up basic E2E tests:
 
-1. **Install Dependencies**:
-   Make sure you have Node.js installed on your machine. Then, install Cypress and Puppeteer by running:
+### Frontend with Cypress
 
-   ```bash
-   npm install cypress puppeteer --save-dev
+1. **Installation**: Ensure you have Node.js installed. Then, install Cypress via npm:
+
+   ```sh
+   cd path/to/morningai/frontend
+   npm install cypress --save-dev
    ```
 
-2. **Configure Cypress**:
-   Add a `cypress.json` configuration file in your project root with necessary configurations:
+2. **Writing Tests**: Create a new test file under `cypress/integration/morningai/`:
 
-   ```json
-   {
-     "baseUrl": "http://localhost:3000",
-     "integrationFolder": "cypress/integration",
-     "video": false
-   }
+   ```js
+   describe('Login Flow', () => {
+     it('successfully logs in', () => {
+       cy.visit('/login')
+       cy.get('input[name=username]').type('testuser')
+       cy.get('input[name=password]').type('password123{enter}')
+       cy.url().should('include', '/dashboard')
+     })
+   })
    ```
 
-3. **Writing Tests**:
-   Place your test files under `cypress/integration`. Here's a simple example to get started:
+3. **Running Tests**: Execute your tests with:
 
-   ```javascript
-   describe('MorningAI Dashboard', () => {
-     it('Loads successfully', () => {
-       cy.visit('/');
-       cy.contains('Dashboard').should('be.visible');
-     });
-   });
+   ```sh
+   npx cypress open
    ```
 
-### Running E2E Tests
+### Backend with PyTest
 
-To execute your tests, use the following command:
+1. **Installation**: Ensure Python is installed, then add PyTest to your environment:
 
-```bash
-npx cypress open
-```
+   ```sh
+   pip install pytest
+   ```
 
-This will open the Cypress Test Runner, where you can select and run individual test suites.
+2. **Writing Tests**: Create a test file in `tests/e2e/` for testing backend functionalities:
 
-### Related Documentation
+   ```python
+   def test_task_orchestration(client):
+       response = client.post('/tasks/orchestrate', json={'task': 'build_docs'})
+       assert response.status_code == 200
+       assert response.json['status'] == 'success'
+   ```
+
+3. **Running Tests**: Run your PyTest suite with:
+
+   ```sh
+   pytest tests/e2e/
+   ```
+
+## Related Documentation Links
 
 - Cypress Documentation: [https://www.cypress.io/docs](https://www.cypress.io/docs)
-- Puppeteer GitHub Repository: [https://github.com/puppeteer/puppeteer](https://github.com/puppeteer/puppeteer)
+- PyTest Documentation: [https://docs.pytest.org/en/stable/](https://docs.pytest.org/en/stable/)
+- Flask Testing: [http://flask.pocoo.org/docs/latest/testing/](http://flask.pocoo.org/docs/latest/testing/)
 
 ## Common Troubleshooting Tips
 
-1. **Tests Failing to Start**: Ensure your application is running locally or on a staging environment that Cypress can access.
-   
-2. **Timeout Errors**: Increase default timeout settings in `cypress.json` if your application takes longer to respond:
+- **Cypress Not Running**: Ensure your Node.js and npm versions are up to date and compatible with Cypress. Also, verify that all dependencies are correctly installed.
+- **Tests Failing Due to Timing Issues**: Incorporate wait commands or assertions that wait for specific elements or conditions before proceeding.
+- **Backend Test Connection Issues**: Ensure the test configuration points to a test database and Redis instance, not production or development environments.
+- **Flaky Tests**: Aim to make your tests deterministic by removing external dependencies where possible or mocking/stubbing them out.
 
-   ```json
-   {
-     "defaultCommandTimeout": 10000,
-     "pageLoadTimeout": 30000
-   }
-   ```
-
-3. **Element Not Found**: Make sure your selectors are accurate and wait for elements to become visible with `cy.wait()` or `cy.get().should('be.visible')`.
-
-4. **Flaky Tests**: Flakiness can often be reduced by using more deterministic selectors or by mocking external dependencies.
-
-5. **Cross-Origin Errors**: Adjust your `cypress.json` to include `"chromeWebSecurity": false` if you're testing across different domains.
-
-For more detailed troubleshooting advice, refer to the Cypress documentation linked above.
+Remember, effective E2E testing in MorningAI requires understanding both the individual components and how they interact within the full application ecosystem.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
 - Task: E2E test FAQ update
-- Trace ID: `fa09d09c-1b64-408e-9adc-f05c09200011`
+- Trace ID: `fea3a993-b3b4-45d9-b83f-3ec4318a4a7b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
