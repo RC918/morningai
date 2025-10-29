@@ -204,6 +204,7 @@ jobs:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
+          mkdir -p playwright/.auth
           pnpm exec playwright install --with-deps chromium
           pnpm exec playwright test tests/auth.setup.spec.ts
         working-directory: handoff/20250928/40_App/frontend-dashboard
