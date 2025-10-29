@@ -28,6 +28,9 @@ jobs:
     defaults:
       run:
         working-directory: handoff/20250928/40_App/frontend-dashboard
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -84,28 +87,15 @@ jobs:
             curl -I "http://localhost:4173$asset" 2>&1 | head -2
           done
 
-      - name: Check for runtime errors
+      - name: Check for hidden CSS patterns
         run: |
-          pnpm exec playwright install --with-deps chromium
-          node -e "
-          const { chromium } = require('playwright');
-          (async () => {
-            const browser = await chromium.launch();
-            const page = await browser.newPage();
-            page.on('console', msg => console.log('CONSOLE:', msg.type(), msg.text()));
-            page.on('pageerror', err => console.log('PAGEERROR:', err.message));
-            try {
-              await page.goto('http://localhost:4173/', { waitUntil: 'networkidle', timeout: 30000 });
-              console.log('Page loaded successfully');
-            } catch (e) {
-              console.log('Page load error:', e.message);
-            }
-            await browser.close();
-          })();
-          "
+          echo "Checking for CSS patterns that might prevent FCP..."
+          grep -RniE 'body\s*\{|visibility\s*:\s*hidden|opacity\s*:\s*0|display\s*:\s*none' dist 2>/dev/null | head -20 || echo "No problematic CSS patterns found"
 
       - name: Run Lighthouse CI (PR - fast)
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage" --settings.maxWaitForFcp=60000 --settings.maxWaitForLoad=120000 --settings.throttlingMethod=provided
+        env:
+          DEBUG: lighthouse:*
+        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-features=PaintHolding" --settings.maxWaitForFcp=60000 --settings.maxWaitForLoad=120000 --settings.throttlingMethod=provided --settings.formFactor=desktop --settings.screenEmulation.mobile=false --logLevel=verbose
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
