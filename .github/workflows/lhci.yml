@@ -267,6 +267,7 @@ jobs:
           fi
 
       - name: Generate LHCI cookie
+        continue-on-error: true
         working-directory: ${{ github.workspace }}
         run: node scripts/make-lhci-cookie.js
 
