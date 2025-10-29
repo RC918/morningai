@@ -92,6 +92,34 @@ jobs:
           echo "Checking for CSS patterns that might prevent FCP..."
           grep -RniE 'body\s*\{|visibility\s*:\s*hidden|opacity\s*:\s*0|display\s*:\s*none' dist 2>/dev/null | head -20 || echo "No problematic CSS patterns found"
 
+      - name: Verify server before Playwright
+        run: |
+          echo "Verifying preview server is still responsive..."
+          curl -I http://localhost:4173/ || echo "Homepage check failed"
+          curl -I http://localhost:4173/login || echo "Login page check failed"
+
+      - name: Setup Playwright authentication
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          mkdir -p playwright/.auth
+          echo "Working directory: $(pwd)"
+          pnpm exec playwright install chromium
+          pnpm exec playwright test tests/auth.setup.spec.ts --trace on-first-retry
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+
+      - name: Upload Playwright test results (PR)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-test-results-pr
+          path: |
+            handoff/20250928/40_App/frontend-dashboard/test-results/
+            handoff/20250928/40_App/frontend-dashboard/playwright-report/
+
       - name: Run Lighthouse CI (PR - fast)
         env:
           DEBUG: lighthouse:*
@@ -217,6 +245,19 @@ jobs:
           path: |
             handoff/20250928/40_App/frontend-dashboard/test-results/
             handoff/20250928/40_App/frontend-dashboard/playwright-report/
+
+      - name: Verify storage state file
+        run: |
+          echo "Working directory: $(pwd)"
+          echo "Checking for storage state file..."
+          ls -la handoff/20250928/40_App/frontend-dashboard/playwright/.auth/ || echo "Auth directory not found"
+          if [ -f handoff/20250928/40_App/frontend-dashboard/playwright/.auth/storageState.json ]; then
+            echo "✅ Storage state file exists"
+            node -e "const fs=require('fs');const p='handoff/20250928/40_App/frontend-dashboard/playwright/.auth/storageState.json';const s=JSON.parse(fs.readFileSync(p,'utf8'));console.log('Origins:',s.origins?.length||0);console.log('localStorage keys:',(s.origins||[]).flatMap(o=>o.localStorage?.map(i=>i.name)||[]).join(', '));"
+          else
+            echo "❌ Storage state file not found"
+            exit 1
+          fi
 
       - name: Generate LHCI cookie
         working-directory: ${{ github.workspace }}

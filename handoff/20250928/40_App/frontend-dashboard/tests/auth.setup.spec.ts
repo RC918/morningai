@@ -38,7 +38,16 @@ setup('authenticate', async ({ page }) => {
   await page.goto('http://localhost:4173/login');
   console.log('   Navigated to login page');
 
-  await page.waitForLoadState('networkidle');
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+  console.log('   Cleared browser storage');
+
+  await page.reload();
+  console.log('   Reloaded page after clearing storage');
+
+  await page.waitForLoadState('domcontentloaded');
   
   const url = page.url();
   const title = await page.title();
@@ -52,7 +61,14 @@ setup('authenticate', async ({ page }) => {
 
   const usernameCount = await page.locator('#username').count();
   const passwordCount = await page.locator('#password').count();
+  const inputCount = await page.locator('input').count();
   console.log(`   Found ${usernameCount} username input(s) and ${passwordCount} password input(s)`);
+  console.log(`   Total input elements: ${inputCount}`);
+
+  if (usernameCount === 0) {
+    const bodyText = await page.evaluate(() => document.body.innerText.slice(0, 500));
+    console.log(`   Page body text: ${bodyText}`);
+  }
 
   await page.waitForSelector('#username', { state: 'visible', timeout: 30000 });
   console.log('   Username input is visible');
