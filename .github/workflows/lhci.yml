@@ -92,6 +92,31 @@ jobs:
           echo "Checking for CSS patterns that might prevent FCP..."
           grep -RniE 'body\s*\{|visibility\s*:\s*hidden|opacity\s*:\s*0|display\s*:\s*none' dist 2>/dev/null | head -20 || echo "No problematic CSS patterns found"
 
+      - name: Setup Playwright authentication
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          mkdir -p playwright/.auth
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test tests/auth.setup.spec.ts
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+
+      - name: Upload Playwright test results (PR)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-test-results-pr
+          path: |
+            handoff/20250928/40_App/frontend-dashboard/test-results/
+            handoff/20250928/40_App/frontend-dashboard/playwright-report/
+
+      - name: Generate LHCI cookie
+        working-directory: ${{ github.workspace }}
+        run: node scripts/make-lhci-cookie.js
+
       - name: Run Lighthouse CI (PR - fast)
         env:
           DEBUG: lighthouse:*

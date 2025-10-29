@@ -113,15 +113,17 @@ function AppContent() {
       } catch (error) {
         console.error('Auth check failed:', error)
         localStorage.removeItem('auth_token')
-        setUser({
-          id: 'dev_user',
-          name: 'Ryan Chen',
-          email: 'ryan@morningai.com',
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
-          role: 'Owner',
-          tenant_id: 'tenant_001'
-        })
-        setIsAuthenticated(true)
+        if (import.meta.env.DEV) {
+          setUser({
+            id: 'dev_user',
+            name: 'Ryan Chen',
+            email: 'ryan@morningai.com',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
+            role: 'Owner',
+            tenant_id: 'tenant_001'
+          })
+          setIsAuthenticated(true)
+        }
       } finally {
         setLoading(false)
       }
