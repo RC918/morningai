@@ -10,7 +10,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install Redis client
-        run: pip install redis
+        run: pip install -r scripts/requirements.txt
       - name: Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
