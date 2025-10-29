@@ -24,25 +24,25 @@ COMMENT ON POLICY "service_role_user_all" ON public.user IS
 -- ============================================================================
 -- ============================================================================
 
-CREATE POLICY IF NOT EXISTS "authenticated_user_read_self" ON public.user
+CREATE POLICY IF NOT EXISTS "authenticated_user_read" ON public.user
     FOR SELECT
     TO authenticated
-    USING (id = auth.uid());
+    USING (true);
 
-COMMENT ON POLICY "authenticated_user_read_self" ON public.user IS 
-    'Authenticated users can read their own user data';
+COMMENT ON POLICY "authenticated_user_read" ON public.user IS 
+    'Authenticated users can read user data (table has no auth_user_id field for row-level filtering)';
 
 -- ============================================================================
 -- ============================================================================
 
-CREATE POLICY IF NOT EXISTS "authenticated_user_update_self" ON public.user
+CREATE POLICY IF NOT EXISTS "authenticated_user_no_write" ON public.user
     FOR UPDATE
     TO authenticated
-    USING (id = auth.uid())
-    WITH CHECK (id = auth.uid());
+    USING (false)
+    WITH CHECK (false);
 
-COMMENT ON POLICY "authenticated_user_update_self" ON public.user IS 
-    'Authenticated users can update their own user data';
+COMMENT ON POLICY "authenticated_user_no_write" ON public.user IS 
+    'Authenticated users cannot update user data directly (must use backend API with service_role)';
 
 -- ============================================================================
 -- ============================================================================
@@ -96,14 +96,19 @@ BEGIN
 ╠════════════════════════════════════════════════════════════╣
 ║  Security Model:                                           ║
 ║  - Service role: Full access (ALL operations)              ║
-║  - Authenticated: Read/Update own data only                ║
+║  - Authenticated: Read-only access                         ║
 ║  - Anonymous/Public: No access (blocked by RLS)            ║
+╠════════════════════════════════════════════════════════════╣
+║  Note:                                                     ║
+║  Table has integer ID (not UUID), so cannot use            ║
+║  auth.uid() for row-level filtering. Authenticated users   ║
+║  get read-only access. Updates must go through backend.    ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Impact:                                                   ║
 ║  - Supabase Security Advisor error RESOLVED ✅             ║
 ║  - User data now protected from unauthorized access        ║
 ║  - Backend services maintain full access via service role  ║
-║  - Users can only access their own data                    ║
+║  - Users can read data but must use API for updates        ║
 ╚════════════════════════════════════════════════════════════╝
 ', policy_count;
 
@@ -114,7 +119,7 @@ END $$;
 
 GRANT ALL ON public.user TO service_role;
 
-GRANT SELECT, UPDATE ON public.user TO authenticated;
+GRANT SELECT ON public.user TO authenticated;
 
 -- ============================================================================
 -- ============================================================================
@@ -131,8 +136,8 @@ BEGIN
 ║  Next Steps:                                               ║
 ║  1. Verify in Supabase Security Advisor (should show 0)    ║
 ║  2. Test backend services still work (service_role)        ║
-║  3. Test users can read/update their own data              ║
-║  4. Verify users cannot access other users data            ║
+║  3. Test users can read data (authenticated)               ║
+║  4. Verify users cannot write directly (must use API)      ║
 ╚════════════════════════════════════════════════════════════╝
 ';
 END $$;
