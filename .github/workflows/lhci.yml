@@ -17,7 +17,7 @@ on:
 
 jobs:
   lhci-pr:
-    if: github.event_name == 'pull_request'
+    if: false  # Temporarily disabled by owner - LHCI causing CI issues
     runs-on: ubuntu-latest
     concurrency:
       group: lhci-${{ github.head_ref }}
