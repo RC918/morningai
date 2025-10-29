@@ -9,8 +9,6 @@
         "/settings"
       ],
       "numberOfRuns": 3,
-      "startServerCommand": "cd handoff/20250928/40_App/frontend-dashboard && pnpm preview --port 4173",
-      "startServerReadyPattern": "Local:",
       "settings": {
         "preset": "desktop",
         "formFactor": "desktop",
