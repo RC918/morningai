@@ -35,16 +35,19 @@ setup('authenticate', async ({ page }) => {
   const password = process.env.TEST_PASSWORD || 'admin123';
   console.log(`   Using credentials: ${username}/${password.replace(/./g, '*')}`);
 
+  await page.goto('http://localhost:4173/login');
+  console.log('   Navigated to login page');
+
   await page.evaluate(() => {
     localStorage.clear();
     sessionStorage.clear();
   });
   console.log('   Cleared browser storage');
 
-  await page.goto('http://localhost:4173/login');
-  console.log('   Navigated to login page');
+  await page.reload();
+  console.log('   Reloaded page after clearing storage');
 
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
   
   const url = page.url();
   const title = await page.title();
