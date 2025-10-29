@@ -209,6 +209,15 @@ jobs:
           pnpm exec playwright test tests/auth.setup.spec.ts
         working-directory: handoff/20250928/40_App/frontend-dashboard
 
+      - name: Upload Playwright test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-test-results
+          path: |
+            handoff/20250928/40_App/frontend-dashboard/test-results/
+            handoff/20250928/40_App/frontend-dashboard/playwright-report/
+
       - name: Generate LHCI cookie
         working-directory: ${{ github.workspace }}
         run: node scripts/make-lhci-cookie.js
