@@ -1,23 +1,13 @@
 name: lighthouse-ci
 
 on:
-  workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'handoff/20250928/40_App/frontend-dashboard/**'
-      - '.github/workflows/lhci.yml'
-      - 'lighthouserc.json'
-  push:
-    branches: [main]
-    paths:
-      - 'handoff/20250928/40_App/frontend-dashboard/**'
-      - '.github/workflows/lhci.yml'
-      - 'lighthouserc.*.json'
+  schedule:
+    - cron: '0 0 * * *'  # Daily at 00:00 UTC (non-blocking signal collection)
+  workflow_dispatch:  # Manual trigger for testing
 
 jobs:
   lhci-pr:
-    if: false  # Temporarily disabled by owner - LHCI causing CI issues
+    if: false  # Disabled during stabilization period - will re-enable after 5 consecutive nightly passes
     runs-on: ubuntu-latest
     concurrency:
       group: lhci-${{ github.head_ref }}
@@ -165,8 +155,8 @@ jobs:
           fi
 
   lhci-main:
-    if: false  # Temporarily disabled by owner - LHCI causing CI issues
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     concurrency:
       group: lhci-main
       cancel-in-progress: false
@@ -279,8 +269,9 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: node scripts/make-lhci-cookie.js
 
-      - name: Run Lighthouse CI (main - accurate)
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=3 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
+      - name: Run Lighthouse CI (main - nightly signal collection)
+        continue-on-error: true
+        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4

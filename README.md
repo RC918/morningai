@@ -139,6 +139,73 @@ pip install -r requirements.txt  # pytest, flake8, python-dotenv
 
 ---
 
+## LHCI 資訊模式（非阻塞）
+
+MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊模式」（非阻塞信號蒐集階段）。
+
+### 🎯 目的
+
+在高風險重構期間（如 Orchestrator 重構），LHCI 以非阻塞模式運行，持續蒐集效能信號但不阻塞開發流程。
+
+### ⏰ 觸發條件
+
+- **Nightly Schedule**: 每日 UTC 00:00 自動執行
+- **Manual Trigger**: 透過 GitHub Actions 手動觸發 `workflow_dispatch`
+
+### 🔧 執行限制
+
+- **Timeout**: 12 分鐘（防止長時間掛起）
+- **Number of Runs**: 1 次（加速執行）
+- **Continue on Error**: 失敗不影響 workflow 狀態
+- **Artifacts**: 始終上傳 LHCI 報告供分析
+
+### 📊 手動觸發方式
+
+1. 前往 [GitHub Actions](https://github.com/RC918/morningai/actions/workflows/lhci.yml)
+2. 點擊 "Run workflow" 按鈕
+3. 選擇 branch（通常是 `main`）
+4. 點擊 "Run workflow" 確認
+
+### 📁 查看結果
+
+**方式 1: GitHub Artifacts**
+1. 前往 [Actions 頁面](https://github.com/RC918/morningai/actions/workflows/lhci.yml)
+2. 點擊最近的 workflow run
+3. 下載 `lhci-artifacts-main` artifact
+4. 解壓縮後查看 `.lighthouseci/` 目錄中的 HTML/JSON 報告
+
+**方式 2: Tracking Issue**
+- 查看 [LHCI Stabilization Tracking Issue](https://github.com/RC918/morningai/issues) 中的每日執行記錄
+
+### 🎯 穩定化退出條件（2 週觀察期）
+
+**階段 1: 穩定性驗證**
+- ✅ 連續 5 次 nightly 執行成功（綠燈）
+- ✅ Performance 中位數分數 ≥ 90
+
+**階段 2: 恢復 PR 檢查（首週仍 continue-on-error: true）**
+- 在 PR 上執行 LHCI，但失敗不阻塞合併
+- 觀察 1 週，收集 flake 率數據
+
+**階段 3: 完全恢復阻塞檢查**
+- Flake 率 < 5%
+- 移除 `continue-on-error: true`
+- LHCI 失敗將阻塞 PR 合併
+
+### 🔍 故障排除
+
+**常見問題**:
+- **Preview server 啟動失敗**: 檢查 `VITE_*` 環境變數是否正確設定
+- **Port 衝突**: 確認 4173 port 未被佔用（已在 PR #894 修復）
+- **Authentication 失敗**: 檢查 `TEST_EMAIL` 和 `TEST_PASSWORD` secrets
+- **FCP timeout**: 檢查 CSS 是否有 `visibility: hidden` 或 `opacity: 0` 導致延遲
+
+**相關文檔**:
+- [Lighthouse CI 完整指南](docs/LIGHTHOUSE_CI_GUIDE.md)
+- [LHCI Stabilization Tracking Issue](https://github.com/RC918/morningai/issues)
+
+---
+
 ## 開發貢獻流程
 
 請參閱以下文件了解專案的開發規範與 CI/CD 流程：
