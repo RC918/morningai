@@ -175,6 +175,9 @@ jobs:
     defaults:
       run:
         working-directory: handoff/20250928/40_App/frontend-dashboard
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -223,7 +226,19 @@ jobs:
       - name: Debug preview server
         run: |
           echo "Testing preview server response..."
-          curl -sS http://localhost:4173/ | head -c 500 || echo "Failed to fetch homepage"
+          curl -sS http://localhost:4173/ | head -c 1000 || echo "Failed to fetch homepage"
+          echo ""
+          echo "Checking asset URLs..."
+          curl -sS http://localhost:4173/ | sed 's/</\n</g' | grep -Eo 'src="/[^"]+\.js"|href="/[^"]+\.css"' | sed -E 's/^(src|href)=//;s/"//g' | head -10 | while read asset; do
+            echo "Testing asset: $asset"
+            curl -I "http://localhost:4173$asset" 2>&1 | head -2
+          done
+
+      - name: Verify server before Playwright
+        run: |
+          echo "Verifying preview server is still responsive..."
+          curl -I http://localhost:4173/ || echo "Homepage check failed"
+          curl -I http://localhost:4173/login || echo "Login page check failed"
 
       - name: Setup Playwright authentication
         env:
@@ -233,8 +248,9 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
           mkdir -p playwright/.auth
-          pnpm exec playwright install --with-deps chromium
-          pnpm exec playwright test tests/auth.setup.spec.ts
+          echo "Working directory: $(pwd)"
+          pnpm exec playwright install chromium
+          pnpm exec playwright test tests/auth.setup.spec.ts --trace on-first-retry
         working-directory: handoff/20250928/40_App/frontend-dashboard
 
       - name: Upload Playwright test results

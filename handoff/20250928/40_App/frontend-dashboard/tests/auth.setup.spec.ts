@@ -26,6 +26,23 @@ const authFile = path.join(authDir, 'storageState.json');
 setup('authenticate', async ({ page }) => {
   console.log('🔐 Starting authentication setup...');
   
+  page.on('console', msg => {
+    const type = msg.type();
+    const text = msg.text();
+    if (type === 'error' || type === 'warning') {
+      console.log(`[Browser ${type}] ${text}`);
+    }
+  });
+
+  page.on('pageerror', error => {
+    console.error(`[Page Error] ${error.message}`);
+    console.error(error.stack);
+  });
+
+  page.on('requestfailed', request => {
+    console.error(`[Request Failed] ${request.url()} - ${request.failure()?.errorText}`);
+  });
+  
   if (!fs.existsSync(authDir)) {
     fs.mkdirSync(authDir, { recursive: true });
     console.log(`✅ Created auth directory: ${authDir}`);
