@@ -97,6 +97,48 @@ MorningAI 採用多環境部署架構，確保開發、測試和生產環境的�
 
 ---
 
+## Python 依賴管理
+
+MorningAI 採用服務分離的依賴管理策略，確保每個服務只安裝所需的依賴：
+
+### 📦 Requirements 結構
+
+```
+requirements.txt                                    # 共享開發/測試依賴（pytest, flake8, python-dotenv）
+handoff/20250928/40_App/api-backend/requirements.txt    # Flask 後端服務依賴
+orchestrator/requirements.txt                       # FastAPI Orchestrator 服務依賴
+agents/*/requirements.txt                           # 各 Agent 服務依賴
+```
+
+### 🔧 安裝依賴
+
+**Backend API 服務**:
+```bash
+cd handoff/20250928/40_App/api-backend
+pip install -r requirements.txt
+```
+
+**Orchestrator 服務**:
+```bash
+cd orchestrator
+pip install -r requirements.txt
+pip install -e .  # 安裝 orchestrator 套件
+```
+
+**開發/測試工具** (root):
+```bash
+pip install -r requirements.txt  # pytest, flake8, python-dotenv
+```
+
+### ⚠️ 重要提示
+
+- **不要**在 root 目錄直接 `pip install -r requirements.txt` 來運行服務
+- 每個服務有獨立的 requirements.txt，包含該服務所需的所有依賴
+- Root requirements.txt 僅用於開發/測試工具（pytest, flake8 等）
+- CI/CD 會自動為每個服務安裝正確的依賴
+
+---
+
 ## 開發貢獻流程
 
 請參閱以下文件了解專案的開發規範與 CI/CD 流程：
