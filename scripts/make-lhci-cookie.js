@@ -18,7 +18,7 @@ const path = require('path');
 const PLAYWRIGHT_STATE_FILE = path.join(__dirname, '../handoff/20250928/40_App/frontend-dashboard/playwright/.auth/storageState.json');
 const OUTPUT_FILE = path.join(__dirname, '../handoff/20250928/40_App/frontend-dashboard/lhci-auth-inject.js');
 
-function extractLocalStorage() {
+function extractAuthData() {
   try {
     if (!fs.existsSync(PLAYWRIGHT_STATE_FILE)) {
       console.error(`❌ Playwright state file not found: ${PLAYWRIGHT_STATE_FILE}`);
@@ -29,56 +29,85 @@ function extractLocalStorage() {
 
     const state = JSON.parse(fs.readFileSync(PLAYWRIGHT_STATE_FILE, 'utf8'));
     
-    if (!state.origins || state.origins.length === 0) {
-      console.error('❌ No localStorage data found in Playwright state');
-      console.error('   The authentication may not have saved properly.');
-      process.exit(1);
-    }
-
-    let authData = null;
-    for (const origin of state.origins) {
-      if (origin.localStorage) {
-        for (const item of origin.localStorage) {
-          if (item.name.includes('supabase.auth.token') || item.name === 'auth_token') {
-            authData = origin.localStorage;
-            console.log(`✅ Found auth data in origin: ${origin.origin}`);
-            break;
+    let localStorageData = null;
+    if (state.origins && state.origins.length > 0) {
+      for (const origin of state.origins) {
+        if (origin.localStorage) {
+          for (const item of origin.localStorage) {
+            if (item.name.includes('supabase.auth.token') || item.name === 'auth_token') {
+              localStorageData = origin.localStorage;
+              console.log(`✅ Found auth data in localStorage from origin: ${origin.origin}`);
+              break;
+            }
           }
         }
+        if (localStorageData) break;
       }
-      if (authData) break;
     }
 
-    if (!authData) {
-      console.error('❌ No auth data found in localStorage');
-      console.error('   Available localStorage keys:', 
-        state.origins.flatMap(o => o.localStorage?.map(i => i.name) || []).join(', '));
+    const cookies = state.cookies || [];
+    const cookieNames = cookies.map(c => c.name).join(', ');
+    
+    if (localStorageData) {
+      console.log(`✅ Extracted ${localStorageData.length} localStorage item(s)`);
+      console.log('   Keys:', localStorageData.map(i => i.name).join(', '));
+      if (cookies.length > 0) {
+        console.log(`ℹ️  Also found ${cookies.length} cookie(s): ${cookieNames}`);
+      }
+      return { type: 'localStorage', data: localStorageData };
+    } else if (cookies.length > 0) {
+      console.log(`✅ No localStorage auth tokens found, using cookie-based auth`);
+      console.log(`   Found ${cookies.length} cookie(s): ${cookieNames}`);
+      return { type: 'cookies', data: cookies };
+    } else {
+      console.error('❌ No auth data found in localStorage or cookies');
+      if (state.origins && state.origins.length > 0) {
+        console.error('   Available localStorage keys:', 
+          state.origins.flatMap(o => o.localStorage?.map(i => i.name) || []).join(', '));
+      }
       process.exit(1);
     }
-
-    console.log(`✅ Extracted ${authData.length} localStorage item(s)`);
-    console.log('   Keys:', authData.map(i => i.name).join(', '));
-
-    return authData;
   } catch (error) {
     console.error('❌ Error reading Playwright state:', error.message);
     process.exit(1);
   }
 }
 
-function createInjectionScript(localStorageData) {
+function createInjectionScript(authData) {
   try {
-    const scriptLines = localStorageData.map(item => {
-      const escapedValue = JSON.stringify(item.value);
-      return `localStorage.setItem(${JSON.stringify(item.name)}, ${escapedValue});`;
-    });
+    let scriptContent = '';
+    
+    if (authData.type === 'localStorage') {
+      const scriptLines = authData.data.map(item => {
+        const escapedValue = JSON.stringify(item.value);
+        return `localStorage.setItem(${JSON.stringify(item.name)}, ${escapedValue});`;
+      });
+      
+      scriptContent = `(function() {
+  ${scriptLines.join('\n  ')}
+  console.log('✅ Auth data injected into localStorage');
+})();`;
+    } else if (authData.type === 'cookies') {
+      const cookieLines = authData.data.map(cookie => {
+        let cookieStr = `${cookie.name}=${cookie.value}`;
+        if (cookie.domain) cookieStr += `; domain=${cookie.domain}`;
+        if (cookie.path) cookieStr += `; path=${cookie.path}`;
+        if (cookie.expires) cookieStr += `; expires=${new Date(cookie.expires * 1000).toUTCString()}`;
+        if (cookie.httpOnly) cookieStr += `; httpOnly`;
+        if (cookie.secure) cookieStr += `; secure`;
+        if (cookie.sameSite) cookieStr += `; sameSite=${cookie.sameSite}`;
+        return `document.cookie = ${JSON.stringify(cookieStr)};`;
+      });
+      
+      scriptContent = `(function() {
+  ${cookieLines.join('\n  ')}
+  console.log('✅ Auth cookies injected (${authData.data.length} cookie(s))');
+})();`;
+    }
 
     const script = `// Auto-generated by make-lhci-cookie.js
 
-(function() {
-  ${scriptLines.join('\n  ')}
-  console.log('✅ Auth data injected into localStorage');
-})();
+${scriptContent}
 `;
 
     fs.writeFileSync(OUTPUT_FILE, script, 'utf8');
@@ -90,12 +119,13 @@ function createInjectionScript(localStorageData) {
 }
 
 function main() {
-  console.log('Converting Playwright localStorage to LHCI injection script...\n');
+  console.log('Converting Playwright auth state to LHCI injection script...\n');
   
-  const localStorageData = extractLocalStorage();
-  createInjectionScript(localStorageData);
+  const authData = extractAuthData();
+  createInjectionScript(authData);
   
   console.log('\n✅ Conversion complete!');
+  console.log(`   Auth type: ${authData.type}`);
   console.log('   Lighthouse CI can now test authenticated pages.');
   console.log('   The script will be injected before each page load.');
 }
