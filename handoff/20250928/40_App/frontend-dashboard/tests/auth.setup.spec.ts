@@ -39,9 +39,26 @@ setup('authenticate', async ({ page }) => {
   console.log('   Navigated to login page');
 
   await page.waitForLoadState('networkidle');
+  
+  const url = page.url();
+  const title = await page.title();
+  console.log(`   Current URL: ${url}`);
+  console.log(`   Page title: ${title}`);
 
-  await page.fill('input[name="username"]', username);
-  await page.fill('input[name="password"]', password);
+  await page.addStyleTag({ 
+    content: '*, *::before, *::after { animation: none !important; transition: none !important; }' 
+  });
+  console.log('   Disabled animations');
+
+  const usernameCount = await page.locator('#username').count();
+  const passwordCount = await page.locator('#password').count();
+  console.log(`   Found ${usernameCount} username input(s) and ${passwordCount} password input(s)`);
+
+  await page.waitForSelector('#username', { state: 'visible', timeout: 30000 });
+  console.log('   Username input is visible');
+
+  await page.fill('#username', username);
+  await page.fill('#password', password);
   console.log('   Filled in credentials');
 
   await page.click('button[type="submit"]');
