@@ -251,6 +251,7 @@ jobs:
           path: |
             handoff/20250928/40_App/frontend-dashboard/test-results/
             handoff/20250928/40_App/frontend-dashboard/playwright-report/
+          retention-days: 14
 
       - name: Verify storage state file
         run: |
@@ -279,6 +280,7 @@ jobs:
         with:
           name: lhci-artifacts-main
           path: handoff/20250928/40_App/frontend-dashboard/.lighthouseci
+          retention-days: 14
 
       - name: Update baseline and trend
         if: always()

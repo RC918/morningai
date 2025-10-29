@@ -175,7 +175,7 @@ MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊�
 4. 解壓縮後查看 `.lighthouseci/` 目錄中的 HTML/JSON 報告
 
 **方式 2: Tracking Issue**
-- 查看 [LHCI Stabilization Tracking Issue](https://github.com/RC918/morningai/issues) 中的每日執行記錄
+- 查看 [LHCI Stabilization Tracking Issue #911](https://github.com/RC918/morningai/issues/911) 中的每日執行記錄
 
 ### 🎯 穩定化退出條件（2 週觀察期）
 
@@ -202,7 +202,7 @@ MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊�
 
 **相關文檔**:
 - [Lighthouse CI 完整指南](docs/LIGHTHOUSE_CI_GUIDE.md)
-- [LHCI Stabilization Tracking Issue](https://github.com/RC918/morningai/issues)
+- [LHCI Stabilization Tracking Issue #911](https://github.com/RC918/morningai/issues/911)
 
 ---
 
