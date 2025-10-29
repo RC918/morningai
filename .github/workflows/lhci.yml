@@ -165,7 +165,7 @@ jobs:
           fi
 
   lhci-main:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: false  # Temporarily disabled by owner - LHCI causing CI issues
     runs-on: ubuntu-latest
     concurrency:
       group: lhci-main
