@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
 """
-Phase 5: 數據智能與成長 API Implementation
+Phase 5: Data Intelligence API
+
+This module provides the data intelligence endpoints for the backend API.
+It is imported by handoff/20250928/40_App/api-backend/src/main.py.
+
+Status: PRODUCTION
+Location: Root directory (imported by backend)
+Related: ADR-001 (Backend of Record)
+
+TODO: Move to handoff/.../api-backend/src/phases/ in future refactor
+
 Implements QuickSight integration, data dashboards, and growth marketing modules
 """
 

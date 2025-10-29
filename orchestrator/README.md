@@ -1,4 +1,21 @@
-# MorningAI Orchestrator
+# MorningAI Orchestrator API Service
+
+**Type**: FastAPI Web Service  
+**Purpose**: Task submission endpoint  
+**Deployment**: Render (morningai-orchestrator-api)  
+**Port**: 8000  
+**Health Check**: /health
+
+## Architecture
+
+This is the **API layer** of the orchestrator system. It receives task submissions via HTTP and enqueues them to Redis for worker processing.
+
+**Related Components**:
+- **Worker**: `handoff/20250928/40_App/orchestrator/` (RQ Worker - task execution engine)
+- **Deployment**: `render.yaml` (line 108-146)
+- **Architecture Decision**: See ADR-002 for producer-consumer architecture
+
+---
 
 Multi-Agent Task Orchestration and Event Bus for MorningAI platform.
 

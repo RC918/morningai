@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
 """
-Phase 4: Meta-Agent 決策中樞 API Implementation
+Phase 4: Meta-Agent Coordination API
+
+This module provides the meta-agent coordination endpoints for the backend API.
+It is imported by handoff/20250928/40_App/api-backend/src/main.py.
+
+Status: PRODUCTION
+Location: Root directory (imported by backend)
+Related: ADR-001 (Backend of Record)
+
+TODO: Move to handoff/.../api-backend/src/phases/ in future refactor
+
 Implements AI Orchestrator, LangGraph workflows, and governance console
 """
 

@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
 """
-Phase 6 啟動腳本
+Phase 6: Startup Script
+
+This module provides the Phase 6 initialization script for the backend API.
+It is imported by handoff/20250928/40_App/api-backend/src/main.py.
+
+Status: PRODUCTION
+Location: Root directory (imported by backend)
+Related: ADR-001 (Backend of Record)
+
+TODO: Move to handoff/.../api-backend/src/phases/ in future refactor
+
 初始化所有安全和監控系統
 """
 
