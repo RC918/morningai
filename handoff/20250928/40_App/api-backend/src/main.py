@@ -274,15 +274,11 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,  # Verify connections before using them
-    'pool_recycle': 300,    # Recycle connections after 5 minutes
-    'pool_size': 5,         # Number of connections to maintain
-    'max_overflow': 10,     # Additional connections when pool is full
-    'pool_timeout': 10,     # Timeout for getting connection from pool
-    'connect_args': {
-        'connect_timeout': 10,  # Timeout for initial connection
-        'options': '-c statement_timeout=30000'  # 30 second query timeout
-    }
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'pool_size': 5,
+    'max_overflow': 10,
+    'pool_timeout': 10
 }
 
 db.init_app(app)
