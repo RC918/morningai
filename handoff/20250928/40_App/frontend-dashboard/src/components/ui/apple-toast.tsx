@@ -16,6 +16,8 @@ interface ToastOptions {
   duration?: number | null
 }
 
+type ToastState = Omit<ToastOptions, 'id'> & { id: string }
+
 interface ToastContextValue {
   toast: (options: ToastOptions | string) => { id: string; dismiss: () => void }
   success: (title: string, description?: string) => { id: string; dismiss: () => void }
@@ -24,7 +26,7 @@ interface ToastContextValue {
   info: (title: string, description?: string) => { id: string; dismiss: () => void }
   dismiss: (id: string) => void
   dismissAll: () => void
-  toasts: ToastOptions[]
+  toasts: ToastState[]
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
@@ -187,11 +189,16 @@ const Toast = ({ id, title, description, variant = 'default', duration = 5000, o
 const MAX_TOASTS = 5
 
 export const AppleToastProvider = ({ children }: { children: React.ReactNode }) => {
-  const [toasts, setToasts] = useState<ToastOptions[]>([])
+  const [toasts, setToasts] = useState<ToastState[]>([])
 
   const toast = useCallback((options: ToastOptions | string) => {
-    const id = Math.random().toString(36).substr(2, 9)
-    const newToast: ToastOptions = {
+    const id = typeof options === 'object' && options.id 
+      ? options.id 
+      : (typeof crypto !== 'undefined' && crypto.randomUUID 
+          ? crypto.randomUUID() 
+          : Math.random().toString(36).slice(2, 11))
+    
+    const newToast: ToastState = {
       id,
       title: typeof options === 'string' ? options : options.title,
       description: typeof options === 'string' ? undefined : options.description,

@@ -166,7 +166,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
   }
 
   const getStatusBadge = (status: MetricStatus): React.ReactElement => {
-    const variants: Record<MetricStatus, string> = {
+    const variants: Record<MetricStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
       good: 'default',
       excellent: 'default',
       needs_improvement: 'secondary',

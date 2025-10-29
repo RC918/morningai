@@ -411,4 +411,176 @@ describe('AppleToast', () => {
       expect(screen.getByText('Custom description')).toBeInTheDocument()
     })
   })
+
+  describe('Toast ID Invariant', () => {
+    it('always generates an id for toasts created with string', () => {
+      const TestComponent = () => {
+        const toast = useAppleToast()
+        return (
+          <button onClick={() => toast.toast('Simple toast message')}>
+            Show Toast
+          </button>
+        )
+      }
+
+      render(
+        <AppleToastProvider>
+          <TestComponent />
+        </AppleToastProvider>
+      )
+
+      const button = screen.getByText('Show Toast')
+      act(() => {
+        button.click()
+      })
+
+      const toastElements = screen.getAllByText('Simple toast message')
+      expect(toastElements.length).toBeGreaterThan(0)
+      
+      const toastContainer = toastElements[0].closest('[class*="pointer-events-auto"]')
+      expect(toastContainer).toBeInTheDocument()
+    })
+
+    it('always generates an id for toasts created with object', () => {
+      const TestComponent = () => {
+        const toast = useAppleToast()
+        return (
+          <button onClick={() => toast.toast({ title: 'Test Toast Object', description: 'Description' })}>
+            Show Toast
+          </button>
+        )
+      }
+
+      render(
+        <AppleToastProvider>
+          <TestComponent />
+        </AppleToastProvider>
+      )
+
+      const button = screen.getByText('Show Toast')
+      act(() => {
+        button.click()
+      })
+
+      const toastElements = screen.getAllByText('Test Toast Object')
+      expect(toastElements.length).toBeGreaterThan(0)
+      
+      const toastContainer = toastElements[0].closest('[class*="pointer-events-auto"]')
+      expect(toastContainer).toBeInTheDocument()
+    })
+
+    it('uses provided id when specified', () => {
+      const TestComponent = () => {
+        const toast = useAppleToast()
+        return (
+          <button onClick={() => toast.toast({ id: 'custom-id', title: 'Custom ID Toast' })}>
+            Show Toast
+          </button>
+        )
+      }
+
+      render(
+        <AppleToastProvider>
+          <TestComponent />
+        </AppleToastProvider>
+      )
+
+      const button = screen.getByText('Show Toast')
+      act(() => {
+        button.click()
+      })
+
+      const toastElements = screen.getAllByText('Custom ID Toast')
+      expect(toastElements.length).toBeGreaterThan(0)
+      expect(toastElements[0]).toBeInTheDocument()
+    })
+
+    it('generates unique ids for multiple toasts', () => {
+      const ids: string[] = []
+      const TestComponent = () => {
+        const toast = useAppleToast()
+        return (
+          <button onClick={() => {
+            const result1 = toast.toast('Toast 1')
+            const result2 = toast.toast('Toast 2')
+            const result3 = toast.toast('Toast 3')
+            ids.push(result1.id, result2.id, result3.id)
+          }}
+          >
+            Show Toasts
+          </button>
+        )
+      }
+
+      render(
+        <AppleToastProvider>
+          <TestComponent />
+        </AppleToastProvider>
+      )
+
+      const button = screen.getByText('Show Toasts')
+      act(() => {
+        button.click()
+      })
+
+      const uniqueIds = new Set(ids)
+      expect(uniqueIds.size).toBe(3)
+      
+      ids.forEach(id => {
+        expect(typeof id).toBe('string')
+        expect(id.length).toBeGreaterThan(0)
+      })
+    })
+
+    it('returns id from toast function for all variants', () => {
+      const TestComponent = () => {
+        const toast = useAppleToast()
+        return (
+          <>
+            <button onClick={() => {
+              const result = toast.success('Success')
+              expect(typeof result.id).toBe('string')
+              expect(result.id.length).toBeGreaterThan(0)
+            }}
+            >Success
+            </button>
+            <button onClick={() => {
+              const result = toast.error('Error')
+              expect(typeof result.id).toBe('string')
+              expect(result.id.length).toBeGreaterThan(0)
+            }}
+            >Error
+            </button>
+            <button onClick={() => {
+              const result = toast.warning('Warning')
+              expect(typeof result.id).toBe('string')
+              expect(result.id.length).toBeGreaterThan(0)
+            }}
+            >Warning
+            </button>
+            <button onClick={() => {
+              const result = toast.info('Info')
+              expect(typeof result.id).toBe('string')
+              expect(result.id.length).toBeGreaterThan(0)
+            }}
+            >Info
+            </button>
+          </>
+        )
+      }
+
+      render(
+        <AppleToastProvider>
+          <TestComponent />
+        </AppleToastProvider>
+      )
+
+      act(() => {
+        screen.getByText('Success').click()
+        screen.getByText('Error').click()
+        screen.getByText('Warning').click()
+        screen.getByText('Info').click()
+      })
+    })
+  })
 })
