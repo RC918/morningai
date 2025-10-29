@@ -20,9 +20,19 @@ import os
 import sys
 import time
 import json
-import requests
 from datetime import datetime
 from typing import Dict, Optional, Tuple
+
+try:
+    import requests  # noqa: F401
+except ImportError:
+    sys.stderr.write(
+        "ERROR: Missing dependency 'requests'.\n"
+        "Install script dependencies: pip install -r scripts/requirements.txt\n"
+    )
+    sys.exit(2)
+
+import requests
 
 
 class OrchestratorMonitor:
