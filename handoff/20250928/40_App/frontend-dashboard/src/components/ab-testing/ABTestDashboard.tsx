@@ -52,8 +52,14 @@ interface ABTestResults {
   calculated_at: string
 }
 
+interface ABTest {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
 export function ABTestDashboard() {
-  const [tests, setTests] = useState<any[]>([])
+  const [tests, setTests] = useState<ABTest[]>([])
   const [selectedTest, setSelectedTest] = useState<string | null>(null)
   const [results, setResults] = useState<ABTestResults | null>(null)
 

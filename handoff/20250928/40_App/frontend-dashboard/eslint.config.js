@@ -64,4 +64,9 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     'jsx-a11y/img-redundant-alt': 'error',
     'jsx-a11y/label-has-associated-control': 'error',
   },
+}, {
+  files: ['**/*.test.{ts,tsx,js,jsx}', '**/__tests__/**/*.{ts,tsx,js,jsx}'],
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'warn',
+  },
 }, ...storybook.configs["flat/recommended"]];

@@ -12,7 +12,7 @@ interface SaveStatusIndicatorProps {
   onRetry?: () => void
 }
 
-const formatRelativeTime = (date: Date, t: (key: string, options?: any) => string): string => {
+const formatRelativeTime = (date: Date, t: (key: string, options?: { count?: number }) => string): string => {
   const now = new Date()
   const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
   
