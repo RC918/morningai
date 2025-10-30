@@ -43,7 +43,10 @@ vi.mock('../AppleHero', () => ({
 const renderLandingPage = () => {
   return render(
     <BrowserRouter>
-      <LandingPage />
+      <LandingPage 
+        onNavigateToLogin={vi.fn()} 
+        onSSOLogin={vi.fn()} 
+      />
     </BrowserRouter>
   )
 }

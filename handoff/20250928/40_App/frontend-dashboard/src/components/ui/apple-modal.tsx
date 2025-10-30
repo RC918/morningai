@@ -43,8 +43,13 @@ const modalSizes: Record<ModalSize, string> = {
   full: 'max-w-full mx-4'
 }
 
-interface ModalProps extends ModalOptions {
+interface ModalProps {
   id: string
+  title?: string
+  description?: string
+  children: React.ReactNode
+  size?: ModalSize
+  showClose?: boolean
   onClose: (id: string) => void
 }
 
@@ -219,7 +224,16 @@ export const AppleModalProvider = ({ children }: { children: React.ReactNode }) 
       {children}
       <AnimatePresence mode="wait">
         {modals.map((modal) => (
-          <Modal key={modal.id} {...modal} onClose={closeModal} />
+          <Modal 
+            key={modal.id} 
+            id={modal.id!}
+            title={modal.title}
+            description={modal.description}
+            children={modal.children}
+            size={modal.size}
+            showClose={modal.showClose}
+            onClose={closeModal} 
+          />
         ))}
       </AnimatePresence>
     </ModalContext.Provider>

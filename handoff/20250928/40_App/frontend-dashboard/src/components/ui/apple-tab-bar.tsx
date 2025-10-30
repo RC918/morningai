@@ -63,7 +63,7 @@ function AppleTabBar({
   )
 }
 
-interface AppleTabBarItemProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'value'> {
+interface AppleTabBarItemProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'value' | 'onAnimationStart' | 'onDragStart' | 'onDragEnd' | 'onDrag'> {
   value: string
   icon: React.ReactNode
   label: string

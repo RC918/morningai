@@ -51,7 +51,7 @@ describe('AppleSheet', () => {
     it('provides sheet context to children', () => {
       const TestComponent = () => {
         const sheet = useAppleSheet()
-        return <button onClick={() => sheet.openSheet({ title: 'Test' })}>Open Sheet</button>
+        return <button onClick={() => sheet.openSheet({ title: 'Test', children: <div>Test Content</div> })}>Open Sheet</button>
       }
 
       render(

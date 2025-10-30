@@ -128,7 +128,7 @@ const CostAnalysis = (): React.ReactElement => {
           <p className="text-gray-600 mt-1">{t('cost.description')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={period} onValueChange={setPeriod}>
+          <Select value={period} onValueChange={(value) => setPeriod(value as PeriodType)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
