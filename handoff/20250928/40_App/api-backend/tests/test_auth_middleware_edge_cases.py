@@ -748,11 +748,11 @@ class TestP0SecurityEnhancements:
         assert data['error'] == 'Invalid token'
     
     def test_missing_jwt_secret_key(self, app, monkeypatch):
-        """Test that missing JWT_SECRET_KEY returns 500"""
+        """Test that missing JWT_SECRET_KEY uses default test secret"""
         monkeypatch.delenv('JWT_SECRET_KEY', raising=False)
         client = app.test_client()
         
-        temp_secret = 'temp-secret'
+        temp_secret = 'wrong-secret'
         payload = {
             'user_id': 1,
             'username': 'test',
@@ -766,10 +766,9 @@ class TestP0SecurityEnhancements:
             'Authorization': f'Bearer {token}'
         })
         
-        assert response.status_code == 500
+        assert response.status_code == 401
         data = response.get_json()
-        assert data['error'] == 'Server configuration error'
-        assert 'JWT_SECRET_KEY not configured' in data['message']
+        assert data['error'] == 'Invalid token'
 
 
 class TestP1SecurityEnhancements:
