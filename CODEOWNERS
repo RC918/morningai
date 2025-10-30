@@ -1,0 +1,214 @@
+# CODEOWNERS
+# 
+# This file defines code ownership for the MorningAI repository.
+# Code owners are automatically requested for review when someone opens a pull request
+# that modifies code that they own.
+#
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Syntax:
+# pattern @username @team-name
+#
+# Last matching pattern takes precedence.
+
+# ============================================================================
+# Default Owners
+# ============================================================================
+
+# Default owner for everything in the repo
+* @RC918
+
+# ============================================================================
+# Platform Squad - Shared Components & Infrastructure
+# ============================================================================
+
+# Shared UI Components (require Platform Squad review)
+/packages/shared-ui/ @RC918
+/handoff/20250928/40_App/frontend-dashboard/src/components/ui/ @RC918
+
+# Design System & Tokens
+/docs/UX/tokens.json @RC918
+/docs/UX/DESIGN_SYSTEM_ENHANCEMENT_ROADMAP.md @RC918
+
+# Core Type Definitions
+/handoff/20250928/40_App/frontend-dashboard/src/types/ @RC918
+/packages/shared-ui/src/types/ @RC918
+
+# Animation Library (Issue #936 - spring-animation)
+/handoff/20250928/40_App/frontend-dashboard/src/lib/spring-animation.ts @RC918
+/handoff/20250928/40_App/frontend-dashboard/src/lib/spring-animation.test.ts @RC918
+
+# Feature Flags System
+/handoff/20250928/40_App/frontend-dashboard/src/lib/feature-flags.ts @RC918
+
+# Build Configuration
+/turbo.json @RC918
+/pnpm-workspace.yaml @RC918
+/package.json @RC918
+
+# TypeScript Configuration
+/tsconfig.json @RC918
+/handoff/20250928/40_App/frontend-dashboard/tsconfig.json @RC918
+/packages/shared-ui/tsconfig.json @RC918
+
+# Storybook Configuration (Issue #851)
+/handoff/20250928/40_App/frontend-dashboard/.storybook/ @RC918
+/packages/shared-ui/.storybook/ @RC918
+
+# ============================================================================
+# MVP Squad - Agent System & Orchestration
+# ============================================================================
+
+# Agent Registry & Task Router (Issue #760)
+/handoff/20250928/40_App/api-backend/src/routes/agent.py @RC918
+/handoff/20250928/40_App/orchestrator/graph.py @RC918
+/handoff/20250928/40_App/orchestrator/mcp/ @RC918
+
+# Closed-loop Scenarios (Issue #761)
+/agents/faq_agent/ @RC918
+/.github/workflows/auto-merge-faq.yml @RC918
+
+# Metrics & Dashboard (Issue #762)
+/handoff/20250928/40_App/frontend-dashboard/src/pages/metrics/ @RC918
+/handoff/20250928/40_App/api-backend/src/routes/metrics.py @RC918
+
+# Monitoring Foundation (Issue #768)
+/handoff/20250928/40_App/api-backend/src/services/monitoring/ @RC918
+/config/monitoring/ @RC918
+
+# Agent Implementations
+/agents/dev_agent/ @RC918
+/agents/ops_agent/ @RC918
+/agents/pm_agent/ @RC918
+
+# Orchestrator
+/handoff/20250928/40_App/orchestrator/ @RC918
+
+# ============================================================================
+# Owner Console Squad - Admin Interface
+# ============================================================================
+
+# Owner Console Application
+/handoff/20250928/40_App/owner-console/ @RC918
+
+# API Connection (Issue #767)
+/handoff/20250928/40_App/owner-console/src/lib/api/ @RC918
+/handoff/20250928/40_App/owner-console/src/lib/auth.ts @RC918
+
+# Agent Governance Dashboard (Issue #769)
+/handoff/20250928/40_App/owner-console/src/pages/governance/ @RC918
+
+# Tenant Management (Issue #770)
+/handoff/20250928/40_App/owner-console/src/pages/tenants/ @RC918
+
+# System Monitoring (Issue #771)
+/handoff/20250928/40_App/owner-console/src/pages/monitoring/ @RC918
+
+# Platform Settings (Issue #772)
+/handoff/20250928/40_App/owner-console/src/pages/settings/ @RC918
+
+# Security & Audit (Issue #773)
+/handoff/20250928/40_App/owner-console/src/pages/security/ @RC918
+
+# PWA Implementation (Issue #774)
+/handoff/20250928/40_App/owner-console/public/manifest.json @RC918
+/handoff/20250928/40_App/owner-console/src/service-worker.ts @RC918
+
+# ============================================================================
+# Backend & API
+# ============================================================================
+
+# API Backend
+/handoff/20250928/40_App/api-backend/ @RC918
+
+# OpenAPI Specifications
+/handoff/20250928/30_API/ @RC918
+/handoff/20250928/40_App/api-backend/openapi/ @RC918
+
+# Authentication & Authorization
+/handoff/20250928/40_App/api-backend/src/middleware/auth_middleware.py @RC918
+/handoff/20250928/40_App/api-backend/src/routes/auth.py @RC918
+
+# Database Migrations
+/migrations/ @RC918
+
+# ============================================================================
+# Infrastructure & DevOps
+# ============================================================================
+
+# CI/CD Workflows
+/.github/workflows/ @RC918
+
+# Deployment Configuration
+/fly.toml @RC918
+/render.yaml @RC918
+/vercel.json @RC918
+/.fly-web/ @RC918
+
+# Docker Configuration
+/Dockerfile @RC918
+/.dockerignore @RC918
+
+# Environment Configuration
+/.env.example @RC918
+/config/env.schema.yaml @RC918
+
+# ============================================================================
+# Documentation
+# ============================================================================
+
+# Architecture Documentation
+/ARCHITECTURE.md @RC918
+/CTO_TECHNICAL_ASSESSMENT_REPORT.md @RC918
+/CTO_COMPREHENSIVE_TECHNICAL_DEEP_DIVE_2025.md @RC918
+
+# Development Guides
+/CONTRIBUTING.md @RC918
+/docs/PARALLEL_DEVELOPMENT_STRATEGY.md @RC918
+
+# UX Documentation
+/docs/UX/ @RC918
+
+# ============================================================================
+# Security & Compliance
+# ============================================================================
+
+# Security Documentation
+/.github/ISSUE_TEMPLATE/phase3-security-documentation.md @RC918
+
+# Secrets Management
+/.env.example @RC918
+/config/env.schema.yaml @RC918
+
+# ============================================================================
+# Testing
+# ============================================================================
+
+# Test Configuration
+/pytest.ini @RC918
+/vitest.config.ts @RC918
+/playwright.config.ts @RC918
+
+# E2E Tests
+/.github/workflows/agent-mvp-e2e.yml @RC918
+/.github/workflows/ops-agent-sandbox-e2e.yml @RC918
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# Shared Component Modification Protocol:
+# 1. Any changes to /packages/shared-ui/ or /src/components/ui/ require Platform Squad review
+# 2. Breaking changes must include migration guide or codemod
+# 3. Notify all squads in #engineering channel before merging
+#
+# Feature Flag Protocol:
+# 1. All new features must be behind feature flags
+# 2. Feature flags must be documented in feature-flags.ts
+# 3. Default value must be `false` for unreleased features
+#
+# API Contract Protocol:
+# 1. OpenAPI spec changes require RFC (Request for Comments)
+# 2. Backend and frontend changes must be coordinated
+# 3. Use API versioning for breaking changes
+#

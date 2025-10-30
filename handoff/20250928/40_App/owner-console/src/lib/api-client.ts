@@ -3,32 +3,13 @@ const API_BASE_URL =
   (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') ||
   '';
 
-export async function apiClient({
-  url,
-  method,
-  params,
-  data,
-  headers,
-}: {
-  url: string;
-  method: string;
-  params?: Record<string, any>;
-  data?: any;
-  headers?: Record<string, string>;
-}) {
-  const qs = params
-    ? '?' +
-      new URLSearchParams(
-        Object.fromEntries(
-          Object.entries(params).map(([k, v]) => [k, String(v)])
-        )
-      ).toString()
-    : '';
-
-  const res = await fetch(`${API_BASE_URL}${url}${qs}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(headers || {}) },
-    body: data != null ? JSON.stringify(data) : undefined,
+export async function apiClient<T>(
+  url: string,
+  options: RequestInit
+): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options.headers },
   });
 
   if (!res.ok) {
@@ -36,5 +17,11 @@ export async function apiClient({
     throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
   }
   const ct = res.headers.get('content-type') || '';
-  return ct.includes('application/json') ? res.json() : res.text();
+  const data = ct.includes('application/json') ? await res.json() : await res.text();
+  
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as T;
 }
