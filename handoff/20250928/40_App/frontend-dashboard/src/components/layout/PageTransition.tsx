@@ -8,6 +8,7 @@ export const PageTransition = ({ children }) => {
       animate="in"
       exit="out"
       variants={pageVariants}
+      // @ts-expect-error TODO(#935): Fix Framer Motion Transition type compatibility
       transition={pageTransition}
     >
       {children}

@@ -49,3 +49,51 @@ jobs:
         run: |
           cd handoff/20250928/40_App/owner-console
           pnpm run typecheck
+  
+  typecheck-strict:
+    name: TypeScript Strict Mode Progress
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+      
+      - name: Run strict typecheck
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm run typecheck:strict 2>&1 | tee strict-report.txt || true
+          SOURCE_ERRORS=$(grep "src/" strict-report.txt | grep "error TS" | wc -l || echo 0)
+          echo "::notice::Source code errors: $SOURCE_ERRORS / 219 (baseline)"
+          echo "SOURCE_ERRORS=$SOURCE_ERRORS" >> $GITHUB_ENV
+      
+      - name: Comment on PR with progress
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sourceErrors = process.env.SOURCE_ERRORS || '?';
+            const body = `## 📊 TypeScript Strict Mode Progress
+            
+            **Source Code Errors**: ${sourceErrors} / 219 (baseline)
+            
+            This is a non-blocking check to track progress toward full strict mode adoption.
+            See [Issue #935](https://github.com/RC918/morningai/issues/935) for details.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
