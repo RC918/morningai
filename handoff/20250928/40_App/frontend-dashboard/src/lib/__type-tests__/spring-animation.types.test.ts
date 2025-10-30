@@ -94,9 +94,12 @@ describe('Spring Animation Type Tests', () => {
   })
 
   describe('Type literal constraints', () => {
-    it('should accept string literals (will be tightened in Issue #936)', () => {
+    it('should reject invalid string literals (Issue #936 completed)', () => {
+      // @ts-expect-error - Should reject invalid SpringPresetName
       getSpringConfig('custom-preset')
+      // @ts-expect-error - Should reject invalid AnimationVariantType
       getSpringVariants('custom-type')
+      // @ts-expect-error - Should reject invalid HapticType
       getHapticAnimation('custom-haptic')
     })
   })
