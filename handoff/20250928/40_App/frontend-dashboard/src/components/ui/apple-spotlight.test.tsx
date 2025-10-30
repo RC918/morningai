@@ -22,7 +22,7 @@ vi.mock('@/hooks/use-accessibility', () => ({
 
 const TestWrapper = ({ children, onSearch, maxRecentSearches }: {
   children: React.ReactNode
-  onSearch?: (query: string) => SearchResult[]
+  onSearch?: (query: string) => SearchResult[] | Promise<SearchResult[]>
   maxRecentSearches?: number
 }) => (
   <AppleSpotlight.Provider onSearch={onSearch} maxRecentSearches={maxRecentSearches}>
