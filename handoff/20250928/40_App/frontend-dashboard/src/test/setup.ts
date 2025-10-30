@@ -24,19 +24,22 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
-global.IntersectionObserver = class IntersectionObserver {
+global.IntersectionObserver = class IntersectionObserver implements IntersectionObserver {
+  readonly root: Element | null = null
+  readonly rootMargin: string = ''
+  readonly thresholds: ReadonlyArray<number> = []
   constructor() {}
   disconnect() {}
   observe() {}
-  takeRecords() {
+  takeRecords(): IntersectionObserverEntry[] {
     return []
   }
   unobserve() {}
-} as any
+}
 
-global.ResizeObserver = class ResizeObserver {
+global.ResizeObserver = class ResizeObserver implements ResizeObserver {
   constructor() {}
   disconnect() {}
   observe() {}
   unobserve() {}
-} as any
+}

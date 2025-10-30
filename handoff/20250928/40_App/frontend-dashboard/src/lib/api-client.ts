@@ -1,5 +1,11 @@
+declare global {
+  interface Window {
+    __VITE_API_BASE_URL__?: string;
+  }
+}
+
 const API_BASE_URL =
-  (typeof window !== 'undefined' && (window as any).__VITE_API_BASE_URL__) ||
+  (typeof window !== 'undefined' && window.__VITE_API_BASE_URL__) ||
   (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') ||
   'https://morningai-backend-v2.onrender.com';
 
