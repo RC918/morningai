@@ -8,12 +8,21 @@ const meta = {
     layout: 'padded',
   },
   tags: ['autodocs'],
+  args: {
+    src: 'about:blank',
+    alt: 'image'
+  },
+  argTypes: {
+    src: { control: false },
+    alt: { control: false }
+  }
 } satisfies Meta<typeof LazyImage>;
 
 export default meta;
-type Story = StoryObj<any>;
+type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
+  args: {},
   render: () => (
     <div className="w-full max-w-md">
       <LazyImage
@@ -26,6 +35,7 @@ export const Default: Story = {
 };
 
 export const WithPlaceholder: Story = {
+  args: {},
   render: () => (
     <div className="w-full max-w-md">
       <LazyImage
@@ -46,6 +56,7 @@ export const WithPlaceholder: Story = {
 };
 
 export const MultipleImages: Story = {
+  args: {},
   render: () => (
     <div className="space-y-8">
       {[
@@ -85,6 +96,7 @@ export const MultipleImages: Story = {
 };
 
 export const ErrorState: Story = {
+  args: {},
   render: () => (
     <div className="w-full max-w-md">
       <LazyImage
@@ -104,6 +116,7 @@ export const ErrorState: Story = {
 };
 
 export const CustomAspectRatio: Story = {
+  args: {},
   render: () => (
     <div className="grid grid-cols-2 gap-4 max-w-2xl">
       <LazyImage
@@ -133,6 +146,7 @@ export const CustomAspectRatio: Story = {
 };
 
 export const ResponsiveImageExample: Story = {
+  args: {},
   render: () => (
     <div className="w-full max-w-2xl">
       <ResponsiveImage
@@ -169,6 +183,7 @@ export const ResponsiveImageExample: Story = {
 };
 
 export const Grid: Story = {
+  args: {},
   render: () => (
     <div className="grid grid-cols-3 gap-4 max-w-4xl">
       {Array.from({ length: 9 }).map((_, index) => (

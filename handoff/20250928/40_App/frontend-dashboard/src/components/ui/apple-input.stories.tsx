@@ -109,7 +109,7 @@ AppleInput brings Apple's design language to form inputs with smooth animations 
 } satisfies Meta<typeof AppleInput>;
 
 export default meta;
-type Story = StoryObj<any>;
+type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
