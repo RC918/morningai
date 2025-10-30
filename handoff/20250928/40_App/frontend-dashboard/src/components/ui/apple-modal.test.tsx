@@ -51,7 +51,7 @@ describe('AppleModal', () => {
     it('provides modal context to children', () => {
       const TestComponent = () => {
         const modal = useAppleModal()
-        return <button onClick={() => modal.openModal({ title: 'Test' })}>Open Modal</button>
+        return <button onClick={() => modal.openModal({ title: 'Test', children: <div>Test Content</div> })}>Open Modal</button>
       }
 
       render(
