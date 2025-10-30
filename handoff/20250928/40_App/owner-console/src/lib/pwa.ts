@@ -178,9 +178,10 @@ export async function subscribeToPushNotifications(
       return subscription;
     }
 
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      applicationServerKey: applicationServerKey as BufferSource,
     });
 
     console.log('Push notification subscription:', subscription);
