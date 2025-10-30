@@ -39,3 +39,8 @@ jobs:
       
       - name: Lint frontend with Turborepo
         run: pnpm run lint --filter=frontend-dashboard
+      
+      - name: Typecheck frontend-dashboard
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm run typecheck
