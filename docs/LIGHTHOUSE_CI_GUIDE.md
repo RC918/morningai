@@ -262,13 +262,8 @@ pnpm dlx playwright test tests/auth.setup.spec.ts
 # 4. 檢查 session 是否儲存
 ls -la playwright/.auth/storageState.json
 
-# 5. 轉換 cookies
-node ../scripts/make-lhci-cookie.js
-
-# 6. 檢查 headers
-cat LHCI_EXTRA_HEADERS.json
-
-# 7. 執行 Lighthouse CI (含認證頁面)
+# 5. 執行 Lighthouse CI (含認證頁面)
+# LHCI 會自動使用 lhci-puppeteer-auth.js 讀取 storageState.json
 pnpm lhci:main
 ```
 
@@ -393,7 +388,8 @@ const Dashboard = React.lazy(() => import('./Dashboard'));
 - GitHub Issue: [#590 - 實作 Lighthouse CI 效能監控系統](https://github.com/RC918/morningai/issues/590)
 - 配置檔案：
   - `lighthouserc.json` - PR 版本
-  - `lighthouserc.main.json` - main 版本
+  - `lighthouserc.main.json` - main 版本（包含 puppeteerScript 配置）
+  - `lhci-puppeteer-auth.js` - 認證腳本（直接讀取 storageState.json）
   - `.github/workflows/lhci.yml` - GitHub Actions workflow
 
 ### 工具推薦
