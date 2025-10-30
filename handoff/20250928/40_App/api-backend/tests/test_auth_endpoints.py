@@ -88,7 +88,7 @@ def test_verify_token_expired(client):
     import jwt
     import datetime
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     payload = {
         'user_id': 1,
         'username': 'admin',

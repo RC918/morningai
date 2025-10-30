@@ -76,7 +76,7 @@ def test_jwt_token_generation_with_operator_role():
     
     token = generate_jwt_token(user_data)
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
     
     assert payload['role'] == 'analyst'
@@ -93,7 +93,7 @@ def test_jwt_token_generation_with_viewer_role():
     
     token = generate_jwt_token(user_data)
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
     
     assert payload['role'] == 'user'
@@ -110,7 +110,7 @@ def test_jwt_token_generation_with_admin_role():
     
     token = generate_jwt_token(user_data)
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
     
     assert payload['role'] == 'admin'
@@ -128,7 +128,7 @@ def test_backward_compatibility_operator_login():
     }
     
     token = generate_jwt_token(operator_data)
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     decoded = jwt.decode(token, jwt_secret, algorithms=['HS256'])
     
     assert decoded['role'] == 'analyst'
@@ -145,7 +145,7 @@ def test_backward_compatibility_viewer_login():
     }
     
     token = generate_jwt_token(viewer_data)
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     decoded = jwt.decode(token, jwt_secret, algorithms=['HS256'])
     
     assert decoded['role'] == 'user'
@@ -165,7 +165,7 @@ def test_roles_required_decorator_with_operator_token():
     def test_endpoint():
         return jsonify({"message": "success"})
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     payload = {
         'user_id': 2,
         'username': 'operator',
@@ -199,7 +199,7 @@ def test_roles_required_decorator_with_viewer_token():
     def test_endpoint():
         return jsonify({"message": "success"})
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     payload = {
         'user_id': 3,
         'username': 'viewer',

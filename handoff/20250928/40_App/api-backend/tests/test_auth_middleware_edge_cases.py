@@ -113,7 +113,7 @@ class TestAdminRequiredExceptions:
         """Test admin_required with expired token"""
         client = app.test_client()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         expired_payload = {
             'user_id': 1,
             'username': 'admin',
@@ -165,7 +165,7 @@ class TestAnalystRequiredExceptions:
         """Test analyst_required with expired token"""
         client = app.test_client()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         expired_payload = {
             'user_id': 2,
             'username': 'analyst',
@@ -239,7 +239,7 @@ class TestRolesRequiredExceptions:
         """Test roles_required with expired token"""
         client = app.test_client()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         expired_payload = {
             'user_id': 1,
             'username': 'admin',
@@ -340,7 +340,7 @@ class TestTokenGeneration:
         
         token = generate_jwt_token(user_data)
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         assert payload['role'] == 'analyst'  # Normalized
@@ -355,7 +355,7 @@ class TestTokenGeneration:
         
         token = generate_jwt_token(user_data, expires_hours=1)
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         exp_time = datetime.fromtimestamp(payload['exp'], UTC)
@@ -368,7 +368,7 @@ class TestTokenGeneration:
         """Test create_admin_token with custom user_id and username"""
         token = create_admin_token(user_id=999, username='custom_admin')
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         assert payload['user_id'] == 999
@@ -379,7 +379,7 @@ class TestTokenGeneration:
         """Test create_analyst_token"""
         token = create_analyst_token()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         assert payload['user_id'] == 2
@@ -390,7 +390,7 @@ class TestTokenGeneration:
         """Test create_user_token"""
         token = create_user_token()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         assert payload['user_id'] == 3
@@ -663,3 +663,297 @@ class TestP1RecommendedTests:
         assert data['message'] == 'analyst only success'
         assert data['user_id'] == 999
         assert data['role'] == 'admin'
+
+
+class TestP0SecurityEnhancements:
+    """P0 Security Enhancement Tests"""
+    
+    def test_algorithm_mismatch_rs256(self, app, jwt_secret):
+        """Test that RS256 signed JWT is rejected"""
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.backends import default_backend
+        
+        client = app.test_client()
+        
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'role': 'admin',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        
+        rs256_token = jwt.encode(payload, private_key, algorithm='RS256')
+        
+        response = client.get('/test', headers={
+            'Authorization': f'Bearer {rs256_token}'
+        })
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Invalid token'
+    
+    def test_algorithm_mismatch_none(self, app, jwt_secret):
+        """Test that 'none' algorithm JWT is rejected"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'role': 'admin',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        
+        try:
+            none_token = jwt.encode(payload, '', algorithm='none')
+            
+            response = client.get('/test', headers={
+                'Authorization': f'Bearer {none_token}'
+            })
+            
+            assert response.status_code == 401
+            data = response.get_json()
+            assert data['error'] == 'Invalid token'
+        except jwt.exceptions.InvalidAlgorithmError:
+            pytest.skip("PyJWT version doesn't support 'none' algorithm encoding")
+    
+    def test_algorithm_mismatch_hs512(self, app, jwt_secret):
+        """Test that HS512 signed JWT is rejected"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'role': 'admin',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        
+        hs512_token = jwt.encode(payload, jwt_secret, algorithm='HS512')
+        
+        response = client.get('/test', headers={
+            'Authorization': f'Bearer {hs512_token}'
+        })
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Invalid token'
+    
+    def test_missing_jwt_secret_key(self, app, monkeypatch):
+        """Test that missing JWT_SECRET_KEY uses default test secret"""
+        monkeypatch.delenv('JWT_SECRET_KEY', raising=False)
+        client = app.test_client()
+        
+        temp_secret = 'wrong-secret'
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'role': 'admin',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        token = jwt.encode(payload, temp_secret, algorithm='HS256')
+        
+        response = client.get('/test', headers={
+            'Authorization': f'Bearer {token}'
+        })
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Invalid token'
+
+
+class TestP1SecurityEnhancements:
+    """P1 Security Enhancement Tests"""
+    
+    def test_admin_cannot_bypass_analyst_only(self, app, jwt_secret):
+        """Test that regular admin cannot bypass analyst-only endpoint"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'admin',
+            'role': 'admin',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        admin_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+        
+        response = client.get('/analyst-only', headers={
+            'Authorization': f'Bearer {admin_token}'
+        })
+        
+        assert response.status_code == 403
+        data = response.get_json()
+        assert data['error'] == 'Insufficient privileges'
+    
+    def test_missing_role_claim_defaults_to_user(self, app, jwt_secret):
+        """Test that missing role claim defaults to 'user'"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+        
+        response = client.get('/test', headers={
+            'Authorization': f'Bearer {token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['role'] == 'user'
+    
+    def test_missing_role_claim_admin_endpoint_403(self, app, jwt_secret):
+        """Test that missing role claim cannot access admin endpoint"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+        
+        response = client.get('/admin', headers={
+            'Authorization': f'Bearer {token}'
+        })
+        
+        assert response.status_code == 403
+        data = response.get_json()
+        assert data['error'] == 'Insufficient privileges'
+    
+    def test_missing_role_claim_analyst_endpoint_403(self, app, jwt_secret):
+        """Test that missing role claim cannot access analyst endpoint"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+        
+        response = client.get('/analyst', headers={
+            'Authorization': f'Bearer {token}'
+        })
+        
+        assert response.status_code == 403
+        data = response.get_json()
+        assert data['error'] == 'Insufficient privileges'
+    
+    def test_raw_role_preserved_in_current_user(self, app, jwt_secret):
+        """Test that raw_role is preserved in request.current_user"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'super_admin',
+            'role': '超級管理員',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+        
+        @app.route('/test-raw-role')
+        @jwt_required
+        def test_raw_role():
+            from flask import request
+            return {
+                'role': request.current_user.get('role'),
+                'raw_role': request.current_user.get('raw_role'),
+                'is_super_admin': request.current_user.get('is_super_admin')
+            }, 200
+        
+        response = client.get('/test-raw-role', headers={
+            'Authorization': f'Bearer {token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['role'] == 'admin'  # normalized
+        assert data['raw_role'] == '超級管理員'  # original
+        assert data['is_super_admin'] is True
+
+
+class TestP2SecurityEnhancements:
+    """P2 Security Enhancement Tests"""
+    
+    def test_bearer_prefix_required_token_prefix(self, app, jwt_secret):
+        """Test that 'Token' prefix is rejected"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'role': 'admin',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+        
+        response = client.get('/test', headers={
+            'Authorization': f'Token {token}'
+        })
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Invalid authorization format'
+        assert 'Bearer' in data['message']
+    
+    def test_bearer_prefix_required_jwt_prefix(self, app, jwt_secret):
+        """Test that 'JWT' prefix is rejected"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'role': 'admin',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+        
+        response = client.get('/test', headers={
+            'Authorization': f'JWT {token}'
+        })
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Invalid authorization format'
+        assert 'Bearer' in data['message']
+    
+    def test_bearer_prefix_required_no_prefix(self, app, jwt_secret):
+        """Test that no prefix is rejected"""
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 1,
+            'username': 'test',
+            'role': 'admin',
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+        
+        response = client.get('/test', headers={
+            'Authorization': token
+        })
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Invalid authorization format'
+        assert 'Bearer' in data['message']

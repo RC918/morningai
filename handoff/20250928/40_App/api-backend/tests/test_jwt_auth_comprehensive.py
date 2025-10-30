@@ -30,7 +30,7 @@ def client(app):
 @pytest.fixture
 def expired_token():
     """Generate expired JWT token"""
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     payload = {
         'user_id': 1,
         'username': 'test_user',
@@ -193,7 +193,7 @@ class TestTokenPayloadHandling:
     
     def test_token_with_sub_field(self, client):
         """Test token with 'sub' field for user_id"""
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = {
             'sub': 'user-123',  # Using 'sub' instead of 'user_id'
             'username': 'test_user',
@@ -210,7 +210,7 @@ class TestTokenPayloadHandling:
     
     def test_token_with_email_instead_of_username(self, client):
         """Test token with 'email' field instead of 'username'"""
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = {
             'user_id': 1,
             'email': 'test@example.com',  # Using 'email' instead of 'username'
@@ -227,7 +227,7 @@ class TestTokenPayloadHandling:
     
     def test_token_without_role_defaults_to_user(self, client):
         """Test token without role field defaults to 'user' role"""
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = {
             'user_id': 1,
             'username': 'test_user',
@@ -248,7 +248,7 @@ class TestChineseRoleNames:
     
     def test_chinese_admin_role(self, client):
         """Test '超級管理員' (super admin) role"""
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = {
             'user_id': 1,
             'username': 'admin_cn',
@@ -266,7 +266,7 @@ class TestChineseRoleNames:
     
     def test_chinese_analyst_role(self, client):
         """Test '分析師' (analyst) role"""
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = {
             'user_id': 2,
             'username': 'analyst_cn',

@@ -91,7 +91,7 @@ def test_debug_endpoint_expired_token(client, mock_redis):
     import datetime
     import os
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     payload = {
         'user_id': 2,
         'username': 'analyst',

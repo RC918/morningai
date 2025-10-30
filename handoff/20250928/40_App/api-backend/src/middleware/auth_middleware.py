@@ -3,36 +3,59 @@ import os
 from functools import wraps
 from flask import request, jsonify, current_app
 
+def _parse_bearer_token(auth_header):
+    """
+    Parse and validate Bearer token from Authorization header.
+    
+    Args:
+        auth_header: Authorization header value
+        
+    Returns:
+        tuple: (token, error_response) where error_response is None if successful
+    """
+    if not auth_header:
+        return None, (jsonify({
+            'error': 'Authorization header missing',
+            'message': 'Access denied. Please provide a valid JWT token.'
+        }), 401)
+    
+    try:
+        parts = auth_header.split(' ')
+        if len(parts) != 2 or parts[0].lower() != 'bearer':
+            return None, (jsonify({
+                'error': 'Invalid authorization format',
+                'message': 'Authorization header must be in format: Bearer <token>'
+            }), 401)
+        return parts[1], None
+    except (IndexError, AttributeError):
+        return None, (jsonify({
+            'error': 'Invalid authorization format',
+            'message': 'Authorization header must be in format: Bearer <token>'
+        }), 401)
+
 def jwt_required(f):
     """JWT authentication decorator for protecting endpoints (supports both Supabase and custom JWT)"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
-        
-        if not auth_header:
-            return jsonify({
-                'error': 'Authorization header missing',
-                'message': 'Access denied. Please provide a valid JWT token.'
-            }), 401
+        token, error = _parse_bearer_token(auth_header)
+        if error:
+            return error
         
         try:
-            token = auth_header.split(' ')[1]
-        except (IndexError, AttributeError):
-            return jsonify({
-                'error': 'Invalid authorization format',
-                'message': 'Authorization header must be in format: Bearer <token>'
-            }), 401
-        
-        try:
-            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
             user_id = payload.get('sub') or payload.get('user_id')
+            raw_role = payload.get('role', 'user')
+            normalized_role = normalize_role(raw_role)
             
             request.current_user = {
                 'user_id': user_id,
                 'username': payload.get('username') or payload.get('email'),
-                'role': payload.get('role', 'user')
+                'role': normalized_role,
+                'raw_role': raw_role,
+                'is_super_admin': raw_role == '超級管理員'
             }
             
             request.user_id = user_id
@@ -62,27 +85,17 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
-        
-        if not auth_header:
-            return jsonify({
-                'error': 'Authorization header missing',
-                'message': 'Access denied. Please provide a valid JWT token.'
-            }), 401
+        token, error = _parse_bearer_token(auth_header)
+        if error:
+            return error
         
         try:
-            token = auth_header.split(' ')[1]
-        except (IndexError, AttributeError):
-            return jsonify({
-                'error': 'Invalid authorization format',
-                'message': 'Authorization header must be in format: Bearer <token>'
-            }), 401
-        
-        try:
-            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
-            user_role = payload.get('role', 'user')
-            if user_role not in ['admin', '超級管理員']:
+            raw_role = payload.get('role', 'user')
+            normalized_role = normalize_role(raw_role)
+            if normalized_role not in ['admin'] and raw_role not in ['超級管理員']:
                 return jsonify({
                     'error': 'Insufficient privileges',
                     'message': 'Admin access required for this endpoint.'
@@ -91,7 +104,9 @@ def admin_required(f):
             request.current_user = {
                 'user_id': payload.get('user_id'),
                 'username': payload.get('username'),
-                'role': user_role
+                'role': normalized_role,
+                'raw_role': raw_role,
+                'is_super_admin': raw_role == '超級管理員'
             }
             
             return f(*args, **kwargs)
@@ -119,27 +134,17 @@ def analyst_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
-        
-        if not auth_header:
-            return jsonify({
-                'error': 'Authorization header missing',
-                'message': 'Access denied. Please provide a valid JWT token.'
-            }), 401
+        token, error = _parse_bearer_token(auth_header)
+        if error:
+            return error
         
         try:
-            token = auth_header.split(' ')[1]
-        except (IndexError, AttributeError):
-            return jsonify({
-                'error': 'Invalid authorization format',
-                'message': 'Authorization header must be in format: Bearer <token>'
-            }), 401
-        
-        try:
-            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
-            user_role = payload.get('role', 'user')
-            if user_role not in ['admin', 'analyst', '超級管理員', '分析師']:
+            raw_role = payload.get('role', 'user')
+            normalized_role = normalize_role(raw_role)
+            if normalized_role not in ['admin', 'analyst'] and raw_role not in ['超級管理員', '分析師']:
                 return jsonify({
                     'error': 'Insufficient privileges',
                     'message': 'Analyst access or higher required for this endpoint.'
@@ -148,7 +153,9 @@ def analyst_required(f):
             request.current_user = {
                 'user_id': payload.get('user_id'),
                 'username': payload.get('username'),
-                'role': user_role
+                'role': normalized_role,
+                'raw_role': raw_role,
+                'is_super_admin': raw_role == '超級管理員'
             }
             
             return f(*args, **kwargs)
@@ -203,10 +210,14 @@ def normalize_role(role):
     return normalized
 
 def generate_jwt_token(user_data, expires_hours=24):
-    """Generate JWT token for user authentication"""
+    """Generate JWT token for user authentication
+    
+    Note: Uses a default test secret if JWT_SECRET_KEY is not set.
+    This is for testing purposes only. Production deployments must set JWT_SECRET_KEY.
+    """
     import datetime
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     
     original_role = user_data.get('role')
     normalized_role = normalize_role(original_role)
@@ -254,29 +265,18 @@ def roles_required(*allowed_roles):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             auth_header = request.headers.get('Authorization')
-            
-            if not auth_header:
-                return jsonify({
-                    'error': 'Authorization header missing',
-                    'message': 'Access denied. Please provide a valid JWT token.'
-                }), 401
+            token, error = _parse_bearer_token(auth_header)
+            if error:
+                return error
             
             try:
-                token = auth_header.split(' ')[1]
-            except (IndexError, AttributeError):
-                return jsonify({
-                    'error': 'Invalid authorization format',
-                    'message': 'Authorization header must be in format: Bearer <token>'
-                }), 401
-            
-            try:
-                jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+                jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
                 payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
                 
-                user_role = payload.get('role', 'user')
-                normalized_role = normalize_role(user_role)
+                raw_role = payload.get('role', 'user')
+                normalized_role = normalize_role(raw_role)
                 
-                if normalized_role not in allowed_roles and user_role not in ['超級管理員']:
+                if normalized_role not in allowed_roles and raw_role not in ['超級管理員']:
                     return jsonify({
                         'error': 'Insufficient privileges',
                         'message': f'Access denied. Required role(s): {", ".join(allowed_roles)}'
@@ -285,7 +285,9 @@ def roles_required(*allowed_roles):
                 request.current_user = {
                     'user_id': payload.get('user_id'),
                     'username': payload.get('username'),
-                    'role': normalized_role
+                    'role': normalized_role,
+                    'raw_role': raw_role,
+                    'is_super_admin': raw_role == '超級管理員'
                 }
                 
                 return f(*args, **kwargs)

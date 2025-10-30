@@ -117,7 +117,7 @@ class TestAuthVerify:
     
     def test_verify_expired_token(self, client):
         """Test verify with expired token"""
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         expired_token = jwt.encode({
             'user_id': 1,
             'username': 'admin',
@@ -146,7 +146,7 @@ class TestAuthVerify:
     
     def test_verify_nonexistent_user(self, client):
         """Test verify with token for non-existent user"""
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         token = jwt.encode({
             'user_id': 999,
             'username': 'nonexistent',
