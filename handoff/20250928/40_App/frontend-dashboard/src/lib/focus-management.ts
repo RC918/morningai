@@ -8,17 +8,17 @@
  * @param {HTMLElement} container - The container element to trap focus within
  * @returns {Function} Cleanup function to remove event listeners
  */
-export const trapFocus = (container) => {
+export const trapFocus = (container: HTMLElement): (() => void) => {
   if (!container) return () => {}
 
   const focusableElements = container.querySelectorAll(
     'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
   )
   
-  const firstFocusable = focusableElements[0]
-  const lastFocusable = focusableElements[focusableElements.length - 1]
+  const firstFocusable = focusableElements[0] as HTMLElement
+  const lastFocusable = focusableElements[focusableElements.length - 1] as HTMLElement
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent): void => {
     if (e.key !== 'Tab') return
 
     if (e.shiftKey) {
@@ -50,17 +50,19 @@ export const trapFocus = (container) => {
  * Store and restore focus (useful for modals)
  */
 export class FocusManager {
+  previousFocus: Element | null
+
   constructor() {
     this.previousFocus = null
   }
 
-  saveFocus() {
+  saveFocus(): void {
     this.previousFocus = document.activeElement
   }
 
-  restoreFocus() {
-    if (this.previousFocus && typeof this.previousFocus.focus === 'function') {
-      this.previousFocus.focus()
+  restoreFocus(): void {
+    if (this.previousFocus && typeof (this.previousFocus as HTMLElement).focus === 'function') {
+      (this.previousFocus as HTMLElement).focus()
     }
   }
 }
@@ -70,7 +72,7 @@ export class FocusManager {
  * @param {HTMLElement} container
  * @returns {NodeList}
  */
-export const getFocusableElements = (container) => {
+export const getFocusableElements = (container: HTMLElement): NodeListOf<Element> | Element[] => {
   if (!container) return []
   
   return container.querySelectorAll(
@@ -83,7 +85,7 @@ export const getFocusableElements = (container) => {
  * @param {HTMLElement} element
  * @returns {boolean}
  */
-export const isFocusable = (element) => {
+export const isFocusable = (element: HTMLElement): boolean => {
   if (!element) return false
   
   const style = window.getComputedStyle(element)
@@ -100,23 +102,23 @@ export const isFocusable = (element) => {
  * @param {HTMLElement} container
  * @param {boolean} reverse - Move backwards if true
  */
-export const moveFocus = (container, reverse = false) => {
+export const moveFocus = (container: HTMLElement, reverse: boolean = false): void => {
   const focusableElements = Array.from(getFocusableElements(container))
-  const currentIndex = focusableElements.indexOf(document.activeElement)
+  const currentIndex = focusableElements.indexOf(document.activeElement as Element)
   
   let nextIndex = reverse ? currentIndex - 1 : currentIndex + 1
   
   if (nextIndex < 0) nextIndex = focusableElements.length - 1
   if (nextIndex >= focusableElements.length) nextIndex = 0
   
-  focusableElements[nextIndex]?.focus()
+  (focusableElements[nextIndex] as HTMLElement)?.focus()
 }
 
 /**
  * Add visible focus indicator to element
  * @param {HTMLElement} element
  */
-export const addFocusIndicator = (element) => {
+export const addFocusIndicator = (element: HTMLElement): void => {
   if (!element) return
   
   element.style.outline = '2px solid #0051D0'
@@ -127,7 +129,7 @@ export const addFocusIndicator = (element) => {
  * Remove focus indicator from element
  * @param {HTMLElement} element
  */
-export const removeFocusIndicator = (element) => {
+export const removeFocusIndicator = (element: HTMLElement): void => {
   if (!element) return
   
   element.style.outline = ''

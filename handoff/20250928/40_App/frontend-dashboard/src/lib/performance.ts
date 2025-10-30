@@ -3,14 +3,36 @@
  * Week 6 - Performance Optimization
  */
 
+interface PreloadResource {
+  href: string
+  as: string
+  type?: string
+}
+
+interface ConnectionInfo {
+  effectiveType: string
+  downlink: number
+  rtt: number
+  saveData: boolean
+}
+
+interface LoadingStrategy {
+  shouldLazyLoad: boolean
+  shouldPreload: boolean
+  shouldUseWebP: boolean
+  shouldAnimate: boolean
+  imageQuality: 'low' | 'high'
+  maxConcurrentRequests: number
+}
+
 /**
  * Check if browser supports WebP format
  * @returns {boolean}
  */
 export const supportsWebP = (() => {
-  let supported = null
+  let supported: boolean | null = null
   
-  return () => {
+  return (): boolean => {
     if (supported !== null) return supported
     
     try {
@@ -35,7 +57,7 @@ export const supportsWebP = (() => {
  * @param {string} basePath - Base path for images (default: '/images')
  * @returns {string} - Optimized image URL
  */
-export const getOptimizedImageUrl = (filename, extension = 'png', basePath = '/images') => {
+export const getOptimizedImageUrl = (filename: string, extension: string = 'png', basePath: string = '/images'): string => {
   const useWebP = supportsWebP()
   const ext = useWebP ? 'webp' : extension
   return `${basePath}/${filename}.${ext}`
@@ -45,8 +67,8 @@ export const getOptimizedImageUrl = (filename, extension = 'png', basePath = '/i
  * Preload critical resources
  * @param {Array<{href: string, as: string, type?: string}>} resources
  */
-export const preloadResources = (resources) => {
-  resources.forEach(({ href, as, type }) => {
+export const preloadResources = (resources: PreloadResource[]): void => {
+  resources.forEach(({ href, as, type }: PreloadResource) => {
     const link = document.createElement('link')
     link.rel = 'preload'
     link.href = href
@@ -61,8 +83,8 @@ export const preloadResources = (resources) => {
  * Prefetch resources for next navigation
  * @param {Array<string>} urls
  */
-export const prefetchResources = (urls) => {
-  urls.forEach((url) => {
+export const prefetchResources = (urls: string[]): void => {
+  urls.forEach((url: string) => {
     const link = document.createElement('link')
     link.rel = 'prefetch'
     link.href = url
@@ -74,12 +96,12 @@ export const prefetchResources = (urls) => {
  * Measure and report Web Vitals
  * @param {Function} onReport - Callback to handle metrics
  */
-export const reportWebVitals = (onReport) => {
+export const reportWebVitals = (onReport: (metric: any) => void): void => {
   if (typeof onReport !== 'function') return
 
-  import('web-vitals').then(({ onCLS, onFID, onFCP, onLCP, onTTFB }) => {
+  import('web-vitals').then(({ onCLS, onFCP, onLCP, onTTFB, onINP }) => {
     onCLS(onReport)
-    onFID(onReport)
+    onINP(onReport)
     onFCP(onReport)
     onLCP(onReport)
     onTTFB(onReport)
@@ -94,9 +116,9 @@ export const reportWebVitals = (onReport) => {
  * @param {number} wait - Wait time in milliseconds
  * @returns {Function}
  */
-export const debounce = (func, wait = 300) => {
-  let timeout
-  return function executedFunction(...args) {
+export const debounce = <T extends (...args: any[]) => any>(func: T, wait: number = 300): ((...args: Parameters<T>) => void) => {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  return function executedFunction(...args: Parameters<T>) {
     const later = () => {
       clearTimeout(timeout)
       func(...args)
@@ -112,9 +134,9 @@ export const debounce = (func, wait = 300) => {
  * @param {number} limit - Time limit in milliseconds
  * @returns {Function}
  */
-export const throttle = (func, limit = 300) => {
-  let inThrottle
-  return function executedFunction(...args) {
+export const throttle = <T extends (...args: any[]) => any>(func: T, limit: number = 300): ((...args: Parameters<T>) => void) => {
+  let inThrottle: boolean | undefined
+  return function executedFunction(...args: Parameters<T>) {
     if (!inThrottle) {
       func(...args)
       inThrottle = true
@@ -128,7 +150,7 @@ export const throttle = (func, limit = 300) => {
  * @param {Function} callback
  * @param {Object} options
  */
-export const requestIdleCallback = (callback, options = {}) => {
+export const requestIdleCallback = (callback: IdleRequestCallback, options: IdleRequestOptions = {}): number => {
   if ('requestIdleCallback' in window) {
     return window.requestIdleCallback(callback, options)
   }
@@ -136,15 +158,15 @@ export const requestIdleCallback = (callback, options = {}) => {
     callback({
       didTimeout: false,
       timeRemaining: () => 50,
-    })
-  }, 1)
+    } as IdleDeadline)
+  }, 1) as any
 }
 
 /**
  * Cancel Idle Callback wrapper with fallback
  * @param {number} id
  */
-export const cancelIdleCallback = (id) => {
+export const cancelIdleCallback = (id: number): void => {
   if ('cancelIdleCallback' in window) {
     return window.cancelIdleCallback(id)
   }
@@ -157,8 +179,8 @@ export const cancelIdleCallback = (id) => {
  * @param {Object} options
  * @returns {IntersectionObserver}
  */
-export const createIntersectionObserver = (callback, options = {}) => {
-  const defaultOptions = {
+export const createIntersectionObserver = (callback: IntersectionObserverCallback, options: IntersectionObserverInit = {}): IntersectionObserver => {
+  const defaultOptions: IntersectionObserverInit = {
     root: null,
     rootMargin: '50px',
     threshold: 0.01,
@@ -172,7 +194,7 @@ export const createIntersectionObserver = (callback, options = {}) => {
  * @param {HTMLElement} element
  * @returns {boolean}
  */
-export const isInViewport = (element) => {
+export const isInViewport = (element: HTMLElement): boolean => {
   const rect = element.getBoundingClientRect()
   return (
     rect.top >= 0 &&
@@ -186,9 +208,9 @@ export const isInViewport = (element) => {
  * Get connection speed information
  * @returns {Object}
  */
-export const getConnectionInfo = () => {
+export const getConnectionInfo = (): ConnectionInfo | null => {
   if ('connection' in navigator) {
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection
     return {
       effectiveType: connection.effectiveType,
       downlink: connection.downlink,
@@ -203,7 +225,7 @@ export const getConnectionInfo = () => {
  * Check if user prefers reduced motion
  * @returns {boolean}
  */
-export const prefersReducedMotion = () => {
+export const prefersReducedMotion = (): boolean => {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
@@ -211,22 +233,22 @@ export const prefersReducedMotion = () => {
  * Get device memory information
  * @returns {number|null}
  */
-export const getDeviceMemory = () => {
-  return navigator.deviceMemory || null
+export const getDeviceMemory = (): number | null => {
+  return (navigator as any).deviceMemory || null
 }
 
 /**
  * Check if device is low-end
  * @returns {boolean}
  */
-export const isLowEndDevice = () => {
+export const isLowEndDevice = (): boolean => {
   const memory = getDeviceMemory()
   const connection = getConnectionInfo()
   
   return (
     (memory !== null && memory <= 4) ||
-    (connection && ['slow-2g', '2g'].includes(connection.effectiveType)) ||
-    (connection && connection.saveData)
+    (connection !== null && ['slow-2g', '2g'].includes(connection.effectiveType)) ||
+    (connection !== null && connection.saveData)
   )
 }
 
@@ -234,7 +256,7 @@ export const isLowEndDevice = () => {
  * Adaptive loading strategy based on device capabilities
  * @returns {Object}
  */
-export const getLoadingStrategy = () => {
+export const getLoadingStrategy = (): LoadingStrategy => {
   const isLowEnd = isLowEndDevice()
   const reducedMotion = prefersReducedMotion()
   

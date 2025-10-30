@@ -1,7 +1,7 @@
 import tokens from '../../public/tokens.json'
 
-export const getToken = (path) => {
-  return path.split('.').reduce((obj, key) => obj?.[key], tokens)
+export const getToken = (path: string): any => {
+  return path.split('.').reduce((obj: any, key: string) => obj?.[key], tokens)
 }
 
 export const colors = {
@@ -25,8 +25,8 @@ export const shadows = tokens.shadow
 export const animations = tokens.animation
 export const breakpoints = tokens.breakpoint
 
-export const getCSSVariables = () => {
-  const cssVars = {}
+export const getCSSVariables = (): Record<string, any> => {
+  const cssVars: Record<string, any> = {}
   
   Object.entries(colors.primary).forEach(([key, value]) => {
     cssVars[`--color-primary-${key}`] = value
@@ -51,12 +51,12 @@ export const getCSSVariables = () => {
   return cssVars
 }
 
-export const applyDesignTokens = (scope = '.theme-morning-ai') => {
+export const applyDesignTokens = (scope: string | Element = '.theme-morning-ai'): HTMLElement => {
   const container = typeof scope === 'string' 
     ? document.querySelector(scope) 
     : scope
   
-  const target = container || document.documentElement
+  const target = (container || document.documentElement) as HTMLElement
   const cssVars = getCSSVariables()
   
   Object.entries(cssVars).forEach(([property, value]) => {

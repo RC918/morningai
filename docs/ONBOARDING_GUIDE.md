@@ -372,10 +372,16 @@ morningai/
 │   ├── Dockerfile                  # Docker configuration
 │   └── requirements.txt            # Python dependencies
 │
+├── phase4_meta_agent_api.py       # Phase 4 API (imported by backend)
+├── phase5_data_intelligence_api.py # Phase 5 API (imported by backend)
+├── phase6_security_governance_api.py # Phase 6 API (imported by backend)
+├── phase6_startup.py              # Phase 6 initialization
+├── phase7_startup.py              # Phase 7 initialization
+│
 ├── handoff/20250928/40_App/
 │   ├── api-backend/                # Backend API
 │   │   ├── src/                    # Source code
-│   │   │   ├── main.py            # FastAPI application
+│   │   │   ├── main.py            # FastAPI application (imports phase*.py)
 │   │   │   ├── database.py        # Database connection
 │   │   │   └── ...                # API modules
 │   │   ├── tests/                 # Test suite
@@ -411,6 +417,18 @@ morningai/
 ```
 
 **Detailed Structure**: See [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md)
+
+### Phase API Modules (Root Directory)
+
+The following production backend modules are located in the root directory and imported by `handoff/20250928/40_App/api-backend/src/main.py`:
+
+- **`phase4_meta_agent_api.py`**: Meta-agent coordination (OODA loop, LangGraph workflows, AI governance)
+- **`phase5_data_intelligence_api.py`**: Data intelligence (QuickSight, growth marketing, BI dashboards)
+- **`phase6_security_governance_api.py`**: Security & governance (Zero Trust, SecurityReviewer Agent, HITL analysis)
+- **`phase6_startup.py`**: Phase 6 initialization (monitoring, security, Meta-Agent hub)
+- **`phase7_startup.py`**: Phase 7 initialization (Ops_Agent, Growth_Strategist, PM_Agent, HITL system)
+
+**Note**: These files are in the root directory for historical reasons. They are production code imported by the backend. Future refactoring may move them to `handoff/20250928/40_App/api-backend/src/phases/`.
 
 ---
 
