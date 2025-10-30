@@ -13,6 +13,7 @@ from typing import Optional
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 from src.middleware.auth_middleware import jwt_required, roles_required
+from src.middleware.rate_limit import rate_limit
 from src.models.agent_registry import (
     Agent, AgentRegistrationRequest, AgentUpdateRequest,
     AgentHealth, AgentHealthReport, AgentListResponse,
@@ -107,6 +108,7 @@ def list_agents():
 
 
 @bp.route("/agents", methods=["POST"])
+@rate_limit
 @jwt_required
 @roles_required("admin", "service")
 def register_agent():
@@ -191,6 +193,7 @@ def get_agent(agent_id):
 
 
 @bp.route("/agents/<agent_id>", methods=["PATCH"])
+@rate_limit
 @jwt_required
 @roles_required("admin", "service")
 def update_agent(agent_id):
@@ -234,6 +237,7 @@ def update_agent(agent_id):
 
 
 @bp.route("/agents/<agent_id>", methods=["DELETE"])
+@rate_limit
 @jwt_required
 @roles_required("admin")
 def unregister_agent(agent_id):
@@ -282,6 +286,7 @@ def get_agent_health(agent_id):
 
 
 @bp.route("/agents/<agent_id>/health", methods=["POST"])
+@rate_limit
 @jwt_required
 def report_agent_health(agent_id):
     """Report agent health (heartbeat)"""
@@ -380,6 +385,7 @@ def list_tasks():
 
 
 @bp.route("/tasks", methods=["POST"])
+@rate_limit
 @jwt_required
 def create_task():
     """Create a new task and route to appropriate agent"""
@@ -449,6 +455,7 @@ def get_task(task_id):
 
 
 @bp.route("/tasks/<task_id>", methods=["PATCH"])
+@rate_limit
 @jwt_required
 def update_task(task_id):
     """Update task status or metadata"""
@@ -500,6 +507,7 @@ def update_task(task_id):
 
 
 @bp.route("/tasks/<task_id>/cancel", methods=["POST"])
+@rate_limit
 @jwt_required
 def cancel_task(task_id):
     """Cancel a running or queued task"""

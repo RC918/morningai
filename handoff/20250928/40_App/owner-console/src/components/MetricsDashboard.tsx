@@ -200,9 +200,18 @@ export const MetricsDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
+  const isProduction = import.meta.env.MODE === 'production';
+  const enableMockMetrics = import.meta.env.VITE_ENABLE_MOCK_METRICS === 'true';
+  const useMockData = !isProduction || enableMockMetrics;
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        if (!useMockData) {
+          setError('Metrics API integration not yet implemented');
+          setLoading(false);
+          return;
+        }
         
         const mockData: DashboardData = {
           system_health: {
@@ -268,7 +277,7 @@ export const MetricsDashboard: React.FC = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefresh]);
+  }, [autoRefresh, useMockData]);
 
   if (loading) {
     return (
@@ -306,6 +315,23 @@ export const MetricsDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Mock Data Warning Banner */}
+      {useMockData && (
+        <Alert className="border-orange-500 bg-orange-50 dark:bg-orange-950">
+          <AlertCircle className="h-4 w-4 text-orange-600" />
+          <AlertTitle className="text-orange-800 dark:text-orange-200">Mock Data - Demo Only</AlertTitle>
+          <AlertDescription className="text-orange-700 dark:text-orange-300">
+            This dashboard is displaying simulated data for demonstration purposes. 
+            Real metrics API integration is in progress.
+            {isProduction && enableMockMetrics && (
+              <span className="block mt-1 font-semibold">
+                ⚠️ Production environment with mock data enabled via VITE_ENABLE_MOCK_METRICS
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

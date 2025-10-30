@@ -20,9 +20,10 @@ RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "60"))
 RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
 
 def rate_limit(f):
-    """Rate limiting decorator (60 requests per minute per IP by default)
+    """Rate limiting decorator (60 requests per minute per identity by default)
     
     Uses Redis sliding window algorithm for accurate rate limiting.
+    Keys by user_id when authenticated, falls back to IP for anonymous requests.
     Falls back to no limiting if Redis is unavailable.
     Adds X-RateLimit-* headers for observability.
     """
@@ -32,11 +33,23 @@ def rate_limit(f):
             response = f(*args, **kwargs)
             return response
         
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        if client_ip:
-            client_ip = client_ip.split(',')[0].strip()
+        identity = None
+        identity_type = "ip"
         
-        rate_limit_key = f"rate_limit:{client_ip}"
+        if hasattr(request, 'current_user') and request.current_user:
+            user_id = request.current_user.get('user_id')
+            if user_id:
+                identity = f"user:{user_id}"
+                identity_type = "user"
+        
+        if not identity:
+            client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+            if client_ip:
+                client_ip = client_ip.split(',')[0].strip()
+            identity = f"ip:{client_ip}"
+            identity_type = "ip"
+        
+        rate_limit_key = f"rate_limit:{identity}"
         
         try:
             current_time = int(time.time())

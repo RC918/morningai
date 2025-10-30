@@ -283,6 +283,28 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_timeout': 10
 }
 
+AGENT_REGISTRY_BACKEND = os.environ.get('AGENT_REGISTRY_BACKEND', 'memory')
+ALLOW_INMEMORY_IN_PROD = os.environ.get('ALLOW_INMEMORY_IN_PROD', 'false').lower() == 'true'
+
+if ENVIRONMENT == 'production' and AGENT_REGISTRY_BACKEND == 'memory' and not ALLOW_INMEMORY_IN_PROD:
+    logger.critical("❌ FATAL: Production environment cannot use in-memory Agent Registry storage")
+    logger.critical("   Reason: Data loss on restart, inconsistency across workers")
+    logger.critical("   Solution: Set AGENT_REGISTRY_BACKEND=db or disable Agent Registry in production")
+    logger.critical("   Override (not recommended): Set ALLOW_INMEMORY_IN_PROD=true")
+    raise RuntimeError(
+        "Production environment requires persistent storage for Agent Registry. "
+        "Set AGENT_REGISTRY_BACKEND=db or disable the feature."
+    )
+
+if ENVIRONMENT == 'production' and AGENT_REGISTRY_BACKEND == 'memory':
+    try:
+        from src.routes.agent_registry import agents_store, tasks_store
+        if isinstance(agents_store, dict) and isinstance(tasks_store, dict):
+            if not ALLOW_INMEMORY_IN_PROD:
+                logger.warning("⚠️  Agent Registry is using in-memory dict storage (expected until DB backend is implemented)")
+    except ImportError:
+        pass
+
 db.init_app(app)
 
 def init_database_with_retry(max_retries=6, initial_delay=0.5):
