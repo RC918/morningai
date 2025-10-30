@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
+import { motion, useMotionValue, useTransform, animate, type MotionValue } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { triggerHaptic } from '@/lib/spring-animation'
 import { useScreenReaderAnnouncement } from '@/hooks/use-accessibility'
@@ -36,7 +36,7 @@ const PickerItem = ({
 }: {
   option: PickerOption
   index: number
-  y: any
+  y: MotionValue<number>
   itemHeight: number
   halfVisible: number
   currentIndex: number

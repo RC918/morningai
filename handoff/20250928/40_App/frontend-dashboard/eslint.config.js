@@ -64,9 +64,15 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     'jsx-a11y/img-redundant-alt': 'error',
     'jsx-a11y/label-has-associated-control': 'error',
   },
-}, {
-  files: ['**/*.test.{ts,tsx,js,jsx}', '**/__tests__/**/*.{ts,tsx,js,jsx}'],
+}, ...storybook.configs["flat/recommended"], {
+  files: [
+    '**/*.{test,spec}.{ts,tsx,js,jsx}',
+    '**/__tests__/**/*.{ts,tsx,js,jsx}',
+    '**/tests/**/*.{ts,tsx,js,jsx}',
+    '**/src/test/**/*.{ts,tsx,js,jsx,d.ts}',
+    '**/tests/**/*.d.ts',
+  ],
   rules: {
-    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-explicit-any': 'off',
   },
-}, ...storybook.configs["flat/recommended"]];
+}];
