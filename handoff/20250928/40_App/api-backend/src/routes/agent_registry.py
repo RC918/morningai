@@ -15,6 +15,7 @@ from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 from sqlalchemy import or_
 from src.middleware.auth_middleware import jwt_required, roles_required
+from src.middleware.rate_limit import rate_limit
 from src.models.agent_registry import (
     Agent, AgentRegistrationRequest, AgentUpdateRequest,
     AgentHealth, AgentHealthReport, AgentListResponse,
@@ -47,6 +48,7 @@ tasks_store = {}
 
 @bp.route("/agents", methods=["GET"])
 @jwt_required
+@rate_limit
 def list_agents():
     """
     List all registered agents
@@ -115,6 +117,7 @@ def list_agents():
 @bp.route("/agents", methods=["POST"])
 @jwt_required
 @roles_required("admin", "service")
+@rate_limit
 def register_agent():
     """
     Register a new agent
@@ -172,6 +175,7 @@ def register_agent():
 
 @bp.route("/agents/<agent_id>", methods=["GET"])
 @jwt_required
+@rate_limit
 def get_agent(agent_id):
     """Get agent details by ID"""
     try:
@@ -193,6 +197,7 @@ def get_agent(agent_id):
 @bp.route("/agents/<agent_id>", methods=["PATCH"])
 @jwt_required
 @roles_required("admin", "service")
+@rate_limit
 def update_agent(agent_id):
     """Update agent configuration or status"""
     try:
@@ -242,6 +247,7 @@ def update_agent(agent_id):
 @bp.route("/agents/<agent_id>", methods=["DELETE"])
 @jwt_required
 @roles_required("admin")
+@rate_limit
 def unregister_agent(agent_id):
     """Unregister an agent"""
     try:
@@ -267,6 +273,7 @@ def unregister_agent(agent_id):
 
 @bp.route("/agents/<agent_id>/health", methods=["GET"])
 @jwt_required
+@rate_limit
 def get_agent_health(agent_id):
     """Get agent health status"""
     try:
@@ -293,6 +300,7 @@ def get_agent_health(agent_id):
 
 @bp.route("/agents/<agent_id>/health", methods=["POST"])
 @jwt_required
+@rate_limit
 def report_agent_health(agent_id):
     """Report agent health (heartbeat)"""
     try:
@@ -338,6 +346,7 @@ def report_agent_health(agent_id):
 
 @bp.route("/tasks", methods=["GET"])
 @jwt_required
+@rate_limit
 def list_tasks():
     """List tasks with optional filtering"""
     try:
@@ -394,6 +403,7 @@ def list_tasks():
 
 @bp.route("/tasks", methods=["POST"])
 @jwt_required
+@rate_limit
 def create_task():
     """Create a new task and route to appropriate agent"""
     try:
@@ -448,6 +458,7 @@ def create_task():
 
 @bp.route("/tasks/<task_id>", methods=["GET"])
 @jwt_required
+@rate_limit
 def get_task(task_id):
     """Get task details by ID"""
     try:
@@ -468,6 +479,7 @@ def get_task(task_id):
 
 @bp.route("/tasks/<task_id>", methods=["PATCH"])
 @jwt_required
+@rate_limit
 def update_task(task_id):
     """Update task status or metadata"""
     try:
@@ -524,6 +536,7 @@ def update_task(task_id):
 
 @bp.route("/tasks/<task_id>/cancel", methods=["POST"])
 @jwt_required
+@rate_limit
 def cancel_task(task_id):
     """Cancel a running or queued task"""
     try:
