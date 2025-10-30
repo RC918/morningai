@@ -21,7 +21,7 @@ SUBPROJECTS = [
     "agents/dev_agent",
     "handoff/20250928/40_App/api-backend/src",
     "handoff/20250928/40_App/orchestrator",
-    "handoff/20250928/99_Original_Bundle",
+    # "handoff/20250928/99_Original_Bundle",  # Archived to GitHub releases (v1.0-legacy)
     "orchestrator",
 ]
 

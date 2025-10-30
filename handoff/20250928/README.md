@@ -15,6 +15,6 @@ Curated, GitHub‑ready handoff bundle.
 - 75_Runbooks — ops/oncall/incident playbooks
 - 80_Scripts — automation scripts
 - 90_Compliance_Legal — privacy/SLA/SLO/security/terms
-- 99_Original_Bundle — uncategorized rest
+- 99_Original_Bundle — **ARCHIVED** to GitHub releases (v1.0-legacy). See [docs/LEGACY_BUNDLE.md](../../docs/LEGACY_BUNDLE.md) for access.
 
 > Generated from: `morningai_enterprise_final.tar.gz` on 20250928.
