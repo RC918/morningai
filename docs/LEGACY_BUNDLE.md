@@ -4,44 +4,46 @@ The original bundle has been archived to reduce repository size and improve CI p
 
 ## Access
 
-Download from: https://github.com/RC918/morningai/releases/tag/v1.0-legacy
+Download from: https://github.com/RC918/morningai/releases/tag/v1.0-legacy-bundle
 
 ## Contents
 
-- Original handoff deliverables (12,575 files)
+- Original handoff deliverables
 - Vendored dependencies
 - Historical reference code
-- Legacy implementations
+
+## Statistics
+
+- **Files**: 12,575 files
+- **Size**: 129MB (compressed to 20MB)
+- **CI Impact**: Reduced CI time by 2-3 minutes
+- **Status**: Not actively used in development
 
 ## Why archived?
 
-- **Size**: 129MB (12,575 files)
-- **CI Impact**: Slowed CI by 2-3 minutes
-- **Usage**: Not actively used in development
-- **Maintenance**: Reduced repository bloat
+The 99_Original_Bundle directory contained legacy code that was:
+- Slowing down CI/CD pipelines
+- Increasing repository clone time
+- Degrading developer experience
+- Not actively used in current development
 
-## How to restore
+By archiving to GitHub Releases, we maintain access to historical code while improving repository performance.
 
-If you need to access the original bundle:
+## Restoration
+
+If you need to restore the bundle for reference:
 
 ```bash
 # Download the archive
-wget https://github.com/RC918/morningai/releases/download/v1.0-legacy/99_Original_Bundle.tar.gz
+wget https://github.com/RC918/morningai/releases/download/v1.0-legacy-bundle/99_Original_Bundle.tar.gz
 
 # Extract to handoff directory
 cd handoff/20250928
 tar -xzf 99_Original_Bundle.tar.gz
 ```
 
-## Archive Details
-
-- **Created**: 2025-10-30
-- **Release**: v1.0-legacy
-- **Compressed Size**: 20MB (tar.gz)
-- **Original Size**: 129MB (uncompressed)
-- **File Count**: 12,575 files
-
 ## Related
 
-- Issue #872: Archive 99_Original_Bundle to GitHub releases
-- Technical Debt Roadmap: Phase 2 cleanup
+- Issue: #872
+- Roadmap: docs/TECHNICAL_DEBT_ROADMAP.md (Phase 2)
+- Release: https://github.com/RC918/morningai/releases/tag/v1.0-legacy-bundle
