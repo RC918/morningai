@@ -74,6 +74,16 @@ def app():
             'role': request.current_user.get('role')
         }, 200
     
+    @app.route('/analyst-only')
+    @roles_required('analyst')
+    def analyst_only_endpoint():
+        from flask import request
+        return {
+            'message': 'analyst only success',
+            'user_id': request.current_user.get('user_id'),
+            'role': request.current_user.get('role')
+        }, 200
+    
     return app
 
 
@@ -622,3 +632,34 @@ class TestP1RecommendedTests:
         assert data['user_id'] == 888
         # The middleware normalizes '分析師' to 'analyst'
         assert data['role'] == 'analyst'
+    
+    def test_super_admin_bypass_truly_bypasses(self, app, jwt_secret):
+        """Test that '超級管理員' truly bypasses role restrictions
+        
+        This test verifies that a super admin with Chinese role '超級管理員'
+        can access analyst-only endpoints even though they are not in the
+        allowed_roles list. This tests the bypass logic fix.
+        
+        Before fix: Would fail because normalized_role was checked
+        After fix: Should pass because original user_role is checked
+        """
+        client = app.test_client()
+        
+        payload = {
+            'user_id': 999,
+            'username': 'super_admin',
+            'role': '超級管理員',  # Chinese super admin role
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
+        }
+        super_admin_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+        
+        response = client.get('/analyst-only', headers={
+            'Authorization': f'Bearer {super_admin_token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['message'] == 'analyst only success'
+        assert data['user_id'] == 999
+        assert data['role'] == 'admin'
