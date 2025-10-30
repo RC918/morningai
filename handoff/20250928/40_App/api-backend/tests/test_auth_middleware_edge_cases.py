@@ -113,7 +113,7 @@ class TestAdminRequiredExceptions:
         """Test admin_required with expired token"""
         client = app.test_client()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         expired_payload = {
             'user_id': 1,
             'username': 'admin',
@@ -165,7 +165,7 @@ class TestAnalystRequiredExceptions:
         """Test analyst_required with expired token"""
         client = app.test_client()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         expired_payload = {
             'user_id': 2,
             'username': 'analyst',
@@ -239,7 +239,7 @@ class TestRolesRequiredExceptions:
         """Test roles_required with expired token"""
         client = app.test_client()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         expired_payload = {
             'user_id': 1,
             'username': 'admin',
@@ -340,7 +340,7 @@ class TestTokenGeneration:
         
         token = generate_jwt_token(user_data)
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         assert payload['role'] == 'analyst'  # Normalized
@@ -355,7 +355,7 @@ class TestTokenGeneration:
         
         token = generate_jwt_token(user_data, expires_hours=1)
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         exp_time = datetime.fromtimestamp(payload['exp'], UTC)
@@ -368,7 +368,7 @@ class TestTokenGeneration:
         """Test create_admin_token with custom user_id and username"""
         token = create_admin_token(user_id=999, username='custom_admin')
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         assert payload['user_id'] == 999
@@ -379,7 +379,7 @@ class TestTokenGeneration:
         """Test create_analyst_token"""
         token = create_analyst_token()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         assert payload['user_id'] == 2
@@ -390,7 +390,7 @@ class TestTokenGeneration:
         """Test create_user_token"""
         token = create_user_token()
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         assert payload['user_id'] == 3
