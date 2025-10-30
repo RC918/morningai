@@ -15,7 +15,7 @@
         "throttlingMethod": "simulate",
         "onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
       },
-      "puppeteerScript": "lhci-puppeteer-auth.js"
+      "puppeteerScript": "lhci-puppeteer-auth.cjs"
     },
     "upload": {
       "target": "filesystem",
