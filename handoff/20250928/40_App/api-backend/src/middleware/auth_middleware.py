@@ -276,7 +276,7 @@ def roles_required(*allowed_roles):
                 user_role = payload.get('role', 'user')
                 normalized_role = normalize_role(user_role)
                 
-                if normalized_role not in allowed_roles and normalized_role not in ['超級管理員']:
+                if normalized_role not in allowed_roles and user_role not in ['超級管理員']:
                     return jsonify({
                         'error': 'Insufficient privileges',
                         'message': f'Access denied. Required role(s): {", ".join(allowed_roles)}'
