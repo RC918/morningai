@@ -27,6 +27,7 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     'react-hooks': reactHooks,
     'react-refresh': reactRefresh,
     'jsx-a11y': jsxA11y,
+    '@typescript-eslint': tseslint.plugin,
   },
   rules: {
     ...reactHooks.configs.recommended.rules,
@@ -37,6 +38,7 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     ],
     'no-unused-vars': 'off',
     'no-undef': 'off',
+    '@typescript-eslint/no-explicit-any': 'error',
     'react/jsx-no-undef': 'error',
     'react/jsx-uses-react': 'error',
     'react/jsx-uses-vars': 'error',

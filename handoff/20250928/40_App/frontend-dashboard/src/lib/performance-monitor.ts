@@ -9,16 +9,10 @@ interface PerformanceMetric {
   name: string
   duration: number
   timestamp: number
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
-declare global {
-  interface Window {
-    __a11yPerformance?: AccessibilityPerformanceMonitor;
-  }
-}
-
-class AccessibilityPerformanceMonitor {
+export class AccessibilityPerformanceMonitor {
   private metrics: PerformanceMetric[] = []
   private readonly maxMetrics = 100
   private readonly performanceThresholds = {
@@ -52,7 +46,7 @@ class AccessibilityPerformanceMonitor {
   /**
    * Record a performance metric
    */
-  private recordMetric(name: string, duration: number, metadata?: Record<string, any>): void {
+  private recordMetric(name: string, duration: number, metadata?: Record<string, unknown>): void {
     this.metrics.push({
       name,
       duration,
@@ -191,13 +185,13 @@ export function useA11yPerformance(componentName: string) {
  */
 export function measurePerformance(metricName: string) {
   return function (
-    target: any,
+    target: unknown,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value
 
-    descriptor.value = function (...args: any[]) {
+    descriptor.value = function (...args: unknown[]) {
       const endMeasure = a11yPerformanceMonitor.startMeasure(metricName)
       try {
         const result = originalMethod.apply(this, args)

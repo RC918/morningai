@@ -12,11 +12,10 @@ import {
   createAnimationSequence,
   getStaggerConfig,
   getAnimationMetrics,
-  trackAnimation
+  trackAnimation,
+  type HapticType
 } from '../../lib/spring-animation';
 import '../../styles/spring-animations.css';
-
-type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection';
 
 const meta: Meta = {
   title: 'Design System/Spring Animation System',

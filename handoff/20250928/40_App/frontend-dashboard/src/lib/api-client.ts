@@ -1,9 +1,3 @@
-declare global {
-  interface Window {
-    __VITE_API_BASE_URL__?: string;
-  }
-}
-
 const API_BASE_URL =
   (typeof window !== 'undefined' && window.__VITE_API_BASE_URL__) ||
   (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') ||
@@ -45,8 +39,8 @@ export async function apiClientLegacy({
 }: {
   url: string;
   method: string;
-  params?: Record<string, any>;
-  data?: any;
+  params?: Record<string, unknown>;
+  data?: unknown;
   headers?: Record<string, string>;
 }) {
   const qs = params
@@ -72,7 +66,7 @@ export async function apiClientLegacy({
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
-export async function customFetch(options: { url: string; method?: string; [key: string]: any }) {
+export async function customFetch(options: { url: string; method?: string; [key: string]: unknown }) {
   const { url, method = 'GET', ...rest } = options;
   return apiClientLegacy({ url, method, ...rest });
 }
