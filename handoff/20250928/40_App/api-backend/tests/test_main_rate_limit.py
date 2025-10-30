@@ -163,7 +163,7 @@ class TestAuthenticationFlow:
         import jwt
         from datetime import datetime, timedelta, UTC
         
-        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+        jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = {
             'user_id': 1,
             'username': 'test_user',
