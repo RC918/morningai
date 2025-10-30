@@ -339,7 +339,7 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 
-let refreshInterval: NodeJS.Timeout | null = null;
+let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Start automatic token refresh

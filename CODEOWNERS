@@ -93,7 +93,7 @@
 
 # API Connection (Issue #767)
 /handoff/20250928/40_App/owner-console/src/lib/api/ @RC918
-/handoff/20250928/40_App/owner-console/src/lib/auth/ @RC918
+/handoff/20250928/40_App/owner-console/src/lib/auth.ts @RC918
 
 # Agent Governance Dashboard (Issue #769)
 /handoff/20250928/40_App/owner-console/src/pages/governance/ @RC918

@@ -44,3 +44,8 @@ jobs:
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
           pnpm run typecheck
+      
+      - name: Typecheck owner-console
+        run: |
+          cd handoff/20250928/40_App/owner-console
+          pnpm run typecheck

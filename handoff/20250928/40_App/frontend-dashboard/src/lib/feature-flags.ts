@@ -114,6 +114,20 @@ export const FEATURE_FLAGS = {
    * Enables stricter typing for spring-animation library
    */
   PLATFORM_SPRING_ANIMATION_TYPES: false,
+  
+  
+  /**
+   * Legacy Navigation Features (Backward Compatibility)
+   * These are existing features that should remain enabled by default
+   */
+  DASHBOARD: true,
+  STRATEGIES: true,
+  APPROVALS: true,
+  HISTORY: true,
+  COSTS: true,
+  GOVERNANCE: true,
+  SETTINGS: true,
+  CHECKOUT: true,
 } as const;
 
 /**
@@ -216,7 +230,11 @@ export function isFeatureEnabled(key: FeatureFlagKey | string): boolean {
     return FEATURE_FLAGS[key as FeatureFlagKey];
   }
   
-  return true;
+  if (typeof console !== 'undefined' && console.warn) {
+    console.warn(`[Feature Flags] Unknown feature flag key: "${key}". Defaulting to false. Did you misspell it?`);
+  }
+  
+  return false;
 }
 
 /**
