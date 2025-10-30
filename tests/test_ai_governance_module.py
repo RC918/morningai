@@ -449,7 +449,7 @@ class TestGovernanceRuleManager:
         assert result['allowed'] is False
         assert "Allow Trusted" in result['blocked_by']
     
-    @pytest.mark.xfail(strict=True, reason="Tracking: TBD-ISSUE-1 - Security: Whitelist substring matching allows untrusted domains")
+    @pytest.mark.xfail(strict=True, reason="Tracking: #949 - Security: Whitelist substring matching allows untrusted domains")
     def test_whitelist_substring_attack_prevention(self):
         """Test that whitelist prevents substring matching attacks (SECURITY TEST)
         
@@ -643,7 +643,7 @@ class TestAIGovernanceModule:
                               json={'name': 'Test', 'rule_type': 'blacklist'})
         assert response.status_code == 401
     
-    @pytest.mark.xfail(strict=True, reason="Tracking: TBD-ISSUE-2 - Enum serialization in create_rule returns 500")
+    @pytest.mark.xfail(strict=True, reason="Tracking: #950 - Enum serialization in create_rule returns 500")
     def test_create_rule_success(self):
         """Test create rule endpoint with valid data
         
