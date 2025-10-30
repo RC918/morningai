@@ -16,7 +16,13 @@ def jwt_required(f):
             }), 401
         
         try:
-            token = auth_header.split(' ')[1]
+            parts = auth_header.split(' ')
+            if len(parts) != 2 or parts[0].lower() != 'bearer':
+                return jsonify({
+                    'error': 'Invalid authorization format',
+                    'message': 'Authorization header must be in format: Bearer <token>'
+                }), 401
+            token = parts[1]
         except (IndexError, AttributeError):
             return jsonify({
                 'error': 'Invalid authorization format',
@@ -24,15 +30,24 @@ def jwt_required(f):
             }), 401
         
         try:
-            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+            jwt_secret = os.environ.get('JWT_SECRET_KEY')
+            if not jwt_secret:
+                return jsonify({
+                    'error': 'Server configuration error',
+                    'message': 'JWT_SECRET_KEY not configured'
+                }), 500
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
             user_id = payload.get('sub') or payload.get('user_id')
+            raw_role = payload.get('role', 'user')
+            normalized_role = normalize_role(raw_role)
             
             request.current_user = {
                 'user_id': user_id,
                 'username': payload.get('username') or payload.get('email'),
-                'role': payload.get('role', 'user')
+                'role': normalized_role,
+                'raw_role': raw_role,
+                'is_super_admin': raw_role == '超級管理員'
             }
             
             request.user_id = user_id
@@ -70,7 +85,13 @@ def admin_required(f):
             }), 401
         
         try:
-            token = auth_header.split(' ')[1]
+            parts = auth_header.split(' ')
+            if len(parts) != 2 or parts[0].lower() != 'bearer':
+                return jsonify({
+                    'error': 'Invalid authorization format',
+                    'message': 'Authorization header must be in format: Bearer <token>'
+                }), 401
+            token = parts[1]
         except (IndexError, AttributeError):
             return jsonify({
                 'error': 'Invalid authorization format',
@@ -78,11 +99,17 @@ def admin_required(f):
             }), 401
         
         try:
-            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+            jwt_secret = os.environ.get('JWT_SECRET_KEY')
+            if not jwt_secret:
+                return jsonify({
+                    'error': 'Server configuration error',
+                    'message': 'JWT_SECRET_KEY not configured'
+                }), 500
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
-            user_role = payload.get('role', 'user')
-            if user_role not in ['admin', '超級管理員']:
+            raw_role = payload.get('role', 'user')
+            normalized_role = normalize_role(raw_role)
+            if normalized_role not in ['admin'] and raw_role not in ['超級管理員']:
                 return jsonify({
                     'error': 'Insufficient privileges',
                     'message': 'Admin access required for this endpoint.'
@@ -91,7 +118,9 @@ def admin_required(f):
             request.current_user = {
                 'user_id': payload.get('user_id'),
                 'username': payload.get('username'),
-                'role': user_role
+                'role': normalized_role,
+                'raw_role': raw_role,
+                'is_super_admin': raw_role == '超級管理員'
             }
             
             return f(*args, **kwargs)
@@ -127,7 +156,13 @@ def analyst_required(f):
             }), 401
         
         try:
-            token = auth_header.split(' ')[1]
+            parts = auth_header.split(' ')
+            if len(parts) != 2 or parts[0].lower() != 'bearer':
+                return jsonify({
+                    'error': 'Invalid authorization format',
+                    'message': 'Authorization header must be in format: Bearer <token>'
+                }), 401
+            token = parts[1]
         except (IndexError, AttributeError):
             return jsonify({
                 'error': 'Invalid authorization format',
@@ -135,11 +170,17 @@ def analyst_required(f):
             }), 401
         
         try:
-            jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+            jwt_secret = os.environ.get('JWT_SECRET_KEY')
+            if not jwt_secret:
+                return jsonify({
+                    'error': 'Server configuration error',
+                    'message': 'JWT_SECRET_KEY not configured'
+                }), 500
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
-            user_role = payload.get('role', 'user')
-            if user_role not in ['admin', 'analyst', '超級管理員', '分析師']:
+            raw_role = payload.get('role', 'user')
+            normalized_role = normalize_role(raw_role)
+            if normalized_role not in ['admin', 'analyst'] and raw_role not in ['超級管理員', '分析師']:
                 return jsonify({
                     'error': 'Insufficient privileges',
                     'message': 'Analyst access or higher required for this endpoint.'
@@ -148,7 +189,9 @@ def analyst_required(f):
             request.current_user = {
                 'user_id': payload.get('user_id'),
                 'username': payload.get('username'),
-                'role': user_role
+                'role': normalized_role,
+                'raw_role': raw_role,
+                'is_super_admin': raw_role == '超級管理員'
             }
             
             return f(*args, **kwargs)
@@ -206,7 +249,9 @@ def generate_jwt_token(user_data, expires_hours=24):
     """Generate JWT token for user authentication"""
     import datetime
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY')
+    if not jwt_secret:
+        raise ValueError('JWT_SECRET_KEY environment variable not set')
     
     original_role = user_data.get('role')
     normalized_role = normalize_role(original_role)
@@ -270,13 +315,18 @@ def roles_required(*allowed_roles):
                 }), 401
             
             try:
-                jwt_secret = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
+                jwt_secret = os.environ.get('JWT_SECRET_KEY')
+                if not jwt_secret:
+                    return jsonify({
+                        'error': 'Server configuration error',
+                        'message': 'JWT_SECRET_KEY not configured'
+                    }), 500
                 payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
                 
-                user_role = payload.get('role', 'user')
-                normalized_role = normalize_role(user_role)
+                raw_role = payload.get('role', 'user')
+                normalized_role = normalize_role(raw_role)
                 
-                if normalized_role not in allowed_roles and user_role not in ['超級管理員']:
+                if normalized_role not in allowed_roles and raw_role not in ['超級管理員']:
                     return jsonify({
                         'error': 'Insufficient privileges',
                         'message': f'Access denied. Required role(s): {", ".join(allowed_roles)}'
@@ -285,7 +335,9 @@ def roles_required(*allowed_roles):
                 request.current_user = {
                     'user_id': payload.get('user_id'),
                     'username': payload.get('username'),
-                    'role': normalized_role
+                    'role': normalized_role,
+                    'raw_role': raw_role,
+                    'is_super_admin': raw_role == '超級管理員'
                 }
                 
                 return f(*args, **kwargs)
