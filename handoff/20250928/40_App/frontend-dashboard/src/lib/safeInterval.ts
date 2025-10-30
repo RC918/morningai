@@ -5,9 +5,9 @@
  * @param {number} maxIterations - Maximum number of iterations (default: 120)
  * @returns {Function} Cleanup function to stop the interval
  */
-export function safeInterval(tick, ms, maxIterations = 120) {
+export function safeInterval(tick: () => void, ms: number, maxIterations: number = 120): () => void {
   let n = 0
-  let id
+  let id: ReturnType<typeof setInterval> | undefined
 
   const step = () => {
     tick()

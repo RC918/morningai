@@ -13,11 +13,40 @@
 
 import * as Sentry from '@sentry/react'
 
+interface Task {
+  taskId: string
+  taskName: string
+  description: string
+  startTime: number
+  endTime: number | null
+  duration: number | null
+  success: boolean | null
+  errors: Array<{ timestamp: number; type: string; description: string }>
+  interactions: Interaction[]
+  notes: Array<{ timestamp: number; text: string } | string>
+}
+
+interface Interaction {
+  timestamp: number
+  action: string
+  target: string
+  metadata: any
+  taskId: string | null
+}
+
 /**
  * Usability Testing Session Manager
  */
 class UsabilityTestingSession {
-  constructor(participantId, sessionId) {
+  participantId: string
+  sessionId: string
+  startTime: number
+  tasks: Task[]
+  interactions: Interaction[]
+  currentTask: Task | null
+  isRecording: boolean
+
+  constructor(participantId: string, sessionId?: string) {
     this.participantId = participantId
     this.sessionId = sessionId || `session-${Date.now()}`
     this.startTime = Date.now()
@@ -57,7 +86,7 @@ class UsabilityTestingSession {
    * @param {string} taskName - Human-readable task name
    * @param {string} description - Task description
    */
-  startTask(taskId, taskName, description) {
+  startTask(taskId: string, taskName: string, description: string): void {
     if (!this.isRecording) {
       console.warn('[Usability Test] Session not started. Call startSession() first.')
       return
@@ -103,7 +132,7 @@ class UsabilityTestingSession {
    * @param {boolean} success - Whether the task was completed successfully
    * @param {string} notes - Optional notes about task completion
    */
-  endTask(success, notes = '') {
+  endTask(success: boolean, notes = ''): void {
     if (!this.currentTask) {
       console.warn('[Usability Test] No active task to end.')
       return
@@ -145,7 +174,7 @@ class UsabilityTestingSession {
    * @param {string} errorType - Type of error (e.g., 'navigation', 'confusion', 'technical')
    * @param {string} description - Description of the error
    */
-  recordError(errorType, description) {
+  recordError(errorType: string, description: string): void {
     if (!this.currentTask) {
       console.warn('[Usability Test] No active task. Error not recorded.')
       return
@@ -183,7 +212,7 @@ class UsabilityTestingSession {
    * @param {string} target - Target element or description
    * @param {object} metadata - Additional metadata
    */
-  recordInteraction(action, target, metadata = {}) {
+  recordInteraction(action: string, target: string, metadata: any = {}): void {
     if (!this.isRecording) return
 
     const interaction = {
@@ -207,7 +236,7 @@ class UsabilityTestingSession {
    * Add a note to the current task
    * @param {string} note - Note text
    */
-  addNote(note) {
+  addNote(note: string): void {
     if (!this.currentTask) {
       console.warn('[Usability Test] No active task. Note not recorded.')
       return
@@ -270,14 +299,17 @@ class UsabilityTestingSession {
     const totalErrors = this.tasks.reduce((sum, task) => sum + task.errors.length, 0)
 
     const avgTaskDuration = completedTasks.length > 0
-      ? completedTasks.reduce((sum, task) => sum + task.duration, 0) / completedTasks.length
+      ? completedTasks.reduce((sum, task) => sum + (task.duration || 0), 0) / completedTasks.length
       : 0
+
+    const sessionDurationMs = Date.now() - this.startTime
+    const sessionDurationMinutes = Math.round(sessionDurationMs / 60000)
 
     return {
       session_id: this.sessionId,
       participant_id: this.participantId,
-      total_duration_ms: Date.now() - this.startTime,
-      total_duration_minutes: Math.round((Date.now() - this.startTime) / 60000),
+      total_duration_ms: sessionDurationMs,
+      total_duration_minutes: sessionDurationMinutes,
       tasks_total: this.tasks.length,
       tasks_completed: completedTasks.length,
       tasks_successful: successfulTasks.length,
@@ -333,7 +365,7 @@ class UsabilityTestingSession {
    * @param {string} sessionId - Session ID to load
    * @returns {UsabilityTestingSession|null}
    */
-  static loadSession(sessionId) {
+  static loadSession(sessionId: string): UsabilityTestingSession | null {
     try {
       const data = localStorage.getItem(`usability_test_${sessionId}`)
       if (!data) return null
@@ -356,8 +388,8 @@ class UsabilityTestingSession {
    * List all saved sessions
    * @returns {Array<string>} Array of session IDs
    */
-  static listSessions() {
-    const sessions = []
+  static listSessions(): string[] {
+    const sessions: string[] = []
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
       if (key && key.startsWith('usability_test_')) {
@@ -371,7 +403,7 @@ class UsabilityTestingSession {
    * Delete a session
    * @param {string} sessionId - Session ID to delete
    */
-  static deleteSession(sessionId) {
+  static deleteSession(sessionId: string): void {
     localStorage.removeItem(`usability_test_${sessionId}`)
   }
 }
@@ -385,7 +417,7 @@ export class SUSCalculator {
    * @param {Array<number>} responses - Array of 10 responses (1-5 scale)
    * @returns {object} SUS score and grade
    */
-  static calculate(responses) {
+  static calculate(responses: number[]): { score: number; grade: string; adjective: string; responses: number[]; calculation: { raw_score: number; multiplier: number } } {
     if (responses.length !== 10) {
       throw new Error('SUS requires exactly 10 responses')
     }
@@ -435,7 +467,7 @@ export class SUSCalculator {
    * Get SUS questions
    * @returns {Array<string>} Array of 10 SUS questions
    */
-  static getQuestions() {
+  static getQuestions(): string[] {
     return [
       'I think that I would like to use this system frequently',
       'I found the system unnecessarily complex',
@@ -460,7 +492,7 @@ export class NPSCalculator {
    * @param {Array<number>} responses - Array of responses (0-10 scale)
    * @returns {object} NPS score and breakdown
    */
-  static calculate(responses) {
+  static calculate(responses: number[]): { nps: number; rating: string; breakdown: any; responses: number[] } {
     if (responses.some(r => r < 0 || r > 10)) {
       throw new Error('All responses must be between 0 and 10')
     }
@@ -501,7 +533,7 @@ export class NPSCalculator {
    * Get NPS question
    * @returns {string} NPS question
    */
-  static getQuestion() {
+  static getQuestion(): string {
     return 'How likely are you to recommend this product to a friend or colleague? (0 = Not at all likely, 10 = Extremely likely)'
   }
 }
@@ -509,7 +541,7 @@ export class NPSCalculator {
 /**
  * Global usability testing instance
  */
-let globalSession = null
+let globalSession: UsabilityTestingSession | null = null
 
 /**
  * Initialize usability testing
@@ -517,12 +549,12 @@ let globalSession = null
  * @param {string} sessionId - Optional session identifier
  * @returns {UsabilityTestingSession}
  */
-export function initUsabilityTest(participantId, sessionId) {
+export function initUsabilityTest(participantId: string, sessionId?: string): UsabilityTestingSession {
   globalSession = new UsabilityTestingSession(participantId, sessionId)
   globalSession.startSession()
   
   if (typeof window !== 'undefined') {
-    window.usabilityTest = globalSession
+    (window as any).usabilityTest = globalSession
   }
   
   return globalSession
@@ -532,7 +564,7 @@ export function initUsabilityTest(participantId, sessionId) {
  * Get current usability testing session
  * @returns {UsabilityTestingSession|null}
  */
-export function getCurrentSession() {
+export function getCurrentSession(): UsabilityTestingSession | null {
   return globalSession
 }
 
@@ -540,12 +572,12 @@ export function getCurrentSession() {
  * Quick access functions for common operations
  */
 export const usabilityTest = {
-  start: (participantId, sessionId) => initUsabilityTest(participantId, sessionId),
-  startTask: (taskId, taskName, description) => globalSession?.startTask(taskId, taskName, description),
-  endTask: (success, notes) => globalSession?.endTask(success, notes),
-  recordError: (type, description) => globalSession?.recordError(type, description),
-  recordInteraction: (action, target, metadata) => globalSession?.recordInteraction(action, target, metadata),
-  addNote: (note) => globalSession?.addNote(note),
+  start: (participantId: string, sessionId?: string) => initUsabilityTest(participantId, sessionId),
+  startTask: (taskId: string, taskName: string, description: string) => globalSession?.startTask(taskId, taskName, description),
+  endTask: (success: boolean, notes?: string) => globalSession?.endTask(success, notes),
+  recordError: (type: string, description: string) => globalSession?.recordError(type, description),
+  recordInteraction: (action: string, target: string, metadata?: any) => globalSession?.recordInteraction(action, target, metadata),
+  addNote: (note: string) => globalSession?.addNote(note),
   end: () => globalSession?.endSession(),
   getSummary: () => globalSession?.getSessionSummary(),
   export: () => globalSession?.exportData(),

@@ -63,7 +63,7 @@ export async function getUser() {
  * @param {string} options.redirectTo - URL to redirect after authentication
  * @returns {Promise<{data: Object, error: Error|null}>}
  */
-export async function signInWithOAuth(provider, options = {}) {
+export async function signInWithOAuth(provider: any, options: any = {}) {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
@@ -89,7 +89,7 @@ export async function signOut() {
  * @param {Function} callback - Callback function to handle auth state changes
  * @returns {Object} Subscription object with unsubscribe method
  */
-export function onAuthStateChange(callback) {
+export function onAuthStateChange(callback: any) {
   return supabase.auth.onAuthStateChange(callback);
 }
 

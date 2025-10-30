@@ -99,7 +99,7 @@ export const pageVariants = {
   }
 }
 
-export const pageTransition = {
+export const pageTransition: any = {
   type: 'tween',
   ease: 'anticipate',
   duration: 0.4

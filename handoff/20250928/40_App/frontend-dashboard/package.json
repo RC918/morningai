@@ -22,6 +22,7 @@
     "test:vrt": "playwright test -g @vrt",
     "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit",
+    "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "prepare": "husky"

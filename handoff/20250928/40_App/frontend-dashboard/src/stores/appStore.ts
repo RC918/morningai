@@ -2,7 +2,93 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import apiClient from '@/lib/api'
 
-const useAppStore = create(
+interface User {
+  id: string | null
+  name: string
+  email: string
+  avatar: string
+  role: string
+  tenant_id: string
+}
+
+interface Tenant {
+  id: string
+  name: string
+  plan: string
+  status: string
+  billing_cycle: string
+  features: string[]
+}
+
+interface PaymentMethod {
+  type: string
+  last_four: string
+  expires: string
+}
+
+interface Usage {
+  api_calls: number
+  api_limit: number
+  storage_used: number
+  storage_limit: number
+}
+
+interface Billing {
+  current_plan: string
+  billing_status: string
+  next_billing_date: string
+  usage: Usage
+  payment_method?: PaymentMethod
+  plans?: any[]
+}
+
+interface Status {
+  online: boolean
+  last_sync: string
+  notifications_count: number
+  system_health: string
+  maintenance_mode: boolean
+}
+
+interface Toast {
+  id: string
+  title: string
+  description?: string
+  variant?: string
+  timestamp: number
+}
+
+interface Loading {
+  user: boolean
+  billing: boolean
+  global: boolean
+}
+
+interface AppState {
+  user: User
+  tenant: Tenant
+  billing: Billing
+  status: Status
+  toasts: Toast[]
+  loading: Loading
+  error: string | null
+  setUser: (user: Partial<User>) => void
+  setTenant: (tenant: Partial<Tenant>) => void
+  setBilling: (billing: Partial<Billing>) => void
+  setStatus: (status: Partial<Status>) => void
+  addToast: (toast: { title: string; description?: string; variant?: string }) => { id: string; dismiss: () => void }
+  removeToast: (id: string) => void
+  clearToasts: () => void
+  setLoading: (key: keyof Loading, value: boolean) => void
+  setError: (error: string | null) => void
+  clearError: () => void
+  loadUserData: () => Promise<void>
+  loadBillingData: () => Promise<void>
+  updateSystemStatus: () => void
+  reset: () => void
+}
+
+const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       user: {
@@ -58,17 +144,17 @@ const useAppStore = create(
       
       error: null,
       
-      setUser: (user) => set({ user: { ...get().user, ...user } }),
+      setUser: (user: Partial<User>) => set({ user: { ...get().user, ...user } }),
       
-      setTenant: (tenant) => set({ tenant: { ...get().tenant, ...tenant } }),
+      setTenant: (tenant: Partial<Tenant>) => set({ tenant: { ...get().tenant, ...tenant } }),
       
-      setBilling: (billing) => set({ billing: { ...get().billing, ...billing } }),
+      setBilling: (billing: Partial<Billing>) => set({ billing: { ...get().billing, ...billing } }),
       
-      setStatus: (status) => set({ status: { ...get().status, ...status } }),
+      setStatus: (status: Partial<Status>) => set({ status: { ...get().status, ...status } }),
       
-      addToast: (toast) => {
+      addToast: (toast: { title: string; description?: string; variant?: string }) => {
         const id = Math.random().toString(36).substr(2, 9)
-        const newToast = {
+        const newToast: Toast = {
           id,
           title: toast.title,
           description: toast.description,
@@ -87,17 +173,17 @@ const useAppStore = create(
         return { id, dismiss: () => get().removeToast(id) }
       },
       
-      removeToast: (id) => set(state => ({
+      removeToast: (id: string) => set(state => ({
         toasts: state.toasts.filter(toast => toast.id !== id)
       })),
       
       clearToasts: () => set({ toasts: [] }),
       
-      setLoading: (key, value) => set(state => ({
+      setLoading: (key: keyof Loading, value: boolean) => set(state => ({
         loading: { ...state.loading, [key]: value }
       })),
       
-      setError: (error) => set({ error }),
+      setError: (error: string | null) => set({ error }),
       
       clearError: () => set({ error: null }),
       
@@ -110,7 +196,8 @@ const useAppStore = create(
             loading: { ...get().loading, user: false }
           })
         } catch (error) {
-          console.warn('Failed to load user data:', error.message)
+          const err = error as Error
+          console.warn('Failed to load user data:', err.message)
           set({ 
             loading: { ...get().loading, user: false },
             error: null
@@ -127,7 +214,8 @@ const useAppStore = create(
             loading: { ...get().loading, billing: false }
           })
         } catch (error) {
-          console.warn('Failed to load billing data:', error.message)
+          const err = error as Error
+          console.warn('Failed to load billing data:', err.message)
           set({ 
             loading: { ...get().loading, billing: false },
             error: null

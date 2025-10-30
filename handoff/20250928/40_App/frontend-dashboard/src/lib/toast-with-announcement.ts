@@ -1,8 +1,8 @@
 import { toast as sonnerToast } from 'sonner'
 
-let liveRegion = null
+let liveRegion: HTMLDivElement | null = null
 
-const ensureLiveRegion = () => {
+const ensureLiveRegion = (): HTMLDivElement | null => {
   if (!liveRegion && typeof document !== 'undefined') {
     liveRegion = document.createElement('div')
     liveRegion.setAttribute('role', 'status')
@@ -19,7 +19,7 @@ const ensureLiveRegion = () => {
   return liveRegion
 }
 
-const announce = (message, type) => {
+const announce = (message: any, type?: string): void => {
   const region = ensureLiveRegion()
   if (region && typeof message === 'string') {
     const announcement = type ? `${type}: ${message}` : message
@@ -34,21 +34,21 @@ const announce = (message, type) => {
 }
 
 export const toast = Object.assign(
-  (...args) => sonnerToast(...args),
+  (...args: Parameters<typeof sonnerToast>) => sonnerToast(...args),
   {
-    success: (...args) => {
+    success: (...args: Parameters<typeof sonnerToast.success>) => {
       announce(args[0], 'Success')
       return sonnerToast.success(...args)
     },
-    error: (...args) => {
+    error: (...args: Parameters<typeof sonnerToast.error>) => {
       announce(args[0], 'Error')
       return sonnerToast.error(...args)
     },
-    info: (...args) => {
+    info: (...args: Parameters<typeof sonnerToast.info>) => {
       announce(args[0], 'Info')
       return sonnerToast.info(...args)
     },
-    warning: (...args) => {
+    warning: (...args: Parameters<typeof sonnerToast.warning>) => {
       announce(args[0], 'Warning')
       return sonnerToast.warning(...args)
     },
@@ -61,5 +61,5 @@ export const toast = Object.assign(
 )
 
 if (typeof window !== 'undefined') {
-  window.toast = toast
+  (window as any).toast = toast
 }

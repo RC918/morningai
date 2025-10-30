@@ -137,7 +137,7 @@ const Dashboard = (): React.ReactElement => {
     redo,
     canUndo,
     canRedo
-  } = useUndoRedo<Widget[]>([])
+  } = useUndoRedo([])
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({
     cpu_usage: 72,
     memory_usage: 68,

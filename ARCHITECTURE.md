@@ -80,6 +80,12 @@ MorningAI 採用**三層分離架構**，確保 Owner 和租戶的權限明確�
 │  │         (morningai-backend-v2.onrender.com)              │  │
 │  ├──────────────────────────────────────────────────────────┤  │
 │  │                                                           │  │
+│  │  Phase API Modules (Root Directory):                     │  │
+│  │  • phase4_meta_agent_api.py (Meta-agent coordination)    │  │
+│  │  • phase5_data_intelligence_api.py (BI & Growth)         │  │
+│  │  • phase6_security_governance_api.py (Security)          │  │
+│  │  • phase6_startup.py, phase7_startup.py (Init)           │  │
+│  │                                                           │  │
 │  │  Owner Endpoints:          Tenant Endpoints:             │  │
 │  │  • /api/governance/*       • /api/dashboard/*            │  │
 │  │  • /api/tenants/*          • /api/strategies/*           │  │

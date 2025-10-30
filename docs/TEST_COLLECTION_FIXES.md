@@ -30,8 +30,7 @@ Fixed all 59 test collection errors when running `pytest --collect-only` from th
 
 2. **Legacy/Incompatible Tests** (18 errors)
    - `handoff/20250928/60_Design/testing` - SQLAlchemy test suite
-   - `handoff/20250928/99_Original_Bundle/greenlet/tests` - Greenlet tests
-   - `handoff/20250928/99_Original_Bundle/morningai_enhanced/tests` - Old tests
+   - `handoff/20250928/99_Original_Bundle` - Legacy bundle (now archived to GitHub releases v1.0-legacy)
 
 ---
 
@@ -81,7 +80,6 @@ pythonpath =
     agents/dev_agent
     handoff/20250928/40_App/api-backend/src
     handoff/20250928/40_App/orchestrator
-    handoff/20250928/99_Original_Bundle
     orchestrator
 
 # Exclude problematic test directories
@@ -95,9 +93,6 @@ norecursedirs =
     .pytest_cache
     .turbo
     handoff/20250928/60_Design/testing
-    handoff/20250928/99_Original_Bundle/greenlet/tests
-    handoff/20250928/99_Original_Bundle/morningai_enhanced/tests
-    handoff/20250928/99_Original_Bundle/tests
     agents/faq_agent/tests
     agents/ops_agent/tests
     handoff/20250928/40_App/api-backend/tests
@@ -143,7 +138,6 @@ SUBPROJECTS = [
     "agents/dev_agent",
     "handoff/20250928/40_App/api-backend/src",
     "handoff/20250928/40_App/orchestrator",
-    "handoff/20250928/99_Original_Bundle",
     "orchestrator",
 ]
 
@@ -242,7 +236,7 @@ pytest
 
 ### Why Some Tests Are Excluded
 
-1. **Legacy Code**: `handoff/20250928/60_Design/testing` and `99_Original_Bundle` contain old code that's not part of the active codebase
+1. **Legacy Code**: `handoff/20250928/60_Design/testing` contains old code that's not part of the active codebase. `99_Original_Bundle` has been archived to GitHub releases (v1.0-legacy) to reduce repository size.
 
 2. **Module Import Issues**: Some tests use relative imports that only work when run from their own directory:
    ```python

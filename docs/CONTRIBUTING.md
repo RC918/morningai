@@ -1,5 +1,38 @@
 # Contribution Rules (Devin-friendly)
 
+## Setup Instructions
+
+### Python Dependencies
+
+MorningAI uses service-separated dependency management. Each service has its own `requirements.txt`:
+
+**Backend API Service**:
+```bash
+cd handoff/20250928/40_App/api-backend
+pip install -r requirements.txt
+```
+
+**Orchestrator Service**:
+```bash
+cd orchestrator
+pip install -r requirements.txt
+pip install -e .  # Install orchestrator package
+```
+
+**Development/Testing Tools** (root):
+```bash
+pip install -r requirements.txt  # pytest, flake8, python-dotenv
+```
+
+**Important**: 
+- Do NOT use root `requirements.txt` to run services
+- Each service has its own `requirements.txt` with all required dependencies
+- Root `requirements.txt` is only for development/testing tools
+
+For detailed requirements structure, see [README.md](../README.md#python-依賴管理).
+
+---
+
 ## 分工規則
 - **Design PR**：只允許改動 `docs/UX/**`, `docs/UX/tokens.json`, `docs/**.md`, `frontend/樣式與文案`。
   - 不得改動 `handoff/**/30_API/openapi/**`, `**/api/**`, `**/src/**` 的後端與 API 相關檔。

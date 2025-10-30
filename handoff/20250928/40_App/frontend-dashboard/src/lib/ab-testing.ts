@@ -12,11 +12,36 @@
 
 import * as Sentry from '@sentry/react'
 
+interface Variant {
+  id: string
+  name: string
+  weight?: number
+}
+
+interface ABTestOptions {
+  persistVariant?: boolean
+  trackingEnabled?: boolean
+}
+
+interface ABTestEvent {
+  timestamp: number
+  event: string
+  variant?: string
+  test_id?: string
+  [key: string]: any
+}
+
 /**
  * A/B Test Manager
  */
 class ABTest {
-  constructor(testId, variants, options = {}) {
+  testId: string
+  variants: Variant[]
+  options: Required<ABTestOptions>
+  assignedVariant: string | null
+  events: ABTestEvent[]
+
+  constructor(testId: string, variants: Variant[], options: ABTestOptions = {}) {
     this.testId = testId
     this.variants = variants
     this.options = {
@@ -35,16 +60,16 @@ class ABTest {
    * Load existing variant assignment or assign a new one
    * @private
    */
-  _loadOrAssignVariant() {
+  _loadOrAssignVariant(): void {
     if (this.options.persistVariant) {
       const stored = localStorage.getItem(`ab_test_${this.testId}`)
-      if (stored && this.variants.some(v => v.id === stored)) {
+      if (stored && this.variants.some((v: Variant) => v.id === stored)) {
         this.assignedVariant = stored
         return
       }
     }
 
-    const totalWeight = this.variants.reduce((sum, v) => sum + (v.weight || 1), 0)
+    const totalWeight = this.variants.reduce((sum: number, v: Variant) => sum + (v.weight || 1), 0)
     const random = Math.random() * totalWeight
     
     let cumulativeWeight = 0
@@ -56,7 +81,7 @@ class ABTest {
       }
     }
 
-    if (this.options.persistVariant) {
+    if (this.options.persistVariant && this.assignedVariant) {
       localStorage.setItem(`ab_test_${this.testId}`, this.assignedVariant)
     }
 
@@ -72,7 +97,7 @@ class ABTest {
    * Get the assigned variant
    * @returns {string} Variant ID
    */
-  getVariant() {
+  getVariant(): string | null {
     return this.assignedVariant
   }
 
@@ -80,8 +105,8 @@ class ABTest {
    * Get the variant configuration
    * @returns {object} Variant configuration
    */
-  getVariantConfig() {
-    return this.variants.find(v => v.id === this.assignedVariant)
+  getVariantConfig(): Variant | undefined {
+    return this.variants.find((v: Variant) => v.id === this.assignedVariant)
   }
 
   /**
@@ -89,7 +114,7 @@ class ABTest {
    * @param {string} variantId - Variant ID to check
    * @returns {boolean}
    */
-  isVariant(variantId) {
+  isVariant(variantId: string): boolean {
     return this.assignedVariant === variantId
   }
 
@@ -98,7 +123,7 @@ class ABTest {
    * @param {string} eventName - Event name
    * @param {object} metadata - Additional event metadata
    */
-  trackEvent(eventName, metadata = {}) {
+  trackEvent(eventName: string, metadata: Record<string, any> = {}): void {
     if (!this.options.trackingEnabled) return
 
     this._trackEvent(eventName, {
@@ -112,7 +137,7 @@ class ABTest {
    * Track conversion event
    * @param {object} metadata - Additional metadata
    */
-  trackConversion(metadata = {}) {
+  trackConversion(metadata: Record<string, any> = {}): void {
     this.trackEvent('conversion', metadata)
   }
 
@@ -121,7 +146,7 @@ class ABTest {
    * @param {string} target - Click target
    * @param {object} metadata - Additional metadata
    */
-  trackClick(target, metadata = {}) {
+  trackClick(target: string, metadata: Record<string, any> = {}): void {
     this.trackEvent('click', { target, ...metadata })
   }
 
@@ -129,8 +154,8 @@ class ABTest {
    * Internal event tracking
    * @private
    */
-  _trackEvent(eventName, data) {
-    const event = {
+  _trackEvent(eventName: string, data: Record<string, any>): void {
+    const event: ABTestEvent = {
       timestamp: Date.now(),
       event: eventName,
       ...data
@@ -143,14 +168,14 @@ class ABTest {
       tags: {
         type: 'ab_test',
         test_id: this.testId,
-        variant: this.assignedVariant,
+        variant: this.assignedVariant || undefined,
         event: eventName
       },
       extra: data
     })
 
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', eventName, {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', eventName, {
         event_category: 'ab_test',
         event_label: this.testId,
         ab_test_id: this.testId,
@@ -166,7 +191,7 @@ class ABTest {
    * Save events to localStorage
    * @private
    */
-  _saveEvents() {
+  _saveEvents(): void {
     try {
       const key = `ab_test_events_${this.testId}`
       const existing = JSON.parse(localStorage.getItem(key) || '[]')
@@ -182,7 +207,7 @@ class ABTest {
    * Get all events for this test
    * @returns {Array} Array of events
    */
-  getEvents() {
+  getEvents(): ABTestEvent[] {
     try {
       const key = `ab_test_events_${this.testId}`
       return JSON.parse(localStorage.getItem(key) || '[]')
@@ -196,7 +221,7 @@ class ABTest {
    * Export test data for analysis
    * @returns {object} Test data
    */
-  exportData() {
+  exportData(): any {
     return {
       test_id: this.testId,
       assigned_variant: this.assignedVariant,
@@ -209,7 +234,7 @@ class ABTest {
   /**
    * Reset variant assignment (for testing)
    */
-  reset() {
+  reset(): void {
     localStorage.removeItem(`ab_test_${this.testId}`)
     this._loadOrAssignVariant()
   }
@@ -219,6 +244,8 @@ class ABTest {
  * A/B Test Manager - Manages multiple tests
  */
 class ABTestManager {
+  tests: Map<string, ABTest>
+
   constructor() {
     this.tests = new Map()
   }
@@ -230,9 +257,9 @@ class ABTestManager {
    * @param {object} options - Test options
    * @returns {ABTest}
    */
-  createTest(testId, variants, options = {}) {
+  createTest(testId: string, variants: Variant[], options: ABTestOptions = {}): ABTest {
     if (this.tests.has(testId)) {
-      return this.tests.get(testId)
+      return this.tests.get(testId)!
     }
 
     const test = new ABTest(testId, variants, options)
@@ -245,7 +272,7 @@ class ABTestManager {
    * @param {string} testId - Test ID
    * @returns {ABTest|null}
    */
-  getTest(testId) {
+  getTest(testId: string): ABTest | null {
     return this.tests.get(testId) || null
   }
 
@@ -253,7 +280,7 @@ class ABTestManager {
    * Get all active tests
    * @returns {Array<ABTest>}
    */
-  getAllTests() {
+  getAllTests(): ABTest[] {
     return Array.from(this.tests.values())
   }
 
@@ -261,9 +288,9 @@ class ABTestManager {
    * Export all test data
    * @returns {object}
    */
-  exportAllData() {
+  exportAllData(): any {
     const data = {
-      tests: Array.from(this.tests.values()).map(test => test.exportData()),
+      tests: Array.from(this.tests.values()).map((test: ABTest) => test.exportData()),
       exported_at: new Date().toISOString()
     }
     return data
@@ -274,16 +301,16 @@ class ABTestManager {
    * @param {string} testId - Test ID
    * @returns {object} Test results
    */
-  calculateResults(testId) {
+  calculateResults(testId: string): any {
     const test = this.getTest(testId)
     if (!test) {
       throw new Error(`Test ${testId} not found`)
     }
 
     const events = test.getEvents()
-    const variantStats = {}
+    const variantStats: Record<string, any> = {}
 
-    test.variants.forEach(variant => {
+    test.variants.forEach((variant: Variant) => {
       variantStats[variant.id] = {
         variant_id: variant.id,
         variant_name: variant.name,
@@ -295,9 +322,9 @@ class ABTestManager {
       }
     })
 
-    events.forEach(event => {
+    events.forEach((event: ABTestEvent) => {
       const variant = event.variant
-      if (!variantStats[variant]) return
+      if (!variant || !variantStats[variant]) return
 
       if (event.event === 'variant_assigned') {
         variantStats[variant].assignments++
@@ -308,7 +335,7 @@ class ABTestManager {
       }
     })
 
-    Object.values(variantStats).forEach(stats => {
+    Object.values(variantStats).forEach((stats: any) => {
       if (stats.assignments > 0) {
         stats.conversion_rate = (stats.conversions / stats.assignments * 100).toFixed(2)
         stats.click_rate = (stats.clicks / stats.assignments * 100).toFixed(2)
@@ -350,8 +377,8 @@ class ABTestManager {
       test_id: testId,
       variants: variantStats,
       significance,
-      total_assignments: Object.values(variantStats).reduce((sum, v) => sum + v.assignments, 0),
-      total_conversions: Object.values(variantStats).reduce((sum, v) => sum + v.conversions, 0),
+      total_assignments: Object.values(variantStats).reduce((sum: number, v: any) => sum + v.assignments, 0),
+      total_conversions: Object.values(variantStats).reduce((sum: number, v: any) => sum + v.conversions, 0),
       calculated_at: new Date().toISOString()
     }
   }
@@ -360,7 +387,7 @@ class ABTestManager {
    * Normal CDF approximation for p-value calculation
    * @private
    */
-  _normalCDF(x) {
+  _normalCDF(x: number): number {
     const t = 1 / (1 + 0.2316419 * Math.abs(x))
     const d = 0.3989423 * Math.exp(-x * x / 2)
     const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))))
@@ -389,7 +416,7 @@ const abTestManager = new ABTestManager()
  * 
  * test.trackConversion()
  */
-export function createABTest(testId, variants, options = {}) {
+export function createABTest(testId: string, variants: Variant[], options: ABTestOptions = {}): ABTest {
   return abTestManager.createTest(testId, variants, options)
 }
 
@@ -398,7 +425,7 @@ export function createABTest(testId, variants, options = {}) {
  * @param {string} testId - Test ID
  * @returns {ABTest|null}
  */
-export function getABTest(testId) {
+export function getABTest(testId: string): ABTest | null {
   return abTestManager.getTest(testId)
 }
 
@@ -407,7 +434,7 @@ export function getABTest(testId) {
  * @param {string} testId - Test ID
  * @returns {object} Test results
  */
-export function calculateABTestResults(testId) {
+export function calculateABTestResults(testId: string): any {
   return abTestManager.calculateResults(testId)
 }
 
@@ -415,7 +442,7 @@ export function calculateABTestResults(testId) {
  * Export all A/B test data
  * @returns {object}
  */
-export function exportAllABTestData() {
+export function exportAllABTestData(): any {
   return abTestManager.exportAllData()
 }
 
@@ -426,16 +453,16 @@ export function exportAllABTestData() {
  * @param {object} options - Test options
  * @returns {object} { variant, isVariant, trackEvent, trackConversion, trackClick }
  */
-export function useABTest(testId, variants, options = {}) {
+export function useABTest(testId: string, variants: Variant[], options: ABTestOptions = {}): any {
   const test = createABTest(testId, variants, options)
   
   return {
     variant: test.getVariant(),
     variantConfig: test.getVariantConfig(),
-    isVariant: (variantId) => test.isVariant(variantId),
-    trackEvent: (eventName, metadata) => test.trackEvent(eventName, metadata),
-    trackConversion: (metadata) => test.trackConversion(metadata),
-    trackClick: (target, metadata) => test.trackClick(target, metadata)
+    isVariant: (variantId: string) => test.isVariant(variantId),
+    trackEvent: (eventName: string, metadata?: Record<string, any>) => test.trackEvent(eventName, metadata),
+    trackConversion: (metadata?: Record<string, any>) => test.trackConversion(metadata),
+    trackClick: (target: string, metadata?: Record<string, any>) => test.trackClick(target, metadata)
   }
 }
 

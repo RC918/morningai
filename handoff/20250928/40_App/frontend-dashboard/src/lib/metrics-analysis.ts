@@ -12,10 +12,39 @@
 
 import * as Sentry from '@sentry/react'
 
+interface Metric {
+  category: string
+  name: string
+  value: number
+  timestamp: number
+  url: string
+  [key: string]: any
+}
+
+interface WebVitals {
+  [key: string]: number
+}
+
+interface PerformanceEntry {
+  name: string
+  duration: number
+  entryType: string
+  startTime: number
+  renderTime?: number
+  loadTime?: number
+  hadRecentInput?: boolean
+  value?: number
+}
+
 /**
  * Metrics Collector
  */
 class MetricsCollector {
+  metrics: Metric[]
+  webVitals: WebVitals
+  customMetrics: Record<string, any>
+  isCollecting: boolean
+
   constructor() {
     this.metrics = []
     this.webVitals = {}
@@ -26,7 +55,7 @@ class MetricsCollector {
   /**
    * Start collecting metrics
    */
-  startCollection() {
+  startCollection(): void {
     this.isCollecting = true
     this._initWebVitalsObserver()
     this._initPerformanceObserver()
@@ -36,7 +65,7 @@ class MetricsCollector {
   /**
    * Stop collecting metrics
    */
-  stopCollection() {
+  stopCollection(): void {
     this.isCollecting = false
     console.log('[Metrics] Collection stopped')
   }
@@ -45,14 +74,14 @@ class MetricsCollector {
    * Initialize Web Vitals observer
    * @private
    */
-  _initWebVitalsObserver() {
+  _initWebVitalsObserver(): void {
     if (typeof window === 'undefined') return
 
     if ('PerformanceObserver' in window) {
       try {
         const lcpObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries()
-          const lastEntry = entries[entries.length - 1]
+          const lastEntry = entries[entries.length - 1] as any
           this.recordWebVital('LCP', lastEntry.renderTime || lastEntry.loadTime)
         })
         lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] })
@@ -63,7 +92,7 @@ class MetricsCollector {
       try {
         const fcpObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries()
-          entries.forEach((entry) => {
+          entries.forEach((entry: any) => {
             if (entry.name === 'first-contentful-paint') {
               this.recordWebVital('FCP', entry.startTime)
             }
@@ -77,7 +106,7 @@ class MetricsCollector {
       try {
         let clsValue = 0
         const clsObserver = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) {
+          for (const entry of list.getEntries() as any[]) {
             if (!entry.hadRecentInput) {
               clsValue += entry.value
               this.recordWebVital('CLS', clsValue)
@@ -92,7 +121,7 @@ class MetricsCollector {
       try {
         const inpObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries()
-          entries.forEach((entry) => {
+          entries.forEach((entry: any) => {
             this.recordWebVital('INP', entry.duration)
           })
         })
@@ -102,8 +131,9 @@ class MetricsCollector {
       }
     }
 
-    if (window.performance && window.performance.timing) {
-      const ttfb = window.performance.timing.responseStart - window.performance.timing.requestStart
+    if (window.performance && (window.performance as any).timing) {
+      const timing = (window.performance as any).timing
+      const ttfb = timing.responseStart - timing.requestStart
       this.recordWebVital('TTFB', ttfb)
     }
   }
@@ -112,7 +142,7 @@ class MetricsCollector {
    * Initialize Performance Observer
    * @private
    */
-  _initPerformanceObserver() {
+  _initPerformanceObserver(): void {
     if (typeof window === 'undefined' || !('PerformanceObserver' in window)) return
 
     try {
@@ -135,7 +165,7 @@ class MetricsCollector {
    * @param {string} name - Metric name (LCP, CLS, INP, FCP, TTFB)
    * @param {number} value - Metric value
    */
-  recordWebVital(name, value) {
+  recordWebVital(name: string, value: number): void {
     if (!this.isCollecting) return
 
     this.webVitals[name] = value
@@ -165,10 +195,10 @@ class MetricsCollector {
    * @param {number} value - Metric value
    * @param {object} metadata - Additional metadata
    */
-  recordMetric(category, name, value, metadata = {}) {
+  recordMetric(category: string, name: string, value: number, metadata: Record<string, any> = {}): void {
     if (!this.isCollecting) return
 
-    const metric = {
+    const metric: Metric = {
       category,
       name,
       value,
@@ -186,7 +216,7 @@ class MetricsCollector {
    * @param {number} ttv - Time to value in milliseconds
    * @param {object} metadata - Additional metadata
    */
-  recordTTV(ttv, metadata = {}) {
+  recordTTV(ttv: number, metadata: Record<string, any> = {}): void {
     this.recordMetric('ux', 'TTV', ttv, metadata)
   }
 
@@ -196,7 +226,7 @@ class MetricsCollector {
    * @param {boolean} success - Whether task was successful
    * @param {number} duration - Task duration in milliseconds
    */
-  recordTaskCompletion(taskId, success, duration) {
+  recordTaskCompletion(taskId: string, success: boolean, duration: number): void {
     this.recordMetric('task', taskId, duration, {
       success,
       success_rate: success ? 100 : 0
@@ -208,7 +238,7 @@ class MetricsCollector {
    * @param {string} errorType - Error type
    * @param {string} message - Error message
    */
-  recordError(errorType, message) {
+  recordError(errorType: string, message: string): void {
     this.recordMetric('error', errorType, 1, { message })
   }
 
@@ -216,7 +246,7 @@ class MetricsCollector {
    * Get all metrics
    * @returns {Array} Array of metrics
    */
-  getAllMetrics() {
+  getAllMetrics(): Metric[] {
     return this.metrics
   }
 
@@ -225,15 +255,15 @@ class MetricsCollector {
    * @param {string} category - Category name
    * @returns {Array} Filtered metrics
    */
-  getMetricsByCategory(category) {
-    return this.metrics.filter(m => m.category === category)
+  getMetricsByCategory(category: string): Metric[] {
+    return this.metrics.filter((m: Metric) => m.category === category)
   }
 
   /**
    * Get Web Vitals summary
    * @returns {object} Web Vitals data
    */
-  getWebVitals() {
+  getWebVitals(): WebVitals {
     return { ...this.webVitals }
   }
 
@@ -241,7 +271,7 @@ class MetricsCollector {
    * Save metrics to localStorage
    * @private
    */
-  _saveMetrics() {
+  _saveMetrics(): void {
     try {
       const key = 'metrics_data'
       const existing = JSON.parse(localStorage.getItem(key) || '[]')
@@ -260,7 +290,7 @@ class MetricsCollector {
    * Load metrics from localStorage
    * @returns {Array} Loaded metrics
    */
-  static loadMetrics() {
+  static loadMetrics(): Metric[] {
     try {
       const key = 'metrics_data'
       return JSON.parse(localStorage.getItem(key) || '[]')
@@ -273,7 +303,7 @@ class MetricsCollector {
   /**
    * Clear all metrics
    */
-  static clearMetrics() {
+  static clearMetrics(): void {
     localStorage.removeItem('metrics_data')
   }
 
@@ -281,7 +311,7 @@ class MetricsCollector {
    * Export metrics data
    * @returns {object} Exported data
    */
-  exportData() {
+  exportData(): any {
     return {
       web_vitals: this.webVitals,
       metrics: MetricsCollector.loadMetrics(),
@@ -300,8 +330,8 @@ class MetricsAnalyzer {
    * @param {object} baseline - Baseline metrics for comparison
    * @returns {object} Analysis report
    */
-  static analyze(metrics, baseline = null) {
-    const report = {
+  static analyze(metrics: Metric[], baseline: any = null): any {
+    const report: any = {
       summary: this._generateSummary(metrics),
       web_vitals: this._analyzeWebVitals(metrics),
       ux_metrics: this._analyzeUXMetrics(metrics),
@@ -322,13 +352,13 @@ class MetricsAnalyzer {
    * Generate summary statistics
    * @private
    */
-  static _generateSummary(metrics) {
+  static _generateSummary(metrics: Metric[]): any {
     return {
       total_metrics: metrics.length,
-      categories: [...new Set(metrics.map(m => m.category))],
+      categories: [...new Set(metrics.map((m: Metric) => m.category))],
       time_range: {
-        start: metrics.length > 0 ? new Date(Math.min(...metrics.map(m => m.timestamp))).toISOString() : null,
-        end: metrics.length > 0 ? new Date(Math.max(...metrics.map(m => m.timestamp))).toISOString() : null
+        start: metrics.length > 0 ? new Date(Math.min(...metrics.map((m: Metric) => m.timestamp))).toISOString() : null,
+        end: metrics.length > 0 ? new Date(Math.max(...metrics.map((m: Metric) => m.timestamp))).toISOString() : null
       }
     }
   }
@@ -337,13 +367,13 @@ class MetricsAnalyzer {
    * Analyze Web Vitals
    * @private
    */
-  static _analyzeWebVitals(metrics) {
-    const webVitals = metrics.filter(m => m.category === 'web_vital')
-    const vitals = {}
+  static _analyzeWebVitals(metrics: Metric[]): any {
+    const webVitals = metrics.filter((m: Metric) => m.category === 'web_vital')
+    const vitals: Record<string, any> = {}
 
     const vitalNames = ['LCP', 'CLS', 'INP', 'FCP', 'TTFB']
-    vitalNames.forEach(name => {
-      const values = webVitals.filter(m => m.name === name).map(m => m.value)
+    vitalNames.forEach((name: string) => {
+      const values = webVitals.filter((m: Metric) => m.name === name).map((m: Metric) => m.value)
       if (values.length > 0) {
         vitals[name] = {
           current: values[values.length - 1],
@@ -364,10 +394,10 @@ class MetricsAnalyzer {
    * Analyze UX metrics
    * @private
    */
-  static _analyzeUXMetrics(metrics) {
-    const uxMetrics = metrics.filter(m => m.category === 'ux')
+  static _analyzeUXMetrics(metrics: Metric[]): any {
+    const uxMetrics = metrics.filter((m: Metric) => m.category === 'ux')
     
-    const ttvValues = uxMetrics.filter(m => m.name === 'TTV').map(m => m.value)
+    const ttvValues = uxMetrics.filter((m: Metric) => m.name === 'TTV').map((m: Metric) => m.value)
     
     return {
       ttv: ttvValues.length > 0 ? {
@@ -384,23 +414,23 @@ class MetricsAnalyzer {
    * Analyze task performance
    * @private
    */
-  static _analyzeTaskPerformance(metrics) {
-    const taskMetrics = metrics.filter(m => m.category === 'task')
+  static _analyzeTaskPerformance(metrics: Metric[]): any {
+    const taskMetrics = metrics.filter((m: Metric) => m.category === 'task')
     
     const totalTasks = taskMetrics.length
-    const successfulTasks = taskMetrics.filter(m => m.success).length
+    const successfulTasks = taskMetrics.filter((m: any) => m.success).length
     const successRate = totalTasks > 0 ? (successfulTasks / totalTasks * 100).toFixed(2) : 0
 
-    const durations = taskMetrics.map(m => m.value)
+    const durations = taskMetrics.map((m: Metric) => m.value)
 
     return {
       total_tasks: totalTasks,
       successful_tasks: successfulTasks,
       failed_tasks: totalTasks - successfulTasks,
-      success_rate: parseFloat(successRate),
+      success_rate: parseFloat(successRate as string),
       avg_duration: durations.length > 0 ? this._average(durations) : 0,
       median_duration: durations.length > 0 ? this._median(durations) : 0,
-      status: successRate >= 90 ? 'excellent' : successRate >= 75 ? 'good' : 'needs_improvement'
+      status: parseFloat(successRate as string) >= 90 ? 'excellent' : parseFloat(successRate as string) >= 75 ? 'good' : 'needs_improvement'
     }
   }
 
@@ -408,11 +438,11 @@ class MetricsAnalyzer {
    * Analyze errors
    * @private
    */
-  static _analyzeErrors(metrics) {
-    const errorMetrics = metrics.filter(m => m.category === 'error')
+  static _analyzeErrors(metrics: Metric[]): any {
+    const errorMetrics = metrics.filter((m: Metric) => m.category === 'error')
     
-    const errorsByType = {}
-    errorMetrics.forEach(m => {
+    const errorsByType: Record<string, number> = {}
+    errorMetrics.forEach((m: Metric) => {
       if (!errorsByType[m.name]) {
         errorsByType[m.name] = 0
       }
@@ -430,10 +460,10 @@ class MetricsAnalyzer {
    * Analyze trends over time
    * @private
    */
-  static _analyzeTrends(metrics) {
-    const metricsByDay = {}
+  static _analyzeTrends(metrics: Metric[]): any {
+    const metricsByDay: Record<string, Metric[]> = {}
     
-    metrics.forEach(m => {
+    metrics.forEach((m: Metric) => {
       const date = new Date(m.timestamp).toISOString().split('T')[0]
       if (!metricsByDay[date]) {
         metricsByDay[date] = []
@@ -444,7 +474,7 @@ class MetricsAnalyzer {
     const days = Object.keys(metricsByDay).sort()
     
     return {
-      daily_counts: days.map(day => ({
+      daily_counts: days.map((day: string) => ({
         date: day,
         count: metricsByDay[day].length
       })),
@@ -458,13 +488,13 @@ class MetricsAnalyzer {
    * Analyze regression compared to baseline
    * @private
    */
-  static _analyzeRegression(metrics, baseline) {
+  static _analyzeRegression(metrics: Metric[], baseline: any): any {
     const current = this.analyze(metrics)
-    const regression = {}
+    const regression: any = {}
 
     if (baseline.web_vitals && current.web_vitals) {
       regression.web_vitals = {}
-      Object.keys(baseline.web_vitals).forEach(vital => {
+      Object.keys(baseline.web_vitals).forEach((vital: string) => {
         if (current.web_vitals[vital]) {
           const baselineValue = baseline.web_vitals[vital].average
           const currentValue = current.web_vitals[vital].average
@@ -500,11 +530,11 @@ class MetricsAnalyzer {
    * Generate recommendations based on analysis
    * @private
    */
-  static _generateRecommendations(report) {
-    const recommendations = []
+  static _generateRecommendations(report: any): any[] {
+    const recommendations: any[] = []
 
     if (report.web_vitals) {
-      Object.entries(report.web_vitals).forEach(([vital, data]) => {
+      Object.entries(report.web_vitals).forEach(([vital, data]: [string, any]) => {
         if (data.status === 'needs_improvement' || data.status === 'poor') {
           recommendations.push({
             category: 'web_vitals',
@@ -542,8 +572,8 @@ class MetricsAnalyzer {
    * Get Web Vital status
    * @private
    */
-  static _getWebVitalStatus(name, value) {
-    const thresholds = {
+  static _getWebVitalStatus(name: string, value: number): string {
+    const thresholds: Record<string, { good: number; needs_improvement: number }> = {
       LCP: { good: 2500, needs_improvement: 4000 },
       CLS: { good: 0.1, needs_improvement: 0.25 },
       INP: { good: 200, needs_improvement: 500 },
@@ -563,7 +593,7 @@ class MetricsAnalyzer {
    * Check if Web Vital improved
    * @private
    */
-  static _isWebVitalImproved(name, baseline, current) {
+  static _isWebVitalImproved(name: string, baseline: number, current: number): boolean {
     return current < baseline
   }
 
@@ -571,8 +601,8 @@ class MetricsAnalyzer {
    * Get Web Vital suggestion
    * @private
    */
-  static _getWebVitalSuggestion(vital) {
-    const suggestions = {
+  static _getWebVitalSuggestion(vital: string): string {
+    const suggestions: Record<string, string> = {
       LCP: 'Optimize images, use CDN, implement lazy loading, reduce server response time',
       CLS: 'Set explicit dimensions for images/videos, avoid inserting content above existing content',
       INP: 'Optimize JavaScript execution, reduce main thread work, use web workers',
@@ -586,16 +616,16 @@ class MetricsAnalyzer {
    * Calculate average
    * @private
    */
-  static _average(values) {
-    return values.reduce((sum, v) => sum + v, 0) / values.length
+  static _average(values: number[]): number {
+    return values.reduce((sum: number, v: number) => sum + v, 0) / values.length
   }
 
   /**
    * Calculate median
    * @private
    */
-  static _median(values) {
-    const sorted = [...values].sort((a, b) => a - b)
+  static _median(values: number[]): number {
+    const sorted = [...values].sort((a: number, b: number) => a - b)
     const mid = Math.floor(sorted.length / 2)
     return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
   }
@@ -604,8 +634,8 @@ class MetricsAnalyzer {
    * Calculate percentile
    * @private
    */
-  static _percentile(values, p) {
-    const sorted = [...values].sort((a, b) => a - b)
+  static _percentile(values: number[], p: number): number {
+    const sorted = [...values].sort((a: number, b: number) => a - b)
     const index = Math.ceil((p / 100) * sorted.length) - 1
     return sorted[index]
   }
@@ -616,28 +646,28 @@ const metricsCollector = new MetricsCollector()
 /**
  * Start metrics collection
  */
-export function startMetricsCollection() {
+export function startMetricsCollection(): void {
   metricsCollector.startCollection()
 }
 
 /**
  * Stop metrics collection
  */
-export function stopMetricsCollection() {
+export function stopMetricsCollection(): void {
   metricsCollector.stopCollection()
 }
 
 /**
  * Record a custom metric
  */
-export function recordMetric(category, name, value, metadata) {
+export function recordMetric(category: string, name: string, value: number, metadata?: Record<string, any>): void {
   metricsCollector.recordMetric(category, name, value, metadata)
 }
 
 /**
  * Get metrics analysis report
  */
-export function getMetricsReport(baseline = null) {
+export function getMetricsReport(baseline: any = null): any {
   const metrics = MetricsCollector.loadMetrics()
   return MetricsAnalyzer.analyze(metrics, baseline)
 }
@@ -645,7 +675,7 @@ export function getMetricsReport(baseline = null) {
 /**
  * Export metrics data
  */
-export function exportMetricsData() {
+export function exportMetricsData(): any {
   return metricsCollector.exportData()
 }
 

@@ -87,6 +87,11 @@ morningai/
 ├── docs/                       # Documentation
 ├── config/                     # Configuration files
 ├── tests/                      # Root-level tests
+├── phase4_meta_agent_api.py   # Phase 4 API module (imported by backend)
+├── phase5_data_intelligence_api.py  # Phase 5 API module (imported by backend)
+├── phase6_security_governance_api.py  # Phase 6 API module (imported by backend)
+├── phase6_startup.py          # Phase 6 initialization (imported by backend)
+├── phase7_startup.py          # Phase 7 initialization (imported by backend)
 ├── .env.example               # Environment variables template
 ├── .gitignore                 # Git ignore rules
 ├── package.json               # Root package.json (pnpm workspace)
@@ -95,6 +100,57 @@ morningai/
 ├── README.md                  # Project overview
 └── turbo.json                 # Turbo configuration
 ```
+
+### Phase API Modules (Root Directory)
+
+**Location**: Root directory (`/`)
+
+**Purpose**: Production backend API modules for Phases 4-7
+
+The following files are production backend modules imported by `handoff/20250928/40_App/api-backend/src/main.py`:
+
+- **`phase4_meta_agent_api.py`**: Meta-agent coordination API
+  - Implements OODA loop (Observe, Orient, Decide, Act)
+  - LangGraph workflow engine
+  - AI governance console
+  - Status: PRODUCTION
+  - Related: ADR-003 (Backend of Record)
+
+- **`phase5_data_intelligence_api.py`**: Data intelligence and BI API
+  - QuickSight integration
+  - Growth marketing engine
+  - Referral programs
+  - Business intelligence dashboards
+  - Status: PRODUCTION
+  - Related: ADR-003 (Backend of Record)
+
+- **`phase6_security_governance_api.py`**: Security and governance API
+  - Zero Trust security model
+  - SecurityReviewer Agent
+  - HITL (Human-in-the-Loop) security analysis
+  - Security audit system
+  - Status: PRODUCTION
+  - Related: ADR-003 (Backend of Record)
+
+- **`phase6_startup.py`**: Phase 6 initialization script
+  - Starts monitoring system
+  - Starts security manager
+  - Starts Meta-Agent decision hub
+  - Starts AI governance module
+  - Status: PRODUCTION
+  - Related: ADR-003 (Backend of Record)
+
+- **`phase7_startup.py`**: Phase 7 initialization script
+  - Initializes Ops_Agent, Growth_Strategist, PM_Agent
+  - Integrates Phase 6 components
+  - Manages HITL approval system
+  - Background task coordination
+  - Status: PRODUCTION
+  - Related: ADR-003 (Backend of Record)
+
+**Why in root directory?** Historical reasons. These modules were developed during Phase 4-7 implementation and are imported by the backend at `handoff/20250928/40_App/api-backend/src/main.py`.
+
+**Future plan**: Move to `handoff/20250928/40_App/api-backend/src/phases/` directory in future refactor (tracked separately).
 
 ### GitHub Configuration (`.github/`)
 

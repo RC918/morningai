@@ -3,11 +3,27 @@
  * Provides motion governance with reduced-motion support and IntersectionObserver
  */
 
-export const prefersReducedMotion = () => {
+import * as React from 'react'
+
+interface AnimationVariant {
+  initial: Record<string, number>
+  animate: Record<string, number>
+  exit: Record<string, number>
+}
+
+interface AnimationObserverOptions {
+  threshold?: number
+  rootMargin?: string
+  triggerOnce?: boolean
+}
+
+type AnimationCallback = (element: Element, isVisible: boolean) => void
+
+export const prefersReducedMotion = (): boolean => {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-export const getAnimationVariants = (type = 'fade') => {
+export const getAnimationVariants = (type: string = 'fade'): AnimationVariant => {
   if (prefersReducedMotion()) {
     return {
       initial: { opacity: 1 },
@@ -16,7 +32,7 @@ export const getAnimationVariants = (type = 'fade') => {
     }
   }
 
-  const variants = {
+  const variants: Record<string, AnimationVariant> = {
     fade: {
       initial: { opacity: 0 },
       animate: { opacity: 1 },
@@ -52,7 +68,7 @@ export const getAnimationVariants = (type = 'fade') => {
   return variants[type] || variants.fade
 }
 
-export const getTransition = (duration = 0.3, delay = 0) => {
+export const getTransition = (duration: number = 0.3, delay: number = 0): any => {
   if (prefersReducedMotion()) {
     return { duration: 0 }
   }
@@ -65,7 +81,11 @@ export const getTransition = (duration = 0.3, delay = 0) => {
 }
 
 export class AnimationObserver {
-  constructor(options = {}) {
+  options: Required<AnimationObserverOptions>
+  observer: IntersectionObserver | null
+  elements: Map<Element, AnimationCallback>
+
+  constructor(options: AnimationObserverOptions = {}) {
     this.options = {
       threshold: options.threshold || 0.1,
       rootMargin: options.rootMargin || '0px',
@@ -75,7 +95,7 @@ export class AnimationObserver {
     this.elements = new Map()
   }
 
-  observe(element, callback) {
+  observe(element: Element, callback: AnimationCallback): void {
     if (!element || prefersReducedMotion()) {
       if (callback) callback(element, true)
       return
@@ -102,14 +122,14 @@ export class AnimationObserver {
     this.observer.observe(element)
   }
 
-  unobserve(element) {
+  unobserve(element: Element): void {
     if (this.observer && element) {
       this.observer.unobserve(element)
       this.elements.delete(element)
     }
   }
 
-  disconnect() {
+  disconnect(): void {
     if (this.observer) {
       this.observer.disconnect()
       this.elements.clear()
@@ -117,7 +137,7 @@ export class AnimationObserver {
   }
 }
 
-export const useScrollAnimation = (ref, options = {}) => {
+export const useScrollAnimation = (ref: React.RefObject<Element>, options: AnimationObserverOptions = {}): boolean => {
   const [isVisible, setIsVisible] = React.useState(false)
 
   React.useEffect(() => {
@@ -138,7 +158,7 @@ export const useScrollAnimation = (ref, options = {}) => {
 let activeAnimations = 0
 const MAX_ANIMATIONS = 3
 
-export const requestAnimation = () => {
+export const requestAnimation = (): boolean => {
   if (prefersReducedMotion()) return false
   if (activeAnimations >= MAX_ANIMATIONS) return false
   
@@ -146,12 +166,12 @@ export const requestAnimation = () => {
   return true
 }
 
-export const releaseAnimation = () => {
+export const releaseAnimation = (): void => {
   activeAnimations = Math.max(0, activeAnimations - 1)
 }
 
-export const withMotionBudget = (Component) => {
-  return (props) => {
+export const withMotionBudget = (Component: React.ComponentType<any>): React.FC<any> => {
+  return (props: any) => {
     const canAnimate = requestAnimation()
     
     React.useEffect(() => {
@@ -166,7 +186,7 @@ export const withMotionBudget = (Component) => {
   }
 }
 
-export const getMotionClass = (animationClass) => {
+export const getMotionClass = (animationClass: string): string => {
   if (prefersReducedMotion()) {
     return ''
   }
