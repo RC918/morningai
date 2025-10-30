@@ -10,9 +10,21 @@ Tests all 12 OpenAPI endpoints:
 import pytest
 import json
 import uuid
+from copy import deepcopy
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 from src.main import app
+from src.routes.agent_registry import agents_store, tasks_store
+
+
+@pytest.fixture(autouse=True)
+def reset_stores():
+    """Clear in-memory stores before each test to prevent cross-test contamination"""
+    agents_store.clear()
+    tasks_store.clear()
+    yield
+    agents_store.clear()
+    tasks_store.clear()
 
 
 @pytest.fixture
@@ -106,8 +118,9 @@ def test_list_agents(client, admin_headers, sample_agent_data):
     assert response.status_code == 200
     data = json.loads(response.data)
     assert 'agents' in data
-    assert 'total' in data
-    assert 'page' in data
+    assert 'pagination' in data
+    assert data['pagination']['page'] == 1
+    assert data['pagination']['total_items'] >= 1
     assert len(data['agents']) > 0
 
 
@@ -120,7 +133,7 @@ def test_list_agents_with_filters(client, admin_headers, sample_agent_data):
     )
     
     response = client.get(
-        '/api/v1/agents?status=inactive',
+        '/api/v1/agents?status=idle',
         headers=admin_headers
     )
     
@@ -132,8 +145,9 @@ def test_list_agents_with_filters(client, admin_headers, sample_agent_data):
 def test_list_agents_pagination(client, admin_headers, sample_agent_data):
     """Test GET /api/v1/agents - Pagination"""
     for i in range(3):
-        agent_data = sample_agent_data.copy()
-        agent_data['name'] = f"Agent {i}"
+        agent_data = deepcopy(sample_agent_data)
+        agent_data['metadata']['name'] = f"Agent {i}"
+        agent_data['capabilities'] = [f"capability_{i}"]
         client.post(
             '/api/v1/agents',
             data=json.dumps(agent_data),
@@ -148,7 +162,7 @@ def test_list_agents_pagination(client, admin_headers, sample_agent_data):
     assert response.status_code == 200
     data = json.loads(response.data)
     assert len(data['agents']) <= 2
-    assert data['page'] == 1
+    assert data['pagination']['page'] == 1
 
 
 def test_get_agent_by_id(client, admin_headers, sample_agent_data):
@@ -164,8 +178,8 @@ def test_get_agent_by_id(client, admin_headers, sample_agent_data):
     
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data['id'] == agent_id
-    assert data['name'] == sample_agent_data['name']
+    assert data['agent_id'] == agent_id
+    assert data['metadata']['name'] == sample_agent_data['metadata']['name']
 
 
 def test_get_agent_not_found(client, admin_headers):
@@ -189,7 +203,7 @@ def test_update_agent(client, admin_headers, sample_agent_data):
     )
     agent_id = json.loads(create_response.data)['agent_id']
     
-    update_data = {"status": "active", "description": "Updated description"}
+    update_data = {"status": "active", "metadata": {"description": "Updated description"}}
     response = client.patch(
         f'/api/v1/agents/{agent_id}',
         data=json.dumps(update_data),
@@ -199,7 +213,7 @@ def test_update_agent(client, admin_headers, sample_agent_data):
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data['status'] == 'active'
-    assert data['description'] == 'Updated description'
+    assert data['metadata']['description'] == 'Updated description'
 
 
 def test_delete_agent(client, admin_headers, sample_agent_data):
@@ -247,7 +261,7 @@ def test_report_agent_health(client, admin_headers, sample_agent_data):
     agent_id = json.loads(create_response.data)['agent_id']
     
     health_data = {
-        "status": "healthy",
+        "status": "active",
         "metrics": {
             "cpu_usage": 45.2,
             "memory_usage": 60.5,
@@ -262,7 +276,7 @@ def test_report_agent_health(client, admin_headers, sample_agent_data):
     
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data['status'] == 'healthy'
+    assert data['status'] == 'active'
 
 
 
