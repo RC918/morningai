@@ -8,7 +8,7 @@ const ACTIONS = {
   CLEAR_HISTORY: 'CLEAR_HISTORY'
 }
 
-const undoRedoReducer = (state, action) => {
+const undoRedoReducer = (state: any, action: any) => {
   switch (action.type) {
     case ACTIONS.SET_STATE: {
       const { newState, maxHistory } = action.payload
@@ -103,7 +103,7 @@ const undoRedoReducer = (state, action) => {
  *   clearHistory
  * } = useUndoRedo(initialWidgets)
  */
-export const useUndoRedo = (initialState, options = {}) => {
+export const useUndoRedo = (initialState: any, options: any = {}) => {
   const { maxHistory = 50 } = options
   
   const [internalState, dispatch] = useReducer(undoRedoReducer, {
@@ -120,7 +120,7 @@ export const useUndoRedo = (initialState, options = {}) => {
    * Set a new state and add it to history
    * Clears any redo history after current index
    */
-  const setState = useCallback((newState) => {
+  const setState = useCallback((newState: any) => {
     dispatch({
       type: ACTIONS.SET_STATE,
       payload: { newState, maxHistory }

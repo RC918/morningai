@@ -111,7 +111,10 @@ export const moveFocus = (container: HTMLElement, reverse: boolean = false): voi
   if (nextIndex < 0) nextIndex = focusableElements.length - 1
   if (nextIndex >= focusableElements.length) nextIndex = 0
   
-  (focusableElements[nextIndex] as HTMLElement)?.focus()
+  const nextElement = focusableElements[nextIndex] as HTMLElement
+  if (nextElement && typeof nextElement.focus === 'function') {
+    nextElement.focus()
+  }
 }
 
 /**

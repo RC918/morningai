@@ -47,7 +47,7 @@ const customLanguageDetector = {
     }
 
     try {
-      const browserLang = navigator.language || navigator.userLanguage
+      const browserLang = navigator.language || (navigator as any).userLanguage
       
       if (!browserLang) {
         return 'en-US'
@@ -73,7 +73,7 @@ const customLanguageDetector = {
       return 'en-US'
     }
   },
-  cacheUserLanguage(lng) {
+  cacheUserLanguage(lng: string) {
     if (!isBrowser() || !isLocalStorageAvailable()) {
       return
     }

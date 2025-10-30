@@ -1,6 +1,11 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com'
 
-export const customFetch = async (options) => {
+export const apiClient = async <T>(url: string, options?: RequestInit): Promise<T> => {
+  const response = await customFetch({ url, ...options })
+  return response as T
+}
+
+export const customFetch = async (options: any) => {
   const { url, ...fetchOptions } = options
   
   const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`
@@ -40,7 +45,7 @@ export const customFetch = async (options) => {
       }
       
       const errorData = await response.json().catch(() => ({}))
-      const error = new Error(errorData.error?.message || `HTTP error! status: ${response.status}`)
+      const error: any = new Error(errorData.error?.message || `HTTP error! status: ${response.status}`)
       error.status = response.status
       throw error
     }

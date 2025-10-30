@@ -243,6 +243,7 @@ describe('AppleButton', () => {
         type: 'spring' as const,
         stiffness: 300,
         damping: 30,
+        mass: 1,
       };
       vi.mocked(springAnimation.getSpringConfig).mockReturnValue(mockConfig);
       

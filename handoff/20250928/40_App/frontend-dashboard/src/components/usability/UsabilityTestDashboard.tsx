@@ -169,10 +169,10 @@ export function UsabilityTestDashboard(): React.ReactElement {
 
   const loadSessions = (): void => {
     const sessionIds: string[] = usabilityTest.listSessions()
-    const loadedSessions: Session[] = sessionIds
+    const loadedSessions: any[] = sessionIds
       .map((id: string) => usabilityTest.loadSession(id))
       .filter(Boolean)
-      .sort((a: Session, b: Session) => b.startTime - a.startTime)
+      .sort((a: any, b: any) => b.startTime - a.startTime)
     setSessions(loadedSessions)
   }
 
@@ -193,7 +193,7 @@ export function UsabilityTestDashboard(): React.ReactElement {
       return
     }
 
-    const session: Session = usabilityTest.start(participantId, sessionId || undefined)
+    const session: any = usabilityTest.start(participantId, sessionId || undefined)
     setCurrentSession(session)
     loadSessions()
   }

@@ -149,7 +149,7 @@ export const AnimationVariants: Story = {
             {activeVariant && (
               <motion.div
                 key={activeVariant}
-                variants={getSpringVariants(activeVariant, 'default')}
+                variants={getSpringVariants(activeVariant, 'default') as any}
                 initial="initial"
                 animate="animate"
                 exit="exit"
@@ -342,7 +342,7 @@ export const ModalAnimations: Story = {
               
               {/* 對話框 */}
               <motion.div
-                variants={getSpringVariants('slideUp', 'default')}
+                variants={getSpringVariants('slideUp', 'default') as any}
                 initial="initial"
                 animate="animate"
                 exit="exit"
@@ -416,7 +416,7 @@ export const ListStaggerAnimation: Story = {
               {items.map((item) => (
                 <motion.div
                   key={item.id}
-                  variants={getSpringVariants('slideUp', 'default')}
+                  variants={getSpringVariants('slideUp', 'default') as any}
                   className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md"
                 >
                   <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
@@ -504,7 +504,7 @@ export const FeedbackAnimations: Story = {
             {showSuccess && (
               <motion.div
                 ref={successRef}
-                variants={getSpringVariants('bounce', 'bouncy')}
+                variants={getSpringVariants('bounce', 'bouncy') as any}
                 initial="initial"
                 animate="animate"
                 exit="exit"
@@ -523,7 +523,7 @@ export const FeedbackAnimations: Story = {
             {showError && (
               <motion.div
                 ref={errorRef}
-                variants={getSpringVariants('shake', 'wobbly')}
+                variants={getSpringVariants('shake', 'wobbly') as any}
                 initial="initial"
                 animate="animate"
                 exit="exit"

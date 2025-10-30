@@ -5,12 +5,11 @@
  * Based on Apple Human Interface Guidelines and iOS 26.1 design patterns
  */
 
-interface SpringConfig {
-  type: string
+export interface SpringConfig {
+  type: 'spring'
   stiffness: number
   damping: number
   mass: number
-  duration: number
 }
 
 export interface AnimationVariant {
@@ -65,48 +64,42 @@ export const springPresets: Record<string, SpringConfig> = {
     type: 'spring',
     stiffness: 120,
     damping: 14,
-    mass: 0.5,
-    duration: 0.6
+    mass: 0.5
   },
   
   default: {
     type: 'spring',
     stiffness: 170,
     damping: 26,
-    mass: 1,
-    duration: 0.5
+    mass: 1
   },
   
   bouncy: {
     type: 'spring',
     stiffness: 260,
     damping: 20,
-    mass: 0.8,
-    duration: 0.7
+    mass: 0.8
   },
   
   snappy: {
     type: 'spring',
     stiffness: 300,
     damping: 30,
-    mass: 0.6,
-    duration: 0.4
+    mass: 0.6
   },
   
   smooth: {
     type: 'spring',
     stiffness: 100,
     damping: 20,
-    mass: 1.2,
-    duration: 0.8
+    mass: 1.2
   },
   
   wobbly: {
     type: 'spring',
     stiffness: 180,
     damping: 12,
-    mass: 1,
-    duration: 0.9
+    mass: 1
   }
 };
 
@@ -119,6 +112,21 @@ export const getSpringConfig = (preset: string = 'default'): SpringConfig | { du
   }
   
   return springPresets[preset] || springPresets.default;
+};
+
+/**
+ * Get duration estimate for a spring preset (for internal use)
+ */
+const getSpringDuration = (preset: string = 'default'): number => {
+  const durations: Record<string, number> = {
+    gentle: 0.6,
+    default: 0.5,
+    bouncy: 0.7,
+    snappy: 0.4,
+    smooth: 0.8,
+    wobbly: 0.9
+  };
+  return durations[preset] || 0.5;
 };
 
 
@@ -136,11 +144,13 @@ export const getSpringVariants = (type: string = 'fade', preset: string = 'defau
   
   const spring = getSpringConfig(preset);
   
+  const springDuration = getSpringDuration(preset);
+  
   const variants: Record<string, AnimationVariant> = {
     fade: {
       initial: { opacity: 0 },
       animate: { opacity: 1, transition: spring },
-      exit: { opacity: 0, transition: { ...spring, duration: spring.duration * 0.6 } }
+      exit: { opacity: 0, transition: { duration: springDuration * 0.6 } }
     },
     
     scale: {
@@ -153,7 +163,7 @@ export const getSpringVariants = (type: string = 'fade', preset: string = 'defau
       exit: { 
         opacity: 0, 
         scale: 0.9,
-        transition: { ...spring, duration: spring.duration * 0.5 }
+        transition: { duration: springDuration * 0.5 }
       }
     },
     
@@ -189,7 +199,7 @@ export const getSpringVariants = (type: string = 'fade', preset: string = 'defau
       exit: { 
         opacity: 0, 
         y: 50,
-        transition: { ...spring, duration: spring.duration * 0.6 }
+        transition: { duration: springDuration * 0.6 }
       }
     },
     
@@ -205,7 +215,7 @@ export const getSpringVariants = (type: string = 'fade', preset: string = 'defau
         opacity: 0, 
         y: -10,
         scale: 0.98,
-        transition: { ...spring, duration: spring.duration * 0.5 }
+        transition: { duration: springDuration * 0.5 }
       }
     },
     
@@ -249,7 +259,7 @@ export const getSpringVariants = (type: string = 'fade', preset: string = 'defau
         opacity: 0, 
         height: 0,
         scale: 0.95,
-        transition: { ...spring, duration: spring.duration * 0.6 }
+        transition: { duration: springDuration * 0.6 }
       }
     },
     
@@ -444,13 +454,14 @@ export const createAnimationSequence = (steps: AnimationStep[], preset: string =
   }
   
   const spring = getSpringConfig(preset);
-  const totalDuration = steps.reduce((sum: number, step: AnimationStep) => sum + (step.duration || (spring as SpringConfig).duration), 0);
+  const springDuration = getSpringDuration(preset);
+  const totalDuration = steps.reduce((sum: number, step: AnimationStep) => sum + (step.duration || springDuration), 0);
   
   return {
     ...spring,
     duration: totalDuration,
     times: steps.map((step: AnimationStep, i: number) => {
-      const prevDuration = steps.slice(0, i).reduce((sum: number, s: AnimationStep) => sum + (s.duration || (spring as SpringConfig).duration), 0);
+      const prevDuration = steps.slice(0, i).reduce((sum: number, s: AnimationStep) => sum + (s.duration || springDuration), 0);
       return prevDuration / totalDuration;
     })
   };
