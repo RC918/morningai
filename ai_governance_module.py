@@ -328,6 +328,13 @@ class AIGovernanceModule:
         
         logger.info("AI Governance Module initialized")
     
+    def _serialize_rule(self, rule: GovernanceRule) -> Dict[str, Any]:
+        rule_dict = asdict(rule)
+        rule_dict['rule_type'] = rule.rule_type.value
+        rule_dict['created_at'] = rule.created_at.isoformat() if rule.created_at else None
+        rule_dict['updated_at'] = rule.updated_at.isoformat() if rule.updated_at else None
+        return rule_dict
+    
     def _setup_routes(self):
         """設置路由"""
         
@@ -363,7 +370,7 @@ class AIGovernanceModule:
                 rules = self.rule_manager.get_tenant_rules(user.tenant_id)
             
             return jsonify({
-                'rules': [asdict(rule) for rule in rules]
+                'rules': [self._serialize_rule(rule) for rule in rules]
             })
         
         @self.app.route('/governance/rules', methods=['POST'])
@@ -396,7 +403,7 @@ class AIGovernanceModule:
             
             return jsonify({
                 'success': True,
-                'rule': asdict(rule)
+                'rule': self._serialize_rule(rule)
             })
         
         @self.app.route('/governance/rules/<rule_id>', methods=['PUT'])

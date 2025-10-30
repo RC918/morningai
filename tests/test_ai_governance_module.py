@@ -642,7 +642,6 @@ class TestAIGovernanceModule:
                               json={'name': 'Test', 'rule_type': 'blacklist'})
         assert response.status_code == 401
     
-    @pytest.mark.xfail(strict=True, reason="Tracking: #950 - Enum serialization in create_rule returns 500")
     def test_create_rule_success(self):
         """Test create rule endpoint with valid data
         
