@@ -56,6 +56,11 @@ function App() {
     },
   },
   tags: ['autodocs'],
+  args: {
+    value: 'home',
+    onValueChange: () => {},
+    children: null
+  },
   argTypes: {
     value: {
       control: 'text',
@@ -65,11 +70,14 @@ function App() {
       action: 'valueChanged',
       description: 'Callback when tab selection changes',
     },
+    children: {
+      control: false
+    }
   },
 } satisfies Meta<typeof AppleTabBar>
 
 export default meta
-type Story = StoryObj<any>
+type Story = StoryObj<typeof meta>
 
 function TabBarDemo({ initialValue = 'home' }: { initialValue?: string }) {
   const [value, setValue] = useState(initialValue)
@@ -101,10 +109,12 @@ function TabBarDemo({ initialValue = 'home' }: { initialValue?: string }) {
 }
 
 export const Default: Story = {
+  args: {},
   render: () => <TabBarDemo />,
 }
 
 export const WithBadges: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('home')
     
@@ -144,6 +154,7 @@ export const WithBadges: Story = {
 }
 
 export const FiveTabs: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('home')
     
@@ -174,6 +185,7 @@ export const FiveTabs: Story = {
 }
 
 export const WithDisabledTab: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('home')
     
@@ -203,6 +215,7 @@ export const WithDisabledTab: Story = {
 }
 
 export const LargeBadgeNumbers: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('home')
     
@@ -237,6 +250,7 @@ export const LargeBadgeNumbers: Story = {
 }
 
 export const DarkMode: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('home')
     

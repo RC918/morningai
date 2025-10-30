@@ -68,6 +68,10 @@ function FilterView() {
     },
   },
   tags: ['autodocs'],
+  args: {
+    value: 'all',
+    onValueChange: () => {}
+  },
   argTypes: {
     value: {
       control: 'text',
@@ -86,9 +90,10 @@ function FilterView() {
 } satisfies Meta<typeof AppleSegmentedControl>
 
 export default meta
-type Story = StoryObj<any>
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('all')
     
@@ -109,6 +114,7 @@ export const Default: Story = {
 }
 
 export const TwoSegments: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('list')
     
@@ -134,6 +140,7 @@ export const TwoSegments: Story = {
 }
 
 export const FourSegments: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('day')
     
@@ -155,6 +162,7 @@ export const FourSegments: Story = {
 }
 
 export const WithIcons: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('list')
     
@@ -181,6 +189,7 @@ export const WithIcons: Story = {
 }
 
 export const SmallSize: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('all')
     
@@ -201,6 +210,7 @@ export const SmallSize: Story = {
 }
 
 export const LargeSize: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('all')
     
@@ -221,6 +231,7 @@ export const LargeSize: Story = {
 }
 
 export const WithDisabledSegment: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('all')
     
@@ -243,6 +254,7 @@ export const WithDisabledSegment: Story = {
 }
 
 export const InCard: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('overview')
     
@@ -267,6 +279,7 @@ export const InCard: Story = {
 }
 
 export const FilterExample: Story = {
+  args: {},
   render: () => {
     const [status, setStatus] = useState('all')
     const [priority, setPriority] = useState('all')
@@ -311,6 +324,7 @@ export const FilterExample: Story = {
 }
 
 export const DarkMode: Story = {
+  args: {},
   render: () => {
     const [value, setValue] = useState('all')
     
