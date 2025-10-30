@@ -1,18 +1,16 @@
-import type { AxeResults } from 'axe-core';
+/// <reference types="vitest" />
 
-declare global {
-  namespace Vi {
-    interface Assertion<T = any> {
-      /**
-       * Custom matcher from jest-axe for accessibility testing
-       * @see https://github.com/nickcolley/jest-axe
-       */
-      toHaveNoViolations(): T;
-    }
-    
-    interface AsymmetricMatchersContaining {
-      toHaveNoViolations(): any;
-    }
+declare module 'vitest' {
+  interface Assertion<T = any> {
+    /**
+     * Custom matcher from jest-axe for accessibility testing
+     * @see https://github.com/nickcolley/jest-axe
+     */
+    toHaveNoViolations(): void;
+  }
+  
+  interface AsymmetricMatchersContaining {
+    toHaveNoViolations(): void;
   }
 }
 
