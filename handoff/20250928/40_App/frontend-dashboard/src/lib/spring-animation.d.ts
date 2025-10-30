@@ -85,30 +85,30 @@ export const hapticTypes: Record<HapticType, HapticConfig>;
  * Get spring configuration based on preset name
  * Returns Framer Motion Transition type
  */
-export function getSpringConfig(preset?: SpringPresetName | string): Transition;
+export function getSpringConfig(preset?: SpringPresetName): Transition;
 
 /**
  * Get spring-based animation variants for Framer Motion
  * Returns Framer Motion Variants type
  */
-export function getSpringVariants(type?: AnimationVariantType | string, preset?: SpringPresetName | string): Variants;
+export function getSpringVariants(type?: AnimationVariantType, preset?: SpringPresetName): Variants;
 
 /**
  * Get haptic animation properties
  * Returns Framer Motion TargetAndTransition type
  */
-export function getHapticAnimation(type?: HapticType | string): TargetAndTransition;
+export function getHapticAnimation(type?: HapticType): TargetAndTransition;
 
 /**
  * Trigger haptic feedback (visual simulation)
  * Returns a promise that resolves when animation completes
  */
-export function triggerHaptic(element: HTMLElement | null, type?: HapticType | string): Promise<void>;
+export function triggerHaptic(element: HTMLElement | null, type?: HapticType): Promise<void>;
 
 /**
  * Get animation based on context (screen size, user preferences, etc.)
  */
-export function getContextualAnimation(baseAnimation: AnimationVariantType | string, context?: UserContext): Variants;
+export function getContextualAnimation(baseAnimation: AnimationVariantType, context?: UserContext): Variants;
 
 /**
  * Detect user context
@@ -118,12 +118,12 @@ export function getUserContext(): UserContext;
 /**
  * Create a sequence of spring animations
  */
-export function createAnimationSequence(steps: AnimationStep[], preset?: SpringPresetName | string): Transition;
+export function createAnimationSequence(steps: AnimationStep[], preset?: SpringPresetName): Transition;
 
 /**
  * Get stagger configuration for children animations
  */
-export function getStaggerConfig(preset?: SpringPresetName | string, staggerDelay?: number): {
+export function getStaggerConfig(preset?: SpringPresetName, staggerDelay?: number): {
   staggerChildren: number;
   delayChildren: number;
   transition: Transition;
