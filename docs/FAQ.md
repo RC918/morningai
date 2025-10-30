@@ -1,77 +1,113 @@
-# E2E Test FAQ for MorningAI
+# System Architecture of MorningAI
 
-End-to-End (E2E) testing is a crucial part of the development process for the MorningAI platform, ensuring that the system operates as expected from start to finish under various scenarios. This FAQ aims to guide developers through the process of setting up, running, and troubleshooting E2E tests within the MorningAI environment.
+The system architecture of MorningAI is designed to support a scalable, efficient, and robust service for autonomous code generation, FAQ generation, documentation management, and multi-platform integration. It leverages a combination of modern technologies and frameworks to provide a seamless experience for both developers and end-users. Below is an overview of the key components and how they interact within the MorningAI platform.
 
-## What is E2E Testing in MorningAI?
+## Core Components
 
-E2E testing in MorningAI involves simulating real-user scenarios to test the integration and flow between various components of the platform, including frontend interactions, backend services, database operations, and external integrations. The goal is to identify system dependencies and ensure that data integrity is maintained throughout complete workflows.
+### Frontend
 
-## How to Set Up E2E Tests in MorningAI?
+- **Technology Stack**: React, Vite, TailwindCSS
+- **Path in Repository**: `frontend/`
+- **Description**: The frontend utilizes React for building the user interface, Vite as the build tool for fast development and bundling, and TailwindCSS for styling. It provides an intuitive and responsive user experience across different devices and platforms.
 
-1. **Environment Setup**: Ensure that your local development environment mirrors the production setup as closely as possible. This includes having the same versions of Python, Node.js, and other dependencies installed. For specific versions, refer to `requirements.txt` and `package.json` in the root of the RC918/morningai repository.
+```jsx
+// Sample React component in `frontend/src/components`
+import React from 'react';
+import 'tailwindcss/tailwind.css';
 
-2. **Test Framework Installation**:
-   - MorningAI uses [Cypress](https://www.cypress.io/) for E2E testing due to its powerful browser automation and testing capabilities.
-   - Install Cypress via npm:
-     ```sh
-     npm install cypress --save-dev
-     ```
+function HelloWorld() {
+  return <div className="text-center p-4">Hello, MorningAI!</div>;
+}
 
-3. **Database Configuration**:
-   - Ensure that your PostgreSQL database is set up with Row Level Security as configured in Supabase. This mimics the production setup and ensures tests are realistic.
-   - For detailed instructions on database setup, see `docs/database_setup.md`.
-
-4. **Running Tests**:
-   - To run E2E tests, navigate to the root directory of your local `RC918/morningai` clone.
-   - Execute the following command:
-     ```sh
-     npx cypress open
-     ```
-   - Select the test suite you wish to run from the Cypress interface.
-
-## Writing Your First E2E Test
-
-Here's a simple example of an E2E test that checks if the login page loads correctly:
-
-```javascript
-// cypress/integration/login_spec.js
-
-describe('Login Page', function() {
-  it('successfully loads', function() {
-    cy.visit('/login') // change '/login' to match your login route
-    cy.get('form').should('exist')
-  })
-})
+export default HelloWorld;
 ```
 
-This test navigates to the `/login` route and verifies that a form exists on the page.
+### Backend
+
+- **Technology Stack**: Python, Flask, Gunicorn with multi-worker support
+- **Path in Repository**: `backend/`
+- **Description**: The backend is built with Flask, a lightweight WSGI web application framework in Python, allowing for easy setup and scalability. Gunicorn serves as the HTTP server with multi-worker support to handle multiple requests concurrently.
+
+```python
+# Sample Flask app in `backend/app.py`
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route('/')
+def hello_world():
+    return 'Hello, MorningAI!'
+
+if __name__ == '__main__':
+    app.run()
+```
+
+### Database
+
+- **Technology**: PostgreSQL (Supabase) with Row Level Security
+- **Path in Repository**: N/A (configuration details provided through Supabase)
+- **Description**: Uses PostgreSQL as its primary data storage, enhanced by Supabase for additional features like Row Level Security (RLS) ensuring data integrity and security.
+
+### Queue
+
+- **Technology**: Redis Queue (RQ) with worker heartbeat monitoring
+- **Path in Repository**: `queue/`
+- **Description**: Implements task queuing through Redis Queue (RQ) to manage background jobs like code generation tasks efficiently. Worker heartbeat monitoring ensures that workers are healthy and processing tasks as expected.
+
+```python
+# Example of queueing a job in `queue/tasks.py`
+from redis import Redis
+from rq import Queue
+
+q = Queue(connection=Redis())
+
+result = q.enqueue('my_task_function', args=(arg1,))
+```
+
+### Orchestration & AI
+
+- **Orchestration Tool**: LangGraph for agent workflows
+- **AI Technology**: OpenAI GPT-4 for content generation
+- **Path in Repository**: `ai/`, `orchestration/`
+- **Description**: Utilizes LangGraph for managing agent workflows efficiently alongside OpenAI's GPT-4 for advanced content generation capabilities.
+
+### Deployment
+
+- **Service**: Render.com with CI/CD
+- **Path in Repository**: N/A (configuration primarily done through Render.com UI)
+- **Description**: Deployment is handled via Render.com, providing CI/CD pipelines for automated deployments upon commit to the main branch ensuring continuous integration and delivery.
 
 ## Related Documentation Links
 
-- Cypress Documentation: [https://docs.cypress.io/guides/overview/why-cypress](https://docs.cypress.io/guides/overview/why-cypress)
-- PostgreSQL Row Level Security: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-- Supabase Documentation: [https://supabase.io/docs](https://supabase.io/docs)
+For more detailed information on each component:
+
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Vite Documentation](https://vitejs.dev/guide/)
+- [TailwindCSS Documentation](https://tailwindcss.com/docs)
+- [Flask Documentation](https://flask.palletsprojects.com/en/latest/)
+- [Gunicorn Documentation](https://gunicorn.org/#docs)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [Render.com Documentation](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-### Tests Fail Due to Database Connection Issues
-
-- Ensure that your `.env` file contains the correct database connection strings.
-- Verify that your local database instance matches the schema expected by the tests (refer to `schema.sql` in `docs/db/`).
-
-### Cypress Not Opening or Crashing
-
-- Check if you have installed all project dependencies correctly (`npm install`).
-- Make sure you're using a supported Node.js version (`node --version`). Refer to `.nvmrc` for the recommended version.
-- If Cypress still fails, try reinstalling it (`npm reinstall cypress --save-dev`) and clear any cache (`npx cypress cache clear`).
-
-### Flaky Tests or Timing Issues
-
-- Utilize Cypress's built-in waiting functions like `.wait()` judiciously.
-- Investigate whether UI changes might be causing selectors not to work as expected.
-- Consider adding retries for specific commands or tests where transient failures are common (see Cypress documentation on retries).
-
-For more detailed troubleshooting guidance and additional resources, please refer to Cypress's extensive documentation and community forums.
+1. **Frontend Build Failures**:
+   - Ensure all npm dependencies are correctly installed (`npm install`).
+   - Check for syntax errors or missing imports in your React components.
+2. **Backend Connection Issues**:
+   - Verify that Gunicorn is correctly configured and running.
+   - Ensure environment variables for database connections are correctly set.
+3. **Database Access Denied**:
+   - Confirm that Row Level Security policies are correctly configured in Supabase.
+   - Check if the database roles and permissions are properly set.
+4. **Queue Jobs Not Processing**:
+   - Ensure Redis server is up and running.
+   - Check that RQ workers are started and no firewall rules are blocking connections.
+5. **Deployment Failures on Render.com**:
+   - Review build logs on Render.com for specific error messages.
+   - Ensure your render.yaml file is correctly configured according to your project needs.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -79,7 +115,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `0c8ec17c-d414-497a-858f-236507979346`
+- Task: What is the system architecture?
+- Trace ID: `9975c7e8-145e-439f-a589-7cbbf3c5994f`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
