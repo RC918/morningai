@@ -12,6 +12,12 @@ interface PerformanceMetric {
   metadata?: Record<string, any>
 }
 
+declare global {
+  interface Window {
+    __a11yPerformance?: AccessibilityPerformanceMonitor;
+  }
+}
+
 class AccessibilityPerformanceMonitor {
   private metrics: PerformanceMetric[] = []
   private readonly maxMetrics = 100
@@ -159,7 +165,7 @@ export const a11yPerformanceMonitor = new AccessibilityPerformanceMonitor()
 
 // Development-only: Add to window for debugging
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  (window as any).__a11yPerformance = a11yPerformanceMonitor
+  window.__a11yPerformance = a11yPerformanceMonitor
 }
 
 /**

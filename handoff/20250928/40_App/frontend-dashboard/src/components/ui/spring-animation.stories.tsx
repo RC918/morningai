@@ -16,6 +16,8 @@ import {
 } from '../../lib/spring-animation';
 import '../../styles/spring-animations.css';
 
+type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection';
+
 const meta: Meta = {
   title: 'Design System/Spring Animation System',
   parameters: {
@@ -171,7 +173,7 @@ export const AnimationVariants: Story = {
 
 export const HapticFeedback: Story = {
   render: () => {
-    const haptics = [
+    const haptics: Array<{ type: HapticType; label: string; description: string; color: string }> = [
       { type: 'light', label: 'Light', description: '輕微', color: 'bg-gray-500' },
       { type: 'medium', label: 'Medium', description: '中等', color: 'bg-blue-500' },
       { type: 'heavy', label: 'Heavy', description: '重度', color: 'bg-purple-500' },
@@ -192,9 +194,9 @@ export const HapticFeedback: Story = {
           {haptics.map((haptic) => (
             <motion.button
               key={haptic.type}
-              onClick={(e) => triggerHaptic(e.currentTarget, haptic.type as any)}
+              onClick={(e) => triggerHaptic(e.currentTarget, haptic.type)}
               whileHover={{ scale: 1.05 }}
-              whileTap={getHapticAnimation(haptic.type as any)}
+              whileTap={getHapticAnimation(haptic.type)}
               className={`${haptic.color} text-white p-6 rounded-xl shadow-md`}
             >
               <h3 className="text-lg font-semibold mb-1">{haptic.label}</h3>
@@ -772,8 +774,8 @@ export const CompleteDemo: Story = {
               whileTap={{ scale: 0.95 }}
               transition={getSpringConfig('snappy')}
               onClick={(e) => {
-                const hapticType = ['medium', 'success', 'warning', 'error'][i];
-                triggerHaptic(e.currentTarget, hapticType as any);
+                const hapticType = (['medium', 'success', 'warning', 'error'] as const)[i] as HapticType;
+                triggerHaptic(e.currentTarget, hapticType);
               }}
               className={`px-6 py-3 text-white rounded-lg shadow-md ${
                 ['bg-blue-600', 'bg-green-600', 'bg-yellow-600', 'bg-red-600'][i]
