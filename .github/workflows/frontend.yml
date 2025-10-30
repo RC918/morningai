@@ -75,7 +75,7 @@ jobs:
           cd handoff/20250928/40_App/frontend-dashboard
           pnpm run typecheck:strict 2>&1 | tee strict-report.txt || true
           SOURCE_ERRORS=$(grep "src/" strict-report.txt | grep "error TS" | wc -l || echo 0)
-          echo "::notice::Source code errors: $SOURCE_ERRORS / 219 (baseline)"
+          echo "::notice::Source code errors: $SOURCE_ERRORS / 187 (baseline)"
           echo "SOURCE_ERRORS=$SOURCE_ERRORS" >> $GITHUB_ENV
       
       - name: Comment on PR with progress
@@ -86,7 +86,7 @@ jobs:
             const sourceErrors = process.env.SOURCE_ERRORS || '?';
             const body = `## 📊 TypeScript Strict Mode Progress
             
-            **Source Code Errors**: ${sourceErrors} / 219 (baseline)
+            **Source Code Errors**: ${sourceErrors} / 187 (baseline)
             
             This is a non-blocking check to track progress toward full strict mode adoption.
             See [Issue #935](https://github.com/RC918/morningai/issues/935) for details.`;

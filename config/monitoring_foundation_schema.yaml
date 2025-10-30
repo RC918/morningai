@@ -1,0 +1,441 @@
+---
+# 
+
+version: "1.0.0"
+last_updated: "2025-10-30"
+
+
+metrics:
+  agent:
+    - name: agent_task_success_rate
+      type: gauge
+      unit: percentage
+      description: "Percentage of successfully completed agent tasks"
+      labels: [agent_type, tenant_id]
+      slo_target: 0.95
+      
+    - name: agent_task_duration
+      type: histogram
+      unit: seconds
+      description: "Time taken to complete agent tasks"
+      labels: [agent_type, task_type, tenant_id]
+      buckets: [1, 5, 10, 30, 60, 120, 300]
+      
+    - name: agent_reputation_score
+      type: gauge
+      unit: score
+      description: "Current reputation score of agents (0-999)"
+      labels: [agent_id, agent_type]
+      
+    - name: agent_active_count
+      type: gauge
+      unit: count
+      description: "Number of currently active agents"
+      labels: [agent_type, status]
+      
+    - name: agent_task_queue_depth
+      type: gauge
+      unit: count
+      description: "Number of tasks waiting in queue"
+      labels: [task_type, priority]
+
+  api:
+    - name: http_request_duration
+      type: histogram
+      unit: seconds
+      description: "HTTP request duration"
+      labels: [method, endpoint, status_code, tenant_id]
+      buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5]
+      
+    - name: http_request_total
+      type: counter
+      unit: count
+      description: "Total HTTP requests"
+      labels: [method, endpoint, status_code, tenant_id]
+      
+    - name: http_error_rate
+      type: gauge
+      unit: percentage
+      description: "HTTP error rate (4xx + 5xx)"
+      labels: [endpoint, tenant_id]
+      slo_target: 0.01
+      
+    - name: api_rate_limit_hits
+      type: counter
+      unit: count
+      description: "Number of rate limit hits"
+      labels: [tenant_id, endpoint]
+
+  database:
+    - name: db_query_duration
+      type: histogram
+      unit: seconds
+      description: "Database query execution time"
+      labels: [table, operation, tenant_id]
+      buckets: [0.001, 0.01, 0.05, 0.1, 0.5, 1, 2]
+      
+    - name: db_connection_pool_size
+      type: gauge
+      unit: count
+      description: "Current database connection pool size"
+      labels: [pool_name]
+      
+    - name: db_connection_pool_available
+      type: gauge
+      unit: count
+      description: "Available database connections"
+      labels: [pool_name]
+      
+    - name: db_row_level_security_violations
+      type: counter
+      unit: count
+      description: "RLS policy violations detected"
+      labels: [table, tenant_id]
+
+  queue:
+    - name: queue_depth
+      type: gauge
+      unit: count
+      description: "Number of messages in queue"
+      labels: [queue_name, priority]
+      
+    - name: queue_processing_duration
+      type: histogram
+      unit: seconds
+      description: "Time to process queue messages"
+      labels: [queue_name, message_type]
+      buckets: [1, 5, 10, 30, 60, 300, 600]
+      
+    - name: queue_dead_letter_count
+      type: counter
+      unit: count
+      description: "Messages moved to dead letter queue"
+      labels: [queue_name, reason]
+
+  system:
+    - name: cpu_usage
+      type: gauge
+      unit: percentage
+      description: "CPU usage percentage"
+      labels: [service, instance]
+      
+    - name: memory_usage
+      type: gauge
+      unit: bytes
+      description: "Memory usage in bytes"
+      labels: [service, instance]
+      
+    - name: disk_usage
+      type: gauge
+      unit: bytes
+      description: "Disk usage in bytes"
+      labels: [service, instance, mount_point]
+
+  business:
+    - name: tenant_active_count
+      type: gauge
+      unit: count
+      description: "Number of active tenants"
+      
+    - name: user_active_count
+      type: gauge
+      unit: count
+      description: "Number of active users"
+      labels: [tenant_id]
+      
+    - name: feature_flag_usage
+      type: counter
+      unit: count
+      description: "Feature flag evaluation count"
+      labels: [flag_name, value, tenant_id]
+
+  frontend:
+    - name: page_load_time
+      type: histogram
+      unit: seconds
+      description: "Page load time"
+      labels: [page, user_agent]
+      buckets: [0.5, 1, 2, 3, 5, 10]
+      
+    - name: javascript_error_count
+      type: counter
+      unit: count
+      description: "JavaScript errors"
+      labels: [error_type, page, browser]
+      
+    - name: api_call_latency
+      type: histogram
+      unit: seconds
+      description: "Frontend API call latency"
+      labels: [endpoint, method]
+      buckets: [0.1, 0.5, 1, 2, 5]
+
+
+slas:
+  - name: api_availability
+    description: "API uptime and availability"
+    target: 99.9
+    unit: percentage
+    measurement_window: 30d
+    metrics:
+      - http_request_total
+      - http_error_rate
+    
+  - name: agent_task_success
+    description: "Agent task completion success rate"
+    target: 95.0
+    unit: percentage
+    measurement_window: 7d
+    metrics:
+      - agent_task_success_rate
+    
+  - name: api_response_time
+    description: "API response time P95"
+    target: 1.0
+    unit: seconds
+    measurement_window: 24h
+    metrics:
+      - http_request_duration
+    
+  - name: database_query_performance
+    description: "Database query performance P95"
+    target: 0.5
+    unit: seconds
+    measurement_window: 24h
+    metrics:
+      - db_query_duration
+    
+  - name: queue_processing_time
+    description: "Queue message processing time P95"
+    target: 60.0
+    unit: seconds
+    measurement_window: 24h
+    metrics:
+      - queue_processing_duration
+
+
+alerts:
+  - name: high_error_rate
+    severity: critical
+    description: "HTTP error rate exceeds 5%"
+    condition: "http_error_rate > 0.05"
+    duration: 5m
+    notification_channels: [pagerduty, slack]
+    
+  - name: agent_task_failure_spike
+    severity: critical
+    description: "Agent task failure rate exceeds 20%"
+    condition: "agent_task_success_rate < 0.80"
+    duration: 10m
+    notification_channels: [pagerduty, slack]
+    
+  - name: database_connection_exhaustion
+    severity: critical
+    description: "Database connection pool nearly exhausted"
+    condition: "db_connection_pool_available / db_connection_pool_size < 0.1"
+    duration: 2m
+    notification_channels: [pagerduty, slack]
+  
+  - name: elevated_api_latency
+    severity: warning
+    description: "API P95 latency exceeds 2 seconds"
+    condition: "http_request_duration{quantile='0.95'} > 2"
+    duration: 10m
+    notification_channels: [slack]
+    
+  - name: queue_depth_high
+    severity: warning
+    description: "Queue depth exceeds 100 messages"
+    condition: "queue_depth > 100"
+    duration: 15m
+    notification_channels: [slack]
+    
+  - name: agent_reputation_low
+    severity: warning
+    description: "Agent reputation score below 300"
+    condition: "agent_reputation_score < 300"
+    duration: 5m
+    notification_channels: [slack]
+    
+  - name: dead_letter_queue_growth
+    severity: warning
+    description: "Dead letter queue growing"
+    condition: "rate(queue_dead_letter_count[5m]) > 5"
+    duration: 10m
+    notification_channels: [slack]
+  
+  - name: new_tenant_onboarded
+    severity: info
+    description: "New tenant successfully onboarded"
+    condition: "increase(tenant_active_count[5m]) > 0"
+    notification_channels: [slack]
+    
+  - name: feature_flag_toggled
+    severity: info
+    description: "Feature flag state changed"
+    condition: "increase(feature_flag_usage[1m]) > 100"
+    notification_channels: [slack]
+    
+  - name: agent_registered
+    severity: info
+    description: "New agent registered"
+    condition: "increase(agent_active_count[5m]) > 0"
+    notification_channels: [slack]
+
+
+dashboards:
+  - name: system_overview
+    description: "High-level system health and performance"
+    refresh_interval: 30s
+    panels:
+      - title: "API Request Rate"
+        metric: http_request_total
+        visualization: graph
+        time_range: 1h
+        
+      - title: "Error Rate"
+        metric: http_error_rate
+        visualization: gauge
+        thresholds: [0.01, 0.05, 0.10]
+        
+      - title: "Active Agents"
+        metric: agent_active_count
+        visualization: stat
+        
+      - title: "Queue Depth"
+        metric: queue_depth
+        visualization: graph
+        time_range: 1h
+  
+  - name: agent_performance
+    description: "Agent task execution and performance metrics"
+    refresh_interval: 30s
+    panels:
+      - title: "Task Success Rate"
+        metric: agent_task_success_rate
+        visualization: gauge
+        thresholds: [0.90, 0.95, 0.99]
+        
+      - title: "Task Duration P95"
+        metric: agent_task_duration
+        visualization: graph
+        time_range: 6h
+        
+      - title: "Agent Reputation Scores"
+        metric: agent_reputation_score
+        visualization: heatmap
+        
+      - title: "Active Tasks by Type"
+        metric: agent_task_queue_depth
+        visualization: bar_chart
+  
+  - name: api_performance
+    description: "API endpoint performance and errors"
+    refresh_interval: 30s
+    panels:
+      - title: "Request Duration P95"
+        metric: http_request_duration
+        visualization: graph
+        time_range: 1h
+        
+      - title: "Requests by Endpoint"
+        metric: http_request_total
+        visualization: table
+        
+      - title: "Error Rate by Endpoint"
+        metric: http_error_rate
+        visualization: heatmap
+        
+      - title: "Rate Limit Hits"
+        metric: api_rate_limit_hits
+        visualization: graph
+        time_range: 24h
+  
+  - name: database_performance
+    description: "Database query performance and connection pool"
+    refresh_interval: 30s
+    panels:
+      - title: "Query Duration P95"
+        metric: db_query_duration
+        visualization: graph
+        time_range: 1h
+        
+      - title: "Connection Pool Usage"
+        metric: db_connection_pool_available
+        visualization: gauge
+        
+      - title: "Queries by Table"
+        metric: db_query_duration
+        visualization: table
+        
+      - title: "RLS Violations"
+        metric: db_row_level_security_violations
+        visualization: stat
+
+
+sentry:
+  enabled: true
+  dsn_env_var: SENTRY_DSN
+  environment: production
+  release_tracking: true
+  
+  traces_sample_rate: 0.1  # 10% of transactions
+  profiles_sample_rate: 0.1  # 10% of transactions
+  
+  performance_monitoring:
+    enabled: true
+    transaction_sample_rate: 0.1
+    
+  integrations:
+    - flask
+    - redis
+    - sqlalchemy
+    - logging
+    
+  default_tags:
+    - environment
+    - service
+    - version
+    - tenant_id
+    - agent_type
+    
+  ignore_errors:
+    - KeyboardInterrupt
+    - SystemExit
+    - BrokenPipeError
+    
+  before_send:
+    enabled: true
+    scrub_sensitive_data: true
+    fields_to_scrub:
+      - password
+      - api_key
+      - secret
+      - token
+      - authorization
+
+
+logging:
+  level: INFO
+  format: json
+  
+  levels:
+    agent_registry: INFO
+    task_router: INFO
+    monitoring: DEBUG
+    database: WARNING
+    
+  default_fields:
+    - timestamp
+    - level
+    - message
+    - service
+    - trace_id
+    - tenant_id
+    - user_id
+    
+  retention:
+    info: 30d
+    warning: 90d
+    error: 180d
+    critical: 365d

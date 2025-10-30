@@ -21,6 +21,7 @@ from src.routes.tenant import bp as tenant_bp
 from src.routes.faq import bp as faq_bp
 from src.routes.vectors import bp as vectors_bp
 from src.routes.governance import bp as governance_bp
+from src.routes.agent_registry import bp as agent_registry_bp
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
@@ -163,6 +164,7 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
+app.register_blueprint(agent_registry_bp)
 app.register_blueprint(tenant_bp)
 app.register_blueprint(faq_bp)
 app.register_blueprint(vectors_bp)
