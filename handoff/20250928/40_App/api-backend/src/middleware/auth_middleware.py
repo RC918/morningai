@@ -253,7 +253,7 @@ def generate_jwt_token(user_data, expires_hours=24):
     """
     import datetime
     
-    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-do-not-use-in-production')
+    jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
     
     original_role = user_data.get('role')
     normalized_role = normalize_role(original_role)
