@@ -41,6 +41,9 @@ else:
 
 bp = Blueprint("agent_registry", __name__, url_prefix="/api/v1")
 
+agents_store = {}
+tasks_store = {}
+
 
 @bp.route("/agents", methods=["GET"])
 @jwt_required
@@ -122,18 +125,6 @@ def register_agent():
         validated_request = AgentRegistrationRequest(**payload)
         
         agent_id = str(uuid.uuid4())
-        
-        existing_agent = AgentDB.query.filter_by(agent_type=AgentTypeDB(validated_request.agent_type.value)).first()
-        if existing_agent:
-            existing_caps = set(existing_agent.get_capabilities())
-            new_caps = set(validated_request.capabilities)
-            if existing_caps == new_caps:
-                return jsonify({
-                    "error": {
-                        "code": "agent_already_exists",
-                        "message": f"Agent with type {validated_request.agent_type} and same capabilities already registered"
-                    }
-                }), 409
         
         agent_db = AgentDB(
             agent_id=agent_id,

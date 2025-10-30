@@ -50,7 +50,7 @@ class AgentDB(db.Model):
     permission_level = db.Column(db.Enum(PermissionLevelDB), nullable=False, default=PermissionLevelDB.SANDBOX_ONLY)
     reputation_score = db.Column(db.Integer, nullable=False, default=500)
     capabilities = db.Column(db.Text, nullable=False, default='[]')  # JSON array
-    metadata = db.Column(db.Text, nullable=False, default='{}')  # JSON object
+    metadata_json = db.Column('metadata', db.Text, nullable=False, default='{}')  # JSON object - DB column is 'metadata'
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     last_activity = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
@@ -77,13 +77,13 @@ class AgentDB(db.Model):
     def get_metadata(self):
         """Get metadata as a dictionary"""
         try:
-            return json.loads(self.metadata) if self.metadata else {}
+            return json.loads(self.metadata_json) if self.metadata_json else {}
         except (json.JSONDecodeError, TypeError):
             return {}
     
     def set_metadata(self, metadata_dict):
         """Set metadata from a dictionary"""
-        self.metadata = json.dumps(metadata_dict)
+        self.metadata_json = json.dumps(metadata_dict)
     
     def to_pydantic_model(self):
         """Convert to Pydantic Agent model"""

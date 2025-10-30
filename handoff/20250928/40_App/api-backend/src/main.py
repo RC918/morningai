@@ -309,6 +309,13 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 db.init_app(app)
 
+def init_test_database():
+    """Initialize test database with SQLite in-memory and create all tables"""
+    with app.app_context():
+        from src.models.agent_registry_db import AgentDB, TaskDB
+        db.create_all()
+        logger.info("✅ Test database tables initialized (SQLite in-memory)")
+
 def init_database_with_retry(max_retries=6, initial_delay=0.5):
     """
     Initialize database with exponential backoff retry logic.
@@ -339,7 +346,10 @@ def init_database_with_retry(max_retries=6, initial_delay=0.5):
                 logger.info(f"🔄 Retrying in {delay}s...")
                 time.sleep(delay)
 
-if ENVIRONMENT == 'production':
+if os.getenv('TESTING') == 'true' or app.config.get('TESTING'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    init_test_database()
+elif ENVIRONMENT == 'production':
     init_database_with_retry()
 else:
     with app.app_context():
