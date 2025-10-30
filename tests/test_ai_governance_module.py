@@ -449,6 +449,52 @@ class TestGovernanceRuleManager:
         assert result['allowed'] is False
         assert "Allow Trusted" in result['blocked_by']
     
+    @pytest.mark.xfail(strict=True, reason="Tracking: TBD-ISSUE-1 - Security: Whitelist substring matching allows untrusted domains")
+    def test_whitelist_substring_attack_prevention(self):
+        """Test that whitelist prevents substring matching attacks (SECURITY TEST)
+        
+        This test verifies that the whitelist implementation uses proper domain matching
+        instead of substring matching. A malicious actor should not be able to bypass
+        whitelist restrictions by registering domains that contain whitelisted domains
+        as substrings.
+        
+        Example attack: If 'trusted.com' is whitelisted, 'untrusted.com' should be blocked
+        because 'trusted.com' is a substring of 'untrusted.com'.
+        
+        NOTE: This test expects CORRECT behavior (substring attack prevented).
+        The current implementation has a security vulnerability where it uses substring
+        matching. This test is marked as xfail until the bug is fixed.
+        """
+        grm = GovernanceRuleManager()
+        grm.create_rule(
+            tenant_id="tenant_1",
+            rule_type=GovernanceRuleType.WHITELIST,
+            name="Allow Trusted Domain",
+            description="Security test for substring matching",
+            config={"domains": ["trusted.com"]}
+        )
+        
+        request_data = {"url": "https://trusted.com/api"}
+        result = grm.apply_rules("tenant_1", request_data)
+        assert result['allowed'] is True, "Exact domain match should be allowed"
+        
+        request_data = {"url": "https://api.trusted.com/v1"}
+        result = grm.apply_rules("tenant_1", request_data)
+        assert result['allowed'] is True, "Subdomain should be allowed"
+        
+        request_data = {"url": "https://untrusted.com/api"}
+        result = grm.apply_rules("tenant_1", request_data)
+        assert result['allowed'] is False, "Domain containing whitelist as substring should be BLOCKED"
+        assert "Allow Trusted Domain" in result['blocked_by']
+        
+        request_data = {"url": "https://not-trusted.com/api"}
+        result = grm.apply_rules("tenant_1", request_data)
+        assert result['allowed'] is False, "Domain with whitelist as substring should be BLOCKED"
+        
+        request_data = {"url": "https://trusted.com.evil.com/api"}
+        result = grm.apply_rules("tenant_1", request_data)
+        assert result['allowed'] is False, "Domain with whitelist as prefix should be BLOCKED"
+    
     def test_apply_rules_content_filter(self):
         """Test applying content filter rule"""
         grm = GovernanceRuleManager()
@@ -597,8 +643,15 @@ class TestAIGovernanceModule:
                               json={'name': 'Test', 'rule_type': 'blacklist'})
         assert response.status_code == 401
     
+    @pytest.mark.xfail(strict=True, reason="Tracking: TBD-ISSUE-2 - Enum serialization in create_rule returns 500")
     def test_create_rule_success(self):
-        """Test create rule endpoint with valid data"""
+        """Test create rule endpoint with valid data
+        
+        NOTE: This test currently expects the CORRECT behavior (200 response with rule data).
+        The actual implementation has a bug where GovernanceRuleType Enum cannot be serialized
+        by Flask's jsonify(), causing a 500 error. This test is marked as xfail until the bug
+        is fixed. Once fixed, remove the xfail marker.
+        """
         module = AIGovernanceModule()
         client = module.app.test_client()
         
@@ -616,7 +669,12 @@ class TestAIGovernanceModule:
                                   'config': {'domains': ['test.com']}
                               })
         
-        assert response.status_code == 500
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert 'rule' in data
+        assert data['rule']['name'] == 'Test Blacklist'
+        assert data['rule']['rule_type'] == 'blacklist'
     
     def test_create_rule_invalid_config(self):
         """Test create rule endpoint with invalid config"""
