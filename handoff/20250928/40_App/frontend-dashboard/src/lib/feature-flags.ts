@@ -127,11 +127,26 @@ enum FeatureFlagSource {
 }
 
 /**
+ * Available Features (for backward compatibility with existing code)
+ * Maps feature names to feature flag keys
+ */
+export const AVAILABLE_FEATURES = {
+  DASHBOARD: 'DASHBOARD',
+  STRATEGIES: 'STRATEGIES',
+  APPROVALS: 'APPROVALS',
+  HISTORY: 'HISTORY',
+  COSTS: 'COSTS',
+  GOVERNANCE: 'GOVERNANCE',
+  SETTINGS: 'SETTINGS',
+  CHECKOUT: 'CHECKOUT',
+} as const;
+
+/**
  * Get feature flag value from environment variables
  */
-function getEnvFlag(key: FeatureFlagKey): boolean | undefined {
+function getEnvFlag(key: FeatureFlagKey | string): boolean | undefined {
   const envKey = `VITE_FEATURE_${key}`;
-  const envValue = import.meta.env[envKey];
+  const envValue = (import.meta.env as any)[envKey] as string | undefined;
   
   if (envValue === undefined) return undefined;
   
@@ -141,7 +156,7 @@ function getEnvFlag(key: FeatureFlagKey): boolean | undefined {
 /**
  * Get feature flag value from localStorage
  */
-function getLocalStorageFlag(key: FeatureFlagKey): boolean | undefined {
+function getLocalStorageFlag(key: FeatureFlagKey | string): boolean | undefined {
   if (typeof window === 'undefined') return undefined;
   
   try {
@@ -159,7 +174,7 @@ function getLocalStorageFlag(key: FeatureFlagKey): boolean | undefined {
 /**
  * Get feature flag value from URL query parameters
  */
-function getUrlParamFlag(key: FeatureFlagKey): boolean | undefined {
+function getUrlParamFlag(key: FeatureFlagKey | string): boolean | undefined {
   if (typeof window === 'undefined') return undefined;
   
   try {
@@ -182,12 +197,12 @@ function getUrlParamFlag(key: FeatureFlagKey): boolean | undefined {
  * 1. URL query parameter (?feature_MVP_AGENT_REGISTRY=true)
  * 2. localStorage (feature_flag_MVP_AGENT_REGISTRY=true)
  * 3. Environment variable (VITE_FEATURE_MVP_AGENT_REGISTRY=true)
- * 4. Default value from FEATURE_FLAGS
+ * 4. Default value from FEATURE_FLAGS (or true for legacy feature names)
  * 
- * @param key - Feature flag key
+ * @param key - Feature flag key (can be FeatureFlagKey or legacy feature name)
  * @returns true if feature is enabled, false otherwise
  */
-export function isFeatureEnabled(key: FeatureFlagKey): boolean {
+export function isFeatureEnabled(key: FeatureFlagKey | string): boolean {
   const urlValue = getUrlParamFlag(key);
   if (urlValue !== undefined) return urlValue;
   
@@ -197,14 +212,18 @@ export function isFeatureEnabled(key: FeatureFlagKey): boolean {
   const envValue = getEnvFlag(key);
   if (envValue !== undefined) return envValue;
   
-  return FEATURE_FLAGS[key];
+  if (key in FEATURE_FLAGS) {
+    return FEATURE_FLAGS[key as FeatureFlagKey];
+  }
+  
+  return true;
 }
 
 /**
  * Get the source of a feature flag value
  * Useful for debugging and understanding why a feature is enabled/disabled
  */
-export function getFeatureFlagSource(key: FeatureFlagKey): FeatureFlagSource {
+export function getFeatureFlagSource(key: FeatureFlagKey | string): FeatureFlagSource {
   if (getUrlParamFlag(key) !== undefined) return FeatureFlagSource.URL_PARAM;
   if (getLocalStorageFlag(key) !== undefined) return FeatureFlagSource.LOCAL_STORAGE;
   if (getEnvFlag(key) !== undefined) return FeatureFlagSource.ENV_VAR;
@@ -217,7 +236,7 @@ export function getFeatureFlagSource(key: FeatureFlagKey): FeatureFlagSource {
  * @param key - Feature flag key
  * @param enabled - Whether to enable or disable the feature
  */
-export function setFeatureFlag(key: FeatureFlagKey, enabled: boolean): void {
+export function setFeatureFlag(key: FeatureFlagKey | string, enabled: boolean): void {
   if (typeof window === 'undefined') return;
   
   try {
@@ -231,7 +250,7 @@ export function setFeatureFlag(key: FeatureFlagKey, enabled: boolean): void {
 /**
  * Clear a feature flag from localStorage
  */
-export function clearFeatureFlag(key: FeatureFlagKey): void {
+export function clearFeatureFlag(key: FeatureFlagKey | string): void {
   if (typeof window === 'undefined') return;
   
   try {
