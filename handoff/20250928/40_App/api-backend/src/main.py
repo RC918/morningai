@@ -361,7 +361,11 @@ def init_database_with_retry(max_retries=6, initial_delay=0.5):
                 logger.info(f"🔄 Retrying in {delay}s...")
                 time.sleep(delay)
 
-if ENVIRONMENT == 'production':
+TESTING = os.getenv('TESTING', 'false').lower() == 'true'
+
+if TESTING:
+    logger.info("⚠️  TESTING mode: Skipping database initialization")
+elif ENVIRONMENT == 'production':
     init_database_with_retry()
 else:
     with app.app_context():

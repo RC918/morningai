@@ -1,5 +1,6 @@
 
 interface ImportMetaEnv {
+  readonly MODE: string
   readonly VITE_API_BASE_URL: string
   readonly VITE_FEATURES: string
   readonly VITE_FEATURE_OWNER_CONSOLE_API: string
@@ -9,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_FEATURE_OWNER_CONSOLE_SETTINGS: string
   readonly VITE_FEATURE_OWNER_CONSOLE_SECURITY: string
   readonly VITE_FEATURE_OWNER_CONSOLE_PWA: string
+  readonly VITE_ENABLE_MOCK_METRICS?: string
   readonly [key: `VITE_FEATURE_${string}`]: string | undefined
 }
 

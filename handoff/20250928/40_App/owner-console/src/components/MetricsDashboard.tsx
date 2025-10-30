@@ -200,6 +200,10 @@ export const MetricsDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
+  const isProduction = import.meta.env.MODE === 'production';
+  const enableMockMetrics = import.meta.env.VITE_ENABLE_MOCK_METRICS === 'true';
+  const useMockData = !isProduction || enableMockMetrics;
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
