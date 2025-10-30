@@ -567,15 +567,22 @@ class TestP1RecommendedTests:
     """P1 - Recommended before merge"""
     
     def test_roles_required_super_admin_bypass(self, app, jwt_secret):
-        """Test roles_required: '超級管理員' bypass behavior"""
+        """Test roles_required: '超級管理員' bypass behavior
+        
+        This test verifies that a token with Chinese role '超級管理員' 
+        (Super Admin) can bypass role restrictions and access endpoints.
+        The token contains the Chinese role name directly, not normalized.
+        """
         client = app.test_client()
         
-        user_data = {
-            'id': 999,
+        payload = {
+            'user_id': 999,
             'username': 'super_admin',
-            'role': '超級管理員'
+            'role': '超級管理員',  # Chinese role name in token
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
         }
-        super_admin_token = generate_jwt_token(user_data)
+        super_admin_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         
         response = client.get('/roles', headers={
             'Authorization': f'Bearer {super_admin_token}'
@@ -588,15 +595,22 @@ class TestP1RecommendedTests:
         assert data['role'] == 'admin'
     
     def test_roles_required_chinese_analyst_normalized(self, app, jwt_secret):
-        """Test roles_required: '分析師' normalized to 'analyst'"""
+        """Test roles_required: '分析師' normalized to 'analyst'
+        
+        This test verifies that a token with Chinese role '分析師' 
+        (Analyst) is normalized to 'analyst' and can access analyst endpoints.
+        The token contains the Chinese role name directly, not normalized.
+        """
         client = app.test_client()
         
-        user_data = {
-            'id': 888,
+        payload = {
+            'user_id': 888,
             'username': 'chinese_analyst',
-            'role': '分析師'
+            'role': '分析師',  # Chinese role name in token
+            'exp': datetime.now(UTC) + timedelta(hours=1),
+            'iat': datetime.now(UTC)
         }
-        analyst_token = generate_jwt_token(user_data)
+        analyst_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         
         response = client.get('/roles', headers={
             'Authorization': f'Bearer {analyst_token}'
@@ -606,4 +620,5 @@ class TestP1RecommendedTests:
         data = response.get_json()
         assert data['message'] == 'roles success'
         assert data['user_id'] == 888
+        # The middleware normalizes '分析師' to 'analyst'
         assert data['role'] == 'analyst'
