@@ -449,7 +449,6 @@ class TestGovernanceRuleManager:
         assert result['allowed'] is False
         assert "Allow Trusted" in result['blocked_by']
     
-    @pytest.mark.xfail(strict=True, reason="Tracking: #949 - Security: Whitelist substring matching allows untrusted domains")
     def test_whitelist_substring_attack_prevention(self):
         """Test that whitelist prevents substring matching attacks (SECURITY TEST)
         

@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass, asdict
 from enum import Enum
 from flask import Flask, request, jsonify, render_template_string
+from urllib.parse import urlparse
 import jwt
 import secrets
 
@@ -260,10 +261,38 @@ class GovernanceRuleManager:
         return any(domain in request_url for domain in domains)
     
     def _check_whitelist(self, config: Dict[str, Any], request_data: Dict[str, Any]) -> bool:
-        """檢查白名單"""
+        """檢查白名單 - 使用正確的域名匹配邏輯防止子字串攻擊
+        
+        Security Fix for Issue #949:
+        - 使用正確的域名匹配而非子字串匹配
+        - 允許精確匹配 (e.g., trusted.com)
+        - 允許子域名 (e.g., api.trusted.com, sub.api.trusted.com)
+        - 阻擋子字串攻擊 (e.g., untrusted.com, trusted.com.evil.com)
+        """
         domains = config.get('domains', [])
         request_url = request_data.get('url', '')
-        return any(domain in request_url for domain in domains)
+        
+        try:
+            parsed_url = urlparse(request_url)
+            request_domain = parsed_url.netloc.lower()
+            
+            if not request_domain:
+                return False
+            
+            for allowed_domain in domains:
+                allowed_domain = allowed_domain.lower()
+                
+                if request_domain == allowed_domain:
+                    return True
+                
+                if request_domain.endswith('.' + allowed_domain):
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error parsing URL in whitelist check: {e}")
+            return False
     
     def _apply_content_filter(self, config: Dict[str, Any], request_data: Dict[str, Any]) -> Dict[str, Any]:
         """應用內容過濾"""
