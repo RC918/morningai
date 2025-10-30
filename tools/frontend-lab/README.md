@@ -17,8 +17,10 @@ The `frontend-dashboard-deploy` directory was originally created for Storybook a
 - ✅ LHCI puppeteer auth script (lhci-puppeteer-auth.js)
 - ✅ Storybook configuration (.storybook/)
 - ✅ All CI workflows (lhci.yml, storybook-deploy.yml, frontend.yml)
-- ✅ All LHCI scripts (make-lhci-cookie.js, make-lhci-pr-comment.js, update-baseline-and-trend.js)
+- ✅ All LHCI scripts (make-lhci-pr-comment.js, update-baseline-and-trend.js)
 - ✅ Package manager standardization (pnpm@9.15.1)
+
+Note: make-lhci-cookie.js was removed in PR #917 as it was unused.
 
 ## Migration Details
 

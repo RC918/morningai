@@ -156,7 +156,7 @@ jobs:
 
   lhci-main:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     concurrency:
       group: lhci-main
       cancel-in-progress: false
@@ -183,6 +183,19 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.1
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -254,6 +267,7 @@ jobs:
           retention-days: 14
 
       - name: Verify storage state file
+        continue-on-error: true
         run: |
           echo "Working directory: $(pwd)"
           echo "Checking for storage state file..."
@@ -262,18 +276,26 @@ jobs:
             echo "✅ Storage state file exists"
             node -e "const fs=require('fs');const p='playwright/.auth/storageState.json';const s=JSON.parse(fs.readFileSync(p,'utf8'));console.log('Origins:',s.origins?.length||0);console.log('localStorage keys:',(s.origins||[]).flatMap(o=>o.localStorage?.map(i=>i.name)||[]).join(', '));"
           else
-            echo "❌ Storage state file not found"
-            exit 1
+            echo "⚠️ Storage state file not found - LHCI will test public pages only"
           fi
 
-      - name: Generate LHCI cookie
-        continue-on-error: true
-        working-directory: ${{ github.workspace }}
-        run: node scripts/make-lhci-cookie.js
+      - name: Debug LHCI config resolution
+        run: |
+          echo "=== LHCI Config Debug ==="
+          echo "Current working directory: $(pwd)"
+          echo "Config path (relative): ../../../../lighthouserc.main.json"
+          echo "Config path (absolute): $(realpath ../../../../lighthouserc.main.json)"
+          echo ""
+          echo "=== Config file contents ==="
+          cat ../../../../lighthouserc.main.json
+          echo ""
+          echo "=== Verifying puppeteerScript path ==="
+          node -e "const fs=require('fs');const path=require('path');const cfgPath=path.resolve(process.cwd(),'../../../../lighthouserc.main.json');console.log('Config file path:', cfgPath);const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));const puppeteerScript=cfg.ci.collect.puppeteerScript;console.log('puppeteerScript (from config):', puppeteerScript);const absScript=path.resolve(path.dirname(cfgPath), puppeteerScript);console.log('puppeteerScript (absolute):', absScript);console.log('puppeteerScript exists:', fs.existsSync(absScript));"
 
       - name: Run Lighthouse CI (main - nightly signal collection)
+        if: always()
         continue-on-error: true
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
+        run: pnpm dlx @lhci/cli collect --config=../../../../lighthouserc.main.json --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4

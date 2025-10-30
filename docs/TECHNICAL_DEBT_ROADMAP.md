@@ -185,13 +185,14 @@ sed -i 's|frontend-dashboard-deploy|handoff/20250928/40_App/frontend-dashboard|g
 Files to update (20+ files):
 - `lighthouserc.json`
 - `lighthouserc.main.json`
-- `scripts/make-lhci-cookie.js`
 - `scripts/make-lhci-pr-comment.js`
 - `scripts/update-baseline-and-trend.js`
 - `scripts/compare_package_json.js`
 - `pnpm-workspace.yaml`
 - `docs/LIGHTHOUSE_CI_GUIDE.md`
 - `.github/workflows/` (any LHCI workflows)
+
+Note: `scripts/make-lhci-cookie.js` was removed in PR #917 as it was unused.
 
 **Step 3: Verify CI** (Day 3)
 - [ ] LHCI runs against production frontend
