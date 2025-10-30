@@ -21,6 +21,14 @@ from src.middleware.auth_middleware import (
 
 
 @pytest.fixture
+def jwt_secret(monkeypatch):
+    """Pin JWT_SECRET_KEY for consistent testing"""
+    test_secret = 'test-secret-key-for-testing'
+    monkeypatch.setenv('JWT_SECRET_KEY', test_secret)
+    return test_secret
+
+
+@pytest.fixture
 def app():
     """Create Flask app for testing"""
     app = Flask(__name__)
@@ -29,22 +37,42 @@ def app():
     @app.route('/test')
     @jwt_required
     def test_endpoint():
-        return {'message': 'success'}, 200
+        from flask import request
+        return {
+            'message': 'success',
+            'user_id': request.current_user.get('user_id'),
+            'role': request.current_user.get('role')
+        }, 200
     
     @app.route('/admin')
     @admin_required
     def admin_endpoint():
-        return {'message': 'admin success'}, 200
+        from flask import request
+        return {
+            'message': 'admin success',
+            'user_id': request.current_user.get('user_id'),
+            'role': request.current_user.get('role')
+        }, 200
     
     @app.route('/analyst')
     @analyst_required
     def analyst_endpoint():
-        return {'message': 'analyst success'}, 200
+        from flask import request
+        return {
+            'message': 'analyst success',
+            'user_id': request.current_user.get('user_id'),
+            'role': request.current_user.get('role')
+        }, 200
     
     @app.route('/roles')
     @roles_required('admin', 'analyst')
     def roles_endpoint():
-        return {'message': 'roles success'}, 200
+        from flask import request
+        return {
+            'message': 'roles success',
+            'user_id': request.current_user.get('user_id'),
+            'role': request.current_user.get('role')
+        }, 200
     
     return app
 
@@ -358,3 +386,224 @@ class TestTokenGeneration:
         assert payload['user_id'] == 3
         assert payload['username'] == 'user'
         assert payload['role'] == 'user'
+
+
+class TestP0RequiredTests:
+    """P0 - Must complete before merge"""
+    
+    def test_jwt_required_missing_authorization_header(self, app, jwt_secret):
+        """Test jwt_required: missing Authorization header"""
+        client = app.test_client()
+        
+        response = client.get('/test')
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Authorization header missing'
+        assert 'Access denied' in data['message']
+    
+    def test_jwt_required_invalid_authorization_format(self, app, jwt_secret):
+        """Test jwt_required: invalid authorization format"""
+        client = app.test_client()
+        
+        response = client.get('/test', headers={
+            'Authorization': 'InvalidFormat'
+        })
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Invalid authorization format'
+        assert 'Bearer' in data['message']
+    
+    def test_admin_required_missing_authorization_header(self, app, jwt_secret):
+        """Test admin_required: missing Authorization header"""
+        client = app.test_client()
+        
+        response = client.get('/admin')
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Authorization header missing'
+    
+    def test_admin_required_invalid_authorization_format(self, app, jwt_secret):
+        """Test admin_required: invalid authorization format"""
+        client = app.test_client()
+        
+        response = client.get('/admin', headers={
+            'Authorization': 'InvalidFormat'
+        })
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['error'] == 'Invalid authorization format'
+    
+    def test_admin_required_user_role_returns_403(self, app, jwt_secret):
+        """Test admin_required: valid token with role='user' → 403"""
+        client = app.test_client()
+        
+        user_token = create_user_token()
+        
+        response = client.get('/admin', headers={
+            'Authorization': f'Bearer {user_token}'
+        })
+        
+        assert response.status_code == 403
+        data = response.get_json()
+        assert data['error'] == 'Insufficient privileges'
+        assert 'Admin access required' in data['message']
+    
+    def test_analyst_required_user_role_returns_403(self, app, jwt_secret):
+        """Test analyst_required: valid token with role='user' → 403"""
+        client = app.test_client()
+        
+        user_token = create_user_token()
+        
+        response = client.get('/analyst', headers={
+            'Authorization': f'Bearer {user_token}'
+        })
+        
+        assert response.status_code == 403
+        data = response.get_json()
+        assert data['error'] == 'Insufficient privileges'
+        assert 'Analyst access' in data['message']
+    
+    def test_roles_required_user_role_returns_403(self, app, jwt_secret):
+        """Test roles_required: valid token with role='user' → 403"""
+        client = app.test_client()
+        
+        user_token = create_user_token()
+        
+        response = client.get('/roles', headers={
+            'Authorization': f'Bearer {user_token}'
+        })
+        
+        assert response.status_code == 403
+        data = response.get_json()
+        assert data['error'] == 'Insufficient privileges'
+        assert 'Access denied' in data['message']
+    
+    def test_jwt_required_happy_path(self, app, jwt_secret):
+        """Test jwt_required: Happy-path (200 + request.current_user)"""
+        client = app.test_client()
+        
+        user_token = create_user_token()
+        
+        response = client.get('/test', headers={
+            'Authorization': f'Bearer {user_token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['message'] == 'success'
+        assert data['user_id'] == 3
+        assert data['role'] == 'user'
+    
+    def test_admin_required_happy_path(self, app, jwt_secret):
+        """Test admin_required: Happy-path (200 + request.current_user)"""
+        client = app.test_client()
+        
+        admin_token = create_admin_token()
+        
+        response = client.get('/admin', headers={
+            'Authorization': f'Bearer {admin_token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['message'] == 'admin success'
+        assert data['user_id'] == 1
+        assert data['role'] == 'admin'
+    
+    def test_analyst_required_happy_path(self, app, jwt_secret):
+        """Test analyst_required: Happy-path (200 + request.current_user)"""
+        client = app.test_client()
+        
+        analyst_token = create_analyst_token()
+        
+        response = client.get('/analyst', headers={
+            'Authorization': f'Bearer {analyst_token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['message'] == 'analyst success'
+        assert data['user_id'] == 2
+        assert data['role'] == 'analyst'
+    
+    def test_roles_required_happy_path_admin(self, app, jwt_secret):
+        """Test roles_required: Happy-path with admin role (200 + request.current_user)"""
+        client = app.test_client()
+        
+        admin_token = create_admin_token()
+        
+        response = client.get('/roles', headers={
+            'Authorization': f'Bearer {admin_token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['message'] == 'roles success'
+        assert data['user_id'] == 1
+        assert data['role'] == 'admin'
+    
+    def test_roles_required_happy_path_analyst(self, app, jwt_secret):
+        """Test roles_required: Happy-path with analyst role (200 + request.current_user)"""
+        client = app.test_client()
+        
+        analyst_token = create_analyst_token()
+        
+        response = client.get('/roles', headers={
+            'Authorization': f'Bearer {analyst_token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['message'] == 'roles success'
+        assert data['user_id'] == 2
+        assert data['role'] == 'analyst'
+
+
+class TestP1RecommendedTests:
+    """P1 - Recommended before merge"""
+    
+    def test_roles_required_super_admin_bypass(self, app, jwt_secret):
+        """Test roles_required: '超級管理員' bypass behavior"""
+        client = app.test_client()
+        
+        user_data = {
+            'id': 999,
+            'username': 'super_admin',
+            'role': '超級管理員'
+        }
+        super_admin_token = generate_jwt_token(user_data)
+        
+        response = client.get('/roles', headers={
+            'Authorization': f'Bearer {super_admin_token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['message'] == 'roles success'
+        assert data['user_id'] == 999
+        assert data['role'] == 'admin'
+    
+    def test_roles_required_chinese_analyst_normalized(self, app, jwt_secret):
+        """Test roles_required: '分析師' normalized to 'analyst'"""
+        client = app.test_client()
+        
+        user_data = {
+            'id': 888,
+            'username': 'chinese_analyst',
+            'role': '分析師'
+        }
+        analyst_token = generate_jwt_token(user_data)
+        
+        response = client.get('/roles', headers={
+            'Authorization': f'Bearer {analyst_token}'
+        })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['message'] == 'roles success'
+        assert data['user_id'] == 888
+        assert data['role'] == 'analyst'
