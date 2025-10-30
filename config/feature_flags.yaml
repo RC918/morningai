@@ -1,0 +1,342 @@
+version: '1.0'
+description: 'MorningAI Feature Flags Configuration System'
+metadata:
+  last_updated: '2025-10-30'
+  managed_by: 'CTO'
+  purpose: 'Centralized feature flag management for parallel development'
+
+categories:
+  - agent_capabilities
+  - ui_features
+  - infrastructure
+  - integrations
+  - experimental
+
+flags:
+  
+  
+  agent_mvp_enabled:
+    category: agent_capabilities
+    type: boolean
+    default: true
+    description: 'Enable Agent MVP functionality (Issue #760, #768, #762)'
+    environments:
+      development: true
+      staging: true
+      production: false
+    rollout_percentage: 0
+    dependencies: []
+    owner: 'MVP Squad'
+    jira_ticket: '#760'
+    
+  agent_registry_enabled:
+    category: agent_capabilities
+    type: boolean
+    default: false
+    description: 'Enable Agent Registry system (Issue #760)'
+    environments:
+      development: true
+      staging: false
+      production: false
+    rollout_percentage: 0
+    dependencies: ['agent_mvp_enabled']
+    owner: 'MVP Squad'
+    jira_ticket: '#760'
+    
+  dev_agent_enabled:
+    category: agent_capabilities
+    type: boolean
+    default: true
+    description: 'Enable Dev Agent for automated bug fixing'
+    environments:
+      development: true
+      staging: true
+      production: true
+    rollout_percentage: 100
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  ops_agent_enabled:
+    category: agent_capabilities
+    type: boolean
+    default: true
+    description: 'Enable Ops Agent for operations automation'
+    environments:
+      development: true
+      staging: true
+      production: true
+    rollout_percentage: 100
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  pm_agent_enabled:
+    category: agent_capabilities
+    type: boolean
+    default: true
+    description: 'Enable PM Agent for project management'
+    environments:
+      development: true
+      staging: true
+      production: true
+    rollout_percentage: 100
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  growth_strategist_enabled:
+    category: agent_capabilities
+    type: boolean
+    default: true
+    description: 'Enable Growth Strategist agent'
+    environments:
+      development: true
+      staging: true
+      production: true
+    rollout_percentage: 100
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  
+  owner_console_enabled:
+    category: ui_features
+    type: boolean
+    default: true
+    description: 'Enable Owner Console application (Issue #767, #774)'
+    environments:
+      development: true
+      staging: true
+      production: false
+    rollout_percentage: 0
+    dependencies: []
+    owner: 'Owner Console Squad'
+    jira_ticket: '#767'
+    
+  owner_console_2fa_enabled:
+    category: ui_features
+    type: boolean
+    default: false
+    description: 'Enable 2FA (TOTP) for Owner Console'
+    environments:
+      development: true
+      staging: false
+      production: false
+    rollout_percentage: 0
+    dependencies: ['owner_console_enabled']
+    owner: 'Owner Console Squad'
+    jira_ticket: '#774'
+    
+  owner_console_pwa_enabled:
+    category: ui_features
+    type: boolean
+    default: false
+    description: 'Enable PWA features for Owner Console'
+    environments:
+      development: true
+      staging: false
+      production: false
+    rollout_percentage: 0
+    dependencies: ['owner_console_enabled']
+    owner: 'Owner Console Squad'
+    
+  tenant_dashboard_enabled:
+    category: ui_features
+    type: boolean
+    default: true
+    description: 'Enable Tenant Dashboard application'
+    environments:
+      development: true
+      staging: true
+      production: true
+    rollout_percentage: 100
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  
+  monitoring_foundation_enabled:
+    category: infrastructure
+    type: boolean
+    default: false
+    description: 'Enable Monitoring Foundation schema (Issue #768)'
+    environments:
+      development: true
+      staging: false
+      production: false
+    rollout_percentage: 0
+    dependencies: []
+    owner: 'MVP Squad'
+    jira_ticket: '#768'
+    
+  sandbox_enabled:
+    category: infrastructure
+    type: boolean
+    default: false
+    description: 'Enable Docker sandbox containers for agents'
+    environments:
+      development: true
+      staging: false
+      production: false
+    rollout_percentage: 0
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  phase7_enabled:
+    category: infrastructure
+    type: boolean
+    default: true
+    description: 'Enable Phase 7 components'
+    environments:
+      development: true
+      staging: true
+      production: true
+    rollout_percentage: 100
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  
+  hitl_approval_enabled:
+    category: integrations
+    type: boolean
+    default: true
+    description: 'Enable HITL (Human-in-the-Loop) approval system'
+    environments:
+      development: true
+      staging: true
+      production: true
+    rollout_percentage: 100
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  stripe_integration_enabled:
+    category: integrations
+    type: boolean
+    default: false
+    description: 'Enable Stripe payment integration (Phase 10)'
+    environments:
+      development: false
+      staging: false
+      production: false
+    rollout_percentage: 0
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  sentry_monitoring_enabled:
+    category: integrations
+    type: boolean
+    default: true
+    description: 'Enable Sentry error tracking'
+    environments:
+      development: true
+      staging: true
+      production: true
+    rollout_percentage: 100
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  
+  demo_mode:
+    category: experimental
+    type: boolean
+    default: false
+    description: 'Enable demo mode (limited functionality)'
+    environments:
+      development: true
+      staging: true
+      production: false
+    rollout_percentage: 0
+    dependencies: []
+    owner: 'Platform Squad'
+    
+  strict_mode_enabled:
+    category: experimental
+    type: boolean
+    default: false
+    description: 'Enable strict TypeScript mode (Issue #935 - DEFERRED)'
+    environments:
+      development: false
+      staging: false
+      production: false
+    rollout_percentage: 0
+    dependencies: []
+    owner: 'Platform Squad'
+    jira_ticket: '#935'
+    status: 'deferred'
+    
+  strict_types_enabled:
+    category: experimental
+    type: boolean
+    default: false
+    description: 'Enable strict type checking (Issue #936 - DEFERRED)'
+    environments:
+      development: false
+      staging: false
+      production: false
+    rollout_percentage: 0
+    dependencies: []
+    owner: 'Platform Squad'
+    jira_ticket: '#936'
+    status: 'deferred'
+
+validation_rules:
+  - rule: 'production flags must have rollout_percentage <= 100'
+    severity: 'error'
+  - rule: 'experimental flags cannot be enabled in production'
+    severity: 'error'
+  - rule: 'dependencies must be enabled before dependent flags'
+    severity: 'error'
+  - rule: 'deferred flags must have status: deferred'
+    severity: 'warning'
+
+rollout_strategy:
+  canary:
+    description: 'Gradual rollout starting with 1% of users'
+    stages:
+      - percentage: 1
+        duration_hours: 24
+      - percentage: 10
+        duration_hours: 48
+      - percentage: 50
+        duration_hours: 72
+      - percentage: 100
+        duration_hours: 0
+  
+  blue_green:
+    description: 'Switch between two identical environments'
+    strategy: 'instant_switch'
+  
+  feature_branch:
+    description: 'Feature development in isolated branches'
+    merge_strategy: 'squad_approval_required'
+
+squads:
+  mvp_squad:
+    name: 'MVP Squad'
+    focus: 'Agent MVP development'
+    issues: ['#760', '#768', '#762']
+    members: []
+    
+  owner_console_squad:
+    name: 'Owner Console Squad'
+    focus: 'Owner Console development'
+    issues: ['#767', '#774']
+    members: []
+    
+  platform_squad:
+    name: 'Platform Squad'
+    focus: 'Platform maintenance and enhancement'
+    issues: ['#855', '#851']
+    members: []
+
+monitoring:
+  flag_change_notification:
+    enabled: true
+    channels: ['slack', 'email']
+  
+  rollout_monitoring:
+    enabled: true
+    metrics: ['error_rate', 'latency', 'user_satisfaction']
+    alert_threshold:
+      error_rate_increase: 10  # percent
+      latency_increase: 20  # percent
+  
+  audit_logging:
+    enabled: true
+    retention_days: 90
