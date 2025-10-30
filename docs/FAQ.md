@@ -1,78 +1,76 @@
-# MorningAI System Architecture
+# System Architecture of MorningAI
 
-MorningAI employs a robust and scalable multi-tenant SaaS architecture designed to facilitate autonomous code generation, documentation management, and real-time task orchestration. The system architecture is built on a modern technology stack that ensures high performance, reliability, and ease of use for developers. Below, we provide an in-depth overview of the MorningAI system architecture.
+MorningAI leverages a robust and scalable system architecture designed to support autonomous agent systems for code generation, FAQ generation, documentation management, and multi-platform integration. This architecture ensures high performance, reliability, and scalability, catering to the needs of developers and businesses alike. Below is a comprehensive overview of MorningAI's system architecture.
 
 ## Overview
 
-The MorningAI platform architecture is divided into several key components, each serving a unique role within the ecosystem:
+MorningAI's architecture is built upon a microservices design pattern, enabling modular development, deployment, and scaling. The key components of the system include:
 
-- **Frontend:** Developed with React, leveraging Vite for an optimized build tooling experience and TailwindCSS for styling. The frontend is designed to provide a responsive and intuitive user interface.
-  
-- **Backend:** Built using Python with Flask as the web framework, and Gunicorn serving as the WSGI HTTP Server with multi-worker support to handle concurrent requests efficiently.
-  
-- **Database:** Utilizes PostgreSQL for its relational database needs, with Supabase adding an additional layer of functionality like Row Level Security (RLS) for enhanced data protection.
-  
-- **Queue System:** Incorporates Redis Queue (RQ) to manage background tasks and worker processes, allowing for real-time task orchestration and efficient processing of asynchronous jobs.
-  
-- **Orchestration:** Employs LangGraph for managing agent workflows, ensuring seamless interaction between different components of the system.
-  
-- **AI Integration:** Uses OpenAI's GPT-4 for generating content autonomously, including code snippets, FAQs, and documentation content.
-  
-- **Deployment:** Hosted on Render.com with continuous integration and continuous deployment (CI/CD) pipelines in place to streamline updates and maintenance.
+- **Frontend**: Developed with React, Vite, and TailwindCSS for a responsive and modern user interface.
+- **Backend**: Utilizes Python with Flask as the application framework and Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
+- **Database**: PostgreSQL is used for data storage, managed by Supabase with Row Level Security (RLS) for enhanced data protection.
+- **Queue System**: Redis Queue (RQ) is integrated for task queuing to manage background jobs with worker heartbeat monitoring for system health checks.
+- **Orchestration**: LangGraph manages agent workflows, ensuring smooth operation across different components.
+- **AI Integration**: OpenAI's GPT-4 powers content generation tasks, offering advanced natural language processing capabilities.
+- **Deployment**: The platform is deployed on Render.com with continuous integration and continuous deployment (CI/CD) practices to streamline updates and maintenance.
 
-## Code Examples
+### Code Examples
 
-While specific code examples depend on the component being worked on, here's a brief example demonstrating how to enqueue a background job with Redis Queue in Flask:
+For instance, setting up a basic Flask application in `app/main.py`:
 
 ```python
-from rq import Queue
-from redis import Redis
-from my_module import my_background_task
+from flask import Flask
+app = Flask(__name__)
 
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
+@app.route('/')
+def hello_world():
+    return 'Hello, MorningAI!'
 
-# Enqueue the job
-job = q.enqueue(my_background_task, arg1, arg2)
+if __name__ == '__main__':
+    app.run()
 ```
 
-This snippet shows how to connect to Redis, create a queue, and enqueue a background task with arguments.
+And configuring Gunicorn in `gunicorn_config.py`:
 
-## Related Documentation Links
+```python
+workers = 4
+bind = "0.0.0.0:8000"
+```
 
-For more detailed information about each component of our system architecture:
+To run Gunicorn: `gunicorn -c gunicorn_config.py app.main:app`
 
-- [React Documentation](https://reactjs.org/docs/getting-started.html)
-- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
-- [Gunicorn Configuration](https://docs.gunicorn.org/en/stable/configure.html)
-- [Supabase Documentation](https://supabase.io/docs)
-- [Redis Queue (RQ) Documentation](http://python-rq.org/docs/)
-- [Render Deployment Guides](https://render.com/docs)
+### Related Documentation Links
 
-## Common Troubleshooting Tips
+- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- PostgreSQL/Supabase Security: [https://supabase.io/docs/guides/auth](https://supabase.io/docs/guides/auth)
+- Redis Queue (RQ): [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- OpenAI API: [https://beta.openai.com/docs/](https://beta.openai.com/docs/)
+- Render.com CI/CD Documentation: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
 
-**Issue:** Changes not reflecting after deployment.
+## Troubleshooting Tips
 
-**Solution:** Ensure that CI/CD pipelines have successfully completed in Render.com. Check the build logs for any errors during the deployment process.
+**Issue**: Application not starting under Gunicorn.
 
-**Issue:** Database connection errors.
+**Solution**: Ensure Gunicorn configuration is correctly set up with the appropriate number of workers and bind address. Check the logs for any errors related to dependencies or application code.
 
-**Solution:** Verify that your PostgreSQL credentials are correct and that Supabase RLS policies do not unintentionally block access to required data.
+**Issue**: Database connectivity issues.
 
-**Issue:** Background tasks not executing.
+**Solution**: Verify that PostgreSQL credentials are correct in your configuration files. Ensure that Supabase RLS policies do not inadvertently block access to required data.
 
-**Solution:** Check if Redis Queue workers are running and monitor their heartbeat. Ensure there are enough workers to handle the load and no network issues between your application server and Redis.
+**Issue**: Tasks not being processed by Redis Queue.
 
-For more troubleshooting tips or support, please visit the `RC918/morningai` repository's Issues section or consult our comprehensive documentation in `docs/`.
+**Solution**: Check that Redis server is running and accessible. Ensure that RQ workers are running and connected to the correct Redis instance. Review worker logs for errors.
+
+For further assistance or more detailed troubleshooting guidance, refer to the official documentation of each component or consult the community forums associated with each technology stack.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `cd7f13c2-f586-42af-9ea6-cc5cf5d67655`
+- Trace ID: `f0ef583b-74bc-41e6-9c91-432f7ea6e30c`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
