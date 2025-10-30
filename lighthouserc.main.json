@@ -15,7 +15,7 @@
         "throttlingMethod": "simulate",
         "onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
       },
-      "puppeteerScript": "handoff/20250928/40_App/frontend-dashboard/lhci-puppeteer-auth.js"
+      "puppeteerScript": "lhci-puppeteer-auth.js"
     },
     "upload": {
       "target": "filesystem",
