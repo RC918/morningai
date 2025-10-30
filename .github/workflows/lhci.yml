@@ -279,10 +279,23 @@ jobs:
             echo "⚠️ Storage state file not found - LHCI will test public pages only"
           fi
 
+      - name: Debug LHCI config resolution
+        run: |
+          echo "=== LHCI Config Debug ==="
+          echo "Current working directory: $(pwd)"
+          echo "Config path (relative): ../../../../lighthouserc.main.json"
+          echo "Config path (absolute): $(realpath ../../../../lighthouserc.main.json)"
+          echo ""
+          echo "=== Config file contents ==="
+          cat ../../../../lighthouserc.main.json
+          echo ""
+          echo "=== Verifying puppeteerScript path ==="
+          node -e "const fs=require('fs');const path=require('path');const cfgPath=path.resolve(process.cwd(),'../../../../lighthouserc.main.json');console.log('Config file path:', cfgPath);const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));const puppeteerScript=cfg.ci.collect.puppeteerScript;console.log('puppeteerScript (from config):', puppeteerScript);const absScript=path.resolve(path.dirname(cfgPath), puppeteerScript);console.log('puppeteerScript (absolute):', absScript);console.log('puppeteerScript exists:', fs.existsSync(absScript));"
+
       - name: Run Lighthouse CI (main - nightly signal collection)
         if: always()
         continue-on-error: true
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
+        run: pnpm dlx @lhci/cli collect --config=../../../../lighthouserc.main.json --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
