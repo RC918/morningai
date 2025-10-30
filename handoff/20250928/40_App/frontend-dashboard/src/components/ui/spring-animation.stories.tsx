@@ -12,11 +12,11 @@ import {
   createAnimationSequence,
   getStaggerConfig,
   getAnimationMetrics,
-  trackAnimation
+  trackAnimation,
+  type AnimationVariantType,
+  type HapticType
 } from '../../lib/spring-animation';
 import '../../styles/spring-animations.css';
-
-type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection';
 
 const meta: Meta = {
   title: 'Design System/Spring Animation System',
@@ -109,9 +109,9 @@ export const SpringPresets: Story = {
 
 export const AnimationVariants: Story = {
   render: () => {
-    const [activeVariant, setActiveVariant] = useState<string | null>(null);
+    const [activeVariant, setActiveVariant] = useState<AnimationVariantType | null>(null);
     
-    const variants = [
+    const variants: Array<{ name: AnimationVariantType; label: string; description: string }> = [
       { name: 'fade', label: 'Fade', description: '淡入淡出' },
       { name: 'scale', label: 'Scale', description: '縮放' },
       { name: 'pop', label: 'Pop', description: '彈出' },
