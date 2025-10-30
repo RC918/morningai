@@ -52,7 +52,7 @@ const appleButtonVariants = cva(
 )
 
 export interface AppleButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onAnimationStart' | 'onDragStart' | 'onDragEnd' | 'onDrag'>,
     VariantProps<typeof appleButtonVariants> {
   asChild?: boolean
 }

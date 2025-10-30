@@ -17,6 +17,12 @@ export const LiveRegion = ({
   atomic = true,
   relevant = 'additions text',
   clearOnUnmount = false
+}: {
+  message?: string
+  type?: 'polite' | 'assertive' | 'off'
+  atomic?: boolean
+  relevant?: 'text' | 'all' | 'additions' | 'additions removals' | 'additions text' | 'removals' | 'removals additions' | 'removals text' | 'text additions' | 'text removals'
+  clearOnUnmount?: boolean
 }) => {
   const regionRef = useRef(null)
   

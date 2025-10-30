@@ -74,7 +74,7 @@ function AppleSegmentedControl({
   )
 }
 
-export interface AppleSegmentedControlItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface AppleSegmentedControlItemProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onAnimationStart' | 'onDragStart' | 'onDragEnd' | 'onDrag'> {
   value: string
 }
 
