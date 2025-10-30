@@ -94,7 +94,19 @@ except ImportError as e:
     BACKEND_SERVICES_AVAILABLE = False
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
+
+flask_secret = os.environ.get('FLASK_SECRET_KEY')
+if not flask_secret:
+    legacy_secret = os.environ.get('SECRET_KEY')
+    if legacy_secret:
+        logger.warning(
+            "DEPRECATION: SECRET_KEY is deprecated. Please use FLASK_SECRET_KEY instead. "
+            "SECRET_KEY support will be removed after 2025-11-30 (30-day grace period)."
+        )
+        flask_secret = legacy_secret
+    else:
+        flask_secret = 'asdf#FGSgvasgf$5$WGT'
+app.config['SECRET_KEY'] = flask_secret
 
 cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
 cors_origins = [origin.strip() for origin in cors_origins]
@@ -127,8 +139,20 @@ cors_config = {
 CORS(app, resources={r"/*": cors_config})
 
 if SECURITY_AVAILABLE:
+    encryption_master_key = os.environ.get('ENCRYPTION_MASTER_KEY')
+    if not encryption_master_key:
+        legacy_master_key = os.environ.get('MASTER_KEY')
+        if legacy_master_key:
+            logger.warning(
+                "DEPRECATION: MASTER_KEY is deprecated. Please use ENCRYPTION_MASTER_KEY instead. "
+                "MASTER_KEY support will be removed after 2025-11-30 (30-day grace period)."
+            )
+            encryption_master_key = legacy_master_key
+        else:
+            encryption_master_key = 'default-master-key'
+    
     security_config = {
-        'master_key': os.environ.get('MASTER_KEY', 'default-master-key'),
+        'master_key': encryption_master_key,
         'secret_key': app.config['SECRET_KEY'],
         'audit_log_file': 'api_audit.log'
     }

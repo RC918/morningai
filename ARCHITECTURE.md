@@ -76,7 +76,7 @@ MorningAI 採用**三層分離架構**，確保 Owner 和租戶的權限明確�
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │              API Backend (FastAPI)                        │  │
+│  │              API Backend (Flask 3.1.1)                    │  │
 │  │         (morningai-backend-v2.onrender.com)              │  │
 │  ├──────────────────────────────────────────────────────────┤  │
 │  │                                                           │  │
@@ -263,7 +263,7 @@ Tenant Dashboard:
 API Backend:
   - URL: https://morningai-backend-v2.onrender.com
   - Platform: Render.com
-  - Runtime: Python 3.12 (FastAPI)
+  - Runtime: Python 3.12 (Flask 3.1.1)
   - Database: Supabase PostgreSQL
   - Env: DATABASE_URL, JWT_SECRET, SUPABASE_URL, SUPABASE_KEY
 ```

@@ -82,6 +82,10 @@ jobs:
         run: |
           cd handoff/20250928/40_App/api-backend
           python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=74 -v
+          echo "### Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          python -m coverage report >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:

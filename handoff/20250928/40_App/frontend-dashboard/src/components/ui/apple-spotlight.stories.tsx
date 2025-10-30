@@ -25,11 +25,19 @@ const meta = {
       }
     }
   },
-  tags: ['autodocs']
+  tags: ['autodocs'],
+  args: {
+    children: null,
+    onSearch: () => []
+  },
+  argTypes: {
+    children: { control: false },
+    onSearch: { control: false }
+  }
 } satisfies Meta<typeof AppleSpotlight.Provider>
 
 export default meta
-type Story = StoryObj<any>
+type Story = StoryObj<typeof meta>
 
 const SpotlightDemo = ({ onSearch }: { onSearch?: (query: string) => SearchResult[] }) => {
   const { useSpotlight } = AppleSpotlight
@@ -135,6 +143,7 @@ const mockSearchResults = (query: string): SearchResult[] => {
 }
 
 export const Default: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={mockSearchResults}>
       <SpotlightDemo onSearch={mockSearchResults} />
@@ -200,6 +209,7 @@ const fileSearchResults = (query: string): SearchResult[] => {
 }
 
 export const FileSearch: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={fileSearchResults}>
       <SpotlightDemo onSearch={fileSearchResults} />
@@ -256,6 +266,7 @@ const userSearchResults = (query: string): SearchResult[] => {
 }
 
 export const UserSearch: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={userSearchResults}>
       <SpotlightDemo onSearch={userSearchResults} />
@@ -312,6 +323,7 @@ const settingsSearchResults = (query: string): SearchResult[] => {
 }
 
 export const SettingsSearch: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={settingsSearchResults}>
       <SpotlightDemo onSearch={settingsSearchResults} />
@@ -324,6 +336,7 @@ const emptySearchResults = (): SearchResult[] => {
 }
 
 export const NoResults: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={emptySearchResults}>
       <SpotlightDemo onSearch={emptySearchResults} />
@@ -332,6 +345,7 @@ export const NoResults: Story = {
 }
 
 export const WithRecentSearches: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={mockSearchResults} maxRecentSearches={5}>
       <SpotlightDemo onSearch={mockSearchResults} />
@@ -345,6 +359,7 @@ const asyncSearchResults = async (query: string): Promise<SearchResult[]> => {
 }
 
 export const AsyncSearch: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={asyncSearchResults}>
       <SpotlightDemo />
@@ -380,6 +395,7 @@ const InteractiveDemo = () => {
 }
 
 export const Interactive: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={mockSearchResults}>
       <InteractiveDemo />
@@ -409,6 +425,7 @@ const largeResultSet = (query: string): SearchResult[] => {
 }
 
 export const LargeResultSet: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={largeResultSet}>
       <SpotlightDemo onSearch={largeResultSet} />
@@ -421,6 +438,7 @@ const customMaxRecent = (query: string): SearchResult[] => {
 }
 
 export const CustomMaxRecentSearches: Story = {
+  args: {},
   render: () => (
     <AppleSpotlight.Provider onSearch={customMaxRecent} maxRecentSearches={10}>
       <SpotlightDemo onSearch={customMaxRecent} />

@@ -13,11 +13,17 @@ const meta = {
       }
     }
   },
-  tags: ['autodocs']
+  tags: ['autodocs'],
+  args: {
+    children: null
+  },
+  argTypes: {
+    children: { control: false }
+  }
 } satisfies Meta<typeof AppleToastProvider>
 
 export default meta
-type Story = StoryObj<any>
+type Story = StoryObj<typeof meta>
 
 const ToastDemo = () => {
   const toast = useAppleToast()
@@ -107,6 +113,7 @@ const ToastDemo = () => {
 }
 
 export const Default: Story = {
+  args: {},
   render: () => (
     <AppleToastProvider>
       <ToastDemo />
@@ -115,6 +122,7 @@ export const Default: Story = {
 }
 
 export const SuccessToast: Story = {
+  args: {},
   render: () => {
     const ToastTrigger = () => {
       const toast = useAppleToast()
@@ -134,6 +142,7 @@ export const SuccessToast: Story = {
 }
 
 export const ErrorToast: Story = {
+  args: {},
   render: () => {
     const ToastTrigger = () => {
       const toast = useAppleToast()
@@ -156,6 +165,7 @@ export const ErrorToast: Story = {
 }
 
 export const WarningToast: Story = {
+  args: {},
   render: () => {
     const ToastTrigger = () => {
       const toast = useAppleToast()
@@ -175,6 +185,7 @@ export const WarningToast: Story = {
 }
 
 export const InfoToast: Story = {
+  args: {},
   render: () => {
     const ToastTrigger = () => {
       const toast = useAppleToast()
@@ -197,6 +208,7 @@ export const InfoToast: Story = {
 }
 
 export const LongContent: Story = {
+  args: {},
   render: () => {
     const ToastTrigger = () => {
       const toast = useAppleToast()
@@ -219,6 +231,7 @@ export const LongContent: Story = {
 }
 
 export const PersistentToast: Story = {
+  args: {},
   render: () => {
     const ToastTrigger = () => {
       const toast = useAppleToast()
@@ -247,6 +260,7 @@ export const PersistentToast: Story = {
 }
 
 export const MultipleToasts: Story = {
+  args: {},
   render: () => {
     const ToastTrigger = () => {
       const toast = useAppleToast()
@@ -271,6 +285,7 @@ export const MultipleToasts: Story = {
 }
 
 export const DarkMode: Story = {
+  args: {},
   render: () => (
     <div className="dark">
       <AppleToastProvider>
