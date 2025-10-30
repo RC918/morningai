@@ -3,31 +3,44 @@ import os
 from functools import wraps
 from flask import request, jsonify, current_app
 
+def _parse_bearer_token(auth_header):
+    """
+    Parse and validate Bearer token from Authorization header.
+    
+    Args:
+        auth_header: Authorization header value
+        
+    Returns:
+        tuple: (token, error_response) where error_response is None if successful
+    """
+    if not auth_header:
+        return None, (jsonify({
+            'error': 'Authorization header missing',
+            'message': 'Access denied. Please provide a valid JWT token.'
+        }), 401)
+    
+    try:
+        parts = auth_header.split(' ')
+        if len(parts) != 2 or parts[0].lower() != 'bearer':
+            return None, (jsonify({
+                'error': 'Invalid authorization format',
+                'message': 'Authorization header must be in format: Bearer <token>'
+            }), 401)
+        return parts[1], None
+    except (IndexError, AttributeError):
+        return None, (jsonify({
+            'error': 'Invalid authorization format',
+            'message': 'Authorization header must be in format: Bearer <token>'
+        }), 401)
+
 def jwt_required(f):
     """JWT authentication decorator for protecting endpoints (supports both Supabase and custom JWT)"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
-        
-        if not auth_header:
-            return jsonify({
-                'error': 'Authorization header missing',
-                'message': 'Access denied. Please provide a valid JWT token.'
-            }), 401
-        
-        try:
-            parts = auth_header.split(' ')
-            if len(parts) != 2 or parts[0].lower() != 'bearer':
-                return jsonify({
-                    'error': 'Invalid authorization format',
-                    'message': 'Authorization header must be in format: Bearer <token>'
-                }), 401
-            token = parts[1]
-        except (IndexError, AttributeError):
-            return jsonify({
-                'error': 'Invalid authorization format',
-                'message': 'Authorization header must be in format: Bearer <token>'
-            }), 401
+        token, error = _parse_bearer_token(auth_header)
+        if error:
+            return error
         
         try:
             jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
@@ -72,26 +85,9 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
-        
-        if not auth_header:
-            return jsonify({
-                'error': 'Authorization header missing',
-                'message': 'Access denied. Please provide a valid JWT token.'
-            }), 401
-        
-        try:
-            parts = auth_header.split(' ')
-            if len(parts) != 2 or parts[0].lower() != 'bearer':
-                return jsonify({
-                    'error': 'Invalid authorization format',
-                    'message': 'Authorization header must be in format: Bearer <token>'
-                }), 401
-            token = parts[1]
-        except (IndexError, AttributeError):
-            return jsonify({
-                'error': 'Invalid authorization format',
-                'message': 'Authorization header must be in format: Bearer <token>'
-            }), 401
+        token, error = _parse_bearer_token(auth_header)
+        if error:
+            return error
         
         try:
             jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
@@ -138,26 +134,9 @@ def analyst_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
-        
-        if not auth_header:
-            return jsonify({
-                'error': 'Authorization header missing',
-                'message': 'Access denied. Please provide a valid JWT token.'
-            }), 401
-        
-        try:
-            parts = auth_header.split(' ')
-            if len(parts) != 2 or parts[0].lower() != 'bearer':
-                return jsonify({
-                    'error': 'Invalid authorization format',
-                    'message': 'Authorization header must be in format: Bearer <token>'
-                }), 401
-            token = parts[1]
-        except (IndexError, AttributeError):
-            return jsonify({
-                'error': 'Invalid authorization format',
-                'message': 'Authorization header must be in format: Bearer <token>'
-            }), 401
+        token, error = _parse_bearer_token(auth_header)
+        if error:
+            return error
         
         try:
             jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
@@ -286,20 +265,9 @@ def roles_required(*allowed_roles):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             auth_header = request.headers.get('Authorization')
-            
-            if not auth_header:
-                return jsonify({
-                    'error': 'Authorization header missing',
-                    'message': 'Access denied. Please provide a valid JWT token.'
-                }), 401
-            
-            try:
-                token = auth_header.split(' ')[1]
-            except (IndexError, AttributeError):
-                return jsonify({
-                    'error': 'Invalid authorization format',
-                    'message': 'Authorization header must be in format: Bearer <token>'
-                }), 401
+            token, error = _parse_bearer_token(auth_header)
+            if error:
+                return error
             
             try:
                 jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')

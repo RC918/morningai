@@ -722,8 +722,8 @@ class TestP0SecurityEnhancements:
             assert response.status_code == 401
             data = response.get_json()
             assert data['error'] == 'Invalid token'
-        except Exception:
-            pass
+        except jwt.exceptions.InvalidAlgorithmError:
+            pytest.skip("PyJWT version doesn't support 'none' algorithm encoding")
     
     def test_algorithm_mismatch_hs512(self, app, jwt_secret):
         """Test that HS512 signed JWT is rejected"""
