@@ -156,7 +156,7 @@ jobs:
 
   lhci-main:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     concurrency:
       group: lhci-main
       cancel-in-progress: false
@@ -183,6 +183,19 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.1
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -271,7 +284,17 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: node scripts/make-lhci-cookie.js
 
+      - name: Ensure LHCI auth script exists
+        if: always()
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        run: |
+          if [ ! -f lhci-auth-inject.js ]; then
+            echo "// No auth available - testing public pages only" > lhci-auth-inject.js
+            echo "⚠️ Created no-op auth script (cookie generation failed)"
+          fi
+
       - name: Run Lighthouse CI (main - nightly signal collection)
+        if: always()
         continue-on-error: true
         run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
 

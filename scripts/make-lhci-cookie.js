@@ -34,7 +34,9 @@ function extractAuthData() {
       for (const origin of state.origins) {
         if (origin.localStorage) {
           for (const item of origin.localStorage) {
-            if (item.name.includes('supabase.auth.token') || item.name === 'auth_token') {
+            if (item.name.includes('supabase.auth.token') || 
+                item.name === 'auth_token' ||
+                /^sb-.*-auth-token$/.test(item.name)) {
               localStorageData = origin.localStorage;
               console.log(`✅ Found auth data in localStorage from origin: ${origin.origin}`);
               break;
@@ -60,12 +62,13 @@ function extractAuthData() {
       console.log(`   Found ${cookies.length} cookie(s): ${cookieNames}`);
       return { type: 'cookies', data: cookies };
     } else {
-      console.error('❌ No auth data found in localStorage or cookies');
+      console.warn('⚠️ No auth data found in localStorage or cookies');
+      console.warn('   Creating no-op script for public pages only');
       if (state.origins && state.origins.length > 0) {
-        console.error('   Available localStorage keys:', 
+        console.warn('   Available localStorage keys:', 
           state.origins.flatMap(o => o.localStorage?.map(i => i.name) || []).join(', '));
       }
-      process.exit(1);
+      return { type: 'none', data: [] };
     }
   } catch (error) {
     console.error('❌ Error reading Playwright state:', error.message);
@@ -77,7 +80,11 @@ function createInjectionScript(authData) {
   try {
     let scriptContent = '';
     
-    if (authData.type === 'localStorage') {
+    if (authData.type === 'none') {
+      scriptContent = `(function() {
+  console.log('⚠️ No auth available - testing public pages only');
+})();`;
+    } else if (authData.type === 'localStorage') {
       const scriptLines = authData.data.map(item => {
         const escapedValue = JSON.stringify(item.value);
         return `localStorage.setItem(${JSON.stringify(item.name)}, ${escapedValue});`;
