@@ -1,18 +1,31 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const TenantContext = createContext(null);
+interface Tenant {
+  id: string;
+  name: string;
+  createdAt: string;
+}
 
-export const TenantProvider = ({ children }) => {
-  const [tenant, setTenant] = useState(null);
+interface TenantContextValue {
+  tenant: Tenant | null;
+  loading: boolean;
+  error: string | null;
+  refreshTenant: () => void;
+}
+
+const TenantContext = createContext<TenantContextValue | null>(null);
+
+export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
+  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchTenantInfo = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       
       if (!token) {
         setLoading(false);
@@ -47,7 +60,8 @@ export const TenantProvider = ({ children }) => {
       setLoading(false);
     } catch (err) {
       console.error('Error fetching tenant info:', err);
-      setError(err.message || 'Failed to load tenant information');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load tenant information';
+      setError(errorMessage);
       setLoading(false);
     }
   };

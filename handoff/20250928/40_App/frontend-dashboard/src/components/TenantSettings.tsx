@@ -38,7 +38,7 @@ const TenantSettings = (): React.ReactElement => {
       setLoading(true);
       setError(null);
 
-      const token: string | null = localStorage.getItem('token');
+      const token: string | null = localStorage.getItem('auth_token');
       
       if (!token) {
         setError('Not authenticated');
@@ -82,7 +82,7 @@ const TenantSettings = (): React.ReactElement => {
     try {
       setUpdatingMember(memberId);
 
-      const token: string | null = localStorage.getItem('token');
+      const token: string | null = localStorage.getItem('auth_token');
       
       const response: Response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/members/${memberId}`,

@@ -15,6 +15,31 @@ import { Alert, AlertDescription } from '@morningai/shared-ui'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
 import { SUSCalculator } from '@/lib/usability-testing'
 
+interface SUSResult {
+  score: number
+  grade: string
+  adjective: string
+  responses: number[]
+  calculation: {
+    raw_score: number
+    multiplier: number
+  }
+}
+
+interface SUSQuestionnaireProps {
+  onComplete?: (data: {
+    participant_id: string
+    session_id: string
+    sus_score: number
+    sus_grade: string
+    sus_adjective: string
+    responses: number[]
+    timestamp: string
+  }) => void
+  participantId: string
+  sessionId: string
+}
+
 const SUS_QUESTIONS = [
   'I think that I would like to use this system frequently',
   'I found the system unnecessarily complex',
@@ -36,12 +61,12 @@ const SCALE_LABELS = [
   'Strongly Agree'
 ]
 
-export function SUSQuestionnaire({ onComplete, participantId, sessionId }) {
-  const [responses, setResponses] = useState(Array(10).fill(null))
+export function SUSQuestionnaire({ onComplete, participantId, sessionId }: SUSQuestionnaireProps) {
+  const [responses, setResponses] = useState<(number | null)[]>(Array(10).fill(null))
   const [submitted, setSubmitted] = useState(false)
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState<SUSResult | null>(null)
 
-  const handleResponseChange = (questionIndex, value) => {
+  const handleResponseChange = (questionIndex: number, value: string) => {
     const newResponses = [...responses]
     newResponses[questionIndex] = parseInt(value)
     setResponses(newResponses)
