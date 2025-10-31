@@ -46,8 +46,6 @@ class TestProductionStartupGuards:
                         del sys.modules['src.main']
                     if 'src.routes.agent' in sys.modules:
                         del sys.modules['src.routes.agent']
-                    if 'src.middleware.rate_limit' in sys.modules:
-                        del sys.modules['src.middleware.rate_limit']
                     import src.main
                 except RuntimeError as e:
                     if "Agent Registry" in str(e):
@@ -72,8 +70,6 @@ class TestProductionStartupGuards:
                         del sys.modules['src.main']
                     if 'src.routes.agent' in sys.modules:
                         del sys.modules['src.routes.agent']
-                    if 'src.middleware.rate_limit' in sys.modules:
-                        del sys.modules['src.middleware.rate_limit']
                     import src.main
                 except RuntimeError as e:
                     if "Agent Registry" in str(e):
@@ -117,8 +113,6 @@ class TestProductionStartupGuards:
                     import sys
                     if 'src.main' in sys.modules:
                         del sys.modules['src.main']
-                    if 'src.middleware.rate_limit' in sys.modules:
-                        del sys.modules['src.middleware.rate_limit']
                     import src.main
 
 
@@ -127,14 +121,27 @@ class TestRateLimitingEnhancements:
     
     @pytest.fixture
     def client(self):
-        """Create test client"""
+        """Create test client with mocked Redis"""
         os.environ['TESTING'] = 'true'
         os.environ['JWT_SECRET_KEY'] = 'test-secret-key'
         os.environ['REDIS_URL'] = 'redis://localhost:6379/0'
         
-        from src.main import app
-        app.config['TESTING'] = True
-        return app.test_client()
+        with patch('src.utils.redis_client.get_redis_client') as mock_grc:
+            mock_client = MagicMock()
+            mock_pipeline = MagicMock()
+            mock_pipeline.execute.return_value = [None, 1, None, None]
+            mock_client.pipeline.return_value = mock_pipeline
+            mock_grc.return_value = mock_client
+            
+            if 'src.middleware.rate_limit' in sys.modules:
+                importlib.reload(sys.modules['src.middleware.rate_limit'])
+            
+            if 'src.main' in sys.modules:
+                importlib.reload(sys.modules['src.main'])
+            
+            from src.main import app
+            app.config['TESTING'] = True
+            yield app.test_client()
     
     @pytest.fixture
     def auth_headers_admin(self):
@@ -147,70 +154,63 @@ class TestRateLimitingEnhancements:
         """Test that rate limiting is applied to Agent Registry write endpoints"""
         import src.middleware.rate_limit as rate_limit_module
         
-        with patch.object(rate_limit_module, 'redis_client') as mock_redis:
-            mock_pipeline = MagicMock()
-            mock_pipeline.execute.return_value = [None, 61, None, None]
-            mock_redis.pipeline.return_value = mock_pipeline
-            
-            response = client.post(
-                '/api/v1/agents',
-                json={
-                    'agent_type': 'dev_agent',
-                    'capabilities': ['code_review', 'bug_fix'],
-                    'permission_level': 'standard'
-                },
-                headers=auth_headers_admin
-            )
-            
-            assert response.status_code == 429
-            data = response.get_json()
-            assert 'error' in data
-            assert 'rate_limit_exceeded' in data['error']['code']
+        rate_limit_module.redis_client.pipeline.return_value.execute.return_value = [None, 61, None, None]
+        
+        response = client.post(
+            '/api/v1/agents',
+            json={
+                'agent_type': 'dev_agent',
+                'capabilities': ['code_review', 'bug_fix'],
+                'permission_level': 'standard'
+            },
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 429
+        data = response.get_json()
+        assert 'error' in data
+        assert 'rate_limit_exceeded' in data['error']['code']
     
     def test_rate_limit_uses_user_id_when_authenticated(self, client, auth_headers_admin):
         """Test that rate limiter uses user_id for authenticated requests"""
         import src.middleware.rate_limit as rate_limit_module
         
-        with patch.object(rate_limit_module, 'redis_client') as mock_redis:
-            mock_pipeline = MagicMock()
-            mock_redis.pipeline.return_value = mock_pipeline
-            mock_pipeline.execute.return_value = [None, 1, None, None]
-            
-            response = client.post(
-                '/api/v1/agents',
-                json={
-                    'agent_type': 'dev_agent',
-                    'capabilities': ['code_review'],
-                    'permission_level': 'standard'
-                },
-                headers=auth_headers_admin
-            )
-            
-            assert mock_pipeline.zadd.called
-            call_args = mock_pipeline.zadd.call_args
-            rate_limit_key = call_args[0][0] if call_args[0] else None
-            
-            assert rate_limit_key is not None
-            assert 'user:' in rate_limit_key or 'rate_limit:' in rate_limit_key
+        mock_pipeline = rate_limit_module.redis_client.pipeline.return_value
+        mock_pipeline.execute.return_value = [None, 1, None, None]
+        
+        response = client.post(
+            '/api/v1/agents',
+            json={
+                'agent_type': 'dev_agent',
+                'capabilities': ['code_review'],
+                'permission_level': 'standard'
+            },
+            headers=auth_headers_admin
+        )
+        
+        assert mock_pipeline.zadd.called
+        call_args = mock_pipeline.zadd.call_args
+        rate_limit_key = call_args[0][0] if call_args[0] else None
+        
+        assert rate_limit_key is not None
+        assert 'user:' in rate_limit_key or 'rate_limit:' in rate_limit_key
     
     def test_rate_limit_headers_present_on_success(self, client, auth_headers_admin):
         """Test that rate limit headers are present on successful requests"""
         import src.middleware.rate_limit as rate_limit_module
         
-        with patch.object(rate_limit_module, 'redis_client') as mock_redis:
-            mock_pipeline = MagicMock()
-            mock_redis.pipeline.return_value = mock_pipeline
-            mock_pipeline.execute.return_value = [None, 1, None, None]
-            
-            response = client.post(
-                '/api/v1/agents',
-                json={
-                    'agent_type': 'dev_agent',
-                    'capabilities': ['code_review'],
-                    'permission_level': 'standard'
-                },
-                headers=auth_headers_admin
-            )
-            
-            if response.status_code in [200, 201, 202]:
-                assert 'X-RateLimit-Limit' in response.headers or response.status_code == 202
+        mock_pipeline = rate_limit_module.redis_client.pipeline.return_value
+        mock_pipeline.execute.return_value = [None, 1, None, None]
+        
+        response = client.post(
+            '/api/v1/agents',
+            json={
+                'agent_type': 'dev_agent',
+                'capabilities': ['code_review'],
+                'permission_level': 'standard'
+            },
+            headers=auth_headers_admin
+        )
+        
+        if response.status_code in [200, 201, 202]:
+            assert 'X-RateLimit-Limit' in response.headers or response.status_code == 202
