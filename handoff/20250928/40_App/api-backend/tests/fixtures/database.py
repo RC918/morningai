@@ -51,7 +51,9 @@ def db_transaction():
             assert user.id is not None
             # Changes will be rolled back after test
     """
-    # TODO: Implement real database transaction management
-    # This is a placeholder for future implementation
-    yield
-    # Rollback transaction here
+    # Phase 2 TODO: Implement real database transaction management
+    raise NotImplementedError(
+        "db_transaction fixture is not yet implemented. "
+        "This will be completed in RFC #619 Phase 2. "
+        "For now, use mock_db_session for unit tests."
+    )

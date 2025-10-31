@@ -82,5 +82,6 @@ def user_auth_headers():
             assert response.status_code == 200
     """
     from src.middleware.auth_middleware import create_user_token
-    token = create_user_token(user_id='test-user-123', role='user')
+    # create_user_token() has no parameters - it creates a default test user token
+    token = create_user_token()
     return {'Authorization': f'Bearer {token}'}
