@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: orchestrator-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - orchestrator-network
+
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: orchestrator/Dockerfile
+    container_name: orchestrator-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Redis Configuration
+      - REDIS_URL=redis://redis:6379/0
+      
+      # Security (REQUIRED - override in production)
+      - ORCHESTRATOR_JWT_SECRET=${ORCHESTRATOR_JWT_SECRET:-test-secret-key-for-development-only-min-32-chars}
+      - ORCHESTRATOR_API_KEYS=${ORCHESTRATOR_API_KEYS:-dev-key-123:agent}
+      
+      # Application Configuration
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # CORS Configuration
+      - ORCHESTRATOR_CORS_ORIGINS=${ORCHESTRATOR_CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      
+      # Rate Limiting
+      - ORCHESTRATOR_RATE_LIMIT_TASKS=${ORCHESTRATOR_RATE_LIMIT_TASKS:-10}
+      - ORCHESTRATOR_RATE_LIMIT_EVENTS=${ORCHESTRATOR_RATE_LIMIT_EVENTS:-20}
+      - ORCHESTRATOR_RATE_LIMIT_APPROVALS=${ORCHESTRATOR_RATE_LIMIT_APPROVALS:-5}
+      - ORCHESTRATOR_RATE_LIMIT_STATS=${ORCHESTRATOR_RATE_LIMIT_STATS:-30}
+      
+      # Task Queue Configuration
+      - ORCHESTRATOR_QUEUE_PREFIX=${ORCHESTRATOR_QUEUE_PREFIX:-orchestrator}
+      - ORCHESTRATOR_TASK_TTL=${ORCHESTRATOR_TASK_TTL:-86400}
+      
+      # HITL Gate Configuration
+      - ORCHESTRATOR_APPROVAL_TIMEOUT=${ORCHESTRATOR_APPROVAL_TIMEOUT:-86400}
+      - ORCHESTRATOR_APPROVAL_HISTORY_TTL=${ORCHESTRATOR_APPROVAL_HISTORY_TTL:-2592000}
+      - ORCHESTRATOR_MAX_APPROVAL_HISTORY=${ORCHESTRATOR_MAX_APPROVAL_HISTORY:-1000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - orchestrator-network
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  orchestrator-network:
+    driver: bridge
