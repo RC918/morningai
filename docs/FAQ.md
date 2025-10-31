@@ -1,124 +1,84 @@
-# MorningAI System Architecture
+# E2E Test FAQ Update for MorningAI
 
-The system architecture of MorningAI is designed to support a scalable, efficient, and responsive SaaS platform that leverages modern technologies for autonomous code generation, documentation management, and real-time task orchestration. This architecture is pivotal for developers looking to understand how to navigate and contribute to the MorningAI platform effectively.
+End-to-end (E2E) testing is a crucial aspect of ensuring the reliability and functionality of the MorningAI platform. It simulates real-user scenarios to verify the system works as expected from start to finish. This section aims to guide developers through the process of understanding, implementing, and troubleshooting E2E tests within the MorningAI project.
 
-## Overview
+## Understanding E2E Tests in MorningAI
 
-MorningAI's architecture is built on a microservices pattern, utilizing various technologies across the frontend, backend, database, queue management, orchestration, AI, and deployment processes. Here's a breakdown of the key components:
+E2E tests in MorningAI are designed to cover all critical user flows, ensuring that each component of the platform, from the frontend React application to backend services and database integrations, works harmoniously under conditions that mimic real-world usage. By automating these tests, we can quickly identify and rectify issues before they impact users.
 
-### Frontend
+### Key Components
 
-- **Technology Stack**: React with Vite for bundling and TailwindCSS for styling.
-- **Purpose**: Provides the user interface for interacting with MorningAI's features.
-- **Code Example**:
-  ```javascript
-  import React from 'react';
-  import ReactDOM from 'react-dom';
-  import './index.css';
-  import App from './App';
+- **Frontend**: Tests interactions with the React application, verifying UI elements, user inputs, and navigation.
+- **Backend**: Ensures the Flask API endpoints return expected responses and interact correctly with external services.
+- **Database**: Confirms that data persistence operations with PostgreSQL (Supabase) are functioning as intended.
+- **Integration**: Checks the interaction between different platforms (e.g., Telegram, LINE, Messenger) and services like Redis Queue and pgvector/Supabase for vector memory storage.
 
-  ReactDOM.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>,
-    document.getElementById('root')
-  );
-  ```
+## Implementing E2E Tests
 
-### Backend
+To implement E2E tests in MorningAI, we primarily use a combination of Cypress for frontend testing and PyTest for backend testing. Below is a basic outline for setting up a simple E2E test:
 
-- **Technology Stack**: Python with Flask as the web framework and Gunicorn as the WSGI HTTP server.
-- **Multi-worker Support**: Utilizes Gunicorn's worker processes for handling multiple requests simultaneously.
-- **Code Example**:
-  ```python
-  from flask import Flask
-  app = Flask(__name__)
+### Frontend Testing with Cypress
 
-  @app.route('/')
-  def hello_world():
-      return 'Hello, World!'
+1. **Installation**: Ensure Cypress is added to your project dependencies.
+   ```shell
+   npm install cypress --save-dev
+   ```
 
-  if __name__ == '__main__':
-      app.run()
-  ```
+2. **Creating a Test**:
+   Create a new test file under `cypress/integration`.
+   ```javascript
+   // cypress/integration/sample_test.js
+   describe('Homepage Functionality', () => {
+     it('successfully loads', () => {
+       cy.visit('/') // Change '/' to your app's base URL
+     });
+   });
+   ```
 
-### Database
+### Backend Testing with PyTest
 
-- **Technology**: PostgreSQL with Row Level Security (RLS) via Supabase.
-- **Purpose**: Stores all persistent data including user information, project data, and vector memory storage.
-- **Code Example**:
-  ```sql
-  CREATE TABLE users (
-      id SERIAL PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL
-  );
-  
-  ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-  ```
+1. **Installation**: Add PyTest to your project dependencies.
+   ```shell
+   pip install pytest
+   ```
 
-### Queue
+2. **Creating a Test**:
+   Create a new test file in your Flask application's test directory.
+   ```python
+   # tests/test_api.py
+   def test_homepage(client):
+       response = client.get("/")
+       assert response.status_code == 200
+   ```
 
-- **Technology**: Redis Queue (RQ) for managing background tasks with worker heartbeat monitoring.
-- **Purpose**: Handles asynchronous task execution such as code generation or document processing.
-- **Code Example**:
-  ```python
-  from redis import Redis
-  from rq import Queue
+For both examples, ensure you have configured your environment properly to run these tests against your local development server or a dedicated test environment.
 
-  q = Queue(connection=Redis())
+## Running E2E Tests
 
-  @q.job
-  def process_document(document_id):
-      print(f"Processing document {document_id}")
-  
-  process_document.queue('doc_12345')
-  ```
+To run your Cypress tests:
+```shell
+npx cypress open
+```
 
-### Orchestration
+For PyTest:
+```shell
+pytest
+```
 
-- **Technology**: LangGraph for defining and executing agent workflows.
-- **Purpose**: Manages complex workflows between different services within MorningAI.
+## Troubleshooting Common Issues
 
-### AI
-
-- **Technology**: OpenAI GPT-4 for content generation and intelligent operations.
-- **Integration Point**: Used across various parts of the system for generating code snippets, FAQ content, and more.
-
-### Deployment
-
-- **Platform**: Render.com with continuous integration/continuous deployment (CI/CD).
-- **Configuration**: Configured to automatically deploy changes made to the repository on successful build tests.
+- **Timeouts or Flaky Tests**: Ensure your test environment mirrors production closely. Use explicit waits in Cypress rather than arbitrary timeouts.
+- **Database State**: Use fixtures or factories to manage database state before tests run. Ensure each test starts with a known database state for consistency.
+- **External Services**: Mock external service calls where possible to reduce dependencies on third-party services during testing.
 
 ## Related Documentation Links
 
-For more detailed information about each component:
+- Cypress Documentation: [https://www.cypress.io/docs](https://www.cypress.io/docs)
+- PyTest Documentation: [https://docs.pytest.org/en/latest/](https://docs.pytest.org/en/latest/)
+- Flask Testing: [https://flask.palletsprojects.com/en/2.0.x/testing/](https://flask.palletsprojects.com/en/2.0.x/testing/)
+- Supabase Official Docs: [https://supabase.io/docs](https://supabase.io/docs)
 
-1. [React Documentation](https://reactjs.org/docs/getting-started.html)
-2. [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
-3. [PostgreSQL RLS](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-4. [Redis Queue Documentation](https://python-rq.org/docs/)
-5. [OpenAI API Documentation](https://beta.openai.com/docs/)
-
-## Common Troubleshooting Tips
-
-1. **Frontend Issues**:
-   - Ensure all npm packages are up to date: `npm update`
-   - Check console logs in the browser for any errors during development.
-
-2. **Backend Issues**:
-   - Verify that all Python dependencies are installed: `pip install -r requirements.txt`
-   - For Gunicorn-related errors, ensure you have correctly configured the number of workers based on your server's capacity.
-
-3. **Database Connectivity**:
-   - Ensure correct environment variables are set for database connections.
-   - Check Supabase dashboard for any issues related to RLS policies or connectivity.
-
-4. **Queue Processing Delays**:
-   - Monitor Redis server health and queue size.
-   - Review worker logs for any exceptions or errors during task execution.
-
-This architecture enables MorningAI to provide a robust platform capable of handling complex workflows efficiently while maintaining scalability and responsiveness.
+By following these guidelines and utilizing the provided resources, developers should be well-equipped to implement effective E2E tests within the MorningAI platform. Regularly updating and maintaining these tests is essential for ensuring long-term reliability and performance of the system.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -126,7 +86,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `b808e183-da38-4776-b023-d13260c990c5`
+- Task: E2E test FAQ update
+- Trace ID: `a7d26ecf-83d8-4c77-99ba-87b36b79bd95`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
