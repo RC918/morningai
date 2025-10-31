@@ -46,12 +46,21 @@ def validate_security_config():
     """
     Validate security configuration at startup
     Fails fast in production if configuration is insecure
+    In non-production, auto-generates a secure test secret if missing
     """
+    global JWT_SECRET_KEY
     errors = []
     warnings = []
     
     if not JWT_SECRET_KEY:
-        errors.append("JWT_SECRET_KEY environment variable is not set")
+        if IS_PRODUCTION:
+            errors.append("JWT_SECRET_KEY environment variable is not set")
+        else:
+            JWT_SECRET_KEY = secrets.token_hex(32)
+            logger.warning(
+                "JWT_SECRET_KEY not set in non-production environment. "
+                "Using auto-generated test secret. DO NOT USE IN PRODUCTION."
+            )
     elif IS_PRODUCTION:
         if len(JWT_SECRET_KEY) < 32:
             errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(JWT_SECRET_KEY)})")
