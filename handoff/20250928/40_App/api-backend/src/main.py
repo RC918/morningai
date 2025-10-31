@@ -27,6 +27,7 @@ from flask import Flask, send_from_directory, jsonify, request, send_file, Respo
 from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.auth import auth_bp
+from src.routes.auth_enhanced import auth_enhanced_bp
 from src.routes.dashboard import dashboard_bp
 from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required
 from flask_cors import CORS
@@ -95,6 +96,13 @@ except ImportError as e:
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 
+from src.services.auth_service import validate_security_config
+try:
+    validate_security_config()
+except SystemExit as e:
+    logger.error(f"Security configuration validation failed: {e}")
+    raise
+
 flask_secret = os.environ.get('FLASK_SECRET_KEY')
 if not flask_secret:
     legacy_secret = os.environ.get('SECRET_KEY')
@@ -112,7 +120,12 @@ cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://loca
 cors_origins = [origin.strip() for origin in cors_origins]
 
 def is_vercel_preview(origin):
-    """Check if origin is a Vercel preview URL"""
+    """
+    Check if origin is a Vercel preview URL
+    Only allows Vercel previews in non-production environments for security
+    """
+    if os.environ.get('ENVIRONMENT') == 'production':
+        return False
     return origin and re.match(r'https://.*\.vercel\.app$', origin)
 
 @app.after_request
@@ -123,8 +136,9 @@ def add_cors_headers(response):
     if origin in cors_origins or is_vercel_preview(origin):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID, X-CSRF-Token'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+        response.headers['Vary'] = 'Origin'
     
     return response
 
@@ -161,6 +175,7 @@ if SECURITY_AVAILABLE:
 
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(auth_enhanced_bp, url_prefix='/api/auth/v2')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
