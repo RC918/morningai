@@ -8,7 +8,7 @@ interface NotificationContextValue {
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
 
-export function NotificationProvider({ children }) {
+export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [showPhase3Welcome, setShowPhase3Welcome] = useState(false);
   
   useEffect(() => {
