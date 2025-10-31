@@ -24,7 +24,7 @@ export const LiveRegion = ({
   relevant?: 'text' | 'all' | 'additions' | 'additions removals' | 'additions text' | 'removals' | 'removals additions' | 'removals text' | 'text additions' | 'text removals'
   clearOnUnmount?: boolean
 }) => {
-  const regionRef = useRef(null)
+  const regionRef = useRef<HTMLDivElement | null>(null)
   
   useEffect(() => {
     return () => {
