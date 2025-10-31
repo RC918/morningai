@@ -299,15 +299,33 @@ else:
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-    'pool_size': 5,
-    'max_overflow': 10,
-    'pool_timeout': 10
-}
+import sys
+if 'pytest' in sys.modules or os.getenv('TESTING') == 'true':
+    from sqlalchemy.pool import StaticPool
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'poolclass': StaticPool,
+        'connect_args': {'check_same_thread': False}
+    }
+    logger.info("ℹ️  Test mode detected: Using SQLite in-memory with StaticPool")
+else:
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_size': 5,
+        'max_overflow': 10,
+        'pool_timeout': 10
+    }
 
 db.init_app(app)
+
+def init_test_database():
+    """Initialize test database with SQLite in-memory and create all tables"""
+    with app.app_context():
+        from src.models.agent_registry_db import AgentDB, TaskDB
+        db.create_all()
+        logger.info("✅ Test database tables initialized (SQLite in-memory)")
 
 def init_database_with_retry(max_retries=6, initial_delay=0.5):
     """
@@ -324,6 +342,7 @@ def init_database_with_retry(max_retries=6, initial_delay=0.5):
     for attempt in range(max_retries):
         try:
             with app.app_context():
+                from src.models.agent_registry_db import AgentDB, TaskDB
                 db.create_all()
             logger.info("✅ Database tables initialized successfully")
             return
@@ -339,10 +358,23 @@ def init_database_with_retry(max_retries=6, initial_delay=0.5):
                 logger.info(f"🔄 Retrying in {delay}s...")
                 time.sleep(delay)
 
-if ENVIRONMENT == 'production':
+if app.config.get('TESTING'):
+    init_test_database()
+    
+    @app.before_request
+    def ensure_tables():
+        """Safety net: Ensure agent_registry tables exist before each request in test mode"""
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        if 'agents' not in existing_tables or 'tasks' not in existing_tables:
+            from src.models.agent_registry_db import AgentDB, TaskDB
+            db.create_all()
+elif ENVIRONMENT == 'production':
     init_database_with_retry()
 else:
     with app.app_context():
+        from src.models.agent_registry_db import AgentDB, TaskDB
         db.create_all()
 
 @app.route('/', defaults={'path': ''})

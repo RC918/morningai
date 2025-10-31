@@ -1,6 +1,7 @@
 """
 Agent Registry & Task Router Routes
 Issue #760 - Agent Registry & Task Router
+Issue #960 - Replace in-memory storage with database
 Feature Flag: MVP_AGENT_REGISTRY
 
 Implements OpenAPI spec: agent-registry-v1.yaml
@@ -12,13 +13,19 @@ from datetime import datetime
 from typing import Optional
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
+from sqlalchemy import or_
 from src.middleware.auth_middleware import jwt_required, roles_required
+from src.middleware.rate_limit import rate_limit
 from src.models.agent_registry import (
     Agent, AgentRegistrationRequest, AgentUpdateRequest,
     AgentHealth, AgentHealthReport, AgentListResponse,
     Task, TaskCreationRequest, TaskUpdateRequest, TaskListResponse,
     AgentType, AgentStatus, PermissionLevel, TaskStatus,
     Pagination, AgentStatistics
+)
+from src.models.agent_registry_db import (
+    AgentDB, TaskDB, AgentTypeDB, AgentStatusDB, 
+    PermissionLevelDB, TaskStatusDB, db
 )
 
 logging.basicConfig(
@@ -41,6 +48,7 @@ tasks_store = {}
 
 @bp.route("/agents", methods=["GET"])
 @jwt_required
+@rate_limit
 def list_agents():
     """
     List all registered agents
@@ -58,37 +66,37 @@ def list_agents():
         if page_size < 1 or page_size > 100:
             return jsonify({"error": {"code": "invalid_parameter", "message": "page_size must be between 1 and 100"}}), 400
         
-        filtered_agents = list(agents_store.values())
+        query = AgentDB.query
         
         if agent_type_filter:
             try:
-                agent_type = AgentType(agent_type_filter)
-                filtered_agents = [a for a in filtered_agents if a.agent_type == agent_type]
+                agent_type = AgentTypeDB(agent_type_filter)
+                query = query.filter(AgentDB.agent_type == agent_type)
             except ValueError:
                 return jsonify({"error": {"code": "invalid_parameter", "message": f"Invalid agent_type: {agent_type_filter}"}}), 400
         
         if status_filter:
             try:
-                status = AgentStatus(status_filter)
-                filtered_agents = [a for a in filtered_agents if a.status == status]
+                status = AgentStatusDB(status_filter)
+                query = query.filter(AgentDB.status == status)
             except ValueError:
                 return jsonify({"error": {"code": "invalid_parameter", "message": f"Invalid status: {status_filter}"}}), 400
         
         if permission_level_filter:
             try:
-                permission_level = PermissionLevel(permission_level_filter)
-                filtered_agents = [a for a in filtered_agents if a.permission_level == permission_level]
+                permission_level = PermissionLevelDB(permission_level_filter)
+                query = query.filter(AgentDB.permission_level == permission_level)
             except ValueError:
                 return jsonify({"error": {"code": "invalid_parameter", "message": f"Invalid permission_level: {permission_level_filter}"}}), 400
         
-        total_items = len(filtered_agents)
+        total_items = query.count()
         total_pages = (total_items + page_size - 1) // page_size
-        start_idx = (page - 1) * page_size
-        end_idx = start_idx + page_size
-        paginated_agents = filtered_agents[start_idx:end_idx]
+        
+        agents_db = query.order_by(AgentDB.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        agents = [agent_db.to_pydantic_model() for agent_db in agents_db]
         
         response = AgentListResponse(
-            agents=paginated_agents,
+            agents=agents,
             pagination=Pagination(
                 page=page,
                 page_size=page_size,
@@ -109,6 +117,7 @@ def list_agents():
 @bp.route("/agents", methods=["POST"])
 @jwt_required
 @roles_required("admin", "service")
+@rate_limit
 def register_agent():
     """
     Register a new agent
@@ -120,28 +129,20 @@ def register_agent():
         
         agent_id = str(uuid.uuid4())
         
-        agent = Agent(
+        agent_db = AgentDB(
             agent_id=agent_id,
-            agent_type=validated_request.agent_type,
-            status=AgentStatus.IDLE,
-            permission_level=PermissionLevel.SANDBOX_ONLY,  # Start with lowest permission
-            reputation_score=500,  # Start with neutral reputation
-            capabilities=validated_request.capabilities,
-            metadata=validated_request.metadata,
-            statistics=AgentStatistics()
+            agent_type=AgentTypeDB(validated_request.agent_type.value),
+            status=AgentStatusDB.IDLE,
+            permission_level=PermissionLevelDB.SANDBOX_ONLY,
+            reputation_score=500
         )
+        agent_db.set_capabilities(validated_request.capabilities)
+        agent_db.set_metadata(validated_request.metadata)
         
-        for existing_agent in agents_store.values():
-            if (existing_agent.agent_type == agent.agent_type and 
-                set(existing_agent.capabilities) == set(agent.capabilities)):
-                return jsonify({
-                    "error": {
-                        "code": "agent_already_exists",
-                        "message": f"Agent with type {agent.agent_type} and same capabilities already registered"
-                    }
-                }), 409
+        db.session.add(agent_db)
+        db.session.commit()
         
-        agents_store[agent_id] = agent
+        agent = agent_db.to_pydantic_model()
         
         logger.info(f"Registered agent {agent_id} of type {agent.agent_type}")
         
@@ -165,6 +166,7 @@ def register_agent():
         }), 400
     
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Failed to register agent: {e}")
         if sentry_sdk:
             sentry_sdk.capture_exception(e)
@@ -173,14 +175,16 @@ def register_agent():
 
 @bp.route("/agents/<agent_id>", methods=["GET"])
 @jwt_required
+@rate_limit
 def get_agent(agent_id):
     """Get agent details by ID"""
     try:
-        agent = agents_store.get(agent_id)
+        agent_db = AgentDB.query.get(agent_id)
         
-        if not agent:
+        if not agent_db:
             return jsonify({"error": {"code": "not_found", "message": "Agent not found"}}), 404
         
+        agent = agent_db.to_pydantic_model()
         return jsonify(agent.model_dump(mode='json')), 200
     
     except Exception as e:
@@ -193,28 +197,34 @@ def get_agent(agent_id):
 @bp.route("/agents/<agent_id>", methods=["PATCH"])
 @jwt_required
 @roles_required("admin", "service")
+@rate_limit
 def update_agent(agent_id):
     """Update agent configuration or status"""
     try:
-        agent = agents_store.get(agent_id)
+        agent_db = AgentDB.query.get(agent_id)
         
-        if not agent:
+        if not agent_db:
             return jsonify({"error": {"code": "not_found", "message": "Agent not found"}}), 404
         
         payload = request.get_json(silent=True) or {}
         validated_request = AgentUpdateRequest(**payload)
         
         if validated_request.status is not None:
-            agent.status = validated_request.status
+            agent_db.status = AgentStatusDB(validated_request.status.value)
         if validated_request.capabilities is not None:
-            agent.capabilities = validated_request.capabilities
+            agent_db.set_capabilities(validated_request.capabilities)
         if validated_request.metadata is not None:
-            agent.metadata.update(validated_request.metadata)
+            current_metadata = agent_db.get_metadata()
+            current_metadata.update(validated_request.metadata)
+            agent_db.set_metadata(current_metadata)
         
-        agent.last_activity = datetime.utcnow()
+        agent_db.last_activity = datetime.utcnow()
+        
+        db.session.commit()
         
         logger.info(f"Updated agent {agent_id}")
         
+        agent = agent_db.to_pydantic_model()
         return jsonify(agent.model_dump(mode='json')), 200
     
     except ValidationError as e:
@@ -227,6 +237,7 @@ def update_agent(agent_id):
         }), 400
     
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Failed to update agent {agent_id}: {e}")
         if sentry_sdk:
             sentry_sdk.capture_exception(e)
@@ -236,19 +247,24 @@ def update_agent(agent_id):
 @bp.route("/agents/<agent_id>", methods=["DELETE"])
 @jwt_required
 @roles_required("admin")
+@rate_limit
 def unregister_agent(agent_id):
     """Unregister an agent"""
     try:
-        if agent_id not in agents_store:
+        agent_db = AgentDB.query.get(agent_id)
+        
+        if not agent_db:
             return jsonify({"error": {"code": "not_found", "message": "Agent not found"}}), 404
         
-        del agents_store[agent_id]
+        db.session.delete(agent_db)
+        db.session.commit()
         
         logger.info(f"Unregistered agent {agent_id}")
         
         return '', 204
     
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Failed to unregister agent {agent_id}: {e}")
         if sentry_sdk:
             sentry_sdk.capture_exception(e)
@@ -257,18 +273,19 @@ def unregister_agent(agent_id):
 
 @bp.route("/agents/<agent_id>/health", methods=["GET"])
 @jwt_required
+@rate_limit
 def get_agent_health(agent_id):
     """Get agent health status"""
     try:
-        agent = agents_store.get(agent_id)
+        agent_db = AgentDB.query.get(agent_id)
         
-        if not agent:
+        if not agent_db:
             return jsonify({"error": {"code": "not_found", "message": "Agent not found"}}), 404
         
         health = AgentHealth(
-            agent_id=agent.agent_id,
-            status=agent.status,
-            last_heartbeat=agent.last_activity,
+            agent_id=agent_db.agent_id,
+            status=AgentStatus(agent_db.status.value),
+            last_heartbeat=agent_db.last_activity,
             errors=[]
         )
         
@@ -283,24 +300,27 @@ def get_agent_health(agent_id):
 
 @bp.route("/agents/<agent_id>/health", methods=["POST"])
 @jwt_required
+@rate_limit
 def report_agent_health(agent_id):
     """Report agent health (heartbeat)"""
     try:
-        agent = agents_store.get(agent_id)
+        agent_db = AgentDB.query.get(agent_id)
         
-        if not agent:
+        if not agent_db:
             return jsonify({"error": {"code": "not_found", "message": "Agent not found"}}), 404
         
         payload = request.get_json(silent=True) or {}
         validated_request = AgentHealthReport(**payload)
         
-        agent.status = validated_request.status
-        agent.last_activity = datetime.utcnow()
+        agent_db.status = AgentStatusDB(validated_request.status.value)
+        agent_db.last_activity = datetime.utcnow()
+        
+        db.session.commit()
         
         health = AgentHealth(
-            agent_id=agent.agent_id,
-            status=agent.status,
-            last_heartbeat=agent.last_activity,
+            agent_id=agent_db.agent_id,
+            status=AgentStatus(agent_db.status.value),
+            last_heartbeat=agent_db.last_activity,
             metrics=validated_request.metrics,
             errors=[]
         )
@@ -317,6 +337,7 @@ def report_agent_health(agent_id):
         }), 400
     
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Failed to report agent health {agent_id}: {e}")
         if sentry_sdk:
             sentry_sdk.capture_exception(e)
@@ -325,6 +346,7 @@ def report_agent_health(agent_id):
 
 @bp.route("/tasks", methods=["GET"])
 @jwt_required
+@rate_limit
 def list_tasks():
     """List tasks with optional filtering"""
     try:
@@ -339,29 +361,29 @@ def list_tasks():
         if page_size < 1 or page_size > 100:
             return jsonify({"error": {"code": "invalid_parameter", "message": "page_size must be between 1 and 100"}}), 400
         
-        filtered_tasks = list(tasks_store.values())
+        query = TaskDB.query
         
         if status_filter:
             try:
-                status = TaskStatus(status_filter)
-                filtered_tasks = [t for t in filtered_tasks if t.status == status]
+                status = TaskStatusDB(status_filter)
+                query = query.filter(TaskDB.status == status)
             except ValueError:
                 return jsonify({"error": {"code": "invalid_parameter", "message": f"Invalid status: {status_filter}"}}), 400
         
         if agent_id_filter:
-            filtered_tasks = [t for t in filtered_tasks if t.agent_id == agent_id_filter]
+            query = query.filter(TaskDB.agent_id == agent_id_filter)
         
         if tenant_id_filter:
-            filtered_tasks = [t for t in filtered_tasks if t.tenant_id == tenant_id_filter]
+            query = query.filter(TaskDB.tenant_id == tenant_id_filter)
         
-        total_items = len(filtered_tasks)
+        total_items = query.count()
         total_pages = (total_items + page_size - 1) // page_size
-        start_idx = (page - 1) * page_size
-        end_idx = start_idx + page_size
-        paginated_tasks = filtered_tasks[start_idx:end_idx]
+        
+        tasks_db = query.order_by(TaskDB.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        tasks = [task_db.to_pydantic_model() for task_db in tasks_db]
         
         response = TaskListResponse(
-            tasks=paginated_tasks,
+            tasks=tasks,
             pagination=Pagination(
                 page=page,
                 page_size=page_size,
@@ -381,6 +403,7 @@ def list_tasks():
 
 @bp.route("/tasks", methods=["POST"])
 @jwt_required
+@rate_limit
 def create_task():
     """Create a new task and route to appropriate agent"""
     try:
@@ -391,15 +414,18 @@ def create_task():
         
         tenant_id = validated_request.tenant_id or getattr(request, 'tenant_id', None)
         
-        task = Task(
+        task_db = TaskDB(
             task_id=task_id,
-            status=TaskStatus.QUEUED,
+            status=TaskStatusDB.QUEUED,
             task_type=validated_request.task_type,
-            payload=validated_request.payload,
             tenant_id=tenant_id
         )
+        task_db.set_payload(validated_request.payload)
         
-        tasks_store[task_id] = task
+        db.session.add(task_db)
+        db.session.commit()
+        
+        task = task_db.to_pydantic_model()
         
         logger.info(f"Created task {task_id} of type {task.task_type}")
         
@@ -423,6 +449,7 @@ def create_task():
         }), 400
     
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Failed to create task: {e}")
         if sentry_sdk:
             sentry_sdk.capture_exception(e)
@@ -431,14 +458,16 @@ def create_task():
 
 @bp.route("/tasks/<task_id>", methods=["GET"])
 @jwt_required
+@rate_limit
 def get_task(task_id):
     """Get task details by ID"""
     try:
-        task = tasks_store.get(task_id)
+        task_db = TaskDB.query.get(task_id)
         
-        if not task:
+        if not task_db:
             return jsonify({"error": {"code": "not_found", "message": "Task not found"}}), 404
         
+        task = task_db.to_pydantic_model()
         return jsonify(task.model_dump(mode='json')), 200
     
     except Exception as e:
@@ -450,34 +479,39 @@ def get_task(task_id):
 
 @bp.route("/tasks/<task_id>", methods=["PATCH"])
 @jwt_required
+@rate_limit
 def update_task(task_id):
     """Update task status or metadata"""
     try:
-        task = tasks_store.get(task_id)
+        task_db = TaskDB.query.get(task_id)
         
-        if not task:
+        if not task_db:
             return jsonify({"error": {"code": "not_found", "message": "Task not found"}}), 404
         
         payload = request.get_json(silent=True) or {}
         validated_request = TaskUpdateRequest(**payload)
         
         if validated_request.status is not None:
-            task.status = validated_request.status
+            task_db.status = TaskStatusDB(validated_request.status.value)
             
-            if validated_request.status == TaskStatus.RUNNING and not task.started_at:
-                task.started_at = datetime.utcnow()
-            elif validated_request.status in [TaskStatus.COMPLETED, TaskStatus.FAILED] and not task.completed_at:
-                task.completed_at = datetime.utcnow()
-            elif validated_request.status == TaskStatus.CANCELLED and not task.cancelled_at:
-                task.cancelled_at = datetime.utcnow()
+            if validated_request.status == TaskStatus.RUNNING and not task_db.started_at:
+                task_db.started_at = datetime.utcnow()
+            elif validated_request.status in [TaskStatus.COMPLETED, TaskStatus.FAILED] and not task_db.completed_at:
+                task_db.completed_at = datetime.utcnow()
+            elif validated_request.status == TaskStatus.CANCELLED and not task_db.cancelled_at:
+                task_db.cancelled_at = datetime.utcnow()
         
         if validated_request.result is not None:
-            task.result = validated_request.result
+            task_db.set_result(validated_request.result)
         
         if validated_request.error_message is not None:
-            task.error_message = validated_request.error_message
+            task_db.error_message = validated_request.error_message
         
-        task.updated_at = datetime.utcnow()
+        task_db.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        task = task_db.to_pydantic_model()
         
         logger.info(f"Updated task {task_id} to status {task.status}")
         
@@ -493,6 +527,7 @@ def update_task(task_id):
         }), 400
     
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Failed to update task {task_id}: {e}")
         if sentry_sdk:
             sentry_sdk.capture_exception(e)
@@ -501,35 +536,41 @@ def update_task(task_id):
 
 @bp.route("/tasks/<task_id>/cancel", methods=["POST"])
 @jwt_required
+@rate_limit
 def cancel_task(task_id):
     """Cancel a running or queued task"""
     try:
-        task = tasks_store.get(task_id)
+        task_db = TaskDB.query.get(task_id)
         
-        if not task:
+        if not task_db:
             return jsonify({"error": {"code": "not_found", "message": "Task not found"}}), 404
         
-        if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+        if task_db.status in [TaskStatusDB.COMPLETED, TaskStatusDB.FAILED, TaskStatusDB.CANCELLED]:
             return jsonify({
                 "error": {
                     "code": "cannot_cancel",
-                    "message": f"Task cannot be cancelled (current status: {task.status.value})"
+                    "message": f"Task cannot be cancelled (current status: {task_db.status.value})"
                 }
             }), 409
         
         payload = request.get_json(silent=True) or {}
         reason = payload.get('reason', 'User requested cancellation')
         
-        task.status = TaskStatus.CANCELLED
-        task.cancelled_at = datetime.utcnow()
-        task.updated_at = datetime.utcnow()
-        task.error_message = f"Cancelled: {reason}"
+        task_db.status = TaskStatusDB.CANCELLED
+        task_db.cancelled_at = datetime.utcnow()
+        task_db.updated_at = datetime.utcnow()
+        task_db.error_message = f"Cancelled: {reason}"
+        
+        db.session.commit()
+        
+        task = task_db.to_pydantic_model()
         
         logger.info(f"Cancelled task {task_id}: {reason}")
         
         return jsonify(task.model_dump(mode='json')), 200
     
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Failed to cancel task {task_id}: {e}")
         if sentry_sdk:
             sentry_sdk.capture_exception(e)
