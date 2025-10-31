@@ -120,7 +120,12 @@ cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://loca
 cors_origins = [origin.strip() for origin in cors_origins]
 
 def is_vercel_preview(origin):
-    """Check if origin is a Vercel preview URL"""
+    """
+    Check if origin is a Vercel preview URL
+    Only allows Vercel previews in non-production environments for security
+    """
+    if os.environ.get('ENVIRONMENT') == 'production':
+        return False
     return origin and re.match(r'https://.*\.vercel\.app$', origin)
 
 @app.after_request
