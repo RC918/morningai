@@ -204,7 +204,7 @@ export const AppleModalProvider = ({ children }: { children: React.ReactNode }) 
     }
   }, [])
 
-  const closeModal = useCallback((id) => {
+  const closeModal = useCallback((id: string) => {
     setModals(prev => prev.filter(m => m.id !== id))
   }, [])
 

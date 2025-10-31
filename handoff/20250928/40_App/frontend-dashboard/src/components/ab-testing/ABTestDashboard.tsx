@@ -133,8 +133,8 @@ export function ABTestDashboard() {
             <div className="grid grid-cols-1 gap-4">
               {tests.map((test) => {
                 const events = test.getEvents()
-                const assignmentCount = events.filter(e => e.event === 'variant_assigned').length
-                const conversionCount = events.filter(e => e.event === 'conversion').length
+                const assignmentCount = events.filter((e: any) => e.event === 'variant_assigned').length
+                const conversionCount = events.filter((e: any) => e.event === 'conversion').length
                 const conversionRate = assignmentCount > 0 
                   ? ((conversionCount / assignmentCount) * 100).toFixed(2)
                   : '0.00'
@@ -194,7 +194,7 @@ export function ABTestDashboard() {
                         <div>
                           <div className="text-muted-foreground">Variants</div>
                           <div className="flex gap-1 flex-wrap">
-                            {test.variants.map(v => (
+                            {test.variants.map((v: any) => (
                               <Badge key={v.id} variant="outline" className="text-xs">
                                 {v.name || v.id}
                               </Badge>

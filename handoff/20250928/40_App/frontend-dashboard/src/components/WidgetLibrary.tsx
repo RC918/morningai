@@ -353,5 +353,5 @@ const UnknownWidgetComponent = ({ widgetId }: { widgetId: string }) => {
 }
 
 export const getWidgetComponent = (widgetId: string) => {
-  return WidgetLibrary[widgetId] || (() => <UnknownWidgetComponent widgetId={widgetId} />)
+  return WidgetLibrary[widgetId as keyof typeof WidgetLibrary] || (() => <UnknownWidgetComponent widgetId={widgetId} />)
 }

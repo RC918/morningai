@@ -86,7 +86,7 @@ const CheckoutPage = () => {
   }, [useMockData, loadCheckoutData])
 
   const getFeaturesByPlan = (planId: string) => {
-    const features = {
+    const features: Record<string, string[]> = {
       starter: [
         t('checkout.features.starter.basic'),
         t('checkout.features.starter.queries'),

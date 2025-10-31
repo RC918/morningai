@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { usabilityTest, SUSCalculator, NPSCalculator } from '@/lib/usability-testing'
 import SUSQuestionnaire from './SUSQuestionnaire'
-import NPSQuestionnaire from './NPSQuestionnaire'
+import NPSQuestionnaire, { type NPSResult } from './NPSQuestionnaire'
 
 interface Task {
   taskId: string
@@ -129,16 +129,6 @@ interface SUSResult {
   responses: number[]
 }
 
-interface NPSResult {
-  participant_id: string
-  session_id: string
-  timestamp: string
-  nps_score: number
-  nps_category: string
-  nps_rating: string
-  comment?: string
-}
-
 interface OverallSummary {
   total_sessions: number
   total_participants: number
@@ -195,16 +185,19 @@ export function UsabilityTestDashboard(): React.ReactElement {
 
     const session: any = usabilityTest.start(participantId, sessionId || undefined)
     setCurrentSession(session)
+    setSessionId(session.sessionId)
     loadSessions()
   }
 
   const handleEndSession = (): void => {
     if (!currentSession) return
 
-    const summary: SessionSummary = usabilityTest.end()
-    setCurrentSession(null)
-    setShowSUS(true)
-    loadSessions()
+    const summary = usabilityTest.end()
+    if (summary) {
+      setCurrentSession(null)
+      setShowSUS(true)
+      loadSessions()
+    }
   }
 
   const handleSUSComplete = (result: SUSResult): void => {
@@ -303,11 +296,23 @@ export function UsabilityTestDashboard(): React.ReactElement {
   const summary: OverallSummary = calculateOverallSummary()
 
   if (showSUS) {
+    if (!sessionId) {
+      return (
+        <div className="container mx-auto py-8">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Missing session ID. Please restart the session.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )
+    }
     return (
       <div className="container mx-auto py-8">
         <SUSQuestionnaire
           participantId={participantId}
-          sessionId={currentSession?.sessionId}
+          sessionId={sessionId}
           onComplete={handleSUSComplete}
         />
       </div>
@@ -315,11 +320,23 @@ export function UsabilityTestDashboard(): React.ReactElement {
   }
 
   if (showNPS) {
+    if (!sessionId) {
+      return (
+        <div className="container mx-auto py-8">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Missing session ID. Please restart the session.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )
+    }
     return (
       <div className="container mx-auto py-8">
         <NPSQuestionnaire
           participantId={participantId}
-          sessionId={currentSession?.sessionId}
+          sessionId={sessionId}
           onComplete={handleNPSComplete}
         />
       </div>

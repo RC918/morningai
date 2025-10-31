@@ -3,7 +3,7 @@ const getEnabledFeatures = () => {
   return featuresEnv.split(',').map(feature => feature.trim())
 }
 
-export const isFeatureEnabled = (feature) => {
+export const isFeatureEnabled = (feature: string) => {
   const enabledFeatures = getEnabledFeatures()
   return enabledFeatures.includes(feature)
 }

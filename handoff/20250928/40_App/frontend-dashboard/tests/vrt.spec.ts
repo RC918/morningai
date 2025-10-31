@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 
-async function setAuthToken(page) {
+async function setAuthToken(page: Page) {
   await page.addInitScript(() => {
     try {
       window.localStorage.setItem('auth_token', 'test-token')

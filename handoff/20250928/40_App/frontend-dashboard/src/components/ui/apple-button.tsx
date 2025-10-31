@@ -74,7 +74,7 @@ function AppleButton({
   const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled) return
     
-    if (haptic !== "none" && buttonRef.current) {
+    if (haptic !== "none" && haptic !== null && buttonRef.current) {
       triggerHaptic(buttonRef.current, haptic)
     }
     

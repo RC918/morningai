@@ -358,8 +358,8 @@ const Dashboard = (): React.ReactElement => {
           <div className="mt-2">
             <SaveStatusIndicator 
               status={saveStatus.status}
-              lastSaved={saveStatus.lastSaved}
-              error={saveStatus.error}
+              lastSaved={saveStatus.lastSaved ?? undefined}
+              error={saveStatus.error ?? undefined}
               onRetry={saveDashboardLayout}
             />
           </div>
