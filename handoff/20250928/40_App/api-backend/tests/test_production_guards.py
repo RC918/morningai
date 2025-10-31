@@ -3,6 +3,8 @@ Test production environment guards and safety checks
 """
 import pytest
 import os
+import sys
+import importlib
 from unittest.mock import patch, MagicMock
 
 
@@ -14,13 +16,16 @@ class TestProductionStartupGuards:
         with patch.dict(os.environ, {
             'ENVIRONMENT': 'production',
             'AGENT_REGISTRY_BACKEND': 'memory',
-            'DATABASE_URL': 'postgresql://test:test@localhost/test'
-        }):
+            'DATABASE_URL': 'postgresql://test:test@localhost/test',
+            'REDIS_URL': 'rediss://test:test@localhost:6380/0'
+        }, clear=True):
             with pytest.raises(RuntimeError, match="Production environment requires persistent storage"):
                 import importlib
                 import sys
                 if 'src.main' in sys.modules:
                     del sys.modules['src.main']
+                if 'src.routes.agent' in sys.modules:
+                    del sys.modules['src.routes.agent']
                 import src.main
     
     def test_production_with_db_backend_succeeds(self):
@@ -28,14 +33,21 @@ class TestProductionStartupGuards:
         with patch.dict(os.environ, {
             'ENVIRONMENT': 'production',
             'AGENT_REGISTRY_BACKEND': 'db',
-            'DATABASE_URL': 'postgresql://test:test@localhost/test'
-        }):
-            with patch('src.main.init_database_with_retry'):
+            'DATABASE_URL': 'sqlite:///:memory:',
+            'REDIS_URL': 'rediss://test:test@localhost:6380/0'
+        }, clear=True):
+            with patch('src.utils.redis_client.get_redis_client') as mock_get_redis:
+                mock_client = MagicMock()
+                mock_client.ping.return_value = True
+                mock_get_redis.return_value = mock_client
+                
                 try:
-                    import importlib
-                    import sys
                     if 'src.main' in sys.modules:
                         del sys.modules['src.main']
+                    if 'src.routes.agent' in sys.modules:
+                        del sys.modules['src.routes.agent']
+                    if 'src.middleware.rate_limit' in sys.modules:
+                        del sys.modules['src.middleware.rate_limit']
                     import src.main
                 except RuntimeError as e:
                     if "Agent Registry" in str(e):
@@ -47,14 +59,21 @@ class TestProductionStartupGuards:
             'ENVIRONMENT': 'production',
             'AGENT_REGISTRY_BACKEND': 'memory',
             'ALLOW_INMEMORY_IN_PROD': 'true',
-            'DATABASE_URL': 'postgresql://test:test@localhost/test'
-        }):
-            with patch('src.main.init_database_with_retry'):
+            'DATABASE_URL': 'sqlite:///:memory:',
+            'REDIS_URL': 'rediss://test:test@localhost:6380/0'
+        }, clear=True):
+            with patch('src.utils.redis_client.get_redis_client') as mock_get_redis:
+                mock_client = MagicMock()
+                mock_client.ping.return_value = True
+                mock_get_redis.return_value = mock_client
+                
                 try:
-                    import importlib
-                    import sys
                     if 'src.main' in sys.modules:
                         del sys.modules['src.main']
+                    if 'src.routes.agent' in sys.modules:
+                        del sys.modules['src.routes.agent']
+                    if 'src.middleware.rate_limit' in sys.modules:
+                        del sys.modules['src.middleware.rate_limit']
                     import src.main
                 except RuntimeError as e:
                     if "Agent Registry" in str(e):
@@ -64,13 +83,17 @@ class TestProductionStartupGuards:
         """Test that development environment with in-memory backend succeeds"""
         with patch.dict(os.environ, {
             'ENVIRONMENT': 'development',
-            'AGENT_REGISTRY_BACKEND': 'memory'
+            'AGENT_REGISTRY_BACKEND': 'memory',
+            'TESTING': 'true',
+            'REDIS_URL': 'redis://localhost:6379/0'
         }, clear=True):
             try:
                 import importlib
                 import sys
                 if 'src.main' in sys.modules:
                     del sys.modules['src.main']
+                if 'src.routes.agent' in sys.modules:
+                    del sys.modules['src.routes.agent']
                 import src.main
             except RuntimeError as e:
                 if "Agent Registry" in str(e):
@@ -107,6 +130,8 @@ class TestRateLimitingEnhancements:
         """Create test client"""
         os.environ['TESTING'] = 'true'
         os.environ['JWT_SECRET_KEY'] = 'test-secret-key'
+        os.environ['REDIS_URL'] = 'redis://localhost:6379/0'
+        
         from src.main import app
         app.config['TESTING'] = True
         return app.test_client()
@@ -120,8 +145,12 @@ class TestRateLimitingEnhancements:
     
     def test_rate_limit_on_agent_registry_write_endpoint(self, client, auth_headers_admin):
         """Test that rate limiting is applied to Agent Registry write endpoints"""
-        with patch('src.middleware.rate_limit.redis_client') as mock_redis:
-            mock_redis.pipeline.return_value.execute.return_value = [None, 61, None, None]
+        import src.middleware.rate_limit as rate_limit_module
+        
+        with patch.object(rate_limit_module, 'redis_client') as mock_redis:
+            mock_pipeline = MagicMock()
+            mock_pipeline.execute.return_value = [None, 61, None, None]
+            mock_redis.pipeline.return_value = mock_pipeline
             
             response = client.post(
                 '/api/v1/agents',
@@ -140,7 +169,9 @@ class TestRateLimitingEnhancements:
     
     def test_rate_limit_uses_user_id_when_authenticated(self, client, auth_headers_admin):
         """Test that rate limiter uses user_id for authenticated requests"""
-        with patch('src.middleware.rate_limit.redis_client') as mock_redis:
+        import src.middleware.rate_limit as rate_limit_module
+        
+        with patch.object(rate_limit_module, 'redis_client') as mock_redis:
             mock_pipeline = MagicMock()
             mock_redis.pipeline.return_value = mock_pipeline
             mock_pipeline.execute.return_value = [None, 1, None, None]
@@ -164,7 +195,9 @@ class TestRateLimitingEnhancements:
     
     def test_rate_limit_headers_present_on_success(self, client, auth_headers_admin):
         """Test that rate limit headers are present on successful requests"""
-        with patch('src.middleware.rate_limit.redis_client') as mock_redis:
+        import src.middleware.rate_limit as rate_limit_module
+        
+        with patch.object(rate_limit_module, 'redis_client') as mock_redis:
             mock_pipeline = MagicMock()
             mock_redis.pipeline.return_value = mock_pipeline
             mock_pipeline.execute.return_value = [None, 1, None, None]
