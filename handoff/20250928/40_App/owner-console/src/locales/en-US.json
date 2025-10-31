@@ -151,7 +151,14 @@
       "loggingIn": "Logging in...",
       "loginFailed": "Login failed",
       "loginError": "Invalid username or password",
-      "devAccount": "Development Account"
+      "devAccount": "Development Account",
+      "orContinueWith": "Or continue with"
+    },
+    "sso": {
+      "initializationFailed": "SSO login failed. Please try again.",
+      "loginWithGoogle": "Login with Google",
+      "loginWithApple": "Login with Apple",
+      "loginWithGitHub": "Login with GitHub"
     },
     "logout": "Logout",
     "email": "Email",

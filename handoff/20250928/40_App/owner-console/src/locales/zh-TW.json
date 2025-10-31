@@ -151,7 +151,14 @@
       "loggingIn": "登入中...",
       "loginFailed": "登入失敗",
       "loginError": "使用者名稱或密碼無效",
-      "devAccount": "開發帳號"
+      "devAccount": "開發帳號",
+      "orContinueWith": "或使用以下方式繼續"
+    },
+    "sso": {
+      "initializationFailed": "SSO 登入失敗，請重試。",
+      "loginWithGoogle": "使用 Google 登入",
+      "loginWithApple": "使用 Apple 登入",
+      "loginWithGitHub": "使用 GitHub 登入"
     },
     "logout": "登出",
     "email": "電子郵件",
