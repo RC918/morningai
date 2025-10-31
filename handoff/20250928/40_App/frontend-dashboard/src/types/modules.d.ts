@@ -15,12 +15,3 @@ declare module 'jest-axe' {
   
   export const configureAxe: (options?: any) => typeof axe
 }
-
-declare module 'vitest' {
-  interface Assertion<T = any> {
-    toHaveNoViolations(): void
-  }
-  interface AsymmetricMatchersContaining {
-    toHaveNoViolations(): void
-  }
-}
