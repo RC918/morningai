@@ -1,15 +1,26 @@
 
 declare module 'jest-axe' {
-  import { RuleObject } from 'axe-core'
-  
   export interface AxeResults {
-    violations: RuleObject[]
-    passes: RuleObject[]
-    incomplete: RuleObject[]
-    inapplicable: RuleObject[]
+    violations: any[]
+    passes: any[]
+    incomplete: any[]
+    inapplicable: any[]
   }
   
-  export function axe(element: Element | Document): Promise<AxeResults>
-  export function toHaveNoViolations(results: AxeResults): void
-  export const configureAxe: (options: any) => typeof axe
+  export const axe: (element?: Element | Document | DocumentFragment) => Promise<AxeResults>
+  
+  type MatcherFn = (this: any, received: any, ...args: any[]) => any
+  type MatchersObjectLite = Record<string, MatcherFn>
+  export const toHaveNoViolations: MatchersObjectLite
+  
+  export const configureAxe: (options?: any) => typeof axe
+}
+
+declare module 'vitest' {
+  interface Assertion<T = any> {
+    toHaveNoViolations(): void
+  }
+  interface AsymmetricMatchersContaining {
+    toHaveNoViolations(): void
+  }
 }
