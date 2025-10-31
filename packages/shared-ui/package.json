@@ -30,6 +30,10 @@
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "type-check": "tsc --noEmit"
   },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "peerDependencies": {
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
