@@ -17,7 +17,7 @@ vi.mock('@/components/ui/apple-button', () => ({
 }))
 
 vi.mock('@/components/ui/apple-input', () => ({
-  AppleInput: ({ label, ...props }) => (
+  AppleInput: ({ label, ...props }: { label: string; [key: string]: any }) => (
     <div>
       {label && <label>{label}</label>}
       <input {...props} />
