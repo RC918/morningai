@@ -132,7 +132,7 @@ cors_config = {
     "origins": cors_origins,
     "supports_credentials": True,
     "allow_headers": ["Content-Type", "Authorization", "X-Request-ID"],
-    "expose_headers": ["Content-Type", "Authorization"],
+    "expose_headers": ["Content-Type", "Authorization", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
 }
 
@@ -320,6 +320,34 @@ else:
 
 db.init_app(app)
 
+def validate_rate_limit_redis():
+    """
+    Validate Redis connection for rate limiting in production.
+    
+    This provides fail-fast behavior: if Redis is unavailable in production,
+    the application will refuse to start rather than running without rate limiting protection.
+    
+    Can be disabled by setting RATE_LIMIT_FAIL_FAST=false (not recommended).
+    
+    Raises:
+        RuntimeError: If Redis is unavailable in production environment
+    """
+    if not os.getenv('RATE_LIMIT_FAIL_FAST', 'true').lower() == 'true':
+        logger.info("ℹ️  Rate limit fail-fast disabled via RATE_LIMIT_FAIL_FAST=false")
+        return
+    
+    try:
+        from src.utils.redis_client import get_redis_client
+        redis_client = get_redis_client()
+        redis_client.ping()
+        logger.info("✅ Rate limiting Redis connection validated at startup")
+    except Exception as e:
+        logger.critical(f"❌ FATAL: Rate limiting Redis unavailable in production: {e}")
+        logger.critical("   This is a security issue - production requires rate limiting to prevent DoS attacks")
+        logger.critical("   Solution: Ensure REDIS_URL or UPSTASH_REDIS_REST_URL is configured")
+        logger.critical("   Emergency override (not recommended): Set RATE_LIMIT_FAIL_FAST=false")
+        raise RuntimeError("Production environment requires Redis for rate limiting")
+
 def init_test_database():
     """Initialize test database with SQLite in-memory and create all tables"""
     with app.app_context():
@@ -371,6 +399,7 @@ if app.config.get('TESTING'):
             from src.models.agent_registry_db import AgentDB, TaskDB
             db.create_all()
 elif ENVIRONMENT == 'production':
+    validate_rate_limit_redis()
     init_database_with_retry()
 else:
     with app.app_context():
