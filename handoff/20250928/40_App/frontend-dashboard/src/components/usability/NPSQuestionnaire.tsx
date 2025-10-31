@@ -68,8 +68,8 @@ export function NPSQuestionnaire({ onComplete, participantId, sessionId }: NPSQu
     return { label: 'Detractor', color: 'text-red-600', icon: ThumbsDown }
   }
 
-  if (submitted) {
-    const category = getCategory(score!)
+  if (submitted && score !== null) {
+    const category = getCategory(score)
     const CategoryIcon = category.icon
 
     return (
