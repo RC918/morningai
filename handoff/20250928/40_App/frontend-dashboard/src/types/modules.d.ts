@@ -15,3 +15,8 @@ declare module 'jest-axe' {
   
   export const configureAxe: (options?: any) => typeof axe
 }
+
+declare module './tolgee' {
+  const tolgee: any
+  export default tolgee
+}

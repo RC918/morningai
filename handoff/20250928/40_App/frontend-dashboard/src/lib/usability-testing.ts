@@ -276,7 +276,7 @@ class UsabilityTestingSession {
         end_time: new Date(endTime).toISOString(),
         total_duration_ms: totalDuration,
         total_duration_minutes: Math.round(totalDuration / 60000),
-        ...sessionSummary
+        session_summary: sessionSummary
       }
     })
 

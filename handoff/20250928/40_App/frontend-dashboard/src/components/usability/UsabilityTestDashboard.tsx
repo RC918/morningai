@@ -201,10 +201,12 @@ export function UsabilityTestDashboard(): React.ReactElement {
   const handleEndSession = (): void => {
     if (!currentSession) return
 
-    const summary: SessionSummary = usabilityTest.end()
-    setCurrentSession(null)
-    setShowSUS(true)
-    loadSessions()
+    const summary = usabilityTest.end()
+    if (summary) {
+      setCurrentSession(null)
+      setShowSUS(true)
+      loadSessions()
+    }
   }
 
   const handleSUSComplete = (result: SUSResult): void => {
@@ -307,7 +309,7 @@ export function UsabilityTestDashboard(): React.ReactElement {
       <div className="container mx-auto py-8">
         <SUSQuestionnaire
           participantId={participantId}
-          sessionId={currentSession?.sessionId}
+          sessionId={currentSession?.sessionId || ''}
           onComplete={handleSUSComplete}
         />
       </div>
@@ -319,7 +321,7 @@ export function UsabilityTestDashboard(): React.ReactElement {
       <div className="container mx-auto py-8">
         <NPSQuestionnaire
           participantId={participantId}
-          sessionId={currentSession?.sessionId}
+          sessionId={currentSession?.sessionId || ''}
           onComplete={handleNPSComplete}
         />
       </div>

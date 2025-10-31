@@ -17,12 +17,27 @@ import { NPSCalculator } from '@/lib/usability-testing'
 
 const NPS_QUESTION = 'How likely are you to recommend this product to a friend or colleague?'
 
-export function NPSQuestionnaire({ onComplete, participantId, sessionId }) {
-  const [score, setScore] = useState(null)
+interface NPSResult {
+  participant_id: string
+  session_id: string
+  nps_score: number
+  nps_category: string
+  feedback: string
+  timestamp: string
+}
+
+interface NPSQuestionnaireProps {
+  onComplete?: (result: NPSResult) => void
+  participantId: string
+  sessionId: string
+}
+
+export function NPSQuestionnaire({ onComplete, participantId, sessionId }: NPSQuestionnaireProps) {
+  const [score, setScore] = useState<number | null>(null)
   const [feedback, setFeedback] = useState('')
   const [submitted, setSubmitted] = useState(false)
 
-  const handleScoreSelect = (value) => {
+  const handleScoreSelect = (value: number) => {
     setScore(value)
   }
 
@@ -47,14 +62,14 @@ export function NPSQuestionnaire({ onComplete, participantId, sessionId }) {
     }
   }
 
-  const getCategory = (value) => {
+  const getCategory = (value: number) => {
     if (value >= 9) return { label: 'Promoter', color: 'text-green-600', icon: ThumbsUp }
     if (value >= 7) return { label: 'Passive', color: 'text-yellow-600', icon: Minus }
     return { label: 'Detractor', color: 'text-red-600', icon: ThumbsDown }
   }
 
   if (submitted) {
-    const category = getCategory(score)
+    const category = getCategory(score!)
     const CategoryIcon = category.icon
 
     return (

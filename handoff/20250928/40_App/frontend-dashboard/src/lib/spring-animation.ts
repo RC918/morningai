@@ -502,8 +502,8 @@ export const trackAnimation = (animationId: string): (() => void) => {
   
   let lastTime = performance.now();
   let frameCount = 0;
-  let fps = [];
-  let rafId = null;
+  let fps: number[] = [];
+  let rafId: number | null = null;
   let isActive = true;
   
   const measureFrame = () => {

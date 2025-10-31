@@ -230,7 +230,7 @@ export const AppleSheetProvider = ({ children }: { children: React.ReactNode }) 
     }
   }, [])
 
-  const closeSheet = useCallback((id) => {
+  const closeSheet = useCallback((id: string) => {
     setSheets(prev => prev.filter(s => s.id !== id))
   }, [])
 

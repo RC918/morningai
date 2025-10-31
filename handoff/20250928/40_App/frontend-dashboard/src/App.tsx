@@ -74,8 +74,9 @@ function AppContent() {
       })
     }
 
-    const handleApiError = (event: CustomEvent) => {
-      const { endpoint, error, status, requestId } = event.detail
+    const handleApiError = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const { endpoint, error, status, requestId } = customEvent.detail
       addToast({
         title: t('common.apiError'),
         description: `${endpoint}: ${error} (ID: ${requestId})`,
@@ -83,7 +84,7 @@ function AppContent() {
       })
     }
 
-    window.addEventListener('api-error', handleApiError)
+    window.addEventListener('api-error', handleApiError as EventListener)
 
     const checkAuth = async () => {
       try {
@@ -133,7 +134,7 @@ function AppContent() {
     applyDesignTokens('.theme-morning-ai')
 
     return () => {
-      window.removeEventListener('api-error', handleApiError)
+      window.removeEventListener('api-error', handleApiError as EventListener)
     }
   }, [addToast, setUser])
 

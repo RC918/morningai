@@ -22,7 +22,7 @@ export const SEARCH_CATEGORIES = {
  * @param {Function} t - i18n translation function
  * @returns {Array} Array of searchable items
  */
-export const getSearchableItems = (t) => {
+export const getSearchableItems = (t: any) => {
   return [
     ...getPageItems(t),
     ...getWidgetItems(t),
@@ -34,7 +34,7 @@ export const getSearchableItems = (t) => {
 /**
  * Page navigation items
  */
-const getPageItems = (t) => [
+const getPageItems = (t: any) => [
   {
     id: 'dashboard',
     title: t('nav.dashboard'),
@@ -104,13 +104,13 @@ const getPageItems = (t) => [
  * Widget items (currently commented out - requires Dashboard integration)
  * Uncomment when Dashboard.addWidget is exposed globally or via context
  */
-const getWidgetItems = (t) => [
+const getWidgetItems = (t: any) => [
 ]
 
 /**
  * Settings items
  */
-const getSettingsItems = (t) => [
+const getSettingsItems = (t: any) => [
   {
     id: 'profile-settings',
     title: t('settings.tabs.profile'),
@@ -143,7 +143,7 @@ const getSettingsItems = (t) => [
 /**
  * Documentation items (placeholder for future)
  */
-const getDocsItems = (t) => [
+const getDocsItems = (t: any) => [
 ]
 
 export default {

@@ -217,7 +217,7 @@ export const AppleToastProvider = ({ children }: { children: React.ReactNode }) 
     }
   }, [])
 
-  const dismiss = useCallback((id) => {
+  const dismiss = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
@@ -227,10 +227,10 @@ export const AppleToastProvider = ({ children }: { children: React.ReactNode }) 
 
   const contextValue = {
     toast,
-    success: (title, description) => toast({ title, description, variant: 'success' }),
-    error: (title, description) => toast({ title, description, variant: 'error' }),
-    warning: (title, description) => toast({ title, description, variant: 'warning' }),
-    info: (title, description) => toast({ title, description, variant: 'info' }),
+    success: (title: string, description?: string) => toast({ title, description, variant: 'success' }),
+    error: (title: string, description?: string) => toast({ title, description, variant: 'error' }),
+    warning: (title: string, description?: string) => toast({ title, description, variant: 'warning' }),
+    info: (title: string, description?: string) => toast({ title, description, variant: 'info' }),
     dismiss,
     dismissAll,
     toasts

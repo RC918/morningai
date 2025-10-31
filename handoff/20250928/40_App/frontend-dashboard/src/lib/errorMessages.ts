@@ -65,7 +65,7 @@ export const ERROR_MESSAGES = {
   }
 }
 
-export const getErrorMessage = (error) => {
+export const getErrorMessage = (error: any) => {
   if (!navigator.onLine) {
     return ERROR_MESSAGES.NETWORK_ERROR
   }
@@ -107,19 +107,19 @@ export const getErrorMessage = (error) => {
   return ERROR_MESSAGES.UNKNOWN_ERROR
 }
 
-export const getErrorTitle = (error) => {
+export const getErrorTitle = (error: any) => {
   return getErrorMessage(error).title
 }
 
-export const getErrorDescription = (error) => {
+export const getErrorDescription = (error: any) => {
   return getErrorMessage(error).description
 }
 
-export const getErrorAction = (error) => {
+export const getErrorAction = (error: any) => {
   return getErrorMessage(error).action
 }
 
-export const getErrorIcon = (error) => {
+export const getErrorIcon = (error: any) => {
   return getErrorMessage(error).icon
 }
 
