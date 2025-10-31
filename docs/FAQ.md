@@ -1,91 +1,97 @@
 # System Architecture of MorningAI
 
-MorningAI employs a robust, scalable, and modular architecture designed to support autonomous agent-based code generation, FAQ generation, documentation management, and multi-platform integration. This architecture ensures efficient real-time task orchestration and high-performance data handling. Below is a comprehensive overview of MorningAI's system architecture, including key components and their interactions.
+MorningAI is designed as a multi-tenant SaaS platform with an emphasis on scalability, reliability, and ease of integration. The system leverages a modern technology stack and follows best practices for web application architecture. Below is a comprehensive overview of MorningAI's system architecture, including its components and how they interact.
 
-## Core Components
+## Overview
 
-### Frontend
-- **Technologies**: React for the UI, Vite as the build tool, and TailwindCSS for styling.
-- **Path**: `frontend/`
-- **Functionality**: Provides the user interface for interacting with MorningAI's features including code generation, documentation management, and viewing analytics.
+The MorningAI platform is structured around several core components:
 
-### Backend
-- **Technologies**: Python with Flask as the web framework, Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests.
-- **Path**: `backend/`
-- **Functionality**: Manages API requests, processes tasks such as code generation or FAQ management, interacts with databases, and handles integration with external platforms.
+- **Frontend**: Implemented with React, utilizing Vite for an optimized development experience and TailwindCSS for styling. This setup provides a responsive and dynamic user interface.
+  
+- **Backend**: Built with Python using the Flask framework and Gunicorn as the WSGI HTTP server with support for handling multiple worker processes. This combination ensures efficient request handling and scalability.
 
-### Database
-- **Technology**: PostgreSQL hosted on Supabase, featuring Row Level Security (RLS) for enhanced data protection.
-- **Path**: Configuration found in `supabase/`
-- **Functionality**: Stores all persistent data including user information, generated codes, FAQs, and documentation content.
+- **Database**: PostgreSQL is used for data storage, enhanced with Row Level Security (RLS) to ensure data isolation between tenants. Supabase is utilized as a backend service to simplify database operations and real-time functionalities.
 
-### Queue System
-- **Technology**: Redis Queue (RQ) for managing background tasks with worker heartbeat monitoring to ensure reliability.
-- **Path**: Configuration can be found under `backend/rqconfig.py`
-- **Functionality**: Handles task queuing and distribution to workers for asynchronous processing of intensive tasks like large scale code generation or data processing.
+- **Queue System**: Redis Queue (RQ) manages background tasks, enabling asynchronous processing and task scheduling. Worker heartbeat monitoring ensures reliability in task execution.
 
-### Orchestration
-- **Technology**: LangGraph for managing complex agent workflows.
-- **Path**: Workflow definitions located in `backend/workflows/`
-- **Functionality**: Coordinates between different services and agents to automate processes like content creation or updating documentation in a sequenced manner.
+- **Orchestration**: LangGraph orchestrates agent workflows, facilitating complex interactions within the autonomous agent system.
 
-### AI Model
-- **Technology**: OpenAI's GPT-4 for generating content and responses.
-- **Integration Point**: Primarily through backend services interacting via API calls.
-- **Functionality**: Powers the autonomous agents for generating code snippets, FAQs, documentation content, and more.
+- **AI Integration**: OpenAI's GPT-4 powers content generation, including code generation, FAQ generation, and documentation management.
 
-### Deployment
-- **Platform**: Render.com with Continuous Integration/Continuous Deployment (CI/CD) setup to streamline development workflows.
-- **Configuration Path**: `.render/`
-- **Functionality**: Ensures that the application is automatically updated upon new commits to the repository while maintaining uptime and scalability.
+- **Deployment**: Hosted on Render.com with continuous integration and continuous deployment (CI/CD), ensuring seamless updates and high availability.
 
-## Example Code Snippet: Integrating RQ with Flask
+### Detailed Architecture Diagram
 
-```python
-from flask import Flask
-from rq import Queue
-from redis import Redis
+While this document does not include visual elements, it's recommended to consult the `architecture_diagram.png` located in the `docs/assets` directory of the RC918/morningai repository for a graphical representation of the system architecture.
 
-app = Flask(__name__)
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
+## Example: Integrating a New Service
 
-@app.route('/enqueue')
-def enqueue_task():
-    result = q.enqueue('path.to.function', 'argument')
-    return f"Task {result.id} added to queue."
+To integrate a new service into the MorningAI platform, you would typically follow these steps:
 
-if __name__ == "__main__":
-    app.run()
-```
+1. **Define Service Interface**: Create an abstraction layer if your service communicates with external systems or databases.
+   
+2. **Update Backend Logic**: Implement your service logic within the Flask application structure. For example, adding a new route in Flask might look like this:
+
+   ```python
+   from flask import Flask, jsonify
+
+   app = Flask(__name__)
+
+   @app.route('/new-service')
+   def new_service():
+       return jsonify({"message": "New Service Endpoint"})
+   ```
+
+3. **Add Task to RQ if Asynchronous Processing Needed**:
+
+   ```python
+   from redis import Redis
+   from rq import Queue
+   
+   q = Queue(connection=Redis())
+   
+   def background_task():
+       print("Running in background")
+   
+   # Enqueue the task
+   q.enqueue(background_task)
+   ```
+
+4. **Incorporate Frontend Changes**: Integrate UI components using React to interact with your new backend service.
+
+5. **Deploy Updates**: Utilize Render.com's CI/CD pipelines to deploy your changes by pushing to your Git repository.
 
 ## Related Documentation Links
 
-For more detailed information on each component:
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- RQ Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- Supabase Documentation: [https://supabase.io/docs](https://supabase.io/docs)
+- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
 
-- [React Documentation](https://reactjs.org/docs/getting-started.html)
-- [Vite Documentation](https://vitejs.dev/guide/)
-- [TailwindCSS Documentation](https://tailwindcss.com/docs)
-- [Flask Documentation](https://flask.palletsprojects.com/en/latest/)
-- [Gunicorn Documentation](https://gunicorn.org/#docs)
-- [Supabase Documentation](https://supabase.io/docs)
-- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
-- [Render.com CI/CD Documentation](https://render.com/docs)
+## Common Troubleshooting Tips
 
-## Troubleshooting Common Issues
+### Backend Issues
 
-**1. Database Connection Issues:**
-Ensure that your Supabase credentials are correctly configured in your application settings. Check the network access settings in Supabase to allow connections from your application's IP address.
+**Problem:** Server startup fails due to port being in use.
+**Solution:** Check for any running processes on the intended port and terminate them or configure Gunicorn to use a different port.
 
-**2. Task Queuing Delays:**
-If tasks are not being processed as expected:
-   - Verify that RQ workers are running by checking their heartbeat.
-   - Ensure that there is no network latency or connectivity issue between your application server and Redis.
+### Frontend Issues
 
-**3. Deployment Failures:**
-For deployment issues on Render.com:
-   - Check the build logs for specific errors.
-   - Ensure that your `.render` configuration files are correctly set up according to Render's documentation.
+**Problem:** Changes in React components are not reflecting.
+**Solution:** Ensure that Vite is running in development mode for hot reloading. If issues persist, clear browser cache or check for proxy issues.
+
+### Database Connection Issues
+
+**Problem:** Application cannot connect to PostgreSQL database.
+**Solution:** Verify database credentials and connection strings in your application configuration. Ensure network ACLs/firewall rules allow traffic between your application host and database server.
+
+### Redis Queue (RQ) Issues
+
+**Problem:** Tasks are not being processed by workers.
+**Solution:** Check that RQ workers are running and connected to the same Redis instance as your application. Use `rq info` command to inspect queue status.
+
+For more specific issues or guidance, refer to the respective component documentation or raise an issue in the RC918/morningai repository.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -94,6 +100,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `97e76285-819c-42c1-8d41-247053c43c7f`
+- Trace ID: `5d8e410c-8a50-43b0-93cf-2d88e388d854`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
