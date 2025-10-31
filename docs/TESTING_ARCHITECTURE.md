@@ -279,7 +279,7 @@ pytest -n auto
 @pytest.fixture(autouse=True)
 def test_jwt_secret():
     """Ensure test environment uses dedicated JWT secret"""
-    os.environ['JWT_SECRET'] = 'test-secret-do-not-use-in-production'
+    os.environ['JWT_SECRET_KEY'] = 'test-secret-do-not-use-in-production'
     yield
 ```
 

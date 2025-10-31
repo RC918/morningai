@@ -17,14 +17,14 @@ def test_jwt_secret():
     This fixture automatically runs for all tests to prevent
     accidental use of production secrets in tests.
     """
-    original_secret = os.environ.get('JWT_SECRET')
-    os.environ['JWT_SECRET'] = 'test-secret-do-not-use-in-production'
+    original_secret = os.environ.get('JWT_SECRET_KEY')
+    os.environ['JWT_SECRET_KEY'] = 'test-secret-do-not-use-in-production'
     yield
     
     if original_secret:
-        os.environ['JWT_SECRET'] = original_secret
-    elif 'JWT_SECRET' in os.environ:
-        del os.environ['JWT_SECRET']
+        os.environ['JWT_SECRET_KEY'] = original_secret
+    elif 'JWT_SECRET_KEY' in os.environ:
+        del os.environ['JWT_SECRET_KEY']
 
 
 @pytest.fixture
