@@ -142,6 +142,13 @@
       "plugin:storybook/recommended"
     ]
   },
+  "browserslist": [
+    "Chrome >= 90",
+    "Safari >= 14",
+    "Edge >= 90",
+    "Firefox >= 88",
+    "iOS >= 14"
+  ],
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
       "eslint --fix"
