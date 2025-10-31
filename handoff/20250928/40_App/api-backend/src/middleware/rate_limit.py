@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import uuid
 from functools import wraps
 from flask import request, jsonify
 from redis import ConnectionError as RedisConnectionError
@@ -8,13 +9,31 @@ from redis import ConnectionError as RedisConnectionError
 logger = logging.getLogger(__name__)
 
 redis_client = None
-try:
-    from src.utils.redis_client import get_redis_client
-    redis_client = get_redis_client()
-    logger.info("Rate limit Redis connection established")
-except Exception as e:
-    logger.warning(f"Rate limit Redis unavailable, rate limiting will be disabled: {e}")
-    redis_client = None
+redis_init_attempted = False
+
+def get_rate_limit_redis():
+    """
+    Get Redis client with lazy initialization.
+    
+    This function initializes Redis on first request rather than at module import time,
+    avoiding timing issues where Redis might not be available during app initialization.
+    
+    Returns:
+        Redis client or None if unavailable
+    """
+    global redis_client, redis_init_attempted
+    
+    if not redis_init_attempted:
+        redis_init_attempted = True
+        try:
+            from src.utils.redis_client import get_redis_client
+            redis_client = get_redis_client()
+            logger.info("✅ Rate limit Redis connection established")
+        except Exception as e:
+            logger.warning(f"⚠️ Rate limit Redis unavailable, rate limiting will be disabled: {e}")
+            redis_client = None
+    
+    return redis_client
 
 RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "60"))
 RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
@@ -28,7 +47,9 @@ def rate_limit(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not redis_client:
+        client = get_rate_limit_redis()
+        
+        if not client:
             response = f(*args, **kwargs)
             return response
         
@@ -39,21 +60,23 @@ def rate_limit(f):
         rate_limit_key = f"rate_limit:{client_ip}"
         
         try:
-            current_time = int(time.time())
+            current_time = time.time()
             window_start = current_time - RATE_LIMIT_WINDOW
             
-            pipe = redis_client.pipeline()
+            unique_member = f"{time.time_ns()}-{uuid.uuid4()}"
+            
+            pipe = client.pipeline()
             pipe.zremrangebyscore(rate_limit_key, 0, window_start)
+            pipe.zadd(rate_limit_key, {unique_member: current_time})
             pipe.zcard(rate_limit_key)
-            pipe.zadd(rate_limit_key, {str(current_time): current_time})
             pipe.expire(rate_limit_key, RATE_LIMIT_WINDOW + 10)
             results = pipe.execute()
             
-            request_count = results[1]
-            remaining = max(0, RATE_LIMIT_REQUESTS - request_count)
-            reset_time = current_time + RATE_LIMIT_WINDOW
+            request_count = results[2]
+            remaining = max(0, RATE_LIMIT_REQUESTS - request_count + 1)
+            reset_time = int(current_time + RATE_LIMIT_WINDOW)
             
-            if request_count >= RATE_LIMIT_REQUESTS:
+            if request_count > RATE_LIMIT_REQUESTS:
                 logger.warning(f"Rate limit exceeded for IP {client_ip}: {request_count} requests")
                 response = jsonify({
                     "error": {
