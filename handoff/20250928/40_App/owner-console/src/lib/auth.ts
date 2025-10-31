@@ -5,11 +5,17 @@
  * Squad: Owner Console Squad
  * Feature Flag: OWNER_CONSOLE_API
  * 
+ * Task 1: Enhanced Token Security
+ * - HttpOnly cookies for access and refresh tokens
+ * - Automatic token rotation on refresh
+ * - Redis-based token blacklist
+ * - No token storage in localStorage (security improvement)
+ * 
  * This module provides:
- * - JWT token management
- * - Refresh token mechanism
+ * - JWT token management via HttpOnly cookies
+ * - Refresh token mechanism with rotation
  * - Automatic token refresh on expiry
- * - Secure token storage
+ * - Secure cookie-based authentication
  * 
  * @see docs/PARALLEL_DEVELOPMENT_STRATEGY.md
  */
@@ -18,8 +24,6 @@ import { isFeatureEnabled } from './feature-flags';
 
 
 export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
   expiresAt: number; // Unix timestamp in milliseconds
 }
 
@@ -48,65 +52,61 @@ export interface RefreshTokenResponse {
 }
 
 
-const TOKEN_STORAGE_KEY = 'morningai_auth_tokens';
+const TOKEN_EXPIRY_KEY = 'morningai_token_expiry';
 const USER_STORAGE_KEY = 'morningai_user';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
 
 
 /**
- * Store auth tokens securely
- * 
- * In production, consider using:
- * - HttpOnly cookies for refresh token
- * - Memory storage for access token
- * - Encrypted localStorage as fallback
+ * Store token expiry time
+ * Note: Actual tokens are stored in HttpOnly cookies by the backend
  */
-export function storeTokens(tokens: AuthTokens): void {
+export function storeTokenExpiry(expiresAt: number): void {
   if (typeof window === 'undefined') return;
   
   try {
-    localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
+    localStorage.setItem(TOKEN_EXPIRY_KEY, expiresAt.toString());
   } catch (error) {
-    console.error('Failed to store auth tokens:', error);
+    console.error('Failed to store token expiry:', error);
   }
 }
 
 /**
- * Retrieve stored auth tokens
+ * Retrieve stored token expiry time
  */
-export function getStoredTokens(): AuthTokens | null {
+export function getStoredTokenExpiry(): number | null {
   if (typeof window === 'undefined') return null;
   
   try {
-    const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const stored = localStorage.getItem(TOKEN_EXPIRY_KEY);
     if (!stored) return null;
     
-    const tokens = JSON.parse(stored) as AuthTokens;
-    
-    if (!tokens.accessToken || !tokens.refreshToken || !tokens.expiresAt) {
+    const expiresAt = parseInt(stored, 10);
+    if (isNaN(expiresAt)) {
       clearTokens();
       return null;
     }
     
-    return tokens;
+    return expiresAt;
   } catch (error) {
-    console.error('Failed to retrieve auth tokens:', error);
+    console.error('Failed to retrieve token expiry:', error);
     clearTokens();
     return null;
   }
 }
 
 /**
- * Clear stored auth tokens
+ * Clear stored auth data
+ * Note: HttpOnly cookies are cleared by the backend on logout
  */
 export function clearTokens(): void {
   if (typeof window === 'undefined') return;
   
   try {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_EXPIRY_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
   } catch (error) {
-    console.error('Failed to clear auth tokens:', error);
+    console.error('Failed to clear auth data:', error);
   }
 }
 
@@ -144,10 +144,8 @@ export function getStoredUser(): User | null {
 /**
  * Check if access token is expired or about to expire
  */
-export function isTokenExpired(tokens: AuthTokens): boolean {
+export function isTokenExpired(expiresAt: number): boolean {
   const now = Date.now();
-  const expiresAt = tokens.expiresAt;
-  
   return now >= (expiresAt - TOKEN_REFRESH_BUFFER_MS);
 }
 
@@ -155,10 +153,10 @@ export function isTokenExpired(tokens: AuthTokens): boolean {
  * Check if user is authenticated
  */
 export function isAuthenticated(): boolean {
-  const tokens = getStoredTokens();
-  if (!tokens) return false;
+  const expiresAt = getStoredTokenExpiry();
+  if (!expiresAt) return false;
   
-  return Date.now() < tokens.expiresAt;
+  return Date.now() < expiresAt;
 }
 
 
@@ -166,42 +164,38 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 
 /**
  * Make authenticated API request
+ * Tokens are automatically sent via HttpOnly cookies
  */
 async function authenticatedFetch(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  const tokens = getStoredTokens();
+  const expiresAt = getStoredTokenExpiry();
   
-  if (!tokens) {
+  if (!expiresAt) {
     throw new Error('Not authenticated');
   }
   
-  if (isTokenExpired(tokens)) {
+  if (isTokenExpired(expiresAt)) {
     await refreshAccessToken();
-    const newTokens = getStoredTokens();
-    if (!newTokens) {
-      throw new Error('Token refresh failed');
-    }
-    
-    const headers = new Headers(options.headers);
-    headers.set('Authorization', `Bearer ${newTokens.accessToken}`);
-    
-    return fetch(url, { ...options, headers });
   }
   
-  const headers = new Headers(options.headers);
-  headers.set('Authorization', `Bearer ${tokens.accessToken}`);
-  
-  return fetch(url, { ...options, headers });
+  return fetch(url, {
+    ...options,
+    credentials: 'include',
+  });
 }
 
 
 /**
  * Login with email and password
+ * Tokens are stored in HttpOnly cookies by the backend
  */
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
+    const mockTokens = {
+      expiresAt: Date.now() + 60 * 60 * 1000,
+    };
     return {
       user: {
         id: 'mock-user-id',
@@ -210,11 +204,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
         tenantId: 'mock-tenant-id',
         name: 'Mock User',
       },
-      tokens: {
-        accessToken: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
-        expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
-      },
+      tokens: mockTokens,
     };
   }
   
@@ -223,6 +213,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(credentials),
   });
   
@@ -233,7 +224,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   
   const data: LoginResponse = await response.json();
   
-  storeTokens(data.tokens);
+  storeTokenExpiry(data.tokens.expiresAt);
   storeUser(data.user);
   
   return data;
@@ -241,21 +232,17 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 
 /**
  * Logout and clear tokens
+ * Backend will blacklist the refresh token and clear cookies
  */
 export async function logout(): Promise<void> {
-  const tokens = getStoredTokens();
-  
-  if (tokens && isFeatureEnabled('OWNER_CONSOLE_API')) {
+  if (isFeatureEnabled('OWNER_CONSOLE_API')) {
     try {
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${tokens.accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          refreshToken: tokens.refreshToken,
-        }),
+        credentials: 'include',
       });
     } catch (error) {
       console.error('Logout API call failed:', error);
@@ -267,21 +254,14 @@ export async function logout(): Promise<void> {
 
 /**
  * Refresh access token using refresh token
+ * Backend handles token rotation automatically
  */
 export async function refreshAccessToken(): Promise<AuthTokens> {
-  const tokens = getStoredTokens();
-  
-  if (!tokens) {
-    throw new Error('No refresh token available');
-  }
-  
   if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
     const newTokens: AuthTokens = {
-      accessToken: 'mock-refreshed-access-token',
-      refreshToken: tokens.refreshToken,
-      expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+      expiresAt: Date.now() + 60 * 60 * 1000,
     };
-    storeTokens(newTokens);
+    storeTokenExpiry(newTokens.expiresAt);
     return newTokens;
   }
   
@@ -290,9 +270,7 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      refreshToken: tokens.refreshToken,
-    }),
+    credentials: 'include',
   });
   
   if (!response.ok) {
@@ -303,12 +281,10 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
   const data: RefreshTokenResponse = await response.json();
   
   const newTokens: AuthTokens = {
-    accessToken: data.accessToken,
-    refreshToken: tokens.refreshToken, // Keep existing refresh token
     expiresAt: data.expiresAt,
   };
   
-  storeTokens(newTokens);
+  storeTokenExpiry(newTokens.expiresAt);
   
   return newTokens;
 }
@@ -348,18 +324,18 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null;
  */
 export function startTokenRefresh(): void {
   if (refreshInterval) {
-    return; // Already started
+    return;
   }
   
   refreshInterval = setInterval(async () => {
-    const tokens = getStoredTokens();
+    const expiresAt = getStoredTokenExpiry();
     
-    if (!tokens) {
+    if (!expiresAt) {
       stopTokenRefresh();
       return;
     }
     
-    if (isTokenExpired(tokens)) {
+    if (isTokenExpired(expiresAt)) {
       try {
         await refreshAccessToken();
       } catch (error) {
@@ -372,7 +348,7 @@ export function startTokenRefresh(): void {
         }
       }
     }
-  }, 60 * 1000); // Check every minute
+  }, 60 * 1000);
 }
 
 /**

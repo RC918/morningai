@@ -1,0 +1,282 @@
+"""
+Enhanced Authentication Routes for Owner Console
+Task 1: Enhanced Token Security
+
+Endpoints:
+- POST /api/auth/login - Login with HttpOnly cookies
+- POST /api/auth/refresh - Refresh access token with rotation
+- POST /api/auth/logout - Logout and blacklist refresh token
+- GET /api/auth/me - Get current user info
+"""
+
+from flask import Blueprint, request, jsonify, make_response
+from src.services.auth_service import (
+    authenticate_user,
+    generate_access_token,
+    generate_refresh_token,
+    verify_access_token,
+    verify_refresh_token,
+    rotate_refresh_token,
+    blacklist_refresh_token,
+    set_auth_cookies,
+    clear_auth_cookies,
+    get_user_by_id
+)
+import logging
+
+logger = logging.getLogger(__name__)
+
+auth_enhanced_bp = Blueprint('auth_enhanced', __name__)
+
+
+@auth_enhanced_bp.route('/login', methods=['POST'])
+def login():
+    """
+    Login with email and password
+    
+    Sets HttpOnly cookies for access and refresh tokens
+    
+    Request body:
+        {
+            "email": "user@example.com",
+            "password": "password123"
+        }
+    
+    Response:
+        {
+            "user": {
+                "id": "user-001",
+                "email": "user@example.com",
+                "name": "User Name",
+                "role": "owner",
+                "tenantId": "tenant-001"
+            },
+            "tokens": {
+                "expiresAt": 1234567890000
+            }
+        }
+    """
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email or not password:
+            return jsonify({'message': 'Email and password are required'}), 400
+        
+        user = authenticate_user(email, password)
+        if not user:
+            return jsonify({'message': 'Invalid email or password'}), 401
+        
+        access_token, access_expiry_ms = generate_access_token(
+            user['id'], user['email'], user['role']
+        )
+        refresh_token = generate_refresh_token(user['id'], user['email'])
+        
+        response_data = {
+            'user': {
+                'id': user['id'],
+                'email': user['email'],
+                'name': user['name'],
+                'role': user['role'],
+                'tenantId': user['tenant_id'],
+                'avatar': user.get('avatar')
+            },
+            'tokens': {
+                'expiresAt': access_expiry_ms
+            }
+        }
+        
+        response = make_response(jsonify(response_data), 200)
+        set_auth_cookies(response, access_token, refresh_token, access_expiry_ms)
+        
+        logger.info(f"User logged in successfully: {user['email']}")
+        return response
+        
+    except Exception as e:
+        logger.exception(f"Login failed: {e}")
+        return jsonify({'message': 'Login failed, please try again'}), 500
+
+
+@auth_enhanced_bp.route('/refresh', methods=['POST'])
+def refresh():
+    """
+    Refresh access token using refresh token
+    
+    Implements token rotation: old refresh token is blacklisted, new one is issued
+    
+    Request: Reads refresh_token from HttpOnly cookie
+    
+    Response:
+        {
+            "tokens": {
+                "expiresAt": 1234567890000
+            }
+        }
+    """
+    try:
+        refresh_token = request.cookies.get('refresh_token')
+        
+        if not refresh_token:
+            return jsonify({'message': 'No refresh token provided'}), 401
+        
+        payload = verify_refresh_token(refresh_token)
+        if not payload:
+            return jsonify({'message': 'Invalid or expired refresh token'}), 401
+        
+        user_id = payload.get('user_id')
+        email = payload.get('email')
+        
+        user = get_user_by_id(user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 401
+        
+        access_token, access_expiry_ms = generate_access_token(
+            user_id, email, user['role']
+        )
+        
+        new_refresh_token = rotate_refresh_token(refresh_token, user_id, email)
+        if not new_refresh_token:
+            logger.error("Failed to rotate refresh token")
+            return jsonify({'message': 'Token refresh failed'}), 500
+        
+        response_data = {
+            'tokens': {
+                'expiresAt': access_expiry_ms
+            }
+        }
+        
+        response = make_response(jsonify(response_data), 200)
+        set_auth_cookies(response, access_token, new_refresh_token, access_expiry_ms)
+        
+        logger.info(f"Token refreshed successfully for user: {user_id}")
+        return response
+        
+    except Exception as e:
+        logger.exception(f"Token refresh failed: {e}")
+        return jsonify({'message': 'Token refresh failed'}), 500
+
+
+@auth_enhanced_bp.route('/logout', methods=['POST'])
+def logout():
+    """
+    Logout and blacklist refresh token
+    
+    Request: Reads refresh_token from HttpOnly cookie
+    
+    Response:
+        {
+            "message": "Logged out successfully"
+        }
+    """
+    try:
+        refresh_token = request.cookies.get('refresh_token')
+        
+        if refresh_token:
+            blacklist_refresh_token(refresh_token)
+            logger.info("Refresh token blacklisted on logout")
+        
+        response = make_response(jsonify({'message': 'Logged out successfully'}), 200)
+        clear_auth_cookies(response)
+        
+        return response
+        
+    except Exception as e:
+        logger.exception(f"Logout failed: {e}")
+        response = make_response(jsonify({'message': 'Logged out successfully'}), 200)
+        clear_auth_cookies(response)
+        return response
+
+
+@auth_enhanced_bp.route('/me', methods=['GET'])
+def get_current_user():
+    """
+    Get current authenticated user
+    
+    Request: Reads access_token from HttpOnly cookie
+    
+    Response:
+        {
+            "id": "user-001",
+            "email": "user@example.com",
+            "name": "User Name",
+            "role": "owner",
+            "tenantId": "tenant-001"
+        }
+    """
+    try:
+        access_token = request.cookies.get('access_token')
+        
+        if not access_token:
+            return jsonify({'message': 'Not authenticated'}), 401
+        
+        payload = verify_access_token(access_token)
+        if not payload:
+            return jsonify({'message': 'Invalid or expired access token'}), 401
+        
+        user_id = payload.get('user_id')
+        
+        user = get_user_by_id(user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 401
+        
+        return jsonify({
+            'id': user['id'],
+            'email': user['email'],
+            'name': user['name'],
+            'role': user['role'],
+            'tenantId': user['tenant_id'],
+            'avatar': user.get('avatar')
+        }), 200
+        
+    except Exception as e:
+        logger.exception(f"Get current user failed: {e}")
+        return jsonify({'message': 'Failed to get user info'}), 500
+
+
+@auth_enhanced_bp.route('/verify', methods=['GET'])
+def verify_token():
+    """
+    Verify access token (legacy endpoint for compatibility)
+    
+    Request: Reads access_token from HttpOnly cookie or Authorization header
+    
+    Response:
+        {
+            "id": "user-001",
+            "email": "user@example.com",
+            "name": "User Name",
+            "role": "owner"
+        }
+    """
+    try:
+        access_token = request.cookies.get('access_token')
+        
+        if not access_token:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                access_token = auth_header.split(' ')[1]
+        
+        if not access_token:
+            return jsonify({'message': 'Not authenticated'}), 401
+        
+        payload = verify_access_token(access_token)
+        if not payload:
+            return jsonify({'message': 'Invalid or expired token'}), 401
+        
+        user_id = payload.get('user_id')
+        
+        user = get_user_by_id(user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 401
+        
+        return jsonify({
+            'id': user['id'],
+            'email': user['email'],
+            'name': user['name'],
+            'role': user['role']
+        }), 200
+        
+    except Exception as e:
+        logger.exception(f"Token verification failed: {e}")
+        return jsonify({'message': 'Token verification failed'}), 500
