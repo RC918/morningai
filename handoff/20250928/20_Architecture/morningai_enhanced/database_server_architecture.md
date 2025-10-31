@@ -100,8 +100,8 @@ erDiagram
 
 ## 3. 網域規劃
 
-- **用戶儀表板**: `app.morningai.me`
-- **管理後台**: `admin.morningai.me`
+- **用戶儀表板**: `app.gm365.me`
+- **管理後台**: `admin.gm365.me`
 - **API 服務**: `api.morningai.me`
 
 所有網域都通過 Cloudflare 進行管理，並啟用 CDN 和 WAF 功能。
