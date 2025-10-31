@@ -75,6 +75,28 @@ class TestProductionStartupGuards:
             except RuntimeError as e:
                 if "Agent Registry" in str(e):
                     pytest.fail(f"Development should allow in-memory: {e}")
+    
+    def test_production_without_redis_fails(self):
+        """Test that production environment without Redis fails to start"""
+        with patch.dict(os.environ, {
+            'ENVIRONMENT': 'production',
+            'AGENT_REGISTRY_BACKEND': 'db',
+            'DATABASE_URL': 'postgresql://test:test@localhost/test',
+            'REDIS_URL': 'rediss://test:test@localhost:6380/0',
+            'TESTING': 'false'
+        }):
+            with patch('src.utils.redis_client.get_redis_client') as mock_get_redis:
+                from redis import ConnectionError as RedisConnectionError
+                mock_get_redis.side_effect = RedisConnectionError("Connection refused")
+                
+                with pytest.raises(RuntimeError, match="Production environment requires Redis for rate limiting"):
+                    import importlib
+                    import sys
+                    if 'src.main' in sys.modules:
+                        del sys.modules['src.main']
+                    if 'src.middleware.rate_limit' in sys.modules:
+                        del sys.modules['src.middleware.rate_limit']
+                    import src.main
 
 
 class TestRateLimitingEnhancements:

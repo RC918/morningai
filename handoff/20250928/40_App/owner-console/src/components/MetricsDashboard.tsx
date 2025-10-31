@@ -207,6 +207,11 @@ export const MetricsDashboard: React.FC = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        if (!useMockData) {
+          setError('Metrics API integration not yet implemented');
+          setLoading(false);
+          return;
+        }
         
         const mockData: DashboardData = {
           system_health: {

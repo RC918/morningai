@@ -331,6 +331,21 @@ if ENVIRONMENT == 'production' and AGENT_REGISTRY_BACKEND == 'memory':
 
 db.init_app(app)
 
+def validate_rate_limit_redis():
+    """
+    Validate Redis connection for rate limiting in production.
+    
+    Raises RuntimeError if Redis is unavailable in production environment.
+    """
+    try:
+        from src.utils.redis_client import get_redis_client
+        redis_client = get_redis_client()
+        redis_client.ping()
+        logger.info("✅ Rate limiting Redis connection validated")
+    except Exception as e:
+        logger.critical(f"❌ FATAL: Rate limiting Redis unavailable in production: {e}")
+        raise RuntimeError("Production environment requires Redis for rate limiting")
+
 def init_database_with_retry(max_retries=6, initial_delay=0.5):
     """
     Initialize database with exponential backoff retry logic.
@@ -366,6 +381,7 @@ TESTING = os.getenv('TESTING', 'false').lower() == 'true'
 if TESTING:
     logger.info("⚠️  TESTING mode: Skipping database initialization")
 elif ENVIRONMENT == 'production':
+    validate_rate_limit_redis()
     init_database_with_retry()
 else:
     with app.app_context():
