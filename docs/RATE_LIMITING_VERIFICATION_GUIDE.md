@@ -11,7 +11,8 @@ This guide provides step-by-step instructions for verifying rate limiting functi
 - **Scope**: Per IP address (or per user if RATE_LIMIT_BY_USER=true)
 - **Algorithm**: Redis sliding window
 - **Headers**: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
-- **Retry Mechanism**: 3 attempts with exponential backoff
+- **Retry Mechanism**: Non-blocking retry with exponential backoff (1s, 2s, 3s), then 60s cooldown
+- **Thread Safety**: Protected by threading.Lock() for multi-threaded WSGI servers
 
 **Environment Variables**:
 ```bash
@@ -500,6 +501,102 @@ After verifying rate limiting works correctly:
 
 ---
 
+## P0 Fixes (PR #989)
+
+### Issue 1: Blocking Retry Mechanism
+
+**Problem**: The original implementation used `time.sleep()` which blocked request threads for 1s/2s/3s during Redis connection retries, causing request latency spikes in multi-threaded WSGI servers.
+
+**Solution**: Implemented non-blocking retry mechanism using `time.monotonic()` deadlines:
+- Requests check `next_retry_deadline` without blocking
+- Only one thread attempts reconnection at a time (`redis_connecting` flag)
+- After max retries (3), uses 60s cooldown instead of permanent disable
+- No `time.sleep()` calls in request path
+
+**Verification**:
+```python
+# Test that retry mechanism doesn't block
+import time
+start = time.time()
+# Make request during backoff window
+response = requests.get(endpoint)
+elapsed = time.time() - start
+assert elapsed < 0.1  # Should return immediately, not block
+```
+
+### Issue 2: Global Variable Race Condition
+
+**Problem**: Module-level globals (`redis_retry_count`, `redis_connecting`, etc.) were not thread-safe, causing race conditions in multi-threaded WSGI servers (gunicorn, uwsgi).
+
+**Solution**: Added `threading.Lock()` to protect all shared state:
+- `redis_state_lock = threading.Lock()` protects all retry state
+- Lock acquired before checking/modifying: `redis_client`, `redis_connecting`, `retry_attempts`, `next_retry_deadline`
+- Lock never held during slow operations (Redis connection attempt)
+- Early return for `redis_client is not None` before lock for test compatibility
+
+**Verification**:
+```python
+# Test thread safety with concurrent requests
+import concurrent.futures
+with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    futures = [executor.submit(requests.get, endpoint) for _ in range(100)]
+    results = [f.result() for f in futures]
+    # All requests should succeed without race conditions
+    assert all(r.status_code in [200, 429] for r in results)
+```
+
+### Issue 3: Incorrect User ID Extraction
+
+**Problem**: Code checked `g.user_id` but auth middleware actually sets `request.user_id` and `request.current_user`, causing user-based rate limiting to fail.
+
+**Solution**: Implemented robust user ID extraction with fallbacks:
+```python
+def _extract_user_id():
+    # 1. Try request.user_id (set by auth middleware)
+    uid = getattr(request, 'user_id', None)
+    if uid:
+        return str(uid)
+    
+    # 2. Try request.current_user dict
+    cu = getattr(request, 'current_user', None)
+    if isinstance(cu, dict) and cu.get('user_id'):
+        return str(cu['user_id'])
+    
+    # 3. Fallback to g.user_id for compatibility
+    uid = getattr(g, 'user_id', None)
+    if uid:
+        return str(uid)
+    
+    return None
+```
+
+**Verification**:
+```bash
+# Test user-based rate limiting with authenticated user
+export RATE_LIMIT_BY_USER=true
+curl -H "Authorization: Bearer $JWT_TOKEN" \
+     -i https://morningai-backend-v2-stg.onrender.com/api/v1/agents
+
+# Check that rate limit key uses user ID, not IP
+# Expected: rate_limit:user:{user_id} in Redis
+```
+
+### Test Coverage
+
+Added 8 new tests for P0 fixes:
+- `test_non_blocking_retry`: Verifies no `time.sleep()` calls
+- `test_retry_backoff_window`: Verifies requests return immediately during backoff
+- `test_single_thread_connection_attempt`: Verifies only one thread attempts reconnection
+- `test_user_id_extraction_from_request`: Tests `request.user_id` extraction
+- `test_user_id_extraction_from_current_user_dict`: Tests `request.current_user` extraction
+- `test_user_id_extraction_fallback_to_g`: Tests `g.user_id` fallback
+- `test_user_id_extraction_returns_none_when_not_found`: Tests None return
+- `test_rate_limit_with_user_id`: Tests end-to-end user-based rate limiting
+
+All 23 rate limit tests pass ✅
+
+---
+
 **Last Updated**: 2025-10-30  
-**Related PRs**: #985, #[current]  
+**Related PRs**: #985, #989  
 **Maintained By**: Backend Team

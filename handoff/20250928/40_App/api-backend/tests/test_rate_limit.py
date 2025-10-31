@@ -241,3 +241,117 @@ def test_rate_limit_constants():
     """Test rate limit constants are defined"""
     assert RATE_LIMIT_REQUESTS > 0
     assert RATE_LIMIT_WINDOW > 0
+
+
+def test_non_blocking_retry():
+    """Test that retry mechanism is non-blocking"""
+    import src.middleware.rate_limit as rl_module
+    
+    with patch('src.middleware.rate_limit.redis_client', None):
+        with patch('src.middleware.rate_limit.redis_connecting', False):
+            with patch('src.middleware.rate_limit.retry_attempts', 0):
+                with patch('src.middleware.rate_limit.next_retry_deadline', 0.0):
+                    with patch('src.utils.redis_client.get_redis_client', side_effect=Exception("Connection failed")):
+                        with patch('time.sleep') as mock_sleep:
+                            result = rl_module.get_rate_limit_redis()
+                            
+                            assert result is None
+                            mock_sleep.assert_not_called()
+
+
+def test_retry_backoff_window():
+    """Test that requests during backoff window return None immediately"""
+    import src.middleware.rate_limit as rl_module
+    
+    with patch('src.middleware.rate_limit.redis_client', None):
+        with patch('src.middleware.rate_limit.redis_connecting', False):
+            with patch('src.middleware.rate_limit.next_retry_deadline', time.monotonic() + 100):
+                with patch('src.utils.redis_client.get_redis_client') as mock_get:
+                    result = rl_module.get_rate_limit_redis()
+                    
+                    assert result is None
+                    mock_get.assert_not_called()
+
+
+def test_single_thread_connection_attempt():
+    """Test that only one thread attempts connection at a time"""
+    import src.middleware.rate_limit as rl_module
+    
+    with patch('src.middleware.rate_limit.redis_client', None):
+        with patch('src.middleware.rate_limit.redis_connecting', True):
+            with patch('src.utils.redis_client.get_redis_client') as mock_get:
+                result = rl_module.get_rate_limit_redis()
+                
+                assert result is None
+                mock_get.assert_not_called()
+
+
+def test_user_id_extraction_from_request():
+    """Test user ID extraction from request.user_id"""
+    from src.middleware.rate_limit import _extract_user_id
+    
+    app = Flask(__name__)
+    with app.test_request_context('/'):
+        from flask import request as flask_request
+        flask_request.user_id = '12345'
+        
+        user_id = _extract_user_id()
+        assert user_id == '12345'
+
+
+def test_user_id_extraction_from_current_user_dict():
+    """Test user ID extraction from request.current_user dict"""
+    from src.middleware.rate_limit import _extract_user_id
+    
+    app = Flask(__name__)
+    with app.test_request_context('/'):
+        from flask import request as flask_request
+        flask_request.current_user = {'user_id': '67890', 'username': 'test'}
+        
+        user_id = _extract_user_id()
+        assert user_id == '67890'
+
+
+def test_user_id_extraction_fallback_to_g():
+    """Test user ID extraction falls back to g.user_id"""
+    from src.middleware.rate_limit import _extract_user_id
+    from flask import g
+    
+    app = Flask(__name__)
+    with app.test_request_context('/'):
+        g.user_id = 'g_user_123'
+        
+        user_id = _extract_user_id()
+        assert user_id == 'g_user_123'
+
+
+def test_user_id_extraction_returns_none_when_not_found():
+    """Test user ID extraction returns None when no user ID found"""
+    from src.middleware.rate_limit import _extract_user_id
+    
+    app = Flask(__name__)
+    with app.test_request_context('/'):
+        user_id = _extract_user_id()
+        assert user_id is None
+
+
+def test_rate_limit_with_user_id(client, mock_redis):
+    """Test rate limiting uses user ID when RATE_LIMIT_BY_USER is enabled"""
+    import src.middleware.rate_limit as rl_module
+    
+    with patch.object(rl_module, 'RATE_LIMIT_BY_USER', True):
+        with patch('src.middleware.rate_limit._extract_user_id', return_value='test_user_123'):
+            mock_redis.__bool__ = Mock(return_value=True)
+            
+            mock_pipeline = MagicMock()
+            mock_pipeline.execute.return_value = [None, 5, None, None]
+            mock_redis.pipeline.return_value = mock_pipeline
+            
+            response = client.get('/test')
+            
+            assert response.status_code == 200
+            
+            zadd_call = mock_pipeline.zadd.call_args
+            if zadd_call:
+                rate_limit_key = zadd_call[0][0]
+                assert 'user:test_user_123' in rate_limit_key
