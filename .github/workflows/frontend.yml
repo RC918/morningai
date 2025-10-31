@@ -54,6 +54,8 @@ jobs:
     name: TypeScript Strict Mode Progress
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      BASELINE_SOURCE_ERRORS: 187
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js
@@ -75,25 +77,29 @@ jobs:
           cd handoff/20250928/40_App/frontend-dashboard
           pnpm run typecheck:strict 2>&1 | tee strict-report.txt || true
           SOURCE_ERRORS=$(grep "src/" strict-report.txt | grep "error TS" | wc -l || echo 0)
-          echo "::notice::Source code errors: $SOURCE_ERRORS / 187 (baseline)"
+          echo "::notice::Source code errors: $SOURCE_ERRORS / ${{ env.BASELINE_SOURCE_ERRORS }} (baseline)"
           echo "SOURCE_ERRORS=$SOURCE_ERRORS" >> $GITHUB_ENV
+      
+      - name: Upload strict typecheck report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strict-typecheck-report
+          path: handoff/20250928/40_App/frontend-dashboard/strict-report.txt
+          retention-days: 30
       
       - name: Comment on PR with progress
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: peter-evans/create-or-update-comment@v4
         with:
-          script: |
-            const sourceErrors = process.env.SOURCE_ERRORS || '?';
-            const body = `## 📊 TypeScript Strict Mode Progress
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: typescript-strict-progress
+          body: |
+            ## 📊 TypeScript Strict Mode Progress
             
-            **Source Code Errors**: ${sourceErrors} / 187 (baseline)
+            **Source Code Errors**: ${{ env.SOURCE_ERRORS }} / ${{ env.BASELINE_SOURCE_ERRORS }} (baseline)
             
             This is a non-blocking check to track progress toward full strict mode adoption.
-            See [Issue #935](https://github.com/RC918/morningai/issues/935) for details.`;
+            See [Issue #935](https://github.com/RC918/morningai/issues/935) for details.
             
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+            📎 [View full report artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
