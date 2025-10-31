@@ -3,7 +3,7 @@ import time
 import logging
 import uuid
 from functools import wraps
-from flask import request, jsonify
+from flask import request, jsonify, make_response
 from redis import ConnectionError as RedisConnectionError
 
 logger = logging.getLogger(__name__)
@@ -18,10 +18,15 @@ def get_rate_limit_redis():
     This function initializes Redis on first request rather than at module import time,
     avoiding timing issues where Redis might not be available during app initialization.
     
+    If redis_client is already set (e.g., by tests), returns it immediately.
+    
     Returns:
         Redis client or None if unavailable
     """
     global redis_client, redis_init_attempted
+    
+    if redis_client is not None:
+        return redis_client
     
     if not redis_init_attempted:
         redis_init_attempted = True
@@ -67,17 +72,17 @@ def rate_limit(f):
             
             pipe = client.pipeline()
             pipe.zremrangebyscore(rate_limit_key, 0, window_start)
-            pipe.zadd(rate_limit_key, {unique_member: current_time})
             pipe.zcard(rate_limit_key)
+            pipe.zadd(rate_limit_key, {unique_member: current_time})
             pipe.expire(rate_limit_key, RATE_LIMIT_WINDOW + 10)
             results = pipe.execute()
             
-            request_count = results[2]
-            remaining = max(0, RATE_LIMIT_REQUESTS - request_count + 1)
+            pre_count = results[1]
+            remaining = max(0, RATE_LIMIT_REQUESTS - pre_count)
             reset_time = int(current_time + RATE_LIMIT_WINDOW)
             
-            if request_count > RATE_LIMIT_REQUESTS:
-                logger.warning(f"Rate limit exceeded for IP {client_ip}: {request_count} requests")
+            if pre_count >= RATE_LIMIT_REQUESTS:
+                logger.warning(f"Rate limit exceeded for IP {client_ip}: {pre_count} requests")
                 response = jsonify({
                     "error": {
                         "code": "rate_limit_exceeded",
@@ -93,18 +98,19 @@ def rate_limit(f):
             result = f(*args, **kwargs)
             
             if isinstance(result, tuple):
-                response_obj, status_code = result[0], result[1] if len(result) > 1 else 200
-                if hasattr(response_obj, 'headers'):
-                    response_obj.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
-                    response_obj.headers['X-RateLimit-Remaining'] = str(remaining)
-                    response_obj.headers['X-RateLimit-Reset'] = str(reset_time)
-                return response_obj, status_code
-            elif hasattr(result, 'headers'):
-                result.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
-                result.headers['X-RateLimit-Remaining'] = str(remaining)
-                result.headers['X-RateLimit-Reset'] = str(reset_time)
-            
-            return result
+                response_obj = make_response(result[0])
+                status_code = result[1] if len(result) > 1 else 200
+                response_obj.status_code = status_code
+                response_obj.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
+                response_obj.headers['X-RateLimit-Remaining'] = str(remaining)
+                response_obj.headers['X-RateLimit-Reset'] = str(reset_time)
+                return response_obj
+            else:
+                response_obj = make_response(result)
+                response_obj.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
+                response_obj.headers['X-RateLimit-Remaining'] = str(remaining)
+                response_obj.headers['X-RateLimit-Reset'] = str(reset_time)
+                return response_obj
             
         except RedisConnectionError as e:
             logger.warning(f"Rate limit Redis error, allowing request: {e}")
