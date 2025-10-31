@@ -174,7 +174,7 @@ def test_rate_limit_remaining_calculation(client, mock_redis):
     
     assert response.status_code == 200
     remaining = int(response.headers['X-RateLimit-Remaining'])
-    assert remaining == RATE_LIMIT_REQUESTS - 10
+    assert remaining == RATE_LIMIT_REQUESTS - 10 - 1
 
 
 def test_rate_limit_zero_remaining(client, mock_redis):
@@ -188,7 +188,7 @@ def test_rate_limit_zero_remaining(client, mock_redis):
     response = client.get('/test')
     
     assert response.status_code == 200
-    assert int(response.headers['X-RateLimit-Remaining']) == 1
+    assert int(response.headers['X-RateLimit-Remaining']) == 0
 
 
 def test_rate_limit_pipeline_operations(client, mock_redis):

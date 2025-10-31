@@ -83,6 +83,17 @@ SENTRY_DSN=<production-dsn>
 SENTRY_ENVIRONMENT=production
 ```
 
+**Rate Limiting**:
+```bash
+# Rate limiting configuration (optional, defaults shown)
+RATE_LIMIT_REQUESTS=60                  # Maximum requests per window
+RATE_LIMIT_WINDOW=60                    # Time window in seconds
+RATE_LIMIT_FAIL_FAST=true               # Fail on startup if Redis unavailable (production only)
+RATE_LIMIT_BY_USER=false                # Use user_id instead of IP for rate limiting
+RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempts
+RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
+```
+
 ---
 
 ## 🧪 Staging Environment
@@ -206,6 +217,14 @@ MASTER_ENCRYPTION_KEY=<staging-secret>
 # Monitoring
 SENTRY_DSN=<same-as-production>
 SENTRY_ENVIRONMENT=staging
+
+# Rate Limiting (optional, defaults shown)
+RATE_LIMIT_REQUESTS=60                  # Maximum requests per window
+RATE_LIMIT_WINDOW=60                    # Time window in seconds
+RATE_LIMIT_FAIL_FAST=false              # Allow startup without Redis (staging)
+RATE_LIMIT_BY_USER=false                # Use user_id instead of IP for rate limiting
+RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempts
+RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
 ```
 
 **Orchestrator Staging**:
@@ -283,6 +302,14 @@ TESTING=false
 DATABASE_URL=<staging-database-url>
 REDIS_URL=<staging-redis-url>
 REDIS_KEY_PREFIX=dev:
+
+# Rate Limiting (optional, defaults shown)
+RATE_LIMIT_REQUESTS=60                  # Maximum requests per window
+RATE_LIMIT_WINDOW=60                    # Time window in seconds
+RATE_LIMIT_FAIL_FAST=false              # Allow startup without Redis (development)
+RATE_LIMIT_BY_USER=false                # Use user_id instead of IP for rate limiting
+RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempts
+RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
 ```
 
 **Frontend `.env.local`**:
