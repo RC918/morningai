@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import tokens from '@morningai/shared-ui/tokens.json'
-import type Tokens from '@morningai/shared-ui/tokens.json'
 
 describe('shared-ui tokens.json import', () => {
   test('tokens import resolves and has expected shape', () => {
-    const typed: Tokens = tokens
+    const typed: typeof tokens = tokens
 
     expect(tokens).toBeDefined()
     expect(tokens.color).toBeDefined()
