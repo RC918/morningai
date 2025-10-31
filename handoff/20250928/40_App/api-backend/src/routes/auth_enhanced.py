@@ -20,13 +20,51 @@ from src.services.auth_service import (
     blacklist_refresh_token,
     set_auth_cookies,
     clear_auth_cookies,
-    get_user_by_id
+    get_user_by_id,
+    generate_csrf_token,
+    COOKIE_SAMESITE
 )
+from src.middleware.csrf import csrf_protect, should_enforce_csrf
 import logging
 
 logger = logging.getLogger(__name__)
 
 auth_enhanced_bp = Blueprint('auth_enhanced', __name__)
+
+
+@auth_enhanced_bp.route('/csrf', methods=['GET'])
+def get_csrf_token():
+    """
+    Get CSRF token for authentication
+    
+    This endpoint allows the frontend to bootstrap CSRF protection
+    before making authenticated requests.
+    
+    Response:
+        {
+            "csrf_token": "abc123..."
+        }
+    """
+    try:
+        csrf_token = generate_csrf_token()
+        
+        response_data = {
+            'csrf_token': csrf_token
+        }
+        
+        response = make_response(jsonify(response_data), 200)
+        
+        from src.services.auth_service import create_cookie_config, ACCESS_TOKEN_EXPIRY_MINUTES
+        response.set_cookie(
+            **create_cookie_config('csrf_token', csrf_token, ACCESS_TOKEN_EXPIRY_MINUTES * 60, httponly=False)
+        )
+        
+        logger.debug("CSRF token generated")
+        return response
+        
+    except Exception as e:
+        logger.exception(f"CSRF token generation failed: {e}")
+        return jsonify({'message': 'Failed to generate CSRF token'}), 500
 
 
 @auth_enhanced_bp.route('/login', methods=['POST'])
@@ -99,6 +137,7 @@ def login():
 
 
 @auth_enhanced_bp.route('/refresh', methods=['POST'])
+@csrf_protect
 def refresh():
     """
     Refresh access token using refresh token
@@ -158,6 +197,7 @@ def refresh():
 
 
 @auth_enhanced_bp.route('/logout', methods=['POST'])
+@csrf_protect
 def logout():
     """
     Logout and blacklist refresh token

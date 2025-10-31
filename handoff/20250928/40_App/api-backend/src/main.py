@@ -96,6 +96,13 @@ except ImportError as e:
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 
+from src.services.auth_service import validate_security_config
+try:
+    validate_security_config()
+except SystemExit as e:
+    logger.error(f"Security configuration validation failed: {e}")
+    raise
+
 flask_secret = os.environ.get('FLASK_SECRET_KEY')
 if not flask_secret:
     legacy_secret = os.environ.get('SECRET_KEY')
@@ -124,8 +131,9 @@ def add_cors_headers(response):
     if origin in cors_origins or is_vercel_preview(origin):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID, X-CSRF-Token'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+        response.headers['Vary'] = 'Origin'
     
     return response
 
