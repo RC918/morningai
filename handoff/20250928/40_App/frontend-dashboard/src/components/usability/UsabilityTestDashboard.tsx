@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { usabilityTest, SUSCalculator, NPSCalculator } from '@/lib/usability-testing'
 import SUSQuestionnaire from './SUSQuestionnaire'
-import NPSQuestionnaire from './NPSQuestionnaire'
+import NPSQuestionnaire, { type NPSResult } from './NPSQuestionnaire'
 
 interface Task {
   taskId: string

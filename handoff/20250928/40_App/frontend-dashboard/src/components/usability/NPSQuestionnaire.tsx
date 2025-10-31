@@ -17,7 +17,7 @@ import { NPSCalculator } from '@/lib/usability-testing'
 
 const NPS_QUESTION = 'How likely are you to recommend this product to a friend or colleague?'
 
-interface NPSResult {
+export interface NPSResult {
   participant_id: string
   session_id: string
   nps_score: number

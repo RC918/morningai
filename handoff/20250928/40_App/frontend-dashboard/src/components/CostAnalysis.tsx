@@ -145,7 +145,7 @@ const CostAnalysis = (): React.ReactElement => {
         </div>
       </div>
 
-      {mockCostData.alerts.length > 0 && (
+      {mockCostData.alerts && mockCostData.alerts.length > 0 && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="pt-6">
             <div className="space-y-2">
@@ -219,7 +219,7 @@ const CostAnalysis = (): React.ReactElement => {
               </div>
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              ${(mockCostData.currentMonth * 1.15).toFixed(2)}
+              ${((mockCostData.currentMonth || 0) * 1.15).toFixed(2)}
             </p>
             <p className="text-sm text-gray-600 mt-2">
               {t('cost.basedOnCurrentTrend')}
@@ -235,7 +235,7 @@ const CostAnalysis = (): React.ReactElement => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockCostData.breakdown.map((item, index) => (
+            {mockCostData.breakdown && mockCostData.breakdown.map((item, index) => (
               <div key={index}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">

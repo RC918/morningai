@@ -29,7 +29,7 @@ const LazyImage = React.forwardRef<HTMLImageElement, LazyImageProps>(({
   const containerRef = React.useRef<HTMLDivElement>(null)
   const observerRef = React.useRef<IntersectionObserver | null>(null)
 
-  React.useImperativeHandle(ref, () => imgRef.current)
+  React.useImperativeHandle(ref, () => imgRef.current!)
 
   React.useEffect(() => {
     if (!('IntersectionObserver' in window)) {
