@@ -42,6 +42,10 @@ def csrf_protect(f):
         if request.path in CSRF_EXEMPT_PATHS:
             return f(*args, **kwargs)
         
+        if not should_enforce_csrf():
+            logger.debug(f"CSRF protection not enforced for {request.path} (SameSite != None)")
+            return f(*args, **kwargs)
+        
         csrf_cookie = request.cookies.get('csrf_token')
         if not csrf_cookie:
             logger.warning(f"CSRF validation failed: No csrf_token cookie for {request.path}")
