@@ -199,10 +199,58 @@ export const MetricsDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        const isProduction = process.env.NODE_ENV === 'production';
+        const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || process.env.VITE_API_BASE_URL;
+        
+        if (isProduction && !apiBaseUrl) {
+          throw new Error(
+            'CRITICAL: Metrics Dashboard cannot use mock data in production. ' +
+            'REACT_APP_API_BASE_URL or VITE_API_BASE_URL must be configured.'
+          );
+        }
+
+        if (apiBaseUrl) {
+          try {
+            const response = await fetch(`${apiBaseUrl}/api/v1/metrics/dashboard`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              setDashboardData(data);
+              setUsingMockData(false);
+              setLoading(false);
+              return;
+            } else if (response.status === 404) {
+              if (isProduction) {
+                throw new Error(
+                  'CRITICAL: Metrics Dashboard API endpoint not implemented. ' +
+                  'Cannot display metrics in production without real data.'
+                );
+              }
+            } else {
+              throw new Error(`API error: ${response.status} ${response.statusText}`);
+            }
+          } catch (apiError) {
+            if (isProduction) {
+              throw apiError;
+            }
+            console.warn('Failed to fetch real metrics data, using mock data:', apiError);
+          }
+        }
+
+        console.warn(
+          '⚠️ DEVELOPMENT MODE: Using mock data for Metrics Dashboard. ' +
+          'This data is NOT real and should not be used for production decisions.'
+        );
         
         const mockData: DashboardData = {
           system_health: {
@@ -254,6 +302,7 @@ export const MetricsDashboard: React.FC = () => {
         };
 
         setDashboardData(mockData);
+        setUsingMockData(true);
         setLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
@@ -306,6 +355,19 @@ export const MetricsDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Mock Data Warning */}
+      {usingMockData && (
+        <Alert variant="default" className="border-yellow-500 bg-yellow-50">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertTitle className="text-yellow-800">Development Mode - Mock Data</AlertTitle>
+          <AlertDescription className="text-yellow-700">
+            This dashboard is displaying simulated data for development purposes only.
+            Real metrics will be available once the monitoring backend is deployed.
+            <strong className="block mt-1">Do not use this data for production decisions.</strong>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
