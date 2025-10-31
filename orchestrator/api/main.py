@@ -36,18 +36,6 @@ except ImportError:
 redis_queue: Optional[RedisQueue] = None
 orchestrator_router: Optional[OrchestratorRouter] = None
 hitl_gate: Optional[HITLGate] = None
-shutdown_event = asyncio.Event()
-
-
-def signal_handler(sig, frame):
-    """Handle shutdown signals gracefully"""
-    logger.info(f"Received signal {sig}, initiating graceful shutdown...")
-    shutdown_event.set()
-
-
-# Register signal handlers for graceful shutdown
-signal.signal(signal.SIGTERM, signal_handler)
-signal.signal(signal.SIGINT, signal_handler)
 
 
 def get_redis_client():
@@ -85,9 +73,10 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down Orchestrator API gracefully...")
     
     try:
-        # Wait for in-flight requests to complete (with timeout)
-        logger.info("Waiting for in-flight requests to complete...")
-        await asyncio.sleep(2)  # Give 2 seconds for requests to finish
+        # Wait for in-flight requests to complete (with configurable timeout)
+        shutdown_timeout = int(os.getenv("ORCHESTRATOR_SHUTDOWN_TIMEOUT", "5"))
+        logger.info(f"Waiting {shutdown_timeout}s for in-flight requests to complete...")
+        await asyncio.sleep(shutdown_timeout)
         
         # Disconnect from Redis
         if redis_queue:
