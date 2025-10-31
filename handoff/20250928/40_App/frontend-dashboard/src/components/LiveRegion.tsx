@@ -24,7 +24,7 @@ export const LiveRegion = ({
   relevant?: 'text' | 'all' | 'additions' | 'additions removals' | 'additions text' | 'removals' | 'removals additions' | 'removals text' | 'text additions' | 'text removals'
   clearOnUnmount?: boolean
 }) => {
-  const regionRef = useRef(null)
+  const regionRef = useRef<HTMLDivElement | null>(null)
   
   useEffect(() => {
     return () => {
@@ -61,9 +61,9 @@ export const LiveRegion = ({
  * @returns {Object} { announce, announcePolite, announceAssertive }
  */
 export const useLiveRegion = () => {
-  const regionRef = useRef(null)
+  const regionRef = useRef<HTMLDivElement | null>(null)
   
-  const announce = (message, type = 'polite') => {
+  const announce = (message: string, type: 'polite' | 'assertive' = 'polite') => {
     if (!regionRef.current) {
       const region = document.createElement('div')
       region.setAttribute('role', type === 'assertive' ? 'alert' : 'status')
@@ -83,8 +83,8 @@ export const useLiveRegion = () => {
     }, 1000)
   }
   
-  const announcePolite = (message) => announce(message, 'polite')
-  const announceAssertive = (message) => announce(message, 'assertive')
+  const announcePolite = (message: string) => announce(message, 'polite')
+  const announceAssertive = (message: string) => announce(message, 'assertive')
   
   return {
     announce,

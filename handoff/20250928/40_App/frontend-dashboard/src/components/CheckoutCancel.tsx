@@ -11,7 +11,7 @@ const CheckoutCancel = () => {
   const [searchParams] = useSearchParams()
   const reason = searchParams.get('reason') || 'user_cancelled'
 
-  const getReasonMessage = (reason) => {
+  const getReasonMessage = (reason: string) => {
     switch (reason) {
       case 'payment_failed':
         return t('checkoutCancel.reasons.paymentFailed')

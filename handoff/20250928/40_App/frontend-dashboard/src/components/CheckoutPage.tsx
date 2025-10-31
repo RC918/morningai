@@ -22,15 +22,23 @@ import {
 import { colors, spacing, typography } from '@/lib/design-tokens'
 import apiClient from '@/lib/api'
 
+interface BillingPlan {
+  id: string
+  name: string
+  price: number
+  interval: string
+  currency: string
+}
+
 const CheckoutPage = () => {
   const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
-  const [checkoutData, setCheckoutData] = useState(null)
+  const [checkoutData, setCheckoutData] = useState<any>(null)
   const [selectedPlan, setSelectedPlan] = useState('pro')
   const [selectedPayment, setSelectedPayment] = useState('credit_card')
   const [discountCode, setDiscountCode] = useState('')
   const [useMockData, setUseMockData] = useState(import.meta.env.VITE_USE_MOCK === 'true')
-  const [billingPlans, setBillingPlans] = useState([])
+  const [billingPlans, setBillingPlans] = useState<BillingPlan[]>([])
 
   const loadBillingPlans = async () => {
     try {
@@ -77,7 +85,7 @@ const CheckoutPage = () => {
     loadCheckoutData()
   }, [useMockData, loadCheckoutData])
 
-  const getFeaturesByPlan = (planId) => {
+  const getFeaturesByPlan = (planId: string) => {
     const features = {
       starter: [
         t('checkout.features.starter.basic'),
@@ -135,7 +143,7 @@ const CheckoutPage = () => {
     }
   }
 
-  const getPlanIcon = (planId) => {
+  const getPlanIcon = (planId: string) => {
     switch (planId) {
       case 'starter': return <Zap className="w-6 h-6" />
       case 'basic': return <Zap className="w-6 h-6" />
@@ -145,7 +153,7 @@ const CheckoutPage = () => {
     }
   }
 
-  const getPaymentIcon = (methodId) => {
+  const getPaymentIcon = (methodId: string) => {
     switch (methodId) {
       case 'credit_card': return <CreditCard className="w-5 h-5" />
       case 'paypal': return <DollarSign className="w-5 h-5" />
@@ -204,7 +212,7 @@ const CheckoutPage = () => {
         {/* Pricing Plans */}
         <div className="lg:col-span-2">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {checkoutData?.pricing_tiers?.map((plan) => (
+            {checkoutData?.pricing_tiers?.map((plan: any) => (
               <Card 
                 key={plan.id}
                 className={`relative cursor-pointer transition-all ${
@@ -241,7 +249,7 @@ const CheckoutPage = () => {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    {plan.features.map((feature, index) => (
+                    {plan.features.map((feature: string, index: number) => (
                       <li key={index} className="flex items-center text-sm">
                         <Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
                         {feature}
@@ -261,7 +269,7 @@ const CheckoutPage = () => {
             </CardHeader>
             <CardContent>
               <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
-                {checkoutData?.payment_methods?.map((method) => (
+                {checkoutData?.payment_methods?.map((method: any) => (
                   <div 
                     key={method.id} 
                     className="flex items-center space-x-2 p-3 border rounded-lg"
@@ -293,13 +301,13 @@ const CheckoutPage = () => {
                   <div className="flex justify-between">
                     <span>{t('checkout.plan')}</span>
                     <span className="font-medium">
-                      {checkoutData.pricing_tiers.find(p => p.id === selectedPlan)?.name}
+                      {checkoutData.pricing_tiers.find((p: any) => p.id === selectedPlan)?.name}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>{t('checkout.price')}</span>
                     <span className="font-medium">
-                      ${checkoutData.pricing_tiers.find(p => p.id === selectedPlan)?.price}/{t('checkout.perMonth')}
+                      ${checkoutData.pricing_tiers.find((p: any) => p.id === selectedPlan)?.price}/{t('checkout.perMonth')}
                     </span>
                   </div>
                   
@@ -332,7 +340,7 @@ const CheckoutPage = () => {
                   <div className="flex justify-between text-lg font-bold">
                     <span>{t('checkout.total')}</span>
                     <span>
-                      ${checkoutData.pricing_tiers.find(p => p.id === selectedPlan)?.price}/{t('checkout.perMonth')}
+                      ${checkoutData.pricing_tiers.find((p: any) => p.id === selectedPlan)?.price}/{t('checkout.perMonth')}
                     </span>
                   </div>
                   

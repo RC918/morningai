@@ -30,13 +30,13 @@ const SignupPage = () => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
     
-    const handleChange = (e) => setPrefersReducedMotion(e.matches)
-    mediaQuery.addEventListener('change', handleChange)
+    const handleMediaQueryChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+    mediaQuery.addEventListener('change', handleMediaQueryChange)
     
-    return () => mediaQuery.removeEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleMediaQueryChange)
   }, [])
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -85,14 +85,14 @@ const SignupPage = () => {
     }
   }
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     })
   }
 
-  const handleSSOSignup = async (provider) => {
+  const handleSSOSignup = async (provider: string) => {
     try {
       setLoading(true)
       setError('')

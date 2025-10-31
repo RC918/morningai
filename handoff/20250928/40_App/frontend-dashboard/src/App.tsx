@@ -74,7 +74,7 @@ function AppContent() {
       })
     }
 
-    const handleApiError = (event) => {
+    const handleApiError = (event: CustomEvent) => {
       const { endpoint, error, status, requestId } = event.detail
       addToast({
         title: t('common.apiError'),
@@ -137,7 +137,7 @@ function AppContent() {
     }
   }, [addToast, setUser])
 
-  const handleLogin = (userData, token) => {
+  const handleLogin = (userData: any, token: string) => {
     setUser(userData)
     setIsAuthenticated(true)
     localStorage.setItem('auth_token', token)
@@ -182,7 +182,7 @@ function AppContent() {
     window.location.href = '/login'
   }
 
-  const handleSSOLogin = async (provider) => {
+  const handleSSOLogin = async (provider: string) => {
     try {
       const { error } = await signInWithOAuth(provider, {
         redirectTo: `${window.location.origin}/auth/callback`
@@ -200,7 +200,7 @@ function AppContent() {
       console.error('SSO login error:', error)
       addToast({
         title: t('auth.login.loginError'),
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive"
       })
     }

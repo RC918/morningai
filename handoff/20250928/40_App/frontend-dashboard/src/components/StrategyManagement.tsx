@@ -40,7 +40,7 @@ const StrategyManagement = () => {
     }
   ]
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
         return 'bg-green-100 text-green-800'
@@ -53,7 +53,7 @@ const StrategyManagement = () => {
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'active':
         return <CheckCircle className="w-4 h-4 text-green-600" />
