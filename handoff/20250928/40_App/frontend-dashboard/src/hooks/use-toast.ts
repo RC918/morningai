@@ -1,9 +1,23 @@
 import { useState, useCallback } from 'react'
 
-export const useToast = () => {
-  const [toasts, setToasts] = useState([])
+interface Toast {
+  id: string
+  title: string
+  description?: string
+  variant?: 'default' | 'destructive' | 'success'
+  timestamp: number
+}
 
-  const toast = useCallback(({ title, description, variant = 'default' }) => {
+interface ToastOptions {
+  title: string
+  description?: string
+  variant?: 'default' | 'destructive' | 'success'
+}
+
+export const useToast = () => {
+  const [toasts, setToasts] = useState<Toast[]>([])
+
+  const toast = useCallback(({ title, description, variant = 'default' }: ToastOptions) => {
     const id = Math.random().toString(36).substr(2, 9)
     const newToast = {
       id,
@@ -28,6 +42,6 @@ export const useToast = () => {
   return {
     toast,
     toasts,
-    dismiss: (id) => setToasts(prev => prev.filter(t => t.id !== id))
+    dismiss: (id: string) => setToasts(prev => prev.filter(t => t.id !== id))
   }
 }
