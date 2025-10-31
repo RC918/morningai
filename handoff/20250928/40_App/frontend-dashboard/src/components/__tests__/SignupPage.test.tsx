@@ -13,7 +13,7 @@ vi.mock('@/lib/supabaseClient', () => ({
 }))
 
 vi.mock('@/components/ui/apple-button', () => ({
-  AppleButton: ({ children, ...props }) => <button {...props}>{children}</button>
+  AppleButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => <button {...props}>{children}</button>
 }))
 
 vi.mock('@/components/ui/apple-input', () => ({
@@ -30,15 +30,15 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => vi.fn(),
-    Link: ({ children, to, ...props }) => <a href={to} {...props}>{children}</a>
+    Link: ({ children, to, ...props }: { children: React.ReactNode; to: string; [key: string]: any }) => <a href={to} {...props}>{children}</a>
   }
 })
 
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }) => <div {...props}>{children}</div>
+    div: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => <div {...props}>{children}</div>
   },
-  AnimatePresence: ({ children }) => <>{children}</>,
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useReducedMotion: () => true
 }))
 

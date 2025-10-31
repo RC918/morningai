@@ -16,6 +16,17 @@ import { AlertCircle } from 'lucide-react'
  * @param {string} props.description - Optional field description
  * @param {Object} props.inputProps - Additional props to pass to Input
  */
+interface FormFieldProps {
+  label: string
+  name: string
+  type?: string
+  error?: string
+  required?: boolean
+  description?: string
+  inputProps?: any
+  [key: string]: any
+}
+
 export const FormField = ({
   label,
   name,
@@ -25,7 +36,7 @@ export const FormField = ({
   description,
   inputProps = {},
   ...props
-}) => {
+}: FormFieldProps) => {
   const { t } = useTranslation()
   const fieldId = useId()
   const errorId = `${fieldId}-error`
