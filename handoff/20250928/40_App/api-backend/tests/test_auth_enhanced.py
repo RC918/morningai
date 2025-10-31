@@ -121,7 +121,7 @@ class TestAuthEndpoints:
     
     def test_login_success(self, client, mock_redis):
         """Test successful login"""
-        response = client.post('/api/auth/login', 
+        response = client.post('/api/auth/v2/login',
             json={
                 'email': 'owner@morningai.com',
                 'password': 'owner123'
@@ -146,7 +146,7 @@ class TestAuthEndpoints:
     
     def test_login_invalid_credentials(self, client):
         """Test login with invalid credentials"""
-        response = client.post('/api/auth/login',
+        response = client.post('/api/auth/v2/login',
             json={
                 'email': 'owner@morningai.com',
                 'password': 'wrong-password'
@@ -159,7 +159,7 @@ class TestAuthEndpoints:
     
     def test_login_missing_fields(self, client):
         """Test login with missing fields"""
-        response = client.post('/api/auth/login',
+        response = client.post('/api/auth/v2/login',
             json={
                 'email': 'owner@morningai.com'
             }
@@ -171,7 +171,7 @@ class TestAuthEndpoints:
     
     def test_refresh_token_success(self, client, mock_redis):
         """Test successful token refresh"""
-        login_response = client.post('/api/auth/login',
+        login_response = client.post('/api/auth/v2/login',
             json={
                 'email': 'owner@morningai.com',
                 'password': 'owner123'
@@ -179,7 +179,7 @@ class TestAuthEndpoints:
         )
         assert login_response.status_code == 200
         
-        refresh_response = client.post('/api/auth/refresh')
+        refresh_response = client.post('/api/auth/v2/refresh')
         
         assert refresh_response.status_code == 200
         data = json.loads(refresh_response.data)
@@ -196,7 +196,7 @@ class TestAuthEndpoints:
     
     def test_refresh_token_missing(self, client):
         """Test refresh without token"""
-        response = client.post('/api/auth/refresh')
+        response = client.post('/api/auth/v2/refresh')
         
         assert response.status_code == 401
         data = json.loads(response.data)
@@ -206,7 +206,7 @@ class TestAuthEndpoints:
         """Test refresh with invalid token"""
         client.set_cookie('refresh_token', 'invalid-token')
         
-        response = client.post('/api/auth/refresh')
+        response = client.post('/api/auth/v2/refresh')
         
         assert response.status_code == 401
         data = json.loads(response.data)
@@ -214,7 +214,7 @@ class TestAuthEndpoints:
     
     def test_logout_success(self, client, mock_redis):
         """Test successful logout"""
-        login_response = client.post('/api/auth/login',
+        login_response = client.post('/api/auth/v2/login',
             json={
                 'email': 'owner@morningai.com',
                 'password': 'owner123'
@@ -222,7 +222,7 @@ class TestAuthEndpoints:
         )
         assert login_response.status_code == 200
         
-        logout_response = client.post('/api/auth/logout')
+        logout_response = client.post('/api/auth/v2/logout')
         
         assert logout_response.status_code == 200
         data = json.loads(logout_response.data)
@@ -236,7 +236,7 @@ class TestAuthEndpoints:
     
     def test_get_current_user_success(self, client, mock_redis):
         """Test getting current user"""
-        login_response = client.post('/api/auth/login',
+        login_response = client.post('/api/auth/v2/login',
             json={
                 'email': 'owner@morningai.com',
                 'password': 'owner123'
@@ -244,7 +244,7 @@ class TestAuthEndpoints:
         )
         assert login_response.status_code == 200
         
-        me_response = client.get('/api/auth/me')
+        me_response = client.get('/api/auth/v2/me')
         
         assert me_response.status_code == 200
         data = json.loads(me_response.data)
@@ -256,7 +256,7 @@ class TestAuthEndpoints:
     
     def test_get_current_user_not_authenticated(self, client):
         """Test getting current user without authentication"""
-        response = client.get('/api/auth/me')
+        response = client.get('/api/auth/v2/me')
         
         assert response.status_code == 401
         data = json.loads(response.data)
@@ -264,7 +264,7 @@ class TestAuthEndpoints:
     
     def test_verify_token_with_cookie(self, client, mock_redis):
         """Test token verification with cookie"""
-        login_response = client.post('/api/auth/login',
+        login_response = client.post('/api/auth/v2/login',
             json={
                 'email': 'owner@morningai.com',
                 'password': 'owner123'
@@ -272,7 +272,7 @@ class TestAuthEndpoints:
         )
         assert login_response.status_code == 200
         
-        verify_response = client.get('/api/auth/verify')
+        verify_response = client.get('/api/auth/v2/verify')
         
         assert verify_response.status_code == 200
         data = json.loads(verify_response.data)
@@ -284,7 +284,7 @@ class TestAuthEndpoints:
         """Test that enhanced auth endpoints use cookies, not headers"""
         token, _ = generate_access_token('user-001', 'test@example.com', 'owner')
         
-        response = client.get('/api/auth/verify',
+        response = client.get('/api/auth/v2/verify',
             headers={'Authorization': f'Bearer {token}'}
         )
         
@@ -296,7 +296,7 @@ class TestTokenRotationFlow:
     
     def test_complete_auth_flow(self, client, mock_redis):
         """Test complete authentication flow: login -> refresh -> logout"""
-        login_response = client.post('/api/auth/login',
+        login_response = client.post('/api/auth/v2/login',
             json={
                 'email': 'owner@morningai.com',
                 'password': 'owner123'
@@ -308,20 +308,20 @@ class TestTokenRotationFlow:
         assert 'access_token' in login_cookies
         assert 'refresh_token' in login_cookies
         
-        me_response = client.get('/api/auth/me')
+        me_response = client.get('/api/auth/v2/me')
         assert me_response.status_code == 200
         
-        refresh_response = client.post('/api/auth/refresh')
+        refresh_response = client.post('/api/auth/v2/refresh')
         assert refresh_response.status_code == 200
         
         refresh_cookies = ' '.join(refresh_response.headers.getlist('Set-Cookie'))
         assert 'access_token' in refresh_cookies
         assert 'refresh_token' in refresh_cookies
         
-        me_response_2 = client.get('/api/auth/me')
+        me_response_2 = client.get('/api/auth/v2/me')
         assert me_response_2.status_code == 200
         
-        logout_response = client.post('/api/auth/logout')
+        logout_response = client.post('/api/auth/v2/logout')
         assert logout_response.status_code == 200
         
         assert mock_redis.setex.call_count >= 2

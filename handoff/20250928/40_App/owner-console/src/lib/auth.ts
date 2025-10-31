@@ -5,11 +5,12 @@
  * Squad: Owner Console Squad
  * Feature Flag: OWNER_CONSOLE_API
  * 
- * Task 1: Enhanced Token Security
+ * Task 1: Enhanced Token Security (v2 API)
  * - HttpOnly cookies for access and refresh tokens
  * - Automatic token rotation on refresh
  * - Redis-based token blacklist
  * - No token storage in localStorage (security improvement)
+ * - Uses /api/auth/v2/* endpoints for enhanced security
  * 
  * This module provides:
  * - JWT token management via HttpOnly cookies
@@ -18,6 +19,7 @@
  * - Secure cookie-based authentication
  * 
  * @see docs/PARALLEL_DEVELOPMENT_STRATEGY.md
+ * @see docs/TASK_1_ENHANCED_TOKEN_SECURITY.md
  */
 
 import { isFeatureEnabled } from './feature-flags';
@@ -208,7 +210,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
     };
   }
   
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  const response = await fetch(`${API_BASE_URL}/api/auth/v2/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -237,7 +239,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 export async function logout(): Promise<void> {
   if (isFeatureEnabled('OWNER_CONSOLE_API')) {
     try {
-      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      await fetch(`${API_BASE_URL}/api/auth/v2/logout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -265,7 +267,7 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
     return newTokens;
   }
   
-  const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+  const response = await fetch(`${API_BASE_URL}/api/auth/v2/refresh`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -302,7 +304,7 @@ export async function getCurrentUser(): Promise<User> {
     throw new Error('Not authenticated');
   }
   
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/auth/me`);
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/auth/v2/me`);
   
   if (!response.ok) {
     throw new Error('Failed to fetch user');

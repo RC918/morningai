@@ -161,8 +161,8 @@ if SECURITY_AVAILABLE:
     app.security_manager = security_manager
 
 app.register_blueprint(user_bp, url_prefix='/api')
-app.register_blueprint(auth_enhanced_bp, url_prefix='/api/auth')
-app.register_blueprint(auth_bp, url_prefix='/api/auth/legacy')
+app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(auth_enhanced_bp, url_prefix='/api/auth/v2')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)

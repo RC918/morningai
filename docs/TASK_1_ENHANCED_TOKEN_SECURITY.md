@@ -35,30 +35,33 @@ Implemented enhanced token security for the Owner Console with HttpOnly cookies,
   - Path=/: Available to all routes
 
 #### 2. Enhanced Auth Routes (`src/routes/auth_enhanced.py`)
-- **POST /api/auth/login**
+
+**Note:** Enhanced endpoints are available at `/api/auth/v2/*` to maintain backward compatibility with existing services.
+
+- **POST /api/auth/v2/login**
   - Accepts: `{ email, password }`
   - Returns: User info + token expiry
   - Sets: HttpOnly cookies for access_token and refresh_token
 
-- **POST /api/auth/refresh**
+- **POST /api/auth/v2/refresh**
   - Reads: refresh_token from cookie
   - Returns: New token expiry
   - Sets: New HttpOnly cookies (token rotation)
   - Blacklists: Old refresh token
 
-- **POST /api/auth/logout**
+- **POST /api/auth/v2/logout**
   - Reads: refresh_token from cookie
   - Blacklists: Refresh token in Redis
   - Clears: All auth cookies
 
-- **GET /api/auth/me**
+- **GET /api/auth/v2/me**
   - Reads: access_token from cookie
   - Returns: Current user information
 
 #### 3. Route Registration (`src/main.py`)
-- Enhanced auth routes registered at `/api/auth`
-- Legacy auth routes moved to `/api/auth/legacy`
-- Enhanced routes take precedence
+- Enhanced auth routes registered at `/api/auth/v2`
+- Legacy auth routes remain at `/api/auth` for backward compatibility
+- Owner Console uses v2 endpoints exclusively
 
 ### Frontend Changes
 
@@ -230,14 +233,14 @@ fetch('/api/auth/me', {
 
 ### For Backend Developers
 
-1. **Use enhanced auth endpoints:**
-   - `/api/auth/login` - Login with cookies
-   - `/api/auth/refresh` - Refresh with rotation
-   - `/api/auth/logout` - Logout with blacklist
-   - `/api/auth/me` - Get current user
+1. **Use enhanced auth endpoints (v2):**
+   - `/api/auth/v2/login` - Login with cookies
+   - `/api/auth/v2/refresh` - Refresh with rotation
+   - `/api/auth/v2/logout` - Logout with blacklist
+   - `/api/auth/v2/me` - Get current user
 
-2. **Legacy endpoints available at:**
-   - `/api/auth/legacy/*` - Old header-based auth
+2. **Legacy endpoints remain at:**
+   - `/api/auth/*` - Old header-based auth (for backward compatibility)
 
 ## Performance Considerations
 
@@ -307,22 +310,22 @@ redis-cli MONITOR
 ### Manual Testing
 ```bash
 # 1. Login
-curl -X POST http://localhost:5000/api/auth/login \
+curl -X POST http://localhost:5000/api/auth/v2/login \
   -H "Content-Type: application/json" \
   -d '{"email":"owner@morningai.com","password":"owner123"}' \
   -c cookies.txt
 
 # 2. Get current user
-curl http://localhost:5000/api/auth/me \
+curl http://localhost:5000/api/auth/v2/me \
   -b cookies.txt
 
 # 3. Refresh token
-curl -X POST http://localhost:5000/api/auth/refresh \
+curl -X POST http://localhost:5000/api/auth/v2/refresh \
   -b cookies.txt \
   -c cookies.txt
 
 # 4. Logout
-curl -X POST http://localhost:5000/api/auth/logout \
+curl -X POST http://localhost:5000/api/auth/v2/logout \
   -b cookies.txt
 ```
 
