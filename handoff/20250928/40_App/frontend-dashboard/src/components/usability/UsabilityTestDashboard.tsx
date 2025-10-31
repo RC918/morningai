@@ -129,16 +129,6 @@ interface SUSResult {
   responses: number[]
 }
 
-interface NPSResult {
-  participant_id: string
-  session_id: string
-  timestamp: string
-  nps_score: number
-  nps_category: string
-  nps_rating: string
-  comment?: string
-}
-
 interface OverallSummary {
   total_sessions: number
   total_participants: number
