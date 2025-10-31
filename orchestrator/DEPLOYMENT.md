@@ -4,6 +4,63 @@
 
 This guide covers deploying the Orchestrator API to production using Render.com with Docker.
 
+
+## Quick Start with Docker Compose
+
+For local development or self-hosted deployment, use Docker Compose:
+
+```bash
+# Clone repository
+git clone https://github.com/RC918/morningai.git
+cd morningai/orchestrator
+
+# Copy environment file
+cp .env.example .env
+
+# Edit .env with your configuration
+# REQUIRED: Set ORCHESTRATOR_JWT_SECRET and ORCHESTRATOR_API_KEYS
+
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+**Services Started:**
+- **orchestrator-api**: FastAPI application (port 8000)
+- **orchestrator-redis**: Redis 7 (port 6379)
+
+**Health Check:**
+```bash
+curl http://localhost:8000/health
+```
+
+**View Logs:**
+```bash
+# All services
+docker-compose logs -f
+
+# Orchestrator only
+docker-compose logs -f orchestrator
+
+# Redis only
+docker-compose logs -f redis
+```
+
+**Production Considerations:**
+- Set strong `ORCHESTRATOR_JWT_SECRET` (min 32 chars)
+- Use secure `ORCHESTRATOR_API_KEYS`
+- Configure CORS origins for your domain
+- Enable TLS for Redis in production
+- Use external Redis for better reliability
+- Set up monitoring and alerting
+
+---
+
 ## Prerequisites
 
 - Render.com account

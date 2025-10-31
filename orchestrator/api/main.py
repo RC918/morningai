@@ -5,6 +5,8 @@ Provides HTTP endpoints for task submission and status monitoring
 """
 import logging
 import os
+import signal
+import asyncio
 from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 
@@ -21,12 +23,31 @@ from orchestrator.api.hitl_gate import HITLGate
 from orchestrator.api.auth import get_current_user, require_agent, AuthUser
 from orchestrator.api.rate_limiter import RateLimitMiddleware
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Setup structured logging
+try:
+    from orchestrator.utils.logging_config import setup_logging
+    setup_logging()
+    logger = logging.getLogger(__name__)
+except ImportError:
+    # Fallback to basic logging if utils module not available
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
 redis_queue: Optional[RedisQueue] = None
 orchestrator_router: Optional[OrchestratorRouter] = None
 hitl_gate: Optional[HITLGate] = None
+shutdown_event = asyncio.Event()
+
+
+def signal_handler(sig, frame):
+    """Handle shutdown signals gracefully"""
+    logger.info(f"Received signal {sig}, initiating graceful shutdown...")
+    shutdown_event.set()
+
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
 
 
 def get_redis_client():
@@ -43,19 +64,40 @@ async def lifespan(app: FastAPI):
     
     logger.info("Starting Orchestrator API")
     
-    redis_queue = await create_redis_queue()
-    
-    orchestrator_router = OrchestratorRouter(redis_queue)
-    
-    hitl_gate = HITLGate(redis_queue)
-    
-    logger.info("Orchestrator API started successfully")
+    try:
+        redis_queue = await create_redis_queue()
+        logger.info("Redis queue initialized successfully")
+        
+        orchestrator_router = OrchestratorRouter(redis_queue)
+        logger.info("Orchestrator router initialized successfully")
+        
+        hitl_gate = HITLGate(redis_queue)
+        logger.info("HITL gate initialized successfully")
+        
+        logger.info("Orchestrator API started successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Orchestrator API: {e}")
+        raise
     
     yield
     
-    logger.info("Shutting down Orchestrator API")
-    if redis_queue:
-        await redis_queue.disconnect()
+    # Graceful shutdown
+    logger.info("Shutting down Orchestrator API gracefully...")
+    
+    try:
+        # Wait for in-flight requests to complete (with timeout)
+        logger.info("Waiting for in-flight requests to complete...")
+        await asyncio.sleep(2)  # Give 2 seconds for requests to finish
+        
+        # Disconnect from Redis
+        if redis_queue:
+            logger.info("Disconnecting from Redis...")
+            await redis_queue.disconnect()
+            logger.info("Redis disconnected successfully")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+    
+    logger.info("Orchestrator API shutdown complete")
 
 
 app = FastAPI(
@@ -139,17 +181,37 @@ async def root():
 
 @app.get("/health")
 async def health_check(queue: RedisQueue = Depends(get_redis_queue)):
-    """Health check endpoint"""
+    """
+    Health check endpoint with Redis connectivity verification.
+    
+    Returns:
+        - status: "healthy" if all checks pass
+        - redis: "connected" if Redis is accessible
+        - queue_stats: Current queue statistics
+    
+    Raises:
+        HTTPException 503: If Redis is not accessible
+    """
     try:
+        # Verify Redis connectivity by getting queue stats
         stats = await queue.get_queue_stats()
+        
+        # Additional Redis ping check
+        if queue.redis_client:
+            await queue.redis_client.ping()
+        
         return {
             "status": "healthy",
             "redis": "connected",
-            "queue_stats": stats
+            "queue_stats": stats,
+            "environment": os.getenv("ENVIRONMENT", "development")
         }
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail=str(e))
+        logger.error(f"Health check failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Service unhealthy: {str(e)}"
+        )
 
 
 @app.post("/tasks", response_model=TaskResponse)
