@@ -2,53 +2,113 @@ import os
 import time
 import logging
 import uuid
+import threading
 from functools import wraps
-from flask import request, jsonify, make_response
+from flask import request, jsonify, make_response, g
 from redis import ConnectionError as RedisConnectionError
 
 logger = logging.getLogger(__name__)
 
+redis_state_lock = threading.Lock()
 redis_client = None
-redis_init_attempted = False
+redis_connecting = False
+retry_attempts = 0
+next_retry_deadline = 0.0
+REDIS_MAX_RETRIES = int(os.getenv("RATE_LIMIT_REDIS_MAX_RETRIES", "3"))
+REDIS_RETRY_DELAY = float(os.getenv("RATE_LIMIT_REDIS_RETRY_DELAY", "1.0"))
+REDIS_LONG_COOLDOWN = 60.0
 
 def get_rate_limit_redis():
     """
-    Get Redis client with lazy initialization.
+    Get Redis client with lazy initialization and non-blocking retry mechanism.
     
     This function initializes Redis on first request rather than at module import time,
     avoiding timing issues where Redis might not be available during app initialization.
     
     If redis_client is already set (e.g., by tests), returns it immediately.
     
+    Implements non-blocking retry with exponential backoff. Only one thread attempts
+    reconnection at a time; others proceed without rate limiting during backoff window.
+    
     Returns:
-        Redis client or None if unavailable
+        Redis client or None if unavailable or in backoff window
     """
-    global redis_client, redis_init_attempted
+    global redis_client, redis_connecting, retry_attempts, next_retry_deadline
     
     if redis_client is not None:
         return redis_client
     
-    if not redis_init_attempted:
-        redis_init_attempted = True
-        try:
-            from src.utils.redis_client import get_redis_client
-            redis_client = get_redis_client()
+    now = time.monotonic()
+    
+    with redis_state_lock:
+        if redis_client is not None:
+            return redis_client
+        if redis_connecting:
+            return None
+        if now < next_retry_deadline:
+            return None
+        redis_connecting = True
+    
+    client = None
+    error_msg = None
+    try:
+        from src.utils.redis_client import get_redis_client
+        client = get_redis_client()
+    except Exception as e:
+        error_msg = str(e)
+    
+    now_after = time.monotonic()
+    
+    with redis_state_lock:
+        redis_connecting = False
+        if client:
+            redis_client = client
+            retry_attempts = 0
+            next_retry_deadline = 0.0
             logger.info("✅ Rate limit Redis connection established")
-        except Exception as e:
-            logger.warning(f"⚠️ Rate limit Redis unavailable, rate limiting will be disabled: {e}")
-            redis_client = None
+        else:
+            retry_attempts += 1
+            if retry_attempts < REDIS_MAX_RETRIES:
+                delay = REDIS_RETRY_DELAY * retry_attempts
+                next_retry_deadline = now_after + delay
+                logger.warning(f"⚠️ Rate limit Redis connection failed (attempt {retry_attempts}/{REDIS_MAX_RETRIES}), will retry in {delay}s: {error_msg}")
+            else:
+                next_retry_deadline = now_after + REDIS_LONG_COOLDOWN
+                logger.warning(f"⚠️ Rate limit Redis unavailable after {REDIS_MAX_RETRIES} retries, will retry in {REDIS_LONG_COOLDOWN}s: {error_msg}")
     
     return redis_client
 
 RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "60"))
 RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
+RATE_LIMIT_BY_USER = os.getenv("RATE_LIMIT_BY_USER", "false").lower() == "true"
+
+def _extract_user_id():
+    """Extract user ID from request context with fallbacks"""
+    uid = getattr(request, 'user_id', None)
+    if uid:
+        return str(uid)
+    
+    cu = getattr(request, 'current_user', None)
+    if isinstance(cu, dict) and cu.get('user_id'):
+        return str(cu['user_id'])
+    
+    uid = getattr(g, 'user_id', None)
+    if uid:
+        return str(uid)
+    
+    return None
 
 def rate_limit(f):
-    """Rate limiting decorator (60 requests per minute per IP by default)
+    """Rate limiting decorator with IP and optional user-based limiting
     
     Uses Redis sliding window algorithm for accurate rate limiting.
     Falls back to no limiting if Redis is unavailable.
     Adds X-RateLimit-* headers for observability.
+    
+    Rate limiting can be configured to use:
+    - IP-based (default): Limits requests per IP address
+    - User-based (RATE_LIMIT_BY_USER=true): Limits requests per authenticated user
+    - Hybrid: Both IP and user limits (most restrictive applies)
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -62,7 +122,16 @@ def rate_limit(f):
         if client_ip:
             client_ip = client_ip.split(',')[0].strip()
         
-        rate_limit_key = f"rate_limit:{client_ip}"
+        user_id = None
+        if RATE_LIMIT_BY_USER:
+            user_id = _extract_user_id()
+        
+        if user_id:
+            rate_limit_key = f"rate_limit:user:{user_id}"
+            identifier = f"user {user_id}"
+        else:
+            rate_limit_key = f"rate_limit:ip:{client_ip}"
+            identifier = f"IP {client_ip}"
         
         try:
             current_time = time.time()
@@ -78,11 +147,19 @@ def rate_limit(f):
             results = pipe.execute()
             
             pre_count = results[1]
-            remaining = max(0, RATE_LIMIT_REQUESTS - pre_count)
+            remaining = max(0, RATE_LIMIT_REQUESTS - pre_count - 1)
             reset_time = int(current_time + RATE_LIMIT_WINDOW)
             
             if pre_count >= RATE_LIMIT_REQUESTS:
-                logger.warning(f"Rate limit exceeded for IP {client_ip}: {pre_count} requests")
+                logger.warning(f"Rate limit exceeded for {identifier}: {pre_count} requests")
+                
+                try:
+                    if hasattr(g, 'metrics'):
+                        g.metrics['rate_limit_exceeded'] = True
+                        g.metrics['rate_limit_identifier'] = identifier
+                except Exception:
+                    pass  # Don't fail request if metrics tracking fails
+                
                 response = jsonify({
                     "error": {
                         "code": "rate_limit_exceeded",
@@ -94,6 +171,13 @@ def rate_limit(f):
                 response.headers['X-RateLimit-Remaining'] = '0'
                 response.headers['X-RateLimit-Reset'] = str(reset_time)
                 return response
+            
+            try:
+                if hasattr(g, 'metrics'):
+                    g.metrics['rate_limit_remaining'] = remaining
+                    g.metrics['rate_limit_identifier'] = identifier
+            except Exception:
+                pass  # Don't fail request if metrics tracking fails
             
             result = f(*args, **kwargs)
             
