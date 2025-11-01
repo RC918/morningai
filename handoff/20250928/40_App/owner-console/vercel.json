@@ -1,16 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install --include=dev",
+  "buildCommand": "cd ../../../ && corepack enable && pnpm -w --filter @morningai/shared-ui build && pnpm -w --filter owner-console build",
+  "installCommand": "cd ../../../ && corepack enable && pnpm -v && pnpm -w install --frozen-lockfile",
   "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "git": {
-    "deploymentEnabled": false
-  }
+  ]
 }
