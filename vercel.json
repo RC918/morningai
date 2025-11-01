@@ -4,7 +4,7 @@
   "buildCommand": "pnpm --filter frontend-dashboard build",
   "installCommand": "pnpm install --prod=false",
   "outputDirectory": "handoff/20250928/40_App/frontend-dashboard/dist",
-  "ignoreCommand": "bash -c '[[ \"$VERCEL_GIT_COMMIT_REF\" != \"devin/1761842919-archive-99-original-bundle\" ]]'",
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
   "rewrites": [
     {
       "source": "/(.*)",
