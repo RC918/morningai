@@ -13,12 +13,9 @@ export default defineConfig(({ mode }) => {
     process.env.SENTRY_AUTH_TOKEN
   )
 
-  return {
-    plugins: [
-      react(),
-      tailwindcss(),
-      ...(enableSentry ? [{
-        ...sentryVitePlugin({
+  const sentryPlugin = enableSentry
+    ? Object.assign(
+        sentryVitePlugin({
           org: process.env.SENTRY_ORG,
           project: process.env.SENTRY_PROJECT,
           authToken: process.env.SENTRY_AUTH_TOKEN,
@@ -31,8 +28,15 @@ export default defineConfig(({ mode }) => {
           },
           telemetry: false
         }),
-        apply: 'build'
-      }] : []),
+        { apply: 'build' }
+      )
+    : null
+
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      ...(sentryPlugin ? [sentryPlugin] : []),
       VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'],
