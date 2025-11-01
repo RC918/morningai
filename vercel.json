@@ -1,10 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "pnpm --filter frontend-dashboard build",
+  "buildCommand": "pnpm --filter @morningai/shared-ui build && pnpm --filter frontend-dashboard build",
   "installCommand": "pnpm install --prod=false",
   "outputDirectory": "handoff/20250928/40_App/frontend-dashboard/dist",
-  "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
+  "ignoreCommand": "bash -c '[[ \"$VERCEL_ENV\" == \"preview\" ]] && exit 1; [[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" && \"$VERCEL_GIT_COMMIT_REF\" != \"production\" && ! \"$VERCEL_GIT_COMMIT_REF\" =~ ^(release|hotfix)/ ]]'",
   "rewrites": [
     {
       "source": "/(.*)",
