@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
+  typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+    ? '' // Use relative path for Vercel deployments (proxy handles routing)
+    : 'https://morningai-backend-v2.onrender.com'
+)
 
 export const apiClient = async <T>(url: string, options?: RequestInit): Promise<T> => {
   const response = await customFetch({ url, ...options })

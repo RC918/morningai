@@ -90,8 +90,8 @@ function AppleButton({
       className={cn(appleButtonVariants({ variant, size, className }))}
       disabled={disabled}
       onClick={handleClick}
-      whileHover={disabled ? {} : { scale: 1.02 }}
-      whileTap={disabled ? {} : { scale: 0.98 }}
+      whileHover={disabled ? {} : { scale: 1.03, y: -1 }}
+      whileTap={disabled ? {} : { scale: 0.97, y: 0 }}
       transition={springConfig}
       {...props}
     >

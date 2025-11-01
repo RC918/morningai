@@ -7,6 +7,10 @@
   "ignoreCommand": "bash -c '[[ \"$VERCEL_ENV\" == \"preview\" ]] && exit 1; [[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" && \"$VERCEL_GIT_COMMIT_REF\" != \"production\" && ! \"$VERCEL_GIT_COMMIT_REF\" =~ ^(release|hotfix)/ ]]'",
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://morningai-backend-v2.onrender.com/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -129,7 +129,8 @@ function AppleInput({
         <motion.label
           htmlFor={props.id}
           className={cn(
-            "absolute left-4 pointer-events-none origin-left font-medium transition-colors",
+            "absolute pointer-events-none origin-left font-medium transition-colors",
+            leftIcon ? "left-10" : "left-4",
             showFloatingLabel ? "text-xs" : "text-sm top-1/2 -translate-y-1/2",
             disabled && "opacity-50"
           )}
@@ -170,7 +171,7 @@ function AppleInput({
           onBlur={handleBlur}
           onChange={handleChange}
           value={value}
-          whileFocus={{ scale: 1.01 }}
+          whileFocus={{ scale: 1.02 }}
           transition={springConfig}
           {...props}
         />
