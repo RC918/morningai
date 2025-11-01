@@ -66,8 +66,8 @@ function AppContent() {
             Sentry.browserTracingIntegration(),
             Sentry.replayIntegration()
           ],
-          tracesSampleRate: 1.0,
-          replaysSessionSampleRate: 0.1,
+          tracesSampleRate: parseFloat(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || '0.1'),
+          replaysSessionSampleRate: parseFloat(import.meta.env.VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE || '0.01'),
           replaysOnErrorSampleRate: 1.0,
         })
         window.Sentry = Sentry
