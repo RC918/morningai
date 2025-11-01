@@ -15,6 +15,7 @@
 > See [Integration Analysis](CTO_STRATEGIC_INTEGRATION_ANALYSIS.md) for detailed comparison and refined timeline.
 
 > **⚠️ Development Guidelines**  
+> - **UI Components**: MorningAI 使用 `@morningai/shared-ui` 作為唯一的 UI 元件庫，開發新 UI 請參考 [Shared UI 使用指南](docs/shared-ui-guide.md)
 > - For API/schema changes, submit an RFC first (see [RFC Template](.github/ISSUE_TEMPLATE/rfc.md))
 > - Design PRs: UI/copy/styles only
 > - Engineering PRs: API/logic only
