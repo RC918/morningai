@@ -210,9 +210,9 @@ const AgentGovernance = () => {
                   <p className="text-center text-gray-500 py-8">No agents found</p>
                 ) : (
                   agents.map((agent, index) => (
-                    <div 
+                    <button
                       key={agent.agent_id} 
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="w-full text-left flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => setSelectedAgent(agent)}
                     >
                       <div className="flex items-center gap-4">
@@ -231,7 +231,7 @@ const AgentGovernance = () => {
                           {getPermissionLevelLabel(agent.permission_level)}
                         </Badge>
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
