@@ -46,10 +46,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const { isAuthenticated: authenticated, user: storedUser } = initAuth();
-    setIsAuthenticated(authenticated);
-    setUser(storedUser);
-    setIsLoading(false);
+    const initialize = async () => {
+      const { isAuthenticated: authenticated, user: storedUser } = await initAuth();
+      setIsAuthenticated(authenticated);
+      setUser(storedUser);
+      setIsLoading(false);
+    };
+    
+    initialize();
 
     return () => {
       cleanupAuth();

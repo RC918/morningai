@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { LanguageSwitcher } from './LanguageSwitcher'
-import { login } from '@/lib/auth'
 
 const LoginPage = ({ onLogin }) => {
   const { t } = useTranslation()
@@ -36,13 +35,7 @@ const LoginPage = ({ onLogin }) => {
     setError('')
 
     try {
-      const result = await login(credentials)
-      
-      if (result.user) {
-        onLogin(result.user)
-      } else {
-        setError(t('auth.login.loginFailed'))
-      }
+      await onLogin(credentials)
     } catch (error) {
       console.error('Login error:', error)
       setError(error.message || t('auth.login.loginError'))

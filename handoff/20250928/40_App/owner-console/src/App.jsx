@@ -15,9 +15,6 @@ const PlatformSettings = lazy(() => import('@/pages/PlatformSettings'))
 function AppContent() {
   const { isAuthenticated, isLoading, user, login, logout } = useAuth()
 
-  const handleLogin = async (userData) => {
-  }
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -27,7 +24,7 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />
+    return <LoginPage onLogin={login} />
   }
 
   return (
