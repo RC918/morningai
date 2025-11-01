@@ -1,3 +1,22 @@
+/* Tailwind v4 Design Tokens - MUST be defined before @import "tailwindcss" */
+@theme {
+  /* Max-width tokens used by max-w-* utilities */
+  /* Note: Tailwind v4 uses --space-* tokens (not --spacing-*) */
+  --space-xs: 20rem;     /* 320px - max-w-xs */
+  --space-sm: 24rem;     /* 384px - max-w-sm */
+  --space-md: 28rem;     /* 448px - max-w-md */
+  --space-lg: 32rem;     /* 512px - max-w-lg */
+  --space-xl: 36rem;     /* 576px - max-w-xl */
+  --space-2xl: 42rem;    /* 672px - max-w-2xl */
+  --space-3xl: 48rem;    /* 768px - max-w-3xl */
+  --space-4xl: 56rem;    /* 896px - max-w-4xl */
+  --space-5xl: 64rem;    /* 1024px - max-w-5xl */
+  
+  /* Container tokens for larger max-widths */
+  --container-6xl: 72rem;  /* 1152px - max-w-6xl */
+  --container-7xl: 80rem;  /* 1280px - max-w-7xl */
+}
+
 @import "tailwindcss";
 @import "./materials.css";
 @import "./accessibility.css";
