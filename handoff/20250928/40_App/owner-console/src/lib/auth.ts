@@ -165,8 +165,35 @@ export function isAuthenticated(): boolean {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 /**
+ * Get cookie value by name
+ */
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  
+  if (parts.length === 2) {
+    const cookieValue = parts.pop();
+    return cookieValue ? cookieValue.split(';').shift() || null : null;
+  }
+  
+  return null;
+}
+
+/**
+ * Check if CSRF token should be included for this HTTP method
+ */
+function shouldIncludeCSRF(method?: string): boolean {
+  if (!method) return false;
+  const upperMethod = method.toUpperCase();
+  return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(upperMethod);
+}
+
+/**
  * Make authenticated API request
  * Tokens are automatically sent via HttpOnly cookies
+ * CSRF token is included for unsafe methods (POST, PUT, PATCH, DELETE)
  */
 async function authenticatedFetch(
   url: string,
@@ -182,8 +209,17 @@ async function authenticatedFetch(
     await refreshAccessToken();
   }
   
+  const headers = new Headers(options.headers);
+  if (shouldIncludeCSRF(options.method)) {
+    const csrfToken = getCookie('csrf_token');
+    if (csrfToken) {
+      headers.set('X-CSRF-Token', csrfToken);
+    }
+  }
+  
   return fetch(url, {
     ...options,
+    headers,
     credentials: 'include',
   });
 }
