@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "cd ../../../ && corepack enable && pnpm -w --filter @morningai/shared-ui build && pnpm -w --filter owner-console build",
-  "installCommand": "cd ../../../ && corepack enable && pnpm -v && pnpm -w install --frozen-lockfile",
+  "buildCommand": "corepack prepare pnpm@9.15.1 --activate && pnpm -w --filter @morningai/shared-ui build && pnpm -w --filter owner-console build",
+  "installCommand": "corepack prepare pnpm@9.15.1 --activate && pnpm -w install --frozen-lockfile",
   "outputDirectory": "dist",
   "rewrites": [
     {
