@@ -2,6 +2,18 @@
 @import "./materials.css";
 @import "./accessibility.css";
 
+/* Fix for vertical text rendering issue in Chinese locale */
+/* Ensure all text renders horizontally regardless of language */
+@layer base {
+  html,
+  body,
+  #root,
+  :where(*) {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+}
+
 /* Font optimization - Week 6 Performance */
 /* Use system fonts as fallback for faster initial render */
 @font-face {
