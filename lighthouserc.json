@@ -6,7 +6,7 @@
         "/login",
         "/pricing"
       ],
-      "numberOfRuns": 1,
+      "numberOfRuns": 3,
       "settings": {
         "preset": "desktop",
         "formFactor": "desktop",

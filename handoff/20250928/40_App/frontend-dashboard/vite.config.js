@@ -5,21 +5,37 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import path from 'path'
 
+const enableSentry = Boolean(
+  process.env.SENTRY_ORG && 
+  process.env.SENTRY_PROJECT && 
+  process.env.SENTRY_AUTH_TOKEN
+)
+
+const sentryPlugin = enableSentry
+  ? Object.assign(
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        release: {
+          name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE
+        },
+        sourcemaps: {
+          assets: './dist/**',
+          filesToDeleteAfterUpload: './dist/**/*.map'
+        },
+        telemetry: false
+      }),
+      { apply: 'build' }
+    )
+  : null
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    sentryVitePlugin({
-      org: process.env.SENTRY_ORG,
-      project: process.env.SENTRY_PROJECT,
-      authToken: process.env.SENTRY_AUTH_TOKEN,
-      sourcemaps: {
-        assets: './dist/**',
-        filesToDeleteAfterUpload: './dist/**/*.map'
-      },
-      telemetry: false
-    }),
+    ...(sentryPlugin ? [sentryPlugin] : []),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'],
