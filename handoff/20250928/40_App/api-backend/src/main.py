@@ -145,7 +145,7 @@ def add_cors_headers(response):
 cors_config = {
     "origins": cors_origins,
     "supports_credentials": True,
-    "allow_headers": ["Content-Type", "Authorization", "X-Request-ID"],
+    "allow_headers": ["Content-Type", "Authorization", "X-Request-ID", "X-CSRF-Token"],
     "expose_headers": ["Content-Type", "Authorization", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
 }
