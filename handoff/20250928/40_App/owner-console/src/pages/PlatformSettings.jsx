@@ -20,16 +20,18 @@ const PlatformSettings = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-sm font-medium">Platform Name</label>
+            <label htmlFor="platform-name" className="text-sm font-medium">Platform Name</label>
             <input 
+              id="platform-name"
               type="text" 
               defaultValue="MorningAI Platform" 
               className="w-full mt-1 px-3 py-2 border rounded-lg"
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Support Email</label>
+            <label htmlFor="support-email" className="text-sm font-medium">Support Email</label>
             <input 
+              id="support-email"
               type="email" 
               defaultValue="support@morningai.com" 
               className="w-full mt-1 px-3 py-2 border rounded-lg"

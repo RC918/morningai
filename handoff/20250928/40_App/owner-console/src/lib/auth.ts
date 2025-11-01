@@ -49,8 +49,9 @@ export interface LoginResponse {
 }
 
 export interface RefreshTokenResponse {
-  accessToken: string;
-  expiresAt: number;
+  tokens: {
+    expiresAt: number;
+  };
 }
 
 
@@ -165,8 +166,54 @@ export function isAuthenticated(): boolean {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 /**
+ * Ensure CSRF token exists by fetching it if missing
+ */
+async function ensureCsrfToken(): Promise<void> {
+  if (typeof document === 'undefined') return;
+  
+  const existingToken = getCookie('csrf_token');
+  if (existingToken) return;
+  
+  try {
+    await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch (error) {
+    console.error('Failed to fetch CSRF token:', error);
+  }
+}
+
+/**
+ * Get cookie value by name
+ */
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  
+  if (parts.length === 2) {
+    const cookieValue = parts.pop();
+    return cookieValue ? cookieValue.split(';').shift() || null : null;
+  }
+  
+  return null;
+}
+
+/**
+ * Check if CSRF token should be included for this HTTP method
+ */
+function shouldIncludeCSRF(method?: string): boolean {
+  if (!method) return false;
+  const upperMethod = method.toUpperCase();
+  return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(upperMethod);
+}
+
+/**
  * Make authenticated API request
  * Tokens are automatically sent via HttpOnly cookies
+ * CSRF token is included for unsafe methods (POST, PUT, PATCH, DELETE)
  */
 async function authenticatedFetch(
   url: string,
@@ -182,8 +229,17 @@ async function authenticatedFetch(
     await refreshAccessToken();
   }
   
+  const headers = new Headers(options.headers);
+  if (shouldIncludeCSRF(options.method)) {
+    const csrfToken = getCookie('csrf_token');
+    if (csrfToken) {
+      headers.set('X-CSRF-Token', csrfToken);
+    }
+  }
+  
   return fetch(url, {
     ...options,
+    headers,
     credentials: 'include',
   });
 }
@@ -194,6 +250,8 @@ async function authenticatedFetch(
  * Tokens are stored in HttpOnly cookies by the backend
  */
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+  await ensureCsrfToken();
+  
   if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
     const mockTokens = {
       expiresAt: Date.now() + 60 * 60 * 1000,
@@ -239,11 +297,18 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 export async function logout(): Promise<void> {
   if (isFeatureEnabled('OWNER_CONSOLE_API')) {
     try {
+      const csrfToken = getCookie('csrf_token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+      
       await fetch(`${API_BASE_URL}/api/auth/v2/logout`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include',
       });
     } catch (error) {
@@ -283,7 +348,7 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
   const data: RefreshTokenResponse = await response.json();
   
   const newTokens: AuthTokens = {
-    expiresAt: data.expiresAt,
+    expiresAt: data.tokens.expiresAt,
   };
   
   storeTokenExpiry(newTokens.expiresAt);
@@ -368,11 +433,14 @@ export function stopTokenRefresh(): void {
  * Initialize authentication
  * 
  * Call this on app startup to:
+ * - Bootstrap CSRF token if missing
  * - Check if user is authenticated
  * - Start automatic token refresh
  * - Redirect to login if needed
  */
-export function initAuth(): { isAuthenticated: boolean; user: User | null } {
+export async function initAuth(): Promise<{ isAuthenticated: boolean; user: User | null }> {
+  await ensureCsrfToken();
+  
   const authenticated = isAuthenticated();
   const user = getStoredUser();
   

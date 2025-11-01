@@ -8,12 +8,11 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { LanguageSwitcher } from './LanguageSwitcher'
-import apiClient from '@/lib/api'
 
 const LoginPage = ({ onLogin }) => {
   const { t } = useTranslation()
   const [credentials, setCredentials] = useState({
-    username: '',
+    email: '',
     password: ''
   })
   const [loading, setLoading] = useState(false)
@@ -36,27 +35,10 @@ const LoginPage = ({ onLogin }) => {
     setError('')
 
     try {
-      const result = await apiClient.login(credentials)
-      
-      if (result.user && result.token) {
-        onLogin(result.user, result.token)
-      } else {
-        setError(result.message || t('auth.login.loginFailed'))
-      }
+      await onLogin(credentials)
     } catch (error) {
-      if (credentials.username === 'admin' && credentials.password === 'admin123') {
-        const mockUser = {
-          id: 1,
-          name: t('sidebar.user.defaultName'),
-          username: 'admin',
-          role: t('sidebar.user.defaultRole'),
-          avatar: null
-        }
-        const mockToken = 'mock-jwt-token-' + Date.now()
-        onLogin(mockUser, mockToken)
-      } else {
-        setError(t('auth.login.loginError'))
-      }
+      console.error('Login error:', error)
+      setError(error.message || t('auth.login.loginError'))
     } finally {
       setLoading(false)
     }
@@ -153,15 +135,15 @@ const LoginPage = ({ onLogin }) => {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="username">{t('auth.login.username')}</Label>
+                  <Label htmlFor="email">{t('auth.login.email', 'Email')}</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
                     <Input
-                      id="username"
-                      name="username"
-                      type="text"
-                      placeholder={t('auth.login.usernamePlaceholder')}
-                      value={credentials.username}
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder={t('auth.login.emailPlaceholder', 'owner@morningai.com')}
+                      value={credentials.email}
                       onChange={handleChange}
                       className="pl-10"
                       required
@@ -208,10 +190,10 @@ const LoginPage = ({ onLogin }) => {
               </form>
 
               <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h4>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount', 'Development Account')}</h4>
                 <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin</code></p>
-                  <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin123</code></p>
+                  <p>{t('auth.login.email', 'Email')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">owner@morningai.com</code></p>
+                  <p>{t('auth.login.password', 'Password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">owner123</code></p>
                 </div>
               </div>
             </CardContent>
