@@ -1,4 +1,4 @@
-import tokens from '../../public/tokens.json'
+import tokens from '@morningai/shared-ui/tokens.json'
 
 export const getToken = (path) => {
   return path.split('.').reduce((obj, key) => obj?.[key], tokens)
