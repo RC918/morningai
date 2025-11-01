@@ -1,2 +1,9 @@
 *.db
 app.db
+
+# Prevent vendored npm packages from being committed
+@*/
+node_modules/
+cjs/
+esm/
+dist/
