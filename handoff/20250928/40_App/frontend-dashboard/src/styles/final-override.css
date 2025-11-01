@@ -1,0 +1,22 @@
+/* Final CSS override - imported last to guarantee cascade priority */
+/* This file is NOT wrapped in any @layer, so it has the highest priority */
+
+/* Fix for vertical text appearance caused by word-breaking and narrow containers */
+/* Target hero section and main content areas */
+h1, h2, h3, h4, h5, h6, p {
+  word-break: keep-all !important;
+  white-space: normal !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+/* Ensure containers don't force narrow widths that stack characters */
+.hero, .hero-content, .hero-text, [class*="hero"] {
+  min-width: fit-content !important;
+}
+
+/* Global fallback for all text elements */
+* {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
