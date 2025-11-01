@@ -6,6 +6,15 @@
   --breakpoint-*: initial;
 }
 
+/* Fix for vertical text rendering issue in Chinese locale */
+/* Ensure all text renders horizontally regardless of language */
+html,
+body,
+* {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
 /* WCAG 2.1 AA Focus Management */
 /* Enhanced focus indicators for keyboard navigation */
 *:focus-visible {
