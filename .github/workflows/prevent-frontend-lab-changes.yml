@@ -1,0 +1,55 @@
+name: Prevent Frontend Lab Changes
+
+on:
+  pull_request:
+    paths:
+      - 'tools/frontend-lab/**'
+
+jobs:
+  check-frontend-lab:
+    name: Block changes to deprecated frontend-lab
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for non-documentation changes
+        run: |
+          echo "Checking for changes in tools/frontend-lab..."
+          
+          # Get list of changed files in tools/frontend-lab
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^tools/frontend-lab/' || true)
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "✅ No changes detected in tools/frontend-lab"
+            exit 0
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Check if any non-documentation files were changed
+          NON_DOC_CHANGES=$(echo "$CHANGED_FILES" | grep -v -E '(README\.md|DEPRECATED\.md|\.gitkeep)$' || true)
+          
+          if [ -n "$NON_DOC_CHANGES" ]; then
+            echo ""
+            echo "❌ ERROR: Changes to tools/frontend-lab are not allowed!"
+            echo ""
+            echo "tools/frontend-lab is DEPRECATED and archived."
+            echo ""
+            echo "Non-documentation files changed:"
+            echo "$NON_DOC_CHANGES"
+            echo ""
+            echo "Please use instead:"
+            echo "  📁 handoff/20250928/40_App/frontend-dashboard/"
+            echo "  📦 Package: frontend-dashboard"
+            echo "  📚 Storybook: pnpm --filter frontend-dashboard storybook"
+            echo ""
+            echo "If you need to update documentation, only README.md changes are allowed."
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ Only documentation files changed - OK"
