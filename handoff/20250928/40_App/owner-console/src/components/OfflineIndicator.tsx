@@ -6,7 +6,7 @@
  * Shows offline/online status
  */
 import React, { useState, useEffect } from 'react';
-import { Alert, AlertDescription } from './ui/alert';
+import { Alert, AlertDescription } from '@morningai/shared-ui';
 import { WifiOff, Wifi } from 'lucide-react';
 import { isOffline, onConnectionChange } from '../lib/pwa';
 

@@ -8,7 +8,7 @@
 import React, { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@morningai/shared-ui';
 import { AlertCircle } from 'lucide-react';
 
 interface ProtectedRouteProps {

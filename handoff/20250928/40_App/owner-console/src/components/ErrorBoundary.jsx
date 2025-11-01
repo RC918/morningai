@@ -1,7 +1,6 @@
 import React from 'react'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { withTranslation } from 'react-i18next'
 
 class ErrorBoundary extends React.Component {

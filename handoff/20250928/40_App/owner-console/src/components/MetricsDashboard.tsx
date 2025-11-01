@@ -6,11 +6,7 @@
  * Displays real-time system metrics, agent performance, and alerts
  */
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Badge } from './ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Progress } from './ui/progress';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription, AlertTitle, Badge, Tabs, TabsContent, TabsList, TabsTrigger, Progress } from '@morningai/shared-ui';
 import { 
   Activity, 
   AlertCircle, 

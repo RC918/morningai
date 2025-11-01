@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@morningai/shared-ui": "workspace:*",
     "@hookform/resolvers": "^5.0.1",
     "@openapitools/openapi-generator-cli": "^2.24.0",
     "@radix-ui/react-accordion": "^1.2.10",
