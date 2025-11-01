@@ -77,5 +77,50 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Runtime fix for vertical text - must be after all other scripts -->
+    <script>
+      (function() {
+        // Force horizontal text rendering with highest priority
+        function forceHorizontalText() {
+          document.documentElement.style.setProperty('writing-mode', 'horizontal-tb', 'important');
+          document.documentElement.style.setProperty('text-orientation', 'mixed', 'important');
+          document.body.style.setProperty('writing-mode', 'horizontal-tb', 'important');
+          document.body.style.setProperty('text-orientation', 'mixed', 'important');
+        }
+        
+        // Apply immediately
+        forceHorizontalText();
+        
+        // Apply after DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', forceHorizontalText);
+        }
+        
+        // Watch for any style changes and re-apply
+        const observer = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && 
+                (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+              const target = mutation.target;
+              const writingMode = window.getComputedStyle(target).writingMode;
+              if (writingMode && writingMode.includes('vertical')) {
+                target.style.setProperty('writing-mode', 'horizontal-tb', 'important');
+                target.style.setProperty('text-orientation', 'mixed', 'important');
+              }
+            }
+          });
+        });
+        
+        // Start observing after a short delay to avoid initial render thrashing
+        setTimeout(function() {
+          observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['style', 'class'],
+            subtree: true
+          });
+        }, 1000);
+      })();
+    </script>
   </body>
 </html>

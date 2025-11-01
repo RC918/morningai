@@ -8,7 +8,7 @@ import { getSpringConfig, triggerHaptic } from "@/lib/spring-animation"
 import { useScreenReaderAnnouncement } from "@/hooks/use-accessibility"
 
 const appleInputVariants = cva(
-  "flex w-full rounded-xl border bg-background/80 backdrop-blur-sm text-base transition-all outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+  "flex w-full rounded-xl border bg-background text-base transition-all outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
   {
     variants: {
       variant: {
@@ -138,7 +138,7 @@ function AppleInput({
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <div className="absolute inset-y-0 left-3 flex items-center text-gray-500 pointer-events-none [transform:none] [filter:none] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:crispEdges]">
+          <div className="absolute inset-y-0 left-3 flex items-center text-gray-500 pointer-events-none z-10 [transform:none] [filter:none] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:crispEdges]">
             {leftIcon}
           </div>
         )}
@@ -152,7 +152,7 @@ function AppleInput({
             appleInputVariants({ variant, inputSize, state, className }),
             leftIcon && "pl-10",
             (rightIcon || showPasswordToggle || showStateIcon) && "pr-10",
-            "placeholder:text-gray-400 selection:bg-blue-600 selection:text-white"
+            "placeholder:text-gray-400 selection:bg-blue-600 selection:text-white relative z-0"
           )}
           disabled={disabled}
           required={required}
@@ -166,7 +166,7 @@ function AppleInput({
         />
 
         {/* Right Icons */}
-        <div className="absolute inset-y-0 right-3 flex items-center gap-2">
+        <div className="absolute inset-y-0 right-3 flex items-center gap-2 z-10">
           {/* State Icon */}
           <AnimatePresence>
             {state === "error" && errorText && (
