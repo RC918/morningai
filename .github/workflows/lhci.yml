@@ -121,7 +121,10 @@ jobs:
       - name: Run Lighthouse CI (PR - fast)
         env:
           DEBUG: lighthouse:*
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-features=PaintHolding" --settings.maxWaitForFcp=60000 --settings.maxWaitForLoad=120000 --settings.throttlingMethod=provided --settings.formFactor=desktop --settings.screenEmulation.mobile=false --logLevel=verbose
+        run: pnpm dlx @lhci/cli collect --config=../../../../lighthouserc.json --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-features=PaintHolding" --settings.maxWaitForFcp=60000 --settings.maxWaitForLoad=120000 --logLevel=verbose
+
+      - name: Assert Lighthouse CI budgets
+        run: pnpm dlx @lhci/cli assert --config=../../../../lighthouserc.json
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
