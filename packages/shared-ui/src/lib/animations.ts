@@ -21,8 +21,9 @@ export type SpringPresetType = 'gentle' | 'default' | 'bouncy' | 'snappy' | 'smo
 
 /**
  * Check if user prefers reduced motion
+ * @returns boolean
  */
-const prefersReducedMotion = (): boolean => {
+export const prefersReducedMotion = (): boolean => {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 };
@@ -196,15 +197,6 @@ export const staggerContainer = (staggerDelay = 0.1) => ({
     },
   },
 })
-
-/**
- * Check if user prefers reduced motion
- * @returns boolean
- */
-export const prefersReducedMotion = () => {
-  if (typeof window === "undefined") return false
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
-}
 
 /**
  * Get animation variants with reduced motion support
