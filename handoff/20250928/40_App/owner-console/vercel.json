@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "node -v && pnpm -v && pnpm -w list -r --depth -1 && pnpm -w --filter @morningai/shared-ui build && pnpm -w --filter owner-console build",
+  "buildCommand": "node -v && pnpm -v && pnpm -w list -r --depth -1 && pnpm -w turbo run build --filter=@morningai/shared-ui --filter=owner-console",
   "installCommand": "corepack prepare pnpm@9.15.1 --activate && pnpm -w --filter @morningai/shared-ui --filter owner-console install --prod=false",
   "outputDirectory": "dist",
   "rewrites": [
