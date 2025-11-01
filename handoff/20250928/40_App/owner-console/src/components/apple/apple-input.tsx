@@ -138,7 +138,7 @@ function AppleInput({
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <div className="absolute inset-y-0 left-3 flex items-center text-gray-500 pointer-events-none z-10 [transform:none] [filter:none] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:crispEdges]">
+          <div className="absolute inset-y-0 left-3 flex items-center text-gray-500 pointer-events-none z-10 [transform:none] [filter:none] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:[stroke-width:1.75] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
             {leftIcon}
           </div>
         )}
@@ -177,7 +177,7 @@ function AppleInput({
                 transition={springConfig}
                 className="[transform:none] [filter:none]"
               >
-                <AlertCircle className="w-5 h-5 text-red-600 [vector-effect:non-scaling-stroke] [shape-rendering:crispEdges]" />
+                <AlertCircle className="w-5 h-5 text-red-600 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               </motion.div>
             )}
             {state === "success" && successText && (
@@ -188,7 +188,7 @@ function AppleInput({
                 transition={springConfig}
                 className="[transform:none] [filter:none]"
               >
-                <CheckCircle2 className="w-5 h-5 text-green-500 [vector-effect:non-scaling-stroke] [shape-rendering:crispEdges]" />
+                <CheckCircle2 className="w-5 h-5 text-green-500 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -205,16 +205,16 @@ function AppleInput({
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
-                <EyeOff className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:crispEdges]" />
+                <EyeOff className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               ) : (
-                <Eye className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:crispEdges]" />
+                <Eye className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               )}
             </motion.button>
           )}
 
           {/* Custom Right Icon */}
           {rightIcon && !showPasswordToggle && (
-            <div className="text-gray-500 [transform:none] [filter:none] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:crispEdges]">
+            <div className="text-gray-500 [transform:none] [filter:none] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:[stroke-width:1.75] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
               {rightIcon}
             </div>
           )}

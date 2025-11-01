@@ -81,7 +81,7 @@
     <!-- Runtime fix for vertical text - must be after all other scripts -->
     <script>
       (function() {
-        // Force horizontal text rendering with highest priority
+        // Force horizontal text rendering on html and body
         function forceHorizontalText() {
           document.documentElement.style.setProperty('writing-mode', 'horizontal-tb', 'important');
           document.documentElement.style.setProperty('text-orientation', 'mixed', 'important');
@@ -89,37 +89,66 @@
           document.body.style.setProperty('text-orientation', 'mixed', 'important');
         }
         
+        // Scan entire DOM and fix any vertical text elements
+        function fixAllNodes() {
+          try {
+            var allElements = document.querySelectorAll('*');
+            for (var i = 0; i < allElements.length; i++) {
+              var el = allElements[i];
+              var computedStyle = window.getComputedStyle(el);
+              var writingMode = computedStyle.writingMode;
+              if (writingMode && (writingMode.includes('vertical') || writingMode === 'vertical-rl' || writingMode === 'vertical-lr')) {
+                el.style.setProperty('writing-mode', 'horizontal-tb', 'important');
+                el.style.setProperty('text-orientation', 'mixed', 'important');
+              }
+            }
+          } catch (e) {
+            console.error('Error fixing vertical text:', e);
+          }
+        }
+        
         // Apply immediately
         forceHorizontalText();
+        fixAllNodes();
         
         // Apply after DOM is ready
         if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', forceHorizontalText);
+          document.addEventListener('DOMContentLoaded', function() {
+            forceHorizontalText();
+            fixAllNodes();
+          });
+        } else {
+          // DOM already loaded, run again
+          requestAnimationFrame(function() {
+            forceHorizontalText();
+            fixAllNodes();
+          });
         }
         
-        // Watch for any style changes and re-apply
-        const observer = new MutationObserver(function(mutations) {
-          mutations.forEach(function(mutation) {
-            if (mutation.type === 'attributes' && 
-                (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
-              const target = mutation.target;
-              const writingMode = window.getComputedStyle(target).writingMode;
-              if (writingMode && writingMode.includes('vertical')) {
-                target.style.setProperty('writing-mode', 'horizontal-tb', 'important');
-                target.style.setProperty('text-orientation', 'mixed', 'important');
-              }
+        // Watch for DOM changes and re-apply
+        var observer = new MutationObserver(function(mutations) {
+          var needsCheck = false;
+          for (var i = 0; i < mutations.length; i++) {
+            var mutation = mutations[i];
+            if (mutation.type === 'childList' || mutation.type === 'attributes') {
+              needsCheck = true;
+              break;
             }
-          });
+          }
+          if (needsCheck) {
+            requestAnimationFrame(fixAllNodes);
+          }
         });
         
-        // Start observing after a short delay to avoid initial render thrashing
-        setTimeout(function() {
+        // Start observing immediately
+        requestAnimationFrame(function() {
           observer.observe(document.documentElement, {
             attributes: true,
             attributeFilter: ['style', 'class'],
+            childList: true,
             subtree: true
           });
-        }, 1000);
+        });
       })();
     </script>
   </body>
