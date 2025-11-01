@@ -32,6 +32,17 @@ export default [
       ],
       'no-unused-vars': 'off',
       'no-undef': 'off',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/components/apple/*', './components/apple/*', '../components/apple/*'],
+              message: 'Import Apple design components from @morningai/shared-ui instead of local paths. All design components must use the shared design system.',
+            },
+          ],
+        },
+      ],
       'jsx-a11y/aria-props': 'error',
       'jsx-a11y/aria-proptypes': 'error',
       'jsx-a11y/aria-unsupported-elements': 'error',

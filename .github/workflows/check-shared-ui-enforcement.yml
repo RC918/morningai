@@ -1,0 +1,59 @@
+name: Check Shared UI Enforcement
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/owner-console/**'
+      - 'packages/shared-ui/**'
+
+jobs:
+  check-shared-ui-usage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for local Apple component implementations
+        run: |
+          echo "🔍 Checking for local Apple component implementations in owner-console..."
+          
+          # Check if owner-console has local Apple component implementations (not allowed)
+          if find handoff/20250928/40_App/owner-console/src/components/apple -name "*.tsx" -o -name "*.ts" 2>/dev/null | grep -v "index.ts"; then
+            echo ""
+            echo "❌ ERROR: Found local Apple component implementations in owner-console"
+            echo ""
+            echo "All Apple design components must come from @morningai/shared-ui"
+            echo "Delete local implementations and import from @morningai/shared-ui instead:"
+            echo "  import { AppleButton, AppleInput } from '@morningai/shared-ui'"
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ No local Apple component implementations found"
+      
+      - name: Check for imports from local apple components
+        run: |
+          echo "🔍 Checking for imports from local Apple components..."
+          
+          # Check for imports from local apple components
+          if grep -r "from ['\"]@/components/apple" handoff/20250928/40_App/owner-console/src --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null; then
+            echo ""
+            echo "❌ ERROR: Found imports from local Apple components in owner-console"
+            echo ""
+            echo "Import Apple components from @morningai/shared-ui instead:"
+            echo "  import { AppleButton, AppleInput } from '@morningai/shared-ui'"
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ No imports from local Apple components found"
+      
+      - name: Summary
+        if: success()
+        run: |
+          echo ""
+          echo "🎉 Shared UI enforcement checks passed!"
+          echo ""
+          echo "✅ Owner console correctly uses @morningai/shared-ui for design components"
+          echo "✅ No local Apple component implementations found"
+          echo "✅ All imports use the shared design system"
