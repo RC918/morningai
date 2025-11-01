@@ -1,13 +1,21 @@
 name: lighthouse-ci
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
+      - 'handoff/20250928/40_App/owner-console/**'
+      - 'packages/shared-ui/**'
+      - 'lighthouserc.json'
   schedule:
     - cron: '0 0 * * *'  # Daily at 00:00 UTC (non-blocking signal collection)
   workflow_dispatch:  # Manual trigger for testing
 
 jobs:
   lhci-pr:
-    if: false  # Disabled during stabilization period - will re-enable after 5 consecutive nightly passes
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     concurrency:
       group: lhci-${{ github.head_ref }}
