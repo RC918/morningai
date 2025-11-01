@@ -29,6 +29,20 @@
   --spacing-*: initial;
   --radius-*: initial;
   --shadow-*: initial;
+  --size-*: initial;
+  
+  /* Max-width scale - Tailwind default values */
+  --size-xs: 20rem;     /* 320px - max-w-xs */
+  --size-sm: 24rem;     /* 384px - max-w-sm */
+  --size-md: 28rem;     /* 448px - max-w-md */
+  --size-lg: 32rem;     /* 512px - max-w-lg */
+  --size-xl: 36rem;     /* 576px - max-w-xl */
+  --size-2xl: 42rem;    /* 672px - max-w-2xl */
+  --size-3xl: 48rem;    /* 768px - max-w-3xl */
+  --size-4xl: 56rem;    /* 896px - max-w-4xl */
+  --size-5xl: 64rem;    /* 1024px - max-w-5xl */
+  --size-6xl: 72rem;    /* 1152px - max-w-6xl */
+  --size-7xl: 80rem;    /* 1280px - max-w-7xl */
   
   /* Base semantic colors for light mode */
   --color-background: 0 0% 100%;
@@ -810,10 +824,4 @@ a:focus-visible {
   box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
 }
 
-/* Fix for vertical text rendering issue in Chinese locale */
-/* Ensure all text renders horizontally regardless of language */
-/* IMPORTANT: This must be at the end of the file to override all other styles */
-html, body, #root, *, *::before, *::after {
-  writing-mode: horizontal-tb !important;
-  text-orientation: mixed !important;
-}
+/* Remove global writing-mode rules that interfere with Tailwind */
