@@ -1,6 +1,7 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from 'next-themes'
+import { AuthProvider, useAuth } from '@/components/AuthProvider'
 import Sidebar from '@/components/Sidebar'
 import LoginPage from '@/components/LoginPage'
 import './App.css'
@@ -12,25 +13,17 @@ const SystemMonitoring = lazy(() => import('@/pages/SystemMonitoring'))
 const PlatformSettings = lazy(() => import('@/pages/PlatformSettings'))
 
 function AppContent() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true)
-  const [user, setUser] = useState({
-    id: 'owner_dev',
-    name: 'Ryan Chen',
-    email: 'ryan@morningai.com',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
-    role: 'Owner'
-  })
+  const { isAuthenticated, isLoading, user, login, logout } = useAuth()
 
-  const handleLogin = (userData, token) => {
-    setUser(userData)
-    setIsAuthenticated(true)
-    localStorage.setItem('owner_auth_token', token)
+  const handleLogin = async (userData) => {
   }
 
-  const handleLogout = () => {
-    setUser(null)
-    setIsAuthenticated(false)
-    localStorage.removeItem('owner_auth_token')
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    )
   }
 
   if (!isAuthenticated) {
@@ -40,7 +33,7 @@ function AppContent() {
   return (
     <Router>
       <div className="flex h-screen bg-gray-100">
-        <Sidebar user={user} onLogout={handleLogout} />
+        <Sidebar user={user} onLogout={logout} />
         
         <main id="main-content" className="flex-1 overflow-y-auto" role="main">
           <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div></div>}>
@@ -63,7 +56,9 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   )
 }
