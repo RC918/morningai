@@ -138,7 +138,7 @@ function AppleInput({
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
             {leftIcon}
           </div>
         )}
@@ -176,7 +176,7 @@ function AppleInput({
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={springConfig}
               >
-                <AlertCircle className="w-4 h-4 text-red-600" />
+                <AlertCircle className="w-5 h-5 text-red-600 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision]" />
               </motion.div>
             )}
             {state === "success" && successText && (
@@ -186,7 +186,7 @@ function AppleInput({
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={springConfig}
               >
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <CheckCircle2 className="w-5 h-5 text-green-500 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision]" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -203,16 +203,16 @@ function AppleInput({
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
-                <EyeOff className="w-4 h-4" />
+                <EyeOff className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision]" />
               ) : (
-                <Eye className="w-4 h-4" />
+                <Eye className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision]" />
               )}
             </motion.button>
           )}
 
           {/* Custom Right Icon */}
           {rightIcon && !showPasswordToggle && (
-            <div className="text-gray-500">
+            <div className="text-gray-500 [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
               {rightIcon}
             </div>
           )}

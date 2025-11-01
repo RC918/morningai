@@ -2,18 +2,6 @@
 @import "./materials.css";
 @import "./accessibility.css";
 
-/* Fix for vertical text rendering issue in Chinese locale */
-/* Ensure all text renders horizontally regardless of language */
-@layer base {
-  html,
-  body,
-  #root,
-  :where(*) {
-    writing-mode: horizontal-tb !important;
-    text-orientation: mixed !important;
-  }
-}
-
 /* Font optimization - Week 6 Performance */
 /* Use system fonts as fallback for faster initial render */
 @font-face {
@@ -820,4 +808,12 @@ a:focus-visible {
   outline: 3px solid #3b82f6 !important;
   outline-offset: 3px !important;
   box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Fix for vertical text rendering issue in Chinese locale */
+/* Ensure all text renders horizontally regardless of language */
+/* IMPORTANT: This must be at the end of the file to override all other styles */
+html, body, #root, *, *::before, *::after {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
 }

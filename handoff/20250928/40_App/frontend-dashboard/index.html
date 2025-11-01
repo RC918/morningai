@@ -66,6 +66,13 @@
       }
     }
     </script>
+    <!-- Force horizontal text rendering - must be last in head to override all other styles -->
+    <style>
+      html, body, #root, *, *::before, *::after {
+        writing-mode: horizontal-tb !important;
+        text-orientation: mixed !important;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
