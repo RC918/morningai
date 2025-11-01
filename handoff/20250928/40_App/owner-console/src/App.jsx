@@ -1,9 +1,10 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from 'next-themes'
 import { AuthProvider, useAuth } from '@/components/AuthProvider'
 import Sidebar from '@/components/Sidebar'
 import LoginPage from '@/components/LoginPage'
+import { applyDesignTokens } from '@/lib/design-tokens'
 import './App.css'
 
 const OwnerDashboard = lazy(() => import('@/pages/OwnerDashboard'))
@@ -51,11 +52,19 @@ function AppContent() {
 }
 
 function App() {
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      applyDesignTokens()
+    }
+  }, [])
+
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <div className="theme-morning-ai">
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </div>
     </ThemeProvider>
   )
 }

@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Lock, User, AlertCircle, Loader2 } from 'lucide-react'
-import { Button, Input, Label, Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@morningai/shared-ui'
+import { AppleButton } from '@/components/apple/apple-button'
+import { AppleInput } from '@/components/apple/apple-input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@morningai/shared-ui'
 import { LanguageSwitcher } from './LanguageSwitcher'
 
 const LoginPage = ({ onLogin }) => {
@@ -130,59 +132,50 @@ const LoginPage = ({ onLogin }) => {
                   </motion.div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">{t('auth.login.email', 'Email')}</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      placeholder={t('auth.login.emailPlaceholder', 'owner@morningai.com')}
-                      value={credentials.email}
-                      onChange={handleChange}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+                <AppleInput
+                  id="email"
+                  name="email"
+                  type="email"
+                  label={t('auth.login.email', 'Email')}
+                  placeholder={t('auth.login.emailPlaceholder', 'owner@morningai.com')}
+                  value={credentials.email}
+                  onChange={handleChange}
+                  leftIcon={<User className="h-4 w-4" />}
+                  required
+                  haptic="light"
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">{t('auth.login.password')}</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      placeholder={t('auth.login.passwordPlaceholder')}
-                      value={credentials.password}
-                      onChange={handleChange}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+                <AppleInput
+                  id="password"
+                  name="password"
+                  type="password"
+                  label={t('auth.login.password')}
+                  placeholder={t('auth.login.passwordPlaceholder')}
+                  value={credentials.password}
+                  onChange={handleChange}
+                  leftIcon={<Lock className="h-4 w-4" />}
+                  showPasswordToggle
+                  required
+                  haptic="light"
+                />
 
-                <motion.div
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+                <AppleButton 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={loading}
+                  variant="primary"
+                  size="default"
+                  haptic="medium"
                 >
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('auth.login.loggingIn')}
-                      </>
-                    ) : (
-                      t('auth.login.loginButton')
-                    )}
-                  </Button>
-                </motion.div>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('auth.login.loggingIn')}
+                    </>
+                  ) : (
+                    t('auth.login.loginButton')
+                  )}
+                </AppleButton>
               </form>
 
               <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">

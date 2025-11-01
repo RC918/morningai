@@ -5,38 +5,39 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import path from 'path'
 
-const enableSentry = Boolean(
-  process.env.SENTRY_ORG && 
-  process.env.SENTRY_PROJECT && 
-  process.env.SENTRY_AUTH_TOKEN
-)
-
-const sentryPlugin = enableSentry
-  ? Object.assign(
-      sentryVitePlugin({
-        org: process.env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT,
-        authToken: process.env.SENTRY_AUTH_TOKEN,
-        release: {
-          name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE
-        },
-        sourcemaps: {
-          assets: './dist/**',
-          filesToDeleteAfterUpload: './dist/**/*.map'
-        },
-        telemetry: false
-      }),
-      { apply: 'build' }
-    )
-  : null
-
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    ...(sentryPlugin ? [sentryPlugin] : []),
-    VitePWA({
+export default defineConfig(({ mode }) => {
+  const enableSentry = Boolean(
+    process.env.SENTRY_ORG && 
+    process.env.SENTRY_PROJECT && 
+    process.env.SENTRY_AUTH_TOKEN
+  )
+
+  const sentryPlugin = enableSentry
+    ? Object.assign(
+        sentryVitePlugin({
+          org: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          release: {
+            name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE
+          },
+          sourcemaps: {
+            assets: './dist/**',
+            filesToDeleteAfterUpload: './dist/**/*.map'
+          },
+          telemetry: false
+        }),
+        { apply: 'build' }
+      )
+    : null
+
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      ...(sentryPlugin ? [sentryPlugin] : []),
+      VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'],
       manifest: {
@@ -112,33 +113,34 @@ export default defineConfig({
         enabled: false
       }
     })
-  ],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    ],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
-  },
-  build: {
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['lucide-react', 'recharts', 'framer-motion'],
-          'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          'i18n-vendor': ['i18next', 'react-i18next'],
+    build: {
+      sourcemap: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            'ui-vendor': ['lucide-react', 'recharts', 'framer-motion'],
+            'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+            'i18n-vendor': ['i18next', 'react-i18next'],
+          },
+        },
+      },
+      chunkSizeWarningLimit: 600,
+    },
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:5001',
+          changeOrigin: true,
+          secure: false,
         },
       },
     },
-    chunkSizeWarningLimit: 600,
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5001',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
+  }
 })
