@@ -19,15 +19,15 @@ const TenantManagement = () => {
       setLoading(true)
       setError(null)
 
-      const [info, members] = await Promise.all([
+      const [infoRes, membersRes] = await Promise.all([
         apiClient('/api/tenant/info', { method: 'GET' }),
         apiClient('/api/tenant/members', { method: 'GET' })
       ])
 
-      const tenantsData = info.tenants || []
+      const tenantsData = infoRes.data?.tenants || []
       const enrichedTenants = tenantsData.map(tenant => ({
         ...tenant,
-        users: members.members?.filter(m => m.tenant_id === tenant.id)?.length || 0
+        users: membersRes.data?.members?.filter(m => m.tenant_id === tenant.id)?.length || 0
       }))
 
       setTenants(enrichedTenants)

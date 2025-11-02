@@ -97,76 +97,33 @@ export async function bootstrapCsrf(): Promise<void> {
 /**
  * Governance API methods
  * PR C: Connect to real governance endpoints
+ * 
+ * P0 Fix: Use apiClient() instead of direct fetch() to ensure:
+ * - Consistent CSRF token injection for unsafe methods
+ * - Proper credentials handling
+ * - Future-proofing for 401 refresh/retry
  */
 const governanceApi = {
   getGovernanceAgents: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/governance/status`, {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch governance agents: ${response.status}`);
-    }
-    
-    return response.json();
+    const { data } = await apiClient('/api/governance/status', { method: 'GET' });
+    return data;
   },
   
   getGovernanceEvents: async (params: { limit?: number } = {}) => {
-    const url = new URL(`${API_BASE_URL}/api/governance/status`);
-    if (params.limit) {
-      url.searchParams.append('limit', params.limit.toString());
-    }
-    
-    const response = await fetch(url.toString(), {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch governance events: ${response.status}`);
-    }
-    
-    return response.json();
+    const url = params.limit ? `/api/governance/status?limit=${params.limit}` : '/api/governance/status';
+    const { data } = await apiClient(url, { method: 'GET' });
+    return data;
   },
   
   getGovernanceViolations: async (params: { limit?: number } = {}) => {
-    const url = new URL(`${API_BASE_URL}/api/governance/status`);
-    if (params.limit) {
-      url.searchParams.append('limit', params.limit.toString());
-    }
-    
-    const response = await fetch(url.toString(), {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch governance violations: ${response.status}`);
-    }
-    
-    return response.json();
+    const url = params.limit ? `/api/governance/status?limit=${params.limit}` : '/api/governance/status';
+    const { data } = await apiClient(url, { method: 'GET' });
+    return data;
   },
   
   getGovernanceStatistics: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/governance/status`, {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch governance statistics: ${response.status}`);
-    }
-    
-    return response.json();
+    const { data } = await apiClient('/api/governance/status', { method: 'GET' });
+    return data;
   }
 };
 
