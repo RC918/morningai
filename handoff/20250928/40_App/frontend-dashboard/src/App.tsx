@@ -231,86 +231,84 @@ function AppContent() {
 
   return (
     <ErrorBoundary>
-        <Router>
-          <div className="theme-morning-ai theme-apple">
-            <OfflineIndicator />
-            
-            {!isAuthenticated ? (
+      <div className="theme-morning-ai theme-apple">
+        <OfflineIndicator />
+        
+        {!isAuthenticated ? (
+          <Routes>
+            <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
+            <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        ) : (
+          <TenantProvider>
+          <div className="flex h-screen bg-gray-100">
+          <SkipToContent />
+          <Sidebar user={user} onLogout={handleLogout} />
+          
+          <main id="main-content" className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
+            <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
               <Routes>
-                <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
-                <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-                <Route path="/signup" element={<SignupPage />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            ) : (
-              <TenantProvider>
-              <div className="flex h-screen bg-gray-100">
-              <SkipToContent />
-              <Sidebar user={user} onLogout={handleLogout} />
-              
-              <main id="main-content" className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
-                <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
-                  <Routes>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              
-              {/* Feature-gated routes */}
-              {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<Dashboard />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
-                <Route path="/strategies" element={<StrategyManagement />} />
-              ) : (
-                <Route path="/strategies" element={<WIPPage title={t('wip.strategyManagement')} />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
-                <Route path="/approvals" element={<DecisionApproval />} />
-              ) : (
-                <Route path="/approvals" element={<WIPPage title={t('wip.decisionApproval')} />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
-                <Route path="/history" element={<HistoryAnalysis />} />
-              ) : (
-                <Route path="/history" element={<WIPPage title={t('wip.historyAnalysis')} />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
-                <Route path="/costs" element={<CostAnalysis />} />
-              ) : (
-                <Route path="/costs" element={<WIPPage title={t('wip.costAnalysis')} />} />
-              )}
-              <Route path="/governance" element={<AgentGovernance />} />
-              {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
-                <Route path="/settings" element={<SystemSettings />} />
-              ) : (
-                <Route path="/settings" element={<WIPPage title={t('wip.systemSettings')} />} />
-              )}
-              <Route path="/tenant-settings" element={<TenantSettings />} />
-              {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
-                <Route path="/checkout" element={<CheckoutPage />} />
-              ) : (
-                <Route path="/checkout" element={<WIPPage title={t('wip.checkoutPage')} />} />
-              )}
-              <Route path="/checkout/success" element={<CheckoutSuccess />} />
-              <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* Feature-gated routes */}
+          {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
+            <Route path="/dashboard" element={<Dashboard />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
+            <Route path="/strategies" element={<StrategyManagement />} />
+          ) : (
+            <Route path="/strategies" element={<WIPPage title={t('wip.strategyManagement')} />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
+            <Route path="/approvals" element={<DecisionApproval />} />
+          ) : (
+            <Route path="/approvals" element={<WIPPage title={t('wip.decisionApproval')} />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
+            <Route path="/history" element={<HistoryAnalysis />} />
+          ) : (
+            <Route path="/history" element={<WIPPage title={t('wip.historyAnalysis')} />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
+            <Route path="/costs" element={<CostAnalysis />} />
+          ) : (
+            <Route path="/costs" element={<WIPPage title={t('wip.costAnalysis')} />} />
+          )}
+          <Route path="/governance" element={<AgentGovernance />} />
+          {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
+            <Route path="/settings" element={<SystemSettings />} />
+          ) : (
+            <Route path="/settings" element={<WIPPage title={t('wip.systemSettings')} />} />
+          )}
+          <Route path="/tenant-settings" element={<TenantSettings />} />
+          {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
+            <Route path="/checkout" element={<CheckoutPage />} />
+          ) : (
+            <Route path="/checkout" element={<WIPPage title={t('wip.checkoutPage')} />} />
+          )}
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+          <Route path="/checkout/cancel" element={<CheckoutCancel />} />
 
-              {/* WIP pages for disabled features */}
-              <Route path="/wip" element={<WIPPage />} />
-              
-              {/* Fallback to dashboard if no dashboard feature enabled */}
-              {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
-              )}
-                  </Routes>
-                </Suspense>
-              </main>
-              
-                <Toaster />
-                <GlobalSearch />
-              </div>
-              </TenantProvider>
-            )}
+          {/* WIP pages for disabled features */}
+          <Route path="/wip" element={<WIPPage />} />
+          
+          {/* Fallback to dashboard if no dashboard feature enabled */}
+          {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
+            <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
+          )}
+              </Routes>
+            </Suspense>
+          </main>
+          
+            <Toaster />
+            <GlobalSearch />
           </div>
-        </Router>
+          </TenantProvider>
+        )}
+      </div>
     </ErrorBoundary>
   )
 }
@@ -342,7 +340,9 @@ function App() {
               <AppleSpotlight.Provider>
                 <AppleControlCenter.Provider>
                   <AppleLiveActivity.Provider position="top">
-                    <AppContent />
+                    <Router>
+                      <AppContent />
+                    </Router>
                   </AppleLiveActivity.Provider>
                 </AppleControlCenter.Provider>
               </AppleSpotlight.Provider>
