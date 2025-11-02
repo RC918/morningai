@@ -410,6 +410,44 @@ function MyComponent() {
 }
 ```
 
+### 📦 Tailwind v4 Container Tokens
+
+**重要**: 如果你的應用使用 Tailwind v4，`max-w-*` utilities 依賴於 `--container-*` tokens。這些 tokens 必須在 `@theme` 塊中定義，且 `@theme` 塊必須放在 `@import "tailwindcss"` **之前**。
+
+```css
+--container-xs: 20rem     /* 320px - max-w-xs */
+--container-sm: 24rem     /* 384px - max-w-sm */
+--container-md: 28rem     /* 448px - max-w-md */
+--container-lg: 32rem     /* 512px - max-w-lg */
+--container-xl: 36rem     /* 576px - max-w-xl */
+--container-2xl: 42rem    /* 672px - max-w-2xl */
+--container-3xl: 48rem    /* 768px - max-w-3xl */
+--container-4xl: 56rem    /* 896px - max-w-4xl */
+--container-5xl: 64rem    /* 1024px - max-w-5xl */
+--container-6xl: 72rem    /* 1152px - max-w-6xl */
+--container-7xl: 80rem    /* 1280px - max-w-7xl */
+```
+
+**使用範例**:
+```jsx
+<div className="max-w-3xl mx-auto">
+  {/* 此容器最大寬度為 768px (48rem) */}
+</div>
+```
+
+**配置要求**:
+```css
+/* src/index.css - @theme 必須在 @import 之前 */
+@theme {
+  --container-3xl: 48rem;
+  /* ... 其他 container tokens */
+}
+
+@import "tailwindcss";
+```
+
+**詳細配置說明**: 請參考 [Tailwind v4 Configuration Guide](docs/TAILWIND_V4_CONFIGURATION_GUIDE.md)
+
 ---
 
 ## 🌓 Dark Mode 支援

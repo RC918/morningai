@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **[Frontend Dashboard]** Fixed critical layout compression issue where `max-w-3xl` utility compiled to `64px` instead of `768px`, causing entire page to be squeezed into a narrow vertical column
+  - **Root Cause**: Misconfigured Tailwind v4 `@theme` block (duplicate blocks, wrong token names, incorrect placement)
+  - **Solution**: Created `tailwind.config.js` with proper content paths including `@morningai/shared-ui`, removed duplicate `@theme` block, placed `@theme` before `@import "tailwindcss"`, used correct `--container-*` tokens
+  - **Impact**: Affects all Tailwind v4 applications using shared-ui package
+  - **See**: [Tailwind v4 Configuration Guide](docs/TAILWIND_V4_CONFIGURATION_GUIDE.md) | [PR #1034](https://github.com/RC918/morningai/pull/1034)
 - Fixed Redis connection configuration to prevent localhost fallback in production
 - Fixed orchestrator module import errors by adding configurable path resolution
 - Fixed report generator datetime serialization to support timezone-aware datetime objects
