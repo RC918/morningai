@@ -221,7 +221,6 @@ function AppContent() {
 
   return (
     <ErrorBoundary>
-      <TenantProvider>
         <Router>
           <div className="theme-morning-ai theme-apple">
             <OfflineIndicator />
@@ -235,6 +234,7 @@ function AppContent() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             ) : (
+              <TenantProvider>
               <div className="flex h-screen bg-gray-100">
               <SkipToContent />
               <Sidebar user={user} onLogout={handleLogout} />
@@ -297,10 +297,10 @@ function AppContent() {
                 <Toaster />
                 <GlobalSearch />
               </div>
+              </TenantProvider>
             )}
           </div>
         </Router>
-      </TenantProvider>
     </ErrorBoundary>
   )
 }

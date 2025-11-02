@@ -42,11 +42,14 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 
       setLoading(false);
     } catch (err) {
-      console.error('Error fetching tenant info:', err);
-      
       if (err && typeof err === 'object' && 'status' in err && err.status === 404) {
+        console.warn('Tenant information not found (404)');
         setError('Tenant information not found. Please contact support.');
+      } else if (err && typeof err === 'object' && 'status' in err && (err.status === 401 || err.status === 403)) {
+        console.warn('Tenant fetch requires authentication');
+        setError('Authentication required');
       } else {
+        console.error('Error fetching tenant info:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to load tenant information';
         setError(errorMessage);
       }
