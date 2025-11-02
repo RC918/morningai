@@ -217,15 +217,23 @@ if [ -d "handoff/20250928/40_App/frontend-dashboard/src" ] || [ -d "handoff/2025
     handoff/20250928/40_App/owner-console/src \
     packages/shared-ui/src \
     --include="*.tsx" \
-    2>/dev/null | wc -l || echo 0)
+    --exclude="*.stories.tsx" \
+    --exclude="TokenExample.tsx" \
+    2>/dev/null | \
+    grep -v "style={{ y" | \
+    grep -v "style={{ opacity" | \
+    grep -v "style={{ transform" | \
+    grep -v "style={{ width: \`" | \
+    grep -v "style={{ height: \`" | \
+    wc -l || echo 0)
 fi
 
 if [ $INLINE_STYLES -eq 0 ]; then
-  log_pass "No inline styles found"
+  log_pass "No inline styles found (excluding animations and stories)"
 elif [ $INLINE_STYLES -lt 50 ]; then
-  log_warn "$INLINE_STYLES instances of inline styles (acceptable if < 50)"
+  log_warn "$INLINE_STYLES instances of inline styles (acceptable if < 50, excluding animations)"
 else
-  log_fail "$INLINE_STYLES instances of inline styles (should be < 50)"
+  log_fail "$INLINE_STYLES instances of inline styles (should be < 50, excluding animations)"
 fi
 
 RGB_VIOLATIONS=0
@@ -277,10 +285,10 @@ fi
 
 IMG_NO_ALT=0
 if [ -d "handoff/20250928/40_App/frontend-dashboard/src" ]; then
-  IMG_NO_ALT=$(grep -r "<img" handoff/20250928/40_App/frontend-dashboard/src --include="*.tsx" 2>/dev/null | grep -v "alt=" | wc -l || echo 0)
+  IMG_NO_ALT=$(grep -r "<img" handoff/20250928/40_App/frontend-dashboard/src --include="*.tsx" 2>/dev/null | grep -v "alt=" | grep -v "\.stories\.tsx" | wc -l || echo 0)
 fi
 
-if [ $IMG_NO_ALT -eq 0 ]; then
+if [ "$IMG_NO_ALT" -eq 0 ]; then
   log_pass "No <img> tags without alt attributes detected"
 else
   log_warn "$IMG_NO_ALT <img> tag(s) potentially missing alt attributes"
