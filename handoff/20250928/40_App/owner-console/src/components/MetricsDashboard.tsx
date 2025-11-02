@@ -212,7 +212,7 @@ export const MetricsDashboard: React.FC = () => {
 
         if (apiBaseUrl) {
           try {
-            const response = await fetch(`${apiBaseUrl}/api/v1/metrics/dashboard`, {
+            const response = await fetch(`${apiBaseUrl}/api/phase7/monitoring/dashboard`, {
               credentials: 'include',
               headers: {
                 'Content-Type': 'application/json'

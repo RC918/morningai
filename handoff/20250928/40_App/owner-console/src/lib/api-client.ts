@@ -93,3 +93,41 @@ export async function bootstrapCsrf(): Promise<void> {
     console.warn('Failed to bootstrap CSRF token:', error);
   }
 }
+
+/**
+ * Governance API methods
+ * PR C: Connect to real governance endpoints
+ * 
+ * P0 Fix: Use apiClient() instead of direct fetch() to ensure:
+ * - Consistent CSRF token injection for unsafe methods
+ * - Proper credentials handling
+ * - Future-proofing for 401 refresh/retry
+ */
+const governanceApi = {
+  getGovernanceAgents: async () => {
+    const { data } = await apiClient('/api/governance/status', { method: 'GET' });
+    return data;
+  },
+  
+  getGovernanceEvents: async (params: { limit?: number } = {}) => {
+    const url = params.limit ? `/api/governance/status?limit=${params.limit}` : '/api/governance/status';
+    const { data } = await apiClient(url, { method: 'GET' });
+    return data;
+  },
+  
+  getGovernanceViolations: async (params: { limit?: number } = {}) => {
+    const url = params.limit ? `/api/governance/status?limit=${params.limit}` : '/api/governance/status';
+    const { data } = await apiClient(url, { method: 'GET' });
+    return data;
+  },
+  
+  getGovernanceStatistics: async () => {
+    const { data } = await apiClient('/api/governance/status', { method: 'GET' });
+    return data;
+  }
+};
+
+(apiClient as any).getGovernanceAgents = governanceApi.getGovernanceAgents;
+(apiClient as any).getGovernanceEvents = governanceApi.getGovernanceEvents;
+(apiClient as any).getGovernanceViolations = governanceApi.getGovernanceViolations;
+(apiClient as any).getGovernanceStatistics = governanceApi.getGovernanceStatistics;
