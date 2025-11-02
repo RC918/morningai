@@ -29,6 +29,7 @@ from src.routes.user import user_bp
 from src.routes.auth import auth_bp
 from src.routes.auth_enhanced import auth_enhanced_bp
 from src.routes.dashboard import dashboard_bp
+from src.routes.totp import totp_bp
 from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required
 from flask_cors import CORS
 import sys
