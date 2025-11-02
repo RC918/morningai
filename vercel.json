@@ -4,7 +4,7 @@
   "buildCommand": "pnpm --filter @morningai/shared-ui build && pnpm --filter frontend-dashboard build",
   "installCommand": "pnpm install --prod=false",
   "outputDirectory": "handoff/20250928/40_App/frontend-dashboard/dist",
-  "ignoreCommand": "bash -c '[[ \"$VERCEL_ENV\" == \"preview\" ]] && exit 1; [[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" && \"$VERCEL_GIT_COMMIT_REF\" != \"production\" && ! \"$VERCEL_GIT_COMMIT_REF\" =~ ^(release|hotfix)/ ]]'",
+  "ignoreCommand": "bash -euc 'if [ \"$VERCEL_ENV\" = \"preview\" ]; then echo \"Allowing preview deploy for $VERCEL_GIT_COMMIT_REF\"; exit 1; fi; case \"$VERCEL_GIT_COMMIT_REF\" in main|production|release/*|hotfix/*) echo \"Allowing deploy for $VERCEL_GIT_COMMIT_REF\"; exit 1 ;; *) echo \"Skipping deploy for $VERCEL_GIT_COMMIT_REF\"; exit 0 ;; esac'",
   "rewrites": [
     {
       "source": "/(.*)",
