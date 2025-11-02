@@ -1,0 +1,73 @@
+name: Prevent Frontend Lab Changes
+
+on:
+  pull_request:
+    paths:
+      - 'tools/frontend-lab/**'
+
+jobs:
+  check-frontend-lab:
+    name: Block changes to deprecated frontend-lab
+    runs-on: ubuntu-latest
+    # Allow bypass with maintainer label
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'allow-frontend-lab-changes') }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for non-documentation changes
+        run: |
+          echo "Checking for changes in tools/frontend-lab..."
+          
+          # Skip if this is the first PR that introduces the enforcement workflow
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          if ! git ls-tree -r --name-only "$BASE_SHA" | grep -q '^.github/workflows/prevent-frontend-lab-changes.yml$'; then
+            echo "⚠️  Enforcement workflow not present in base branch - allowing bootstrap PR"
+            exit 0
+          fi
+          
+          # Get list of changed files with status in tools/frontend-lab
+          CHANGES=$(git diff --name-status origin/${{ github.base_ref }}...HEAD -- tools/frontend-lab/ || true)
+          
+          if [ -z "$CHANGES" ]; then
+            echo "✅ No changes detected in tools/frontend-lab"
+            exit 0
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGES"
+          echo ""
+          
+          # Check for disallowed changes
+          # Allow: Added (A) package.json, README.md, DEPRECATED.md, .gitkeep
+          # Block: Any modifications (M) or deletions (D), or adding other files
+          BAD_CHANGES=$(echo "$CHANGES" | awk '
+            # Block all modifications and deletions
+            $1 == "M" || $1 == "D" { print $2; next }
+            
+            # Block additions of files other than allowed ones
+            $1 == "A" && $2 !~ /^tools\/frontend-lab\/(README\.md|DEPRECATED\.md|\.gitkeep|package\.json)$/ { print $2 }
+          ' || true)
+          
+          if [ -n "$BAD_CHANGES" ]; then
+            echo "❌ ERROR: Changes to tools/frontend-lab are not allowed!"
+            echo ""
+            echo "tools/frontend-lab is DEPRECATED and archived."
+            echo ""
+            echo "Disallowed changes:"
+            echo "$BAD_CHANGES"
+            echo ""
+            echo "Please use instead:"
+            echo "  📁 handoff/20250928/40_App/frontend-dashboard/"
+            echo "  📦 Package: frontend-dashboard"
+            echo "  📚 Storybook: pnpm --filter frontend-dashboard storybook"
+            echo ""
+            echo "Only documentation updates (README.md) are allowed."
+            echo "For exceptional cases, a maintainer can add the 'allow-frontend-lab-changes' label."
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ Only allowed changes detected - OK"

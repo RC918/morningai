@@ -1,0 +1,13 @@
+{
+  "name": "frontend-lab-deprecated",
+  "version": "0.0.0",
+  "private": true,
+  "description": "DEPRECATED: This directory is archived. Use handoff/20250928/40_App/frontend-dashboard/ instead.",
+  "scripts": {
+    "dev": "node -e \"console.error('\\n\\n⚠️  DEPRECATED: tools/frontend-lab is archived.\\n\\nUse instead:\\n  cd handoff/20250928/40_App/frontend-dashboard\\n  pnpm dev\\n\\nFor Storybook:\\n  pnpm --filter frontend-dashboard storybook\\n\\nSee tools/frontend-lab/README.md for migration details.\\n'); process.exit(1);\"",
+    "build": "node -e \"console.error('\\n\\n⚠️  DEPRECATED: tools/frontend-lab is archived.\\n\\nUse instead:\\n  pnpm --filter frontend-dashboard build\\n\\nSee tools/frontend-lab/README.md for migration details.\\n'); process.exit(1);\"",
+    "test": "node -e \"console.error('\\n\\n⚠️  DEPRECATED: tools/frontend-lab is archived.\\n\\nUse instead:\\n  pnpm --filter frontend-dashboard test\\n\\nSee tools/frontend-lab/README.md for migration details.\\n'); process.exit(1);\"",
+    "storybook": "node -e \"console.error('\\n\\n⚠️  DEPRECATED: tools/frontend-lab is archived.\\n\\nUse instead:\\n  pnpm --filter frontend-dashboard storybook\\n\\nSee tools/frontend-lab/README.md for migration details.\\n'); process.exit(1);\"",
+    "build-storybook": "node -e \"console.error('\\n\\n⚠️  DEPRECATED: tools/frontend-lab is archived.\\n\\nUse instead:\\n  pnpm --filter frontend-dashboard build-storybook\\n\\nSee tools/frontend-lab/README.md for migration details.\\n'); process.exit(1);\""
+  }
+}

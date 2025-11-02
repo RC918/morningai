@@ -5,6 +5,7 @@
 ## 目錄
 
 - [分工規則](#分工規則)
+- [設計系統與 Shared UI](#設計系統與-shared-ui)
 - [API 變更流程](#api-變更流程)
 - [測試策略](#測試策略)
 - [GitHub Actions 最佳實踐](#github-actions-最佳實踐)
@@ -32,6 +33,75 @@
 
 **禁止改動**：
 - `docs/UX/**` 與設計稿資源
+
+## 設計系統與 Shared UI
+
+### 使用 @morningai/shared-ui
+
+MorningAI 使用統一的設計系統，所有 UI 元件集中在 `packages/shared-ui/`。
+
+#### 基本原則
+
+1. **優先使用 shared-ui** - 開發新功能前，先檢查 shared-ui 是否有可用元件
+2. **不要重複造輪子** - 避免在應用層重新實作已存在的元件
+3. **新元件放 shared-ui** - 如果元件會被多個應用使用，應加入 shared-ui
+4. **使用 Design Tokens** - 使用 CSS 變數而非硬編碼顏色/間距
+
+#### 檢查可用元件
+
+```bash
+# 查看所有可用元件
+cat packages/shared-ui/src/index.ts
+
+# 或啟動 Storybook 瀏覽
+pnpm --filter frontend-dashboard storybook
+```
+
+#### 使用範例
+
+```tsx
+// ✅ 好的做法 - 使用 shared-ui
+import { Button, Card, Input } from '@morningai/shared-ui'
+
+function MyComponent() {
+  return (
+    <Card>
+      <Input placeholder="輸入..." />
+      <Button>提交</Button>
+    </Card>
+  )
+}
+
+// ❌ 不好的做法 - 在應用層重新實作
+// src/components/my-button.tsx
+export function MyButton() {
+  return <button className="...">按鈕</button>
+}
+```
+
+#### 加入新元件到 Shared UI
+
+如果元件會被多個應用使用：
+
+1. 在 `packages/shared-ui/src/components/` 建立元件
+2. 在 `packages/shared-ui/src/index.ts` 匯出
+3. 加入 Storybook story 到 `packages/shared-ui/src/stories/`
+4. 執行 `pnpm --filter @morningai/shared-ui build`
+5. 更新 `packages/shared-ui/README.md`
+
+#### 相關文件
+
+- 📚 [Shared UI 使用指南](docs/shared-ui-guide.md) - 完整使用指南
+- 📦 [Shared UI README](packages/shared-ui/README.md) - 套件文件
+- 🎨 Storybook: `pnpm --filter frontend-dashboard storybook`
+
+### 廢棄目錄
+
+以下目錄已廢棄，**請勿使用**：
+
+- ⛔ `tools/frontend-lab/` - 已遷移到 `handoff/20250928/40_App/frontend-dashboard/`
+
+如誤用廢棄目錄，CI 會自動阻止 PR 合併。
 
 ## API 變更流程
 
