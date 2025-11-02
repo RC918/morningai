@@ -1,34 +1,30 @@
 # Inline Styles Count Discrepancy Analysis
 
 **Date**: 2025-11-02
-**Issue**: Audit script reports 36, but independent verification shows 50
+**Issue**: Audit script reports different count than independent verification
 
 ## Investigation
 
-**Audit Script Count**: 36
-- Command: `grep -r "style={{" [dirs] --include="*.tsx" --exclude="*.stories.tsx" --exclude="TokenExample.tsx" | grep -v Motion keys`
+**Current Audit Script Count**: 50 (after removing TokenExample.tsx exclusion in commit bcfb6b92)
+**Independent Verification Count**: 50 (Motion keys excluded, no stories)
 
-**Independent Verification Count**: 50
-- Command: `grep -r "style={{" [dirs] --include="*.tsx" --exclude="*.stories.tsx" | grep -v Motion keys`
+**Conclusion**: Counts now match exactly ✓
 
-**Difference**: 14 instances
+The discrepancy was caused by the TokenExample.tsx exclusion in the original audit script. After removing this exclusion, both counts align at 50 instances.
 
-## Root Cause
+## Verification
 
-The audit script excludes `TokenExample.tsx` which contains 14 inline style instances.
+```bash
+# Independent verification (matches CTO methodology)
+grep -r "style={{" [dirs] --include="*.tsx" --exclude="*.stories.tsx" | \
+  grep -v "style={{ y" | \
+  grep -v "style={{ opacity" | \
+  grep -v "style={{ transform" | \
+  wc -l
+# Result: 50
 
-**TokenExample.tsx** is a documentation/example file in shared-ui that demonstrates how to use design tokens. It legitimately uses inline styles to show examples.
+# Audit script (after fix)
+Same command, same result: 50
+```
 
-## Conclusion
-
-Both counts are correct for their respective methodologies:
-- **36**: Excludes TokenExample.tsx (documentation file with legitimate inline style examples)
-- **50**: Includes TokenExample.tsx
-
-The CTO's independent verification of **50** likely did not exclude TokenExample.tsx.
-
-## Recommendation
-
-For alignment with CTO's methodology, the audit script should **remove the TokenExample.tsx exclusion** to report 50 instances, matching the independent verification exactly.
-
-This would make the count consistent and transparent.
+Both methodologies now produce identical results.
