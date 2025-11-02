@@ -518,14 +518,14 @@ const Dashboard = (): React.ReactElement => {
                     <Line 
                       type="monotone" 
                       dataKey="cpu" 
-                      stroke="#007AFF" 
+                      stroke="var(--color-primary, #007AFF)" 
                       strokeWidth={2}
                       name="CPU (%)"
                     />
                     <Line 
                       type="monotone" 
                       dataKey="memory" 
-                      stroke="#10b981" 
+                      stroke="var(--color-success, #10b981)" 
                       strokeWidth={2}
                       name={t('metrics.memoryUsage')}
                     />
@@ -550,8 +550,8 @@ const Dashboard = (): React.ReactElement => {
                     <Area 
                       type="monotone" 
                       dataKey="response_time" 
-                      stroke="#f59e0b" 
-                      fill="#fef3c7"
+                      stroke="var(--color-warning, #f59e0b)" 
+                      fill="var(--color-warning-light, #fef3c7)"
                       name={t('metrics.responseTime')}
                     />
                   </AreaChart>

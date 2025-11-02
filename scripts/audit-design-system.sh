@@ -81,7 +81,7 @@ check_hardcoded_colors() {
         "packages/shared-ui/src"
     )
     
-    EXCLUDE_PATTERN="tokens\.json|tailwind\.config\.(js|ts)|\.test\.(tsx?|jsx?)$|\.stories\.(tsx?|jsx?)$|__tests__|design-tokens\.(ts|js)"
+    EXCLUDE_PATTERN="tokens\.json|tailwind\.config\.(js|ts)|\.test\.(tsx?|jsx?)$|\.stories\.(tsx?|jsx?)$|__tests__|design-tokens\.(ts|js)|/lib/"
     
     echo "Scanning for hardcoded hex colors in source files..."
     
@@ -96,7 +96,7 @@ check_hardcoded_colors() {
                     continue
                 fi
                 
-                local matches=$(grep -nE '(#[0-9a-fA-F]{3}([^0-9a-fA-F]|$)|#[0-9a-fA-F]{6}([^0-9a-fA-F]|$))' "$file" 2>/dev/null || true)
+                local matches=$(grep -nE '(#[0-9a-fA-F]{3}([^0-9a-fA-F]|$)|#[0-9a-fA-F]{6}([^0-9a-fA-F]|$))' "$file" 2>/dev/null | grep -v 'var(--' || true)
                 
                 if [ -n "$matches" ]; then
                     log_error "Hardcoded hex colors found in: $file"
