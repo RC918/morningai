@@ -76,6 +76,11 @@ class ApiClient {
         error.endpoint = endpoint
         
         if (response.status === 401) {
+          if ((config.headers as Record<string, string>)['X-Auth-Retry']) {
+            console.warn(`Authentication retry failed [${requestId}]: ${endpoint}`)
+            throw error
+          }
+          
           console.warn(`Authentication failed [${requestId}]: ${endpoint}`)
           
           try {
@@ -85,6 +90,7 @@ class ApiClient {
               headers: {
                 'Content-Type': 'application/json',
                 'X-Request-ID': requestId,
+                'X-Auth-Retry': '1',
                 ...options.headers,
               },
               credentials: 'include',
