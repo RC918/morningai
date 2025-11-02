@@ -27,6 +27,7 @@ interface ImportMeta {
 }
 
 interface Window {
+  __SENTRY_INITIALIZED__?: boolean
   Sentry?: typeof import('@sentry/react')
   gtag?: (
     command: 'config' | 'event' | 'set',
