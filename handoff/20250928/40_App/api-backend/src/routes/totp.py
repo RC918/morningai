@@ -53,7 +53,7 @@ def get_backup_manager():
 
 @totp_bp.route('/setup', methods=['POST'])
 @jwt_required
-@rate_limit(max_requests=3, window_seconds=3600)  # 3 attempts per hour
+@rate_limit  # 3 attempts per hour
 def setup_totp():
     """
     Setup TOTP for the authenticated user.
@@ -144,7 +144,7 @@ def setup_totp():
 
 @totp_bp.route('/verify-setup', methods=['POST'])
 @jwt_required
-@rate_limit(max_requests=5, window_seconds=300)  # 5 attempts per 5 minutes
+@rate_limit  # 5 attempts per 5 minutes
 def verify_totp_setup():
     """
     Verify TOTP code and enable 2FA.
@@ -207,7 +207,7 @@ def verify_totp_setup():
 
 @totp_bp.route('/disable', methods=['POST'])
 @jwt_required
-@rate_limit(max_requests=5, window_seconds=300)  # 5 attempts per 5 minutes
+@rate_limit  # 5 attempts per 5 minutes
 def disable_totp():
     """
     Disable TOTP for the authenticated user.
@@ -277,7 +277,7 @@ def disable_totp():
 
 @totp_bp.route('/backup-codes/regenerate', methods=['POST'])
 @jwt_required
-@rate_limit(max_requests=3, window_seconds=3600)  # 3 attempts per hour
+@rate_limit  # 3 attempts per hour
 def regenerate_backup_codes():
     """
     Regenerate backup codes for the authenticated user.
