@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com'
+import { API_BASE_URL } from './api-config'
 
 /**
  * CSRF token cache for cross-origin scenarios

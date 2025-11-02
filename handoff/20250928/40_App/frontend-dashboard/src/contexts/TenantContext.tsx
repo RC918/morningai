@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiClient } from '../lib/api-client';
 
 interface Tenant {
   id: string;
@@ -25,24 +26,13 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/me`, {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
+      const data = await apiClient<{
+        tenant_id: string;
+        tenant_name: string;
+        created_at: string;
+      }>('/api/tenant/me', {
+        method: 'GET'
       });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          setError('Tenant information not found. Please contact support.');
-        } else {
-          throw new Error('Failed to fetch tenant information');
-        }
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
       
       setTenant({
         id: data.tenant_id,
@@ -53,8 +43,14 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     } catch (err) {
       console.error('Error fetching tenant info:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load tenant information';
-      setError(errorMessage);
+      
+      if (err && typeof err === 'object' && 'status' in err && err.status === 404) {
+        setError('Tenant information not found. Please contact support.');
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load tenant information';
+        setError(errorMessage);
+      }
+      
       setLoading(false);
     }
   };
