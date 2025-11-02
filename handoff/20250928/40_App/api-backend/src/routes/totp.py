@@ -26,7 +26,6 @@ from ..services.auth_service import get_user_by_id
 from ..utils.totp_utils import TOTPManager, BackupCodeManager, generate_device_fingerprint, calculate_device_expiry
 from ..middleware.auth_middleware import jwt_required
 from ..middleware.rate_limit import rate_limit
-from ..persistence.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ backup_manager = BackupCodeManager()
 
 
 @totp_bp.route('/setup', methods=['POST'])
-@jwt_required
+@require_auth
 @rate_limit(max_requests=3, window_seconds=3600)  # 3 attempts per hour
 def setup_totp():
     """
@@ -125,7 +124,7 @@ def setup_totp():
 
 
 @totp_bp.route('/verify-setup', methods=['POST'])
-@jwt_required
+@require_auth
 @rate_limit(max_requests=5, window_seconds=300)  # 5 attempts per 5 minutes
 def verify_totp_setup():
     """
@@ -186,7 +185,7 @@ def verify_totp_setup():
 
 
 @totp_bp.route('/disable', methods=['POST'])
-@jwt_required
+@require_auth
 @rate_limit(max_requests=5, window_seconds=300)  # 5 attempts per 5 minutes
 def disable_totp():
     """
@@ -254,7 +253,7 @@ def disable_totp():
 
 
 @totp_bp.route('/backup-codes/regenerate', methods=['POST'])
-@jwt_required
+@require_auth
 @rate_limit(max_requests=3, window_seconds=3600)  # 3 attempts per hour
 def regenerate_backup_codes():
     """
@@ -318,7 +317,7 @@ def regenerate_backup_codes():
 
 
 @totp_bp.route('/status', methods=['GET'])
-@jwt_required
+@require_auth
 def get_totp_status():
     """
     Get 2FA status for the authenticated user.
