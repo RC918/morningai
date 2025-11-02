@@ -44,3 +44,4 @@ jscpd-report/
 
 # Playwright test results (should not be committed)
 **/test-results/
+audit-design-system-report.md

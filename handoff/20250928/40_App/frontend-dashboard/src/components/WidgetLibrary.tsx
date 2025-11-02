@@ -116,7 +116,7 @@ const ActiveStrategiesWidget = ({ data }: { data: any }) => {
         <CardTitle className="text-lg">{t('widgets.activeStrategies.title')}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold text-blue-600">
+        <div className="text-3xl font-bold text-primary-500">
           {data?.system_metrics?.active_strategies || 0}
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-600 mt-2">
@@ -135,7 +135,7 @@ const PendingApprovalsWidget = ({ data }: { data: any }) => {
         <CardTitle className="text-lg">{t('widgets.pendingApprovals.title')}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold text-orange-600">
+        <div className="text-3xl font-bold text-warning-500">
           {data?.system_metrics?.pending_approvals || 0}
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-600 mt-2">
@@ -204,7 +204,7 @@ const TaskExecutionWidget = ({ data }: { data: any }) => {
               <div className="text-xs text-gray-600 dark:text-gray-600">{t('widgets.taskExecution.todayTasks')}</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-green-600">
+              <div className="text-lg font-bold text-success-500">
                 {((data?.task_execution?.success_rate || 0) * 100).toFixed(1)}%
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-600">{t('widgets.taskExecution.successRate')}</div>
@@ -307,14 +307,14 @@ const PerformanceTrendWidget = ({ data }: { data: any }) => {
             <Line 
               type="monotone" 
               dataKey="cpu" 
-              stroke="#007AFF" 
+              stroke="var(--color-primary, #007AFF)" 
               strokeWidth={2}
               name={t('widgets.performanceTrend.cpuLabel')}
             />
             <Line 
               type="monotone" 
               dataKey="memory" 
-              stroke="#10b981" 
+              stroke="var(--color-success, #10b981)" 
               strokeWidth={2}
               name={t('widgets.performanceTrend.memoryLabel')}
             />

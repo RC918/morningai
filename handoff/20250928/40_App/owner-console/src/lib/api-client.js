@@ -25,23 +25,30 @@ export const customFetch = async (options) => {
     const response = await fetch(fullUrl, config)
     
     if (!response.ok) {
-      if (response.status === 401) {
-        console.warn(`Authentication failed: ${fullUrl}`)
-        localStorage.removeItem('auth_token')
-        
-        window.dispatchEvent(new CustomEvent('auth-error', {
-          detail: { url: fullUrl, message: 'Authentication required' }
-        }))
-        
-        if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
-          const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-          window.location.href = `/login?returnUrl=${returnUrl}`
-        }
-      }
-      
       const errorData = await response.json().catch(() => ({}))
       const error = new Error(errorData.error?.message || `HTTP error! status: ${response.status}`)
       error.status = response.status
+      
+      if (response.status === 401) {
+        console.warn(`Authentication failed: ${fullUrl}`)
+        
+        const endpoint = url.startsWith('http') ? new URL(url).pathname.replace('/api', '') : url
+        const isAuthEndpoint = endpoint.startsWith('/auth/') || endpoint === '/auth/verify'
+        
+        if (isAuthEndpoint) {
+          localStorage.removeItem('auth_token')
+          
+          window.dispatchEvent(new CustomEvent('auth-error', {
+            detail: { url: fullUrl, message: 'Authentication required' }
+          }))
+          
+          if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
+            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
+            window.location.href = `/login?returnUrl=${returnUrl}`
+          }
+        }
+      }
+      
       throw error
     }
     
