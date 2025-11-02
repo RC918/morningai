@@ -105,25 +105,25 @@ export async function bootstrapCsrf(): Promise<void> {
  */
 const governanceApi = {
   getGovernanceAgents: async () => {
-    const { data } = await apiClient('/api/governance/status', { method: 'GET' });
-    return data;
+    const result = await apiClient<{ data: any }>('/api/governance/status', { method: 'GET' });
+    return (result as any).data;
   },
   
   getGovernanceEvents: async (params: { limit?: number } = {}) => {
     const url = params.limit ? `/api/governance/status?limit=${params.limit}` : '/api/governance/status';
-    const { data } = await apiClient(url, { method: 'GET' });
-    return data;
+    const result = await apiClient<{ data: any }>(url, { method: 'GET' });
+    return (result as any).data;
   },
   
   getGovernanceViolations: async (params: { limit?: number } = {}) => {
     const url = params.limit ? `/api/governance/status?limit=${params.limit}` : '/api/governance/status';
-    const { data } = await apiClient(url, { method: 'GET' });
-    return data;
+    const result = await apiClient<{ data: any }>(url, { method: 'GET' });
+    return (result as any).data;
   },
   
   getGovernanceStatistics: async () => {
-    const { data } = await apiClient('/api/governance/status', { method: 'GET' });
-    return data;
+    const result = await apiClient<{ data: any }>('/api/governance/status', { method: 'GET' });
+    return (result as any).data;
   }
 };
 
