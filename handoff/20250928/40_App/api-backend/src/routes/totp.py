@@ -31,12 +31,28 @@ logger = logging.getLogger(__name__)
 
 totp_bp = Blueprint('totp', __name__, url_prefix='/api/auth/v2/totp')
 
-totp_manager = TOTPManager()
-backup_manager = BackupCodeManager()
+_totp_manager = None
+_backup_manager = None
+
+
+def get_totp_manager():
+    """Get or create TOTPManager instance (lazy initialization)."""
+    global _totp_manager
+    if _totp_manager is None:
+        _totp_manager = TOTPManager()
+    return _totp_manager
+
+
+def get_backup_manager():
+    """Get or create BackupCodeManager instance (lazy initialization)."""
+    global _backup_manager
+    if _backup_manager is None:
+        _backup_manager = BackupCodeManager()
+    return _backup_manager
 
 
 @totp_bp.route('/setup', methods=['POST'])
-@require_auth
+@jwt_required
 @rate_limit(max_requests=3, window_seconds=3600)  # 3 attempts per hour
 def setup_totp():
     """
@@ -70,19 +86,22 @@ def setup_totp():
         if not check_password_hash(user.get('password_hash', ''), password):
             return jsonify({'error': 'Invalid password'}), 401
         
-        supabase = get_supabase_client()
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase = create_client(supabase_url, supabase_key)
+        
         existing_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
         if existing_2fa.data and existing_2fa.data[0].get('enabled'):
             return jsonify({'error': '2FA is already enabled. Disable it first to re-setup.'}), 400
         
-        secret = totp_manager.generate_secret()
-        encrypted_secret = totp_manager.encrypt_secret(secret)
+        secret = get_totp_manager().generate_secret()
+        encrypted_secret = get_totp_manager().encrypt_secret(secret)
         
         user_email = user.get('email', '')
-        qr_code = totp_manager.generate_qr_code(secret, user_email)
+        qr_code = get_totp_manager().generate_qr_code(secret, user_email)
         
-        backup_codes = backup_manager.generate_backup_codes(8)
+        backup_codes = get_backup_manager().generate_backup_codes(8)
         
         if existing_2fa.data:
             supabase.table('user_2fa').update({
@@ -103,7 +122,7 @@ def setup_totp():
         backup_code_records = [
             {
                 'user_id': user_id,
-                'code_hash': backup_manager.hash_backup_code(code),
+                'code_hash': get_backup_manager().hash_backup_code(code),
                 'used': False
             }
             for code in backup_codes
@@ -124,7 +143,7 @@ def setup_totp():
 
 
 @totp_bp.route('/verify-setup', methods=['POST'])
-@require_auth
+@jwt_required
 @rate_limit(max_requests=5, window_seconds=300)  # 5 attempts per 5 minutes
 def verify_totp_setup():
     """
@@ -150,7 +169,9 @@ def verify_totp_setup():
         
         user_id = g.user_id
         
-        supabase = get_supabase_client()
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
         if not user_2fa.data:
@@ -162,9 +183,9 @@ def verify_totp_setup():
             return jsonify({'error': '2FA is already enabled'}), 400
         
         encrypted_secret = user_2fa_record['secret_encrypted']
-        secret = totp_manager.decrypt_secret(encrypted_secret)
+        secret = get_totp_manager().decrypt_secret(encrypted_secret)
         
-        if not totp_manager.verify_totp(secret, code, valid_window=1):
+        if not get_totp_manager().verify_totp(secret, code, valid_window=1):
             return jsonify({'error': 'Invalid TOTP code'}), 401
         
         supabase.table('user_2fa').update({
@@ -185,7 +206,7 @@ def verify_totp_setup():
 
 
 @totp_bp.route('/disable', methods=['POST'])
-@require_auth
+@jwt_required
 @rate_limit(max_requests=5, window_seconds=300)  # 5 attempts per 5 minutes
 def disable_totp():
     """
@@ -220,16 +241,18 @@ def disable_totp():
         if not check_password_hash(user.get('password_hash', ''), password):
             return jsonify({'error': 'Invalid password'}), 401
         
-        supabase = get_supabase_client()
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
         if not user_2fa.data or not user_2fa.data[0].get('enabled'):
             return jsonify({'error': '2FA is not enabled'}), 400
         
         encrypted_secret = user_2fa.data[0]['secret_encrypted']
-        secret = totp_manager.decrypt_secret(encrypted_secret)
+        secret = get_totp_manager().decrypt_secret(encrypted_secret)
         
-        if not totp_manager.verify_totp(secret, totp_code, valid_window=1):
+        if not get_totp_manager().verify_totp(secret, totp_code, valid_window=1):
             return jsonify({'error': 'Invalid TOTP code'}), 401
         
         supabase.table('user_2fa').update({
@@ -253,7 +276,7 @@ def disable_totp():
 
 
 @totp_bp.route('/backup-codes/regenerate', methods=['POST'])
-@require_auth
+@jwt_required
 @rate_limit(max_requests=3, window_seconds=3600)  # 3 attempts per hour
 def regenerate_backup_codes():
     """
@@ -285,20 +308,22 @@ def regenerate_backup_codes():
         if not check_password_hash(user.get('password_hash', ''), password):
             return jsonify({'error': 'Invalid password'}), 401
         
-        supabase = get_supabase_client()
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
         if not user_2fa.data or not user_2fa.data[0].get('enabled'):
             return jsonify({'error': '2FA is not enabled'}), 400
         
-        backup_codes = backup_manager.generate_backup_codes(8)
+        backup_codes = get_backup_manager().generate_backup_codes(8)
         
         supabase.table('totp_backup_codes').delete().eq('user_id', user_id).execute()
         
         backup_code_records = [
             {
                 'user_id': user_id,
-                'code_hash': backup_manager.hash_backup_code(code),
+                'code_hash': get_backup_manager().hash_backup_code(code),
                 'used': False
             }
             for code in backup_codes
@@ -317,7 +342,7 @@ def regenerate_backup_codes():
 
 
 @totp_bp.route('/status', methods=['GET'])
-@require_auth
+@jwt_required
 def get_totp_status():
     """
     Get 2FA status for the authenticated user.
@@ -332,7 +357,9 @@ def get_totp_status():
     try:
         user_id = g.user_id
         
-        supabase = get_supabase_client()
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase = create_client(supabase_url, supabase_key)
         
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
@@ -370,16 +397,18 @@ def verify_totp_for_login(user_id: str, totp_code: str) -> bool:
         True if code is valid, False otherwise
     """
     try:
-        supabase = get_supabase_client()
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).eq('enabled', True).execute()
         
         if not user_2fa.data:
             return False
         
         encrypted_secret = user_2fa.data[0]['secret_encrypted']
-        secret = totp_manager.decrypt_secret(encrypted_secret)
+        secret = get_totp_manager().decrypt_secret(encrypted_secret)
         
-        is_valid = totp_manager.verify_totp(secret, totp_code, valid_window=1)
+        is_valid = get_totp_manager().verify_totp(secret, totp_code, valid_window=1)
         
         if is_valid:
             supabase.table('user_2fa').update({
@@ -405,7 +434,9 @@ def verify_backup_code_for_login(user_id: str, backup_code: str) -> tuple[bool, 
         Tuple of (is_valid, remaining_codes)
     """
     try:
-        supabase = get_supabase_client()
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase = create_client(supabase_url, supabase_key)
         
         backup_codes = supabase.table('totp_backup_codes').select('*').eq('user_id', user_id).eq('used', False).execute()
         
@@ -413,7 +444,7 @@ def verify_backup_code_for_login(user_id: str, backup_code: str) -> tuple[bool, 
             return False, 0
         
         for code_record in backup_codes.data:
-            if backup_manager.verify_backup_code(backup_code, code_record['code_hash']):
+            if get_backup_manager().verify_backup_code(backup_code, code_record['code_hash']):
                 supabase.table('totp_backup_codes').update({
                     'used': True,
                     'used_at': datetime.utcnow().isoformat()
@@ -444,7 +475,9 @@ def check_2fa_required(user_id: str) -> bool:
         True if 2FA is enabled for user, False otherwise
     """
     try:
-        supabase = get_supabase_client()
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('enabled').eq('user_id', user_id).execute()
         
         return bool(user_2fa.data and user_2fa.data[0].get('enabled'))
