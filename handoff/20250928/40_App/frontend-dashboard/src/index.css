@@ -1,3 +1,20 @@
+/* Tailwind v4 Design Tokens - MUST be defined before @import "tailwindcss" */
+@theme {
+  /* Max-width tokens used by max-w-* utilities */
+  /* Note: Tailwind v4 uses --container-* tokens for max-width utilities */
+  --container-xs: 20rem;     /* 320px - max-w-xs */
+  --container-sm: 24rem;     /* 384px - max-w-sm */
+  --container-md: 28rem;     /* 448px - max-w-md */
+  --container-lg: 32rem;     /* 512px - max-w-lg */
+  --container-xl: 36rem;     /* 576px - max-w-xl */
+  --container-2xl: 42rem;    /* 672px - max-w-2xl */
+  --container-3xl: 48rem;    /* 768px - max-w-3xl */
+  --container-4xl: 56rem;    /* 896px - max-w-4xl */
+  --container-5xl: 64rem;    /* 1024px - max-w-5xl */
+  --container-6xl: 72rem;    /* 1152px - max-w-6xl */
+  --container-7xl: 80rem;    /* 1280px - max-w-7xl */
+}
+
 @import "tailwindcss";
 @import "./materials.css";
 @import "./accessibility.css";
@@ -21,181 +38,7 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-@theme {
-  /* Initialize all token categories */
-  --color-*: initial;
-  --font-*: initial;
-  --breakpoint-*: initial;
-  --spacing-*: initial;
-  --radius-*: initial;
-  --shadow-*: initial;
-  
-  /* Base semantic colors for light mode */
-  --color-background: 0 0% 100%;
-  --color-foreground: 222.2 84% 4.9%;
-  --color-card: 0 0% 100%;
-  --color-card-foreground: 222.2 84% 4.9%;
-  --color-popover: 0 0% 100%;
-  --color-popover-foreground: 222.2 84% 4.9%;
-  --color-muted: 210 40% 96%;
-  --color-muted-foreground: 215.4 16.3% 46.9%;
-  --color-border: 214.3 31.8% 91.4%;
-  --color-input: 214.3 31.8% 91.4%;
-  --color-ring: 222.2 84% 4.9%;
-  --color-destructive: 0 84.2% 60.2%;
-  --color-destructive-foreground: 210 40% 98%;
-  --color-secondary: 210 40% 96%;
-  --color-secondary-foreground: 222.2 84% 4.9%;
-  --color-accent: 210 40% 96%;
-  --color-accent-foreground: 222.2 84% 4.9%;
-  
-  /* Color mappings - Primary */
-  --color-primary-50: var(--color-primary-50);
-  --color-primary-100: var(--color-primary-100);
-  --color-primary-200: var(--color-primary-200);
-  --color-primary-300: var(--color-primary-300);
-  --color-primary-400: var(--color-primary-400);
-  --color-primary-500: var(--color-primary-500);
-  --color-primary-600: var(--color-primary-600);
-  --color-primary-700: var(--color-primary-700);
-  --color-primary-800: var(--color-primary-800);
-  --color-primary-900: var(--color-primary-900);
-  
-  /* Color mappings - Accent */
-  --color-accent-50: var(--color-accent-50);
-  --color-accent-100: var(--color-accent-100);
-  --color-accent-200: var(--color-accent-200);
-  --color-accent-300: var(--color-accent-300);
-  --color-accent-400: var(--color-accent-400);
-  --color-accent-500: var(--color-accent-500);
-  --color-accent-600: var(--color-accent-600);
-  --color-accent-700: var(--color-accent-700);
-  --color-accent-800: var(--color-accent-800);
-  --color-accent-900: var(--color-accent-900);
-  
-  /* Color mappings - Semantic Success */
-  --color-success-50: var(--color-success-50);
-  --color-success-100: var(--color-success-100);
-  --color-success-200: var(--color-success-200);
-  --color-success-300: var(--color-success-300);
-  --color-success-400: var(--color-success-400);
-  --color-success-500: var(--color-success-500);
-  --color-success-600: var(--color-success-600);
-  --color-success-700: var(--color-success-700);
-  --color-success-800: var(--color-success-800);
-  --color-success-900: var(--color-success-900);
-  
-  /* Color mappings - Semantic Warning */
-  --color-warning-50: var(--color-warning-50);
-  --color-warning-100: var(--color-warning-100);
-  --color-warning-200: var(--color-warning-200);
-  --color-warning-300: var(--color-warning-300);
-  --color-warning-400: var(--color-warning-400);
-  --color-warning-500: var(--color-warning-500);
-  --color-warning-600: var(--color-warning-600);
-  --color-warning-700: var(--color-warning-700);
-  --color-warning-800: var(--color-warning-800);
-  --color-warning-900: var(--color-warning-900);
-  
-  /* Color mappings - Semantic Error */
-  --color-error-50: var(--color-error-50);
-  --color-error-100: var(--color-error-100);
-  --color-error-200: var(--color-error-200);
-  --color-error-300: var(--color-error-300);
-  --color-error-400: var(--color-error-400);
-  --color-error-500: var(--color-error-500);
-  --color-error-600: var(--color-error-600);
-  --color-error-700: var(--color-error-700);
-  --color-error-800: var(--color-error-800);
-  --color-error-900: var(--color-error-900);
-  
-  /* Color mappings - Neutral/Gray */
-  --color-gray-50: var(--color-neutral-50);
-  --color-gray-100: var(--color-neutral-100);
-  --color-gray-200: var(--color-neutral-200);
-  --color-gray-300: var(--color-neutral-300);
-  --color-gray-400: var(--color-neutral-400);
-  --color-gray-500: var(--color-neutral-500);
-  --color-gray-600: var(--color-neutral-600);
-  --color-gray-700: var(--color-neutral-700);
-  --color-gray-800: var(--color-neutral-800);
-  --color-gray-900: var(--color-neutral-900);
-  
-  /* Semantic color shortcuts */
-  /* 
-   * Color Usage Guidelines (WCAG AA Compliance):
-   * - --color-primary (#007AFF): Use for interactive elements (buttons, icons, backgrounds)
-   * - --color-primary-text (#0051D0): Use for text and links (6.12:1 contrast ratio)
-   * 
-   * ✅ Correct:
-   *   .button { background: var(--color-primary); }
-   *   .text-link { color: var(--color-primary-text); }
-   * 
-   * ❌ Incorrect:
-   *   .text-link { color: var(--color-primary); } // Contrast ratio 4.02:1, fails WCAG AA
-   */
-  --color-primary: var(--color-primary-500);
-  --color-primary-foreground: var(--color-primary-50);
-  --color-primary-text: var(--color-primary-600); /* WCAG AA compliant for text (6.12:1) */
-  --color-success: var(--color-success-600);
-  --color-success-foreground: var(--color-success-50);
-  --color-error: var(--color-error-600);
-  --color-error-foreground: var(--color-error-50);
-  --color-warning: var(--color-warning-600);
-  --color-warning-foreground: var(--color-warning-50);
-  
-  /* Emotional Color System - iOS Style */
-  /* Base colors for backgrounds, icons, borders (Apple official colors) */
-  --color-joy: #FF9500;           /* Orange - Celebration, Success, Rewards (2.20:1) */
-  --color-calm: #5AC8FA;          /* Light Blue - Information, Calm States (1.90:1) */
-  --color-energy: #FF3B30;        /* Red - Urgency, Important Actions (3.55:1) */
-  --color-growth: #34C759;        /* Green - Growth, Progress, Health (2.22:1) */
-  --color-wisdom: #5856D6;        /* Purple - Insights, Advanced Features (5.65:1 ✅) */
-  
-  /* Text variants - WCAG AA compliant (4.5:1+ contrast on white, verified) */
-  --color-joy-text: #B85C00;      /* Darker orange for text (4.51:1 ✅) */
-  --color-calm-text: #0077CC;     /* Darker blue for text (4.66:1 ✅ verified) */
-  --color-energy-text: #DC2626;   /* Darker red for text (4.52:1 ✅) */
-  --color-growth-text: #15803D;   /* Darker green for text (4.51:1 ✅) */
-  --color-wisdom-text: #5856D6;   /* Already compliant (5.65:1 ✅ verified) */
-  
-  /* WCAG AAA compliant colors (7:1+ contrast on white) */
-  --color-primary-aaa: #005A9C;   /* 7.12:1 contrast ratio */
-  --color-success-aaa: #0D5C3D;   /* 7.05:1 contrast ratio */
-  --color-error-aaa: #A91C1C;     /* 7.32:1 contrast ratio */
-  --color-warning-aaa: #92400E;   /* 7.18:1 contrast ratio */
-  --color-info-aaa: #005A9C;      /* 7.12:1 contrast ratio */
-  
-  /* Spacing mappings */
-  --spacing-xs: var(--space-xs);
-  --spacing-sm: var(--space-sm);
-  --spacing-md: var(--space-md);
-  --spacing-lg: var(--space-lg);
-  --spacing-xl: var(--space-xl);
-  --spacing-2xl: var(--space-2xl);
-  --spacing-3xl: var(--space-3xl);
-  --spacing-4xl: var(--space-4xl);
-  
-  /* Border radius mappings */
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
-  --radius-2xl: var(--radius-2xl);
-  --radius-full: var(--radius-full);
-  
-  /* Shadow mappings */
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
-  --shadow-2xl: var(--shadow-2xl);
-  
-  /* Font family mappings */
-  --font-sans: var(--font-family-primary);
-  --font-mono: var(--font-family-secondary);
-  --font-display: var(--font-family-display);
-}
+/* Removed duplicate @theme block that was overriding the correct --space-* tokens defined above */
 
 /* WCAG 2.1 AA Focus Management */
 /* Enhanced focus indicators for keyboard navigation */
@@ -809,3 +652,5 @@ a:focus-visible {
   outline-offset: 3px !important;
   box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
 }
+
+/* Remove global writing-mode rules that interfere with Tailwind */

@@ -176,7 +176,7 @@ async function ensureCsrfToken(): Promise<void> {
   
   try {
     await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
-      method: 'POST',
+      method: 'GET',
       credentials: 'include',
     });
   } catch (error) {

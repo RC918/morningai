@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install --include=dev",
+  "buildCommand": "cd ../../../ && pnpm --filter @morningai/shared-ui build && pnpm --filter owner-console build",
+  "installCommand": "cd ../../../ && pnpm install --prod=false",
   "outputDirectory": "dist",
   "rewrites": [
     {
@@ -11,6 +11,6 @@
     }
   ],
   "git": {
-    "deploymentEnabled": false
+    "deploymentEnabled": true
   }
 }

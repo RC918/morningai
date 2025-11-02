@@ -4,8 +4,7 @@ import { motion } from 'framer-motion'
 import { Lock, User, AlertCircle, Loader2 } from 'lucide-react'
 import { AppleButton } from '@/components/apple/apple-button'
 import { AppleInput } from '@/components/apple/apple-input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@morningai/shared-ui'
 import { LanguageSwitcher } from './LanguageSwitcher'
 
 const LoginPage = ({ onLogin }) => {

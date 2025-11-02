@@ -8,7 +8,7 @@ import { getSpringConfig, triggerHaptic } from "@/lib/spring-animation"
 import { useScreenReaderAnnouncement } from "@/hooks/use-accessibility"
 
 const appleInputVariants = cva(
-  "flex w-full rounded-xl border bg-background/80 backdrop-blur-sm text-base transition-all outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+  "flex w-full rounded-xl border bg-background text-base transition-all outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
   {
     variants: {
       variant: {
@@ -138,7 +138,7 @@ function AppleInput({
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+          <div className="absolute inset-y-0 left-3 flex items-center text-gray-500 pointer-events-none z-10 [transform:none] [filter:none] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:[stroke-width:1.75] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
             {leftIcon}
           </div>
         )}
@@ -152,7 +152,7 @@ function AppleInput({
             appleInputVariants({ variant, inputSize, state, className }),
             leftIcon && "pl-10",
             (rightIcon || showPasswordToggle || showStateIcon) && "pr-10",
-            "placeholder:text-gray-400 selection:bg-blue-600 selection:text-white"
+            "placeholder:text-gray-400 selection:bg-blue-600 selection:text-white relative z-0"
           )}
           disabled={disabled}
           required={required}
@@ -160,33 +160,35 @@ function AppleInput({
           onBlur={handleBlur}
           onChange={handleChange}
           value={value}
-          whileFocus={{ scale: 1.01 }}
+          whileFocus={{ boxShadow: "0 0 0 3px rgba(59, 130, 246, 0.2)" }}
           transition={springConfig}
           {...props}
         />
 
         {/* Right Icons */}
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        <div className="absolute inset-y-0 right-3 flex items-center gap-2 z-10">
           {/* State Icon */}
           <AnimatePresence>
             {state === "error" && errorText && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={springConfig}
+                className="[transform:none] [filter:none]"
               >
-                <AlertCircle className="w-4 h-4 text-red-600" />
+                <AlertCircle className="w-5 h-5 text-red-600 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               </motion.div>
             )}
             {state === "success" && successText && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={springConfig}
+                className="[transform:none] [filter:none]"
               >
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <CheckCircle2 className="w-5 h-5 text-green-500 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -197,22 +199,22 @@ function AppleInput({
               type="button"
               onClick={togglePasswordVisibility}
               className="text-gray-500 hover:text-gray-700 transition-colors focus:outline-none"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ opacity: 0.7 }}
+              whileTap={{ opacity: 0.5 }}
               transition={springConfig}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
-                <EyeOff className="w-4 h-4" />
+                <EyeOff className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               ) : (
-                <Eye className="w-4 h-4" />
+                <Eye className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               )}
             </motion.button>
           )}
 
           {/* Custom Right Icon */}
           {rightIcon && !showPasswordToggle && (
-            <div className="text-gray-500">
+            <div className="text-gray-500 [transform:none] [filter:none] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:[stroke-width:1.75] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
               {rightIcon}
             </div>
           )}
