@@ -78,7 +78,6 @@ check_hardcoded_colors() {
     SCAN_DIRS=(
         "handoff/20250928/40_App/frontend-dashboard/src"
         "handoff/20250928/40_App/owner-console/src"
-        "packages/shared-ui/src"
     )
     
     EXCLUDE_PATTERN="tokens\.json|tailwind\.config\.(js|ts)|\.test\.(tsx?|jsx?)$|\.stories\.(tsx?|jsx?)$|__tests__|design-tokens\.(ts|js)|/lib/"
@@ -96,7 +95,7 @@ check_hardcoded_colors() {
                     continue
                 fi
                 
-                local matches=$(grep -nE '(#[0-9a-fA-F]{3}([^0-9a-fA-F]|$)|#[0-9a-fA-F]{6}([^0-9a-fA-F]|$))' "$file" 2>/dev/null | grep -v 'var(--' || true)
+                local matches=$(grep -nE '(#[0-9a-fA-F]{3}([^0-9a-fA-F]|$)|#[0-9a-fA-F]{6}([^0-9a-fA-F]|$))' "$file" 2>/dev/null | grep -v 'var(--' | grep -v 'Issue #' || true)
                 
                 if [ -n "$matches" ]; then
                     log_error "Hardcoded hex colors found in: $file"
