@@ -1,0 +1,229 @@
+name: Design System Audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/shared-ui/**'
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
+      - 'handoff/20250928/40_App/owner-console/**'
+      - 'audit-design-system.sh'
+      - '.github/workflows/design-system-audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/shared-ui/**'
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
+      - 'handoff/20250928/40_App/owner-console/**'
+
+jobs:
+  audit:
+    name: Design System Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Make audit script executable
+        run: chmod +x ./audit-design-system.sh
+      
+      - name: Run design system audit
+        id: audit
+        run: |
+          echo "Running design system audit..."
+          ./audit-design-system.sh --ci --verbose 2>&1 | tee audit-output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $EXIT_CODE
+        continue-on-error: true
+      
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-system-audit-report
+          path: audit-output.txt
+          retention-days: 30
+      
+      - name: Parse audit results
+        if: always()
+        id: parse
+        run: |
+          if [ -f audit-output.txt ]; then
+            PASS_COUNT=$(grep -c "✓ PASS:" audit-output.txt || echo 0)
+            WARN_COUNT=$(grep -c "⚠ WARN:" audit-output.txt || echo 0)
+            FAIL_COUNT=$(grep -c "✗ FAIL:" audit-output.txt || echo 0)
+            
+            echo "pass_count=$PASS_COUNT" >> $GITHUB_OUTPUT
+            echo "warn_count=$WARN_COUNT" >> $GITHUB_OUTPUT
+            echo "fail_count=$FAIL_COUNT" >> $GITHUB_OUTPUT
+            
+            echo "📊 Audit Results:"
+            echo "  ✓ Passed: $PASS_COUNT"
+            echo "  ⚠ Warnings: $WARN_COUNT"
+            echo "  ✗ Failed: $FAIL_COUNT"
+          fi
+      
+      - name: Comment on PR with audit results
+        if: github.event_name == 'pull_request' && always()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: design-system-audit
+          body: |
+            ## 🎨 Design System Audit Results
+            
+            **Status**: ${{ steps.audit.outputs.exit_code == '0' && '✅ All checks passed' || steps.audit.outputs.exit_code == '2' && '⚠️ Warnings detected' || '❌ Failures detected' }}
+            
+            **Summary**:
+            - ✓ Passed: ${{ steps.parse.outputs.pass_count }}
+            - ⚠️ Warnings: ${{ steps.parse.outputs.warn_count }}
+            - ✗ Failed: ${{ steps.parse.outputs.fail_count }}
+            
+            **Audit Areas**:
+            1. Environment & Package Governance
+            2. Design System Adoption
+            3. Design Token Enforcement
+            4. Accessibility Compliance
+            5. Motion Governance
+            6. Internationalization (i18n)
+            7. Storybook Documentation
+            8. React Version Alignment
+            
+            📎 [View full audit report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ---
+            
+            ${{ steps.audit.outputs.exit_code != '0' && '⚠️ **Action Required**: Please review the audit report and address any failures or warnings before merging.' || '✅ Design system integrity verified!' }}
+      
+      - name: Add job summary
+        if: always()
+        run: |
+          echo "## 🎨 Design System Audit Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Exit Code**: ${{ steps.audit.outputs.exit_code }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Results" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Passed: ${{ steps.parse.outputs.pass_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚠️ Warnings: ${{ steps.parse.outputs.warn_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✗ Failed: ${{ steps.parse.outputs.fail_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.audit.outputs.exit_code }}" == "0" ]; then
+            echo "✅ **All design system checks passed!**" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.audit.outputs.exit_code }}" == "2" ]; then
+            echo "⚠️ **Warnings detected** - Review recommended but not blocking" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Failures detected** - Action required before merge" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Fail if critical issues found
+        if: steps.audit.outputs.exit_code == '1'
+        run: |
+          echo "❌ Design system audit failed with critical issues"
+          echo "Please review the audit report and fix the issues before merging"
+          exit 1
+  
+  coverage-baseline:
+    name: Test Coverage Baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui
+        run: pnpm --filter @morningai/shared-ui build
+      
+      - name: Run tests with coverage for shared-ui
+        run: |
+          cd packages/shared-ui
+          pnpm test --coverage --run 2>&1 | tee coverage-output.txt || true
+        continue-on-error: true
+      
+      - name: Parse coverage results
+        id: coverage
+        run: |
+          if [ -f packages/shared-ui/coverage-output.txt ]; then
+            # Extract coverage percentage (adjust grep pattern based on actual output)
+            COVERAGE=$(grep -oP "All files\s+\|\s+\K[\d.]+" packages/shared-ui/coverage-output.txt | head -1 || echo "0")
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "📊 Coverage: ${COVERAGE}%"
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+            echo "⚠️ No coverage data found"
+          fi
+      
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-ui-coverage
+          path: |
+            packages/shared-ui/coverage/
+            packages/shared-ui/coverage-output.txt
+          retention-days: 30
+      
+      - name: Comment on PR with coverage
+        if: github.event_name == 'pull_request' && always()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: coverage-baseline
+          body: |
+            ## 📊 Test Coverage - @morningai/shared-ui
+            
+            **Current Coverage**: ${{ steps.coverage.outputs.coverage }}%
+            **Target**: >60%
+            
+            ${{ steps.coverage.outputs.coverage >= 60 && '✅ Coverage target met!' || '⚠️ Coverage below target - consider adding more tests' }}
+            
+            📎 [View detailed coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+      
+      - name: Add coverage summary
+        if: always()
+        run: |
+          echo "## 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Package**: @morningai/shared-ui" >> $GITHUB_STEP_SUMMARY
+          echo "**Coverage**: ${{ steps.coverage.outputs.coverage }}%" >> $GITHUB_STEP_SUMMARY
+          echo "**Target**: >60%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.coverage.outputs.coverage }}" -ge 60 ]; then
+            echo "✅ Coverage target met!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Coverage below target" >> $GITHUB_STEP_SUMMARY
+          fi
