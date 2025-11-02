@@ -230,8 +230,8 @@ def disable_totp():
         password = data.get('password')
         totp_code = data.get('totp_code', '').strip()
         
-        if not password or not totp_code:
-            return jsonify({'error': 'Password and TOTP code required'}), 400
+        if not password or not totp_code or len(totp_code) != 6 or not totp_code.isdigit():
+            return jsonify({'error': 'Password and valid TOTP code (6 digits) required'}), 400
         
         user_id = g.user_id
         user = get_user_by_id(user_id)

@@ -8,7 +8,7 @@ This module provides utilities for:
 - QR code generation for authenticator apps
 
 Security:
-- TOTP secrets encrypted with AES-256-GCM (Fernet)
+- TOTP secrets encrypted with Fernet (AES-128-CBC + HMAC-SHA256)
 - Backup codes hashed with Argon2id
 - Time skew tolerance: ±1 period (30 seconds)
 """
@@ -69,7 +69,7 @@ class TOTPManager:
     
     def encrypt_secret(self, secret: str) -> str:
         """
-        Encrypt a TOTP secret using AES-256-GCM (Fernet).
+        Encrypt a TOTP secret using Fernet (AES-128-CBC + HMAC-SHA256).
         
         Args:
             secret: Base32-encoded TOTP secret

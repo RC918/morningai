@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS user_2fa (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     enabled BOOLEAN DEFAULT FALSE,
-    secret_encrypted TEXT NOT NULL,  -- AES-256 encrypted TOTP secret
+    secret_encrypted TEXT NOT NULL,  -- Fernet encrypted TOTP secret (AES-128-CBC + HMAC-SHA256)
     created_at TIMESTAMP DEFAULT NOW(),
     verified_at TIMESTAMP,
     last_used_at TIMESTAMP,
@@ -14,7 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_user_2fa_user_id ON user_2fa(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_2fa_enabled ON user_2fa(enabled);
 
 COMMENT ON TABLE user_2fa IS 'Stores TOTP secrets and 2FA configuration for users';
-COMMENT ON COLUMN user_2fa.secret_encrypted IS 'AES-256-GCM encrypted TOTP secret (Base32)';
+COMMENT ON COLUMN user_2fa.secret_encrypted IS 'Fernet encrypted TOTP secret (AES-128-CBC + HMAC-SHA256, Base32)';
 COMMENT ON COLUMN user_2fa.enabled IS 'Whether 2FA is enabled and verified for this user';
 COMMENT ON COLUMN user_2fa.verified_at IS 'When the user successfully verified their TOTP setup';
 COMMENT ON COLUMN user_2fa.last_used_at IS 'Last time user successfully used TOTP to login';
