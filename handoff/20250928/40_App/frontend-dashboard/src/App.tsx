@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TolgeeProvider } from '@tolgee/react'
@@ -53,6 +53,7 @@ const AuthCallback = lazy(() => import('@/components/AuthCallback'))
 
 function AppContent() {
   const { t } = useTranslation()
+  const location = useLocation()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
@@ -87,6 +88,14 @@ function AppContent() {
     }
 
     window.addEventListener('api-error', handleApiError as EventListener)
+
+    const PUBLIC_ROUTES = new Set(['/', '/login', '/signup', '/pricing', '/auth/callback'])
+    if (PUBLIC_ROUTES.has(location.pathname)) {
+      setLoading(false)
+      return () => {
+        window.removeEventListener('api-error', handleApiError as EventListener)
+      }
+    }
 
     const checkAuth = async () => {
       try {
@@ -151,7 +160,7 @@ function AppContent() {
     return () => {
       window.removeEventListener('api-error', handleApiError as EventListener)
     }
-  }, [addToast, setUser])
+  }, [addToast, setUser, location.pathname, t])
 
   const handleLogin = (userData: any) => {
     setUser(userData)
