@@ -560,8 +560,8 @@ describe('Auth Module', () => {
       
       await expect(authenticatedFetch(testUrl, { method: 'GET' })).rejects.toThrow('Authentication failed');
       
-      expect(localStorage.getItem('token_expiry')).toBeNull();
-      expect(localStorage.getItem('user')).toBeNull();
+      expect(getStoredTokenExpiry()).toBeNull();
+      expect(getStoredUser()).toBeNull();
       expect((window as any).location.href).toBe('/login');
     });
 
@@ -584,8 +584,8 @@ describe('Auth Module', () => {
       await expect(authenticatedFetch(testUrl, { method: 'GET' })).rejects.toThrow();
       
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(localStorage.getItem('token_expiry')).toBeNull();
-      expect(localStorage.getItem('user')).toBeNull();
+      expect(getStoredTokenExpiry()).toBeNull();
+      expect(getStoredUser()).toBeNull();
       expect((window as any).location.href).toBe('/login');
     });
 
@@ -605,8 +605,7 @@ describe('Auth Module', () => {
       
       expect(mockFetch).toHaveBeenCalledTimes(1);
       expect(response.status).toBe(403);
-      const storedExpiry = localStorage.getItem('morningai_token_expiry');
-      expect(storedExpiry).toBe(String(expiryTime));
+      expect(getStoredTokenExpiry()).toBe(expiryTime);
     });
 
     it('should include CSRF token in retry for unsafe methods', async () => {
@@ -666,8 +665,7 @@ describe('Auth Module', () => {
       
       await authenticatedFetch(testUrl, { method: 'GET' });
       
-      const storedExpiry = localStorage.getItem('morningai_token_expiry');
-      expect(storedExpiry).toBe(String(newExpiry));
+      expect(getStoredTokenExpiry()).toBe(newExpiry);
     });
   });
 });
