@@ -12,6 +12,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [showPhase3Welcome, setShowPhase3Welcome] = useState(false);
   
   useEffect(() => {
+    const PUBLIC_ROUTES = ['/', '/login', '/signup', '/pricing', '/auth/callback'];
+    if (PUBLIC_ROUTES.includes(window.location.pathname)) {
+      return;
+    }
+    
     const checkWelcomeModal = async () => {
       try {
         const deploymentDateStr = import.meta.env.VITE_PHASE3_DEPLOYMENT_DATE || '2025-10-18T00:00:00Z';
