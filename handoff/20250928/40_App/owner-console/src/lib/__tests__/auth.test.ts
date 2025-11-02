@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
   storeTokenExpiry,
   getStoredTokenExpiry,
@@ -7,12 +7,37 @@ import {
   getStoredUser,
   isTokenExpired,
   isAuthenticated,
+  login,
+  logout,
+  refreshAccessToken,
+  getCurrentUser,
+  startTokenRefresh,
+  stopTokenRefresh,
+  initAuth,
+  cleanupAuth,
 } from '../auth';
+
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 describe('Auth Module', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    mockFetch.mockClear();
+    
+    Object.defineProperty(document, 'cookie', {
+      writable: true,
+      value: '',
+    });
+    
+    delete (window as any).location;
+    (window as any).location = { href: '' };
+  });
+  
+  afterEach(() => {
+    vi.clearAllTimers();
+    stopTokenRefresh();
   });
 
   describe('Token Expiry Management', () => {
@@ -111,6 +136,361 @@ describe('Auth Module', () => {
       storeTokenExpiry(expiresAt);
       
       expect(isAuthenticated()).toBe(false);
+    });
+  });
+
+  describe('Login Flow (P0)', () => {
+    beforeEach(() => {
+      vi.mock('../feature-flags', () => ({
+        isFeatureEnabled: () => true,
+      }));
+    });
+
+    it('should successfully login with valid credentials', async () => {
+      const mockUser = {
+        id: 'user-123',
+        email: 'test@example.com',
+        role: 'owner' as const,
+        tenantId: 'tenant-456',
+        name: 'Test User',
+      };
+
+      const mockResponse = {
+        user: mockUser,
+        tokens: {
+          expiresAt: Date.now() + 3600000,
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ csrf_token: 'csrf-123' }),
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await login({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+
+      expect(result.user).toEqual(mockUser);
+      expect(result.tokens.expiresAt).toBe(mockResponse.tokens.expiresAt);
+      expect(getStoredUser()).toEqual(mockUser);
+      expect(getStoredTokenExpiry()).toBe(mockResponse.tokens.expiresAt);
+    });
+
+    it('should throw error on invalid credentials', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ csrf_token: 'csrf-123' }),
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ message: 'Invalid credentials' }),
+      });
+
+      await expect(
+        login({
+          email: 'wrong@example.com',
+          password: 'wrongpass',
+        })
+      ).rejects.toThrow('Invalid credentials');
+    });
+
+    it('should include credentials in login request', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ csrf_token: 'csrf-123' }),
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          user: { id: '1', email: 'test@example.com', role: 'owner', tenantId: 't1' },
+          tokens: { expiresAt: Date.now() + 3600000 },
+        }),
+      });
+
+      await login({ email: 'test@example.com', password: 'pass' });
+
+      const loginCall = mockFetch.mock.calls[1];
+      expect(loginCall[1].credentials).toBe('include');
+    });
+
+    it('should send credentials in request body', async () => {
+      const credentials = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ csrf_token: 'csrf-123' }),
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          user: { id: '1', email: credentials.email, role: 'owner', tenantId: 't1' },
+          tokens: { expiresAt: Date.now() + 3600000 },
+        }),
+      });
+
+      await login(credentials);
+
+      const loginCall = mockFetch.mock.calls[1];
+      expect(JSON.parse(loginCall[1].body as string)).toEqual(credentials);
+    });
+  });
+
+  describe('Logout Flow (P0)', () => {
+    beforeEach(() => {
+      vi.mock('../feature-flags', () => ({
+        isFeatureEnabled: () => true,
+      }));
+    });
+
+    it('should clear local storage on logout', async () => {
+      const user = {
+        id: 'user-123',
+        email: 'test@example.com',
+        role: 'owner' as const,
+        tenantId: 'tenant-456',
+      };
+
+      storeUser(user);
+      storeTokenExpiry(Date.now() + 3600000);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+      });
+
+      await logout();
+
+      expect(getStoredUser()).toBeNull();
+      expect(getStoredTokenExpiry()).toBeNull();
+    });
+
+    it('should call logout API endpoint', async () => {
+      Object.defineProperty(document, 'cookie', {
+        writable: true,
+        value: 'csrf_token=test-csrf',
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+      });
+
+      await logout();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/v2/logout'),
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'include',
+        })
+      );
+    });
+
+    it('should include CSRF token in logout request', async () => {
+      Object.defineProperty(document, 'cookie', {
+        writable: true,
+        value: 'csrf_token=logout-csrf-token',
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+      });
+
+      await logout();
+
+      const logoutCall = mockFetch.mock.calls[0];
+      expect(logoutCall[1].headers['X-CSRF-Token']).toBe('logout-csrf-token');
+    });
+
+    it('should clear tokens even if API call fails', async () => {
+      storeUser({ id: '1', email: 'test@example.com', role: 'owner', tenantId: 't1' });
+      storeTokenExpiry(Date.now() + 3600000);
+
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+      await logout();
+
+      expect(getStoredUser()).toBeNull();
+      expect(getStoredTokenExpiry()).toBeNull();
+    });
+  });
+
+  describe('Token Refresh (P0)', () => {
+    beforeEach(() => {
+      vi.mock('../feature-flags', () => ({
+        isFeatureEnabled: () => true,
+      }));
+    });
+
+    it('should refresh access token successfully', async () => {
+      const newExpiresAt = Date.now() + 3600000;
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          tokens: { expiresAt: newExpiresAt },
+        }),
+      });
+
+      const result = await refreshAccessToken();
+
+      expect(result.expiresAt).toBe(newExpiresAt);
+      expect(getStoredTokenExpiry()).toBe(newExpiresAt);
+    });
+
+    it('should clear tokens on refresh failure', async () => {
+      storeTokenExpiry(Date.now() + 1000);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      });
+
+      await expect(refreshAccessToken()).rejects.toThrow('Token refresh failed');
+      expect(getStoredTokenExpiry()).toBeNull();
+    });
+
+    it('should include credentials in refresh request', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          tokens: { expiresAt: Date.now() + 3600000 },
+        }),
+      });
+
+      await refreshAccessToken();
+
+      const refreshCall = mockFetch.mock.calls[0];
+      expect(refreshCall[1].credentials).toBe('include');
+    });
+  });
+
+  describe('Get Current User (P0)', () => {
+    it('should return stored user if available', async () => {
+      const user = {
+        id: 'user-123',
+        email: 'test@example.com',
+        role: 'owner' as const,
+        tenantId: 'tenant-456',
+        name: 'Test User',
+      };
+
+      storeUser(user);
+
+      const result = await getCurrentUser();
+
+      expect(result).toEqual(user);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Automatic Token Refresh (P0)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should start token refresh interval', () => {
+      const expiresAt = Date.now() + 3600000;
+      storeTokenExpiry(expiresAt);
+
+      startTokenRefresh();
+
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+    });
+
+    it('should not start multiple intervals', () => {
+      const expiresAt = Date.now() + 3600000;
+      storeTokenExpiry(expiresAt);
+
+      startTokenRefresh();
+      const timerCount1 = vi.getTimerCount();
+
+      startTokenRefresh();
+      const timerCount2 = vi.getTimerCount();
+
+      expect(timerCount1).toBe(timerCount2);
+    });
+
+    it('should stop token refresh interval', () => {
+      const expiresAt = Date.now() + 3600000;
+      storeTokenExpiry(expiresAt);
+
+      startTokenRefresh();
+      const timerCountBefore = vi.getTimerCount();
+      expect(timerCountBefore).toBeGreaterThan(0);
+
+      stopTokenRefresh();
+      
+      vi.clearAllTimers();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+  });
+
+  describe('Initialize Auth (P0)', () => {
+    it('should return authenticated state when valid token exists', async () => {
+      const user = {
+        id: 'user-123',
+        email: 'test@example.com',
+        role: 'owner' as const,
+        tenantId: 'tenant-456',
+      };
+
+      storeUser(user);
+      storeTokenExpiry(Date.now() + 3600000);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ csrf_token: 'csrf-123' }),
+      });
+
+      const result = await initAuth();
+
+      expect(result.isAuthenticated).toBe(true);
+      expect(result.user).toEqual(user);
+    });
+
+    it('should return unauthenticated state when no token exists', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ csrf_token: 'csrf-123' }),
+      });
+
+      const result = await initAuth();
+
+      expect(result.isAuthenticated).toBe(false);
+      expect(result.user).toBeNull();
+    });
+  });
+
+  describe('Cleanup Auth (P0)', () => {
+    it('should stop token refresh on cleanup', () => {
+      const expiresAt = Date.now() + 3600000;
+      storeTokenExpiry(expiresAt);
+
+      vi.useFakeTimers();
+      startTokenRefresh();
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+      cleanupAuth();
+      expect(vi.getTimerCount()).toBe(0);
+
+      vi.useRealTimers();
     });
   });
 });
