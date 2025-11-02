@@ -93,6 +93,8 @@ function AppContent() {
         const { session, error: sessionError } = await getSession()
         
         if (session && !sessionError) {
+          await bootstrapCsrf()
+          
           const supabaseUser = session.user
           setUser({
             id: supabaseUser.id,
@@ -108,6 +110,7 @@ function AppContent() {
         }
         
         try {
+          await bootstrapCsrf()
           const userData = await apiClient.verifyAuth()
           setUser(userData)
           setIsAuthenticated(true)
