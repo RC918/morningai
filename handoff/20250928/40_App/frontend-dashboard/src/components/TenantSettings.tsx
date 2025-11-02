@@ -38,26 +38,18 @@ const TenantSettings = (): React.ReactElement => {
       setLoading(true);
       setError(null);
 
-      const token: string | null = localStorage.getItem('auth_token');
-      
-      if (!token) {
-        setError('Not authenticated');
-        setLoading(false);
-        return;
-      }
-
       const [membersRes, infoRes]: [Response, Response] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/members`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          credentials: 'include'
         }),
         fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/info`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          credentials: 'include'
         })
       ]);
 
@@ -82,16 +74,14 @@ const TenantSettings = (): React.ReactElement => {
     try {
       setUpdatingMember(memberId);
 
-      const token: string | null = localStorage.getItem('auth_token');
-      
       const response: Response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/members/${memberId}`,
         {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
+          credentials: 'include',
           body: JSON.stringify({ role: newRole })
         }
       );
