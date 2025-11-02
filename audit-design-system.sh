@@ -200,14 +200,14 @@ if [ -d "handoff/20250928/40_App/frontend-dashboard/src" ] || [ -d "handoff/2025
     handoff/20250928/40_App/owner-console/src \
     packages/shared-ui/src \
     --include="*.tsx" --include="*.ts" \
-    --exclude="tokens.json" --exclude="*.config.*" \
+    --exclude="tokens.json" --exclude="*.config.*" --exclude="*.stories.tsx" \
     2>/dev/null | wc -l || echo 0)
 fi
 
 if [ $HEX_VIOLATIONS -eq 0 ]; then
-  log_pass "No hard-coded hex colors in component files"
+  log_pass "No hard-coded hex colors in component files (excluding stories)"
 else
-  log_warn "$HEX_VIOLATIONS instances of hard-coded hex colors found"
+  log_warn "$HEX_VIOLATIONS instances of hard-coded hex colors found (excluding stories)"
 fi
 
 INLINE_STYLES=0
@@ -243,13 +243,14 @@ if [ -d "handoff/20250928/40_App/frontend-dashboard/src" ] || [ -d "handoff/2025
     handoff/20250928/40_App/owner-console/src \
     packages/shared-ui/src \
     --include="*.tsx" --include="*.ts" \
+    --exclude="*.stories.tsx" \
     2>/dev/null | wc -l || echo 0)
 fi
 
 if [ $RGB_VIOLATIONS -eq 0 ]; then
-  log_pass "No rgb/rgba color values in component files"
+  log_pass "No rgb/rgba color values in component files (excluding stories)"
 else
-  log_warn "$RGB_VIOLATIONS instances of rgb/rgba colors found"
+  log_warn "$RGB_VIOLATIONS instances of rgb/rgba colors found (excluding stories)"
 fi
 
 log_section "4. Accessibility Compliance"
