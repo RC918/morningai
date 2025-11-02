@@ -115,10 +115,17 @@ else
   log_fail "pnpm not installed"
 fi
 
-if find . -name "yarn.lock" -o -name "package-lock.json" -o -name "npm-shrinkwrap.json" 2>/dev/null | grep -q .; then
-  log_fail "Forbidden lockfiles found (yarn.lock, package-lock.json, or npm-shrinkwrap.json)"
+FORBIDDEN_LOCKFILES=0
+for dir in . packages/* handoff/20250928/40_App/*; do
+  if [ -d "$dir" ]; then
+    FORBIDDEN_LOCKFILES=$((FORBIDDEN_LOCKFILES + $(find "$dir" -maxdepth 1 -type f \( -name "yarn.lock" -o -name "package-lock.json" -o -name "npm-shrinkwrap.json" \) 2>/dev/null | wc -l)))
+  fi
+done
+
+if [ $FORBIDDEN_LOCKFILES -gt 0 ]; then
+  log_fail "$FORBIDDEN_LOCKFILES forbidden lockfile(s) found at package roots (yarn.lock, package-lock.json, or npm-shrinkwrap.json)"
 else
-  log_pass "No forbidden lockfiles (yarn.lock, package-lock.json, npm-shrinkwrap.json)"
+  log_pass "No forbidden lockfiles at package roots (yarn.lock, package-lock.json, npm-shrinkwrap.json)"
 fi
 
 if [ -f "pnpm-lock.yaml" ]; then
@@ -195,7 +202,7 @@ log_section "3. Design Tokens Enforcement"
 
 HEX_VIOLATIONS=0
 if [ -d "handoff/20250928/40_App/frontend-dashboard/src" ] || [ -d "handoff/20250928/40_App/owner-console/src" ] || [ -d "packages/shared-ui/src" ]; then
-  HEX_VIOLATIONS=$(grep -r "#[0-9A-Fa-f]\{6\}" \
+  HEX_VIOLATIONS=$(grep -rE "#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})\b" \
     handoff/20250928/40_App/frontend-dashboard/src \
     handoff/20250928/40_App/owner-console/src \
     packages/shared-ui/src \
@@ -223,8 +230,6 @@ if [ -d "handoff/20250928/40_App/frontend-dashboard/src" ] || [ -d "handoff/2025
     grep -v "style={{ y" | \
     grep -v "style={{ opacity" | \
     grep -v "style={{ transform" | \
-    grep -v "style={{ width: \`" | \
-    grep -v "style={{ height: \`" | \
     wc -l || echo 0)
 fi
 

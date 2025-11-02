@@ -1,0 +1,78 @@
+╔════════════════════════════════════════════════════════════════════╗
+║         MorningAI Design System Audit Report                      ║
+║         2025-11-02 12:50:13 UTC                                    ║
+║         Mode: relaxed                                                  ║
+╚════════════════════════════════════════════════════════════════════╝
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m1. Environment & Package Governance[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✓ PASS[0m: Node.js version 22.12.0 >= 20.0.0
+[0;32m✓ PASS[0m: pnpm version 9.15.1 >= 9.0.0
+[0;32m✓ PASS[0m: No forbidden lockfiles at package roots (yarn.lock, package-lock.json, npm-shrinkwrap.json)
+[0;32m✓ PASS[0m: pnpm-lock.yaml exists at root
+[0;32m✓ PASS[0m: Root package.json has packageManager field set to pnpm
+[0;32m✓ PASS[0m: packages/shared-ui exists with package.json
+[0;32m✓ PASS[0m: Design tokens file exists (packages/shared-ui/src/tokens.json)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m2. Design System Adoption & Component Duplication[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✓ PASS[0m: Apps are importing from @morningai/shared-ui (104 imports)
+[1;33m⚠ WARN[0m: Frontend-dashboard has 55 local components while shared-ui has 47 - review for duplicates
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m3. Design Tokens Enforcement[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[1;33m⚠ WARN[0m: 55 instances of hard-coded hex colors found (excluding stories)
+[1;33m⚠ WARN[0m: 36 instances of inline styles (acceptable if < 50, excluding animations)
+[1;33m⚠ WARN[0m: 4 instances of rgb/rgba colors found (excluding stories)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m4. Accessibility Compliance[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✓ PASS[0m: eslint-plugin-jsx-a11y installed in frontend-dashboard
+[0;32m✓ PASS[0m: Accessibility testing tools installed (axe-core, jest-axe, or vitest-axe)
+[0;32m✓ PASS[0m: 5 accessibility test files found
+[1;33m⚠ WARN[0m: 9 <img> tag(s) potentially missing alt attributes
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m5. Motion & Animation Governance[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✓ PASS[0m: prefers-reduced-motion support detected (CSS: 11, JS: 9)
+[0;32m✓ PASS[0m: withReducedMotion wrapper usage detected
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m6. Internationalization (i18n)[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✓ PASS[0m: i18n library (react-i18next/i18next) installed
+[0;32m✓ PASS[0m: Extensive i18n usage detected (2781 instances)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m7. Storybook & Documentation[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;32m✓ PASS[0m: Storybook configuration found in frontend-dashboard
+[0;32m✓ PASS[0m: 21 story files found
+[0;32m✓ PASS[0m: 3 visual regression tests (@vrt) found
+[0;32m✓ PASS[0m: All key design system documentation files present
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m8. React Version Alignment[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[1;33m⚠ WARN[0m: Multiple React versions detected (2 different versions)
+[0;32m✓ PASS[0m: Using React 19 (latest)
+
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34mAudit Summary[0m
+[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+╔════════════════════════════════════════════════════════════════════╗
+║                         AUDIT RESULTS                              ║
+╠════════════════════════════════════════════════════════════════════╣
+║  [0;32m✓ PASSED[0m:   20 / 26                                               ║
+║  [1;33m⚠ WARNINGS[0m:  6 / 26                                                ║
+║  [0;31m✗ FAILED[0m:    0 / 26                                                ║
+║  [0;90m⊘ TODO[0m:      0 / 26                                                ║
+╚════════════════════════════════════════════════════════════════════╝
+
+[0;32m✓ Audit completed in relaxed mode (exit 0).[0m

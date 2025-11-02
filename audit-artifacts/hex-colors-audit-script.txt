@@ -1,0 +1,35 @@
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      stroke="#007AFF" 
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      stroke="#10b981" 
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      stroke="#f59e0b" 
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      fill="#fef3c7"
+handoff/20250928/40_App/frontend-dashboard/src/components/WidgetLibrary.tsx:              stroke="#007AFF" 
+handoff/20250928/40_App/frontend-dashboard/src/components/WidgetLibrary.tsx:              stroke="#10b981" 
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts: * @returns Accessible text color (#000000 or #FFFFFF)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts:  const whiteContrast = getContrastRatio(background, '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts:  const blackContrast = getContrastRatio(background, '#000000')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts:  return whiteContrast > blackContrast ? '#FFFFFF' : '#000000'
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#000000', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#005A9C', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#0D5C3D', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#A91C1C', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#92400E', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#000000', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#005A9C', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#0D5C3D', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#A91C1C', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#92400E', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#2563eb', '#FFFFFF', true)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#CCCCCC', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const color = getAccessibleTextColor('#000000')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      expect(color).toBe('#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const color = getAccessibleTextColor('#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      expect(color).toBe('#000000')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const color = getAccessibleTextColor('#808080')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    primary: '#005A9C',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    success: '#0D5C3D',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    error: '#A91C1C',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    warning: '#92400E',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    info: '#005A9C',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA(color, '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#FFFFFF', color, false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/focus-management.ts:  element.style.outline = '2px solid #0051D0'

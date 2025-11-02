@@ -1,0 +1,9 @@
+handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx:              <img 
+handoff/20250928/40_App/frontend-dashboard/src/components/Sidebar.tsx:              <img 
+handoff/20250928/40_App/frontend-dashboard/src/components/Sidebar.tsx:              <img 
+handoff/20250928/40_App/frontend-dashboard/src/components/feedback/PageLoader.tsx:        <img 
+handoff/20250928/40_App/frontend-dashboard/src/components/feedback/BrandLoader.tsx:          <img 
+handoff/20250928/40_App/frontend-dashboard/src/components/feedback/BrandLoader.tsx:          <img 
+handoff/20250928/40_App/frontend-dashboard/src/components/SignupPage.tsx:              <img 
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/lazy-image.tsx:        <img
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/lazy-image.tsx:      <img

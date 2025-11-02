@@ -1,0 +1,79 @@
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      stroke="#007AFF" 
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      stroke="#10b981" 
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      stroke="#f59e0b" 
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      fill="#fef3c7"
+handoff/20250928/40_App/frontend-dashboard/src/components/WidgetLibrary.tsx:              stroke="#007AFF" 
+handoff/20250928/40_App/frontend-dashboard/src/components/WidgetLibrary.tsx:              stroke="#10b981" 
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx: * 1. **#007AFF (primary)** - 用於互動元素（按鈕、圖標、背景）
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx: * 2. **#0051D0 (primary-text)** - 用於文字和鏈接（WCAG AA 合規）
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx: * - **#007AFF (primary)**: 互動元素專用（對比度 4.02:1）
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx: * - **#0051D0 (primary-text)**: 文字專用（對比度 6.12:1 ✅ WCAG AA）
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:        <h3 className="text-xl font-semibold">1. Primary (#007AFF) - 互動元素</h3>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:            <div className="w-full h-32 rounded-lg mb-3" style={{ backgroundColor: '#007AFF' }}></div>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:              <p className="font-mono text-sm">#007AFF</p>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:              style={{ backgroundColor: '#007AFF' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2">
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:                <path d="M 0 30 L 20 10 L 40 20 L 60 5" stroke="#007AFF" strokeWidth="2" fill="none" />
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:        <h3 className="text-xl font-semibold">2. Primary Text (#0051D0) - 文字元素</h3>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:            <div className="w-full h-32 rounded-lg mb-3" style={{ backgroundColor: '#0051D0' }}></div>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:              <p className="font-mono text-sm">#0051D0</p>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:            <a href="#" className="block hover:underline" style={{ color: '#0051D0' }}>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:              style={{ outline: '2px solid #0051D0', outlineOffset: '2px' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:            <p style={{ color: '#0051D0' }}>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:          不要將 #007AFF 用於文字 - 對比度不足（4.02:1 &lt; 4.5:1）
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:          <p style={{ color: '#007AFF' }}>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:            這段文字使用 #007AFF，對比度不足，難以閱讀 ❌
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:          <p style={{ color: '#0051D0' }} className="mt-2">
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:            這段文字使用 #0051D0，對比度充足，易於閱讀 ✅
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { name: 'Joy', color: '#FF9500', emotion: '快樂、興奮', usage: '慶祝、成功、獎勵' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { name: 'Calm', color: '#5AC8FA', emotion: '平靜、信任', usage: '信息、提示、平靜狀態' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { name: 'Energy', color: '#FF3B30', emotion: '活力、緊迫', usage: '警告、緊急、重要' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { name: 'Growth', color: '#34C759', emotion: '成長、健康', usage: '成長、進步、成功' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { name: 'Wisdom', color: '#5856D6', emotion: '智慧、深度', usage: '洞察、智慧、高級功能' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { name: 'Success', color: '#16a34a', contrast: '4.54:1', usage: '成功狀態、完成操作、正向反饋' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { name: 'Warning', color: '#d97706', contrast: '4.52:1', usage: '警告信息、需要注意的狀態' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { name: 'Error', color: '#dc2626', contrast: '5.93:1', usage: '錯誤狀態、失敗操作、危險操作' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { bg: '#FFFFFF', fg: '#007AFF', ratio: '4.02:1', pass: false, label: 'iOS 藍 on 白色' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { bg: '#FFFFFF', fg: '#0051D0', ratio: '6.12:1', pass: true, label: 'Primary Text on 白色' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { bg: '#FFFFFF', fg: '#16a34a', ratio: '4.54:1', pass: true, label: 'Success on 白色' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:      { bg: '#FFFFFF', fg: '#dc2626', ratio: '5.93:1', pass: true, label: 'Error on 白色' },
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:        <h3 className="text-xl font-semibold">按鈕（使用 #007AFF）</h3>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:            style={{ backgroundColor: '#007AFF' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:            style={{ border: '2px solid #007AFF', color: '#007AFF' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:        <h3 className="text-xl font-semibold">鏈接（使用 #0051D0）</h3>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:          <a href="#" className="block hover:underline" style={{ color: '#0051D0' }}>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:          <a href="#" className="block hover:underline" style={{ color: '#007AFF' }}>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:            ❌ 錯誤：這個鏈接使用 #007AFF（對比度 4.02:1，不合格）
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:        <h3 className="text-xl font-semibold">圖標（使用 #007AFF）</h3>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2">
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2">
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/color-system.stories.tsx:          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2">
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts: * @returns Accessible text color (#000000 or #FFFFFF)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts:  const whiteContrast = getContrastRatio(background, '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts:  const blackContrast = getContrastRatio(background, '#000000')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts:  return whiteContrast > blackContrast ? '#FFFFFF' : '#000000'
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#000000', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#005A9C', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#0D5C3D', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#A91C1C', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#92400E', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#000000', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#005A9C', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#0D5C3D', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#A91C1C', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#92400E', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#2563eb', '#FFFFFF', true)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#CCCCCC', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const color = getAccessibleTextColor('#000000')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      expect(color).toBe('#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const color = getAccessibleTextColor('#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      expect(color).toBe('#000000')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const color = getAccessibleTextColor('#808080')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    primary: '#005A9C',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    success: '#0D5C3D',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    error: '#A91C1C',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    warning: '#92400E',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    info: '#005A9C',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA(color, '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#FFFFFF', color, false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/focus-management.ts:  element.style.outline = '2px solid #0051D0'

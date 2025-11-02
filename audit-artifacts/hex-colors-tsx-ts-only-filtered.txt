@@ -1,0 +1,55 @@
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      stroke="#007AFF" 
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      stroke="#10b981" 
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      stroke="#f59e0b" 
+handoff/20250928/40_App/frontend-dashboard/src/components/Dashboard.tsx:                      fill="#fef3c7"
+handoff/20250928/40_App/frontend-dashboard/src/components/WidgetLibrary.tsx:              stroke="#007AFF" 
+handoff/20250928/40_App/frontend-dashboard/src/components/WidgetLibrary.tsx:              stroke="#10b981" 
+handoff/20250928/40_App/frontend-dashboard/src/lib/__type-tests__/spring-animation.types.test.ts:    it('should accept string literals (will be tightened in Issue #936)', () => {
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts: * @returns Accessible text color (#000000 or #FFFFFF)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts:  const whiteContrast = getContrastRatio(background, '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts:  const blackContrast = getContrastRatio(background, '#000000')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.ts:  return whiteContrast > blackContrast ? '#FFFFFF' : '#000000'
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#000000', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#005A9C', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#0D5C3D', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#A91C1C', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const ratio = getContrastRatio('#92400E', '#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#000000', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#005A9C', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#0D5C3D', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#A91C1C', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#92400E', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#2563eb', '#FFFFFF', true)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#CCCCCC', '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const color = getAccessibleTextColor('#000000')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      expect(color).toBe('#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const color = getAccessibleTextColor('#FFFFFF')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      expect(color).toBe('#000000')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const color = getAccessibleTextColor('#808080')
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    primary: '#005A9C',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    success: '#0D5C3D',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    error: '#A91C1C',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    warning: '#92400E',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:    info: '#005A9C',
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA(color, '#FFFFFF', false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/accessibility.test.ts:      const result = checkWCAGAAA('#FFFFFF', color, false)
+handoff/20250928/40_App/frontend-dashboard/src/lib/focus-management.ts:  element.style.outline = '2px solid #0051D0'
+handoff/20250928/40_App/frontend-dashboard/src/lib/motion-utils.tsx: * Motion Utilities - Issue #470
+handoff/20250928/40_App/owner-console/src/components/OfflineIndicator.tsx: * Issue #774 - PWA Implementation
+handoff/20250928/40_App/owner-console/src/components/AuthProvider.tsx: * Issue #767 - API Connection
+handoff/20250928/40_App/owner-console/src/components/MetricsDashboard.tsx: * Issue #762 - Metrics Dashboard
+handoff/20250928/40_App/owner-console/src/components/PWAInstallPrompt.tsx: * Issue #774 - PWA Implementation
+handoff/20250928/40_App/owner-console/src/components/ProtectedRoute.tsx: * Issue #767 - API Connection
+handoff/20250928/40_App/owner-console/src/lib/api/index.ts: * Issue #767: API Connection
+handoff/20250928/40_App/owner-console/src/lib/api/index.ts: * - Agents API (Issue #769)
+handoff/20250928/40_App/owner-console/src/lib/api/index.ts: * - Tenants API (Issue #770)
+handoff/20250928/40_App/owner-console/src/lib/api/index.ts: * - Monitoring API (Issue #771)
+handoff/20250928/40_App/owner-console/src/lib/api/index.ts: * - Settings API (Issue #772)
+handoff/20250928/40_App/owner-console/src/lib/api/index.ts: * - Security API (Issue #773)
+handoff/20250928/40_App/owner-console/src/lib/auth.ts: * Issue #767: API Connection
+handoff/20250928/40_App/owner-console/src/lib/generated/health/health.ts:**Issue**: #760 - Agent Registry & Task Router
+handoff/20250928/40_App/owner-console/src/lib/generated/tasks/tasks.ts:**Issue**: #760 - Agent Registry & Task Router
+handoff/20250928/40_App/owner-console/src/lib/generated/agents/agents.ts:**Issue**: #760 - Agent Registry & Task Router
+handoff/20250928/40_App/owner-console/src/lib/generated/agent-registry-api.schemas.ts:**Issue**: #760 - Agent Registry & Task Router
+handoff/20250928/40_App/owner-console/src/lib/pwa.ts: * Issue #774 - PWA Implementation
+packages/shared-ui/src/components/ui/chart.tsx:          "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border flex aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",

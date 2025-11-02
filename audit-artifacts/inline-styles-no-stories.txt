@@ -1,0 +1,55 @@
+handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx:        style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}
+handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx:                style={{ width: '64px', height: '64px', maxWidth: '64px', maxHeight: '64px' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/DarkModeToggle.tsx:        style={{ width: '40px', height: '40px' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/DarkModeToggle.tsx:          <Sun className="w-5 h-5 text-gray-600 dark:text-gray-300" style={{ width: '20px', height: '20px' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/DarkModeToggle.tsx:          <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" style={{ width: '20px', height: '20px' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/DarkModeToggle.tsx:      style={{ width: '40px', height: '40px' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/DarkModeToggle.tsx:        <Sun className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/DarkModeToggle.tsx:        <Moon className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/AppleHero.tsx:          style={{ y, opacity }}
+handoff/20250928/40_App/frontend-dashboard/src/components/Sidebar.tsx:                style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/Sidebar.tsx:                style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/LanguageSwitcher.tsx:            style={{ width: '40px', height: '40px', padding: '0' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/LanguageSwitcher.tsx:            <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/LanguageSwitcher.tsx:          style={{ backgroundColor: 'white' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/LanguageSwitcher.tsx:        style={{ backgroundColor: 'white' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ab-testing/ABTestDashboard.tsx:                                    style={{ width: `${variant.conversion_rate}%` }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ab-testing/ABTestDashboard.tsx:                                    style={{ width: `${variant.click_rate}%` }}
+handoff/20250928/40_App/frontend-dashboard/src/components/SignupPage.tsx:        style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}
+handoff/20250928/40_App/frontend-dashboard/src/components/SignupPage.tsx:                style={{ width: '64px', height: '64px', maxWidth: '64px', maxHeight: '64px' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/LandingPage.tsx:              style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/LandingPage.tsx:                  style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:    <div style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:      <h2 style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:      <p style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:      <div style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:        <button style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:        <button style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:      <div style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:        <h3 style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:        <p style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:      <div style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:        <span style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:        <span style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:        <span style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/examples/TokenExample.tsx:        <span style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-sheet.tsx:        style={{ opacity }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-sheet.tsx:        style={{ y }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/loading-states.tsx:      <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/loading-states.tsx:      <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/loading-states.tsx:      <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/loading-states.tsx:          style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/loading-states.tsx:      <div className="w-3 h-3 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/loading-states.tsx:      <div className="w-3 h-3 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-control-center.tsx:        style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-picker.tsx:      style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-picker.tsx:      style={{ height }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-picker.tsx:        style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-picker.tsx:        style={{ y }}
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-picker.tsx:        <div style={{ paddingTop: `${(height - itemHeight) / 2}px`, paddingBottom: `${(height - itemHeight) / 2}px` }}>
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-live-activity.tsx:      style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/ui/apple-toast.tsx:      style={{
+handoff/20250928/40_App/frontend-dashboard/src/components/metrics/MetricsAnalysisDashboard.tsx:                              style={{ 
+handoff/20250928/40_App/frontend-dashboard/src/components/metrics/MetricsAnalysisDashboard.tsx:                              style={{ 
+packages/shared-ui/src/components/ui/progress.tsx:        style={{ transform: `translateX(-${100 - (value || 0)}%)` }} />
+packages/shared-ui/src/components/ui/chart.tsx:                style={{
