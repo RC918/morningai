@@ -59,24 +59,6 @@ function AppContent() {
   const { user, setUser, addToast } = useAppStore()
 
   useEffect(() => {
-    const sentryDsn = import.meta.env.VITE_SENTRY_DSN
-    if (sentryDsn && !window.Sentry) {
-      import('@sentry/react').then((Sentry) => {
-        Sentry.init({
-          dsn: sentryDsn,
-          environment: import.meta.env.MODE,
-          integrations: [
-            Sentry.browserTracingIntegration(),
-            Sentry.replayIntegration()
-          ],
-          tracesSampleRate: 1.0,
-          replaysSessionSampleRate: 0.1,
-          replaysOnErrorSampleRate: 1.0,
-        })
-        window.Sentry = Sentry
-      })
-    }
-
     const handleApiError = (event: Event) => {
       const customEvent = event as CustomEvent
       const { endpoint, error, status, requestId } = customEvent.detail
@@ -315,6 +297,25 @@ function AppContent() {
 
 function App() {
   useEffect(() => {
+    const sentryDsn = import.meta.env.VITE_SENTRY_DSN
+    if (sentryDsn && !window.__SENTRY_INITIALIZED__) {
+      import('@sentry/react').then((Sentry) => {
+        Sentry.init({
+          dsn: sentryDsn,
+          environment: import.meta.env.MODE,
+          integrations: [
+            Sentry.browserTracingIntegration(),
+            Sentry.replayIntegration()
+          ],
+          tracesSampleRate: 1.0,
+          replaysSessionSampleRate: 0.1,
+          replaysOnErrorSampleRate: 1.0,
+        })
+        window.Sentry = Sentry
+        window.__SENTRY_INITIALIZED__ = true
+      })
+    }
+
     reportWebVitals((metric) => {
       if (import.meta.env.DEV) {
         console.log(`[Web Vitals] ${metric.name}:`, metric.value, metric)
