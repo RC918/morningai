@@ -58,8 +58,6 @@ function AppContent() {
   const { user, setUser, addToast } = useAppStore()
 
   useEffect(() => {
-    bootstrapCsrf()
-    
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
     if (sentryDsn && !window.Sentry) {
       import('@sentry/react').then((Sentry) => {
