@@ -1,0 +1,6 @@
+/* Last-loaded CSS override to force horizontal text */
+/* This file loads after all bundled CSS to guarantee cascade priority */
+html, body, #root, *, *::before, *::after {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}

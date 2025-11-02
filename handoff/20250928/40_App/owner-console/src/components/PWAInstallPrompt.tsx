@@ -6,8 +6,7 @@
  * Shows install prompt for PWA
  */
 import React, { useState, useEffect } from 'react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui';
 import { Download, X } from 'lucide-react';
 import { isPWAInstallable, showInstallPrompt, isRunningAsPWA } from '../lib/pwa';
 
