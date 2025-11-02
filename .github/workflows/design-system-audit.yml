@@ -49,6 +49,7 @@ jobs:
         id: audit
         run: |
           echo "Running design system audit in relaxed mode..."
+          echo "Note: Change --relaxed to --strict to enforce failures"
           ./audit-design-system.sh --relaxed --verbose 2>&1 | tee audit-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
@@ -120,15 +121,15 @@ jobs:
             - ✗ Failed: ${{ steps.parse.outputs.fail_count }} / ${{ steps.parse.outputs.total_count }}
             - ⊘ TODO: ${{ steps.parse.outputs.todo_count }} / ${{ steps.parse.outputs.total_count }}
             
-            **Audit Areas**:
-            1. ✅ Environment & Package Governance (7 checks)
-            2. ⊘ Design System Adoption (TODO - requires debugging)
-            3. ⊘ Design Token Enforcement (TODO - requires debugging)
-            4. ⊘ Accessibility Compliance (TODO - requires debugging)
-            5. ⊘ Motion Governance (TODO - requires debugging)
-            6. ⊘ Internationalization (TODO - requires debugging)
-            7. ⊘ Storybook Documentation (TODO - requires debugging)
-            8. ⊘ React Version Alignment (TODO - requires debugging)
+            **Audit Areas** (all 8 sections enabled):
+            1. Environment & Package Governance
+            2. Design System Adoption & Component Duplication
+            3. Design Tokens Enforcement
+            4. Accessibility Compliance
+            5. Motion & Animation Governance
+            6. Internationalization (i18n)
+            7. Storybook & Documentation
+            8. React Version Alignment
             
             **Notes**: ${{ steps.parse.outputs.notes }}
             
@@ -136,7 +137,7 @@ jobs:
             
             ---
             
-            ℹ️ **Relaxed Mode**: This audit runs in non-blocking mode to prevent CI failures while we debug and expand the checks. Run `./audit-design-system.sh --strict` locally to enforce all checks.
+            ℹ️ **Relaxed Mode**: This audit runs in non-blocking mode. All 8 sections are now enabled with comprehensive checks. Run `./audit-design-system.sh --strict` locally to enforce failures, or update the workflow to use `--strict` mode when ready.
       
       - name: Add job summary
         if: always()
