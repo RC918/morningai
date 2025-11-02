@@ -27,6 +27,7 @@ import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { reportWebVitals } from '@/lib/performance'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
+import { bootstrapCsrf } from '@/lib/api-client'
 import { supabase, getSession, signInWithOAuth } from '@/lib/supabaseClient'
 import '@/i18n/config'
 import { tolgee } from '@/i18n/config'
@@ -57,6 +58,8 @@ function AppContent() {
   const { user, setUser, addToast } = useAppStore()
 
   useEffect(() => {
+    bootstrapCsrf()
+    
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
     if (sentryDsn && !window.Sentry) {
       import('@sentry/react').then((Sentry) => {
@@ -106,15 +109,25 @@ function AppContent() {
           return
         }
         
-        const token = localStorage.getItem('auth_token')
-        if (token) {
+        try {
           const userData = await apiClient.verifyAuth()
           setUser(userData)
           setIsAuthenticated(true)
+        } catch (authError) {
+          if (import.meta.env.DEV) {
+            setUser({
+              id: 'dev_user',
+              name: 'Ryan Chen',
+              email: 'ryan@morningai.com',
+              avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
+              role: 'Owner',
+              tenant_id: 'tenant_001'
+            })
+            setIsAuthenticated(true)
+          }
         }
       } catch (error) {
         console.error('Auth check failed:', error)
-        localStorage.removeItem('auth_token')
         if (import.meta.env.DEV) {
           setUser({
             id: 'dev_user',
@@ -139,10 +152,9 @@ function AppContent() {
     }
   }, [addToast, setUser])
 
-  const handleLogin = (userData: any, token: string) => {
+  const handleLogin = (userData: any) => {
     setUser(userData)
     setIsAuthenticated(true)
-    localStorage.setItem('auth_token', token)
     addToast({
       title: t('auth.login.loginSuccess'),
       description: t('auth.login.welcomeBack', { name: userData.name }),
@@ -166,7 +178,6 @@ function AppContent() {
       tenant_id: 'tenant_001'
     })
     setIsAuthenticated(false)
-    localStorage.removeItem('auth_token')
     addToast({
       title: t('auth.logout.logoutSuccess'),
       description: t('auth.logout.logoutMessage'),

@@ -214,6 +214,10 @@ function shouldIncludeCSRF(method?: string): boolean {
  * Make authenticated API request
  * Tokens are automatically sent via HttpOnly cookies
  * CSRF token is included for unsafe methods (POST, PUT, PATCH, DELETE)
+ * 
+ * P0 Enhancement: 401 Refresh Retry Mechanism
+ * - On 401 response, attempts to refresh token and retry request once
+ * - If retry fails, clears tokens and redirects to login
  */
 async function authenticatedFetch(
   url: string,
@@ -237,11 +241,49 @@ async function authenticatedFetch(
     }
   }
   
-  return fetch(url, {
+  const response = await fetch(url, {
     ...options,
     headers,
     credentials: 'include',
   });
+  
+  if (response.status === 401) {
+    try {
+      await refreshAccessToken();
+      
+      const retryHeaders = new Headers(options.headers);
+      if (shouldIncludeCSRF(options.method)) {
+        const csrfToken = getCookie('csrf_token');
+        if (csrfToken) {
+          retryHeaders.set('X-CSRF-Token', csrfToken);
+        }
+      }
+      
+      const retryResponse = await fetch(url, {
+        ...options,
+        headers: retryHeaders,
+        credentials: 'include',
+      });
+      
+      if (retryResponse.status === 401) {
+        clearTokens();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        throw new Error('Authentication failed. Please login again.');
+      }
+      
+      return retryResponse;
+    } catch (error) {
+      clearTokens();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      throw error;
+    }
+  }
+  
+  return response;
 }
 
 

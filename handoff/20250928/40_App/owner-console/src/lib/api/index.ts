@@ -17,9 +17,12 @@
 
 import { authenticatedFetch } from '../auth';
 import { isFeatureEnabled } from '../feature-flags';
+import { apiClient as apiClientFunction } from '../api-client';
 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+export { apiClientFunction as apiClient };
 
 
 export interface PaginationParams {

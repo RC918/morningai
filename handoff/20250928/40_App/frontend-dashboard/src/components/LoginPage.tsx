@@ -26,7 +26,7 @@ interface User {
 }
 
 interface LoginPageProps {
-  onLogin: (user: User, token: string) => void
+  onLogin: (user: User) => void
 }
 
 const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
@@ -57,8 +57,8 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     try {
       const result = await apiClient.login(credentials)
       
-      if (result.user && result.token) {
-        onLogin(result.user, result.token)
+      if (result.user) {
+        onLogin(result.user)
       } else {
         setError(result.message || t('auth.login.loginFailed'))
       }
@@ -71,8 +71,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
           role: t('sidebar.user.defaultRole'),
           avatar: null
         }
-        const mockToken: string = 'mock-jwt-token-' + Date.now()
-        onLogin(mockUser, mockToken)
+        onLogin(mockUser)
       } else {
         setError(t('auth.login.loginError'))
       }

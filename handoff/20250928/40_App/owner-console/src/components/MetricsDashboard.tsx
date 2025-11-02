@@ -213,8 +213,8 @@ export const MetricsDashboard: React.FC = () => {
         if (apiBaseUrl) {
           try {
             const response = await fetch(`${apiBaseUrl}/api/v1/metrics/dashboard`, {
+              credentials: 'include',
               headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
                 'Content-Type': 'application/json'
               }
             });
