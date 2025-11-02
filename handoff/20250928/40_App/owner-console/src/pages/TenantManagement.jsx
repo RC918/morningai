@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Alert, AlertDescription, AlertTitle } from '@morningai/shared-ui'
 import { Users, Plus, Settings, AlertTriangle, Activity } from 'lucide-react'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+import { apiClient } from '../lib/api-client'
 
 const TenantManagement = () => {
   const { t } = useTranslation()
@@ -20,27 +19,10 @@ const TenantManagement = () => {
       setLoading(true)
       setError(null)
 
-      const [infoResponse, membersResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/tenant/info`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch(`${API_BASE_URL}/api/tenant/members`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
+      const [info, members] = await Promise.all([
+        apiClient('/api/tenant/info', { method: 'GET' }),
+        apiClient('/api/tenant/members', { method: 'GET' })
       ])
-
-      if (!infoResponse.ok || !membersResponse.ok) {
-        throw new Error('Failed to fetch tenant data')
-      }
-
-      const info = await infoResponse.json()
-      const members = await membersResponse.json()
 
       const tenantsData = info.tenants || []
       const enrichedTenants = tenantsData.map(tenant => ({
