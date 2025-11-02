@@ -225,7 +225,6 @@ if [ -d "handoff/20250928/40_App/frontend-dashboard/src" ] || [ -d "handoff/2025
     packages/shared-ui/src \
     --include="*.tsx" \
     --exclude="*.stories.tsx" \
-    --exclude="TokenExample.tsx" \
     2>/dev/null | \
     grep -v "style={{ y" | \
     grep -v "style={{ opacity" | \
