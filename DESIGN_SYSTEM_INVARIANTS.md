@@ -1,750 +1,760 @@
 # Design System Invariants
-## MorningAI - Non-Negotiable Rules & Allowed Variants
 
-**Version**: 1.0.0  
-**Date**: 2025-11-02  
-**Owner**: CTO (Chief Technology Officer)  
-**Status**: Active  
-**Review Cycle**: Quarterly
+**MorningAI - CTO Quality Standards**  
+**Immutable Rules for System Integrity**
+
+This document defines the invariants (unchanging rules) that MUST be maintained across the MorningAI design system and codebase to ensure consistency, quality, and maintainability. These rules are enforced through automated audits, CI/CD checks, and code review processes.
 
 ---
 
-## Purpose
+## Table of Contents
 
-This document defines the **invariants** (non-negotiable rules) and **allowed variants** for the MorningAI design system. These rules ensure consistency, maintainability, and quality across all frontend applications.
-
-**Invariants** are rules that MUST be followed without exception. Violations will block PR merges.
-
-**Allowed Variants** are approved deviations for specific use cases, documented here to prevent confusion.
+1. [Governance Invariants](#1-governance-invariants)
+2. [Design Token Invariants](#2-design-token-invariants)
+3. [Component Architecture Invariants](#3-component-architecture-invariants)
+4. [Accessibility Invariants](#4-accessibility-invariants)
+5. [Motion & Animation Invariants](#5-motion--animation-invariants)
+6. [Internationalization Invariants](#6-internationalization-invariants)
+7. [Performance Invariants](#7-performance-invariants)
+8. [Documentation Invariants](#8-documentation-invariants)
+9. [Testing Invariants](#9-testing-invariants)
+10. [Security Invariants](#10-security-invariants)
+11. [Enforcement Mechanisms](#11-enforcement-mechanisms)
 
 ---
 
-## 1. Token System Invariants
+## 1. Governance Invariants
 
-### 1.1 Token-Only Colors (CRITICAL)
+### 1.1 Package Manager
 
-**Rule**: All color values MUST come from design tokens. No hardcoded hex, RGB, or HSL values in application code.
+**INVARIANT**: Only pnpm is allowed as the package manager in this monorepo.
 
-**Rationale**: Ensures consistent theming, enables dark mode, and simplifies brand updates.
+**Rules**:
+- ✅ **MUST**: Use pnpm >= 9.0.0 for all package operations
+- ✅ **MUST**: Have single `pnpm-lock.yaml` at repository root
+- ❌ **MUST NOT**: Commit `yarn.lock`, `package-lock.json`, or `npm-shrinkwrap.json`
+- ❌ **MUST NOT**: Use `npm install` or `yarn install` commands
+- ✅ **MUST**: Define `packageManager` field in root `package.json`
 
 **Enforcement**:
-- ✅ Allowed: `bg-primary-500`, `text-semantic-success-600`, `var(--color-primary-500)`
-- ❌ Forbidden: `#007AFF`, `rgb(0, 122, 255)`, `hsl(211, 100%, 50%)`
+- CI workflow: `.github/workflows/dependency-check.yml`
+- Audit script: `./audit-design-system.sh`
+- Pre-commit hook: Husky checks for forbidden lockfiles
+
+**Rationale**: Ensures consistent dependency resolution, faster installs, and monorepo workspace support.
+
+---
+
+### 1.2 Node.js Version
+
+**INVARIANT**: All development and production environments must use Node.js >= 20.0.0.
+
+**Rules**:
+- ✅ **MUST**: Use Node.js 20.x or higher
+- ✅ **MUST**: Define `engines.node` in all `package.json` files
+- ✅ **MUST**: Use `.nvmrc` or similar for version pinning
+
+**Enforcement**:
+- CI workflows check Node version
+- Audit script validates Node version
+- Docker images specify Node 20
+
+**Rationale**: Ensures access to latest JavaScript features, performance improvements, and security patches.
+
+---
+
+### 1.3 Dependency Version Alignment
+
+**INVARIANT**: Critical dependencies must have consistent versions across all workspace packages.
+
+**Rules**:
+- ✅ **MUST**: Use pnpm overrides in root `package.json` for:
+  - `react` and `react-dom` (currently ^19.1.0)
+  - `typescript` (currently 5.9.3)
+  - `vite` (currently ^6.3.5)
+  - `eslint` (currently ^9.25.0)
+  - `tailwindcss` (currently ^4.1.7)
+- ✅ **MUST**: Keep Radix UI packages aligned (all at compatible versions)
+- ✅ **MUST**: Document version constraints in root `package.json`
+
+**Enforcement**:
+- Audit script checks version consistency
+- Renovate bot for automated updates
+- PR reviews verify version alignment
+
+**Rationale**: Prevents version conflicts, ensures compatibility, simplifies debugging.
+
+---
+
+## 2. Design Token Invariants
+
+### 2.1 Single Source of Truth
+
+**INVARIANT**: All design tokens MUST be defined in `packages/shared-ui/src/tokens.json`.
+
+**Rules**:
+- ✅ **MUST**: Define all colors, typography, spacing, shadows, radii, animations in `tokens.json`
+- ❌ **MUST NOT**: Hard-code design values in component files
+- ✅ **MUST**: Use CSS variables or Tailwind utilities mapped to tokens
+- ✅ **MUST**: Export tokens as TypeScript types via `tokens.d.ts`
+
+**Enforcement**:
+- Audit script scans for hard-coded hex/rgb values
+- ESLint plugin (custom rule) warns on hard-coded values
+- Code review checklist
+
+**Rationale**: Ensures design consistency, enables theme switching, simplifies design updates.
+
+---
+
+### 2.2 Token Categories
+
+**INVARIANT**: Design tokens must cover all required categories with complete definitions.
+
+**Required Categories**:
+1. **Colors**:
+   - Primary (50-900 scale)
+   - Accent (purple, orange scales)
+   - Semantic (success, error, warning, info)
+   - Neutral (50-900 scale)
+   - Background (base, surface, overlay)
+
+2. **Typography**:
+   - Font families (primary, secondary, mono)
+   - Font sizes (7 levels: caption to display)
+   - Font weights (regular, medium, semibold, bold)
+   - Line heights (tight, normal, relaxed)
+
+3. **Spacing**:
+   - 8-point grid system (xs to 4xl)
+
+4. **Shadows**:
+   - 5-level system (sm to 2xl)
+
+5. **Border Radius**:
+   - 6 levels (sm to full)
+
+6. **Animation**:
+   - Durations (instant, fast, normal, slow)
+   - Easing functions (linear, easeIn, easeOut, easeInOut, spring)
+
+7. **Breakpoints**:
+   - Mobile, tablet, desktop
+
+**Enforcement**:
+- Audit script validates token completeness
+- TypeScript types ensure all categories present
+- Design review process
+
+**Rationale**: Comprehensive token system enables consistent design implementation.
+
+---
+
+### 2.3 No Hard-coded Values
+
+**INVARIANT**: Component files must not contain hard-coded design values.
+
+**Rules**:
+- ❌ **MUST NOT**: Use hex colors (e.g., `#FF6B35`) in TSX/CSS
+- ❌ **MUST NOT**: Use rgb/rgba values (e.g., `rgb(255, 107, 53)`) in TSX/CSS
+- ❌ **MUST NOT**: Use hard-coded spacing (e.g., `padding: 16px`) without token reference
+- ❌ **MUST NOT**: Use hard-coded shadows without token reference
+- ✅ **MUST**: Use CSS variables (e.g., `var(--color-primary)`)
+- ✅ **MUST**: Use Tailwind utilities mapped to tokens (e.g., `bg-primary-500`)
 
 **Exceptions**:
-- `tokens.json` files (source of truth)
-- `tailwind.config.js` (token mapping only)
-- Test files (`*.test.tsx`, `*.stories.tsx`) for mocking
-- Third-party library overrides (must be documented in code comments)
+- Configuration files (`tailwind.config.ts`, `theme-apple.css`)
+- `tokens.json` itself
+- One-off animations with unique values (must be documented)
 
-**Verification**: `./scripts/audit-design-system.sh` checks for hardcoded colors
+**Enforcement**:
+- Audit script: `< 50` violations allowed (legacy code)
+- ESLint warnings on violations
+- PR review checklist
+
+**Rationale**: Prevents design drift, enables theme switching, simplifies maintenance.
 
 ---
 
-### 1.2 Token-Only Spacing (HIGH)
+### 2.4 Tailwind v4 Token Mapping
 
-**Rule**: All spacing values MUST use design tokens or Tailwind spacing scale.
+**INVARIANT**: Tailwind CSS v4 utilities must be mapped to design tokens via CSS variables.
 
-**Rationale**: Maintains consistent rhythm and visual hierarchy.
+**Rules**:
+- ✅ **MUST**: Define `@theme` block in `index.css` with CSS variables
+- ✅ **MUST**: Map token values to CSS variables (e.g., `--color-primary: #FF8C42`)
+- ✅ **MUST**: Use Tailwind utilities that reference these variables
+- ❌ **MUST NOT**: Use default Tailwind color palette for brand/semantic colors
 
 **Enforcement**:
-- ✅ Allowed: `p-4`, `gap-md`, `var(--spacing-lg)`, `space-y-2`
-- ❌ Forbidden: `padding: 16px`, `margin: 1.5rem`, `gap: 24px`
+- Audit script checks for `@theme` block
+- Code review verifies token mapping
+- Design system documentation
+
+**Rationale**: Ensures Tailwind utilities respect design tokens, maintains consistency.
+
+---
+
+## 3. Component Architecture Invariants
+
+### 3.1 Shared Component Library
+
+**INVARIANT**: Components used in 2+ applications MUST be extracted to `@morningai/shared-ui`.
+
+**Rules**:
+- ✅ **MUST**: Extract components to `packages/shared-ui/src/components/ui/`
+- ✅ **MUST**: Export all shared components from `packages/shared-ui/src/index.ts`
+- ✅ **MUST**: Build shared-ui to `dist/` with ESM and CJS formats
+- ✅ **MUST**: Provide TypeScript types (`.d.ts` files)
+- ❌ **MUST NOT**: Duplicate components across applications
+
+**Enforcement**:
+- Audit script detects duplicate component names
+- Code review checklist
+- Adoption metrics tracked quarterly
+
+**Rationale**: Reduces code duplication, ensures consistency, simplifies maintenance.
+
+---
+
+### 3.2 Component Structure
+
+**INVARIANT**: All shared components must follow consistent structure and patterns.
+
+**Rules**:
+- ✅ **MUST**: Use Radix UI primitives for complex interactive components
+- ✅ **MUST**: Define variants using `class-variance-authority`
+- ✅ **MUST**: Use `forwardRef` for components that accept refs
+- ✅ **MUST**: Export component props as TypeScript interfaces
+- ✅ **MUST**: Use `cn()` utility from `tailwind-merge` for className merging
+- ✅ **MUST**: Support dark mode via CSS variables
+
+**Enforcement**:
+- Code review checklist
+- Component template/generator
+- TypeScript strict mode
+
+**Rationale**: Ensures components are composable, accessible, and maintainable.
+
+---
+
+### 3.3 Component Documentation
+
+**INVARIANT**: Every shared component MUST have Storybook stories and usage documentation.
+
+**Rules**:
+- ✅ **MUST**: Create `.stories.tsx` file for each component
+- ✅ **MUST**: Document all component variants and props
+- ✅ **MUST**: Provide usage examples in stories
+- ✅ **MUST**: Include accessibility notes in story documentation
+- ✅ **MUST**: Add visual regression tests tagged with `@vrt`
+
+**Enforcement**:
+- PR checklist requires stories for new components
+- Audit script tracks story coverage
+- Quarterly review of documentation completeness
+
+**Rationale**: Improves developer experience, ensures proper usage, enables visual testing.
+
+---
+
+## 4. Accessibility Invariants
+
+### 4.1 WCAG AAA Compliance
+
+**INVARIANT**: All UI components and color combinations MUST meet WCAG AAA standards (7:1 contrast ratio).
+
+**Rules**:
+- ✅ **MUST**: Ensure 7:1 contrast for normal text
+- ✅ **MUST**: Ensure 4.5:1 contrast for large text (18pt+)
+- ✅ **MUST**: Test color combinations with contrast checker
+- ✅ **MUST**: Document contrast ratios in `tokens.json` comments
+- ❌ **MUST NOT**: Use color as the only means of conveying information
+
+**Enforcement**:
+- Design review with contrast checker
+- Automated axe tests in CI
+- Manual accessibility audits quarterly
+
+**Rationale**: Ensures usability for users with visual impairments, legal compliance.
+
+---
+
+### 4.2 Keyboard Navigation
+
+**INVARIANT**: All interactive elements MUST be fully keyboard accessible.
+
+**Rules**:
+- ✅ **MUST**: Support Tab navigation for all interactive elements
+- ✅ **MUST**: Provide visible focus indicators (2px outline, 2px offset)
+- ✅ **MUST**: Support Enter/Space for button activation
+- ✅ **MUST**: Support Escape for closing modals/dialogs
+- ✅ **MUST**: Support Arrow keys for navigation in lists/menus
+- ✅ **MUST**: Implement proper focus management (trap focus in modals)
+
+**Enforcement**:
+- eslint-plugin-jsx-a11y rules
+- Manual keyboard testing in PR reviews
+- E2E tests include keyboard navigation
+
+**Rationale**: Ensures usability for keyboard-only users, improves overall UX.
+
+---
+
+### 4.3 ARIA Patterns
+
+**INVARIANT**: Complex interactive components MUST implement proper ARIA patterns.
+
+**Rules**:
+- ✅ **MUST**: Use Radix UI primitives for dialogs, dropdowns, popovers, tooltips
+- ✅ **MUST**: Provide `aria-label` or `aria-labelledby` for all interactive elements
+- ✅ **MUST**: Use `role` attributes correctly (button, dialog, menu, etc.)
+- ✅ **MUST**: Implement `aria-expanded`, `aria-haspopup` for expandable elements
+- ✅ **MUST**: Use `aria-live` regions for dynamic content updates
+- ❌ **MUST NOT**: Use `role="button"` on non-interactive elements without keyboard handlers
+
+**Enforcement**:
+- eslint-plugin-jsx-a11y rules
+- axe automated tests
+- Manual screen reader testing
+
+**Rationale**: Ensures compatibility with assistive technologies.
+
+---
+
+### 4.4 Accessibility Testing
+
+**INVARIANT**: All components MUST have automated accessibility tests.
+
+**Rules**:
+- ✅ **MUST**: Install `vitest-axe` or `jest-axe` in test environment
+- ✅ **MUST**: Create `.a11y.test.tsx` files for critical components
+- ✅ **MUST**: Run axe tests in CI pipeline
+- ✅ **MUST**: Fix all axe violations before merging
+- ✅ **MUST**: Document exceptions with justification
+
+**Enforcement**:
+- CI pipeline fails on axe violations
+- PR checklist requires a11y tests for new components
+- Quarterly manual audits
+
+**Rationale**: Catches accessibility issues early, ensures consistent compliance.
+
+---
+
+## 5. Motion & Animation Invariants
+
+### 5.1 Reduced Motion Support
+
+**INVARIANT**: All animations MUST respect `prefers-reduced-motion` user preference.
+
+**Rules**:
+- ✅ **MUST**: Check `prefers-reduced-motion: reduce` media query
+- ✅ **MUST**: Disable or minimize animations when preference is set
+- ✅ **MUST**: Use CSS `@media (prefers-reduced-motion: reduce)` for CSS animations
+- ✅ **MUST**: Check `window.matchMedia('(prefers-reduced-motion: reduce)')` for JS animations
+- ✅ **MUST**: Reduce animation duration to `0.01ms` or disable entirely
+
+**Enforcement**:
+- Audit script checks for `prefers-reduced-motion` implementation
+- Manual testing with reduced motion enabled
+- Accessibility audits
+
+**Rationale**: Respects user preferences, prevents motion sickness, improves accessibility.
+
+---
+
+### 5.2 Spring-based Animations
+
+**INVARIANT**: Animations should use spring physics for natural, Apple-like motion.
+
+**Rules**:
+- ✅ **MUST**: Use Framer Motion for complex animations
+- ✅ **MUST**: Use spring easing: `cubic-bezier(0.34, 1.56, 0.64, 1)`
+- ✅ **MUST**: Define animation variants in shared utilities
+- ✅ **MUST**: Use consistent animation durations from tokens
+- ❌ **MUST NOT**: Use linear easing for UI animations
+
+**Enforcement**:
+- Code review checks animation implementation
+- Design review ensures motion quality
+- Animation utilities in shared-ui
+
+**Rationale**: Creates polished, Apple-level user experience.
+
+---
+
+### 5.3 Animation Performance
+
+**INVARIANT**: Animations must maintain 60fps performance.
+
+**Rules**:
+- ✅ **MUST**: Animate only `transform` and `opacity` properties
+- ❌ **MUST NOT**: Animate `width`, `height`, `top`, `left` (causes layout thrashing)
+- ✅ **MUST**: Use `will-change` sparingly and remove after animation
+- ✅ **MUST**: Test animations on low-end devices
+- ✅ **MUST**: Measure frame rate with Chrome DevTools Performance tab
+
+**Enforcement**:
+- Performance audits in CI (Lighthouse)
+- Manual testing on target devices
+- Code review checks animated properties
+
+**Rationale**: Ensures smooth animations, prevents jank, improves perceived performance.
+
+---
+
+## 6. Internationalization Invariants
+
+### 6.1 No Hard-coded Strings
+
+**INVARIANT**: User-facing strings MUST NOT be hard-coded in component files.
+
+**Rules**:
+- ❌ **MUST NOT**: Use string literals for user-facing text in JSX
+- ✅ **MUST**: Use `t()` function from `react-i18next` for all user-facing strings
+- ✅ **MUST**: Define translation keys in locale files
+- ✅ **MUST**: Provide fallback language (English)
+- ✅ **MUST**: Use namespaces to organize translations
 
 **Exceptions**:
-- 1px borders (e.g., `border-[1px]`) - too granular for tokens
-- SVG viewBox dimensions
-- Calculated values for animations (must be documented)
-
----
-
-### 1.3 Token-Only Typography (HIGH)
-
-**Rule**: All font sizes, weights, and line heights MUST use design tokens.
-
-**Rationale**: Ensures readable, accessible, and consistent typography.
+- Developer-facing strings (console logs, error messages for debugging)
+- Component prop names and technical identifiers
 
 **Enforcement**:
-- ✅ Allowed: `text-base`, `font-semibold`, `leading-normal`, `var(--font-size-body)`
-- ❌ Forbidden: `font-size: 16px`, `font-weight: 600`, `line-height: 1.5`
+- Audit script estimates i18n coverage
+- Code review checklist
+- ESLint plugin (custom rule) warns on string literals
 
-**Exceptions**:
-- Icon sizes (may use pixel values for precision)
-- Third-party rich text editors (must be scoped)
+**Rationale**: Enables internationalization, simplifies translation management.
 
 ---
 
-### 1.4 Scoped Token Application (CRITICAL)
+### 6.2 Translation Coverage
 
-**Rule**: Design tokens MUST be applied within a `.theme-morning-ai` container, not globally to `:root`.
+**INVARIANT**: All user-facing text must have translation keys.
 
-**Rationale**: Prevents token pollution in embedded contexts (iframes, browser extensions, etc.).
+**Rules**:
+- ✅ **MUST**: Achieve > 95% translation coverage
+- ✅ **MUST**: Provide translations for all supported languages
+- ✅ **MUST**: Use Tolgee or similar for translation management
+- ✅ **MUST**: Test UI in all supported languages
+- ✅ **MUST**: Handle pluralization and date/time formatting
 
 **Enforcement**:
-- ✅ Required: Root element has `className="theme-morning-ai"`
-- ✅ Required: `applyDesignTokens('.theme-morning-ai')` called in App.tsx
-- ❌ Forbidden: Applying tokens to `document.documentElement` without scoping
+- Translation coverage reports
+- Manual testing in each language
+- Quarterly i18n audits
 
-**Verification**: Audit script checks for `.theme-morning-ai` usage
+**Rationale**: Ensures complete internationalization, improves global UX.
 
 ---
 
-## 2. Accessibility Invariants (WCAG 2.1 AA)
+## 7. Performance Invariants
 
-### 2.1 Color Contrast (CRITICAL)
+### 7.1 Bundle Size Limits
 
-**Rule**: All text and UI components MUST meet WCAG 2.1 AA contrast ratios.
+**INVARIANT**: Application bundles must stay within defined size limits.
 
-**Requirements**:
-- Normal text: 4.5:1 minimum
-- Large text (18pt+ or 14pt+ bold): 3:1 minimum
-- UI components (buttons, inputs, icons): 3:1 minimum
+**Rules**:
+- ✅ **MUST**: Keep main JS bundle < 500KB (gzipped)
+- ✅ **MUST**: Keep main CSS bundle < 100KB (gzipped)
+- ✅ **MUST**: Implement code splitting for routes
+- ✅ **MUST**: Lazy load non-critical components
+- ✅ **MUST**: Tree-shake unused code
 
 **Enforcement**:
-- Use WebAIM Contrast Checker during design
-- Test with Lighthouse accessibility audit
-- Review with axe DevTools
+- Vite build reports bundle sizes
+- CI fails if bundle exceeds limits
+- Lighthouse CI tracks bundle size trends
 
-**No Exceptions**: Contrast is a legal requirement for accessibility compliance.
+**Rationale**: Improves load times, reduces bandwidth usage, enhances mobile experience.
 
 ---
 
-### 2.2 Keyboard Navigation (CRITICAL)
+### 7.2 Core Web Vitals
 
-**Rule**: All interactive elements MUST be keyboard accessible.
+**INVARIANT**: Applications must meet Core Web Vitals thresholds.
 
-**Requirements**:
-- All buttons, links, inputs focusable via Tab
-- Logical tab order (matches visual order)
-- Visible focus indicators (`:focus-visible` styling)
-- No keyboard traps (user can always escape)
-- Modal dialogs trap focus within modal
-- Escape key closes modals and dropdowns
+**Targets**:
+- ✅ **LCP** (Largest Contentful Paint): < 2.5s
+- ✅ **CLS** (Cumulative Layout Shift): < 0.1
+- ✅ **INP** (Interaction to Next Paint): < 200ms
+
+**Rules**:
+- ✅ **MUST**: Measure Web Vitals in production
+- ✅ **MUST**: Optimize images (WebP, lazy loading)
+- ✅ **MUST**: Minimize layout shifts (reserve space for dynamic content)
+- ✅ **MUST**: Optimize JavaScript execution
 
 **Enforcement**:
-- Manual keyboard testing required for all PRs
-- Automated tests with `@testing-library/user-event`
+- Lighthouse CI in PR checks
+- Real User Monitoring (RUM) in production
+- Performance budgets in CI
 
-**No Exceptions**: Keyboard accessibility is non-negotiable.
-
----
-
-### 2.3 Skip Navigation (CRITICAL)
-
-**Rule**: All applications MUST provide a skip navigation link as the first focusable element.
-
-**Requirements**:
-- Link text: "Skip to main content" (or translated equivalent)
-- Link target: `#main-content` (main content area)
-- Visually hidden by default, visible on focus
-- Positioned at top-left when focused
-
-**Implementation**:
-```tsx
-<a href="#main-content" className="skip-link">
-  Skip to main content
-</a>
-
-<main id="main-content" role="main">
-  {/* Main content */}
-</main>
-```
-
-**Verification**: Audit script checks for skip link presence
+**Rationale**: Ensures fast, responsive user experience, improves SEO.
 
 ---
 
-### 2.4 ARIA Live Regions (HIGH)
+### 7.3 Image Optimization
 
-**Rule**: Dynamic content updates MUST be announced to screen readers via ARIA live regions.
+**INVARIANT**: All images must be optimized for web delivery.
 
-**Requirements**:
-- Save status indicators: `role="status"` or `aria-live="polite"`
-- Error messages: `role="alert"` or `aria-live="assertive"`
-- Toast notifications: `role="status"` with `aria-live="polite"`
-- Form validation: `aria-invalid` + `aria-describedby` linking to error message
+**Rules**:
+- ✅ **MUST**: Use WebP format with fallback
+- ✅ **MUST**: Implement lazy loading for below-fold images
+- ✅ **MUST**: Provide responsive images with `srcset`
+- ✅ **MUST**: Compress images (< 200KB per image)
+- ✅ **MUST**: Use CDN for image delivery
 
 **Enforcement**:
-- Minimum 5 live region implementations per app
-- Test with screen reader (NVDA, JAWS, or VoiceOver)
+- Build process optimizes images
+- Lighthouse audits image optimization
+- Manual review of large images
 
-**Allowed Variants**:
-- `aria-live="polite"` for non-critical updates
-- `aria-live="assertive"` for critical alerts
-- `aria-atomic="true"` for complete message replacement
+**Rationale**: Reduces bandwidth, improves load times, enhances mobile experience.
 
 ---
 
-### 2.5 Semantic HTML (HIGH)
+## 8. Documentation Invariants
 
-**Rule**: Use semantic HTML elements over generic divs/spans where appropriate.
+### 8.1 Component Documentation
 
-**Requirements**:
-- `<button>` for clickable actions (not `<div onClick>`)
-- `<a>` for navigation (not `<button>` with routing)
-- `<nav>`, `<main>`, `<header>`, `<footer>` for page structure
-- `<h1>`-`<h6>` for headings (proper hierarchy)
-- `<form>` for form submissions
-- `<label>` for form inputs
+**INVARIANT**: Every shared component must have complete documentation.
 
-**Rationale**: Improves accessibility, SEO, and code maintainability.
+**Rules**:
+- ✅ **MUST**: Create Storybook story for each component
+- ✅ **MUST**: Document all props with TypeScript types
+- ✅ **MUST**: Provide usage examples
+- ✅ **MUST**: Document accessibility features
+- ✅ **MUST**: Include visual examples of all variants
 
----
+**Enforcement**:
+- PR checklist requires documentation
+- Quarterly documentation audits
+- Storybook build in CI
 
-### 2.6 Motion Accessibility (MEDIUM)
-
-**Rule**: Respect user's motion preferences via `prefers-reduced-motion`.
-
-**Requirements**:
-- Check `prefers-reduced-motion: reduce` media query
-- Disable or reduce animations when enabled
-- Ensure functionality works without animations
-
-**Implementation**:
-```css
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-```
+**Rationale**: Improves developer experience, ensures proper usage, reduces support burden.
 
 ---
 
-## 3. Component Invariants
+### 8.2 Architecture Documentation
 
-### 3.1 Radix UI Primitives (HIGH)
+**INVARIANT**: System architecture must be documented and kept up-to-date.
 
-**Rule**: Use Radix UI primitives for complex interactive components.
+**Required Documents**:
+- ✅ `ARCHITECTURE.md`: System architecture overview
+- ✅ `DESIGN_SYSTEM_GUIDELINES.md`: Design system rules and patterns
+- ✅ `CODE_DUPLICATION_ANALYSIS.md`: Component duplication analysis
+- ✅ `SHARED_COMPONENT_MIGRATION_PLAN.md`: Migration roadmap
+- ✅ `DESIGN_SYSTEM_INVARIANTS.md`: This document
 
-**Rationale**: Radix provides accessible, unstyled primitives that meet WCAG standards.
+**Rules**:
+- ✅ **MUST**: Update documentation with architectural changes
+- ✅ **MUST**: Review documentation quarterly
+- ✅ **MUST**: Keep documentation in version control
+- ✅ **MUST**: Link related documents
 
-**Required Components**:
-- Dialog/Modal: `@radix-ui/react-dialog`
-- Dropdown: `@radix-ui/react-dropdown-menu`
-- Tooltip: `@radix-ui/react-tooltip`
-- Popover: `@radix-ui/react-popover`
-- Select: `@radix-ui/react-select`
-- Tabs: `@radix-ui/react-tabs`
-- Accordion: `@radix-ui/react-accordion`
+**Enforcement**:
+- PR checklist for architectural changes
+- Quarterly documentation review
+- Audit script checks for missing docs
 
-**Enforcement**: Do not build custom implementations of these patterns.
-
-**Allowed Variants**: Styling customization via Tailwind classes.
-
----
-
-### 3.2 Component Naming Convention (MEDIUM)
-
-**Rule**: Components MUST follow PascalCase naming convention.
-
-**Examples**:
-- ✅ `Button.tsx`, `SaveStatusIndicator.tsx`, `DashboardWidget.tsx`
-- ❌ `button.tsx`, `save-status-indicator.tsx`, `dashboard_widget.tsx`
-
-**Rationale**: Consistent with React conventions and improves code readability.
+**Rationale**: Ensures knowledge transfer, reduces onboarding time, maintains system understanding.
 
 ---
 
-### 3.3 Component File Structure (MEDIUM)
+## 9. Testing Invariants
 
-**Rule**: Components MUST follow this structure:
+### 9.1 Test Coverage
 
-```
-ComponentName/
-├── ComponentName.tsx          # Main component
-├── ComponentName.test.tsx     # Unit tests
-├── ComponentName.stories.tsx  # Storybook stories
-├── index.ts                   # Re-export
-└── types.ts                   # TypeScript types (if complex)
-```
+**INVARIANT**: Shared components must maintain minimum test coverage.
 
-**Exceptions**: Simple components may be single-file.
+**Rules**:
+- ✅ **MUST**: Achieve > 60% code coverage for `@morningai/shared-ui`
+- ✅ **MUST**: Write unit tests for all shared components
+- ✅ **MUST**: Write integration tests for critical user flows
+- ✅ **MUST**: Write E2E tests for happy paths
+- ✅ **MUST**: Write accessibility tests for interactive components
+
+**Enforcement**:
+- CI fails if coverage drops below threshold
+- Coverage reports in PR comments
+- Quarterly coverage reviews
+
+**Rationale**: Ensures code quality, prevents regressions, improves confidence in changes.
 
 ---
 
-### 3.4 Shared UI Package (HIGH)
+### 9.2 Test Quality
 
-**Rule**: Reusable components MUST be published to `@morningai/shared-ui` package.
+**INVARIANT**: Tests must be reliable, fast, and maintainable.
 
-**Criteria for Shared Components**:
-- Used in 2+ applications
-- Stable API (no frequent breaking changes)
-- Fully tested and documented
-- Storybook story included
+**Rules**:
+- ✅ **MUST**: Tests must be deterministic (no flaky tests)
+- ✅ **MUST**: Unit tests must run in < 10 seconds
+- ✅ **MUST**: E2E tests must run in < 5 minutes
+- ✅ **MUST**: Use Testing Library best practices
+- ❌ **MUST NOT**: Test implementation details
+- ✅ **MUST**: Test user-facing behavior
+
+**Enforcement**:
+- CI fails on flaky tests
+- Test performance monitoring
+- Code review checks test quality
+
+**Rationale**: Ensures tests provide value, reduces maintenance burden, improves CI speed.
+
+---
+
+### 9.3 Visual Regression Testing
+
+**INVARIANT**: Critical components must have visual regression tests.
+
+**Rules**:
+- ✅ **MUST**: Create Playwright tests tagged with `@vrt`
+- ✅ **MUST**: Generate baseline snapshots for all variants
+- ✅ **MUST**: Run VRT tests in CI on visual changes
+- ✅ **MUST**: Review visual diffs before merging
+- ✅ **MUST**: Update snapshots intentionally (not automatically)
+
+**Enforcement**:
+- CI runs VRT tests on component changes
+- PR reviews include visual diff review
+- Quarterly VRT coverage audits
+
+**Rationale**: Catches unintended visual changes, ensures design consistency.
+
+---
+
+## 10. Security Invariants
+
+### 10.1 No Committed Secrets
+
+**INVARIANT**: Secrets and credentials MUST NOT be committed to version control.
+
+**Rules**:
+- ❌ **MUST NOT**: Commit `.env` files (except `.env.example`)
+- ❌ **MUST NOT**: Commit API keys, tokens, passwords
+- ✅ **MUST**: Use environment variables for secrets
+- ✅ **MUST**: Add sensitive files to `.gitignore`
+- ✅ **MUST**: Use secret management service (GitHub Secrets, Vault)
+
+**Enforcement**:
+- Pre-commit hooks scan for secrets
+- CI scans for leaked secrets
+- Regular security audits
+
+**Rationale**: Prevents security breaches, protects sensitive data.
+
+---
+
+### 10.2 Dependency Security
+
+**INVARIANT**: Dependencies must be kept secure and up-to-date.
+
+**Rules**:
+- ✅ **MUST**: Run `pnpm audit` regularly
+- ✅ **MUST**: Fix high/critical vulnerabilities within 7 days
+- ✅ **MUST**: Update dependencies quarterly
+- ✅ **MUST**: Use Renovate or Dependabot for automated updates
+- ✅ **MUST**: Review security advisories
+
+**Enforcement**:
+- CI runs `pnpm audit` on every PR
+- Security dashboard tracks vulnerabilities
+- Quarterly dependency updates
+
+**Rationale**: Reduces security risks, ensures compliance, maintains system health.
+
+---
+
+## 11. Enforcement Mechanisms
+
+### 11.1 Automated Enforcement
+
+**Tools**:
+1. **Audit Script**: `./audit-design-system.sh`
+   - Runs on every PR
+   - Checks all invariants
+   - Fails PR on critical violations
+
+2. **CI/CD Workflows**:
+   - `.github/workflows/dependency-check.yml`: Package governance
+   - `.github/workflows/backend.yml`: Backend tests and coverage
+   - Lighthouse CI: Performance budgets
+   - ESLint: Code quality and accessibility
+
+3. **Pre-commit Hooks**:
+   - Husky + lint-staged
+   - Runs ESLint on staged files
+   - Checks for secrets
+
+### 11.2 Manual Enforcement
+
+**Processes**:
+1. **Code Review Checklist**:
+   - Verify invariants compliance
+   - Check documentation
+   - Review test coverage
+
+2. **Quarterly Audits**:
+   - Design system audit
+   - Accessibility audit
+   - Performance audit
+   - Security audit
+
+3. **Architecture Review**:
+   - Review major changes
+   - Ensure alignment with invariants
+   - Update documentation
+
+### 11.3 Violation Handling
 
 **Process**:
-1. Develop in app-specific directory
-2. Stabilize and test
-3. Move to `packages/shared-ui/src`
-4. Update exports in `packages/shared-ui/src/index.ts`
-5. Publish new version
-
----
-
-## 4. Dependency Management Invariants
-
-### 4.1 pnpm Only (CRITICAL)
-
-**Rule**: ONLY pnpm is allowed as the package manager. No npm or yarn.
-
-**Rationale**: Monorepo consistency, disk space efficiency, and deterministic installs.
-
-**Enforcement**:
-- ✅ Required: `pnpm-lock.yaml`
-- ❌ Forbidden: `package-lock.json`, `yarn.lock`
-- CI workflow checks for forbidden lock files
-
-**Verification**: `dependency-check.yml` workflow enforces this policy.
-
----
-
-### 4.2 Package Manager Version (HIGH)
-
-**Rule**: Use pnpm 9.0.0 or higher.
-
-**Enforcement**:
-- `package.json`: `"packageManager": "pnpm@9.15.1"`
-- `engines`: `"pnpm": ">=9.0.0"`
-
----
-
-### 4.3 Node Version (HIGH)
-
-**Rule**: Use Node.js 20.0.0 or higher.
-
-**Rationale**: Modern JavaScript features, security updates, and performance improvements.
-
-**Enforcement**:
-- `package.json`: `"engines": { "node": ">=20.0.0" }`
-- `.nvmrc`: `20` (if using nvm)
-
----
-
-## 5. Build & Deployment Invariants
-
-### 5.1 Vercel Configuration (HIGH)
-
-**Rule**: Vercel deployments MUST use pnpm for installation.
-
-**Required Configuration** (`vercel.json`):
-```json
-{
-  "installCommand": "pnpm install --prod=false",
-  "buildCommand": "pnpm --filter @morningai/shared-ui build && pnpm --filter frontend-dashboard build"
-}
-```
-
-**Forbidden**:
-- ❌ `"installCommand": "npm install"`
-- ❌ `"installCommand": "yarn install"`
-- ❌ `"rootDirectory"` (breaks monorepo)
-
-**Verification**: Audit script checks Vercel config.
-
----
-
-### 5.2 TypeScript Strict Mode (MEDIUM)
-
-**Rule**: All TypeScript code MUST compile without errors in strict mode.
-
-**Configuration** (`tsconfig.json`):
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
-    "alwaysStrict": true
-  }
-}
-```
-
-**Enforcement**: `pnpm typecheck` must pass in CI.
-
----
-
-### 5.3 Linting (MEDIUM)
-
-**Rule**: All code MUST pass ESLint checks.
-
-**Required Plugins**:
-- `eslint-plugin-react`
-- `eslint-plugin-react-hooks`
-- `eslint-plugin-jsx-a11y` (accessibility linting)
-
-**Enforcement**: `pnpm lint` must pass in CI.
-
----
-
-## 6. Testing Invariants
-
-### 6.1 Component Testing (HIGH)
-
-**Rule**: All shared UI components MUST have unit tests.
-
-**Requirements**:
-- Test rendering
-- Test user interactions
-- Test accessibility (with `jest-axe` or `vitest-axe`)
-- Test edge cases
-
-**Coverage Target**: 80%+ for shared components.
-
----
-
-### 6.2 Visual Regression Testing (MEDIUM)
-
-**Rule**: Critical user flows MUST have visual regression tests.
-
-**Implementation**: Playwright with `@vrt` tag.
-
-**Coverage**:
-- Login flow
-- Dashboard customization
-- Settings pages
-- Checkout flow (when implemented)
-
----
-
-## 7. Documentation Invariants
-
-### 7.1 Storybook Stories (HIGH)
-
-**Rule**: All shared UI components MUST have Storybook stories.
-
-**Requirements**:
-- Default story (basic usage)
-- Variant stories (all supported variants)
-- Interactive story (with controls)
-- Accessibility story (with a11y addon)
-
-**Enforcement**: Storybook build must succeed in CI.
-
----
-
-### 7.2 Component Props Documentation (MEDIUM)
-
-**Rule**: All component props MUST be documented with TypeScript types and JSDoc comments.
-
-**Example**:
-```tsx
-interface ButtonProps {
-  /** Button variant */
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive'
-  
-  /** Button size */
-  size?: 'sm' | 'md' | 'lg'
-  
-  /** Disabled state */
-  disabled?: boolean
-  
-  /** Click handler */
-  onClick?: () => void
-}
-```
-
----
-
-## 8. Git & CI/CD Invariants
-
-### 8.1 Branch Protection (CRITICAL)
-
-**Rule**: `main` branch MUST be protected with required checks.
-
-**Required Checks**:
-- ✅ All CI workflows pass
-- ✅ Design system audit passes
-- ✅ At least 1 approval from code owner
-- ✅ No merge conflicts
-
-**Enforcement**: GitHub branch protection rules.
-
----
-
-### 8.2 Commit Messages (LOW)
-
-**Rule**: Commit messages SHOULD follow Conventional Commits format.
-
-**Format**: `<type>(<scope>): <description>`
-
-**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-**Examples**:
-- `feat(dashboard): add undo/redo functionality`
-- `fix(button): correct focus indicator color contrast`
-- `docs(design-system): update token usage guidelines`
-
----
-
-### 8.3 No Force Push (CRITICAL)
-
-**Rule**: Force pushing to shared branches is FORBIDDEN.
-
-**Rationale**: Prevents loss of work and maintains git history integrity.
-
-**Enforcement**: GitHub branch protection prevents force push to `main`.
-
----
-
-## 9. Allowed Variants
-
-These are approved deviations from standard patterns for specific use cases.
-
-### 9.1 Brand Color Palettes
-
-**Variant**: Different brand color palettes for white-label deployments.
-
-**Approval**: Requires CTO sign-off.
-
-**Implementation**: Separate `tokens.json` files per brand, loaded dynamically.
-
----
-
-### 9.2 Dark Mode & High Contrast Themes
-
-**Variant**: Additional theme variants beyond default light theme.
-
-**Approval**: Automatic (encouraged).
-
-**Implementation**: Additional token sets in `tokens.json`:
-```json
-{
-  "color": {
-    "primary": { /* light mode */ },
-    "primary-dark": { /* dark mode */ },
-    "primary-hc": { /* high contrast */ }
-  }
-}
-```
-
----
-
-### 9.3 Experimental Components
-
-**Variant**: Experimental components behind feature flags.
-
-**Approval**: Requires Tech Lead approval.
-
-**Requirements**:
-- Must be behind feature flag
-- Must not affect production users
-- Must have clear migration path
-- Must be documented as experimental
-
-**Implementation**:
-```tsx
-import { useFeatureFlag } from '@/lib/feature-flags'
-
-function MyComponent() {
-  const isExperimentalEnabled = useFeatureFlag('experimental-feature')
-  
-  if (isExperimentalEnabled) {
-    return <ExperimentalComponent />
-  }
-  
-  return <StableComponent />
-}
-```
-
----
-
-### 9.4 Third-Party Component Overrides
-
-**Variant**: Styling overrides for third-party components (e.g., rich text editors, charts).
-
-**Approval**: Automatic (document in code).
-
-**Requirements**:
-- Must be scoped to component
-- Must be documented with comment explaining why
-- Must use tokens where possible
-
-**Example**:
-```tsx
-// Override Recharts default colors to match our design system
-<LineChart>
-  <Line stroke="var(--color-primary-500)" />
-</LineChart>
-```
-
----
-
-## 10. Enforcement & Compliance
-
-### 10.1 Automated Enforcement
-
-**CI Checks** (must pass for PR merge):
-- ✅ `./scripts/audit-design-system.sh` (design system audit)
-- ✅ `pnpm lint` (code quality)
-- ✅ `pnpm typecheck` (type safety)
-- ✅ `pnpm test` (unit tests)
-- ✅ Dependency check (pnpm-only policy)
-
----
-
-### 10.2 Manual Review
-
-**Code Review Checklist**:
-- [ ] No hardcoded colors, spacing, or typography
-- [ ] Accessibility requirements met
-- [ ] Keyboard navigation tested
-- [ ] Screen reader tested (for complex components)
-- [ ] Storybook story included (for shared components)
-- [ ] Tests included and passing
-- [ ] Documentation updated
-
----
-
-### 10.3 Violation Handling
+1. **Detection**: Automated tools or manual review identifies violation
+2. **Triage**: Determine severity (P0, P1, P2)
+3. **Remediation**: Create ticket, assign owner, set deadline
+4. **Verification**: Re-run audit after fix
+5. **Prevention**: Update enforcement mechanisms to prevent recurrence
 
 **Severity Levels**:
-
-**CRITICAL** (blocks merge):
-- Hardcoded colors in application code
-- Missing skip navigation
-- WCAG contrast violations
-- Forbidden lock files (npm/yarn)
-- Force push to main
-
-**HIGH** (requires fix before merge):
-- Missing ARIA live regions
-- Keyboard navigation issues
-- Missing Storybook stories for shared components
-- TypeScript errors
-
-**MEDIUM** (fix in follow-up PR):
-- Incomplete documentation
-- Missing tests for non-critical components
-- Non-conventional commit messages
-
-**LOW** (optional):
-- Code style inconsistencies (auto-fixed by linter)
-- Minor documentation improvements
+- **P0 (Critical)**: Blocks PR, must fix immediately
+- **P1 (High)**: Must fix within 7 days
+- **P2 (Medium)**: Must fix within 30 days
 
 ---
 
-## 11. Review & Updates
+## Appendix: Quick Reference
 
-### 11.1 Review Cycle
+### Checklist for New Components
 
-**Frequency**: Quarterly (every 3 months)
+- [ ] Component in `packages/shared-ui/src/components/ui/`
+- [ ] Uses design tokens (no hard-coded values)
+- [ ] Uses Radix UI primitives (if interactive)
+- [ ] Implements ARIA patterns
+- [ ] Supports keyboard navigation
+- [ ] Respects `prefers-reduced-motion`
+- [ ] Has Storybook story
+- [ ] Has unit tests
+- [ ] Has accessibility tests
+- [ ] Has visual regression tests
+- [ ] Documented in README
+- [ ] Exported from index.ts
 
-**Participants**:
-- CTO (owner)
-- Tech Lead
-- Frontend Lead
-- UX Lead
+### Checklist for PRs
 
-**Agenda**:
-1. Review current invariants
-2. Discuss proposed changes
-3. Review violation patterns
-4. Update enforcement mechanisms
-5. Communicate changes to team
-
----
-
-### 11.2 Change Process
-
-**Proposing Changes**:
-1. Create RFC (Request for Comments) issue
-2. Document rationale and impact
-3. Gather feedback from team
-4. Present to CTO for approval
-5. Update this document
-6. Communicate to team
-7. Update audit scripts and CI
-
-**Approval Authority**: CTO (final decision)
+- [ ] Passes `./audit-design-system.sh`
+- [ ] Passes all CI checks
+- [ ] No hard-coded design values
+- [ ] No accessibility violations
+- [ ] Test coverage maintained
+- [ ] Documentation updated
+- [ ] No secrets committed
+- [ ] No forbidden lockfiles
 
 ---
 
-## 12. Exceptions & Waivers
-
-### 12.1 Exception Request Process
-
-In rare cases, exceptions to invariants may be granted.
-
-**Process**:
-1. Document specific invariant and reason for exception
-2. Propose alternative approach
-3. Assess risk and impact
-4. Submit to CTO for approval
-5. Document exception in code and this document
-
-**Approval**: Requires CTO sign-off.
-
----
-
-### 12.2 Temporary Waivers
-
-For urgent hotfixes, temporary waivers may be granted.
-
-**Requirements**:
-- Must be truly urgent (production outage, security vulnerability)
-- Must have follow-up issue to fix properly
-- Must be documented in PR description
-- Must be approved by Tech Lead or CTO
-
-**Duration**: Maximum 1 week before proper fix required.
-
----
-
-## Appendix A: Quick Reference
-
-### Critical Invariants (Must Follow)
-1. ✅ Token-only colors (no hardcoded hex)
-2. ✅ Scoped token application (`.theme-morning-ai`)
-3. ✅ WCAG 2.1 AA contrast ratios
-4. ✅ Keyboard navigation for all interactive elements
-5. ✅ Skip navigation link
-6. ✅ pnpm-only package manager
-7. ✅ No force push to main
-
-### High Priority Invariants
-1. ✅ Token-only spacing and typography
-2. ✅ ARIA live regions for dynamic content
-3. ✅ Radix UI primitives for complex components
-4. ✅ Shared UI package for reusable components
-5. ✅ Vercel uses pnpm
-6. ✅ Component unit tests
-
-### Recommended Practices
-1. ✅ Storybook stories for all components
-2. ✅ TypeScript strict mode
-3. ✅ Semantic HTML
-4. ✅ Motion accessibility
-5. ✅ Conventional commit messages
-
----
-
-## Appendix B: Resources
-
-- **Design System Guidelines**: `DESIGN_SYSTEM_GUIDELINES.md`
-- **Investigation Checklist**: `DEEP_INVESTIGATION_CHECKLIST.md`
-- **Audit Script**: `./scripts/audit-design-system.sh`
-- **Enhancement Roadmap**: `docs/UX/DESIGN_SYSTEM_ENHANCEMENT_ROADMAP.md`
-
----
-
-## Version History
-
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2025-11-02 | CTO | Initial invariants document based on comprehensive audit |
-
----
-
-**Maintained by**: CTO (Chief Technology Officer)  
-**Last Review**: 2025-11-02  
-**Next Review**: 2026-02-02 (Quarterly)
-
----
-
-**Note**: This document represents the technical standards and governance for the MorningAI design system. All team members are expected to understand and follow these invariants. Questions or concerns should be directed to the CTO or Tech Lead.
+**Last Updated**: 2025-11-02  
+**Next Review**: 2026-02-02 (Quarterly)  
+**Owner**: CTO / Engineering Leadership

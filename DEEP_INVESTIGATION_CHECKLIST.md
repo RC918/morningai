@@ -1,524 +1,685 @@
 # Deep Investigation Checklist
-## MorningAI Design System - CTO Level Investigation Flow
 
-**Version**: 1.0.0  
-**Date**: 2025-11-02  
-**Owner**: CTO (Chief Technology Officer)  
-**Purpose**: Structured, repeatable investigation flow for design system audits
+**MorningAI Design System & Architecture Audit**  
+**CTO Quality Assurance Framework**
 
----
-
-## Overview
-
-This checklist provides a systematic approach to investigating design system issues, ensuring comprehensive coverage of all critical areas. Use this when:
-
-- Conducting quarterly design system audits
-- Investigating reported UI/UX inconsistencies
-- Onboarding new team members to design system standards
-- Preparing for major releases or refactoring
-- Responding to accessibility compliance requirements
+This checklist provides a systematic investigation flow for auditing the MorningAI design system, ensuring comprehensive coverage of all critical areas for a top-tier SaaS platform.
 
 ---
 
-## Investigation Flow
+## Table of Contents
 
-### Phase 1: Inventory & Discovery (30 minutes)
-
-#### 1.1 Project Structure
-- [ ] Verify package manager (pnpm 9.15.1+)
-- [ ] Confirm monorepo structure (pnpm workspaces)
-- [ ] List all frontend applications
-  - [ ] frontend-dashboard
-  - [ ] owner-console
-  - [ ] Other applications
-- [ ] Identify shared UI packages
-  - [ ] @morningai/shared-ui
-  - [ ] Other shared packages
-- [ ] Check build tools
-  - [ ] Turbo configuration
-  - [ ] Vite configuration
-  - [ ] TypeScript version
-
-**Output**: Document current project structure in investigation notes
-
-#### 1.2 Design Token Files
-- [ ] Locate all `tokens.json` files
-  - [ ] `handoff/20250928/40_App/frontend-dashboard/public/tokens.json`
-  - [ ] `handoff/20250928/40_App/owner-console/public/tokens.json`
-  - [ ] `packages/shared-ui/src/tokens.json`
-  - [ ] `docs/UX/tokens.json`
-- [ ] Verify token structure
-  - [ ] Color tokens (primary, accent, semantic, neutral)
-  - [ ] Typography tokens (family, size, weight, lineHeight)
-  - [ ] Spacing tokens
-  - [ ] Radius tokens
-  - [ ] Shadow tokens
-  - [ ] Animation tokens
-  - [ ] Breakpoint tokens
-- [ ] Check for token consistency across files
-- [ ] Identify any duplicate or conflicting tokens
-
-**Output**: Token inventory with inconsistencies noted
-
-#### 1.3 Design Token Implementation
-- [ ] Locate design-tokens.ts/js files
-- [ ] Review `applyDesignTokens()` function
-- [ ] Check CSS variable generation
-- [ ] Verify theme container class (`.theme-morning-ai`)
-- [ ] Test token application in browser DevTools
-
-**Output**: Implementation assessment with gaps identified
-
-#### 1.4 Tailwind Configuration
-- [ ] Review `tailwind.config.js` in each app
-- [ ] Check CSS variable mapping
-- [ ] Verify safelist patterns (if any)
-- [ ] Review theme extensions
-- [ ] Check plugin usage
-
-**Output**: Tailwind configuration analysis
+1. [Baseline Environment Setup](#1-baseline-environment-setup)
+2. [Package Governance & Dependencies](#2-package-governance--dependencies)
+3. [Design System Integrity](#3-design-system-integrity)
+4. [Component Architecture & Adoption](#4-component-architecture--adoption)
+5. [Accessibility Compliance](#5-accessibility-compliance)
+6. [Performance & Quality](#6-performance--quality)
+7. [Internationalization (i18n)](#7-internationalization-i18n)
+8. [Documentation & Knowledge Management](#8-documentation--knowledge-management)
+9. [CI/CD & Automation](#9-cicd--automation)
+10. [Security & Compliance](#10-security--compliance)
+11. [Remediation Planning](#11-remediation-planning)
 
 ---
 
-### Phase 2: Token Usage Analysis (45 minutes)
+## 1. Baseline Environment Setup
 
-#### 2.1 Hardcoded Values Scan
-- [ ] Run audit script: `./scripts/audit-design-system.sh`
-- [ ] Review hardcoded hex colors
-  - [ ] Document file paths and line numbers
-  - [ ] Categorize by severity (critical/medium/low)
-- [ ] Check for hardcoded spacing values
-  - [ ] Search for `px`, `rem`, `em` values in JSX
-  - [ ] Exclude legitimate cases (e.g., 1px borders)
-- [ ] Check for hardcoded font sizes
-- [ ] Check for hardcoded border radius values
+### 1.1 Prerequisites Verification
 
-**Output**: List of hardcoded values with replacement recommendations
+- [ ] **Node.js Version**: Verify Node.js >= 20.0.0
+  ```bash
+  node --version
+  ```
+  - Expected: v20.x.x or higher
+  - Action if failed: Update Node.js via nvm or official installer
 
-#### 2.2 Token Scoping
-- [ ] Verify `.theme-morning-ai` container in App.tsx
-- [ ] Check if tokens are scoped or global
-- [ ] Test token isolation (no global pollution)
-- [ ] Review CSS specificity issues
-- [ ] Check for token override patterns
+- [ ] **pnpm Version**: Verify pnpm >= 9.0.0
+  ```bash
+  pnpm --version
+  ```
+  - Expected: 9.x.x or higher
+  - Action if failed: Update pnpm via `npm install -g pnpm@latest`
 
-**Output**: Scoping assessment with recommendations
+- [ ] **Git Status**: Ensure clean working directory
+  ```bash
+  git status
+  ```
+  - Expected: No uncommitted changes for baseline audit
+  - Action if failed: Stash or commit changes
 
-#### 2.3 Dark Mode Support
-- [ ] Check for dark mode tokens
-- [ ] Review dark mode implementation
-- [ ] Test dark mode toggle functionality
-- [ ] Verify color contrast in dark mode
-- [ ] Check for missing dark mode variants
+### 1.2 Workspace Bootstrap
 
-**Output**: Dark mode readiness report
+- [ ] **Install Dependencies**: Bootstrap entire monorepo
+  ```bash
+  pnpm install
+  ```
+  - Expected: All packages installed without errors
+  - Action if failed: Check for lockfile conflicts, clear node_modules
 
----
+- [ ] **Build Shared UI**: Ensure shared-ui package builds successfully
+  ```bash
+  pnpm --filter @morningai/shared-ui build
+  ```
+  - Expected: Build completes, dist/ directory created
+  - Action if failed: Check TypeScript errors, missing dependencies
 
-### Phase 3: Component Consistency (60 minutes)
-
-#### 3.1 Component Inventory
-- [ ] List all UI components
-  - [ ] Shared UI components (`packages/shared-ui/src`)
-  - [ ] App-specific components
-- [ ] Categorize components
-  - [ ] Atoms (Button, Input, Badge, etc.)
-  - [ ] Molecules (Card, Form, etc.)
-  - [ ] Organisms (Dashboard, Sidebar, etc.)
-- [ ] Check for duplicate components
-- [ ] Identify components without Storybook stories
-
-**Output**: Component inventory with categorization
-
-#### 3.2 Component Token Usage
-- [ ] Review Button component
-  - [ ] Uses color tokens
-  - [ ] Uses spacing tokens
-  - [ ] Uses typography tokens
-  - [ ] Uses radius tokens
-- [ ] Review Input component
-  - [ ] Consistent styling
-  - [ ] Token-based colors
-  - [ ] Proper focus states
-- [ ] Review Card component
-- [ ] Review Modal/Dialog component
-- [ ] Review Toast/Alert component
-
-**Output**: Component-by-component token usage report
-
-#### 3.3 Component Variants
-- [ ] Document all component variants
-  - [ ] Button: primary, secondary, outline, ghost, destructive
-  - [ ] Alert: success, warning, error, info
-  - [ ] Badge: default, secondary, outline, destructive
-- [ ] Check variant consistency
-- [ ] Verify variant naming conventions
-- [ ] Test variant combinations
-
-**Output**: Variant matrix with consistency issues
+- [ ] **Type Check All**: Verify TypeScript across workspace
+  ```bash
+  pnpm typecheck
+  ```
+  - Expected: No type errors
+  - Action if failed: Document errors, create remediation tickets
 
 ---
 
-### Phase 4: Accessibility Compliance (60 minutes)
+## 2. Package Governance & Dependencies
 
-#### 4.1 WCAG 2.1 AA Requirements
-- [ ] Color contrast ratios
-  - [ ] Text on backgrounds (4.5:1 minimum)
-  - [ ] Large text (3:1 minimum)
-  - [ ] UI components (3:1 minimum)
-  - [ ] Use WebAIM Contrast Checker
-- [ ] Keyboard navigation
-  - [ ] All interactive elements focusable
-  - [ ] Logical tab order
-  - [ ] Focus indicators visible
-  - [ ] No keyboard traps
-- [ ] Screen reader support
-  - [ ] Semantic HTML
-  - [ ] ARIA labels where needed
-  - [ ] ARIA live regions for dynamic content
-  - [ ] Alternative text for images
+### 2.1 Lockfile Integrity
 
-**Output**: WCAG compliance checklist with violations
+- [ ] **Forbidden Lockfiles**: Scan for yarn.lock, package-lock.json, npm-shrinkwrap.json
+  ```bash
+  find . -name "yarn.lock" -o -name "package-lock.json" -o -name "npm-shrinkwrap.json"
+  ```
+  - Expected: No results
+  - Action if failed: Delete forbidden lockfiles, regenerate pnpm-lock.yaml
 
-#### 4.2 Skip Navigation
-- [ ] Check for skip link in App.tsx
-- [ ] Test skip link functionality
-  - [ ] Tab to skip link (first focusable element)
-  - [ ] Activate skip link
-  - [ ] Verify focus moves to main content
-- [ ] Verify skip link styling
-  - [ ] Hidden by default
-  - [ ] Visible on focus
-  - [ ] Proper positioning and styling
+- [ ] **pnpm-lock.yaml**: Verify single lockfile at root
+  ```bash
+  ls -la pnpm-lock.yaml
+  ```
+  - Expected: File exists at root
+  - Action if failed: Run `pnpm install` to generate
 
-**Output**: Skip navigation assessment
+### 2.2 Package Configuration
 
-#### 4.3 ARIA Live Regions
-- [ ] Identify dynamic content areas
-  - [ ] Save status indicators
-  - [ ] Error messages
-  - [ ] Toast notifications
-  - [ ] Form validation feedback
-  - [ ] Loading states
-- [ ] Check for `aria-live` attributes
-  - [ ] `aria-live="polite"` for non-critical updates
-  - [ ] `aria-live="assertive"` for critical alerts
-- [ ] Check for `role="alert"` and `role="status"`
-- [ ] Test with screen reader (NVDA, JAWS, or VoiceOver)
+- [ ] **packageManager Field**: Check root package.json
+  ```bash
+  grep '"packageManager"' package.json
+  ```
+  - Expected: `"packageManager": "pnpm@9.15.1"` or similar
+  - Action if failed: Add field to package.json
 
-**Output**: ARIA live region coverage report
+- [ ] **Engines Field**: Verify all workspace packages have engines
+  ```bash
+  for pkg in packages/*/package.json handoff/20250928/40_App/*/package.json; do
+    if [ -f "$pkg" ]; then
+      if ! grep -q '"engines"' "$pkg"; then
+        echo "Missing engines: $pkg"
+      fi
+    fi
+  done
+  ```
+  - Expected: All packages have engines field
+  - Action if failed: Add engines to each package.json
 
-#### 4.4 Focus Management
-- [ ] Modal dialogs
-  - [ ] Focus trapped within modal
-  - [ ] Focus returns to trigger on close
-  - [ ] Escape key closes modal
-- [ ] Dropdown menus
-  - [ ] Arrow key navigation
-  - [ ] Enter/Space to select
-  - [ ] Escape to close
-- [ ] Form validation
-  - [ ] Focus moves to first error
-  - [ ] Error messages associated with fields
-  - [ ] `aria-invalid` and `aria-describedby` used
+### 2.3 Version Alignment
 
-**Output**: Focus management assessment
+- [ ] **React Versions**: Check consistency across packages
+  ```bash
+  grep -h '"react":' package.json packages/*/package.json handoff/20250928/40_App/*/package.json | sort -u
+  ```
+  - Expected: Single version (^19.1.0)
+  - Action if failed: Update pnpm overrides in root package.json
 
-#### 4.5 Motion & Animation
-- [ ] Check for `prefers-reduced-motion` support
-- [ ] Review animation durations
-- [ ] Test with reduced motion enabled
-- [ ] Ensure critical functionality works without animation
+- [ ] **React-DOM Versions**: Check consistency
+  ```bash
+  grep -h '"react-dom":' package.json packages/*/package.json handoff/20250928/40_App/*/package.json | sort -u
+  ```
+  - Expected: Matches React version
+  - Action if failed: Update pnpm overrides
 
-**Output**: Motion accessibility report
+- [ ] **TypeScript Versions**: Check consistency
+  ```bash
+  grep -h '"typescript":' package.json packages/*/package.json handoff/20250928/40_App/*/package.json | sort -u
+  ```
+  - Expected: Single version (5.9.3)
+  - Action if failed: Update pnpm overrides
+
+- [ ] **Radix UI Versions**: Verify React 19 compatibility
+  ```bash
+  grep -h '@radix-ui' handoff/20250928/40_App/frontend-dashboard/package.json | head -5
+  ```
+  - Expected: Latest versions compatible with React 19
+  - Action if failed: Update via pnpm overrides if needed
 
 ---
 
-### Phase 5: Performance & Optimization (30 minutes)
+## 3. Design System Integrity
 
-#### 5.1 Bundle Size
-- [ ] Run build: `pnpm build`
-- [ ] Analyze bundle size
-  - [ ] Check for large dependencies
-  - [ ] Identify duplicate dependencies
-  - [ ] Review code splitting
-- [ ] Check for unused CSS
-- [ ] Review Tailwind purge configuration
+### 3.1 Design Tokens
 
-**Output**: Bundle size analysis with optimization opportunities
+- [ ] **tokens.json Exists**: Verify design tokens file
+  ```bash
+  ls -la packages/shared-ui/src/tokens.json
+  ```
+  - Expected: File exists with complete token definitions
+  - Action if failed: Create tokens.json from design system spec
 
-#### 5.2 Loading Performance
-- [ ] Test initial page load
-- [ ] Check for render-blocking resources
-- [ ] Review lazy loading implementation
-- [ ] Check for skeleton screens
-- [ ] Test on slow network (3G)
+- [ ] **Token Completeness**: Verify all token categories
+  - [ ] Colors (primary, accent, semantic, neutral, background)
+  - [ ] Typography (font families, sizes, weights, line heights)
+  - [ ] Spacing (8-point grid system)
+  - [ ] Shadows (5-level system)
+  - [ ] Border radius (6 levels)
+  - [ ] Animation (durations, easing functions)
+  - [ ] Breakpoints (mobile, tablet, desktop)
+  - Action if failed: Add missing token categories
 
-**Output**: Loading performance metrics
+- [ ] **Tailwind v4 Token Mapping**: Check CSS variables in index.css
+  ```bash
+  grep -A 20 "@theme" handoff/20250928/40_App/frontend-dashboard/src/index.css
+  ```
+  - Expected: @theme block with CSS variables mapped to tokens
+  - Action if failed: Create CSS variable bridge from tokens.json
 
-#### 5.3 Runtime Performance
-- [ ] Profile component rendering
-- [ ] Check for unnecessary re-renders
-- [ ] Review React DevTools Profiler
-- [ ] Test animation performance (60fps)
-- [ ] Check for memory leaks
+- [ ] **Theme CSS Variables**: Verify theme-apple.css
+  ```bash
+  ls -la handoff/20250928/40_App/frontend-dashboard/src/styles/theme-apple.css
+  ```
+  - Expected: Comprehensive CSS variables for theming
+  - Action if failed: Document gaps, create migration plan
 
-**Output**: Runtime performance assessment
+### 3.2 Token Enforcement
 
----
+- [ ] **Run Audit Script**: Execute design system audit
+  ```bash
+  ./audit-design-system.sh --verbose
+  ```
+  - Expected: Pass or warnings only, no failures
+  - Action if failed: Address each failure per audit report
 
-### Phase 6: Documentation Review (30 minutes)
+- [ ] **Hard-coded Colors**: Search for hex/rgb values in components
+  ```bash
+  grep -r "#[0-9A-Fa-f]\{6\}" handoff/20250928/40_App/frontend-dashboard/src --include="*.tsx" | wc -l
+  ```
+  - Expected: < 50 instances (excluding config files)
+  - Action if failed: Create refactoring tickets to use tokens
 
-#### 6.1 Design System Guidelines
-- [ ] Review `DESIGN_SYSTEM_GUIDELINES.md`
-  - [ ] Up to date
-  - [ ] Complete
-  - [ ] Examples accurate
-- [ ] Check for missing sections
-- [ ] Verify code examples work
-- [ ] Review component usage guidelines
-
-**Output**: Documentation gaps identified
-
-#### 6.2 Storybook Documentation
-- [ ] Count Storybook stories
-- [ ] Check story coverage
-  - [ ] All components documented
-  - [ ] All variants shown
-  - [ ] Interactive examples
-- [ ] Review Storybook a11y addon
-- [ ] Test Storybook build
-
-**Output**: Storybook coverage report
-
-#### 6.3 Component API Documentation
-- [ ] Check TypeScript types
-- [ ] Review prop documentation
-- [ ] Verify default values
-- [ ] Check for deprecated props
-
-**Output**: API documentation assessment
+- [ ] **Inline Styles**: Search for style={{ usage
+  ```bash
+  grep -r "style={{" handoff/20250928/40_App/frontend-dashboard/src --include="*.tsx" | wc -l
+  ```
+  - Expected: < 50 instances
+  - Action if failed: Refactor to use utility classes or styled components
 
 ---
 
-### Phase 7: CI/CD Integration (20 minutes)
+## 4. Component Architecture & Adoption
 
-#### 7.1 Existing Workflows
-- [ ] Review `.github/workflows/`
-  - [ ] backend.yml
-  - [ ] dependency-check.yml
-  - [ ] Other workflows
-- [ ] Check for design system checks
-- [ ] Review PR requirements
-- [ ] Check for automated testing
+### 4.1 Shared Component Library
 
-**Output**: CI/CD integration status
+- [ ] **Component Count**: Verify 47 shared components
+  ```bash
+  find packages/shared-ui/src/components/ui -name "*.tsx" | wc -l
+  ```
+  - Expected: 47 components
+  - Action if failed: Audit component list, add missing components
 
-#### 7.2 Design System Audit Workflow
-- [ ] Verify `design-system-audit.yml` exists
-- [ ] Check workflow triggers
-  - [ ] Pull requests to main
-  - [ ] Push to main
-- [ ] Review workflow steps
-- [ ] Test workflow locally
+- [ ] **Component Exports**: Check index.ts exports all components
+  ```bash
+  cat packages/shared-ui/src/components/ui/index.ts
+  ```
+  - Expected: All 47 components exported
+  - Action if failed: Update index.ts with missing exports
 
-**Output**: Audit workflow validation
+- [ ] **Build Output**: Verify dist/ directory structure
+  ```bash
+  ls -la packages/shared-ui/dist/
+  ```
+  - Expected: index.js, index.mjs, index.d.ts
+  - Action if failed: Fix build configuration in package.json
 
----
+### 4.2 Component Duplication Analysis
 
-### Phase 8: Dependency Management (15 minutes)
+- [ ] **Frontend-Dashboard Local Components**: Count local UI components
+  ```bash
+  find handoff/20250928/40_App/frontend-dashboard/src/components/ui -name "*.tsx" | wc -l
+  ```
+  - Expected: Document count (currently 55)
+  - Action: Create migration plan for duplicates
 
-#### 8.1 Package Manager Policy
-- [ ] Verify pnpm-only policy
-- [ ] Check for forbidden lock files
-  - [ ] No `package-lock.json`
-  - [ ] No `yarn.lock`
-- [ ] Verify `pnpm-lock.yaml` exists
-- [ ] Check `packageManager` field in package.json
+- [ ] **Owner-Console Local Components**: Count local UI components
+  ```bash
+  find handoff/20250928/40_App/owner-console/src/components/ui -name "*.tsx" | wc -l
+  ```
+  - Expected: 0 (fully migrated) or document count
+  - Action: Create migration plan if > 0
 
-**Output**: Dependency management compliance
+- [ ] **Duplicate Component Names**: Identify overlapping names
+  ```bash
+  comm -12 \
+    <(find packages/shared-ui/src/components/ui -name "*.tsx" -exec basename {} \; | sort) \
+    <(find handoff/20250928/40_App/frontend-dashboard/src/components/ui -name "*.tsx" -exec basename {} \; | sort)
+  ```
+  - Expected: List of duplicates (if any)
+  - Action: For each duplicate, decide: migrate, rename, or keep separate
 
-#### 8.2 Vercel Configuration
-- [ ] Review `vercel.json`
-- [ ] Check `installCommand` uses pnpm
-- [ ] Verify `buildCommand`
-- [ ] Check `outputDirectory`
-- [ ] Review `ignoreCommand`
+### 4.3 Adoption Metrics
 
-**Output**: Vercel configuration assessment
+- [ ] **Shared-UI Import Count (Dashboard)**: Measure adoption
+  ```bash
+  grep -r "from '@morningai/shared-ui'" handoff/20250928/40_App/frontend-dashboard/src --include="*.tsx" --include="*.ts" | wc -l
+  ```
+  - Expected: > 100 imports
+  - Action: Calculate adoption ratio, create migration roadmap
 
----
+- [ ] **Shared-UI Import Count (Console)**: Measure adoption
+  ```bash
+  grep -r "from '@morningai/shared-ui'" handoff/20250928/40_App/owner-console/src --include="*.tsx" --include="*.ts" | wc -l
+  ```
+  - Expected: > 50 imports
+  - Action: Calculate adoption ratio, create migration roadmap
 
-### Phase 9: Regression Risk Assessment (20 minutes)
-
-#### 9.1 Impact Analysis
-- [ ] Identify high-traffic pages
-- [ ] List critical user flows
-- [ ] Assess change impact
-  - [ ] Visual changes
-  - [ ] Functional changes
-  - [ ] Performance impact
-- [ ] Identify breaking changes
-
-**Output**: Risk matrix with mitigation strategies
-
-#### 9.2 Testing Strategy
-- [ ] Unit tests
-  - [ ] Component tests
-  - [ ] Token utility tests
-- [ ] Integration tests
-  - [ ] User flow tests
-- [ ] Visual regression tests
-  - [ ] Playwright VRT
-  - [ ] Storybook visual tests
-- [ ] Accessibility tests
-  - [ ] axe-core integration
-  - [ ] Manual testing
-
-**Output**: Testing plan with coverage gaps
+- [ ] **Adoption Ratio**: Calculate percentage of shared vs local
+  - Formula: `(shared_imports / (shared_imports + local_components)) * 100`
+  - Expected: > 50%
+  - Action: Set target (e.g., 80%), create migration plan
 
 ---
 
-### Phase 10: Sign-off & Next Steps (15 minutes)
+## 5. Accessibility Compliance
 
-#### 10.1 Executive Summary
-- [ ] Summarize findings
-  - [ ] Critical issues (P0)
-  - [ ] High priority issues (P1)
-  - [ ] Medium priority issues (P2)
-- [ ] Estimate effort for fixes
-- [ ] Prioritize remediation work
-- [ ] Assign owners
+### 5.1 Tooling & Configuration
 
-**Output**: Executive summary for stakeholders
+- [ ] **eslint-plugin-jsx-a11y**: Verify installation
+  ```bash
+  grep "eslint-plugin-jsx-a11y" handoff/20250928/40_App/frontend-dashboard/package.json
+  ```
+  - Expected: Installed in both apps
+  - Action if failed: Install plugin, configure ESLint rules
 
-#### 10.2 Action Items
-- [ ] Create GitHub issues for each finding
-- [ ] Link to investigation report
-- [ ] Set deadlines based on priority
-- [ ] Schedule follow-up review
-- [ ] Update design system roadmap
+- [ ] **ESLint A11y Rules**: Check .eslintrc or eslint.config.js
+  ```bash
+  find handoff/20250928/40_App/frontend-dashboard -name "eslint.config.*" -o -name ".eslintrc.*"
+  ```
+  - Expected: jsx-a11y rules enabled
+  - Action if failed: Add recommended jsx-a11y rules
 
-**Output**: Actionable task list with owners and deadlines
+- [ ] **Axe Testing Tools**: Verify installation
+  ```bash
+  grep -E "vitest-axe|jest-axe|@axe-core" handoff/20250928/40_App/frontend-dashboard/package.json
+  ```
+  - Expected: At least one axe tool installed
+  - Action if failed: Install vitest-axe or jest-axe
 
-#### 10.3 CTO Sign-off
-- [ ] Review all findings
-- [ ] Approve remediation plan
-- [ ] Authorize resource allocation
-- [ ] Set quality gates for future PRs
-- [ ] Document lessons learned
+### 5.2 A11y Testing Coverage
 
-**Output**: CTO approval and strategic direction
+- [ ] **A11y Test Files**: Count dedicated a11y tests
+  ```bash
+  find handoff/20250928/40_App/frontend-dashboard/src -name "*.a11y.test.*" | wc -l
+  ```
+  - Expected: > 5 test files
+  - Action: Create a11y tests for critical components
+
+- [ ] **Run A11y Tests**: Execute accessibility tests
+  ```bash
+  pnpm --filter frontend-dashboard test -- --grep "a11y|accessibility"
+  ```
+  - Expected: All tests pass
+  - Action if failed: Fix violations, document exceptions
+
+- [ ] **Image Alt Attributes**: Check for missing alt
+  ```bash
+  grep -r "<img" handoff/20250928/40_App/frontend-dashboard/src --include="*.tsx" | grep -v "alt=" | wc -l
+  ```
+  - Expected: 0 instances
+  - Action if failed: Add alt attributes to all images
+
+- [ ] **ARIA Patterns**: Verify Radix UI usage for complex components
+  - [ ] Dialogs use Radix Dialog
+  - [ ] Dropdowns use Radix DropdownMenu
+  - [ ] Popovers use Radix Popover
+  - [ ] Tooltips use Radix Tooltip
+  - Action: Ensure all interactive overlays use Radix primitives
+
+### 5.3 Color Contrast
+
+- [ ] **WCAG AAA Compliance**: Verify contrast ratios in tokens.json
+  - [ ] Primary colors: 7:1 contrast
+  - [ ] Semantic colors: 7:1 contrast
+  - [ ] Text colors: 7:1 contrast on backgrounds
+  - Action: Use contrast checker tool, adjust colors if needed
 
 ---
 
-## Investigation Report Template
+## 6. Performance & Quality
 
-Use this template to document your investigation:
+### 6.1 Testing Infrastructure
 
-```markdown
-# Design System Investigation Report
+- [ ] **Unit Tests**: Run unit tests
+  ```bash
+  pnpm test
+  ```
+  - Expected: All tests pass
+  - Action if failed: Fix failing tests, document flaky tests
 
-**Date**: YYYY-MM-DD
-**Investigator**: [Name]
-**Scope**: [Full audit / Specific component / Accessibility / etc.]
+- [ ] **Coverage Report**: Generate coverage
+  ```bash
+  pnpm --filter frontend-dashboard test:coverage
+  ```
+  - Expected: > 60% coverage for shared-ui
+  - Action: Set coverage thresholds, add tests for uncovered code
 
-## Executive Summary
+- [ ] **E2E Tests**: Run end-to-end tests
+  ```bash
+  pnpm --filter frontend-dashboard test:e2e
+  ```
+  - Expected: Critical paths pass
+  - Action if failed: Fix broken tests, update selectors
 
-[2-3 paragraphs summarizing key findings and recommendations]
+- [ ] **Smoke Tests**: Run smoke tests
+  ```bash
+  pnpm --filter frontend-dashboard test:smoke
+  ```
+  - Expected: All smoke tests pass
+  - Action if failed: Fix critical issues immediately
 
-## Findings
+### 6.2 Performance Budgets
 
-### Critical Issues (P0)
-1. [Issue description]
-   - **Impact**: [User impact, business impact]
-   - **Recommendation**: [Specific fix]
-   - **Effort**: [Hours/days]
+- [ ] **Lighthouse CI**: Check configuration
+  ```bash
+  cat lighthouserc.json
+  ```
+  - Expected: Performance budgets defined
+  - Action: Set budgets for LCP, CLS, INP, bundle size
 
-### High Priority Issues (P1)
-[Same format]
+- [ ] **Bundle Size**: Analyze build output
+  ```bash
+  pnpm --filter frontend-dashboard build
+  ls -lh handoff/20250928/40_App/frontend-dashboard/dist/assets/
+  ```
+  - Expected: JS < 500KB, CSS < 100KB (gzipped)
+  - Action: Implement code splitting, lazy loading if needed
 
-### Medium Priority Issues (P2)
-[Same format]
+- [ ] **Web Vitals**: Check for web-vitals integration
+  ```bash
+  grep "web-vitals" handoff/20250928/40_App/frontend-dashboard/package.json
+  ```
+  - Expected: Installed and integrated
+  - Action: Add Web Vitals reporting to analytics
 
-## Metrics
+---
 
-- **Token Coverage**: X% (target: 95%+)
-- **WCAG Compliance**: X/Y checks passed
-- **Storybook Coverage**: X/Y components documented
-- **Bundle Size**: X KB (target: < Y KB)
+## 7. Internationalization (i18n)
 
-## Recommendations
+### 7.1 i18n Infrastructure
 
-1. [Prioritized recommendation]
-2. [Prioritized recommendation]
-3. [Prioritized recommendation]
+- [ ] **i18n Library**: Verify installation
+  ```bash
+  grep -E "react-i18next|i18next" handoff/20250928/40_App/frontend-dashboard/package.json
+  ```
+  - Expected: react-i18next and i18next installed
+  - Action if failed: Install i18n libraries
 
-## Next Steps
+- [ ] **i18n Configuration**: Check i18n setup
+  ```bash
+  find handoff/20250928/40_App/frontend-dashboard/src -name "i18n.*" -o -name "i18next.*"
+  ```
+  - Expected: Configuration file exists
+  - Action: Review configuration, ensure proper setup
 
-- [ ] Action item 1 (Owner: X, Deadline: Y)
-- [ ] Action item 2 (Owner: X, Deadline: Y)
+- [ ] **Translation Files**: Verify translation resources
+  ```bash
+  find handoff/20250928/40_App/frontend-dashboard -name "locales" -o -name "translations"
+  ```
+  - Expected: Translation files for supported languages
+  - Action: Create translation structure if missing
 
-## Appendix
+### 7.2 i18n Coverage
 
-- Audit script output: `audit-design-system-report.md`
-- Screenshots: [links]
-- Test results: [links]
+- [ ] **i18n Usage Count**: Measure adoption
+  ```bash
+  grep -rE "useTranslation|t\(" handoff/20250928/40_App/frontend-dashboard/src --include="*.tsx" --include="*.ts" | wc -l
+  ```
+  - Expected: > 1000 instances (currently 2781)
+  - Action: Document coverage, identify untranslated strings
+
+- [ ] **String Literals**: Identify hard-coded strings
+  ```bash
+  grep -r ">[A-Z][a-z]" handoff/20250928/40_App/frontend-dashboard/src --include="*.tsx" | head -20
+  ```
+  - Expected: Minimal user-facing literals
+  - Action: Create tickets to wrap literals in t()
+
+---
+
+## 8. Documentation & Knowledge Management
+
+### 8.1 Design System Documentation
+
+- [ ] **DESIGN_SYSTEM_GUIDELINES.md**: Verify existence and completeness
+  ```bash
+  ls -la DESIGN_SYSTEM_GUIDELINES.md
+  ```
+  - Expected: Comprehensive guidelines document
+  - Action: Review and update with latest standards
+
+- [ ] **CODE_DUPLICATION_ANALYSIS.md**: Verify existence
+  ```bash
+  ls -la CODE_DUPLICATION_ANALYSIS.md
+  ```
+  - Expected: Analysis of component duplication
+  - Action: Update with current metrics
+
+- [ ] **SHARED_COMPONENT_MIGRATION_PLAN.md**: Verify existence
+  ```bash
+  ls -la SHARED_COMPONENT_MIGRATION_PLAN.md
+  ```
+  - Expected: Migration roadmap and timeline
+  - Action: Update with progress, adjust timeline
+
+- [ ] **UI/UX Documentation**: Check docs directory
+  ```bash
+  ls -la docs/UI_UX_*.md docs/UX/
+  ```
+  - Expected: UI_UX_QUICKSTART.md, UI_UX_CHEATSHEET.md, APPLE_LEVEL_UI_UX_OPTIMIZATION_REPORT.md
+  - Action: Verify all referenced docs exist
+
+### 8.2 Storybook Documentation
+
+- [ ] **Storybook Configuration**: Verify .storybook directory
+  ```bash
+  ls -la handoff/20250928/40_App/frontend-dashboard/.storybook/
+  ```
+  - Expected: Complete Storybook configuration
+  - Action: Review configuration, ensure addons installed
+
+- [ ] **Story Files Count**: Count story files
+  ```bash
+  find handoff/20250928/40_App/frontend-dashboard/src -name "*.stories.*" | wc -l
+  ```
+  - Expected: > 20 story files
+  - Action: Create stories for all shared components
+
+- [ ] **Story Coverage**: Calculate coverage
+  - Formula: `(story_files / total_components) * 100`
+  - Expected: > 80% for shared components
+  - Action: Create stories for uncovered components
+
+- [ ] **Build Storybook**: Test Storybook build
+  ```bash
+  pnpm --filter frontend-dashboard build-storybook
+  ```
+  - Expected: Builds successfully
+  - Action if failed: Fix build errors, update dependencies
+
+### 8.3 Visual Regression Testing
+
+- [ ] **VRT Configuration**: Check Playwright VRT setup
+  ```bash
+  grep -r "@vrt" handoff/20250928/40_App/frontend-dashboard --include="*.spec.*" --include="*.test.*"
+  ```
+  - Expected: VRT tests tagged with @vrt
+  - Action: Create VRT tests for critical components
+
+- [ ] **VRT Baseline**: Verify baseline snapshots exist
+  ```bash
+  find handoff/20250928/40_App/frontend-dashboard -name "__snapshots__" -type d
+  ```
+  - Expected: Snapshot directories exist
+  - Action: Generate baseline snapshots if missing
+
+---
+
+## 9. CI/CD & Automation
+
+### 9.1 GitHub Actions Workflows
+
+- [ ] **Dependency Check Workflow**: Verify enforcement
+  ```bash
+  cat .github/workflows/dependency-check.yml
+  ```
+  - Expected: Enforces pnpm-only, checks for forbidden lockfiles
+  - Action: Ensure workflow runs on all PRs
+
+- [ ] **Backend CI**: Verify test and coverage
+  ```bash
+  cat .github/workflows/backend.yml
+  ```
+  - Expected: Runs pytest with coverage
+  - Action: Review coverage thresholds
+
+- [ ] **Frontend CI**: Check for lint, test, typecheck
+  ```bash
+  ls -la .github/workflows/ | grep -E "frontend|lint|test"
+  ```
+  - Expected: Workflows for frontend quality checks
+  - Action: Add if missing
+
+- [ ] **Audit Script Integration**: Add audit to CI
+  ```bash
+  grep -r "audit-design-system" .github/workflows/
+  ```
+  - Expected: Audit script runs on PRs
+  - Action: Create workflow to run audit script
+
+### 9.2 Pre-commit Hooks
+
+- [ ] **Husky Configuration**: Verify husky setup
+  ```bash
+  ls -la .husky/
+  ```
+  - Expected: Pre-commit hooks configured
+  - Action: Set up husky if missing
+
+- [ ] **Lint-staged**: Check configuration
+  ```bash
+  grep "lint-staged" package.json
+  ```
+  - Expected: Configured to run ESLint on staged files
+  - Action: Add lint-staged if missing
+
+---
+
+## 10. Security & Compliance
+
+### 10.1 Secret Management
+
+- [ ] **No Committed Secrets**: Scan for secrets
+  ```bash
+  grep -r "API_KEY\|SECRET\|PASSWORD" . --include="*.env" --include="*.json" --include="*.ts" --include="*.tsx" | grep -v "example" | grep -v "node_modules"
+  ```
+  - Expected: No secrets in code
+  - Action: Remove secrets, add to .gitignore, use env vars
+
+- [ ] **.env Files**: Check .gitignore
+  ```bash
+  grep "\.env" .gitignore
+  ```
+  - Expected: .env files ignored
+  - Action: Add to .gitignore if missing
+
+- [ ] **Sentry Integration**: Verify error tracking
+  ```bash
+  grep "@sentry" handoff/20250928/40_App/frontend-dashboard/package.json
+  ```
+  - Expected: Sentry installed and configured
+  - Action: Review Sentry DSN configuration
+
+### 10.2 Dependency Security
+
+- [ ] **Audit Dependencies**: Run security audit
+  ```bash
+  pnpm audit
+  ```
+  - Expected: No high/critical vulnerabilities
+  - Action: Update vulnerable dependencies
+
+- [ ] **Outdated Packages**: Check for updates
+  ```bash
+  pnpm outdated
+  ```
+  - Expected: Document outdated packages
+  - Action: Create update plan for major versions
+
+---
+
+## 11. Remediation Planning
+
+### 11.1 Issue Prioritization
+
+- [ ] **Critical Issues (P0)**: List all failures from audit
+  - Timeline: 2 weeks
+  - Action: Create GitHub issues with P0-critical label
+
+- [ ] **High Priority (P1)**: List all warnings from audit
+  - Timeline: 30 days
+  - Action: Create GitHub issues with P1-high label
+
+- [ ] **Medium Priority (P2)**: List improvement opportunities
+  - Timeline: 90 days
+  - Action: Create GitHub issues with P2-medium label
+
+### 11.2 Migration Roadmap
+
+- [ ] **Component Migration**: Create phased plan
+  - Phase 1: Migrate high-usage components (2 weeks)
+  - Phase 2: Migrate medium-usage components (4 weeks)
+  - Phase 3: Migrate low-usage components (4 weeks)
+  - Action: Assign owners, set milestones
+
+- [ ] **Token Enforcement**: Create refactoring plan
+  - Phase 1: Audit and document violations (1 week)
+  - Phase 2: Refactor critical paths (2 weeks)
+  - Phase 3: Refactor remaining code (4 weeks)
+  - Action: Create tickets, assign to team
+
+### 11.3 Documentation Updates
+
+- [ ] **Update DESIGN_SYSTEM_INVARIANTS.md**: Document rules
+  - Action: Create/update invariants document
+
+- [ ] **Update Architecture Docs**: Reflect current state
+  - Action: Update ARCHITECTURE.md with findings
+
+- [ ] **Create Runbooks**: Document common issues
+  - Action: Create troubleshooting guides
+
+---
+
+## Completion Checklist
+
+- [ ] All sections completed
+- [ ] Audit report generated
+- [ ] Issues created in GitHub
+- [ ] Remediation plan documented
+- [ ] Team notified of findings
+- [ ] Follow-up audit scheduled (quarterly)
+
+---
+
+## Notes
+
+Use this space to document findings, observations, and action items during the investigation:
+
+```
+[Date] [Investigator] [Finding]
+Example:
+2025-11-02 CTO Found 55 local components in frontend-dashboard that could be migrated to shared-ui
 ```
 
 ---
 
-## Tools & Resources
-
-### Audit Tools
-- **Audit Script**: `./scripts/audit-design-system.sh`
-- **Invariants Document**: `DESIGN_SYSTEM_INVARIANTS.md`
-- **Guidelines**: `DESIGN_SYSTEM_GUIDELINES.md`
-
-### Testing Tools
-- **Contrast Checker**: https://webaim.org/resources/contrastchecker/
-- **axe DevTools**: Chrome/Firefox extension
-- **Lighthouse**: Chrome DevTools
-- **Screen Readers**: NVDA (Windows), VoiceOver (Mac), JAWS
-
-### Development Tools
-- **Storybook**: `pnpm storybook`
-- **TypeScript**: `pnpm typecheck`
-- **Linter**: `pnpm lint`
-- **Tests**: `pnpm test`
-
----
-
-## Frequency & Ownership
-
-| Activity | Frequency | Owner | Duration |
-|----------|-----------|-------|----------|
-| Full Audit | Quarterly | CTO | 4-6 hours |
-| Component Review | Per PR | Frontend Lead | 15-30 min |
-| Accessibility Audit | Monthly | UX Lead | 2 hours |
-| Performance Review | Monthly | Tech Lead | 1 hour |
-| Documentation Update | Continuous | Team | Ongoing |
-
----
-
-## Success Criteria
-
-A successful investigation should result in:
-
-1. **Comprehensive Report**: All phases completed with documented findings
-2. **Actionable Items**: Specific, prioritized tasks with owners and deadlines
-3. **Metrics Baseline**: Quantitative measures for tracking improvement
-4. **Strategic Alignment**: Recommendations aligned with business goals
-5. **Team Buy-in**: Stakeholder approval and resource commitment
-
----
-
-## Version History
-
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2025-11-02 | CTO | Initial checklist based on comprehensive audit |
-
----
-
-**Note**: This checklist should be reviewed and updated quarterly to reflect evolving best practices and project needs.
+**Last Updated**: 2025-11-02  
+**Next Review**: 2026-02-02 (Quarterly)
