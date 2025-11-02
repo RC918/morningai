@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from flask import Blueprint, request, jsonify, g
 from werkzeug.security import check_password_hash
+from supabase import create_client
 
 from ..services.auth_service import get_user_by_id
 from ..utils.totp_utils import TOTPManager, BackupCodeManager, generate_device_fingerprint, calculate_device_expiry
@@ -164,8 +165,8 @@ def verify_totp_setup():
         data = request.get_json()
         code = data.get('code', '').strip()
         
-        if not code or len(code) != 6:
-            return jsonify({'error': 'Invalid TOTP code format'}), 400
+        if not code or len(code) != 6 or not code.isdigit():
+            return jsonify({'error': 'Invalid TOTP code format (must be 6 digits)'}), 400
         
         user_id = g.user_id
         
