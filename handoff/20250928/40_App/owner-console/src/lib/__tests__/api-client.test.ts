@@ -343,10 +343,10 @@ describe('apiClient', () => {
         json: async () => mockData,
       });
 
-      const result = await apiClient('/api/test', { method: 'GET' });
+      const result = await apiClient<{ data: any; status: number }>('/api/test', { method: 'GET' });
 
-      expect(result.data).toEqual(mockData);
-      expect(result.status).toBe(200);
+      expect((result as any).data).toEqual(mockData);
+      expect((result as any).status).toBe(200);
     });
 
     it('should parse text responses when content-type is not JSON', async () => {
@@ -357,9 +357,9 @@ describe('apiClient', () => {
         text: async () => 'Plain text response',
       });
 
-      const result = await apiClient('/api/test', { method: 'GET' });
+      const result = await apiClient<{ data: any }>('/api/test', { method: 'GET' });
 
-      expect(result.data).toBe('Plain text response');
+      expect((result as any).data).toBe('Plain text response');
     });
 
     it('should include response status in result', async () => {
@@ -370,9 +370,9 @@ describe('apiClient', () => {
         json: async () => ({ created: true }),
       });
 
-      const result = await apiClient('/api/create', { method: 'POST' });
+      const result = await apiClient<{ status: number }>('/api/create', { method: 'POST' });
 
-      expect(result.status).toBe(201);
+      expect((result as any).status).toBe(201);
     });
 
     it('should include response headers in result', async () => {
@@ -388,9 +388,9 @@ describe('apiClient', () => {
         json: async () => ({ data: 'test' }),
       });
 
-      const result = await apiClient('/api/test', { method: 'GET' });
+      const result = await apiClient<{ headers: Headers }>('/api/test', { method: 'GET' });
 
-      expect(result.headers).toBe(headers);
+      expect((result as any).headers).toBe(headers);
     });
   });
 
@@ -482,5 +482,155 @@ describe('bootstrapCsrf', () => {
     await bootstrapCsrf();
 
     expect(console.debug).not.toHaveBeenCalled();
+  });
+});
+
+describe('Bootstrap CSRF Token Integration (P0)', () => {
+  beforeEach(() => {
+    mockFetch.mockClear();
+    vi.clearAllMocks();
+    document.cookie = '';
+  });
+
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  it('should use cached CSRF token when cookies are unavailable (cross-origin)', async () => {
+    const { bootstrapCsrf, apiClient } = await import('../api-client');
+    
+    document.cookie = '';
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ csrf_token: 'CACHED_TOKEN_123' }),
+    });
+    
+    await bootstrapCsrf();
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: 'success' }),
+      headers: new Headers({ 'content-type': 'application/json' }),
+    });
+    
+    await apiClient('/api/test', { method: 'POST', body: JSON.stringify({ test: true }) });
+    
+    const postCall = mockFetch.mock.calls[1];
+    expect(postCall[1].headers['X-CSRF-Token']).toBe('CACHED_TOKEN_123');
+  });
+
+  it('should fallback to cookie when cache is empty', async () => {
+    const { apiClient } = await import('../api-client');
+    
+    document.cookie = 'csrf_token=COOKIE_TOKEN_456';
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: 'success' }),
+      headers: new Headers({ 'content-type': 'application/json' }),
+    });
+    
+    await apiClient('/api/test', { method: 'DELETE' });
+    
+    const deleteCall = mockFetch.mock.calls[0];
+    expect(deleteCall[1].headers['X-CSRF-Token']).toBe('COOKIE_TOKEN_456');
+  });
+
+  it('should not add CSRF header for safe methods even with cached token', async () => {
+    const { bootstrapCsrf, apiClient } = await import('../api-client');
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ csrf_token: 'CACHED_TOKEN_789' }),
+    });
+    
+    await bootstrapCsrf();
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: 'success' }),
+      headers: new Headers({ 'content-type': 'application/json' }),
+    });
+    
+    await apiClient('/api/test', { method: 'GET' });
+    
+    const getCall = mockFetch.mock.calls[1];
+    expect(getCall[1].headers['X-CSRF-Token']).toBeUndefined();
+  });
+
+  it('should prioritize cached token over cookie', async () => {
+    const { bootstrapCsrf, apiClient } = await import('../api-client');
+    
+    document.cookie = 'csrf_token=COOKIE_TOKEN';
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ csrf_token: 'CACHED_TOKEN_PRIORITY' }),
+    });
+    
+    await bootstrapCsrf();
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: 'success' }),
+      headers: new Headers({ 'content-type': 'application/json' }),
+    });
+    
+    await apiClient('/api/test', { method: 'PUT', body: JSON.stringify({ test: true }) });
+    
+    const putCall = mockFetch.mock.calls[1];
+    expect(putCall[1].headers['X-CSRF-Token']).toBe('CACHED_TOKEN_PRIORITY');
+  });
+
+  it('should persist cached token across multiple requests', async () => {
+    const { bootstrapCsrf, apiClient } = await import('../api-client');
+    
+    document.cookie = '';
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ csrf_token: 'PERSISTENT_TOKEN' }),
+    });
+    
+    await bootstrapCsrf();
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: 'success1' }),
+      headers: new Headers({ 'content-type': 'application/json' }),
+    });
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: 'success2' }),
+      headers: new Headers({ 'content-type': 'application/json' }),
+    });
+    
+    await apiClient('/api/test1', { method: 'POST', body: '{}' });
+    await apiClient('/api/test2', { method: 'PATCH', body: '{}' });
+    
+    const firstCall = mockFetch.mock.calls[1];
+    const secondCall = mockFetch.mock.calls[2];
+    
+    expect(firstCall[1].headers['X-CSRF-Token']).toBe('PERSISTENT_TOKEN');
+    expect(secondCall[1].headers['X-CSRF-Token']).toBe('PERSISTENT_TOKEN');
+  });
+
+  it('should handle missing CSRF token gracefully', async () => {
+    const { apiClient } = await import('../api-client');
+    
+    document.cookie = '';
+    
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: 'success' }),
+      headers: new Headers({ 'content-type': 'application/json' }),
+    });
+    
+    await apiClient('/api/test', { method: 'POST', body: '{}' });
+    
+    const postCall = mockFetch.mock.calls[0];
+    expect(postCall[1].headers['X-CSRF-Token']).toBeUndefined();
   });
 });

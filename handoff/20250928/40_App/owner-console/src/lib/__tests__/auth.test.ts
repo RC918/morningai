@@ -15,6 +15,7 @@ import {
   stopTokenRefresh,
   initAuth,
   cleanupAuth,
+  authenticatedFetch,
 } from '../auth';
 
 const mockFetch = vi.fn();
@@ -491,6 +492,182 @@ describe('Auth Module', () => {
       expect(vi.getTimerCount()).toBe(0);
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('401 Refresh-and-Retry (P0)', () => {
+    beforeEach(() => {
+      localStorage.setItem('feature_flag_OWNER_CONSOLE_API', 'true');
+    });
+
+    it('should retry request after refreshing token on 401', async () => {
+      const testUrl = 'https://api.example.com/test';
+      
+      storeTokenExpiry(Date.now() + 3600000);
+      storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 401,
+        ok: false,
+      });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ tokens: { expiresAt: Date.now() + 3600000 } }),
+      });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ data: 'success' }),
+      });
+      
+      const response = await authenticatedFetch(testUrl, { method: 'GET' });
+      
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(mockFetch).toHaveBeenNthCalledWith(1, testUrl, expect.objectContaining({
+        credentials: 'include',
+      }));
+      expect(mockFetch).toHaveBeenNthCalledWith(2, expect.stringContaining('/api/auth/v2/refresh'), expect.any(Object));
+      expect(mockFetch).toHaveBeenNthCalledWith(3, testUrl, expect.objectContaining({
+        credentials: 'include',
+      }));
+      expect(response.status).toBe(200);
+    });
+
+    it('should clear tokens and redirect on double 401 failure', async () => {
+      const testUrl = 'https://api.example.com/test';
+      
+      storeTokenExpiry(Date.now() + 3600000);
+      storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 401,
+        ok: false,
+      });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ tokens: { expiresAt: Date.now() + 3600000 } }),
+      });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 401,
+        ok: false,
+      });
+      
+      await expect(authenticatedFetch(testUrl, { method: 'GET' })).rejects.toThrow('Authentication failed');
+      
+      expect(localStorage.getItem('token_expiry')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+      expect((window as any).location.href).toBe('/login');
+    });
+
+    it('should clear tokens and redirect when refresh fails', async () => {
+      const testUrl = 'https://api.example.com/test';
+      
+      storeTokenExpiry(Date.now() + 3600000);
+      storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 401,
+        ok: false,
+      });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 401,
+        ok: false,
+      });
+      
+      await expect(authenticatedFetch(testUrl, { method: 'GET' })).rejects.toThrow();
+      
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(localStorage.getItem('token_expiry')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+      expect((window as any).location.href).toBe('/login');
+    });
+
+    it('should not retry on non-401 errors', async () => {
+      const testUrl = 'https://api.example.com/test';
+      
+      const expiryTime = Date.now() + 3600000;
+      storeTokenExpiry(expiryTime);
+      storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 403,
+        ok: false,
+      });
+      
+      const response = await authenticatedFetch(testUrl, { method: 'GET' });
+      
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(403);
+      const storedExpiry = localStorage.getItem('morningai_token_expiry');
+      expect(storedExpiry).toBe(String(expiryTime));
+    });
+
+    it('should include CSRF token in retry for unsafe methods', async () => {
+      const testUrl = 'https://api.example.com/test';
+      
+      storeTokenExpiry(Date.now() + 3600000);
+      storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+      document.cookie = 'csrf_token=test-csrf-token';
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 401,
+        ok: false,
+      });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ tokens: { expiresAt: Date.now() + 3600000 } }),
+      });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ data: 'success' }),
+      });
+      
+      await authenticatedFetch(testUrl, { method: 'POST', body: '{}' });
+      
+      const retryCall = mockFetch.mock.calls[2];
+      const retryHeaders = retryCall[1].headers;
+      expect(retryHeaders.get('X-CSRF-Token')).toBe('test-csrf-token');
+    });
+
+    it('should update token expiry after successful refresh', async () => {
+      const testUrl = 'https://api.example.com/test';
+      const newExpiry = Date.now() + 7200000;
+      
+      storeTokenExpiry(Date.now() + 3600000);
+      storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 401,
+        ok: false,
+      });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ tokens: { expiresAt: newExpiry } }),
+      });
+      
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ data: 'success' }),
+      });
+      
+      await authenticatedFetch(testUrl, { method: 'GET' });
+      
+      const storedExpiry = localStorage.getItem('morningai_token_expiry');
+      expect(storedExpiry).toBe(String(newExpiry));
     });
   });
 });
