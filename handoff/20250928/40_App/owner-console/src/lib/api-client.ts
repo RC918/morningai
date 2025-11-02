@@ -93,3 +93,84 @@ export async function bootstrapCsrf(): Promise<void> {
     console.warn('Failed to bootstrap CSRF token:', error);
   }
 }
+
+/**
+ * Governance API methods
+ * PR C: Connect to real governance endpoints
+ */
+const governanceApi = {
+  getGovernanceAgents: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/governance/status`, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch governance agents: ${response.status}`);
+    }
+    
+    return response.json();
+  },
+  
+  getGovernanceEvents: async (params: { limit?: number } = {}) => {
+    const url = new URL(`${API_BASE_URL}/api/governance/status`);
+    if (params.limit) {
+      url.searchParams.append('limit', params.limit.toString());
+    }
+    
+    const response = await fetch(url.toString(), {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch governance events: ${response.status}`);
+    }
+    
+    return response.json();
+  },
+  
+  getGovernanceViolations: async (params: { limit?: number } = {}) => {
+    const url = new URL(`${API_BASE_URL}/api/governance/status`);
+    if (params.limit) {
+      url.searchParams.append('limit', params.limit.toString());
+    }
+    
+    const response = await fetch(url.toString(), {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch governance violations: ${response.status}`);
+    }
+    
+    return response.json();
+  },
+  
+  getGovernanceStatistics: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/governance/status`, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch governance statistics: ${response.status}`);
+    }
+    
+    return response.json();
+  }
+};
+
+(apiClient as any).getGovernanceAgents = governanceApi.getGovernanceAgents;
+(apiClient as any).getGovernanceEvents = governanceApi.getGovernanceEvents;
+(apiClient as any).getGovernanceViolations = governanceApi.getGovernanceViolations;
+(apiClient as any).getGovernanceStatistics = governanceApi.getGovernanceStatistics;
