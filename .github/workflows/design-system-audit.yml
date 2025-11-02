@@ -1,0 +1,281 @@
+name: Design System Audit
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'handoff/20250928/40_App/frontend-dashboard/src/**'
+      - 'handoff/20250928/40_App/owner-console/src/**'
+      - 'packages/shared-ui/src/**'
+      - 'handoff/20250928/40_App/frontend-dashboard/public/tokens.json'
+      - 'handoff/20250928/40_App/owner-console/public/tokens.json'
+      - 'packages/shared-ui/src/tokens.json'
+      - 'handoff/20250928/40_App/frontend-dashboard/tailwind.config.js'
+      - 'handoff/20250928/40_App/frontend-dashboard/src/lib/design-tokens.ts'
+      - 'scripts/audit-design-system.sh'
+      - 'DESIGN_SYSTEM_INVARIANTS.md'
+      - '.github/workflows/design-system-audit.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'handoff/20250928/40_App/frontend-dashboard/src/**'
+      - 'handoff/20250928/40_App/owner-console/src/**'
+      - 'packages/shared-ui/src/**'
+      - 'scripts/audit-design-system.sh'
+  workflow_dispatch:
+    inputs:
+      skip_lint:
+        description: 'Skip lint checks (for testing audit only)'
+        required: false
+        default: 'false'
+
+jobs:
+  design-system-audit:
+    name: Design System Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better git context
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Design System Audit
+        id: audit
+        run: |
+          chmod +x scripts/audit-design-system.sh
+          ./scripts/audit-design-system.sh || echo "AUDIT_FAILED=true" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Upload Audit Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-system-audit-report
+          path: audit-design-system-report.md
+          retention-days: 30
+
+      - name: Comment PR with Audit Results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            // Read audit report
+            let reportContent = '';
+            try {
+              reportContent = fs.readFileSync('audit-design-system-report.md', 'utf8');
+            } catch (error) {
+              reportContent = '❌ Audit report not found. Check workflow logs.';
+            }
+            
+            // Truncate if too long (GitHub comment limit)
+            const maxLength = 65000;
+            if (reportContent.length > maxLength) {
+              reportContent = reportContent.substring(0, maxLength) + '\n\n... (truncated, see full report in artifacts)';
+            }
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Design System Audit Report')
+            );
+            
+            const commentBody = `## 🎨 Design System Audit Report
+            
+${reportContent}
+
+---
+
+<details>
+<summary>📋 About this audit</summary>
+
+This automated audit checks for:
+- ✅ Token-only colors (no hardcoded hex values)
+- ✅ Theme container scoping
+- ✅ Tailwind CSS variable integration
+- ✅ Accessibility compliance (WCAG 2.1 AA)
+- ✅ Skip navigation links
+- ✅ ARIA live regions
+- ✅ Focus management
+- ✅ Dependency management (pnpm-only)
+- ✅ Vercel configuration
+- ✅ Design token files
+- ✅ Storybook configuration
+
+**Resources:**
+- [Design System Invariants](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/DESIGN_SYSTEM_INVARIANTS.md)
+- [Deep Investigation Checklist](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/DEEP_INVESTIGATION_CHECKLIST.md)
+- [Design System Guidelines](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/DESIGN_SYSTEM_GUIDELINES.md)
+
+</details>`;
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody,
+              });
+            }
+
+      - name: Run Lint Checks
+        if: github.event.inputs.skip_lint != 'true'
+        run: |
+          pnpm lint:dashboard || echo "Lint warnings found (non-blocking)"
+        continue-on-error: true
+
+      - name: Check Audit Status
+        if: steps.audit.outputs.AUDIT_FAILED == 'true'
+        run: |
+          echo "❌ Design System Audit failed. Please review the report and fix violations."
+          echo "📄 Report available in artifacts: design-system-audit-report"
+          echo ""
+          echo "Common issues:"
+          echo "  - Hardcoded hex colors (use design tokens instead)"
+          echo "  - Missing .theme-morning-ai container"
+          echo "  - Missing skip navigation link"
+          echo "  - Low ARIA live region usage"
+          echo ""
+          echo "Resources:"
+          echo "  - DESIGN_SYSTEM_INVARIANTS.md - Non-negotiable rules"
+          echo "  - DEEP_INVESTIGATION_CHECKLIST.md - Investigation flow"
+          echo "  - DESIGN_SYSTEM_GUIDELINES.md - Usage guidelines"
+          exit 1
+
+      - name: Success Summary
+        if: steps.audit.outputs.AUDIT_FAILED != 'true'
+        run: |
+          echo "✅ Design System Audit passed!"
+          echo "📄 Full report available in artifacts"
+          echo ""
+          echo "Next steps:"
+          echo "  - Review any warnings in the report"
+          echo "  - Ensure all tests pass"
+          echo "  - Request code review"
+
+  dependency-policy-check:
+    name: Dependency Policy Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for forbidden lock files
+        run: |
+          echo "Checking for forbidden lock files (npm, yarn)..."
+          
+          FORBIDDEN_FILES=$(find . -type f \( -name "package-lock.json" -o -name "yarn.lock" \) -not -path "*/node_modules/*" || true)
+          
+          if [ -n "$FORBIDDEN_FILES" ]; then
+            echo "❌ ERROR: Forbidden lock files found!"
+            echo "$FORBIDDEN_FILES"
+            echo ""
+            echo "Policy: Only pnpm is allowed as package manager."
+            echo "Action: Remove these files and use 'pnpm install' instead."
+            exit 1
+          fi
+          
+          echo "✅ No forbidden lock files found"
+
+      - name: Verify pnpm-lock.yaml exists
+        run: |
+          if [ ! -f "pnpm-lock.yaml" ]; then
+            echo "❌ ERROR: pnpm-lock.yaml not found!"
+            echo "Action: Run 'pnpm install' to generate lock file."
+            exit 1
+          fi
+          
+          echo "✅ pnpm-lock.yaml found"
+
+      - name: Check Vercel configuration
+        run: |
+          if [ -f "vercel.json" ]; then
+            echo "Checking Vercel configuration..."
+            
+            if ! grep -q "pnpm install" vercel.json; then
+              echo "❌ ERROR: Vercel config does not use pnpm install"
+              echo "Required: installCommand must use 'pnpm install'"
+              exit 1
+            fi
+            
+            if grep -q '"rootDirectory"' vercel.json; then
+              echo "⚠️  WARNING: Vercel config has rootDirectory set"
+              echo "This may cause issues with monorepo builds"
+            fi
+            
+            echo "✅ Vercel configuration OK"
+          else
+            echo "ℹ️  vercel.json not found (may be optional)"
+          fi
+
+  summary:
+    name: Audit Summary
+    runs-on: ubuntu-latest
+    needs: [design-system-audit, dependency-policy-check]
+    if: always()
+    
+    steps:
+      - name: Check job statuses
+        run: |
+          echo "Design System Audit: ${{ needs.design-system-audit.result }}"
+          echo "Dependency Policy Check: ${{ needs.dependency-policy-check.result }}"
+          
+          if [ "${{ needs.design-system-audit.result }}" != "success" ] || [ "${{ needs.dependency-policy-check.result }}" != "success" ]; then
+            echo ""
+            echo "❌ One or more checks failed. Please review the logs and fix issues."
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All design system checks passed!"
