@@ -1,7 +1,7 @@
 {
-  "largest-contentful-paint": 1647.1237999999998,
+  "largest-contentful-paint": 1849.5562,
   "total-blocking-time": 0,
-  "interactive": 1647.1237999999998,
+  "interactive": 1849.5562,
   "cumulative-layout-shift": 0,
-  "first-contentful-paint": 686.561875
+  "first-contentful-paint": 684.32725
 }
