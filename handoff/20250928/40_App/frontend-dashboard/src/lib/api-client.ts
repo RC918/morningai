@@ -26,6 +26,19 @@ export const apiClient = async <T>(url: string, options?: RequestInit): Promise<
 }
 
 /**
+ * Legacy customFetch for backward compatibility
+ * Forwards to the canonical implementation
+ * 
+ * @deprecated Use apiClient() instead
+ */
+export const customFetch = async (options: { url: string; [key: string]: any }) => {
+  const { url, ...fetchOptions } = options
+  const endpoint = url.startsWith('/api') ? url.slice(4) : url
+  
+  return classApiClient.request(endpoint, fetchOptions as any)
+}
+
+/**
  * Bootstrap CSRF token - forwards to canonical implementation
  */
 export const bootstrapCsrf = () => classApiClient.bootstrapCsrf()
