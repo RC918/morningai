@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TolgeeProvider } from '@tolgee/react'
@@ -53,31 +53,12 @@ const AuthCallback = lazy(() => import('@/components/AuthCallback'))
 
 function AppContent() {
   const { t } = useTranslation()
+  const location = useLocation()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
 
   useEffect(() => {
-    bootstrapCsrf()
-    
-    const sentryDsn = import.meta.env.VITE_SENTRY_DSN
-    if (sentryDsn && !window.Sentry) {
-      import('@sentry/react').then((Sentry) => {
-        Sentry.init({
-          dsn: sentryDsn,
-          environment: import.meta.env.MODE,
-          integrations: [
-            Sentry.browserTracingIntegration(),
-            Sentry.replayIntegration()
-          ],
-          tracesSampleRate: 1.0,
-          replaysSessionSampleRate: 0.1,
-          replaysOnErrorSampleRate: 1.0,
-        })
-        window.Sentry = Sentry
-      })
-    }
-
     const handleApiError = (event: Event) => {
       const customEvent = event as CustomEvent
       const { endpoint, error, status, requestId } = customEvent.detail
@@ -90,11 +71,21 @@ function AppContent() {
 
     window.addEventListener('api-error', handleApiError as EventListener)
 
+    const PUBLIC_ROUTES = new Set(['/', '/login', '/signup', '/pricing', '/auth/callback'])
+    if (PUBLIC_ROUTES.has(location.pathname)) {
+      setLoading(false)
+      return () => {
+        window.removeEventListener('api-error', handleApiError as EventListener)
+      }
+    }
+
     const checkAuth = async () => {
       try {
         const { session, error: sessionError } = await getSession()
         
         if (session && !sessionError) {
+          await bootstrapCsrf()
+          
           const supabaseUser = session.user
           setUser({
             id: supabaseUser.id,
@@ -110,6 +101,7 @@ function AppContent() {
         }
         
         try {
+          await bootstrapCsrf()
           const userData = await apiClient.verifyAuth()
           setUser(userData)
           setIsAuthenticated(true)
@@ -150,7 +142,7 @@ function AppContent() {
     return () => {
       window.removeEventListener('api-error', handleApiError as EventListener)
     }
-  }, [addToast, setUser])
+  }, [addToast, setUser, location.pathname, t])
 
   const handleLogin = (userData: any) => {
     setUser(userData)
@@ -221,92 +213,109 @@ function AppContent() {
 
   return (
     <ErrorBoundary>
-      <TenantProvider>
-        <Router>
-          <div className="theme-morning-ai theme-apple">
-            <OfflineIndicator />
-            
-            {!isAuthenticated ? (
+      <div className="theme-morning-ai theme-apple">
+        <OfflineIndicator />
+        
+        {!isAuthenticated ? (
+          <Routes>
+            <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
+            <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        ) : (
+          <TenantProvider>
+          <div className="flex h-screen bg-gray-100">
+          <SkipToContent />
+          <Sidebar user={user} onLogout={handleLogout} />
+          
+          <main id="main-content" className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
+            <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
               <Routes>
-                <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
-                <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-                <Route path="/signup" element={<SignupPage />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            ) : (
-              <div className="flex h-screen bg-gray-100">
-              <SkipToContent />
-              <Sidebar user={user} onLogout={handleLogout} />
-              
-              <main id="main-content" className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
-                <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
-                  <Routes>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              
-              {/* Feature-gated routes */}
-              {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<Dashboard />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
-                <Route path="/strategies" element={<StrategyManagement />} />
-              ) : (
-                <Route path="/strategies" element={<WIPPage title={t('wip.strategyManagement')} />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
-                <Route path="/approvals" element={<DecisionApproval />} />
-              ) : (
-                <Route path="/approvals" element={<WIPPage title={t('wip.decisionApproval')} />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
-                <Route path="/history" element={<HistoryAnalysis />} />
-              ) : (
-                <Route path="/history" element={<WIPPage title={t('wip.historyAnalysis')} />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
-                <Route path="/costs" element={<CostAnalysis />} />
-              ) : (
-                <Route path="/costs" element={<WIPPage title={t('wip.costAnalysis')} />} />
-              )}
-              <Route path="/governance" element={<AgentGovernance />} />
-              {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
-                <Route path="/settings" element={<SystemSettings />} />
-              ) : (
-                <Route path="/settings" element={<WIPPage title={t('wip.systemSettings')} />} />
-              )}
-              <Route path="/tenant-settings" element={<TenantSettings />} />
-              {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
-                <Route path="/checkout" element={<CheckoutPage />} />
-              ) : (
-                <Route path="/checkout" element={<WIPPage title={t('wip.checkoutPage')} />} />
-              )}
-              <Route path="/checkout/success" element={<CheckoutSuccess />} />
-              <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* Feature-gated routes */}
+          {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
+            <Route path="/dashboard" element={<Dashboard />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
+            <Route path="/strategies" element={<StrategyManagement />} />
+          ) : (
+            <Route path="/strategies" element={<WIPPage title={t('wip.strategyManagement')} />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
+            <Route path="/approvals" element={<DecisionApproval />} />
+          ) : (
+            <Route path="/approvals" element={<WIPPage title={t('wip.decisionApproval')} />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
+            <Route path="/history" element={<HistoryAnalysis />} />
+          ) : (
+            <Route path="/history" element={<WIPPage title={t('wip.historyAnalysis')} />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
+            <Route path="/costs" element={<CostAnalysis />} />
+          ) : (
+            <Route path="/costs" element={<WIPPage title={t('wip.costAnalysis')} />} />
+          )}
+          <Route path="/governance" element={<AgentGovernance />} />
+          {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
+            <Route path="/settings" element={<SystemSettings />} />
+          ) : (
+            <Route path="/settings" element={<WIPPage title={t('wip.systemSettings')} />} />
+          )}
+          <Route path="/tenant-settings" element={<TenantSettings />} />
+          {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
+            <Route path="/checkout" element={<CheckoutPage />} />
+          ) : (
+            <Route path="/checkout" element={<WIPPage title={t('wip.checkoutPage')} />} />
+          )}
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+          <Route path="/checkout/cancel" element={<CheckoutCancel />} />
 
-              {/* WIP pages for disabled features */}
-              <Route path="/wip" element={<WIPPage />} />
-              
-              {/* Fallback to dashboard if no dashboard feature enabled */}
-              {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
-              )}
-                  </Routes>
-                </Suspense>
-              </main>
-              
-                <Toaster />
-                <GlobalSearch />
-              </div>
-            )}
+          {/* WIP pages for disabled features */}
+          <Route path="/wip" element={<WIPPage />} />
+          
+          {/* Fallback to dashboard if no dashboard feature enabled */}
+          {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
+            <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
+          )}
+              </Routes>
+            </Suspense>
+          </main>
+          
+            <Toaster />
+            <GlobalSearch />
           </div>
-        </Router>
-      </TenantProvider>
+          </TenantProvider>
+        )}
+      </div>
     </ErrorBoundary>
   )
 }
 
 function App() {
   useEffect(() => {
+    const sentryDsn = import.meta.env.VITE_SENTRY_DSN
+    if (sentryDsn && !window.__SENTRY_INITIALIZED__) {
+      import('@sentry/react').then((Sentry) => {
+        Sentry.init({
+          dsn: sentryDsn,
+          environment: import.meta.env.MODE,
+          integrations: [
+            Sentry.browserTracingIntegration(),
+            Sentry.replayIntegration()
+          ],
+          tracesSampleRate: 1.0,
+          replaysSessionSampleRate: 0.1,
+          replaysOnErrorSampleRate: 1.0,
+        })
+        window.Sentry = Sentry
+        window.__SENTRY_INITIALIZED__ = true
+      })
+    }
+
     reportWebVitals((metric) => {
       if (import.meta.env.DEV) {
         console.log(`[Web Vitals] ${metric.name}:`, metric.value, metric)
@@ -332,7 +341,9 @@ function App() {
               <AppleSpotlight.Provider>
                 <AppleControlCenter.Provider>
                   <AppleLiveActivity.Provider position="top">
-                    <AppContent />
+                    <Router>
+                      <AppContent />
+                    </Router>
                   </AppleLiveActivity.Provider>
                 </AppleControlCenter.Provider>
               </AppleSpotlight.Provider>
