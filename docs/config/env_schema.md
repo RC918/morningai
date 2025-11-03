@@ -200,7 +200,7 @@ All VITE_* prefixed for Vite build:
 
 2. **Regenerate .env.example**:
    ```bash
-   python scripts/generate_env_example.py
+   python scripts/generate-env-examples.py
    ```
 
 3. **Update documentation** (this file) if it's a new category or has special usage
@@ -270,7 +270,7 @@ else:
 - For integers, ensure numeric value
 
 ### "Schema validation failed in CI"
-- Run `python scripts/generate_env_example.py` after schema changes
+- Run `python scripts/generate-env-examples.py` after schema changes
 - Ensure all fields have: type, description, category
 - Check YAML syntax is valid
 
@@ -289,7 +289,8 @@ else:
 - Schema: `/config/env.schema.yaml`
 - Validator: `/env_schema_validator.py`
 - Example: `/.env.example`
-- Generator: `/scripts/generate_env_example.py`
+- Generator: `/scripts/generate-env-examples.py`
+- Drift Check: `/scripts/check-env-drift.py`
 - CI Validation: `/.github/workflows/backend.yml`
 
 ---
