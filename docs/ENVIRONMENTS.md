@@ -656,7 +656,8 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 ### Production
 - **Backend**: https://morningai-backend-v2.onrender.com
 - **Orchestrator**: https://morningai-orchestrator-api.onrender.com
-- **Frontend**: https://morningai.vercel.app
+- **Tenant Dashboard**: https://app.gm365.me
+- **Owner Console**: https://admin.gm365.me
 - **Render Dashboard**: https://dashboard.render.com/
 
 ### Staging

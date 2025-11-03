@@ -1,5 +1,7 @@
 # MorningAI Project Structure Report
 
+> 📚 **術語標準**: 請參閱 [術語對照表](./TERMINOLOGY.md) 了解標準化的應用名稱和用戶類型定義。
+
 **Document Version**: 1.0.0  
 **Last Updated**: 2025-10-28  
 **Project Phase**: Phase 8 (v8.0.0)
@@ -50,7 +52,7 @@ This document provides a comprehensive overview of the MorningAI project structu
 
 **Backend**:
 - Python 3.12
-- FastAPI
+- Flask
 - SQLAlchemy
 - PostgreSQL (Supabase)
 - Redis (Upstash)
@@ -235,7 +237,7 @@ orchestrator/
 handoff/20250928/40_App/
 ├── api-backend/           # Backend API
 │   ├── src/              # Source code
-│   │   ├── main.py       # FastAPI application
+│   │   ├── main.py       # Flask application
 │   │   ├── database.py   # Database connection
 │   │   ├── models/       # SQLAlchemy models
 │   │   ├── routers/      # API routers
@@ -383,7 +385,7 @@ config/
 **Architecture**: Phase-based API structure (Phases 4-8)
 
 **Key Files**:
-- `src/main.py`: FastAPI application entry point
+- `src/main.py`: Flask application entry point
 - `src/database.py`: Database connection and session management
 - `src/models/`: SQLAlchemy models
 - `src/routers/`: API route handlers
@@ -532,7 +534,6 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 2. Run `python scripts/generate-env-examples.py` to regenerate `.env.example` files
 3. Run `python scripts/check-env-drift.py` to verify no drift
 4. Commit all changes together
-
 ### Production Environment
 
 **Services**:
@@ -723,7 +724,7 @@ primary_region = "nrt"
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `src/main.py` | FastAPI application | `handoff/.../api-backend/src/` |
+| `src/main.py` | Flask application | `handoff/.../api-backend/src/` |
 | `src/database.py` | Database connection | `handoff/.../api-backend/src/` |
 | `requirements.txt` | Python dependencies | `handoff/.../api-backend/` |
 | `pytest.ini` | pytest configuration | `handoff/.../api-backend/` |

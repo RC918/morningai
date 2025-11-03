@@ -2,6 +2,8 @@
 
 **Welcome to MorningAI!** 🎉
 
+> 📚 **術語標準**: 請參閱 [術語對照表](./TERMINOLOGY.md) 了解標準化的應用名稱和用戶類型定義。
+
 This guide will help you get started with the MorningAI project, understand the architecture, set up your development environment, and start contributing.
 
 ---
@@ -165,7 +167,6 @@ python scripts/generate-env-examples.py
 # Check for drift between schema and .env.example files
 python scripts/check-env-drift.py
 ```
-
 **Backend** (`handoff/20250928/40_App/api-backend/.env`):
 ```bash
 ENVIRONMENT=development
@@ -202,11 +203,18 @@ VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
 
 ### Step 5: Run Services Locally
 
-**Backend**:
+**Backend** (Flask):
 ```bash
 cd handoff/20250928/40_App/api-backend
 source ../../../../../../.venv/bin/activate
-uvicorn src.main:app --reload
+
+# Option 1: Flask CLI (recommended for development)
+export FLASK_APP=src.main
+flask run --port 8000
+
+# Option 2: Gunicorn (production-like)
+gunicorn "src.main:app" --bind 0.0.0.0:8000 --reload
+
 # Access at http://localhost:8000
 ```
 
@@ -326,7 +334,7 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 ### Backend
 
-- **Framework**: FastAPI (Python 3.12)
+- **Framework**: Flask (Python 3.12)
 - **Database**: PostgreSQL (Supabase)
 - **ORM**: SQLAlchemy
 - **Cache**: Redis (Upstash)
@@ -400,7 +408,7 @@ morningai/
 ├── handoff/20250928/40_App/
 │   ├── api-backend/                # Backend API
 │   │   ├── src/                    # Source code
-│   │   │   ├── main.py            # FastAPI application (imports phase*.py)
+│   │   │   ├── main.py            # Flask application (imports phase*.py)
 │   │   │   ├── database.py        # Database connection
 │   │   │   └── ...                # API modules
 │   │   ├── tests/                 # Test suite
@@ -698,7 +706,7 @@ pytest tests/test_specific.py -v
 ### External Resources
 
 **Technologies**:
-- **FastAPI**: https://fastapi.tiangolo.com/
+- **Flask**: https://flask.palletsprojects.com/
 - **React**: https://react.dev/
 - **Supabase**: https://supabase.com/docs
 - **Render**: https://render.com/docs

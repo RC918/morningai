@@ -307,6 +307,12 @@ class ApiClient {
       body: JSON.stringify(data),
     })
   }
+
+  async getCurrentUser(): Promise<any> {
+    return this.request('/auth/v2/me', {
+      method: 'GET',
+    })
+  }
 }
 
 export const apiClient = new ApiClient()
