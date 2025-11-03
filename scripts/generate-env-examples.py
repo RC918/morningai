@@ -98,8 +98,13 @@ def main():
     print(f"📖 Loading schema from: {schema_path}")
     schema = load_schema(schema_path)
     
+    fields = schema.get('fields', {})
+    total_count = len(fields)
+    required_count = sum(1 for v in fields.values() if v.get('required', False))
+    optional_count = total_count - required_count
+    
     print(f"📊 Schema version: {schema.get('version')}")
-    print(f"📊 Total variables: {schema.get('metadata', {}).get('total_variables')}")
+    print(f"📊 Total variables: {total_count} ({required_count} required, {optional_count} optional)")
     print("")
     
     backend_categories = [

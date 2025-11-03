@@ -2,7 +2,7 @@
 
 ## Overview
 
-Morning AI uses a comprehensive environment configuration system with **53 variables** across 11 categories. This document provides the complete reference for all environment variables, their security levels, and usage guidelines.
+Morning AI uses a comprehensive environment configuration system with **56 variables** across 11 categories. This document provides the complete reference for all environment variables, their security levels, and usage guidelines.
 
 **Schema Location**: `/config/env.schema.yaml`  
 **Example File**: `/.env.example`  
@@ -295,6 +295,6 @@ else:
 
 ---
 
-**Last Updated**: Phase 11 Task 4 (2025-10-13)  
-**Total Variables**: 53 (19 required, 34 optional)  
+**Last Updated**: Phase 11 Task 4 (2025-11-03)  
+**Total Variables**: 56 (19 required, 37 optional)  
 **Maintainer**: Morning AI Engineering Team
