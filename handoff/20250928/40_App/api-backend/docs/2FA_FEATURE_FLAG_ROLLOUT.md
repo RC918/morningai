@@ -9,11 +9,11 @@ The Two-Factor Authentication (2FA/TOTP) feature is controlled by the `FEATURE_2
 ### Environment Variable
 
 ```bash
-FEATURE_2FA_ENABLED=true  # Enable 2FA feature
-FEATURE_2FA_ENABLED=false # Disable 2FA feature (default)
+FEATURE_2FA_ENABLED=true  # Enable 2FA feature (default)
+FEATURE_2FA_ENABLED=false # Disable 2FA feature
 ```
 
-**Default**: `false` (feature disabled)
+**Default**: `true` (feature enabled)
 
 ### Behavior When Disabled
 

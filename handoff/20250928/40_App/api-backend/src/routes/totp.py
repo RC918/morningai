@@ -505,6 +505,9 @@ def check_2fa_required(user_id: str) -> bool:
     Returns:
         True if 2FA is enabled for user, False otherwise
     """
+    if not is_2fa_feature_enabled():
+        return False
+    
     try:
         supabase_url = os.environ.get('SUPABASE_URL')
         supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
