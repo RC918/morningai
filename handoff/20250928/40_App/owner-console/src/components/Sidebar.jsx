@@ -141,14 +141,14 @@ const Sidebar = ({ user, onLogout }) => {
                   }`}
                   aria-current={active ? 'page' : undefined}
                 >
-                  <Icon className={`w-5 h-5 ${collapsed ? 'mx-auto' : 'mr-3'}`} />
+                  <Icon className={`w-5 h-5 shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`} />
                   
                   {!collapsed && (
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span>{t(item.labelKey)}</span>
+                        <span className="leading-tight">{t(item.labelKey)}</span>
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-600 mt-1">
+                      <p className="text-xs text-gray-600 dark:text-gray-600 mt-0.5 leading-tight">
                         {t(item.descriptionKey)}
                       </p>
                     </div>

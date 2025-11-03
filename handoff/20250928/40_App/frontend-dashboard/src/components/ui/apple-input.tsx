@@ -157,7 +157,7 @@ function AppleInput({
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+          <div className="absolute inset-y-0 left-3 flex items-center text-muted-foreground pointer-events-none z-10 [transform:none] [filter:none] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:[stroke-width:1.75] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
             {leftIcon}
           </div>
         )}
@@ -186,27 +186,29 @@ function AppleInput({
         />
 
         {/* Right Icons */}
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        <div className="absolute inset-y-0 right-3 flex items-center gap-2 z-10">
           {/* State Icon */}
           <AnimatePresence>
             {state === "error" && errorText && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={springConfig}
+                className="[transform:none] [filter:none]"
               >
-                <AlertCircle className="w-4 h-4 text-destructive" />
+                <AlertCircle className="w-5 h-5 text-destructive [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               </motion.div>
             )}
             {state === "success" && successText && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={springConfig}
+                className="[transform:none] [filter:none]"
               >
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <CheckCircle2 className="w-5 h-5 text-green-500 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -217,22 +219,22 @@ function AppleInput({
               type="button"
               onClick={togglePasswordVisibility}
               className="text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ opacity: 0.7 }}
+              whileTap={{ opacity: 0.5 }}
               transition={springConfig}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
-                <EyeOff className="w-4 h-4" />
+                <EyeOff className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               ) : (
-                <Eye className="w-4 h-4" />
+                <Eye className="w-5 h-5 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               )}
             </motion.button>
           )}
 
           {/* Custom Right Icon */}
           {rightIcon && !showPasswordToggle && (
-            <div className="text-muted-foreground">
+            <div className="text-muted-foreground [transform:none] [filter:none] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:[stroke-width:1.75] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
               {rightIcon}
             </div>
           )}

@@ -297,6 +297,12 @@ const SystemSettings = (): React.ReactElement => {
               <CardDescription>{t('settings.security.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  {t('settings.security.passwordUpdateHint', '請輸入目前密碼以更新您的密碼。新密碼至少需要 8 個字元。')}
+                </p>
+              </div>
+
               <div className="space-y-4">
                 <AppleInput
                   id="current-password"
@@ -305,6 +311,7 @@ const SystemSettings = (): React.ReactElement => {
                   leftIcon={<Key className="w-4 h-4" />}
                   showPasswordToggle
                   haptic="light"
+                  helperText={t('settings.security.currentPasswordHelp', '輸入您目前的密碼')}
                 />
                 <AppleInput
                   id="new-password"
@@ -322,6 +329,7 @@ const SystemSettings = (): React.ReactElement => {
                   leftIcon={<Key className="w-4 h-4" />}
                   showPasswordToggle
                   haptic="light"
+                  helperText={t('settings.security.confirmPasswordHelp', '再次輸入新密碼以確認')}
                 />
               </div>
 
