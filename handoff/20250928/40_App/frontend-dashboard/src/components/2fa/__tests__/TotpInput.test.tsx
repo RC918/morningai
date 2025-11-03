@@ -21,11 +21,17 @@ vi.mock('@/lib/spring-animation', () => ({
   triggerHaptic: vi.fn(),
 }));
 
-vi.mock('framer-motion', () => ({
-  motion: {
-    input: ({ children, ...props }: any) => <input {...props}>{children}</input>,
-  },
-}));
+vi.mock('framer-motion', () => {
+  const React = require('react');
+  return {
+    motion: {
+      input: React.forwardRef((props: any, ref: any) => {
+        const { whileFocus, whileHover, whileTap, transition, ...inputProps } = props;
+        return <input ref={ref} {...inputProps} />;
+      }),
+    },
+  };
+});
 
 describe('TotpInput', () => {
   let mockOnChange: ReturnType<typeof vi.fn>;
