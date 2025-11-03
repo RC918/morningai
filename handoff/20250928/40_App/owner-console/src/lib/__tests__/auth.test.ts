@@ -589,7 +589,7 @@ describe('Auth Module', () => {
       expect((window as any).location.href).toBe('/login');
     });
 
-    it('should not retry on non-401 errors', async () => {
+    it('should not retry on non-401/403/419 errors', async () => {
       const testUrl = 'https://api.example.com/test';
       
       const expiryTime = Date.now() + 3600000;
@@ -597,14 +597,14 @@ describe('Auth Module', () => {
       storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
       
       mockFetch.mockResolvedValueOnce({
-        status: 403,
+        status: 500,
         ok: false,
       });
       
       const response = await authenticatedFetch(testUrl, { method: 'GET' });
       
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(500);
       expect(getStoredTokenExpiry()).toBe(expiryTime);
     });
 
@@ -613,7 +613,7 @@ describe('Auth Module', () => {
       
       storeTokenExpiry(Date.now() + 3600000);
       storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
-      document.cookie = 'csrf_token=test-csrf-token';
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
       
       mockFetch.mockResolvedValueOnce({
         status: 401,
@@ -666,6 +666,299 @@ describe('Auth Module', () => {
       await authenticatedFetch(testUrl, { method: 'GET' });
       
       expect(getStoredTokenExpiry()).toBe(newExpiry);
+    });
+  });
+
+  describe('CSRF Defensive Programming (P1-1)', () => {
+    beforeEach(() => {
+      sessionStorage.clear();
+      vi.clearAllMocks();
+      mockFetch.mockClear();
+    });
+
+    describe('Single-flight promise pattern', () => {
+      it('should not fetch CSRF token multiple times for concurrent requests', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+
+        let csrfCallCount = 0;
+        mockFetch.mockImplementation((url) => {
+          if (url.includes('/csrf')) {
+            csrfCallCount++;
+            return Promise.resolve({
+              ok: true,
+              json: async () => ({ csrf_token: 'csrf-123' }),
+            });
+          }
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: 'success' }),
+          });
+        });
+
+        const requests = [
+          authenticatedFetch('https://api.example.com/test1', { method: 'POST', body: '{}' }),
+          authenticatedFetch('https://api.example.com/test2', { method: 'POST', body: '{}' }),
+          authenticatedFetch('https://api.example.com/test3', { method: 'POST', body: '{}' }),
+        ];
+
+        await Promise.all(requests);
+
+        expect(csrfCallCount).toBe(1);
+      });
+
+      it('should allow subsequent CSRF fetches after first completes', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+
+        mockFetch.mockImplementation((url) => {
+          if (url.includes('/csrf')) {
+            return Promise.resolve({
+              ok: true,
+              json: async () => ({ csrf_token: 'csrf-456' }),
+            });
+          }
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: 'success' }),
+          });
+        });
+
+        await authenticatedFetch('https://api.example.com/test1', { method: 'POST', body: '{}' });
+        
+        sessionStorage.clear();
+        mockFetch.mockClear();
+
+        await authenticatedFetch('https://api.example.com/test2', { method: 'POST', body: '{}' });
+
+        const csrfCalls = mockFetch.mock.calls.filter(call => call[0].includes('/csrf'));
+        expect(csrfCalls.length).toBe(1);
+      });
+    });
+
+    describe('Pre-request CSRF check', () => {
+      it('should fetch CSRF token before first POST request if missing', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+
+        let csrfFetched = false;
+        mockFetch.mockImplementation((url) => {
+          if (url.includes('/csrf')) {
+            csrfFetched = true;
+            return Promise.resolve({
+              ok: true,
+              json: async () => ({ csrf_token: 'csrf-789' }),
+            });
+          }
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: 'success' }),
+          });
+        });
+
+        await authenticatedFetch('https://api.example.com/test', { method: 'POST', body: '{}' });
+
+        expect(csrfFetched).toBe(true);
+
+        const postCall = mockFetch.mock.calls.find(call => 
+          call[0].includes('/test') && call[1]?.method === 'POST'
+        );
+        expect(postCall).toBeDefined();
+        expect(postCall[1].headers.get('X-CSRF-Token')).toBe('csrf-789');
+      });
+
+      it('should not fetch CSRF token if already exists', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+        sessionStorage.setItem('csrf_token', 'existing-csrf');
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: 'success' }),
+        });
+
+        await authenticatedFetch('https://api.example.com/test', { method: 'POST', body: '{}' });
+
+        const csrfCalls = mockFetch.mock.calls.filter(call => call[0].includes('/csrf'));
+        expect(csrfCalls.length).toBe(0);
+      });
+
+      it('should not fetch CSRF token for GET requests', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: 'success' }),
+        });
+
+        await authenticatedFetch('https://api.example.com/test', { method: 'GET' });
+
+        const csrfCalls = mockFetch.mock.calls.filter(call => call[0].includes('/csrf'));
+        expect(csrfCalls.length).toBe(0);
+      });
+    });
+
+    describe('403/419 error handling with retry', () => {
+      it('should refresh CSRF token and retry on 403 error', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+        sessionStorage.setItem('csrf_token', 'old-csrf');
+
+        mockFetch.mockResolvedValueOnce({
+          status: 403,
+          ok: false,
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ csrf_token: 'new-csrf' }),
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          status: 200,
+          ok: true,
+          json: async () => ({ data: 'success' }),
+        });
+
+        const response = await authenticatedFetch('https://api.example.com/test', { method: 'POST', body: '{}' });
+
+        expect(mockFetch).toHaveBeenCalledTimes(3);
+        expect(response.status).toBe(200);
+        expect(sessionStorage.getItem('csrf_token')).toBe('new-csrf');
+      });
+
+      it('should refresh CSRF token and retry on 419 error', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+        sessionStorage.setItem('csrf_token', 'old-csrf');
+
+        mockFetch.mockResolvedValueOnce({
+          status: 419,
+          ok: false,
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ csrf_token: 'new-csrf-419' }),
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          status: 200,
+          ok: true,
+          json: async () => ({ data: 'success' }),
+        });
+
+        const response = await authenticatedFetch('https://api.example.com/test', { method: 'POST', body: '{}' });
+
+        expect(mockFetch).toHaveBeenCalledTimes(3);
+        expect(response.status).toBe(200);
+        expect(sessionStorage.getItem('csrf_token')).toBe('new-csrf-419');
+      });
+
+      it('should throw error if retry still fails with 403', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+        sessionStorage.setItem('csrf_token', 'old-csrf');
+
+        mockFetch.mockResolvedValueOnce({
+          status: 403,
+          ok: false,
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ csrf_token: 'new-csrf' }),
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          status: 403,
+          ok: false,
+        });
+
+        await expect(
+          authenticatedFetch('https://api.example.com/test', { method: 'POST', body: '{}' })
+        ).rejects.toThrow('CSRF token validation failed');
+      });
+
+      it('should throw error if retry still fails with 419', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+        sessionStorage.setItem('csrf_token', 'old-csrf');
+
+        mockFetch.mockResolvedValueOnce({
+          status: 419,
+          ok: false,
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ csrf_token: 'new-csrf' }),
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          status: 419,
+          ok: false,
+        });
+
+        await expect(
+          authenticatedFetch('https://api.example.com/test', { method: 'POST', body: '{}' })
+        ).rejects.toThrow('CSRF token validation failed');
+      });
+
+      it('should clear old CSRF token before fetching new one on 403', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+        sessionStorage.setItem('csrf_token', 'old-csrf');
+
+        mockFetch.mockResolvedValueOnce({
+          status: 403,
+          ok: false,
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => {
+            expect(sessionStorage.getItem('csrf_token')).toBeNull();
+            return { csrf_token: 'new-csrf' };
+          },
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          status: 200,
+          ok: true,
+          json: async () => ({ data: 'success' }),
+        });
+
+        await authenticatedFetch('https://api.example.com/test', { method: 'POST', body: '{}' });
+      });
+
+      it('should handle 403 before 401 in error handling order', async () => {
+        storeTokenExpiry(Date.now() + 3600000);
+        storeUser({ id: 'test-user', email: 'test@example.com', role: 'owner', tenantId: 'test-tenant', name: 'Test User' });
+        sessionStorage.setItem('csrf_token', 'old-csrf');
+
+        mockFetch.mockResolvedValueOnce({
+          status: 403,
+          ok: false,
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ csrf_token: 'new-csrf' }),
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          status: 200,
+          ok: true,
+          json: async () => ({ data: 'success' }),
+        });
+
+        await authenticatedFetch('https://api.example.com/test', { method: 'POST', body: '{}' });
+
+        const refreshCalls = mockFetch.mock.calls.filter(call => call[0].includes('/refresh'));
+        expect(refreshCalls.length).toBe(0);
+      });
     });
   });
 });
