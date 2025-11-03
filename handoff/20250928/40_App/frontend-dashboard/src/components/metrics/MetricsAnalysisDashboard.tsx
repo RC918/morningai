@@ -24,6 +24,7 @@ import {
   Zap
 } from 'lucide-react'
 import { getMetricsReport, exportMetricsData, MetricsCollector } from '@/lib/metrics-analysis'
+import { useTranslation } from 'react-i18next'
 
 type MetricStatus = 'good' | 'excellent' | 'needs_improvement' | 'poor'
 
@@ -92,12 +93,14 @@ interface MetricsReport {
 }
 
 export function MetricsAnalysisDashboard(): React.ReactElement {
+  const { t } = useTranslation()
   const [report, setReport] = useState<MetricsReport | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [baseline, setBaseline] = useState<MetricsReport | null>(null)
 
   useEffect(() => {
     loadReport()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadReport = (): void => {
@@ -133,7 +136,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
   const handleSetBaseline = (): void => {
     if (report) {
       setBaseline(report)
-      alert('Baseline set successfully! Future reports will compare against this baseline.')
+      alert(t('metrics.analysis.baselineSetSuccess'))
       loadReport()
     }
   }
@@ -144,7 +147,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
   }
 
   const handleClearMetrics = (): void => {
-    if (confirm('Are you sure you want to clear all metrics data? This cannot be undone.')) {
+    if (confirm(t('metrics.analysis.confirmClear'))) {
       MetricsCollector.clearMetrics()
       setReport(null)
       setBaseline(null)
@@ -185,7 +188,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
         <Card>
           <CardContent className="py-8 text-center">
             <Activity className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p>Loading metrics...</p>
+            <p>{t('metrics.analysis.loading')}</p>
           </CardContent>
         </Card>
       </div>
@@ -197,17 +200,16 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
       <div className="container mx-auto py-8">
         <Card>
           <CardHeader>
-            <CardTitle>No Metrics Data</CardTitle>
+            <CardTitle>{t('metrics.analysis.noData')}</CardTitle>
             <CardDescription>
-              Start collecting metrics to see performance analysis
+              {t('metrics.analysis.noDataDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Metrics collection is automatic when you use the application. 
-                Come back after using the app for a while to see your performance data.
+                {t('metrics.analysis.autoCollectionMessage')}
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -220,27 +222,27 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Metrics Analysis</h1>
+          <h1 className="text-3xl font-bold">{t('metrics.analysis.title')}</h1>
           <p className="text-muted-foreground">
-            Performance and UX metrics analysis
+            {t('metrics.analysis.description')}
           </p>
         </div>
         <div className="flex gap-2">
           {!baseline ? (
             <AppleButton onClick={handleSetBaseline} variant="outline">
-              Set as Baseline
+              {t('metrics.analysis.setBaseline')}
             </AppleButton>
           ) : (
             <AppleButton onClick={handleClearBaseline} variant="outline">
-              Clear Baseline
+              {t('metrics.analysis.clearBaseline')}
             </AppleButton>
           )}
           <AppleButton onClick={handleExport} variant="outline">
             <Download className="h-4 w-4 mr-2" />
-            Export
+            {t('metrics.analysis.export')}
           </AppleButton>
           <AppleButton onClick={handleClearMetrics} variant="destructive">
-            Clear Data
+            {t('metrics.analysis.clearData')}
           </AppleButton>
         </div>
       </div>
@@ -249,7 +251,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <strong>Baseline Active:</strong> Comparing current metrics against baseline from {new Date(baseline.generated_at).toLocaleString()}
+            <strong>{t('metrics.analysis.baselineActive')}</strong> {t('metrics.analysis.baselineComparison', { date: new Date(baseline.generated_at).toLocaleString() })}
           </AlertDescription>
         </Alert>
       )}
@@ -259,13 +261,13 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Activity className="h-4 w-4" />
-              Total Metrics
+              {t('metrics.analysis.totalMetrics')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{report.summary.total_metrics}</div>
             <p className="text-xs text-muted-foreground">
-              {report.summary.categories.length} categories
+              {t('metrics.analysis.categories', { count: report.summary.categories.length })}
             </p>
           </CardContent>
         </Card>
@@ -274,7 +276,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
-              Task Success
+              {t('metrics.analysis.taskSuccess')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -282,7 +284,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
               {report.task_performance?.success_rate?.toFixed(1) || 0}%
             </div>
             <p className="text-xs text-muted-foreground">
-              {report.task_performance?.successful_tasks || 0}/{report.task_performance?.total_tasks || 0} tasks
+              {t('metrics.analysis.tasks', { successful: report.task_performance?.successful_tasks || 0, total: report.task_performance?.total_tasks || 0 })}
             </p>
           </CardContent>
         </Card>
@@ -291,7 +293,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Avg TTV
+              {t('metrics.analysis.avgTTV')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -302,7 +304,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
               }
             </div>
             <p className="text-xs text-muted-foreground">
-              Time to Value
+              {t('metrics.analysis.timeToValue')}
             </p>
           </CardContent>
         </Card>
@@ -311,7 +313,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <XCircle className="h-4 w-4" />
-              Error Rate
+              {t('metrics.analysis.errorRate')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -319,7 +321,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
               {report.errors?.error_rate || 0}%
             </div>
             <p className="text-xs text-muted-foreground">
-              {report.errors?.total_errors || 0} errors
+              {t('metrics.analysis.errors', { count: report.errors?.total_errors || 0 })}
             </p>
           </CardContent>
         </Card>
@@ -327,19 +329,19 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
 
       <Tabs defaultValue="web-vitals" className="w-full">
         <TabsList>
-          <TabsTrigger value="web-vitals">Web Vitals</TabsTrigger>
-          <TabsTrigger value="ux-metrics">UX Metrics</TabsTrigger>
-          <TabsTrigger value="tasks">Task Performance</TabsTrigger>
-          <TabsTrigger value="regression">Regression Analysis</TabsTrigger>
-          <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+          <TabsTrigger value="web-vitals">{t('metrics.analysis.tabs.webVitals')}</TabsTrigger>
+          <TabsTrigger value="ux-metrics">{t('metrics.analysis.tabs.uxMetrics')}</TabsTrigger>
+          <TabsTrigger value="tasks">{t('metrics.analysis.tabs.tasks')}</TabsTrigger>
+          <TabsTrigger value="regression">{t('metrics.analysis.tabs.regression')}</TabsTrigger>
+          <TabsTrigger value="recommendations">{t('metrics.analysis.tabs.recommendations')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="web-vitals" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Core Web Vitals</CardTitle>
+              <CardTitle>{t('metrics.analysis.webVitals.title')}</CardTitle>
               <CardDescription>
-                Performance metrics that measure user experience
+                {t('metrics.analysis.webVitals.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -352,11 +354,11 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                         {getStatusIcon(data.status)}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {vital === 'LCP' && 'Largest Contentful Paint'}
-                        {vital === 'CLS' && 'Cumulative Layout Shift'}
-                        {vital === 'INP' && 'Interaction to Next Paint'}
-                        {vital === 'FCP' && 'First Contentful Paint'}
-                        {vital === 'TTFB' && 'Time to First Byte'}
+                        {vital === 'LCP' && t('metrics.analysis.webVitals.lcp')}
+                        {vital === 'CLS' && t('metrics.analysis.webVitals.cls')}
+                        {vital === 'INP' && t('metrics.analysis.webVitals.inp')}
+                        {vital === 'FCP' && t('metrics.analysis.webVitals.fcp')}
+                        {vital === 'TTFB' && t('metrics.analysis.webVitals.ttfb')}
                       </p>
                     </div>
                     {getStatusBadge(data.status)}
@@ -364,19 +366,19 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
 
                   <div className="grid grid-cols-4 gap-4 text-sm">
                     <div>
-                      <div className="text-muted-foreground">Current</div>
+                      <div className="text-muted-foreground">{t('metrics.analysis.webVitals.current')}</div>
                       <div className="font-medium">{data.current.toFixed(2)}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Average</div>
+                      <div className="text-muted-foreground">{t('metrics.analysis.webVitals.average')}</div>
                       <div className="font-medium">{data.average.toFixed(2)}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">P90</div>
+                      <div className="text-muted-foreground">{t('metrics.analysis.webVitals.p90')}</div>
                       <div className="font-medium">{data.p90.toFixed(2)}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Samples</div>
+                      <div className="text-muted-foreground">{t('metrics.analysis.webVitals.samples')}</div>
                       <div className="font-medium">{data.count}</div>
                     </div>
                   </div>
@@ -385,7 +387,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
 
               {Object.keys(report.web_vitals || {}).length === 0 && (
                 <p className="text-muted-foreground text-center py-4">
-                  No Web Vitals data collected yet
+                  {t('metrics.analysis.webVitals.noData')}
                 </p>
               )}
             </CardContent>
@@ -395,9 +397,9 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
         <TabsContent value="ux-metrics" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>User Experience Metrics</CardTitle>
+              <CardTitle>{t('metrics.analysis.uxMetrics.title')}</CardTitle>
               <CardDescription>
-                Custom UX metrics and measurements
+                {t('metrics.analysis.uxMetrics.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -406,11 +408,11 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="font-semibold flex items-center gap-2">
-                        Time to Value (TTV)
+                        {t('metrics.analysis.uxMetrics.ttv')}
                         {getStatusIcon(report.ux_metrics.ttv.status)}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Time until user achieves first value
+                        {t('metrics.analysis.uxMetrics.ttvDescription')}
                       </p>
                     </div>
                     {getStatusBadge(report.ux_metrics.ttv.status)}
@@ -418,25 +420,25 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
 
                   <div className="grid grid-cols-4 gap-4 text-sm">
                     <div>
-                      <div className="text-muted-foreground">Average</div>
+                      <div className="text-muted-foreground">{t('metrics.analysis.uxMetrics.average')}</div>
                       <div className="font-medium">
-                        {(report.ux_metrics.ttv.average / 60000).toFixed(1)} min
+                        {(report.ux_metrics.ttv.average / 60000).toFixed(1)} {t('metrics.analysis.uxMetrics.min')}
                       </div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Median</div>
+                      <div className="text-muted-foreground">{t('metrics.analysis.uxMetrics.median')}</div>
                       <div className="font-medium">
-                        {(report.ux_metrics.ttv.median / 60000).toFixed(1)} min
+                        {(report.ux_metrics.ttv.median / 60000).toFixed(1)} {t('metrics.analysis.uxMetrics.min')}
                       </div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">P90</div>
+                      <div className="text-muted-foreground">{t('metrics.analysis.uxMetrics.p90')}</div>
                       <div className="font-medium">
-                        {(report.ux_metrics.ttv.p90 / 60000).toFixed(1)} min
+                        {(report.ux_metrics.ttv.p90 / 60000).toFixed(1)} {t('metrics.analysis.uxMetrics.min')}
                       </div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Samples</div>
+                      <div className="text-muted-foreground">{t('metrics.analysis.uxMetrics.samples')}</div>
                       <div className="font-medium">{report.ux_metrics.ttv.count}</div>
                     </div>
                   </div>
@@ -445,7 +447,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
 
               {!report.ux_metrics?.ttv && (
                 <p className="text-muted-foreground text-center py-4">
-                  No UX metrics data collected yet
+                  {t('metrics.analysis.uxMetrics.noData')}
                 </p>
               )}
             </CardContent>
@@ -455,9 +457,9 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
         <TabsContent value="tasks" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Task Performance</CardTitle>
+              <CardTitle>{t('metrics.analysis.taskPerformance.title')}</CardTitle>
               <CardDescription>
-                User task completion metrics
+                {t('metrics.analysis.taskPerformance.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -466,7 +468,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm">Total Tasks</CardTitle>
+                        <CardTitle className="text-sm">{t('metrics.analysis.taskPerformance.totalTasks')}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
@@ -477,7 +479,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
 
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm">Success Rate</CardTitle>
+                        <CardTitle className="text-sm">{t('metrics.analysis.taskPerformance.successRate')}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold text-green-600">
@@ -488,18 +490,20 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
 
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm">Avg Duration</CardTitle>
+                        <CardTitle className="text-sm">{t('metrics.analysis.taskPerformance.avgDuration')}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {(report.task_performance.avg_duration / 1000).toFixed(1)}s
+                          {t('metrics.analysis.taskPerformance.avgDurationValue', { 
+                            duration: (report.task_performance.avg_duration / 1000).toFixed(1) 
+                          })}
                         </div>
                       </CardContent>
                     </Card>
 
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm">Status</CardTitle>
+                        <CardTitle className="text-sm">{t('metrics.analysis.taskPerformance.status')}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         {getStatusBadge(report.task_performance.status)}
@@ -508,10 +512,10 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                   </div>
 
                   <div className="border rounded-lg p-4">
-                    <h3 className="font-semibold mb-3">Task Breakdown</h3>
+                    <h3 className="font-semibold mb-3">{t('metrics.analysis.taskPerformance.taskBreakdown')}</h3>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm">Successful Tasks</span>
+                        <span className="text-sm">{t('metrics.analysis.taskPerformance.successfulTasks')}</span>
                         <div className="flex items-center gap-2">
                           <div className="w-32 bg-gray-200 rounded-full h-2">
                             <div 
@@ -527,7 +531,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm">Failed Tasks</span>
+                        <span className="text-sm">{t('metrics.analysis.taskPerformance.failedTasks')}</span>
                         <div className="flex items-center gap-2">
                           <div className="w-32 bg-gray-200 rounded-full h-2">
                             <div 
@@ -553,9 +557,9 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
         <TabsContent value="regression" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Regression Analysis</CardTitle>
+              <CardTitle>{t('metrics.analysis.regression.title')}</CardTitle>
               <CardDescription>
-                Comparison with baseline metrics
+                {t('metrics.analysis.regression.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -563,7 +567,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                 <div className="space-y-4">
                   {report.regression.web_vitals && (
                     <div>
-                      <h3 className="font-semibold mb-3">Web Vitals Changes</h3>
+                      <h3 className="font-semibold mb-3">{t('metrics.analysis.regression.webVitalsChanges')}</h3>
                       <div className="space-y-2">
                         {Object.entries(report.regression.web_vitals).map(([vital, data]) => (
                           <div key={vital} className="flex justify-between items-center p-3 border rounded">
@@ -591,12 +595,15 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
 
                   {report.regression.task_success_rate && (
                     <div>
-                      <h3 className="font-semibold mb-3">Task Success Rate Change</h3>
+                      <h3 className="font-semibold mb-3">{t('metrics.analysis.regression.taskSuccessRateChange')}</h3>
                       <div className="flex justify-between items-center p-3 border rounded">
                         <div>
-                          <div className="font-medium">Success Rate</div>
+                          <div className="font-medium">{t('metrics.analysis.regression.successRate')}</div>
                           <div className="text-sm text-muted-foreground">
-                            {report.regression.task_success_rate.baseline.toFixed(1)}% → {report.regression.task_success_rate.current.toFixed(1)}%
+                            {t('metrics.analysis.regression.successRateChange', {
+                              baseline: report.regression.task_success_rate.baseline.toFixed(1),
+                              current: report.regression.task_success_rate.current.toFixed(1)
+                            })}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -617,7 +624,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    No baseline set. Click "Set as Baseline" to enable regression analysis.
+                    {t('metrics.analysis.regression.noBaseline')}
                   </AlertDescription>
                 </Alert>
               )}
@@ -628,9 +635,9 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
         <TabsContent value="recommendations" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Recommendations</CardTitle>
+              <CardTitle>{t('metrics.analysis.recommendations.title')}</CardTitle>
               <CardDescription>
-                Suggested improvements based on analysis
+                {t('metrics.analysis.recommendations.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -655,7 +662,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                 <Alert>
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <AlertDescription>
-                    <strong>Great job!</strong> All metrics are within acceptable ranges. No immediate action required.
+                    <strong>{t('metrics.analysis.recommendations.greatJob')}</strong> {t('metrics.analysis.recommendations.allGood')}
                   </AlertDescription>
                 </Alert>
               )}

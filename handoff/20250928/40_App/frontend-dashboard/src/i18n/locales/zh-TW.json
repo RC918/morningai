@@ -202,7 +202,91 @@
     "performanceTrend": "性能趨勢",
     "performanceDescription": "過去6小時的系統性能指標",
     "responseTimeTrend": "響應時間趨勢",
-    "responseTimeDescription": "系統響應時間變化"
+    "responseTimeDescription": "系統響應時間變化",
+    "analysis": {
+      "title": "指標分析",
+      "description": "效能與使用者體驗指標分析",
+      "loading": "載入指標中...",
+      "noData": "無指標資料",
+      "noDataDescription": "開始收集指標以查看效能分析",
+      "autoCollectionMessage": "當您使用應用程式時，指標會自動收集。使用應用程式一段時間後再回來查看您的效能資料。",
+      "setBaseline": "設為基準",
+      "clearBaseline": "清除基準",
+      "export": "匯出",
+      "clearData": "清除資料",
+      "baselineActive": "基準已啟用：",
+      "baselineComparison": "將目前指標與 {{date}} 的基準進行比較",
+      "totalMetrics": "總指標數",
+      "categories": "{{count}} 個類別",
+      "taskSuccess": "任務成功率",
+      "tasks": "{{successful}}/{{total}} 個任務",
+      "avgTTV": "平均 TTV",
+      "timeToValue": "價值實現時間",
+      "errorRate": "錯誤率",
+      "errors": "{{count}} 個錯誤",
+      "tabs": {
+        "webVitals": "網頁核心指標",
+        "uxMetrics": "使用者體驗指標",
+        "tasks": "任務效能",
+        "regression": "回歸分析",
+        "recommendations": "建議"
+      },
+      "webVitals": {
+        "title": "核心網頁指標",
+        "description": "衡量使用者體驗的效能指標",
+        "lcp": "最大內容繪製",
+        "cls": "累積版面配置位移",
+        "inp": "互動至下次繪製",
+        "fcp": "首次內容繪製",
+        "ttfb": "首位元組時間",
+        "current": "目前",
+        "average": "平均",
+        "p90": "P90",
+        "samples": "樣本數",
+        "noData": "尚未收集網頁核心指標資料"
+      },
+      "uxMetrics": {
+        "title": "使用者體驗指標",
+        "description": "自訂使用者體驗指標與測量",
+        "ttv": "價值實現時間 (TTV)",
+        "ttvDescription": "使用者實現首次價值的時間",
+        "average": "平均",
+        "median": "中位數",
+        "p90": "P90",
+        "samples": "樣本數",
+        "min": "分鐘",
+        "noData": "尚未收集使用者體驗指標資料"
+      },
+      "taskPerformance": {
+        "title": "任務效能",
+        "description": "使用者任務完成指標",
+        "totalTasks": "總任務數",
+        "successRate": "成功率",
+        "avgDuration": "平均時長",
+        "avgDurationValue": "{{duration}}秒",
+        "status": "狀態",
+        "taskBreakdown": "任務細分",
+        "successfulTasks": "成功任務",
+        "failedTasks": "失敗任務"
+      },
+      "regression": {
+        "title": "回歸分析",
+        "description": "與基準指標的比較",
+        "webVitalsChanges": "網頁核心指標變化",
+        "taskSuccessRateChange": "任務成功率變化",
+        "successRate": "成功率",
+        "successRateChange": "{{baseline}}% → {{current}}%",
+        "noBaseline": "未設定基準。點擊「設為基準」以啟用回歸分析。"
+      },
+      "recommendations": {
+        "title": "建議",
+        "description": "基於分析的改進建議",
+        "greatJob": "做得好！",
+        "allGood": "所有指標都在可接受範圍內。無需立即採取行動。"
+      },
+      "confirmClear": "您確定要清除所有指標資料嗎？此操作無法復原。",
+      "baselineSetSuccess": "基準設定成功！未來的報告將與此基準進行比較。"
+    }
   },
   "decisions": {
     "title": "最近決策",

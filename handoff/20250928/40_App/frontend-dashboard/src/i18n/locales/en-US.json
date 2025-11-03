@@ -202,7 +202,91 @@
     "performanceTrend": "Performance Trend",
     "performanceDescription": "System performance metrics for the past 6 hours",
     "responseTimeTrend": "Response Time Trend",
-    "responseTimeDescription": "System response time changes"
+    "responseTimeDescription": "System response time changes",
+    "analysis": {
+      "title": "Metrics Analysis",
+      "description": "Performance and UX metrics analysis",
+      "loading": "Loading metrics...",
+      "noData": "No Metrics Data",
+      "noDataDescription": "Start collecting metrics to see performance analysis",
+      "autoCollectionMessage": "Metrics collection is automatic when you use the application. Come back after using the app for a while to see your performance data.",
+      "setBaseline": "Set as Baseline",
+      "clearBaseline": "Clear Baseline",
+      "export": "Export",
+      "clearData": "Clear Data",
+      "baselineActive": "Baseline Active:",
+      "baselineComparison": "Comparing current metrics against baseline from {{date}}",
+      "totalMetrics": "Total Metrics",
+      "categories": "{{count}} categories",
+      "taskSuccess": "Task Success",
+      "tasks": "{{successful}}/{{total}} tasks",
+      "avgTTV": "Avg TTV",
+      "timeToValue": "Time to Value",
+      "errorRate": "Error Rate",
+      "errors": "{{count}} errors",
+      "tabs": {
+        "webVitals": "Web Vitals",
+        "uxMetrics": "UX Metrics",
+        "tasks": "Task Performance",
+        "regression": "Regression Analysis",
+        "recommendations": "Recommendations"
+      },
+      "webVitals": {
+        "title": "Core Web Vitals",
+        "description": "Performance metrics that measure user experience",
+        "lcp": "Largest Contentful Paint",
+        "cls": "Cumulative Layout Shift",
+        "inp": "Interaction to Next Paint",
+        "fcp": "First Contentful Paint",
+        "ttfb": "Time to First Byte",
+        "current": "Current",
+        "average": "Average",
+        "p90": "P90",
+        "samples": "Samples",
+        "noData": "No Web Vitals data collected yet"
+      },
+      "uxMetrics": {
+        "title": "User Experience Metrics",
+        "description": "Custom UX metrics and measurements",
+        "ttv": "Time to Value (TTV)",
+        "ttvDescription": "Time until user achieves first value",
+        "average": "Average",
+        "median": "Median",
+        "p90": "P90",
+        "samples": "Samples",
+        "min": "min",
+        "noData": "No UX metrics data collected yet"
+      },
+      "taskPerformance": {
+        "title": "Task Performance",
+        "description": "User task completion metrics",
+        "totalTasks": "Total Tasks",
+        "successRate": "Success Rate",
+        "avgDuration": "Avg Duration",
+        "avgDurationValue": "{{duration}}s",
+        "status": "Status",
+        "taskBreakdown": "Task Breakdown",
+        "successfulTasks": "Successful Tasks",
+        "failedTasks": "Failed Tasks"
+      },
+      "regression": {
+        "title": "Regression Analysis",
+        "description": "Comparison with baseline metrics",
+        "webVitalsChanges": "Web Vitals Changes",
+        "taskSuccessRateChange": "Task Success Rate Change",
+        "successRate": "Success Rate",
+        "successRateChange": "{{baseline}}% → {{current}}%",
+        "noBaseline": "No baseline set. Click \"Set as Baseline\" to enable regression analysis."
+      },
+      "recommendations": {
+        "title": "Recommendations",
+        "description": "Suggested improvements based on analysis",
+        "greatJob": "Great job!",
+        "allGood": "All metrics are within acceptable ranges. No immediate action required."
+      },
+      "confirmClear": "Are you sure you want to clear all metrics data? This cannot be undone.",
+      "baselineSetSuccess": "Baseline set successfully! Future reports will compare against this baseline."
+    }
   },
   "decisions": {
     "title": "Recent Decisions",
