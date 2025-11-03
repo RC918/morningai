@@ -46,8 +46,9 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
             size="sm" 
             className={`${className} bg-white hover:bg-gray-50 shadow-md flex items-center justify-center`}
             style={{ width: '40px', height: '40px', padding: '0' }}
+            aria-label={`Change language (current: ${currentLanguage.name})`}
           >
-            <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
+            <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
           </AppleButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
@@ -87,8 +88,8 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <AppleButton variant="outline" className={`${className} min-w-32`}>
-          <Globe className="w-4 h-4 mr-2" />
+        <AppleButton variant="outline" className={`${className} min-w-32`} aria-label={`Change language (current: ${currentLanguage.name})`}>
+          <Globe className="w-4 h-4 mr-2" aria-hidden="true" />
           <span className="text-lg mr-2">{currentLanguage.flag}</span>
           <span>{currentLanguage.name}</span>
         </AppleButton>
