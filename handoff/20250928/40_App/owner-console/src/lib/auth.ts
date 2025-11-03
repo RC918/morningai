@@ -166,19 +166,84 @@ export function isAuthenticated(): boolean {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 /**
+ * CSRF token storage
+ * Stored in-memory and sessionStorage for cross-origin compatibility
+ * Cannot use document.cookie in cross-origin scenarios (even with SameSite=None)
+ */
+let csrfToken: string | null = null;
+
+if (typeof sessionStorage !== 'undefined') {
+  try {
+    csrfToken = sessionStorage.getItem('csrf_token');
+  } catch (error) {
+    console.error('Failed to load CSRF token from sessionStorage:', error);
+  }
+}
+
+/**
+ * Get CSRF token from in-memory storage
+ */
+function getCsrfToken(): string | null {
+  return csrfToken;
+}
+
+/**
+ * Store CSRF token in both in-memory and sessionStorage
+ */
+function storeCsrfToken(token: string): void {
+  csrfToken = token;
+  
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.setItem('csrf_token', token);
+    } catch (error) {
+      console.error('Failed to store CSRF token in sessionStorage:', error);
+    }
+  }
+}
+
+/**
+ * Clear CSRF token from both in-memory and sessionStorage
+ */
+function clearCsrfToken(): void {
+  csrfToken = null;
+  
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.removeItem('csrf_token');
+    } catch (error) {
+      console.error('Failed to clear CSRF token from sessionStorage:', error);
+    }
+  }
+}
+
+/**
  * Ensure CSRF token exists by fetching it if missing
+ * 
+ * P0 Fix: Read CSRF token from JSON response instead of document.cookie
+ * This is required for cross-origin authentication (admin.gm365.me → morningai-backend-v2.onrender.com)
+ * Even with SameSite=None, HttpOnly cookies cannot be read by JavaScript
  */
 async function ensureCsrfToken(): Promise<void> {
-  if (typeof document === 'undefined') return;
+  if (typeof window === 'undefined') return;
   
-  const existingToken = getCookie('csrf_token');
+  const existingToken = getCsrfToken();
   if (existingToken) return;
   
   try {
-    await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
       method: 'GET',
       credentials: 'include',
     });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.csrf_token) {
+        storeCsrfToken(data.csrf_token);
+      }
+    } else {
+      console.error('Failed to fetch CSRF token:', response.status, response.statusText);
+    }
   } catch (error) {
     console.error('Failed to fetch CSRF token:', error);
   }
@@ -186,6 +251,9 @@ async function ensureCsrfToken(): Promise<void> {
 
 /**
  * Get cookie value by name
+ * 
+ * Note: This function is kept for potential future use but should NOT be used
+ * for CSRF tokens in cross-origin scenarios. Use getCsrfToken() instead.
  */
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -235,7 +303,7 @@ async function authenticatedFetch(
   
   const headers = new Headers(options.headers);
   if (shouldIncludeCSRF(options.method)) {
-    const csrfToken = getCookie('csrf_token');
+    const csrfToken = getCsrfToken();
     if (csrfToken) {
       headers.set('X-CSRF-Token', csrfToken);
     }
@@ -253,7 +321,7 @@ async function authenticatedFetch(
       
       const retryHeaders = new Headers(options.headers);
       if (shouldIncludeCSRF(options.method)) {
-        const csrfToken = getCookie('csrf_token');
+        const csrfToken = getCsrfToken();
         if (csrfToken) {
           retryHeaders.set('X-CSRF-Token', csrfToken);
         }
@@ -339,7 +407,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 export async function logout(): Promise<void> {
   if (isFeatureEnabled('OWNER_CONSOLE_API')) {
     try {
-      const csrfToken = getCookie('csrf_token');
+      const csrfToken = getCsrfToken();
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
@@ -359,6 +427,7 @@ export async function logout(): Promise<void> {
   }
   
   clearTokens();
+  clearCsrfToken();
 }
 
 /**
