@@ -301,7 +301,7 @@ jobs:
           cat ../../../../lighthouserc.main.json
           echo ""
           echo "=== Verifying puppeteerScript path ==="
-          node -e "const fs=require('fs');const path=require('path');const cfgPath=path.resolve(process.cwd(),'../../../../lighthouserc.main.json');console.log('Config file path:', cfgPath);const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));const puppeteerScript=cfg.ci.collect.puppeteerScript;console.log('puppeteerScript (from config):', puppeteerScript);const absScript=path.resolve(path.dirname(cfgPath), puppeteerScript);console.log('puppeteerScript (absolute):', absScript);console.log('puppeteerScript exists:', fs.existsSync(absScript));"
+          node -e "const fs=require('fs');const path=require('path');const cfgPath=path.resolve(process.cwd(),'../../../../lighthouserc.main.json');console.log('Config file path:', cfgPath);const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));const puppeteerScript=cfg.ci?.collect?.puppeteerScript;console.log('puppeteerScript (from config):', puppeteerScript);if(puppeteerScript){const absScript=path.resolve(path.dirname(cfgPath), puppeteerScript);console.log('puppeteerScript (absolute):', absScript);console.log('puppeteerScript exists:', fs.existsSync(absScript));}else{console.log('puppeteerScript not configured');}"
 
       - name: Run Lighthouse CI (main - nightly signal collection)
         if: always()
@@ -322,12 +322,13 @@ jobs:
         run: node scripts/update-baseline-and-trend.js
 
       - name: Commit baseline updates
-        if: always()
+        if: github.event_name != 'pull_request'
         continue-on-error: true
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(ci): update LHCI baseline & trend [skip ci]"
           file_pattern: ".lhci-baseline.json trend.csv"
+          branch: ${{ github.ref_name }}
 
       - name: Stop preview server
         if: always()

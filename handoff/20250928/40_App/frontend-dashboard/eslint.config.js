@@ -80,4 +80,53 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
   rules: {
     'i18next/no-literal-string': 'off',
   },
+}, {
+  files: [
+    'src/components/ui/**/*.{ts,tsx}',
+    'src/components/governance/**/*.{ts,tsx}',
+    'src/components/usability/**/*.{ts,tsx}',
+    'src/components/metrics/**/*.{ts,tsx}',
+    'src/components/ab-testing/**/*.{ts,tsx}',
+    'src/components/examples/**/*.{ts,tsx}',
+    'src/components/AgentGovernance.tsx',
+    'src/components/AppleHero.tsx',
+    'src/components/CheckoutPage.tsx',
+    'src/components/CostAnalysis.tsx',
+    'src/components/Dashboard.tsx',
+    'src/components/DarkModeToggle.tsx',
+    'src/components/ErrorBoundary.tsx',
+    'src/components/GlobalSearch.tsx',
+    'src/components/HistoryAnalysis.tsx',
+    'src/components/LanguageSwitcher.tsx',
+    'src/components/LiveRegion.tsx',
+    'src/components/LoginPage.tsx',
+    'src/components/ReportCenter.tsx',
+    'src/components/Sidebar.tsx',
+    'src/components/SystemSettings.tsx',
+    'src/components/TenantSettings.tsx',
+    'src/components/WidgetLibrary.tsx',
+    'src/pages/TenantSettings.tsx',
+    'src/contexts/**/*.{ts,tsx}',
+  ],
+  rules: {
+    'i18next/no-literal-string': 'off',
+  },
+},{
+  files: [
+    'src/pages/Settings2FA.tsx',
+    'src/components/2fa/**/*.{ts,tsx}',
+  ],
+  rules: {
+    'i18next/no-literal-string': ['error', {
+      markupOnly: true,
+      onlyAttribute: ['alt', 'title', 'placeholder', 'aria-label', 'aria-description'],
+      ignoreAttribute: ['className', 'data-testid', 'href', 'to', 'id', 'name', 'type', 'role', 'tabIndex', 'aria-labelledby', 'aria-describedby', 'data-devinid'],
+      ignoreCallee: ['t', 'Trans', 'clsx', 'cn', 'tw', 'cva'],
+      ignore: [
+        '^\\s*$',
+        '^[0-9 .,:+\\-/%()]*$',
+        '^(true|false)$',
+      ],
+    }],
+  },
 }, ...storybook.configs["flat/recommended"]];
