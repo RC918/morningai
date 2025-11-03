@@ -261,12 +261,25 @@ For complete staging environment setup instructions, see:
 #### Backend API
 - **URL**: http://localhost:8000
 - **Runtime**: Python 3.12+
-- **Start Command**: `export FLASK_APP=src.main && flask run --port 8000`
+- **Framework**: Flask
+- **Start Command**: 
+  ```bash
+  # Option 1: Flask CLI (recommended for development)
+  export FLASK_APP=src.main
+  flask run --port 8000
+  
+  # Option 2: Gunicorn (production-like)
+  gunicorn "src.main:app" --bind 0.0.0.0:8000 --reload
+  
+  # Quick one-liner (equivalent to Option 1)
+  export FLASK_APP=src.main && flask run --port 8000
+  ```
 - **Working Directory**: `handoff/20250928/40_App/api-backend`
 
 #### Orchestrator API
 - **URL**: http://localhost:8001
 - **Runtime**: Python 3.12+
+- **Framework**: FastAPI
 - **Start Command**: `uvicorn orchestrator.api.main:app --port 8001 --reload`
 - **Working Directory**: Repository root
 

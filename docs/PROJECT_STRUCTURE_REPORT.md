@@ -84,10 +84,12 @@ morningai/
 ├── .github/                    # GitHub configuration
 ├── .fly-web/                   # Fly.io deployment config
 ├── agents/                     # AI agent implementations
-├── orchestrator/               # Task orchestration system
-├── handoff/                    # Handoff deliverables
+├── orchestrator/               # Task orchestration system (FastAPI)
+├── handoff/                    # Handoff deliverables (⚠️ DO NOT IMPORT - vendor/design only)
 ├── docs/                       # Documentation
-├── config/                     # Configuration files
+├── config/                     # Configuration files (env.schema.yaml is SSOT)
+├── scripts/                    # Utility scripts (env generation, drift check, secret verification)
+├── packages/                   # Shared packages (shared-ui for cross-app components)
 ├── tests/                      # Root-level tests
 ├── phase4_meta_agent_api.py   # Phase 4 API module (imported by backend)
 ├── phase5_data_intelligence_api.py  # Phase 5 API module (imported by backend)
@@ -232,6 +234,10 @@ orchestrator/
 ```
 
 ### Handoff Directory (`handoff/20250928/40_App/`)
+
+⚠️ **IMPORTANT**: The `handoff/` directory contains vendor deliverables and design assets from the initial project handoff. **DO NOT import or run code from this directory**. It is excluded from CI paths-ignore and should be treated as reference/archive material only.
+
+The production applications are located within this directory but are the only active code:
 
 ```
 handoff/20250928/40_App/
@@ -480,6 +486,8 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 **Deployment**:
 - Production: https://admin.gm365.me
 - Vercel deployment
+
+⚠️ **Cross-Import Restrictions**: ESLint enforces `no-restricted-imports` to prevent accidental imports between frontend-dashboard and owner-console. Use `packages/shared-ui` for shared components.
 
 #### 4.3 Frontend Boundaries and Separation
 
