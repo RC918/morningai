@@ -1,68 +1,96 @@
-# MorningAI System Architecture
+# System Architecture of MorningAI
 
-The MorningAI platform is designed to be a robust, scalable, multi-tenant SaaS solution that leverages modern technologies for autonomous code generation, documentation management, and real-time task orchestration. Understanding the system architecture is crucial for developers looking to integrate with or contribute to MorningAI. Below, we provide an overview of the key components and how they interact within the system.
+MorningAI is designed as a scalable, multi-tenant Software as a Service (SaaS) platform that leverages a microservices architecture to provide autonomous code generation, FAQ generation, documentation management, and multi-platform integration capabilities. This architecture enables efficient real-time task orchestration and memory storage for vector operations.
 
-## Components Overview
+## Core Components
 
 ### Frontend
-- **Technology**: The frontend is built with React, utilizing Vite as the build tool and TailwindCSS for styling.
-- **Location**: All frontend code can be found under `/frontend` in the RC918/morningai repository.
+
+- **Technology**: The frontend is built with React for its efficient UI rendering and state management capabilities. Vite is used as the build tool for its fast hot module replacement (HMR), and TailwindCSS for utility-first styling.
+- **Path**: The frontend code can be found under `frontend/` in the repository.
 
 ### Backend
-- **Framework**: Python with Flask is used for the backend API development, with Gunicorn serving as the WSGI HTTP Server.
-- **Workers**: Gunicorn is configured with multi-worker support to handle concurrent requests efficiently.
-- **Location**: Backend code resides in `/backend`.
+
+- **Technology**: Python with Flask is used for the backend due to its simplicity and effectiveness in creating RESTful services. Gunicorn serves as the WSGI HTTP Server to handle requests, configured for multi-worker support to enhance concurrency.
+- **Path**: Backend services are located under `backend/`.
 
 ### Database
-- **Database System**: PostgreSQL, enhanced by Supabase for additional features like Row Level Security (RLS), which is critical for multi-tenancy support.
-- **Vector Memory Storage**: Implemented using pgvector/Supabase for efficient storage of vectorized data.
+
+- **Technology**: PostgreSQL is utilized for its robustness and reliability. Supabase adds a layer of real-time functionality and row-level security, ensuring data integrity and security across tenants.
+- **Integration**: pgvector is employed within Supabase for efficient vector memory storage, crucial for AI-related operations.
+- **Configuration Files**: Database schemas and configurations can be found in `database/`.
 
 ### Queue System
-- **Queue Management**: Redis Queue (RQ) is employed for managing background tasks, with worker heartbeat monitoring to ensure reliability.
-  
+
+- **Technology**: Redis Queue (RQ) is used for task queuing to manage background job processing efficiently, with worker heartbeat monitoring to ensure reliability.
+- **Setup**: Configuration for RQ can be found in `queue/`.
+
 ### Orchestration
-- **Workflow Management**: Task orchestration is handled by LangGraph, allowing for complex agent workflows to be defined and executed.
+
+- **System**: LangGraph orchestrates agent workflows, managing dependencies between different services seamlessly.
+- **Configuration Files**: Orchestration rules and workflows are defined in `orchestration/`.
 
 ### AI Integration
-- **Content Generation**: OpenAI's GPT-4 is integrated into MorningAI for advanced content generation capabilities.
+
+- **Technology**: OpenAI's GPT-4 powers the platform's content generation features, including autonomous code generation and FAQ content creation.
+- **Integration Points**: AI models are integrated via API calls, with configurations located in `ai/`.
 
 ### Deployment
-- **Platform**: The application is deployed on Render.com, benefiting from its CI/CD pipelines for seamless updates.
 
-## Configuration and Setup
+- **Service**: Render.com is chosen for deployment because of its support for CI/CD, allowing automatic deployments from the repository.
+- **Configuration Files**: Deployment configurations are available in `.render/`.
 
-Setting up MorningAI requires configuring each component correctly. Here's a brief overview:
+## Code Example
 
-1. **Frontend Setup**:
-   - Navigate to `/frontend`.
-   - Install dependencies: `npm install`.
-   - Start the development server: `npm run dev`.
+A simple example of initializing a Flask application with Gunicorn could look like this:
 
-2. **Backend Setup**:
-   - Ensure Python and Flask are installed.
-   - Navigate to `/backend`.
-   - Install dependencies: `pip install -r requirements.txt`.
-   - Start the Flask application: `flask run`.
+```python
+from flask import Flask
+app = Flask(__name__)
 
-3. **Database Configuration**:
-   - Set up a PostgreSQL database on Supabase.
-   - Configure Row Level Security according to your multi-tenancy needs.
+@app.route("/")
+def hello_world():
+    return "Hello, MorningAI!"
 
-4. **Queue and Worker Configuration**:
-   - Install Redis and ensure it's running.
-   - Configure RQ workers by navigating to where your RQ worker initialization script is located and running it.
+if __name__ == "__main__":
+    app.run()
+```
 
-5. **Deployment**:
-   - Follow Render.com's documentation for deploying both frontend and backend applications.
+This Python file would be typically located under `backend/app.py`. To run this Flask app with Gunicorn, you would use:
+
+```bash
+gunicorn -w 4 app:app
+```
+
+Here `-w 4` specifies running 4 worker processes.
+
+## Related Documentation Links
+
+For more detailed information on each component mentioned above:
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [Vite Guide](https://vitejs.dev/guide/)
+- [TailwindCSS Documentation](https://tailwindcss.com/docs)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [Gunicorn Configurations](https://docs.gunicorn.org/en/stable/configure.html)
+- [Supabase Documentation](https://supabase.com/docs)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [Render.com CI/CD](https://render.com/docs/ci-cd)
 
 ## Common Troubleshooting Tips
 
-- Ensure all environment variables are correctly set, especially those related to database connections and external APIs.
-- When dealing with frontend build issues, clear your npm cache and reinstall dependencies.
-- For backend issues related to Gunicorn workers not starting, check the logs for any errors related to dependencies or database connections.
-- If Redis Queue workers are not processing tasks, verify that Redis is running and that you have correctly started the RQ worker processes.
+1. **Database Connectivity Issues**:
+   - Ensure that the connection strings in your environment variables match those provided by Supabase.
+   - Check if your Supabase project has Row Level Security enabled for required tables.
 
-For more detailed instructions on setup, configuration, and troubleshooting, please refer to the specific documentation within each component's directory in the RC918/morningai repository.
+2. **Failed Deployments on Render.com**:
+   - Verify that your `.render/render.yaml` file is correctly configured according to Render's documentation.
+   - Check the deployment logs on Render.com for specific error messages.
+
+3. **Issues with Background Jobs**:
+   - Ensure Redis server is up and accessible.
+   - Check RQ dashboard or logs for failed jobs or errors.
+
+Remember to consult the official documentation of each technology stack component when troubleshooting specific issues.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -71,6 +99,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `62edf143-bb20-432b-80ab-7f37a35ff0b8`
+- Trace ID: `68316d29-849e-4d45-b988-9643a8150dff`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
