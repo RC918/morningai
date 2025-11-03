@@ -40,6 +40,10 @@ def get_csrf_token():
     This endpoint allows the frontend to bootstrap CSRF protection
     before making authenticated requests.
     
+    P1 Enhancement: Cache-Control headers to prevent token caching
+    - Ensures each request generates a fresh CSRF token
+    - Prevents browsers/proxies from serving stale tokens
+    
     Response:
         {
             "csrf_token": "abc123..."
@@ -53,6 +57,12 @@ def get_csrf_token():
         }
         
         response = make_response(jsonify(response_data), 200)
+        
+        response.headers['Cache-Control'] = (
+            'no-store, no-cache, must-revalidate, max-age=0'
+        )
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
         
         from src.services.auth_service import create_cookie_config, ACCESS_TOKEN_EXPIRY_MINUTES
         response.set_cookie(
