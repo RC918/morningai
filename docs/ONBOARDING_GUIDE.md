@@ -317,7 +317,7 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 ### Orchestrator
 
-- **Framework**: Flask (Python 3.12)
+- **Framework**: FastAPI (Python 3.12)
 - **Task Management**: Graph-based orchestration
 - **Sandbox**: Docker containers on Fly.io
 - **MCP**: Management Control Plane
@@ -364,7 +364,7 @@ morningai/
 │   └── meta_agent_decision_hub.py  # Agent orchestration
 │
 ├── orchestrator/                    # Task orchestration system
-│   ├── api/                        # Flask application
+│   ├── api/                        # FastAPI application
 │   │   ├── main.py                 # Application entry point
 │   │   └── auth.py                 # Authentication
 │   ├── task_queue/                 # Redis queue management

@@ -206,7 +206,7 @@ agents/
 
 ```
 orchestrator/
-├── api/                    # Flask application
+├── api/                    # FastAPI application
 │   ├── __init__.py
 │   ├── main.py            # Application entry point
 │   └── auth.py            # JWT authentication
@@ -409,7 +409,7 @@ config/
 **Architecture**: Graph-based task management
 
 **Key Components**:
-- **API** (`orchestrator/api/main.py`): Flask application
+- **API** (`orchestrator/api/main.py`): FastAPI application
 - **Task Queue** (`orchestrator/task_queue/redis_queue.py`): Redis-based queue
 - **Sandbox** (`orchestrator/sandbox/`): Isolated agent execution
 - **MCP** (`orchestrator/mcp/`): Management Control Plane
@@ -653,7 +653,7 @@ primary_region = "nrt"
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `api/main.py` | Flask application | `orchestrator/api/` |
+| `api/main.py` | FastAPI application | `orchestrator/api/` |
 | `api/auth.py` | JWT authentication | `orchestrator/api/` |
 | `task_queue/redis_queue.py` | Redis queue | `orchestrator/task_queue/` |
 | `Dockerfile` | Docker configuration | `orchestrator/` |
