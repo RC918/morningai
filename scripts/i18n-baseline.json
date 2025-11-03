@@ -1,0 +1,28 @@
+{
+  "baseline_commit": "11c65e6a63fe9feb20991d27307cab792c1c0148",
+  "baseline_date": "2025-11-03T13:06:34Z",
+  "description": "i18n violation baseline after expanding owner-console ESLint to TypeScript/TSX and fixing frontend-dashboard MetricsAnalysisDashboard.tsx",
+  "violations": {
+    "frontend-dashboard": 0,
+    "owner-console": 97
+  },
+  "top_offenders": {
+    "owner-console": [
+      {"file": "src/components/MetricsDashboard.tsx", "count": 23},
+      {"file": "src/components/2fa/TwoFAStatusCard.jsx", "count": 15},
+      {"file": "src/components/2fa/TwoFASetupWizard.jsx", "count": 11},
+      {"file": "src/components/2fa/BackupCodesList.jsx", "count": 8},
+      {"file": "src/components/2fa/DisableTwoFAModal.jsx", "count": 8},
+      {"file": "src/components/2fa/QRCodeDisplay.jsx", "count": 7},
+      {"file": "src/components/2fa/RegenerateBackupCodesModal.jsx", "count": 6},
+      {"file": "src/components/PWAInstallPrompt.tsx", "count": 6}
+    ]
+  },
+  "notes": [
+    "frontend-dashboard violations reduced from 64 to 0 by fixing MetricsAnalysisDashboard.tsx",
+    "owner-console ESLint expanded from *.{js,jsx} to *.{js,jsx,ts,tsx} to include TypeScript files",
+    "owner-console has 30 TypeScript/TSX files that were previously not linted",
+    "Pre-commit hook will prevent new violations in changed files",
+    "CI baseline check will prevent regression (count increases)"
+  ]
+}

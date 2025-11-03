@@ -4,15 +4,17 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import i18next from 'eslint-plugin-i18next';
+import tseslint from 'typescript-eslint';
 
 export default [
   { ignores: ['dist', 'src/lib/generated'] },
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
       globals: globals.browser,
+      parser: tseslint.parser,
       parserOptions: {
         ecmaFeatures: {
           jsx: true,
@@ -64,7 +66,7 @@ export default [
     },
   },
   {
-    files: ['**/*.{test,spec}.{js,jsx}', 'scripts/**'],
+    files: ['**/*.{test,spec}.{js,jsx,ts,tsx}', 'scripts/**'],
     rules: {
       'i18next/no-literal-string': 'off',
     },

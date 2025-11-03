@@ -480,6 +480,126 @@ on:
 - [ ] 設置適當的 `timeout-minutes`
 - [ ] 有 `concurrency` 控制（如果適用）
 
+## i18n 國際化規範
+
+### i18n Violation Baseline 機制
+
+MorningAI 使用 **violation baseline** 機制來防止新的 i18n 違規，同時允許團隊逐步修復現有違規。
+
+#### 工作原理
+
+1. **Baseline 檔案**: `scripts/i18n-baseline.json` 記錄當前的違規數量
+2. **Pre-commit Hook**: 在 commit 時自動修復可修復的 i18n 問題（使用 `eslint --fix --quiet`）
+3. **CI Baseline Check**: 在 CI 中檢查違規數量，如果超過 baseline 則失敗
+
+#### 使用 i18n
+
+**✅ 正確做法** - 使用 `t()` 函數：
+```tsx
+import { useTranslation } from 'react-i18next'
+
+function MyComponent() {
+  const { t } = useTranslation()
+  
+  return (
+    <div>
+      <h1>{t('welcome.title')}</h1>
+      <p>{t('welcome.description')}</p>
+      <Button>{t('common.submit')}</Button>
+    </div>
+  )
+}
+```
+
+**❌ 錯誤做法** - 硬編碼字串：
+```tsx
+// ❌ 會被 ESLint 阻擋
+function MyComponent() {
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <p>This is a description</p>
+      <Button>Submit</Button>
+    </div>
+  )
+}
+```
+
+#### 添加翻譯 Key
+
+1. 在 `src/i18n/locales/en-US.json` 添加英文翻譯
+2. 在 `src/i18n/locales/zh-TW.json` 添加中文翻譯
+
+```json
+// en-US.json
+{
+  "welcome": {
+    "title": "Welcome",
+    "description": "This is a description"
+  },
+  "common": {
+    "submit": "Submit"
+  }
+}
+
+// zh-TW.json
+{
+  "welcome": {
+    "title": "歡迎",
+    "description": "這是描述"
+  },
+  "common": {
+    "submit": "提交"
+  }
+}
+```
+
+#### 檢查違規數量
+
+```bash
+# 檢查當前違規數量
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm lint | grep "i18next/no-literal-string" | wc -l
+
+cd handoff/20250928/40_App/owner-console
+pnpm lint | grep "i18next/no-literal-string" | wc -l
+
+# 或使用 baseline check script
+node scripts/check-i18n-baseline.js
+```
+
+#### 更新 Baseline
+
+當你修復了一些違規後，更新 baseline：
+
+1. 運行 `node scripts/check-i18n-baseline.js` 確認改進
+2. 如果違規數量減少，手動更新 `scripts/i18n-baseline.json`
+3. Commit 更新後的 baseline 檔案
+
+#### Pre-commit Hook
+
+Pre-commit hook 會自動：
+- 對 staged 的 `.js/.jsx/.ts/.tsx` 檔案運行 `eslint --fix --quiet`
+- 自動修復可修復的問題
+- 只在有 i18n 違規（error）時阻擋 commit
+
+如果 commit 被阻擋：
+1. 查看 ESLint 錯誤訊息
+2. 將硬編碼字串替換為 `t()` 調用
+3. 添加對應的翻譯 key
+4. 重新 commit
+
+#### CI Baseline Check
+
+CI 會在每次 PR 時檢查：
+- 如果違規數量 **增加**：❌ CI 失敗
+- 如果違規數量 **減少**：✅ CI 通過並顯示改進
+- 如果違規數量 **不變**：✅ CI 通過
+
+#### 30/60/90 天違規清理計劃
+
+參見 `docs/i18n-cleanup-plan.md` 了解詳細的違規清理計劃和進度追蹤。
+
 ## TypeScript 類型檢查規範
 
 ### 標準 TypeCheck 命令
