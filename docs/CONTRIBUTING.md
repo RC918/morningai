@@ -308,5 +308,40 @@ CI 會自動檢查：
 
 ---
 
-**最後更新**：2025-10-23  
+## 術語標準 (Terminology Standards)
+
+### 應用名稱
+
+使用標準化的應用名稱以確保文檔和代碼的一致性：
+
+| 英文 | 中文 | 代碼目錄 | Production URL |
+|------|------|----------|----------------|
+| **Tenant Dashboard** | **租戶端** | `frontend-dashboard/` | https://app.gm365.me |
+| **Owner Console** | **所有者後台** | `owner-console/` | https://admin.gm365.me |
+
+### 用戶類型
+
+| 英文 | 中文 | 說明 |
+|------|------|------|
+| **Tenant User** | **租戶用戶** | 使用 Tenant Dashboard 的客戶組織成員 |
+| **Platform Owner** | **平台所有者** | 使用 Owner Console 的平台管理員 |
+
+### 禁用術語
+
+以下術語已棄用，請勿在新代碼或文檔中使用：
+
+- ❌ End-User / end user（使用 Tenant User）
+- ❌ 終端用戶（使用 租戶用戶）
+- ❌ 最終用戶（使用 租戶用戶）
+- ❌ Frontend Dashboard（作為主要名稱，使用 Tenant Dashboard）
+- ❌ Admin Console（使用 Owner Console）
+
+### 詳細術語指南
+
+完整的術語定義和使用指南，請參閱：
+- **[術語對照表](./TERMINOLOGY.md)** - 完整的中英文術語標準
+
+---
+
+**最後更新**：2025-11-03  
 **相關 PR**：#639, #641

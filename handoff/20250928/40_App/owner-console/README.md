@@ -1,10 +1,10 @@
-# MorningAI Owner Console
+# MorningAI Owner Console（所有者後台）
 
 **独立的平台管理控制台，专为 Owner 角色设计**
 
 ## 概述
 
-Owner Console 是 MorningAI 平台的独立管理界面，与租户 Dashboard 完全分离。它提供平台级别的管理功能，包括：
+Owner Console（所有者後台）是 MorningAI 平台的独立管理界面，与 Tenant Dashboard（租戶端）完全分离。它提供平台级别的管理功能，包括：
 
 - **Agent Governance**: 监控 agent 信誉、权限和合规性
 - **Tenant Management**: 管理租户账户和权限
@@ -38,8 +38,8 @@ Owner Console 是 MorningAI 平台的独立管理界面，与租户 Dashboard �
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
-│                 Tenant Dashboard                         │
-│  (租户应用 - 租户用户可访问)                             │
+│                 Tenant Dashboard（租戶端）                │
+│  (租户用户应用 - 租户用户可访问)                          │
 │  - Dashboard                                             │
 │  - Strategies                                            │
 │  - Approvals                                             │
@@ -55,7 +55,7 @@ Owner Console 是 MorningAI 平台的独立管理界面，与租户 Dashboard �
   - 使用独立的认证 token (`owner_auth_token`)
   - 可以管理所有租户和系统设置
   
-- **Tenant Dashboard**: 
+- **Tenant Dashboard（租戶端）**: 
   - 租户用户可以访问
   - 使用租户认证 token (`auth_token`)
   - 只能访问自己租户的数据
@@ -103,8 +103,8 @@ VITE_OWNER_CONSOLE=true
 
 Owner Console 应该部署到独立的 URL，例如：
 
-- **Owner Console**: `admin.morningai.com` 或 `owner.morningai.com`
-- **Tenant Dashboard**: `dashboard.morningai.com` 或 `app.morningai.com`
+- **Owner Console（所有者後台）**: https://admin.gm365.me
+- **Tenant Dashboard（租戶端）**: https://app.gm365.me
 
 这样可以确保：
 1. 清晰的角色分离
@@ -113,7 +113,7 @@ Owner Console 应该部署到独立的 URL，例如：
 
 ## UI/UX 设计
 
-Owner Console 使用与 Tenant Dashboard 相同的设计系统，但有以下区别：
+Owner Console（所有者後台）使用与 Tenant Dashboard（租戶端）相同的设计系统，但有以下区别：
 
 - **主题色**: 使用紫色 (purple) 而不是蓝色 (blue)，以区分 Owner 和租户界面
 - **图标**: 使用 Shield、Users、Activity 等管理相关图标
@@ -148,12 +148,12 @@ Owner Console 使用与 Tenant Dashboard 相同的设计系统，但有以下区
 - 安全策略设置
 - 系统参数管理
 
-## 与 Tenant Dashboard 的区别
+## 与 Tenant Dashboard（租戶端）的区别
 
-| 特性 | Owner Console | Tenant Dashboard |
+| 特性 | Owner Console（所有者後台）| Tenant Dashboard（租戶端）|
 |------|---------------|------------------|
 | 访问权限 | Owner only | Tenant users |
-| URL | admin.morningai.com | dashboard.morningai.com |
+| URL | https://admin.gm365.me | https://app.gm365.me |
 | 主题色 | Purple | Blue |
 | 功能范围 | 平台管理 | 租户功能 |
 | Agent Governance | ✅ 完整访问 | ❌ 不可见 |

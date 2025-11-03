@@ -2,6 +2,8 @@
 
 **Welcome to MorningAI!** 🎉
 
+> 📚 **術語標準**: 請參閱 [術語對照表](./TERMINOLOGY.md) 了解標準化的應用名稱和用戶類型定義。
+
 This guide will help you get started with the MorningAI project, understand the architecture, set up your development environment, and start contributing.
 
 ---
