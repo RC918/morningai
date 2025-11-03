@@ -127,13 +127,12 @@ def login():
             return jsonify({'message': 'Invalid email or password'}), 401
         
         from .totp import check_2fa_required
-        if check_2fa_required(user['id'], user['role']):
+        if check_2fa_required(user['id']):
             response_data = {
                 'requires_2fa': True,
                 'user': {
                     'id': user['id'],
-                    'email': user['email'],
-                    'role': user['role']
+                    'email': user['email']
                 }
             }
             logger.info(f"User {user['email']} (role: {user['role']}) requires 2FA verification")
