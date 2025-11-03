@@ -13,8 +13,8 @@
 
 ## Baseline Information
 
-- **Baseline Commit**: `11c65e6a63fe9feb20991d27307cab792c1c0148`
-- **Baseline Date**: 2025-11-03T13:06:34Z
+- **Baseline Commit**: `af73a1c16de97a1ea14bd28239aafb86c5064c30`
+- **Baseline Date**: 2025-11-03T14:15:00Z
 - **Baseline File**: `scripts/i18n-baseline.json`
 
 ## Top Offending Files (owner-console)
