@@ -342,6 +342,10 @@
       "updatePassword": "更新密碼",
       "updating": "更新中..."
     },
+    "2fa": {
+      "title": "雙重驗證",
+      "subtitle": "為您的帳戶增加額外的安全保護層"
+    },
     "system": {
       "title": "系統配置",
       "description": "調整系統行為和效能設定",

@@ -53,3 +53,10 @@ export interface TwoFALoginRequest {
   backup_code?: string;
   remember_device?: boolean;
 }
+
+export interface TwoFALoginResponse {
+  success: boolean;
+  user_id: string;
+  backup_codes_remaining?: number;
+  device_trusted?: boolean;
+}

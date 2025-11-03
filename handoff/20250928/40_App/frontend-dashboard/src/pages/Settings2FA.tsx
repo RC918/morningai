@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TwoFAStatusCard } from '@/components/2fa/TwoFAStatusCard';
 import { TwoFASetupWizard } from '@/components/2fa/TwoFASetupWizard';
 import { DisableTwoFAModal } from '@/components/2fa/DisableTwoFAModal';
 import { RegenerateBackupCodesModal } from '@/components/2fa/RegenerateBackupCodesModal';
 
 export default function Settings2FA() {
+  const { t } = useTranslation();
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
@@ -28,9 +30,9 @@ export default function Settings2FA() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Two-Factor Authentication</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{t('settings.2fa.title')}</h1>
         <p className="text-gray-600 mt-1">
-          Secure your account with an additional layer of protection
+          {t('settings.2fa.subtitle')}
         </p>
       </div>
 

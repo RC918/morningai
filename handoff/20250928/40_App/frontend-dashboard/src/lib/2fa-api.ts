@@ -17,6 +17,7 @@ import type {
   TwoFARegenerateBackupCodesResponse,
   TwoFAStatusResponse,
   TwoFALoginRequest,
+  TwoFALoginResponse,
 } from '../types/2fa';
 
 /**
@@ -85,14 +86,11 @@ export async function regenerateBackupCodes(
 /**
  * Verify 2FA code during login
  * This function will be used once the backend implements the verify-login endpoint
- * 
- * @param request - TOTP code or backup code with optional remember_device flag
- * @returns User data and tokens if verification succeeds
  */
 export async function verifyTwoFALogin(
   request: TwoFALoginRequest
-): Promise<any> {
-  return apiClient<any>('/api/auth/v2/totp/verify-login', {
+): Promise<TwoFALoginResponse> {
+  return apiClient<TwoFALoginResponse>('/api/auth/v2/totp/verify-login', {
     method: 'POST',
     body: JSON.stringify(request),
   });

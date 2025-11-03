@@ -342,6 +342,10 @@
       "updatePassword": "Update Password",
       "updating": "Updating..."
     },
+    "2fa": {
+      "title": "Two-Factor Authentication",
+      "subtitle": "Secure your account with an additional layer of protection"
+    },
     "system": {
       "title": "System Configuration",
       "description": "Adjust system behavior and performance settings",
