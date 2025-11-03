@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -10,14 +10,15 @@ import {
 import { AppleButton } from '@/components/ui/apple-button';
 import { Shield, AlertCircle } from 'lucide-react';
 import { TotpInput } from './TotpInput';
-import { verifyTwoFALogin } from '@/lib/2fa-api';
 
 interface TwoFactorVerifyProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
-  email: string;
-  password: string;
+  onVerify: (params: {
+    code: string;
+    isBackup: boolean;
+    rememberDevice: boolean;
+  }) => Promise<void>;
 }
 
 /**
@@ -30,13 +31,12 @@ interface TwoFactorVerifyProps {
  * - Remember device checkbox
  * - Error handling with retry count
  * - Loading states
+ * - Programmatic focus management
  */
 export function TwoFactorVerify({
   open,
   onClose,
-  onSuccess,
-  email,
-  password,
+  onVerify,
 }: TwoFactorVerifyProps) {
   const { t } = useTranslation();
   const [totpCode, setTotpCode] = useState('');
@@ -46,6 +46,7 @@ export function TwoFactorVerify({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attemptsRemaining, setAttemptsRemaining] = useState(5);
+  const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -58,6 +59,12 @@ export function TwoFactorVerify({
     }
   }, [open]);
 
+  useEffect(() => {
+    if (open && useBackupCode && backupInputRef.current && attemptsRemaining > 0) {
+      backupInputRef.current.focus();
+    }
+  }, [open, useBackupCode, attemptsRemaining]);
+
   const handleVerifyTotp = async (code: string) => {
     if (loading) return;
 
@@ -65,14 +72,12 @@ export function TwoFactorVerify({
       setLoading(true);
       setError(null);
 
-      await verifyTwoFALogin({
-        email,
-        password,
-        totp_code: code,
-        remember_device: rememberDevice,
+      await onVerify({
+        code,
+        isBackup: false,
+        rememberDevice,
       });
 
-      onSuccess();
     } catch (err) {
       const newAttempts = attemptsRemaining - 1;
       setAttemptsRemaining(newAttempts);
@@ -101,14 +106,12 @@ export function TwoFactorVerify({
       setLoading(true);
       setError(null);
 
-      await verifyTwoFALogin({
-        email,
-        password,
-        backup_code: backupCode,
-        remember_device: rememberDevice,
+      await onVerify({
+        code: backupCode,
+        isBackup: true,
+        rememberDevice,
       });
 
-      onSuccess();
     } catch (err) {
       const newAttempts = attemptsRemaining - 1;
       setAttemptsRemaining(newAttempts);
@@ -171,7 +174,6 @@ export function TwoFactorVerify({
                 onComplete={handleTotpComplete}
                 disabled={loading || attemptsRemaining <= 0}
                 error={!!error}
-                autoFocus
               />
 
               <div className="flex items-center gap-2">
@@ -209,14 +211,14 @@ export function TwoFactorVerify({
                   {t('auth.2fa.backupCodeLabel')}
                 </label>
                 <input
+                  ref={backupInputRef}
                   id="backup-code"
                   type="text"
                   value={backupCode}
                   onChange={(e) => setBackupCode(e.target.value.toUpperCase())}
-                  placeholder="XXXX-XXXX-XXXX-XXXX"
+                  placeholder={t('auth.2fa.backupCodePlaceholder', 'XXXX-XXXX-XXXX-XXXX')}
                   disabled={loading || attemptsRemaining <= 0}
                   className="w-full h-11 px-4 py-3 rounded-xl border-2 border-input bg-background/80 backdrop-blur-sm text-base transition-all outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                  autoFocus
                 />
                 <p className="text-xs text-muted-foreground">
                   {t('auth.2fa.backupCodeHelp')}

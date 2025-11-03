@@ -181,6 +181,7 @@
       "totpDigitLabel": "數字 {{index}}",
       "totpCodeHelp": "請輸入您的驗證器應用程式中的 6 位數代碼",
       "backupCodeLabel": "備用代碼",
+      "backupCodePlaceholder": "XXXX-XXXX-XXXX-XXXX",
       "backupCodeHelp": "請輸入您的備用代碼，格式為 XXXX-XXXX-XXXX-XXXX",
       "rememberDevice": "記住此裝置 30 天",
       "useBackupCode": "改用備用代碼",

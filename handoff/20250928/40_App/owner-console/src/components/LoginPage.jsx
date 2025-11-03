@@ -50,10 +50,23 @@ const LoginPage = ({ onLogin }) => {
     }
   }
 
-  const handle2FASuccess = async () => {
+  const handle2FAVerify = async (params) => {
+    const { verifyTwoFALogin } = await import('@/lib/2fa-api')
+    const { getCurrentUser } = await import('@/lib/auth')
+    
+    await verifyTwoFALogin({
+      email: credentials.email,
+      password: credentials.password,
+      totp_code: params.isBackup ? undefined : params.code,
+      backup_code: params.isBackup ? params.code : undefined,
+      remember_device: params.rememberDevice,
+    })
+
     setShow2FADialog(false)
+    
     try {
-      await onLogin(credentials)
+      const user = await getCurrentUser()
+      onLogin(user)
     } catch (error) {
       setError(error.message || t('auth.login.loginError'))
     }
@@ -223,9 +236,7 @@ const LoginPage = ({ onLogin }) => {
       <TwoFactorVerify
         open={show2FADialog}
         onClose={handle2FACancel}
-        onSuccess={handle2FASuccess}
-        email={credentials.email}
-        password={credentials.password}
+        onVerify={handle2FAVerify}
       />
     </div>
   )

@@ -48,6 +48,7 @@
       "totpDigitLabel": "Digit {{index}}",
       "totpCodeHelp": "Enter the 6-digit code from your authenticator app",
       "backupCodeLabel": "Backup Code",
+      "backupCodePlaceholder": "XXXX-XXXX-XXXX-XXXX",
       "backupCodeHelp": "Enter your backup code in the format XXXX-XXXX-XXXX-XXXX",
       "rememberDevice": "Remember this device for 30 days",
       "useBackupCode": "Use backup code instead",

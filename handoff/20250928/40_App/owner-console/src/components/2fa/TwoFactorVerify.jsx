@@ -11,7 +11,6 @@ import { AppleButton } from '@/components/ui/apple-button';
 import { AppleInput } from '@/components/ui/apple-input';
 import { Shield, AlertCircle } from 'lucide-react';
 import { TotpInput } from './TotpInput';
-import { verifyTwoFALogin } from '@/lib/2fa-api';
 
 /**
  * TwoFactorVerify Component
@@ -27,9 +26,7 @@ import { verifyTwoFALogin } from '@/lib/2fa-api';
 export function TwoFactorVerify({
   open,
   onClose,
-  onSuccess,
-  email,
-  password,
+  onVerify,
 }) {
   const { t } = useTranslation();
   const [totpCode, setTotpCode] = useState('');
@@ -63,38 +60,31 @@ export function TwoFactorVerify({
     setError('');
 
     try {
-      const result = await verifyTwoFALogin({
-        email,
-        password,
-        totp_code: useBackup ? undefined : code,
-        backup_code: useBackup ? code : undefined,
-        remember_device: rememberDevice,
+      await onVerify({
+        code,
+        isBackup: useBackup,
+        rememberDevice,
       });
 
-      if (result.success) {
-        onSuccess();
-      } else {
-        setAttemptsRemaining(prev => Math.max(0, prev - 1));
-        
-        if (attemptsRemaining <= 1) {
-          setError(t('auth.2fa.tooManyAttempts'));
-        } else {
-          setError(
-            useBackup
-              ? t('auth.2fa.invalidBackupCode', { attempts: attemptsRemaining - 1 })
-              : t('auth.2fa.invalidCode', { attempts: attemptsRemaining - 1 })
-          );
-        }
-        
-        if (useBackup) {
-          setBackupCode('');
-        } else {
-          setTotpCode('');
-        }
-      }
     } catch (err) {
-      setError(err.message || t('auth.login.loginError'));
-      setAttemptsRemaining(prev => Math.max(0, prev - 1));
+      const newAttempts = Math.max(0, attemptsRemaining - 1);
+      setAttemptsRemaining(newAttempts);
+      
+      if (newAttempts <= 0) {
+        setError(t('auth.2fa.tooManyAttempts'));
+      } else {
+        setError(
+          useBackup
+            ? t('auth.2fa.invalidBackupCode', { attempts: newAttempts })
+            : t('auth.2fa.invalidCode', { attempts: newAttempts })
+        );
+      }
+      
+      if (useBackup) {
+        setBackupCode('');
+      } else {
+        setTotpCode('');
+      }
     } finally {
       setLoading(false);
     }
@@ -148,7 +138,7 @@ export function TwoFactorVerify({
                 type="text"
                 value={backupCode}
                 onChange={(e) => setBackupCode(e.target.value.toUpperCase())}
-                placeholder="XXXX-XXXX-XXXX-XXXX"
+                placeholder={t('auth.2fa.backupCodePlaceholder', 'XXXX-XXXX-XXXX-XXXX')}
                 disabled={loading || attemptsRemaining === 0}
                 className="font-mono"
               />
