@@ -325,29 +325,6 @@ const SystemSettings = (): React.ReactElement => {
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t">
-                <div className="space-y-0.5">
-                  <Label className="flex items-center gap-2">
-                    <Key className="w-4 h-4" />
-                    {t('settings.security.twoFactor')}
-                  </Label>
-                  <p className="text-sm text-gray-600">{t('settings.security.twoFactorDescription')}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-gray-600">
-                    {t('common.comingSoon', '即將開放')}
-                  </Badge>
-                  <AppleButton 
-                    variant="outline" 
-                    size="sm"
-                    disabled
-                    aria-label={t('settings.security.enable2FA', 'Enable 2FA')}
-                  >
-                    {t('settings.security.enable', '啟用')}
-                  </AppleButton>
-                </div>
-              </div>
-
               <div className="flex justify-end gap-3">
                 <AppleButton variant="outline">{t('actions.cancel')}</AppleButton>
                 <AppleButton onClick={saveToAPI} disabled={loading}>
