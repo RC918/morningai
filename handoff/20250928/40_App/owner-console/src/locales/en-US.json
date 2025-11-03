@@ -179,6 +179,7 @@
       },
       "cardDescription": "Add an extra layer of security to your account",
       "setup": {
+        "qrAlt": "Two-factor authentication QR code",
         "qrCodeDescription": "Scan this QR code with your authenticator app",
         "manualEntry": "Or enter this code manually:",
         "recommendedApps": "Recommended authenticator apps:",
