@@ -564,25 +564,105 @@ interface MetricsReport {
 }
 ```
 
+## i18n 政策（強制執行）
+
+**所有用戶可見的字串都必須使用 i18n。** 這由 ESLint 強制執行，違反將導致 CI 失敗。
+
+### ✅ 正確用法
+
+```tsx
+import { useTranslation } from 'react-i18next';
+
+function MyComponent() {
+  const { t } = useTranslation();
+  
+  return (
+    <div>
+      {/* ✅ 使用 t() 處理簡單字串 */}
+      <h1>{t('settings.2fa.title')}</h1>
+      <p>{t('settings.2fa.subtitle')}</p>
+      
+      {/* ✅ 使用 t() 處理插值 */}
+      <p>{t('dashboard.welcome', { name: userName })}</p>
+      
+      {/* ✅ 使用 Trans 組件處理包含 HTML 的字串 */}
+      <Trans i18nKey="settings.2fa.description">
+        使用<strong>雙重驗證</strong>保護您的帳戶
+      </Trans>
+      
+      {/* ✅ 使用 t() 處理無障礙屬性 */}
+      <button aria-label={t('common.close')}>×</button>
+      <img alt={t('dashboard.chart.alt')} src="chart.png" />
+    </div>
+  );
+}
+```
+
+### ❌ 錯誤用法（會導致 ESLint 錯誤）
+
+```tsx
+function MyComponent() {
+  return (
+    <div>
+      {/* ❌ 硬編碼字串 - ESLint 會報錯 */}
+      <h1>雙重驗證</h1>
+      <p>保護您的帳戶</p>
+      
+      {/* ❌ 硬編碼無障礙屬性 - ESLint 會報錯 */}
+      <button aria-label="關閉">×</button>
+      <img alt="儀表板圖表" src="chart.png" />
+    </div>
+  );
+}
+```
+
+### Translation Key 命名規範
+
+使用階層式命名空間結構：`{page}.{section}.{element}`
+
+範例：
+- `settings.2fa.title` - Settings 頁面，2FA 區塊，標題元素
+- `dashboard.metrics.cpuUsage` - Dashboard 頁面，metrics 區塊，CPU 使用率標籤
+- `common.actions.save` - 通用字串，actions 區塊，儲存按鈕
+
+### 新增 Translation Keys
+
+1. **同時加入兩個語系檔案：**
+   - `src/i18n/locales/en-US.json`（英文）
+   - `src/i18n/locales/zh-TW.json`（繁體中文）
+
+2. **使用適當的巢狀結構**
+
+3. **測試兩種語言** - 在應用中切換語言並確認所有字串正確顯示
+
+詳細說明請參閱 `TOLGEE_POC_SETUP.md`。
+
 ## 驗收標準
 
 所有 PR 需通過：
 
-1. **OpenAPI 驗證**
+1. **i18n 要求（強制）**
+   - 所有用戶可見字串使用 `t()` 或 `<Trans>`（無硬編碼字串）
+   - 新 translation keys 已加入 `en-US.json` 和 `zh-TW.json`
+   - Translation keys 使用適當的命名空間
+   - 無障礙屬性已翻譯
+   - ESLint i18n 規則通過（無 `i18next/no-literal-string` 錯誤）
+
+2. **OpenAPI 驗證**
    - API schema 符合 OpenAPI 3.0 規範
    - 所有 endpoints 都有文檔
 
-2. **測試覆蓋率**
+3. **測試覆蓋率**
    - 單元測試覆蓋率 ≥ 80%
    - 整合測試覆蓋率 ≥ 60%
    - 所有測試通過
 
-3. **CI 檢查**
-   - Lint 檢查通過
+4. **CI 檢查**
+   - Lint 檢查通過（**包含 i18n 規則**）
    - Type 檢查通過（**不得引入新錯誤**）
    - Build 成功
 
-4. **Post-deploy Health 斷言**
+5. **Post-deploy Health 斷言**
    - 部署後健康檢查通過
    - 關鍵 API endpoints 可訪問
 

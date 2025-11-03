@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui';
 import { AppleButton } from '@/components/ui/apple-button';
 import { AppleInput } from '@/components/ui/apple-input';
@@ -16,6 +17,7 @@ interface TwoFASetupWizardProps {
 type SetupStep = 'password' | 'qr' | 'verify' | 'backup' | 'complete';
 
 export function TwoFASetupWizard({ onComplete, onCancel }: TwoFASetupWizardProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<SetupStep>('password');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
@@ -122,9 +124,9 @@ export function TwoFASetupWizard({ onComplete, onCancel }: TwoFASetupWizardProps
             <CheckCircle2 className="w-8 h-8 text-white" />
           </div>
           <div className="text-center space-y-2">
-            <h3 className="text-xl font-semibold">2FA Enabled Successfully!</h3>
+            <h3 className="text-xl font-semibold">{t('settings.2fa.setup.successTitle')}</h3>
             <p className="text-sm text-muted-foreground">
-              Your account is now protected with two-factor authentication.
+              {t('settings.2fa.setup.successDescription')}
             </p>
           </div>
         </CardContent>
@@ -137,10 +139,10 @@ export function TwoFASetupWizard({ onComplete, onCancel }: TwoFASetupWizardProps
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="w-5 h-5" />
-          Enable Two-Factor Authentication
+          {t('settings.2fa.setup.title')}
         </CardTitle>
         <CardDescription>
-          Follow the steps below to secure your account
+          {t('settings.2fa.setup.subtitle')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -156,11 +158,11 @@ export function TwoFASetupWizard({ onComplete, onCancel }: TwoFASetupWizardProps
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                First, confirm your password to continue
+                {t('settings.2fa.setup.passwordPrompt')}
               </p>
               <AppleInput
                 type="password"
-                label="Password"
+                label={t('settings.2fa.disable.passwordLabel')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 showPasswordToggle
@@ -176,10 +178,10 @@ export function TwoFASetupWizard({ onComplete, onCancel }: TwoFASetupWizardProps
                 disabled={loading}
                 className="flex-1"
               >
-                Cancel
+                {t('settings.2fa.setup.cancel')}
               </AppleButton>
               <AppleButton type="submit" disabled={loading || !password} className="flex-1">
-                {loading ? 'Verifying...' : 'Continue'}
+                {loading ? t('settings.2fa.setup.verifying') : t('settings.2fa.setup.continue')}
               </AppleButton>
             </div>
           </form>
@@ -189,7 +191,7 @@ export function TwoFASetupWizard({ onComplete, onCancel }: TwoFASetupWizardProps
           <div className="space-y-4">
             <QRCodeDisplay qrCode={setupData.qr_code} secret={setupData.secret} />
             <AppleButton onClick={() => setStep('verify')} className="w-full">
-              I've Scanned the QR Code
+              {t('settings.2fa.setup.qrScanned')}
             </AppleButton>
           </div>
         )}
@@ -198,14 +200,14 @@ export function TwoFASetupWizard({ onComplete, onCancel }: TwoFASetupWizardProps
           <form onSubmit={handleVerifySubmit} className="space-y-4">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Enter the 6-digit code from your authenticator app
+                {t('settings.2fa.setup.verifyPrompt')}
               </p>
               <AppleInput
                 type="text"
-                label="Verification Code"
+                label={t('settings.2fa.setup.verificationCodeLabel')}
                 value={totpCode}
                 onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
+                placeholder={t('settings.2fa.disable.totpCodePlaceholder')}
                 maxLength={6}
                 required
                 disabled={loading}
@@ -219,14 +221,14 @@ export function TwoFASetupWizard({ onComplete, onCancel }: TwoFASetupWizardProps
                 disabled={loading}
                 className="flex-1"
               >
-                Back
+                {t('settings.2fa.setup.back')}
               </AppleButton>
               <AppleButton
                 type="submit"
                 disabled={loading || totpCode.length !== 6}
                 className="flex-1"
               >
-                {loading ? 'Verifying...' : 'Verify'}
+                {loading ? t('settings.2fa.setup.verifying') : t('settings.2fa.setup.verify')}
               </AppleButton>
             </div>
           </form>

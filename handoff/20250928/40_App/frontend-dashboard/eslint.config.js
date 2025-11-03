@@ -8,6 +8,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import tseslint from 'typescript-eslint';
+import i18next from 'eslint-plugin-i18next';
 
 export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.storybook', '**/*.stories.tsx', 'playwright-report'] }, {
   files: ['**/*.{js,jsx,ts,tsx}'],
@@ -27,6 +28,7 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     'react-hooks': reactHooks,
     'react-refresh': reactRefresh,
     'jsx-a11y': jsxA11y,
+    'i18next': i18next,
   },
   rules: {
     ...reactHooks.configs.recommended.rules,
@@ -61,5 +63,21 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     'jsx-a11y/anchor-is-valid': 'error',
     'jsx-a11y/img-redundant-alt': 'error',
     'jsx-a11y/label-has-associated-control': 'error',
+    'i18next/no-literal-string': ['error', {
+      markupOnly: true,
+      onlyAttribute: ['alt', 'title', 'placeholder', 'aria-label', 'aria-description'],
+      ignoreAttribute: ['className', 'data-testid', 'href', 'to', 'id', 'name', 'type', 'role', 'tabIndex', 'aria-labelledby', 'aria-describedby', 'data-devinid'],
+      ignoreCallee: ['t', 'Trans', 'clsx', 'cn', 'tw', 'cva'],
+      ignore: [
+        '^\\s*$',
+        '^[0-9 .,:+\\-/%()]*$',
+        '^(true|false)$',
+      ],
+    }],
+  },
+}, {
+  files: ['**/*.{test,spec}.{ts,tsx,js,jsx}', '**/*.stories.{ts,tsx}', 'src/**/__tests__/**', 'scripts/**'],
+  rules: {
+    'i18next/no-literal-string': 'off',
   },
 }, ...storybook.configs["flat/recommended"]];

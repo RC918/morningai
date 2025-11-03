@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ interface DisableTwoFAModalProps {
 }
 
 export function DisableTwoFAModal({ open, onClose, onSuccess }: DisableTwoFAModalProps) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -55,9 +57,9 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }: DisableTwoFAModa
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
+          <DialogTitle>{t('settings.2fa.disable.title')}</DialogTitle>
           <DialogDescription>
-            This will remove 2FA protection from your account. You can re-enable it at any time.
+            {t('settings.2fa.disable.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -65,7 +67,7 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }: DisableTwoFAModa
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-500 mt-0.5" />
             <p className="text-xs text-yellow-800 dark:text-yellow-200">
-              <strong>Warning:</strong> Disabling 2FA will make your account less secure.
+              <strong>{t('settings.2fa.disable.warning')}</strong> {t('settings.2fa.disable.warningMessage')}
             </p>
           </div>
 
@@ -78,7 +80,7 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }: DisableTwoFAModa
           <div className="space-y-4">
             <AppleInput
               type="password"
-              label="Password"
+              label={t('settings.2fa.disable.passwordLabel')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               showPasswordToggle
@@ -87,14 +89,14 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }: DisableTwoFAModa
             />
             <AppleInput
               type="text"
-              label="Current TOTP Code"
+              label={t('settings.2fa.disable.totpCodeLabel')}
               value={totpCode}
               onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="000000"
+              placeholder={t('settings.2fa.disable.totpCodePlaceholder')}
               maxLength={6}
               required
               disabled={loading}
-              helperText="Enter the 6-digit code from your authenticator app"
+              helperText={t('settings.2fa.disable.totpCodeHelper')}
             />
           </div>
 
@@ -106,7 +108,7 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }: DisableTwoFAModa
               disabled={loading}
               className="flex-1"
             >
-              Cancel
+              {t('settings.2fa.disable.cancel')}
             </AppleButton>
             <AppleButton
               type="submit"
@@ -114,7 +116,7 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }: DisableTwoFAModa
               disabled={loading || !password || totpCode.length !== 6}
               className="flex-1"
             >
-              {loading ? 'Disabling...' : 'Disable 2FA'}
+              {loading ? t('settings.2fa.disable.disabling') : t('settings.2fa.disable.confirmButton')}
             </AppleButton>
           </div>
         </form>
