@@ -97,9 +97,9 @@ def main():
         'Application', 'Feature Flags', 'Testing'
     }
     
-    frontend_categories = {'Frontend', 'Application'}
+    frontend_categories = {'Frontend', 'Application', 'Feature Flags'}
     
-    orchestrator_categories = {'Database', 'Application', 'Integration', 'Worker'}
+    orchestrator_categories = {'Database', 'Application', 'Integration', 'Worker', 'Feature Flags'}
     
     all_ok = True
     
