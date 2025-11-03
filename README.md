@@ -48,17 +48,17 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 
 ### 前端應用
 
-1. **Owner Console** (`handoff/20250928/40_App/owner-console/`)
+1. **Owner Console（所有者後台）** (`handoff/20250928/40_App/owner-console/`)
    - 獨立的平台管理控制台
    - 僅 Owner 角色可訪問
    - 功能：Agent Governance、Tenant Management、System Monitoring、Platform Settings
-   - 部署 URL: `admin.morningai.com` 或 `owner.morningai.com`
+   - 部署 URL: https://admin.gm365.me
 
-2. **Tenant Dashboard** (`handoff/20250928/40_App/frontend-dashboard/`)
-   - 租戶使用的主要界面
+2. **Tenant Dashboard（租戶端）** (`handoff/20250928/40_App/frontend-dashboard/`)
+   - 租戶用戶使用的主要界面
    - 租戶用戶可訪問
    - 功能：Dashboard、Strategies、Approvals、History、Costs
-   - 部署 URL: `dashboard.morningai.com` 或 `app.morningai.com`
+   - 部署 URL: https://app.gm365.me
 
 ### 後端 API
 
@@ -76,7 +76,8 @@ MorningAI 採用多環境部署架構，確保開發、測試和生產環境的�
 ### 🚀 Production Environment (生產環境)
 - **Backend API**: https://morningai-backend-v2.onrender.com
 - **Orchestrator API**: https://morningai-orchestrator-api.onrender.com
-- **Frontend**: https://morningai.vercel.app
+- **Tenant Dashboard**: https://app.gm365.me
+- **Owner Console**: https://admin.gm365.me
 - **Database**: Supabase PostgreSQL (production)
 - **Branch**: `main`
 
