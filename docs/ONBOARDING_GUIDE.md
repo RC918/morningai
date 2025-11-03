@@ -162,12 +162,11 @@ cd ../../../..
 
 ```bash
 # Generate all .env.example files from schema
-python scripts/generate_env_example.py
+python scripts/generate-env-examples.py
 
 # Check for drift between schema and .env.example files
-python scripts/check_env_drift.py
+python scripts/check-env-drift.py
 ```
-
 **Backend** (`handoff/20250928/40_App/api-backend/.env`):
 ```bash
 ENVIRONMENT=development
