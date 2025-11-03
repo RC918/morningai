@@ -27,7 +27,7 @@ def extract_secrets(schema):
         'critical': [],
         'secret': []
     }
-    
+
     for key, val in schema['fields'].items():
         security_level = val.get('security_level')
         if security_level == 'critical':
@@ -44,7 +44,7 @@ def extract_secrets(schema):
                 'required': val.get('required', False),
                 'description': val.get('description', '')
             })
-    
+
     return secrets
 
 
@@ -52,28 +52,38 @@ def generate_verification_table(secrets):
     """Generate markdown table for verification"""
     print("\n## Appendix B: Secret Inventory Verification\n")
     print("### Critical-Level Secrets (Tier 1)\n")
-    print("| Secret Name | Category | Required | Security Level | Verified |")
-    print("|-------------|----------|----------|----------------|----------|")
-    
+    print("| Secret Name | Category | Required | Security Level |"
+          " Verified |")
+    print("|-------------|----------|----------|----------------|"
+          "----------|")
+
     for secret in sorted(secrets['critical'], key=lambda x: x['name']):
         required = '✅ Yes' if secret['required'] else '⚠️ Optional'
-        print(f"| `{secret['name']}` | {secret['category']} | {required} | critical | ✅ |")
-    
+        name = secret['name']
+        category = secret['category']
+        print(f"| `{name}` | {category} | {required} | critical | ✅ |")
+
     print(f"\n**Total Critical Secrets**: {len(secrets['critical'])}\n")
-    
+
     print("### Secret-Level Secrets (Tier 2)\n")
-    print("| Secret Name | Category | Required | Security Level | Verified |")
-    print("|-------------|----------|----------|----------------|----------|")
-    
+    print("| Secret Name | Category | Required | Security Level |"
+          " Verified |")
+    print("|-------------|----------|----------|----------------|"
+          "----------|")
+
     for secret in sorted(secrets['secret'], key=lambda x: x['name']):
         required = '✅ Yes' if secret['required'] else '⚠️ Optional'
-        print(f"| `{secret['name']}` | {secret['category']} | {required} | secret | ✅ |")
-    
+        name = secret['name']
+        category = secret['category']
+        print(f"| `{name}` | {category} | {required} | secret | ✅ |")
+
+    total_secrets = len(secrets['critical']) + len(secrets['secret'])
     print(f"\n**Total Secret-Level Secrets**: {len(secrets['secret'])}\n")
-    print(f"**Grand Total**: {len(secrets['critical']) + len(secrets['secret'])} secrets\n")
-    
+    print(f"**Grand Total**: {total_secrets} secrets\n")
+
     print("### Verification Status\n")
-    print("- ✅ All secrets from `config/env.schema.yaml` are documented")
+    print("- ✅ All secrets from `config/env.schema.yaml` are "
+          "documented")
     print("- ✅ Security levels match between schema and policy")
     print("- ✅ Categories are correctly assigned")
     print(f"- ✅ Last verified: {Path(__file__).stat().st_mtime}")
