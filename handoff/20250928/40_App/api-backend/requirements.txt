@@ -29,3 +29,8 @@ scikit-learn
 numpy
 plotly
 
+# 2FA/TOTP dependencies
+pyotp==2.9.0
+qrcode[pil]==7.4.2
+argon2-cffi==23.1.0
+
