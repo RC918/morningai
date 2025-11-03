@@ -6,6 +6,7 @@ import { AppleButton } from '@/components/apple/apple-button'
 import { AppleInput } from '@/components/apple/apple-input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@morningai/shared-ui'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { TwoFactorVerify } from './2fa/TwoFactorVerify'
 
 const LoginPage = ({ onLogin }) => {
   const { t } = useTranslation()
@@ -16,6 +17,7 @@ const LoginPage = ({ onLogin }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const [show2FADialog, setShow2FADialog] = useState(false)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -33,13 +35,33 @@ const LoginPage = ({ onLogin }) => {
     setError('')
 
     try {
-      await onLogin(credentials)
+      const result = await onLogin(credentials)
+      
+      if (result && result.requires_2fa) {
+        setShow2FADialog(true)
+        setLoading(false)
+        return
+      }
     } catch (error) {
       console.error('Login error:', error)
       setError(error.message || t('auth.login.loginError'))
     } finally {
       setLoading(false)
     }
+  }
+
+  const handle2FASuccess = async () => {
+    setShow2FADialog(false)
+    try {
+      await onLogin(credentials)
+    } catch (error) {
+      setError(error.message || t('auth.login.loginError'))
+    }
+  }
+
+  const handle2FACancel = () => {
+    setShow2FADialog(false)
+    setError('')
   }
 
   const handleChange = (e) => {
@@ -181,8 +203,8 @@ const LoginPage = ({ onLogin }) => {
               <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount', 'Development Account')}</h4>
                 <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <p>{t('auth.login.email', 'Email')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">owner@morningai.com</code></p>
-                  <p>{t('auth.login.password', 'Password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">owner123</code></p>
+                  <p>{t('auth.login.email', 'Email')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.emailPlaceholder', 'owner@morningai.com')}</code></p>
+                  <p>{t('auth.login.password', 'Password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.passwordPlaceholder', 'owner123')}</code></p>
                 </div>
               </div>
             </CardContent>
@@ -197,6 +219,14 @@ const LoginPage = ({ onLogin }) => {
           <p className="mt-1">{t('app.motto')}</p>
         </motion.div>
       </motion.div>
+
+      <TwoFactorVerify
+        open={show2FADialog}
+        onClose={handle2FACancel}
+        onSuccess={handle2FASuccess}
+        email={credentials.email}
+        password={credentials.password}
+      />
     </div>
   )
 }

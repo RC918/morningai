@@ -126,7 +126,17 @@
     },
     "2fa": {
       "title": "Two-Factor Authentication",
-      "subtitle": "Secure your account with an additional layer of protection"
+      "subtitle": "Secure your account with an additional layer of protection",
+      "trustedDevices": {
+        "title": "Trusted Devices",
+        "description": "Manage devices that are trusted for 30 days without requiring 2FA",
+        "noDevices": "No trusted devices",
+        "noDevicesHelp": "When you check 'Remember this device' during login, it will appear here",
+        "lastUsed": "Last used",
+        "expires": "Expires",
+        "expiringSoon": "expiring soon",
+        "note": "Trusted devices will automatically expire after 30 days. You can revoke access at any time."
+      }
     }
   },
   "common": {
@@ -162,7 +172,26 @@
     "forgotPassword": "Forgot password?",
     "rememberMe": "Remember me",
     "loginSuccess": "Login successful",
-    "logoutSuccess": "Logout successful"
+    "logoutSuccess": "Logout successful",
+    "2fa": {
+      "verifyTitle": "Two-Factor Authentication",
+      "verifyDescription": "Enter the 6-digit code from your authenticator app",
+      "verifyBackupDescription": "Enter one of your backup codes",
+      "totpCodeLabel": "Authentication Code",
+      "totpDigitLabel": "Digit {{index}}",
+      "totpCodeHelp": "Enter the 6-digit code from your authenticator app",
+      "backupCodeLabel": "Backup Code",
+      "backupCodeHelp": "Enter your backup code in the format XXXX-XXXX-XXXX-XXXX",
+      "rememberDevice": "Remember this device for 30 days",
+      "useBackupCode": "Use backup code instead",
+      "useTotpCode": "Use authenticator code",
+      "verify": "Verify",
+      "verifying": "Verifying...",
+      "cancel": "Cancel",
+      "invalidCode": "Invalid code. {{attempts}} attempts remaining.",
+      "invalidBackupCode": "Invalid backup code. {{attempts}} attempts remaining.",
+      "tooManyAttempts": "Too many failed attempts. Please try again later."
+    }
   },
   "app": {
     "name": "Morning AI",

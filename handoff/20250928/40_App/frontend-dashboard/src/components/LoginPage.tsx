@@ -9,8 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morn
 import { Alert, AlertDescription } from '@morningai/shared-ui'
 import { Separator } from '@morningai/shared-ui'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { TwoFactorVerify } from './2fa/TwoFactorVerify'
 import apiClient from '@/lib/api'
 import { signInWithOAuth } from '@/lib/supabaseClient'
+import type { LoginResponse } from '@/types/2fa'
 
 interface Credentials {
   username: string
@@ -38,6 +40,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false)
+  const [show2FADialog, setShow2FADialog] = useState<boolean>(false)
 
   useEffect(() => {
     const mediaQuery: MediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -55,7 +58,13 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     setError('')
 
     try {
-      const result = await apiClient.login(credentials)
+      const result: LoginResponse = await apiClient.login(credentials)
+      
+      if (result.requires_2fa) {
+        setShow2FADialog(true)
+        setLoading(false)
+        return
+      }
       
       if (result.user) {
         onLogin(result.user)
@@ -78,6 +87,23 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handle2FASuccess = async () => {
+    setShow2FADialog(false)
+    try {
+      const result: LoginResponse = await apiClient.login(credentials)
+      if (result.user) {
+        onLogin(result.user)
+      }
+    } catch (error) {
+      setError(t('auth.login.loginError'))
+    }
+  }
+
+  const handle2FACancel = () => {
+    setShow2FADialog(false)
+    setError('')
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -337,6 +363,14 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
           <p className="mt-1">{t('app.motto')}</p>
         </motion.div>
       </motion.div>
+
+      <TwoFactorVerify
+        open={show2FADialog}
+        onClose={handle2FACancel}
+        onSuccess={handle2FASuccess}
+        email={credentials.username}
+        password={credentials.password}
+      />
     </div>
   )
 }
