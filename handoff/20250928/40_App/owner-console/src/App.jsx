@@ -12,6 +12,7 @@ const AgentGovernance = lazy(() => import('@/pages/AgentGovernance'))
 const TenantManagement = lazy(() => import('@/pages/TenantManagement'))
 const SystemMonitoring = lazy(() => import('@/pages/SystemMonitoring'))
 const PlatformSettings = lazy(() => import('@/pages/PlatformSettings'))
+const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 
 function AppContent() {
   const { isAuthenticated, isLoading, user, login, logout } = useAuth()
@@ -42,6 +43,7 @@ function AppContent() {
               <Route path="/tenants" element={<TenantManagement />} />
               <Route path="/monitoring" element={<SystemMonitoring />} />
               <Route path="/settings" element={<PlatformSettings />} />
+              <Route path="/settings/2fa" element={<Settings2FA />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </Suspense>

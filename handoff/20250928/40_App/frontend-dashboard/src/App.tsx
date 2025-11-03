@@ -50,6 +50,7 @@ const CheckoutPage = lazy(() => import('@/components/CheckoutPage'))
 const CheckoutSuccess = lazy(() => import('@/components/CheckoutSuccess'))
 const CheckoutCancel = lazy(() => import('@/components/CheckoutCancel'))
 const AuthCallback = lazy(() => import('@/components/AuthCallback'))
+const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 
 function AppContent() {
   const { t } = useTranslation()
@@ -266,6 +267,7 @@ function AppContent() {
             <Route path="/settings" element={<WIPPage title={t('wip.systemSettings')} />} />
           )}
           <Route path="/tenant-settings" element={<TenantSettings />} />
+          <Route path="/settings/2fa" element={<Settings2FA />} />
           {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
             <Route path="/checkout" element={<CheckoutPage />} />
           ) : (
