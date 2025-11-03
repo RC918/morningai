@@ -319,7 +319,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
               </div>
 
               <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h4>
+                <h2 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
                 <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
                   <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin</code></p>
                   <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin123</code></p>

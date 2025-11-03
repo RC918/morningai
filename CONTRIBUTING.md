@@ -480,6 +480,126 @@ on:
 - [ ] 設置適當的 `timeout-minutes`
 - [ ] 有 `concurrency` 控制（如果適用）
 
+## i18n 國際化規範
+
+### i18n Violation Baseline 機制
+
+MorningAI 使用 **violation baseline** 機制來防止新的 i18n 違規，同時允許團隊逐步修復現有違規。
+
+#### 工作原理
+
+1. **Baseline 檔案**: `scripts/i18n-baseline.json` 記錄當前的違規數量
+2. **Pre-commit Hook**: 在 commit 時自動修復可修復的 i18n 問題（使用 `eslint --fix --quiet`）
+3. **CI Baseline Check**: 在 CI 中檢查違規數量，如果超過 baseline 則失敗
+
+#### 使用 i18n
+
+**✅ 正確做法** - 使用 `t()` 函數：
+```tsx
+import { useTranslation } from 'react-i18next'
+
+function MyComponent() {
+  const { t } = useTranslation()
+  
+  return (
+    <div>
+      <h1>{t('welcome.title')}</h1>
+      <p>{t('welcome.description')}</p>
+      <Button>{t('common.submit')}</Button>
+    </div>
+  )
+}
+```
+
+**❌ 錯誤做法** - 硬編碼字串：
+```tsx
+// ❌ 會被 ESLint 阻擋
+function MyComponent() {
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <p>This is a description</p>
+      <Button>Submit</Button>
+    </div>
+  )
+}
+```
+
+#### 添加翻譯 Key
+
+1. 在 `src/i18n/locales/en-US.json` 添加英文翻譯
+2. 在 `src/i18n/locales/zh-TW.json` 添加中文翻譯
+
+```json
+// en-US.json
+{
+  "welcome": {
+    "title": "Welcome",
+    "description": "This is a description"
+  },
+  "common": {
+    "submit": "Submit"
+  }
+}
+
+// zh-TW.json
+{
+  "welcome": {
+    "title": "歡迎",
+    "description": "這是描述"
+  },
+  "common": {
+    "submit": "提交"
+  }
+}
+```
+
+#### 檢查違規數量
+
+```bash
+# 檢查當前違規數量
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm lint | grep "i18next/no-literal-string" | wc -l
+
+cd handoff/20250928/40_App/owner-console
+pnpm lint | grep "i18next/no-literal-string" | wc -l
+
+# 或使用 baseline check script
+node scripts/check-i18n-baseline.js
+```
+
+#### 更新 Baseline
+
+當你修復了一些違規後，更新 baseline：
+
+1. 運行 `node scripts/check-i18n-baseline.js` 確認改進
+2. 如果違規數量減少，手動更新 `scripts/i18n-baseline.json`
+3. Commit 更新後的 baseline 檔案
+
+#### Pre-commit Hook
+
+Pre-commit hook 會自動：
+- 對 staged 的 `.js/.jsx/.ts/.tsx` 檔案運行 `eslint --fix --quiet`
+- 自動修復可修復的問題
+- 只在有 i18n 違規（error）時阻擋 commit
+
+如果 commit 被阻擋：
+1. 查看 ESLint 錯誤訊息
+2. 將硬編碼字串替換為 `t()` 調用
+3. 添加對應的翻譯 key
+4. 重新 commit
+
+#### CI Baseline Check
+
+CI 會在每次 PR 時檢查：
+- 如果違規數量 **增加**：❌ CI 失敗
+- 如果違規數量 **減少**：✅ CI 通過並顯示改進
+- 如果違規數量 **不變**：✅ CI 通過
+
+#### 30/60/90 天違規清理計劃
+
+參見 `docs/i18n-cleanup-plan.md` 了解詳細的違規清理計劃和進度追蹤。
+
 ## TypeScript 類型檢查規範
 
 ### 標準 TypeCheck 命令
@@ -564,25 +684,105 @@ interface MetricsReport {
 }
 ```
 
+## i18n 政策（強制執行）
+
+**所有用戶可見的字串都必須使用 i18n。** 這由 ESLint 強制執行，違反將導致 CI 失敗。
+
+### ✅ 正確用法
+
+```tsx
+import { useTranslation } from 'react-i18next';
+
+function MyComponent() {
+  const { t } = useTranslation();
+  
+  return (
+    <div>
+      {/* ✅ 使用 t() 處理簡單字串 */}
+      <h1>{t('settings.2fa.title')}</h1>
+      <p>{t('settings.2fa.subtitle')}</p>
+      
+      {/* ✅ 使用 t() 處理插值 */}
+      <p>{t('dashboard.welcome', { name: userName })}</p>
+      
+      {/* ✅ 使用 Trans 組件處理包含 HTML 的字串 */}
+      <Trans i18nKey="settings.2fa.description">
+        使用<strong>雙重驗證</strong>保護您的帳戶
+      </Trans>
+      
+      {/* ✅ 使用 t() 處理無障礙屬性 */}
+      <button aria-label={t('common.close')}>×</button>
+      <img alt={t('dashboard.chart.alt')} src="chart.png" />
+    </div>
+  );
+}
+```
+
+### ❌ 錯誤用法（會導致 ESLint 錯誤）
+
+```tsx
+function MyComponent() {
+  return (
+    <div>
+      {/* ❌ 硬編碼字串 - ESLint 會報錯 */}
+      <h1>雙重驗證</h1>
+      <p>保護您的帳戶</p>
+      
+      {/* ❌ 硬編碼無障礙屬性 - ESLint 會報錯 */}
+      <button aria-label="關閉">×</button>
+      <img alt="儀表板圖表" src="chart.png" />
+    </div>
+  );
+}
+```
+
+### Translation Key 命名規範
+
+使用階層式命名空間結構：`{page}.{section}.{element}`
+
+範例：
+- `settings.2fa.title` - Settings 頁面，2FA 區塊，標題元素
+- `dashboard.metrics.cpuUsage` - Dashboard 頁面，metrics 區塊，CPU 使用率標籤
+- `common.actions.save` - 通用字串，actions 區塊，儲存按鈕
+
+### 新增 Translation Keys
+
+1. **同時加入兩個語系檔案：**
+   - `src/i18n/locales/en-US.json`（英文）
+   - `src/i18n/locales/zh-TW.json`（繁體中文）
+
+2. **使用適當的巢狀結構**
+
+3. **測試兩種語言** - 在應用中切換語言並確認所有字串正確顯示
+
+詳細說明請參閱 `TOLGEE_POC_SETUP.md`。
+
 ## 驗收標準
 
 所有 PR 需通過：
 
-1. **OpenAPI 驗證**
+1. **i18n 要求（強制）**
+   - 所有用戶可見字串使用 `t()` 或 `<Trans>`（無硬編碼字串）
+   - 新 translation keys 已加入 `en-US.json` 和 `zh-TW.json`
+   - Translation keys 使用適當的命名空間
+   - 無障礙屬性已翻譯
+   - ESLint i18n 規則通過（無 `i18next/no-literal-string` 錯誤）
+
+2. **OpenAPI 驗證**
    - API schema 符合 OpenAPI 3.0 規範
    - 所有 endpoints 都有文檔
 
-2. **測試覆蓋率**
+3. **測試覆蓋率**
    - 單元測試覆蓋率 ≥ 80%
    - 整合測試覆蓋率 ≥ 60%
    - 所有測試通過
 
-3. **CI 檢查**
-   - Lint 檢查通過
+4. **CI 檢查**
+   - Lint 檢查通過（**包含 i18n 規則**）
    - Type 檢查通過（**不得引入新錯誤**）
    - Build 成功
 
-4. **Post-deploy Health 斷言**
+5. **Post-deploy Health 斷言**
    - 部署後健康檢查通過
    - 關鍵 API endpoints 可訪問
 
