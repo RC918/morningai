@@ -173,7 +173,7 @@ python scripts/generate-env-examples.py
 python scripts/check-env-drift.py
 
 # 4. Verify secret inventory matches schema (security operations)
-python scripts/verify_secret_inventory.py
+python scripts/verify_secret_inventory.py  # (Added in PR #1084)
 ```
 
 **Key Points**:
