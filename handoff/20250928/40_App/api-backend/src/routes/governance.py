@@ -292,6 +292,7 @@ def admin_get_agents():
         return jsonify({
             'agents': agents,
             'count': len(agents),
+            'using_mock': not GOVERNANCE_AVAILABLE,
             'filters': {
                 'status': status_filter,
                 'limit': limit
