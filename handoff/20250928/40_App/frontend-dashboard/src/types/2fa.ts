@@ -42,6 +42,7 @@ export interface TwoFAStatusResponse {
   enabled: boolean;
   verified_at: string | null;
   backup_codes_remaining: number;
+  feature_disabled?: boolean;
 }
 
 export interface TwoFASetupRequest {

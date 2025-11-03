@@ -450,6 +450,10 @@
       "title": "Two-Factor Authentication",
       "subtitle": "Secure your account with an additional layer of protection",
       "loading": "Loading...",
+      "featureDisabled": {
+        "title": "Feature Unavailable",
+        "description": "Two-factor authentication is currently unavailable in this environment. Please contact your administrator for more information."
+      },
       "status": {
         "label": "Status",
         "enabled": "Enabled",
