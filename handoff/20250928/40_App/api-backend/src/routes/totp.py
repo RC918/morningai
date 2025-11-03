@@ -36,6 +36,16 @@ _totp_manager = None
 _backup_manager = None
 
 
+def is_2fa_feature_enabled() -> bool:
+    """
+    Check if 2FA feature is enabled via feature flag.
+    
+    Returns:
+        True if FEATURE_2FA_ENABLED is set to 'true' (case-insensitive), False otherwise
+    """
+    return os.environ.get('FEATURE_2FA_ENABLED', 'true').lower() == 'true'
+
+
 def get_totp_manager():
     """Get or create TOTPManager instance (lazy initialization)."""
     global _totp_manager
@@ -71,6 +81,9 @@ def setup_totp():
             "backup_codes": ["XXXX-XXXX-XXXX-XXXX", ...]
         }
     """
+    if not is_2fa_feature_enabled():
+        return jsonify({'error': '2FA feature is not enabled'}), 403
+    
     try:
         data = request.get_json()
         password = data.get('password')
@@ -161,6 +174,9 @@ def verify_totp_setup():
             "enabled": true
         }
     """
+    if not is_2fa_feature_enabled():
+        return jsonify({'error': '2FA feature is not enabled'}), 403
+    
     try:
         data = request.get_json()
         code = data.get('code', '').strip()
@@ -225,6 +241,9 @@ def disable_totp():
             "enabled": false
         }
     """
+    if not is_2fa_feature_enabled():
+        return jsonify({'error': '2FA feature is not enabled'}), 403
+    
     try:
         data = request.get_json()
         password = data.get('password')
@@ -293,6 +312,9 @@ def regenerate_backup_codes():
             "backup_codes": ["XXXX-XXXX-XXXX-XXXX", ...]
         }
     """
+    if not is_2fa_feature_enabled():
+        return jsonify({'error': '2FA feature is not enabled'}), 403
+    
     try:
         data = request.get_json()
         password = data.get('password')
@@ -355,6 +377,14 @@ def get_totp_status():
             "backup_codes_remaining": 7
         }
     """
+    if not is_2fa_feature_enabled():
+        return jsonify({
+            'enabled': False,
+            'verified_at': None,
+            'backup_codes_remaining': 0,
+            'feature_disabled': True
+        }), 200
+    
     try:
         user_id = g.user_id
         
@@ -475,6 +505,9 @@ def check_2fa_required(user_id: str) -> bool:
     Returns:
         True if 2FA is enabled for user, False otherwise
     """
+    if not is_2fa_feature_enabled():
+        return False
+    
     try:
         supabase_url = os.environ.get('SUPABASE_URL')
         supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')

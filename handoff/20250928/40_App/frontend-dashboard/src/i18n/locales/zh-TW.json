@@ -450,6 +450,10 @@
       "title": "雙重驗證",
       "subtitle": "為您的帳戶增加額外的安全保護層",
       "loading": "載入中...",
+      "featureDisabled": {
+        "title": "功能無法使用",
+        "description": "此環境目前無法使用雙因素驗證。請聯絡您的系統管理員以獲取更多資訊。"
+      },
       "status": {
         "label": "狀態",
         "enabled": "已啟用",

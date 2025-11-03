@@ -270,6 +270,9 @@ For complete staging environment setup instructions, see:
   
   # Option 2: Gunicorn (production-like)
   gunicorn "src.main:app" --bind 0.0.0.0:8000 --reload
+  
+  # Quick one-liner (equivalent to Option 1)
+  export FLASK_APP=src.main && flask run --port 8000
   ```
 - **Working Directory**: `handoff/20250928/40_App/api-backend`
 

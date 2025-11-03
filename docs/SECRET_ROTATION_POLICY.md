@@ -28,7 +28,8 @@ This document defines the secret rotation policy for the MorningAI platform, cov
 5. [Emergency Rotation](#emergency-rotation)
 6. [Verification & Testing](#verification--testing)
 7. [Audit & Compliance](#audit--compliance)
-8. [Appendix](#appendix)
+8. [Quarterly Rotation Drills](#quarterly-rotation-drills)
+9. [Appendix](#appendix)
 
 ---
 
@@ -54,8 +55,8 @@ This policy establishes:
 ### 1.3 Scope
 
 This policy covers all secrets defined in `config/env.schema.yaml` with:
-- `security_level: critical` (11 secrets)
-- `security_level: secret` (13 secrets)
+- `security_level: critical` (12 secrets)
+- `security_level: secret` (12 secrets)
 
 **Total**: 24 secrets requiring rotation management
 
@@ -536,9 +537,22 @@ Immediately rotate secrets if:
 - ✅ Secret detected by secret scanning tools
 - ✅ Third-party provider reports breach
 
+### 5.1 Response Time SLO
+
+Emergency rotation response times are tiered based on security impact:
+
+| Tier | Target | Maximum | Rationale |
+|------|--------|---------|-----------|
+| Tier 1 (Critical) | 4 hours | 8 hours | High security impact - authentication, encryption, payment systems |
+| Tier 2 (Secret) | 8 hours | 24 hours | Moderate security impact - database connections, API tokens |
+
+**Note**: The 4-hour target for all secrets may be too aggressive for complex scenarios (e.g., DATABASE_URL requiring coordination across multiple services, STRIPE_SECRET_KEY requiring payment system testing). Tiered SLOs provide realistic planning while maintaining security.
+
+**Escalation**: If maximum time is exceeded, escalate to Security Team immediately.
+
 ### 5.2 Emergency Rotation Procedure
 
-**Timeline**: Complete within 4 hours of detection
+**Timeline**: Complete within SLO target (4-8 hours depending on tier)
 
 ```
 Hour 0: Detection & Assessment
@@ -775,9 +789,99 @@ Maintain audit log in `docs/rotation_audit_log.md`:
 
 ---
 
-## 8. Appendix
+## 8. Quarterly Rotation Drills
 
-### 8.1 Secret Generation Commands
+### 8.1 Purpose
+
+Verify rotation procedures and SLO achievability through regular practice. Drills ensure:
+- Rotation procedures remain accurate and up-to-date
+- Team members are familiar with rotation workflows
+- SLO targets are realistic and achievable
+- Issues are identified in non-emergency scenarios
+
+### 8.2 Schedule
+
+**Frequency**: Every quarter (Q1, Q2, Q3, Q4)  
+**Timing**: 2 weeks before actual quarterly rotation  
+**Duration**: 2-4 hours  
+**Environment**: Staging only (never production)
+
+**Quarterly Schedule**:
+- Q1 (January): Drill in mid-January, actual rotation early February
+- Q2 (April): Drill in mid-April, actual rotation early May
+- Q3 (July): Drill in mid-July, actual rotation early August
+- Q4 (October): Drill in mid-October, actual rotation early November
+
+### 8.3 Drill Scope
+
+Each drill rotates 2 representative secrets:
+- **1 Tier 1 (Critical)**: JWT_SECRET_KEY or DATABASE_URL
+- **1 Tier 2 (Secret)**: REDIS_URL or CLOUDFLARE_API_TOKEN
+
+**Participants**:
+- CTO (rotation executor)
+- DevOps Lead (backup executor)
+- 1 team member (observer/trainee)
+
+### 8.4 Drill Procedure
+
+```bash
+# Pre-drill (30 minutes)
+- [ ] Schedule drill time (low-traffic period)
+- [ ] Notify team of drill
+- [ ] Prepare staging environment
+- [ ] Review rotation procedures
+
+# Drill execution (60-90 minutes)
+- [ ] Start timer
+- [ ] Rotate Tier 1 secret following documented procedure
+- [ ] Record actual time taken
+- [ ] Document any issues or deviations
+- [ ] Rotate Tier 2 secret following documented procedure
+- [ ] Record actual time taken
+- [ ] Verify all staging services healthy
+
+# Post-drill (30-60 minutes)
+- [ ] Compare actual vs. target SLO times
+- [ ] Document lessons learned
+- [ ] Update procedures if needed
+- [ ] Schedule procedure updates (if required)
+```
+
+### 8.5 Documentation
+
+Record for each drill in `docs/rotation_drill_log.md`:
+
+```markdown
+| Date | Quarter | Secrets Rotated | Tier 1 Time | Tier 2 Time | Issues | Procedure Updates |
+|------|---------|----------------|-------------|-------------|--------|-------------------|
+| 2025-01-15 | Q1 2025 | JWT_SECRET_KEY, REDIS_URL | 2.5h | 1.5h | None | ✅ No changes needed |
+| 2025-04-15 | Q2 2025 | DATABASE_URL, CLOUDFLARE_API_TOKEN | 3.5h | 2h | DATABASE_URL took longer due to multi-service coordination | ⚠️ Updated DATABASE_URL procedure with parallel deployment steps |
+```
+
+### 8.6 Success Criteria
+
+A drill is considered successful if:
+- ✅ All rotations completed within maximum SLO time
+- ✅ No production impact
+- ✅ All staging services remain healthy
+- ✅ Procedures followed accurately (or deviations documented)
+- ✅ Team members understand rotation workflow
+
+### 8.7 Continuous Improvement
+
+After each drill:
+1. Review actual times vs. SLO targets
+2. Identify bottlenecks or inefficiencies
+3. Update procedures to reflect learnings
+4. Adjust SLO targets if consistently unrealistic
+5. Train additional team members if needed
+
+---
+
+## 9. Appendix
+
+### 9.1 Secret Generation Commands
 
 **JWT Secret (48 characters)**:
 ```bash
@@ -799,7 +903,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 python3 -c "import secrets, string; chars=string.ascii_letters+string.digits+string.punctuation; print(''.join(secrets.choice(chars) for _ in range(20)))"
 ```
 
-### 8.2 Secret Storage Locations
+### 9.2 Secret Storage Locations
 
 **Production Secrets**:
 - Backend API: Render Dashboard → morningai-backend-v2 → Environment
@@ -815,7 +919,7 @@ python3 -c "import secrets, string; chars=string.ascii_letters+string.digits+str
 - `.env` files (gitignored)
 - Never use production secrets locally
 
-### 8.3 Minimum Secret Requirements
+### 9.3 Minimum Secret Requirements
 
 From `config/env.schema.yaml`:
 
@@ -824,13 +928,13 @@ From `config/env.schema.yaml`:
 - **ENCRYPTION_MASTER_KEY**: min_length 32 characters
 - **All other secrets**: Recommended 32+ characters
 
-### 8.4 Related Documentation
+### 9.4 Related Documentation
 
 - [Secret Scanning Guide](SECRET_SCANNING_GUIDE.md) - Prevention of secret exposure
 - [Environments Guide](ENVIRONMENTS.md) - Environment configuration
 - [Environment Schema](../config/env.schema.yaml) - Complete secret inventory
 
-### 8.5 Contact & Escalation
+### 9.5 Contact & Escalation
 
 **Primary Contact**: CTO  
 **Secondary Contact**: DevOps Team  
@@ -840,6 +944,296 @@ From `config/env.schema.yaml`:
 1. CTO (primary responsibility)
 2. DevOps Team (backup)
 3. Security Team (emergency)
+
+### 9.6 Secret Inventory Verification
+
+This section provides automated verification that all secrets documented in this policy match the canonical source (`config/env.schema.yaml`).
+
+**Verification Script**: `scripts/verify_secret_inventory.py`
+
+**Usage**:
+```bash
+python scripts/verify_secret_inventory.py
+```
+
+#### Critical-Level Secrets (Tier 1)
+
+| Secret Name | Category | Required | Security Level | Verified |
+|-------------|----------|----------|----------------|----------|
+| `ADMIN_PASSWORD` | Authentication | ✅ Yes | critical | ✅ |
+| `ENCRYPTION_MASTER_KEY` | Security | ⚠️ Optional | critical | ✅ |
+| `FLASK_SECRET_KEY` | Security | ⚠️ Optional | critical | ✅ |
+| `GITHUB_TOKEN` | Integration | ✅ Yes | critical | ✅ |
+| `JWT_SECRET_KEY` | Authentication | ✅ Yes | critical | ✅ |
+| `MASTER_KEY` | Security | ⚠️ Optional | critical | ✅ |
+| `OPENAI_API_KEY` | Integration | ✅ Yes | critical | ✅ |
+| `SECRET_KEY` | Security | ✅ Yes | critical | ✅ |
+| `STRIPE_SECRET_KEY` | Payment | ⚠️ Optional | critical | ✅ |
+| `STRIPE_WEBHOOK_SECRET` | Payment | ⚠️ Optional | critical | ✅ |
+| `STRIPE_WEBHOOK_SECRET_KEY` | Payment | ⚠️ Optional | critical | ✅ |
+| `SUPABASE_SERVICE_ROLE_KEY` | Cloud Services | ✅ Yes | critical | ✅ |
+
+**Total Critical Secrets**: 12
+
+#### Secret-Level Secrets (Tier 2)
+
+| Secret Name | Category | Required | Security Level | Verified |
+|-------------|----------|----------|----------------|----------|
+| `CLOUDFLARE_API_TOKEN` | Cloud Services | ✅ Yes | secret | ✅ |
+| `DATABASE_URL` | Database | ✅ Yes | secret | ✅ |
+| `FLY_API_TOKEN` | Infrastructure | ⚠️ Optional | secret | ✅ |
+| `REDIS_URL` | Database | ⚠️ Optional | secret | ✅ |
+| `RENDER_API_KEY` | Cloud Services | ✅ Yes | secret | ✅ |
+| `SENTRY_AUTH_TOKEN` | Monitoring | ⚠️ Optional | secret | ✅ |
+| `SLACK_WEBHOOK_URL` | Integration | ⚠️ Optional | secret | ✅ |
+| `SUPABASE_ANON_KEY` | Cloud Services | ✅ Yes | secret | ✅ |
+| `TELEGRAM_BOT_TOKEN` | Integration | ⚠️ Optional | secret | ✅ |
+| `TEST_ADMIN_JWT` | Testing | ⚠️ Optional | secret | ✅ |
+| `UPSTASH_REDIS_REST_TOKEN` | Cloud Services | ✅ Yes | secret | ✅ |
+| `VERCEL_TOKEN` | Cloud Services | ✅ Yes | secret | ✅ |
+
+**Total Secret-Level Secrets**: 12
+
+**Grand Total**: 24 secrets
+
+#### Verification Status
+
+- ✅ All secrets from `config/env.schema.yaml` are documented
+- ✅ Security levels match between schema and policy
+- ✅ Categories are correctly assigned
+- ✅ Last verified: 2025-11-03
+
+**Maintenance**: Run verification script after any changes to `config/env.schema.yaml` or this policy document.
+
+### 9.7 RACI Matrix
+
+Responsibility Assignment Matrix for secret rotation activities.
+
+**Legend**:
+- **R** (Responsible): Executes the task
+- **A** (Accountable): Ultimately answerable for completion
+- **C** (Consulted): Provides input
+- **I** (Informed): Kept up-to-date
+
+#### Tier 1 (Critical) Secrets
+
+| Secret | Storage Location | Data Owner (A) | Rotation Executor (R) | Approver (A) | Informed (I) |
+|--------|-----------------|----------------|----------------------|--------------|--------------|
+| JWT_SECRET_KEY | Render Env Vars | CTO | DevOps Lead | CTO | Security Team |
+| ADMIN_PASSWORD | Render Env Vars | CTO | DevOps Lead | CTO | Security Team |
+| FLASK_SECRET_KEY | Render Env Vars | CTO | DevOps Lead | CTO | Security Team |
+| SECRET_KEY | Render Env Vars | CTO | DevOps Lead | CTO | Security Team |
+| ENCRYPTION_MASTER_KEY | Render Env Vars | CTO | DevOps Lead | CTO | Security Team |
+| MASTER_KEY | Render Env Vars | CTO | DevOps Lead | CTO | Security Team |
+| SUPABASE_SERVICE_ROLE_KEY | Supabase Dashboard | CTO | DevOps Lead | CTO | Backend Team |
+| GITHUB_TOKEN | GitHub Settings | CTO | DevOps Lead | CTO | DevOps Team |
+| OPENAI_API_KEY | OpenAI Dashboard | CTO | DevOps Lead | CTO | AI Team |
+| STRIPE_SECRET_KEY | Stripe Dashboard | CTO | DevOps Lead | CTO | Finance Team |
+| STRIPE_WEBHOOK_SECRET_KEY | Stripe Dashboard | CTO | DevOps Lead | CTO | Finance Team |
+| STRIPE_WEBHOOK_SECRET | Stripe Dashboard | CTO | DevOps Lead | CTO | Finance Team |
+
+#### Tier 2 (Secret) Secrets
+
+| Secret | Storage Location | Data Owner (A) | Rotation Executor (R) | Approver (A) | Informed (I) |
+|--------|-----------------|----------------|----------------------|--------------|--------------|
+| DATABASE_URL | Supabase Dashboard | CTO | DevOps Lead | CTO | Backend Team |
+| REDIS_URL | Upstash Dashboard | CTO | DevOps Lead | CTO | Backend Team |
+| SUPABASE_ANON_KEY | Supabase Dashboard | CTO | DevOps Lead | CTO | Frontend Team |
+| CLOUDFLARE_API_TOKEN | Cloudflare Dashboard | CTO | DevOps Lead | CTO | Infrastructure Team |
+| VERCEL_TOKEN | Vercel Dashboard | CTO | DevOps Lead | CTO | Frontend Team |
+| RENDER_API_KEY | Render Dashboard | CTO | DevOps Lead | CTO | Infrastructure Team |
+| UPSTASH_REDIS_REST_TOKEN | Upstash Dashboard | CTO | DevOps Lead | CTO | Backend Team |
+| FLY_API_TOKEN | Fly.io Dashboard | CTO | DevOps Lead | CTO | Infrastructure Team |
+| SENTRY_AUTH_TOKEN | Sentry Dashboard | CTO | DevOps Lead | CTO | DevOps Team |
+| SLACK_WEBHOOK_URL | Slack Workspace | CTO | DevOps Lead | CTO | Operations Team |
+| TELEGRAM_BOT_TOKEN | Telegram BotFather | CTO | DevOps Lead | CTO | Operations Team |
+| TEST_ADMIN_JWT | Generated | CTO | DevOps Lead | CTO | QA Team |
+
+**Notes**:
+- CTO is accountable for all secret rotations (policy owner)
+- DevOps Lead executes rotations following documented procedures
+- Team-specific notifications ensure awareness of potential service impacts
+- Emergency rotations may require direct CTO execution
+
+### 9.8 Platform UI Navigation Paths
+
+Detailed navigation paths for accessing secret management interfaces in each platform.
+
+#### Render Dashboard
+
+**Environment Variables Configuration**:
+1. Navigate to: https://dashboard.render.com/
+2. Select service: `morningai-backend-v2` or `morningai-orchestrator-api`
+3. Click **"Environment"** tab in left sidebar
+4. Locate variable by name (e.g., `JWT_SECRET_KEY`)
+5. Click **"Edit"** button (pencil icon)
+6. Update value in text field
+7. Click **"Save Changes"** (triggers automatic redeploy)
+8. Monitor deployment in **"Events"** tab
+
+**Screenshot**: See `docs/screenshots/render-env-vars.png` (if available)
+
+**Notes**:
+- Changes trigger automatic redeploy (2-5 minute downtime)
+- Old value is not retained (no rollback via UI)
+- Use "Manual Deploy" to redeploy without changing variables
+
+#### Supabase Dashboard
+
+**Database Password Reset**:
+1. Navigate to: https://app.supabase.com/project/YOUR_PROJECT_ID
+2. Click **"Settings"** (gear icon) in left sidebar
+3. Select **"Database"** section
+4. Scroll to **"Connection string"** section
+5. Click **"Reset database password"** button
+6. Confirm reset in modal dialog
+7. Copy new connection string (Pooler mode, port 6543)
+8. Update `DATABASE_URL` in Render
+
+**API Keys Management**:
+1. Navigate to: https://app.supabase.com/project/YOUR_PROJECT_ID
+2. Click **"Settings"** → **"API"**
+3. View **"Project API keys"** section
+4. For `service_role` key: Click **"Reset service_role key"**
+5. Confirm reset (irreversible)
+6. Copy new key immediately (shown once)
+7. Update `SUPABASE_SERVICE_ROLE_KEY` in Render
+
+**Notes**:
+- Service role key reset is immediate and irreversible
+- Anon key (`SUPABASE_ANON_KEY`) is read-only, rarely needs rotation
+- Database password reset affects all connection strings
+
+#### GitHub Personal Access Tokens
+
+**Token Creation (2025 Latest)**:
+1. Navigate to: https://github.com/settings/tokens
+2. Click **"Generate new token"** → **"Generate new token (classic)"**
+3. Configure token:
+   - **Note**: "MorningAI Orchestrator - Q1 2026"
+   - **Expiration**: 90 days (recommended for quarterly rotation)
+   - **Scopes**: Select required permissions:
+     - ✅ `repo` (Full control of private repositories)
+     - ✅ `workflow` (Update GitHub Action workflows)
+     - ✅ `read:org` (Read org and team membership)
+4. Click **"Generate token"**
+5. Copy token immediately (shown once only)
+6. Update `GITHUB_TOKEN` in Render
+7. Test token: `curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/user`
+
+**Token Revocation**:
+1. Navigate to: https://github.com/settings/tokens
+2. Locate old token by note/date
+3. Click **"Delete"** button
+4. Confirm deletion
+
+**Notes**:
+- Fine-grained tokens (beta) offer better security but may have limitations
+- Classic tokens recommended for CI/CD workflows
+- Set expiration to enforce rotation (90 days = quarterly)
+
+#### OpenAI API Keys
+
+**Key Creation**:
+1. Navigate to: https://platform.openai.com/api-keys
+2. Click **"+ Create new secret key"**
+3. Configure key:
+   - **Name**: "MorningAI Production - Q1 2026"
+   - **Permissions**: All (or restrict to specific models)
+   - **Project**: Select appropriate project
+4. Click **"Create secret key"**
+5. Copy key immediately (shown once only)
+6. Update `OPENAI_API_KEY` in Render
+7. Test key: `curl https://api.openai.com/v1/models -H "Authorization: Bearer YOUR_KEY"`
+
+**Key Revocation**:
+1. Navigate to: https://platform.openai.com/api-keys
+2. Locate old key by name/date
+3. Click **"Revoke"** button
+4. Confirm revocation
+
+**Notes**:
+- Keys are project-scoped (ensure correct project selected)
+- Monitor usage at: https://platform.openai.com/usage
+- Set usage limits to prevent cost overruns
+
+#### Stripe Dashboard
+
+**Secret Key Rotation**:
+1. Navigate to: https://dashboard.stripe.com/test/apikeys (or `/live/apikeys` for production)
+2. View **"Secret key"** section
+3. Click **"Roll key"** button
+4. Confirm roll (creates new key, old key remains valid for 24 hours)
+5. Copy new secret key
+6. Update `STRIPE_SECRET_KEY` in Render
+7. Test new key with API call
+8. After 24 hours, old key automatically revoked
+
+**Webhook Secret Rotation**:
+1. Navigate to: https://dashboard.stripe.com/webhooks
+2. Select webhook endpoint
+3. Click **"Roll secret"** in **"Signing secret"** section
+4. Confirm roll
+5. Copy new signing secret
+6. Update `STRIPE_WEBHOOK_SECRET_KEY` in Render
+7. Test webhook delivery
+
+**Notes**:
+- Stripe provides 24-hour grace period for key rotation
+- Test mode and live mode keys are separate
+- Webhook secrets are endpoint-specific
+
+#### Vercel Dashboard
+
+**Token Creation**:
+1. Navigate to: https://vercel.com/account/tokens
+2. Click **"Create Token"**
+3. Configure token:
+   - **Token Name**: "MorningAI CI/CD - Q1 2026"
+   - **Scope**: Select team/account
+   - **Expiration**: No expiration (manual rotation)
+4. Click **"Create"**
+5. Copy token immediately
+6. Update `VERCEL_TOKEN` in GitHub Secrets
+7. Test deployment trigger
+
+**Token Revocation**:
+1. Navigate to: https://vercel.com/account/tokens
+2. Locate old token by name
+3. Click **"Delete"** button
+4. Confirm deletion
+
+**Notes**:
+- Tokens are account or team-scoped
+- Used primarily in CI/CD (GitHub Actions)
+- No automatic expiration (set calendar reminder)
+
+#### Cloudflare Dashboard
+
+**API Token Creation**:
+1. Navigate to: https://dash.cloudflare.com/profile/api-tokens
+2. Click **"Create Token"**
+3. Use template: **"Edit zone DNS"** or create custom
+4. Configure permissions:
+   - **Zone**: DNS:Edit
+   - **Zone Resources**: Include specific zones
+5. Set **IP Address Filtering** (optional, recommended)
+6. Set **TTL** (optional, recommended for quarterly rotation)
+7. Click **"Continue to summary"** → **"Create Token"**
+8. Copy token immediately
+9. Update `CLOUDFLARE_API_TOKEN` in Render
+10. Test token: `curl -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" -H "Authorization: Bearer YOUR_TOKEN"`
+
+**Token Revocation**:
+1. Navigate to: https://dash.cloudflare.com/profile/api-tokens
+2. Locate token by name
+3. Click **"Roll"** (creates new) or **"Delete"** (revokes)
+4. Confirm action
+
+**Notes**:
+- API tokens preferred over Global API Key (more secure)
+- Set TTL to enforce rotation (90 days recommended)
+- Test token immediately after creation
 
 ---
 

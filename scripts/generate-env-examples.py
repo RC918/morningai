@@ -128,7 +128,7 @@ def main():
         repo_root / 'handoff' / '20250928' / '40_App' / 'api-backend' / '.env.example'
     )
     
-    frontend_categories = ['Frontend', 'Application']
+    frontend_categories = ['Frontend', 'Application', 'Feature Flags']
     generate_env_example(
         schema,
         frontend_categories,
@@ -141,7 +141,7 @@ def main():
         repo_root / 'handoff' / '20250928' / '40_App' / 'owner-console' / '.env.example'
     )
     
-    orchestrator_categories = ['Database', 'Application', 'Integration', 'Worker']
+    orchestrator_categories = ['Database', 'Application', 'Integration', 'Worker', 'Feature Flags']
     generate_env_example(
         schema,
         orchestrator_categories,
