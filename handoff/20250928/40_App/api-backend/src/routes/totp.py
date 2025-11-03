@@ -43,7 +43,7 @@ def is_2fa_feature_enabled() -> bool:
     Returns:
         True if FEATURE_2FA_ENABLED is set to 'true' (case-insensitive), False otherwise
     """
-    return os.environ.get('FEATURE_2FA_ENABLED', 'false').lower() == 'true'
+    return os.environ.get('FEATURE_2FA_ENABLED', 'true').lower() == 'true'
 
 
 def get_totp_manager():
