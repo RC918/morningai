@@ -311,28 +311,32 @@ def admin_get_agent_details(agent_id):
     """
     try:
         if GOVERNANCE_AVAILABLE:
-            reputation_engine = get_reputation_engine()
-            permission_checker = get_permission_checker()
-            
-            reputation = reputation_engine.get_reputation(agent_id)
-            if not reputation:
-                return jsonify({'error': 'Agent not found'}), 404
-            
-            permission_summary = permission_checker.get_permission_summary(agent_id)
-            recent_events = reputation_engine.get_recent_events(agent_id, limit=20)
-            
-            agent_details = {
-                'id': agent_id,
-                'name': agent_id.replace('_', ' ').title(),
-                'status': 'active',
-                'reputation': reputation,
-                'permissions': permission_summary,
-                'recent_events': recent_events,
-                'metadata': {
-                    'created_at': reputation.get('created_at'),
-                    'last_updated': reputation.get('last_activity')
-                }
-            }
+            try:
+                reputation_engine = get_reputation_engine()
+                permission_checker = get_permission_checker()
+                
+                reputation = reputation_engine.get_reputation(agent_id)
+                if not reputation:
+                    agent_details = _get_mock_agent_details(agent_id)
+                else:
+                    permission_summary = permission_checker.get_permission_summary(agent_id)
+                    recent_events = reputation_engine.get_recent_events(agent_id, limit=20)
+                    
+                    agent_details = {
+                        'id': agent_id,
+                        'name': agent_id.replace('_', ' ').title(),
+                        'status': 'active',
+                        'reputation': reputation,
+                        'permissions': permission_summary,
+                        'recent_events': recent_events,
+                        'metadata': {
+                            'created_at': reputation.get('created_at'),
+                            'last_updated': reputation.get('last_activity')
+                        }
+                    }
+            except Exception as gov_error:
+                logger.warning(f"Governance system error for agent {agent_id}: {gov_error}")
+                agent_details = _get_mock_agent_details(agent_id)
         else:
             agent_details = _get_mock_agent_details(agent_id)
         

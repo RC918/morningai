@@ -13,8 +13,8 @@ from src.routes.governance import admin_bp as admin_agents_bp
 def app():
     """Create Flask app for testing"""
     app = Flask(__name__)
-    app.register_blueprint(admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(admin_agents_bp, url_prefix='/api/admin')
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(admin_agents_bp)
     return app
 
 
