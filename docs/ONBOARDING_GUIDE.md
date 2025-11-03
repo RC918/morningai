@@ -367,12 +367,12 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 ### Frontend
 
-- **Framework**: React 18 + Vite
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + Custom Design System
+- **Framework**: React 19.1.0 + Vite 6
+- **Language**: TypeScript 5.9
+- **Styling**: Tailwind CSS 4.1.7 + Custom Design System
 - **State Management**: React Context + Hooks
 - **UI Components**: Apple-inspired design system
-- **Testing**: Vitest + React Testing Library
+- **Testing**: Vitest + React Testing Library (planned)
 - **Deployment**: Vercel
 
 ### Infrastructure
@@ -590,6 +590,10 @@ pnpm format
 
 ### Database Migrations
 
+⚠️ **Note**: Alembic is planned but not yet implemented. Current migrations are manual SQL files in `migrations/` directory.
+
+**Planned Alembic Workflow** (coming soon):
+
 **Create Migration**:
 ```bash
 cd handoff/20250928/40_App/api-backend
@@ -604,6 +608,12 @@ alembic upgrade head
 **Rollback Migration**:
 ```bash
 alembic downgrade -1
+```
+
+**Current Workflow** (manual SQL):
+```bash
+# Apply SQL migrations manually
+psql $DATABASE_URL < migrations/001_initial_schema.sql
 ```
 
 ### Checking Service Health
@@ -794,6 +804,6 @@ After completing this onboarding guide, you should:
 
 ---
 
-**Last Updated**: 2025-10-28  
-**Version**: 1.0.0  
+**Last Updated**: 2025-11-03  
+**Version**: 1.1.0  
 **Maintained By**: CTO / DevOps Team
