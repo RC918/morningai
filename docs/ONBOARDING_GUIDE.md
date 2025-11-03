@@ -156,6 +156,16 @@ cd ../../../..
 
 ### Step 4: Configure Environment Variables
 
+**IMPORTANT**: All environment variables are defined in `config/env.schema.yaml` as the single source of truth. Use the generator script to create `.env.example` files:
+
+```bash
+# Generate all .env.example files from schema
+python scripts/generate_env_example.py
+
+# Check for drift between schema and .env.example files
+python scripts/check_env_drift.py
+```
+
 **Backend** (`handoff/20250928/40_App/api-backend/.env`):
 ```bash
 ENVIRONMENT=development
@@ -168,7 +178,7 @@ REDIS_URL=<staging-redis-url>
 REDIS_KEY_PREFIX=dev:
 ```
 
-**Frontend** (`handoff/20250928/40_App/frontend-dashboard/.env.local`):
+**Frontend Dashboard** (`handoff/20250928/40_App/frontend-dashboard/.env.local`):
 ```bash
 VITE_API_URL=http://localhost:8000
 VITE_ORCHESTRATOR_URL=http://localhost:8001
@@ -179,15 +189,31 @@ VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
 VITE_ORCHESTRATOR_URL=https://morningai-orchestrator-api-stg.onrender.com
 ```
 
-**Note**: Contact your team lead for staging credentials.
+**Owner Console** (`handoff/20250928/40_App/owner-console/.env.local`):
+```bash
+VITE_API_URL=http://localhost:8000
+VITE_ENVIRONMENT=development
+
+# Or point to staging backend (recommended)
+VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
+```
+
+**Note**: Contact your team lead for staging credentials. See `config/env.schema.yaml` for complete list of all environment variables.
 
 ### Step 5: Run Services Locally
 
-**Backend**:
+**Backend** (Flask):
 ```bash
 cd handoff/20250928/40_App/api-backend
 source ../../../../../../.venv/bin/activate
-uvicorn src.main:app --reload
+
+# Option 1: Flask CLI (recommended for development)
+export FLASK_APP=src.main
+flask run --port 8000
+
+# Option 2: Gunicorn (production-like)
+gunicorn "src.main:app" --bind 0.0.0.0:8000 --reload
+
 # Access at http://localhost:8000
 ```
 
@@ -307,7 +333,7 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 ### Backend
 
-- **Framework**: FastAPI (Python 3.12)
+- **Framework**: Flask (Python 3.12)
 - **Database**: PostgreSQL (Supabase)
 - **ORM**: SQLAlchemy
 - **Cache**: Redis (Upstash)
@@ -381,7 +407,7 @@ morningai/
 ├── handoff/20250928/40_App/
 │   ├── api-backend/                # Backend API
 │   │   ├── src/                    # Source code
-│   │   │   ├── main.py            # FastAPI application (imports phase*.py)
+│   │   │   ├── main.py            # Flask application (imports phase*.py)
 │   │   │   ├── database.py        # Database connection
 │   │   │   └── ...                # API modules
 │   │   ├── tests/                 # Test suite
@@ -679,7 +705,7 @@ pytest tests/test_specific.py -v
 ### External Resources
 
 **Technologies**:
-- **FastAPI**: https://fastapi.tiangolo.com/
+- **Flask**: https://flask.palletsprojects.com/
 - **React**: https://react.dev/
 - **Supabase**: https://supabase.com/docs
 - **Render**: https://render.com/docs
