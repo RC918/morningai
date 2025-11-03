@@ -427,7 +427,13 @@ python graph.py --goal "demo task"
 
 ### 4. Frontend System
 
+MorningAI has two separate frontend applications with distinct purposes and boundaries:
+
+#### 4.1 Frontend Dashboard (End-User Application)
+
 **Location**: `handoff/20250928/40_App/frontend-dashboard/`
+
+**Purpose**: End-user analytics and monitoring interface
 
 **Architecture**: React 18 + Vite + TypeScript
 
@@ -450,9 +456,82 @@ python graph.py --goal "demo task"
 - E2E Tests: Playwright (planned)
 - Accessibility: WCAG AAA compliance
 
+**Deployment**:
+- Production: https://app.gm365.me
+- Vercel deployment
+
+#### 4.2 Owner Console (Admin/Governance Application)
+
+**Location**: `handoff/20250928/40_App/owner-console/`
+
+**Purpose**: Owner management, governance, and system administration
+
+**Architecture**: React 18 + Vite + JSX/TypeScript
+
+**Key Features**:
+- System Monitoring (health checks, metrics, logs)
+- Agent Governance (agent management, execution tracking, reputation)
+- Tenant Management
+- 2FA Settings
+- Admin controls
+
+**Deployment**:
+- Production: https://admin.gm365.me
+- Vercel deployment
+
+#### 4.3 Frontend Boundaries and Separation
+
+**IMPORTANT**: The two frontend applications are completely separate and should NOT share code or cross-import from each other.
+
+**Boundary Rules**:
+1. **No Cross-Imports**: `frontend-dashboard` MUST NOT import from `owner-console` and vice versa
+2. **Shared Code**: Common code should be extracted to `packages/shared-ui` or `packages/*`
+3. **API Clients**: Each app has its own API client configuration
+4. **Authentication**: Each app has its own auth flow (though both use the same backend)
+5. **Deployment**: Each app deploys independently to different domains
+
+**Enforcement**:
+- ESLint `no-restricted-imports` rules enforce boundaries
+- CI checks prevent cross-imports
+- Separate package.json dependencies
+
+**Why Separate Apps?**
+- **frontend-dashboard**: End-user facing, analytics focus, public access
+- **owner-console**: Admin facing, governance focus, restricted access
+- Different user personas, different security requirements, different deployment cadences
+
 ---
 
 ## Environment Configuration
+
+### Environment Schema (Single Source of Truth)
+
+**Location**: `config/env.schema.yaml`
+
+**Purpose**: Canonical definition of all environment variables across the entire application
+
+**Key Features**:
+- 53 total variables (19 required, 34 optional)
+- Categorized by purpose (Authentication, Security, Database, Cloud Services, etc.)
+- Type validation (secret, url, string, boolean, integer)
+- Security level classification (critical, secret, public)
+- Comprehensive descriptions and examples
+
+**Generator Script**: `scripts/generate-env-examples.py`
+- Generates `.env.example` files from schema
+- Ensures consistency across all components
+- Run after modifying `config/env.schema.yaml`
+
+**Drift Checker**: `scripts/check-env-drift.py`
+- Validates `.env.example` files match schema
+- Runs in CI to prevent drift
+- Exit code 1 if drift detected
+
+**Workflow**:
+1. Modify `config/env.schema.yaml` (single source of truth)
+2. Run `python scripts/generate-env-examples.py` to regenerate `.env.example` files
+3. Run `python scripts/check-env-drift.py` to verify no drift
+4. Commit all changes together
 
 ### Production Environment
 

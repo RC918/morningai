@@ -37,6 +37,17 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
       'warn',
       { allowConstantExport: true },
     ],
+    'no-restricted-imports': [
+      'error',
+      {
+        patterns: [
+          {
+            group: ['**/owner-console/**'],
+            message: 'frontend-dashboard must not import from owner-console. Extract shared code to packages/shared-ui instead.',
+          },
+        ],
+      },
+    ],
     'no-unused-vars': 'off',
     'no-undef': 'off',
     'react/jsx-no-undef': 'error',

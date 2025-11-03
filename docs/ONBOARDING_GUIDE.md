@@ -156,6 +156,16 @@ cd ../../../..
 
 ### Step 4: Configure Environment Variables
 
+**IMPORTANT**: All environment variables are defined in `config/env.schema.yaml` as the single source of truth. Use the generator script to create `.env.example` files:
+
+```bash
+# Generate all .env.example files from schema
+python scripts/generate-env-examples.py
+
+# Check for drift between schema and .env.example files
+python scripts/check-env-drift.py
+```
+
 **Backend** (`handoff/20250928/40_App/api-backend/.env`):
 ```bash
 ENVIRONMENT=development
@@ -168,7 +178,7 @@ REDIS_URL=<staging-redis-url>
 REDIS_KEY_PREFIX=dev:
 ```
 
-**Frontend** (`handoff/20250928/40_App/frontend-dashboard/.env.local`):
+**Frontend Dashboard** (`handoff/20250928/40_App/frontend-dashboard/.env.local`):
 ```bash
 VITE_API_URL=http://localhost:8000
 VITE_ORCHESTRATOR_URL=http://localhost:8001
@@ -179,7 +189,16 @@ VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
 VITE_ORCHESTRATOR_URL=https://morningai-orchestrator-api-stg.onrender.com
 ```
 
-**Note**: Contact your team lead for staging credentials.
+**Owner Console** (`handoff/20250928/40_App/owner-console/.env.local`):
+```bash
+VITE_API_URL=http://localhost:8000
+VITE_ENVIRONMENT=development
+
+# Or point to staging backend (recommended)
+VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
+```
+
+**Note**: Contact your team lead for staging credentials. See `config/env.schema.yaml` for complete list of all environment variables.
 
 ### Step 5: Run Services Locally
 

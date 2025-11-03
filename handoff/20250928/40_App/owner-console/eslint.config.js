@@ -34,6 +34,17 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/frontend-dashboard/**'],
+              message: 'owner-console must not import from frontend-dashboard. Extract shared code to packages/shared-ui instead.',
+            },
+          ],
+        },
+      ],
       'no-unused-vars': 'off',
       'no-undef': 'off',
       'jsx-a11y/aria-props': 'error',
