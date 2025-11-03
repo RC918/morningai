@@ -195,8 +195,9 @@ function getCsrfToken(): string | null {
 
 /**
  * Store CSRF token in both in-memory and sessionStorage
+ * Exported for testing purposes
  */
-function storeCsrfToken(token: string): void {
+export function storeCsrfToken(token: string): void {
   csrfToken = token;
   
   if (typeof sessionStorage !== 'undefined') {
@@ -210,8 +211,9 @@ function storeCsrfToken(token: string): void {
 
 /**
  * Clear CSRF token from both in-memory and sessionStorage
+ * Exported for testing purposes
  */
-function clearCsrfToken(): void {
+export function clearCsrfToken(): void {
   csrfToken = null;
   
   if (typeof sessionStorage !== 'undefined') {
