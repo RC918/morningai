@@ -42,15 +42,27 @@ for (const app of apps) {
   try {
     const appPath = join(rootDir, app.path);
     
-    const lintOutput = execSync('pnpm lint 2>&1', {
+    // Use ESLint JSON formatter for reliable parsing
+    const lintOutput = execSync('pnpm exec eslint "src/**/*.{js,jsx,ts,tsx}" --format json --no-color 2>&1', {
       cwd: appPath,
       encoding: 'utf8',
       stdio: 'pipe'
     });
     
-    const violations = (lintOutput.match(/i18next\/no-literal-string/g) || []).length;
-    const baselineCount = baseline.violations[app.name];
+    // Parse JSON output and count i18next/no-literal-string violations
+    let violations = 0;
+    try {
+      const results = JSON.parse(lintOutput);
+      violations = results.reduce((count, file) => {
+        return count + file.messages.filter(msg => msg.ruleId === 'i18next/no-literal-string').length;
+      }, 0);
+    } catch (parseError) {
+      // Fallback to grep if JSON parsing fails
+      console.log(`  ⚠️  JSON parsing failed, falling back to grep method`);
+      violations = (lintOutput.match(/i18next\/no-literal-string/g) || []).length;
+    }
     
+    const baselineCount = baseline.violations[app.name];
     results[app.name] = violations;
     
     console.log(`  Current: ${violations} violations`);
@@ -65,10 +77,22 @@ for (const app of apps) {
       console.log(`  ✓ No change\n`);
     }
   } catch (error) {
+    // ESLint exits with non-zero when there are violations
     const lintOutput = error.stdout || error.stderr || '';
-    const violations = (lintOutput.match(/i18next\/no-literal-string/g) || []).length;
-    const baselineCount = baseline.violations[app.name];
     
+    let violations = 0;
+    try {
+      const results = JSON.parse(lintOutput);
+      violations = results.reduce((count, file) => {
+        return count + file.messages.filter(msg => msg.ruleId === 'i18next/no-literal-string').length;
+      }, 0);
+    } catch (parseError) {
+      // Fallback to grep if JSON parsing fails
+      console.log(`  ⚠️  JSON parsing failed, falling back to grep method`);
+      violations = (lintOutput.match(/i18next\/no-literal-string/g) || []).length;
+    }
+    
+    const baselineCount = baseline.violations[app.name];
     results[app.name] = violations;
     
     console.log(`  Current: ${violations} violations`);
