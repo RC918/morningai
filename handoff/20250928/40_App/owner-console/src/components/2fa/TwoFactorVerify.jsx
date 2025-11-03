@@ -7,8 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@morningai/shared-ui';
-import { AppleButton } from '@/components/ui/apple-button';
-import { AppleInput } from '@/components/ui/apple-input';
+import { AppleButton } from '@/components/apple/apple-button';
 import { Shield, AlertCircle } from 'lucide-react';
 import { TotpInput } from './TotpInput';
 
@@ -134,13 +133,13 @@ export function TwoFactorVerify({
               <label className="text-sm font-medium text-foreground">
                 {t('auth.2fa.backupCodeLabel')}
               </label>
-              <AppleInput
+              <input
                 type="text"
                 value={backupCode}
                 onChange={(e) => setBackupCode(e.target.value.toUpperCase())}
                 placeholder={t('auth.2fa.backupCodePlaceholder', 'XXXX-XXXX-XXXX-XXXX')}
                 disabled={loading || attemptsRemaining === 0}
-                className="font-mono"
+                className="w-full h-11 px-4 py-3 rounded-xl border-2 border-input bg-background/80 backdrop-blur-sm text-base font-mono transition-all outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-muted-foreground">
                 {t('auth.2fa.backupCodeHelp')}
