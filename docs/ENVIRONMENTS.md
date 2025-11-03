@@ -261,7 +261,7 @@ For complete staging environment setup instructions, see:
 #### Backend API
 - **URL**: http://localhost:8000
 - **Runtime**: Python 3.12+
-- **Start Command**: `uvicorn src.main:app --reload`
+- **Start Command**: `export FLASK_APP=src.main && flask run --port 8000`
 - **Working Directory**: `handoff/20250928/40_App/api-backend`
 
 #### Orchestrator API
