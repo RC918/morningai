@@ -1,5 +1,7 @@
 # MorningAI Project Structure Report
 
+> 📚 **術語標準**: 請參閱 [術語對照表](./TERMINOLOGY.md) 了解標準化的應用名稱和用戶類型定義。
+
 **Document Version**: 1.0.0  
 **Last Updated**: 2025-10-28  
 **Project Phase**: Phase 8 (v8.0.0)
