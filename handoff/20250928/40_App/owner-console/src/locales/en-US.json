@@ -127,6 +127,77 @@
     "2fa": {
       "title": "Two-Factor Authentication",
       "subtitle": "Secure your account with an additional layer of protection",
+      "loading": "Loading...",
+      "status": {
+        "label": "Status",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "enabledOn": "Enabled on {{date}}"
+      },
+      "actions": {
+        "enable": "Enable 2FA",
+        "disable": "Disable 2FA",
+        "regenerate": "Regenerate"
+      },
+      "backupCodes": {
+        "title": "Backup Codes",
+        "remaining": "{{count}} codes remaining",
+        "saveTitle": "Save Your Backup Codes",
+        "saveDescription": "Store these codes in a safe place. Each code can only be used once.",
+        "copied": "Copied!",
+        "copyAll": "Copy All",
+        "download": "Download",
+        "important": "Important:",
+        "warningMessage": "These codes will not be shown again. Make sure to save them before continuing.",
+        "confirmSaved": "I've Saved My Backup Codes",
+        "lowWarning": "You have {{count}} backup codes remaining. Consider regenerating them.",
+        "regenerateTitle": "Regenerate Backup Codes",
+        "regenerateDescription": "This will invalidate your current backup codes and generate new ones.",
+        "regenerateWarning": "Warning:",
+        "regenerateWarningMessage": "Your old backup codes will no longer work after regeneration.",
+        "regenerateButton": "Regenerate Codes",
+        "regenerating": "Regenerating...",
+        "passwordLabel": "Password",
+        "passwordHelper": "Confirm your password to regenerate backup codes"
+      },
+      "disable": {
+        "title": "Disable Two-Factor Authentication",
+        "description": "This will remove 2FA protection from your account. You can re-enable it at any time.",
+        "warning": "Warning:",
+        "warningMessage": "Disabling 2FA will make your account less secure.",
+        "confirmButton": "Disable 2FA",
+        "cancel": "Cancel",
+        "disabling": "Disabling...",
+        "passwordLabel": "Password",
+        "totpCodeLabel": "Current TOTP Code",
+        "totpCodePlaceholder": "000000",
+        "totpCodeHelper": "Enter the 6-digit code from your authenticator app"
+      },
+      "cardDescription": "Add an extra layer of security to your account",
+      "setup": {
+        "qrCodeDescription": "Scan this QR code with your authenticator app",
+        "manualEntry": "Or enter this code manually:",
+        "recommendedApps": "Recommended authenticator apps:",
+        "title": "Enable Two-Factor Authentication",
+        "subtitle": "Follow the steps below to secure your account",
+        "passwordPrompt": "First, confirm your password to continue",
+        "qrScanned": "I've Scanned the QR Code",
+        "verifyPrompt": "Enter the 6-digit code from your authenticator app",
+        "verificationCodeLabel": "Verification Code",
+        "verifying": "Verifying...",
+        "continue": "Continue",
+        "verify": "Verify",
+        "back": "Back",
+        "cancel": "Cancel",
+        "successTitle": "2FA Enabled Successfully!",
+        "successDescription": "Your account is now protected with two-factor authentication.",
+        "apps": {
+          "google": "Google Authenticator",
+          "microsoft": "Microsoft Authenticator",
+          "authy": "Authy",
+          "onepassword": "1Password"
+        }
+      },
       "trustedDevices": {
         "title": "Trusted Devices",
         "description": "Manage devices that are trusted for 30 days without requiring 2FA",

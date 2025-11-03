@@ -127,6 +127,77 @@
     "2fa": {
       "title": "雙重驗證",
       "subtitle": "為您的帳戶增加額外的安全保護層",
+      "loading": "載入中...",
+      "status": {
+        "label": "狀態",
+        "enabled": "已啟用",
+        "disabled": "已停用",
+        "enabledOn": "於 {{date}} 啟用"
+      },
+      "actions": {
+        "enable": "啟用雙重驗證",
+        "disable": "停用雙重驗證",
+        "regenerate": "重新產生"
+      },
+      "backupCodes": {
+        "title": "備用代碼",
+        "remaining": "剩餘 {{count}} 組代碼",
+        "saveTitle": "儲存您的備用代碼",
+        "saveDescription": "請將這些代碼儲存在安全的地方。每組代碼只能使用一次。",
+        "copied": "已複製！",
+        "copyAll": "全部複製",
+        "download": "下載",
+        "important": "重要提示：",
+        "warningMessage": "這些代碼不會再次顯示。請確保在繼續之前已儲存。",
+        "confirmSaved": "我已儲存備用代碼",
+        "lowWarning": "您剩餘 {{count}} 組備用代碼。建議重新產生。",
+        "regenerateTitle": "重新產生備用代碼",
+        "regenerateDescription": "這將使您目前的備用代碼失效並產生新的代碼。",
+        "regenerateWarning": "警告：",
+        "regenerateWarningMessage": "重新產生後，您的舊備用代碼將無法使用。",
+        "regenerateButton": "重新產生代碼",
+        "regenerating": "重新產生中...",
+        "passwordLabel": "密碼",
+        "passwordHelper": "確認您的密碼以重新產生備用代碼"
+      },
+      "disable": {
+        "title": "停用雙重驗證",
+        "description": "這將移除您帳戶的雙重驗證保護。您可以隨時重新啟用。",
+        "warning": "警告：",
+        "warningMessage": "停用雙重驗證會降低您帳戶的安全性。",
+        "confirmButton": "停用雙重驗證",
+        "cancel": "取消",
+        "disabling": "停用中...",
+        "passwordLabel": "密碼",
+        "totpCodeLabel": "目前的 TOTP 代碼",
+        "totpCodePlaceholder": "000000",
+        "totpCodeHelper": "輸入驗證器應用程式中的 6 位數代碼"
+      },
+      "cardDescription": "為您的帳戶增加額外的安全保護層",
+      "setup": {
+        "qrCodeDescription": "使用您的驗證器應用程式掃描此 QR 碼",
+        "manualEntry": "或手動輸入此代碼：",
+        "recommendedApps": "推薦的驗證器應用程式：",
+        "title": "啟用雙重驗證",
+        "subtitle": "按照以下步驟保護您的帳戶",
+        "passwordPrompt": "首先，確認您的密碼以繼續",
+        "qrScanned": "我已掃描 QR 碼",
+        "verifyPrompt": "輸入驗證器應用程式中的 6 位數代碼",
+        "verificationCodeLabel": "驗證碼",
+        "verifying": "驗證中...",
+        "continue": "繼續",
+        "verify": "驗證",
+        "back": "返回",
+        "cancel": "取消",
+        "successTitle": "雙重驗證已成功啟用！",
+        "successDescription": "您的帳戶現在受到雙重驗證保護。",
+        "apps": {
+          "google": "Google Authenticator",
+          "microsoft": "Microsoft Authenticator",
+          "authy": "Authy",
+          "onepassword": "1Password"
+        }
+      },
       "trustedDevices": {
         "title": "信任的裝置",
         "description": "管理信任 30 天無需雙因素驗證的裝置",
