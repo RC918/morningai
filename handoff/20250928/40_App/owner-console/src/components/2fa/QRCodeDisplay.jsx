@@ -1,7 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@morningai/shared-ui';
 
 export function QRCodeDisplay({ qrCode, secret }) {
+  const { t } = useTranslation();
+  
   return (
     <div className="space-y-4">
       <Card>
@@ -15,11 +18,11 @@ export function QRCodeDisplay({ qrCode, secret }) {
           </div>
           <div className="text-center space-y-2">
             <p className="text-sm text-muted-foreground">
-              Scan this QR code with your authenticator app
+              {t('settings.2fa.setup.qrCodeDescription')}
             </p>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">
-                Or enter this code manually:
+                {t('settings.2fa.setup.manualEntry')}
               </p>
               <code className="block px-3 py-2 bg-accent rounded-lg text-sm font-mono break-all">
                 {secret}
@@ -29,12 +32,12 @@ export function QRCodeDisplay({ qrCode, secret }) {
         </CardContent>
       </Card>
       <div className="text-xs text-muted-foreground space-y-1">
-        <p className="font-medium">Recommended authenticator apps:</p>
+        <p className="font-medium">{t('settings.2fa.setup.recommendedApps')}</p>
         <ul className="list-disc list-inside space-y-0.5 ml-2">
-          <li>Google Authenticator</li>
-          <li>Microsoft Authenticator</li>
-          <li>Authy</li>
-          <li>1Password</li>
+          <li>{t('settings.2fa.setup.apps.google')}</li>
+          <li>{t('settings.2fa.setup.apps.microsoft')}</li>
+          <li>{t('settings.2fa.setup.apps.authy')}</li>
+          <li>{t('settings.2fa.setup.apps.onepassword')}</li>
         </ul>
       </div>
     </div>

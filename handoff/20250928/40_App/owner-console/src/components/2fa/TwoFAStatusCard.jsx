@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui';
 import { Badge } from '@morningai/shared-ui';
 import { Button } from '@morningai/shared-ui';
@@ -11,6 +12,7 @@ export function TwoFAStatusCard({
   onRegenerateClick,
   refreshTrigger = 0,
 }) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,9 +40,9 @@ export function TwoFAStatusCard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
-            Two-Factor Authentication
+            {t('settings.2fa.title')}
           </CardTitle>
-          <CardDescription>Loading...</CardDescription>
+          <CardDescription>{t('settings.2fa.loading')}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -52,7 +54,7 @@ export function TwoFAStatusCard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
-            Two-Factor Authentication
+            {t('settings.2fa.title')}
           </CardTitle>
           <CardDescription className="text-destructive flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
@@ -70,41 +72,41 @@ export function TwoFAStatusCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="w-5 h-5" />
-          Two-Factor Authentication
+          {t('settings.2fa.title')}
         </CardTitle>
         <CardDescription>
-          Add an extra layer of security to your account
+          {t('settings.2fa.cardDescription')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="font-medium">Status</span>
+              <span className="font-medium">{t('settings.2fa.status.label')}</span>
               {isEnabled ? (
                 <Badge variant="default" className="bg-green-500 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
-                  Enabled
+                  {t('settings.2fa.status.enabled')}
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-gray-600">
-                  Disabled
+                  {t('settings.2fa.status.disabled')}
                 </Badge>
               )}
             </div>
             {isEnabled && status?.verified_at && (
               <p className="text-sm text-muted-foreground">
-                Enabled on {new Date(status.verified_at).toLocaleDateString()}
+                {t('settings.2fa.status.enabledOn', { date: new Date(status.verified_at).toLocaleDateString() })}
               </p>
             )}
           </div>
           {!isEnabled ? (
             <Button onClick={onSetupClick} size="sm">
-              Enable 2FA
+              {t('settings.2fa.actions.enable')}
             </Button>
           ) : (
             <Button onClick={onDisableClick} variant="destructive" size="sm">
-              Disable 2FA
+              {t('settings.2fa.actions.disable')}
             </Button>
           )}
         </div>
@@ -115,10 +117,10 @@ export function TwoFAStatusCard({
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <Key className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Backup Codes</span>
+                  <span className="text-sm font-medium">{t('settings.2fa.backupCodes.title')}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {status?.backup_codes_remaining ?? 0} codes remaining
+                  {t('settings.2fa.backupCodes.remaining', { count: status?.backup_codes_remaining ?? 0 })}
                 </p>
               </div>
               <Button
@@ -127,14 +129,14 @@ export function TwoFAStatusCard({
                 size="sm"
                 disabled={(status?.backup_codes_remaining ?? 0) > 4}
               >
-                Regenerate
+                {t('settings.2fa.actions.regenerate')}
               </Button>
             </div>
             {(status?.backup_codes_remaining ?? 0) <= 2 && (
               <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                 <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-500 mt-0.5" />
                 <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                  You have {status?.backup_codes_remaining ?? 0} backup codes remaining. Consider regenerating them.
+                  {t('settings.2fa.backupCodes.lowWarning', { count: status?.backup_codes_remaining ?? 0 })}
                 </p>
               </div>
             )}

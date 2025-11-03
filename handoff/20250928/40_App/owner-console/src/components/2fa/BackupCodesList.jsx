@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui';
 import { Button } from '@morningai/shared-ui';
 import { AlertCircle, Copy, Download, CheckCircle2 } from 'lucide-react';
 
 export function BackupCodesList({ backupCodes, onContinue }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -34,10 +36,10 @@ export function BackupCodesList({ backupCodes, onContinue }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
             <AlertCircle className="w-5 h-5" />
-            Save Your Backup Codes
+            {t('settings.2fa.backupCodes.saveTitle')}
           </CardTitle>
           <CardDescription>
-            Store these codes in a safe place. Each code can only be used once.
+            {t('settings.2fa.backupCodes.saveDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -62,12 +64,12 @@ export function BackupCodesList({ backupCodes, onContinue }) {
               {copied ? (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  Copied!
+                  {t('settings.2fa.backupCodes.copied')}
                 </>
               ) : (
                 <>
                   <Copy className="w-4 h-4" />
-                  Copy All
+                  {t('settings.2fa.backupCodes.copyAll')}
                 </>
               )}
             </Button>
@@ -78,19 +80,19 @@ export function BackupCodesList({ backupCodes, onContinue }) {
               className="flex-1"
             >
               <Download className="w-4 h-4" />
-              Download
+              {t('settings.2fa.backupCodes.download')}
             </Button>
           </div>
 
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
             <p className="text-xs text-yellow-800 dark:text-yellow-200">
-              <strong>Important:</strong> These codes will not be shown again. Make sure to save them before continuing.
+              <strong>{t('settings.2fa.backupCodes.important')}</strong> {t('settings.2fa.backupCodes.warningMessage')}
             </p>
           </div>
 
           {onContinue && (
             <Button onClick={onContinue} className="w-full">
-              I've Saved My Backup Codes
+              {t('settings.2fa.backupCodes.confirmSaved')}
             </Button>
           )}
         </CardContent>
