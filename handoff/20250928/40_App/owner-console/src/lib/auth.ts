@@ -172,6 +172,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  */
 let csrfToken: string | null = null;
 
+/**
+ * Single-flight promise for CSRF token fetching
+ * Prevents concurrent requests from fetching the same token multiple times
+ */
+let csrfTokenPromise: Promise<void> | null = null;
+
 if (typeof sessionStorage !== 'undefined') {
   try {
     csrfToken = sessionStorage.getItem('csrf_token');
@@ -223,6 +229,9 @@ function clearCsrfToken(): void {
  * P0 Fix: Read CSRF token from JSON response instead of document.cookie
  * This is required for cross-origin authentication (admin.gm365.me → morningai-backend-v2.onrender.com)
  * Even with SameSite=None, HttpOnly cookies cannot be read by JavaScript
+ * 
+ * P1 Enhancement: Single-flight promise pattern
+ * Prevents concurrent requests from fetching the same token multiple times
  */
 async function ensureCsrfToken(): Promise<void> {
   if (typeof window === 'undefined') return;
@@ -230,23 +239,33 @@ async function ensureCsrfToken(): Promise<void> {
   const existingToken = getCsrfToken();
   if (existingToken) return;
   
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      if (data.csrf_token) {
-        storeCsrfToken(data.csrf_token);
-      }
-    } else {
-      console.error('Failed to fetch CSRF token:', response.status, response.statusText);
-    }
-  } catch (error) {
-    console.error('Failed to fetch CSRF token:', error);
+  if (csrfTokenPromise) {
+    return csrfTokenPromise;
   }
+  
+  csrfTokenPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.csrf_token) {
+          storeCsrfToken(data.csrf_token);
+        }
+      } else {
+        console.error('Failed to fetch CSRF token:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Failed to fetch CSRF token:', error);
+    } finally {
+      csrfTokenPromise = null;
+    }
+  })();
+  
+  return csrfTokenPromise;
 }
 
 /**
@@ -286,6 +305,11 @@ function shouldIncludeCSRF(method?: string): boolean {
  * P0 Enhancement: 401 Refresh Retry Mechanism
  * - On 401 response, attempts to refresh token and retry request once
  * - If retry fails, clears tokens and redirects to login
+ * 
+ * P1 Enhancement: CSRF Defensive Programming
+ * - Ensures CSRF token exists before first request
+ * - Handles 403/419 CSRF failures with automatic token refresh and retry
+ * - Prevents requests from failing due to missing or expired CSRF tokens
  */
 async function authenticatedFetch(
   url: string,
@@ -301,6 +325,10 @@ async function authenticatedFetch(
     await refreshAccessToken();
   }
   
+  if (shouldIncludeCSRF(options.method) && !getCsrfToken()) {
+    await ensureCsrfToken();
+  }
+  
   const headers = new Headers(options.headers);
   if (shouldIncludeCSRF(options.method)) {
     const csrfToken = getCsrfToken();
@@ -314,6 +342,36 @@ async function authenticatedFetch(
     headers,
     credentials: 'include',
   });
+  
+  if (response.status === 403 || response.status === 419) {
+    try {
+      clearCsrfToken();
+      await ensureCsrfToken();
+      
+      const retryHeaders = new Headers(options.headers);
+      if (shouldIncludeCSRF(options.method)) {
+        const csrfToken = getCsrfToken();
+        if (csrfToken) {
+          retryHeaders.set('X-CSRF-Token', csrfToken);
+        }
+      }
+      
+      const retryResponse = await fetch(url, {
+        ...options,
+        headers: retryHeaders,
+        credentials: 'include',
+      });
+      
+      if (retryResponse.status === 403 || retryResponse.status === 419) {
+        throw new Error('CSRF token validation failed. Please refresh the page.');
+      }
+      
+      return retryResponse;
+    } catch (error) {
+      console.error('CSRF token refresh failed:', error);
+      throw error;
+    }
+  }
   
   if (response.status === 401) {
     try {
