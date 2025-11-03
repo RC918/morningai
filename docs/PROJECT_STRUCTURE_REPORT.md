@@ -517,20 +517,20 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 - Security level classification (critical, secret, public)
 - Comprehensive descriptions and examples
 
-**Generator Script**: `scripts/generate-env-examples.py`
+**Generator Script**: `scripts/generate_env_example.py`
 - Generates `.env.example` files from schema
 - Ensures consistency across all components
 - Run after modifying `config/env.schema.yaml`
 
-**Drift Checker**: `scripts/check-env-drift.py`
+**Drift Checker**: `scripts/check_env_drift.py`
 - Validates `.env.example` files match schema
 - Runs in CI to prevent drift
 - Exit code 1 if drift detected
 
 **Workflow**:
 1. Modify `config/env.schema.yaml` (single source of truth)
-2. Run `python scripts/generate-env-examples.py` to regenerate `.env.example` files
-3. Run `python scripts/check-env-drift.py` to verify no drift
+2. Run `python scripts/generate_env_example.py` to regenerate `.env.example` files
+3. Run `python scripts/check_env_drift.py` to verify no drift
 4. Commit all changes together
 
 ### Production Environment
