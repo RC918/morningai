@@ -495,20 +495,33 @@ def verify_backup_code_for_login(user_id: str, backup_code: str) -> tuple[bool, 
         return False, 0
 
 
-def check_2fa_required(user_id: str) -> bool:
+def check_2fa_required(user_id: str, user_role: str = None) -> bool:
     """
     Check if 2FA is required for a user.
     
+    Owner role ALWAYS requires 2FA (enforced policy).
+    Other roles require 2FA only if they have explicitly enabled it.
+    
     Args:
         user_id: User ID
+        user_role: User role (optional, will fetch if not provided)
         
     Returns:
-        True if 2FA is enabled for user, False otherwise
+        True if 2FA is enabled/required for user, False otherwise
     """
     if not is_2fa_feature_enabled():
         return False
     
     try:
+        if not user_role:
+            user = get_user_by_id(user_id)
+            if user:
+                user_role = user.get('role')
+        
+        if user_role == 'owner':
+            logger.info(f"2FA required for Owner role user {user_id}")
+            return True
+        
         supabase_url = os.environ.get('SUPABASE_URL')
         supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
         supabase = create_client(supabase_url, supabase_key)
@@ -519,3 +532,134 @@ def check_2fa_required(user_id: str) -> bool:
     except Exception as e:
         logger.error(f"Error checking 2FA requirement: {str(e)}", exc_info=True)
         return False
+
+
+@totp_bp.route('/verify-login', methods=['POST'])
+@rate_limit  # 5 attempts per 5 minutes
+def verify_totp_login():
+    """
+    Verify TOTP code during login and complete authentication.
+    
+    This endpoint is called after initial login credentials are verified
+    and 2FA is required. It verifies the TOTP/backup code and issues
+    authentication tokens.
+    
+    Request:
+        {
+            "email": "user@example.com",
+            "password": "user_password",
+            "totp_code": "123456",  # Optional, use this OR backup_code
+            "backup_code": "XXXX-XXXX-XXXX-XXXX",  # Optional
+            "remember_device": false  # Optional
+        }
+    
+    Response:
+        {
+            "success": true,
+            "user_id": "user-001",
+            "backup_codes_remaining": 7,  # Only if backup code was used
+            "device_trusted": false  # If remember_device was true
+        }
+    """
+    if not is_2fa_feature_enabled():
+        return jsonify({'error': '2FA feature is not enabled'}), 403
+    
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        totp_code = data.get('totp_code', '').strip()
+        backup_code = data.get('backup_code', '').strip()
+        remember_device = data.get('remember_device', False)
+        
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
+        
+        if not totp_code and not backup_code:
+            return jsonify({'error': 'Either TOTP code or backup code is required'}), 400
+        
+        from ..services.auth_service import authenticate_user, generate_access_token, generate_refresh_token, set_auth_cookies
+        
+        user = authenticate_user(email, password)
+        if not user:
+            return jsonify({'error': 'Invalid email or password'}), 401
+        
+        user_id = user['id']
+        
+        if not check_2fa_required(user_id):
+            return jsonify({'error': '2FA is not enabled for this user'}), 400
+        
+        backup_codes_remaining = None
+        
+        if backup_code:
+            is_valid, remaining = verify_backup_code_for_login(user_id, backup_code)
+            if not is_valid:
+                return jsonify({'error': 'Invalid backup code'}), 401
+            backup_codes_remaining = remaining
+            logger.info(f"User {user_id} logged in with backup code, {remaining} codes remaining")
+        elif totp_code:
+            if len(totp_code) != 6 or not totp_code.isdigit():
+                return jsonify({'error': 'Invalid TOTP code format (must be 6 digits)'}), 400
+            
+            is_valid = verify_totp_for_login(user_id, totp_code)
+            if not is_valid:
+                return jsonify({'error': 'Invalid TOTP code'}), 401
+            logger.info(f"User {user_id} logged in with TOTP")
+        
+        device_trusted = False
+        if remember_device:
+            try:
+                device_fingerprint = generate_device_fingerprint(request)
+                device_expiry = calculate_device_expiry(30)
+                
+                supabase_url = os.environ.get('SUPABASE_URL')
+                supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+                supabase = create_client(supabase_url, supabase_key)
+                
+                supabase.table('trusted_devices').insert({
+                    'user_id': user_id,
+                    'device_fingerprint': device_fingerprint,
+                    'expires_at': device_expiry.isoformat()
+                }).execute()
+                
+                device_trusted = True
+                logger.info(f"Device trusted for user {user_id}")
+            except Exception as e:
+                logger.warning(f"Failed to trust device: {str(e)}")
+        
+        access_token, access_expiry_ms = generate_access_token(
+            user_id, user['email'], user['role']
+        )
+        refresh_token = generate_refresh_token(user_id, user['email'])
+        
+        response_data = {
+            'success': True,
+            'user_id': user_id,
+            'user': {
+                'id': user['id'],
+                'email': user['email'],
+                'name': user['name'],
+                'role': user['role'],
+                'tenantId': user['tenant_id'],
+                'avatar': user.get('avatar')
+            },
+            'tokens': {
+                'expiresAt': access_expiry_ms
+            }
+        }
+        
+        if backup_codes_remaining is not None:
+            response_data['backup_codes_remaining'] = backup_codes_remaining
+        
+        if device_trusted:
+            response_data['device_trusted'] = True
+        
+        response = make_response(jsonify(response_data), 200)
+        set_auth_cookies(response, access_token, refresh_token, access_expiry_ms)
+        
+        logger.info(f"2FA login completed successfully for user {user_id}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in 2FA login verification: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500

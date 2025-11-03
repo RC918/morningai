@@ -82,7 +82,8 @@ def login():
     """
     Login with email and password
     
-    Sets HttpOnly cookies for access and refresh tokens
+    If 2FA is enabled for the user, returns requires_2fa flag without setting cookies.
+    Otherwise, sets HttpOnly cookies for access and refresh tokens.
     
     Request body:
         {
@@ -90,7 +91,16 @@ def login():
             "password": "password123"
         }
     
-    Response:
+    Response (2FA required):
+        {
+            "requires_2fa": true,
+            "user": {
+                "id": "user-001",
+                "email": "user@example.com"
+            }
+        }
+    
+    Response (2FA not required):
         {
             "user": {
                 "id": "user-001",
@@ -115,6 +125,19 @@ def login():
         user = authenticate_user(email, password)
         if not user:
             return jsonify({'message': 'Invalid email or password'}), 401
+        
+        from .totp import check_2fa_required
+        if check_2fa_required(user['id'], user['role']):
+            response_data = {
+                'requires_2fa': True,
+                'user': {
+                    'id': user['id'],
+                    'email': user['email'],
+                    'role': user['role']
+                }
+            }
+            logger.info(f"User {user['email']} (role: {user['role']}) requires 2FA verification")
+            return jsonify(response_data), 200
         
         access_token, access_expiry_ms = generate_access_token(
             user['id'], user['email'], user['role']
