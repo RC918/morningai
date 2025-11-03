@@ -521,7 +521,7 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 **Purpose**: Canonical definition of all environment variables across the entire application
 
 **Key Features**:
-- 53 total variables (19 required, 34 optional)
+- 56 total variables (19 required, 37 optional)
 - Categorized by purpose (Authentication, Security, Database, Cloud Services, etc.)
 - Type validation (secret, url, string, boolean, integer)
 - Security level classification (critical, secret, public)
