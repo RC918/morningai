@@ -70,7 +70,7 @@ jobs:
         run: pnpm --filter @morningai/shared-ui build
       
       - name: Run i18n baseline check
-        run: node scripts/check-i18n-baseline.js
+        run: node scripts/check-i18n-baseline.mjs
       
       - name: Upload baseline report
         if: always()
