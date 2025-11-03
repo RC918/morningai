@@ -202,11 +202,18 @@ VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
 
 ### Step 5: Run Services Locally
 
-**Backend**:
+**Backend** (Flask):
 ```bash
 cd handoff/20250928/40_App/api-backend
 source ../../../../../../.venv/bin/activate
-uvicorn src.main:app --reload
+
+# Option 1: Flask CLI (recommended for development)
+export FLASK_APP=src.main
+flask run --port 8000
+
+# Option 2: Gunicorn (production-like)
+gunicorn "src.main:app" --bind 0.0.0.0:8000 --reload
+
 # Access at http://localhost:8000
 ```
 
