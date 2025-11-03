@@ -3,6 +3,40 @@ import os
 from functools import wraps
 from flask import request, jsonify, current_app
 
+def verify_jwt_library():
+    """
+    Verify that the correct PyJWT library is installed.
+    This prevents issues where the wrong 'jwt' package (jwt==1.4.0) is installed
+    instead of PyJWT (PyJWT>=2.8.0).
+    
+    Raises:
+        RuntimeError: If the wrong jwt library is detected
+    """
+    if not hasattr(jwt, 'encode') or not hasattr(jwt, 'decode'):
+        raise RuntimeError(
+            "Wrong 'jwt' package detected! "
+            "The package 'jwt==1.4.0' is installed instead of 'PyJWT>=2.8.0'. "
+            "Please run: pip uninstall -y jwt && pip install PyJWT==2.8.0"
+        )
+    
+    jwt_file = getattr(jwt, '__file__', '')
+    if 'PyJWT' not in jwt_file and 'pyjwt' not in jwt_file.lower():
+        try:
+            try:
+                import pkg_resources
+                version = pkg_resources.get_distribution("PyJWT").version
+            except (ImportError, ModuleNotFoundError):
+                from importlib import metadata
+                version = metadata.version("PyJWT")
+        except Exception:
+            raise RuntimeError(
+                "Wrong 'jwt' package detected! "
+                "The package 'jwt==1.4.0' is installed instead of 'PyJWT>=2.8.0'. "
+                "Please run: pip uninstall -y jwt && pip install PyJWT==2.8.0"
+            )
+
+verify_jwt_library()
+
 def _parse_bearer_token(auth_header):
     """
     Parse and validate Bearer token from Authorization header.
