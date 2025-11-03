@@ -37,6 +37,20 @@ def auth_headers(mock_user_id):
     return {"Authorization": f"Bearer {token}"}
 
 
+@pytest.fixture(autouse=True)
+def mock_jwt_decode(monkeypatch, mock_user_id):
+    """Mock JWT decode to bypass authentication in tests."""
+    def fake_decode(token, secret, algorithms):
+        return {
+            'user_id': mock_user_id,
+            'sub': mock_user_id,
+            'username': 'testuser',
+            'role': 'admin'
+        }
+    
+    monkeypatch.setattr('src.middleware.auth_middleware.jwt.decode', fake_decode)
+
+
 @pytest.fixture
 def mock_supabase():
     """Mock Supabase client for testing."""
@@ -55,12 +69,23 @@ def mock_supabase():
 class TestTOTPSetup:
     """Test TOTP setup endpoint."""
     
+    @patch('src.routes.totp.get_totp_manager')
+    @patch('src.routes.totp.get_backup_manager')
     @patch('src.routes.totp.get_user_by_id')
     @patch('src.routes.totp.check_password_hash')
-    @patch('flask.g')
-    def test_setup_totp_success(self, mock_g, mock_check_password, mock_get_user, client, mock_supabase, mock_user_id):
+    def test_setup_totp_success(self, mock_check_password, mock_get_user, mock_backup_manager, mock_totp_manager, client, mock_supabase, mock_user_id):
         """Test successful TOTP setup."""
-        mock_g.user_id = mock_user_id
+        mock_totp = MagicMock()
+        mock_totp.generate_secret.return_value = 'TEST_SECRET_BASE32'
+        mock_totp.encrypt_secret.return_value = 'ENCRYPTED_SECRET'
+        mock_totp.generate_qr_code.return_value = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+        mock_totp_manager.return_value = mock_totp
+        
+        mock_backup = MagicMock()
+        mock_backup.generate_backup_codes.return_value = ['CODE1-CODE1-CODE1-CODE1', 'CODE2-CODE2-CODE2-CODE2', 'CODE3-CODE3-CODE3-CODE3', 'CODE4-CODE4-CODE4-CODE4', 'CODE5-CODE5-CODE5-CODE5', 'CODE6-CODE6-CODE6-CODE6', 'CODE7-CODE7-CODE7-CODE7', 'CODE8-CODE8-CODE8-CODE8']
+        mock_backup.hash_backup_code.return_value = 'HASHED_CODE'
+        mock_backup_manager.return_value = mock_backup
+        
         mock_get_user.return_value = {
             'id': mock_user_id,
             'email': 'test@example.com',
