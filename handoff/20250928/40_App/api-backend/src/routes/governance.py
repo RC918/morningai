@@ -24,7 +24,12 @@ except ImportError as e:
     print(f"Warning: Governance modules not available: {e}")
     GOVERNANCE_AVAILABLE = False
 
+ALLOW_GOVERNANCE_MOCK = os.getenv('ALLOW_GOVERNANCE_MOCK', 'true').lower() == 'true'
+
 from src.middleware.auth_middleware import jwt_required, admin_required
+import logging
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('governance', __name__, url_prefix='/api/governance')
 
@@ -255,6 +260,12 @@ def admin_get_agents():
         status_filter = request.args.get('status', 'all')
         limit = min(int(request.args.get('limit', 100)), 500)
         
+        if not GOVERNANCE_AVAILABLE and not ALLOW_GOVERNANCE_MOCK:
+            return jsonify({
+                'error': 'Governance system unavailable',
+                'message': 'Mock data is disabled. Please enable ALLOW_GOVERNANCE_MOCK or fix governance system.'
+            }), 503
+        
         if GOVERNANCE_AVAILABLE:
             reputation_engine = get_reputation_engine()
             agents_data = reputation_engine.get_leaderboard(limit=limit)
@@ -281,6 +292,7 @@ def admin_get_agents():
         return jsonify({
             'agents': agents,
             'count': len(agents),
+            'using_mock': not GOVERNANCE_AVAILABLE,
             'filters': {
                 'status': status_filter,
                 'limit': limit
@@ -310,6 +322,13 @@ def admin_get_agent_details(agent_id):
     Requires: Owner role
     """
     try:
+        if not GOVERNANCE_AVAILABLE and not ALLOW_GOVERNANCE_MOCK:
+            return jsonify({
+                'error': 'Governance system unavailable',
+                'message': 'Mock data is disabled. Please enable ALLOW_GOVERNANCE_MOCK or fix governance system.'
+            }), 503
+        
+        using_mock = False
         if GOVERNANCE_AVAILABLE:
             try:
                 reputation_engine = get_reputation_engine()
@@ -318,6 +337,7 @@ def admin_get_agent_details(agent_id):
                 reputation = reputation_engine.get_reputation(agent_id)
                 if not reputation:
                     agent_details = _get_mock_agent_details(agent_id)
+                    using_mock = True
                 else:
                     permission_summary = permission_checker.get_permission_summary(agent_id)
                     recent_events = reputation_engine.get_recent_events(agent_id, limit=20)
@@ -337,9 +357,12 @@ def admin_get_agent_details(agent_id):
             except Exception as gov_error:
                 logger.warning(f"Governance system error for agent {agent_id}: {gov_error}")
                 agent_details = _get_mock_agent_details(agent_id)
+                using_mock = True
         else:
             agent_details = _get_mock_agent_details(agent_id)
+            using_mock = True
         
+        agent_details['using_mock'] = using_mock
         return jsonify(agent_details)
     except Exception as e:
         return jsonify({
@@ -364,27 +387,40 @@ def admin_get_agent_executions(agent_id):
     Requires: Owner role
     """
     try:
+        if not GOVERNANCE_AVAILABLE and not ALLOW_GOVERNANCE_MOCK:
+            return jsonify({
+                'error': 'Governance system unavailable',
+                'message': 'Mock data is disabled. Please enable ALLOW_GOVERNANCE_MOCK or fix governance system.'
+            }), 503
+        
         limit = min(int(request.args.get('limit', 50)), 200)
         status_filter = request.args.get('status', 'all')
         
+        using_mock = False
         if GOVERNANCE_AVAILABLE:
-            reputation_engine = get_reputation_engine()
-            executions = reputation_engine.get_recent_events(agent_id, limit=limit)
-            
-            formatted_executions = []
-            for event in executions:
-                execution = {
-                    'id': event.get('id'),
-                    'agent_id': agent_id,
-                    'status': 'success' if event.get('event_type') == 'task_success' else 'failure',
-                    'started_at': event.get('created_at'),
-                    'completed_at': event.get('created_at'),
-                    'duration_ms': event.get('metadata', {}).get('duration_ms', 0),
-                    'metadata': event.get('metadata', {})
-                }
-                formatted_executions.append(execution)
+            try:
+                reputation_engine = get_reputation_engine()
+                executions = reputation_engine.get_recent_events(agent_id, limit=limit)
+                
+                formatted_executions = []
+                for event in executions:
+                    execution = {
+                        'id': event.get('id'),
+                        'agent_id': agent_id,
+                        'status': 'success' if event.get('event_type') == 'task_success' else 'failure',
+                        'started_at': event.get('created_at'),
+                        'completed_at': event.get('created_at'),
+                        'duration_ms': event.get('metadata', {}).get('duration_ms', 0),
+                        'metadata': event.get('metadata', {})
+                    }
+                    formatted_executions.append(execution)
+            except Exception as gov_error:
+                logger.warning(f"Governance system error for agent {agent_id} executions: {gov_error}")
+                formatted_executions = _get_mock_executions(agent_id, limit)
+                using_mock = True
         else:
             formatted_executions = _get_mock_executions(agent_id, limit)
+            using_mock = True
         
         if status_filter != 'all':
             formatted_executions = [e for e in formatted_executions if e.get('status') == status_filter]
@@ -392,6 +428,7 @@ def admin_get_agent_executions(agent_id):
         return jsonify({
             'executions': formatted_executions,
             'count': len(formatted_executions),
+            'using_mock': using_mock,
             'agent_id': agent_id,
             'filters': {
                 'status': status_filter,

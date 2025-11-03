@@ -79,18 +79,26 @@ def get_system_metrics():
     Requires: Owner role
     """
     try:
-        cpu_percent = psutil.cpu_percent(interval=1)
-        cpu_count = psutil.cpu_count()
-        
-        memory = psutil.virtual_memory()
-        memory_percent = memory.percent
-        memory_used_gb = memory.used / (1024 ** 3)
-        memory_total_gb = memory.total / (1024 ** 3)
-        
-        disk = psutil.disk_usage('/')
-        disk_percent = disk.percent
-        disk_used_gb = disk.used / (1024 ** 3)
-        disk_total_gb = disk.total / (1024 ** 3)
+        try:
+            cpu_percent = psutil.cpu_percent(interval=None)
+            cpu_count = psutil.cpu_count()
+            
+            memory = psutil.virtual_memory()
+            memory_percent = memory.percent
+            memory_used_gb = memory.used / (1024 ** 3)
+            memory_total_gb = memory.total / (1024 ** 3)
+            
+            disk = psutil.disk_usage('/')
+            disk_percent = disk.percent
+            disk_used_gb = disk.used / (1024 ** 3)
+            disk_total_gb = disk.total / (1024 ** 3)
+        except (PermissionError, OSError) as e:
+            logger.warning(f"psutil access restricted: {e}")
+            return jsonify({
+                'error': 'System metrics unavailable',
+                'message': 'Insufficient permissions to access system metrics',
+                'status': 'degraded'
+            }), 503
         
         request_metrics = _get_request_metrics()
         
