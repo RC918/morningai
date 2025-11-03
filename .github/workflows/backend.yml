@@ -102,6 +102,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd handoff/20250928/40_App/api-backend
+          pip uninstall -y jwt || true
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-asyncio
           cd ../orchestrator
