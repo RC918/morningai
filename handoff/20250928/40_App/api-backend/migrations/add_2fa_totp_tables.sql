@@ -1,7 +1,8 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS user_2fa (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     enabled BOOLEAN DEFAULT FALSE,
     secret_encrypted TEXT NOT NULL,  -- Fernet encrypted TOTP secret (AES-128-CBC + HMAC-SHA256)
     created_at TIMESTAMP DEFAULT NOW(),
@@ -21,7 +22,7 @@ COMMENT ON COLUMN user_2fa.last_used_at IS 'Last time user successfully used TOT
 
 CREATE TABLE IF NOT EXISTS totp_backup_codes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     code_hash TEXT NOT NULL,  -- Argon2id hash
     used BOOLEAN DEFAULT FALSE,
     used_at TIMESTAMP,
@@ -38,7 +39,7 @@ COMMENT ON COLUMN totp_backup_codes.used IS 'Whether this backup code has been u
 
 CREATE TABLE IF NOT EXISTS trusted_devices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     device_fingerprint TEXT NOT NULL,
     device_name TEXT,
     trusted_at TIMESTAMP DEFAULT NOW(),
@@ -56,10 +57,27 @@ COMMENT ON COLUMN trusted_devices.device_fingerprint IS 'Browser/device fingerpr
 COMMENT ON COLUMN trusted_devices.expires_at IS 'When this trusted device token expires (30 days from trusted_at)';
 
 CREATE OR REPLACE FUNCTION cleanup_expired_trusted_devices()
-RETURNS void AS $$
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
     DELETE FROM trusted_devices WHERE expires_at < NOW();
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 COMMENT ON FUNCTION cleanup_expired_trusted_devices IS 'Removes expired trusted device entries (should be run periodically)';
+
+ALTER TABLE user_2fa ENABLE ROW LEVEL SECURITY;
+ALTER TABLE totp_backup_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trusted_devices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY deny_all_anon_user_2fa ON user_2fa FOR ALL TO anon USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_auth_user_2fa ON user_2fa FOR ALL TO authenticated USING (false) WITH CHECK (false);
+
+CREATE POLICY deny_all_anon_backup_codes ON totp_backup_codes FOR ALL TO anon USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_auth_backup_codes ON totp_backup_codes FOR ALL TO authenticated USING (false) WITH CHECK (false);
+
+CREATE POLICY deny_all_anon_trusted_devices ON trusted_devices FOR ALL TO anon USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_auth_trusted_devices ON trusted_devices FOR ALL TO authenticated USING (false) WITH CHECK (false);
