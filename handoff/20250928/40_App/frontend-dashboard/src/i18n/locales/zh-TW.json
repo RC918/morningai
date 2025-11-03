@@ -7,16 +7,16 @@
   },
   "auth": {
     "login": {
-      "title": "登錄到系統",
+      "title": "登入到系統",
       "description": "請輸入您的憑證以訪問管理儀表板",
       "username": "用戶名",
       "password": "密碼",
       "usernamePlaceholder": "請輸入用戶名",
       "passwordPlaceholder": "請輸入密碼",
-      "loginButton": "登錄",
-      "loggingIn": "登錄中...",
-      "loginFailed": "登錄失敗，請檢查用戶名和密碼",
-      "loginError": "登錄失敗：用戶名或密碼錯誤",
+      "loginButton": "登入",
+      "loggingIn": "登入中...",
+      "loginFailed": "登入失敗，請檢查用戶名和密碼",
+      "loginError": "登入失敗：用戶名或密碼錯誤",
       "devAccount": "開發環境測試帳號",
       "loginSuccess": "登入成功",
       "welcomeBack": "歡迎回來，{{name}}！",
@@ -39,6 +39,26 @@
       "initializationFailed": "無法初始化 SSO 登入",
       "loginSuccess": "SSO 登入成功",
       "loginFailed": "SSO 登入失敗"
+    },
+    "2fa": {
+      "verifyTitle": "雙因素驗證",
+      "verifyDescription": "請輸入您的驗證器應用程式中的 6 位數代碼",
+      "verifyBackupDescription": "請輸入您的備用代碼之一",
+      "totpCodeLabel": "驗證代碼",
+      "totpDigitLabel": "數字 {{index}}",
+      "totpCodeHelp": "請輸入您的驗證器應用程式中的 6 位數代碼",
+      "backupCodeLabel": "備用代碼",
+      "backupCodePlaceholder": "XXXX-XXXX-XXXX-XXXX",
+      "backupCodeHelp": "請輸入您的備用代碼，格式為 XXXX-XXXX-XXXX-XXXX",
+      "rememberDevice": "記住此裝置 30 天",
+      "useBackupCode": "改用備用代碼",
+      "useTotpCode": "使用驗證器代碼",
+      "verify": "驗證",
+      "verifying": "驗證中...",
+      "cancel": "取消",
+      "invalidCode": "代碼無效。剩餘 {{attempts}} 次嘗試。",
+      "invalidBackupCode": "備用代碼無效。剩餘 {{attempts}} 次嘗試。",
+      "tooManyAttempts": "嘗試次數過多。請稍後再試。"
     }
   },
   "landing": {
@@ -499,6 +519,16 @@
           "authy": "Authy",
           "onepassword": "1Password"
         }
+      },
+      "trustedDevices": {
+        "title": "信任的裝置",
+        "description": "管理信任 30 天無需雙因素驗證的裝置",
+        "noDevices": "沒有信任的裝置",
+        "noDevicesHelp": "當您在登入時勾選「記住此裝置」時，它將顯示在這裡",
+        "lastUsed": "最後使用",
+        "expires": "到期",
+        "expiringSoon": "即將到期",
+        "note": "信任的裝置將在 30 天後自動到期。您可以隨時撤銷存取權限。"
       }
     },
     "system": {

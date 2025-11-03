@@ -49,6 +49,8 @@ export interface TwoFASetupRequest {
 }
 
 export interface TwoFALoginRequest {
+  email: string;
+  password: string;
   totp_code?: string;
   backup_code?: string;
   remember_device?: boolean;
@@ -59,4 +61,11 @@ export interface TwoFALoginResponse {
   user_id: string;
   backup_codes_remaining?: number;
   device_trusted?: boolean;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  user?: any;
+  requires_2fa?: boolean;
+  message?: string;
 }
