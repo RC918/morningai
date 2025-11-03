@@ -95,3 +95,18 @@ export async function regenerateBackupCodes(
   );
   return (result as any).data || result;
 }
+
+/**
+ * Verify 2FA code during login
+ * This function will be used once the backend implements the verify-login endpoint
+ */
+export async function verifyTwoFALogin(request: {
+  totp_code?: string
+  backup_code?: string
+  remember_device?: boolean
+}): Promise<any> {
+  return apiClient('/api/auth/v2/totp/verify-login', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+}
