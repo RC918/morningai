@@ -76,7 +76,7 @@ export function TwoFAStatusCard({
   const isEnabled = status?.enabled ?? false;
 
   return (
-    <Card>
+    <Card data-testid="2fa-status-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="w-5 h-5" />
@@ -92,12 +92,12 @@ export function TwoFAStatusCard({
             <div className="flex items-center gap-2">
               <span className="font-medium">{t('settings.2fa.status.label')}</span>
               {isEnabled ? (
-                <Badge variant="default" className="bg-green-500 flex items-center gap-1">
+                <Badge data-testid="2fa-status" variant="default" className="bg-green-500 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   {t('settings.2fa.status.enabled')}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-gray-600">
+                <Badge data-testid="2fa-status" variant="outline" className="text-gray-600">
                   {t('settings.2fa.status.disabled')}
                 </Badge>
               )}
@@ -127,7 +127,7 @@ export function TwoFAStatusCard({
                   <Key className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm font-medium">{t('settings.2fa.backupCodes.title')}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground" data-testid="backup-codes-remaining">
                   {t('settings.2fa.backupCodes.remaining', { count: status?.backup_codes_remaining ?? 0 })}
                 </p>
               </div>

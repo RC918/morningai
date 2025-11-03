@@ -114,7 +114,7 @@ export function TrustedDevices({ className }: TrustedDevicesProps) {
   }
 
   return (
-    <Card className={className}>
+    <Card className={className} data-testid="trusted-devices">
       <CardHeader>
         <CardTitle>{t('settings.2fa.trustedDevices.title')}</CardTitle>
         <CardDescription>
@@ -144,6 +144,7 @@ export function TrustedDevices({ className }: TrustedDevicesProps) {
             {devices.map((device) => (
               <div
                 key={device.id}
+                data-testid="trusted-device"
                 className="flex items-start gap-3 p-4 rounded-lg border border-input bg-background/50 hover:bg-accent/50 transition-colors"
               >
                 <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">

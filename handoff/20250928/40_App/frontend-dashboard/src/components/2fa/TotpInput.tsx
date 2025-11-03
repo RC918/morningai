@@ -155,6 +155,7 @@ export function TotpInput({
         {digits.map((digit, index) => (
           <motion.input
             key={index}
+            data-testid={`totp-input-${index}`}
             ref={(el) => {
               inputRefs.current[index] = el;
             }}

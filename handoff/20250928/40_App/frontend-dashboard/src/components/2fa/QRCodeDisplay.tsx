@@ -29,7 +29,7 @@ export function QRCodeDisplay({ qrCode, secret }: QRCodeDisplayProps) {
               <p className="text-xs text-muted-foreground">
                 {t('settings.2fa.setup.manualEntry')}
               </p>
-              <code className="block px-3 py-2 bg-accent rounded-lg text-sm font-mono break-all">
+              <code data-testid="totp-secret" className="block px-3 py-2 bg-accent rounded-lg text-sm font-mono break-all">
                 {secret}
               </code>
             </div>
