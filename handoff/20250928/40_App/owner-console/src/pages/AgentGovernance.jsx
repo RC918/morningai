@@ -32,7 +32,7 @@ const AgentGovernance = () => {
       setError(null)
       
       const [agentsData, eventsData, violationsData, statsData] = await Promise.all([
-        apiClient.getGovernanceAgents(),
+        apiClient.getAgents({ status: 'all', limit: 100 }),
         apiClient.getGovernanceEvents({ limit: 50 }),
         apiClient.getGovernanceViolations({ limit: 50 }),
         apiClient.getGovernanceStatistics()
@@ -47,6 +47,19 @@ const AgentGovernance = () => {
       setError(error.message || 'Failed to load governance data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800 border-green-300'
+      case 'paused':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+      case 'error':
+        return 'bg-red-100 text-red-800 border-red-300'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-300'
     }
   }
 
@@ -209,24 +222,24 @@ const AgentGovernance = () => {
                 ) : (
                   agents.map((agent, index) => (
                     <button
-                      key={agent.agent_id} 
+                      key={agent.id} 
                       className="w-full text-left flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => setSelectedAgent(agent)}
                     >
                       <div className="flex items-center gap-4">
                         <div className="text-2xl font-bold text-gray-400">#{index + 1}</div>
                         <div>
-                          <p className="font-semibold text-gray-900">{agent.agent_type}</p>
-                          <p className="text-sm text-gray-600">ID: {agent.agent_id?.substring(0, 8)}...</p>
+                          <p className="font-semibold text-gray-900">{agent.name}</p>
+                          <p className="text-sm text-gray-600">ID: {agent.id?.substring(0, 8)}...</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900">{agent.reputation_score}</p>
+                          <p className="text-2xl font-bold text-gray-900">{agent.reputation_score || 0}</p>
                           <p className="text-sm text-gray-600">{t('governance.agents.reputation')}</p>
                         </div>
-                        <Badge className={getPermissionLevelColor(agent.permission_level)}>
-                          {getPermissionLevelLabel(agent.permission_level)}
+                        <Badge className={getStatusColor(agent.status)}>
+                          {agent.status?.toUpperCase()}
                         </Badge>
                       </div>
                     </button>

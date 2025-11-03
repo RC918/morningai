@@ -95,38 +95,105 @@ export async function bootstrapCsrf(): Promise<void> {
 }
 
 /**
- * Governance API methods
- * PR C: Connect to real governance endpoints
+ * Admin API methods for Owner Console
+ * P0-3: System Monitoring and Agent Governance endpoints
  * 
- * P0 Fix: Use apiClient() instead of direct fetch() to ensure:
+ * Uses apiClient() to ensure:
  * - Consistent CSRF token injection for unsafe methods
  * - Proper credentials handling
  * - Future-proofing for 401 refresh/retry
  */
+const adminApi = {
+  getSystemHealth: async () => {
+    const result = await apiClient<{ data: any }>('/api/admin/system/health', { method: 'GET' });
+    return (result as any).data;
+  },
+  
+  getSystemMetrics: async () => {
+    const result = await apiClient<{ data: any }>('/api/admin/system/metrics', { method: 'GET' });
+    return (result as any).data;
+  },
+  
+  getSystemLogs: async (params: { level?: string; limit?: number; since?: string } = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.level) queryParams.append('level', params.level);
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.since) queryParams.append('since', params.since);
+    const url = `/api/admin/system/logs${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const result = await apiClient<{ data: any }>(url, { method: 'GET' });
+    return (result as any).data;
+  },
+  
+  getAgents: async (params: { status?: string; limit?: number } = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.status) queryParams.append('status', params.status);
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    const url = `/api/admin/agents${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const result = await apiClient<{ data: any }>(url, { method: 'GET' });
+    return (result as any).data;
+  },
+  
+  getAgentDetails: async (agentId: string) => {
+    const result = await apiClient<{ data: any }>(`/api/admin/agents/${agentId}`, { method: 'GET' });
+    return (result as any).data;
+  },
+  
+  getAgentExecutions: async (agentId: string, params: { limit?: number; status?: string } = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.status) queryParams.append('status', params.status);
+    const url = `/api/admin/agents/${agentId}/executions${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const result = await apiClient<{ data: any }>(url, { method: 'GET' });
+    return (result as any).data;
+  },
+  
+  pauseAgent: async (agentId: string) => {
+    const result = await apiClient<{ data: any }>(`/api/admin/agents/${agentId}/pause`, { method: 'POST' });
+    return (result as any).data;
+  },
+  
+  resumeAgent: async (agentId: string) => {
+    const result = await apiClient<{ data: any }>(`/api/admin/agents/${agentId}/resume`, { method: 'POST' });
+    return (result as any).data;
+  }
+};
+
+/**
+ * Legacy Governance API methods (kept for backward compatibility)
+ * These use the old /api/governance endpoints
+ */
 const governanceApi = {
   getGovernanceAgents: async () => {
-    const result = await apiClient<{ data: any }>('/api/governance/status', { method: 'GET' });
+    const result = await apiClient<{ data: any }>('/api/governance/agents', { method: 'GET' });
     return (result as any).data;
   },
   
   getGovernanceEvents: async (params: { limit?: number } = {}) => {
-    const url = params.limit ? `/api/governance/status?limit=${params.limit}` : '/api/governance/status';
+    const url = params.limit ? `/api/governance/events?limit=${params.limit}` : '/api/governance/events';
     const result = await apiClient<{ data: any }>(url, { method: 'GET' });
     return (result as any).data;
   },
   
   getGovernanceViolations: async (params: { limit?: number } = {}) => {
-    const url = params.limit ? `/api/governance/status?limit=${params.limit}` : '/api/governance/status';
+    const url = params.limit ? `/api/governance/violations?limit=${params.limit}` : '/api/governance/violations';
     const result = await apiClient<{ data: any }>(url, { method: 'GET' });
     return (result as any).data;
   },
   
   getGovernanceStatistics: async () => {
-    const result = await apiClient<{ data: any }>('/api/governance/status', { method: 'GET' });
+    const result = await apiClient<{ data: any }>('/api/governance/statistics', { method: 'GET' });
     return (result as any).data;
   }
 };
 
+(apiClient as any).getSystemHealth = adminApi.getSystemHealth;
+(apiClient as any).getSystemMetrics = adminApi.getSystemMetrics;
+(apiClient as any).getSystemLogs = adminApi.getSystemLogs;
+(apiClient as any).getAgents = adminApi.getAgents;
+(apiClient as any).getAgentDetails = adminApi.getAgentDetails;
+(apiClient as any).getAgentExecutions = adminApi.getAgentExecutions;
+(apiClient as any).pauseAgent = adminApi.pauseAgent;
+(apiClient as any).resumeAgent = adminApi.resumeAgent;
 (apiClient as any).getGovernanceAgents = governanceApi.getGovernanceAgents;
 (apiClient as any).getGovernanceEvents = governanceApi.getGovernanceEvents;
 (apiClient as any).getGovernanceViolations = governanceApi.getGovernanceViolations;
