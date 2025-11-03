@@ -298,6 +298,41 @@ function shouldIncludeCSRF(method?: string): boolean {
 }
 
 /**
+ * Check if a 403 response is a CSRF failure
+ * 
+ * Discriminates between CSRF token failures and real authorization failures
+ * by inspecting the response body for CSRF-related error messages.
+ * 
+ * Backend returns: {'error': 'CSRF token missing/invalid/...'}
+ * 
+ * @param response - The 403 response to check
+ * @returns Promise<boolean> - True if this is a CSRF failure, false otherwise
+ */
+async function isCsrfFailure(response: Response): Promise<boolean> {
+  const contentType = response.headers.get('Content-Type') || '';
+  if (!contentType.includes('application/json')) {
+    return false;
+  }
+  
+  try {
+    const errorData = await response.clone().json();
+    const errorMessage = [
+      errorData.error,
+      errorData.message,
+      errorData.detail
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    
+    return errorMessage.includes('csrf') || errorMessage.includes('xsrf');
+  } catch (error) {
+    console.debug('Failed to parse 403 response as JSON, treating as non-CSRF error');
+    return false;
+  }
+}
+
+/**
  * Make authenticated API request
  * Tokens are automatically sent via HttpOnly cookies
  * CSRF token is included for unsafe methods (POST, PUT, PATCH, DELETE)
@@ -308,8 +343,11 @@ function shouldIncludeCSRF(method?: string): boolean {
  * 
  * P1 Enhancement: CSRF Defensive Programming
  * - Ensures CSRF token exists before first request
- * - Handles 403/419 CSRF failures with automatic token refresh and retry
+ * - Handles 403 CSRF failures with automatic token refresh and retry
+ * - Discriminates between CSRF failures and real authorization errors
  * - Prevents requests from failing due to missing or expired CSRF tokens
+ * 
+ * Note: Backend does not currently use 419 status code for CSRF failures
  */
 async function authenticatedFetch(
   url: string,
@@ -343,7 +381,13 @@ async function authenticatedFetch(
     credentials: 'include',
   });
   
-  if (response.status === 403 || response.status === 419) {
+  if (response.status === 403) {
+    const isCsrf = await isCsrfFailure(response);
+    
+    if (!isCsrf) {
+      return response;
+    }
+    
     try {
       clearCsrfToken();
       await ensureCsrfToken();
@@ -362,14 +406,21 @@ async function authenticatedFetch(
         credentials: 'include',
       });
       
-      if (retryResponse.status === 403 || retryResponse.status === 419) {
-        throw new Error('CSRF token validation failed. Please refresh the page.');
+      if (retryResponse.status === 403) {
+        const isRetryCsrf = await isCsrfFailure(retryResponse);
+        if (isRetryCsrf) {
+          throw new Error('CSRF token validation failed. Please refresh the page.');
+        }
+        return retryResponse;
       }
       
       return retryResponse;
     } catch (error) {
+      if (error instanceof Error && error.message.includes('CSRF')) {
+        throw error;
+      }
       console.error('CSRF token refresh failed:', error);
-      throw error;
+      return response;
     }
   }
   
