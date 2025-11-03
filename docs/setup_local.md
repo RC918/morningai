@@ -253,8 +253,11 @@ print(f"✅ Schema valid: {len(schema['fields'])} variables defined")
 EOF
 
 # 產生 .env.example 並檢查差異
-python scripts/generate_env_example.py
+python scripts/generate-env-examples.py
 git diff .env.example
+
+# 檢查環境配置漂移
+python scripts/check-env-drift.py
 ```
 
 ---

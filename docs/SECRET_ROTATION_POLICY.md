@@ -55,8 +55,8 @@ This policy establishes:
 ### 1.3 Scope
 
 This policy covers all secrets defined in `config/env.schema.yaml` with:
-- `security_level: critical` (11 secrets)
-- `security_level: secret` (13 secrets)
+- `security_level: critical` (12 secrets)
+- `security_level: secret` (12 secrets)
 
 **Total**: 24 secrets requiring rotation management
 
@@ -881,7 +881,7 @@ After each drill:
 
 ## 9. Appendix
 
-### 8.1 Secret Generation Commands
+### 9.1 Secret Generation Commands
 
 **JWT Secret (48 characters)**:
 ```bash
