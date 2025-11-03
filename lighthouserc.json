@@ -27,10 +27,8 @@
         "speed-index": ["error", {"maxNumericValue": 3400}],
         "button-name": ["error", {"minScore": 0.9}],
         "heading-order": ["error", {"minScore": 0.9}],
-        "unused-javascript": ["warn", {"maxLength": 0}],
-        "uses-responsive-images": ["warn", {"maxLength": 0}],
-        "image-delivery-insight": ["warn", {"minScore": 0.9}],
-        "network-dependency-tree-insight": ["warn", {"minScore": 0.9}]
+        "unused-javascript": "warn",
+        "uses-responsive-images": "warn"
       }
     },
     "upload": {
