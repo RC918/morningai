@@ -307,7 +307,7 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 ### Backend
 
-- **Framework**: FastAPI (Python 3.12)
+- **Framework**: Flask (Python 3.12)
 - **Database**: PostgreSQL (Supabase)
 - **ORM**: SQLAlchemy
 - **Cache**: Redis (Upstash)
@@ -317,7 +317,7 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 ### Orchestrator
 
-- **Framework**: FastAPI (Python 3.12)
+- **Framework**: Flask (Python 3.12)
 - **Task Management**: Graph-based orchestration
 - **Sandbox**: Docker containers on Fly.io
 - **MCP**: Management Control Plane
@@ -364,7 +364,7 @@ morningai/
 │   └── meta_agent_decision_hub.py  # Agent orchestration
 │
 ├── orchestrator/                    # Task orchestration system
-│   ├── api/                        # FastAPI application
+│   ├── api/                        # Flask application
 │   │   ├── main.py                 # Application entry point
 │   │   └── auth.py                 # Authentication
 │   ├── task_queue/                 # Redis queue management
@@ -381,7 +381,7 @@ morningai/
 ├── handoff/20250928/40_App/
 │   ├── api-backend/                # Backend API
 │   │   ├── src/                    # Source code
-│   │   │   ├── main.py            # FastAPI application (imports phase*.py)
+│   │   │   ├── main.py            # Flask application (imports phase*.py)
 │   │   │   ├── database.py        # Database connection
 │   │   │   └── ...                # API modules
 │   │   ├── tests/                 # Test suite
@@ -679,7 +679,7 @@ pytest tests/test_specific.py -v
 ### External Resources
 
 **Technologies**:
-- **FastAPI**: https://fastapi.tiangolo.com/
+- **Flask**: https://flask.palletsprojects.com/
 - **React**: https://react.dev/
 - **Supabase**: https://supabase.com/docs
 - **Render**: https://render.com/docs

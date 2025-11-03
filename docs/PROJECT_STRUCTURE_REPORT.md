@@ -50,7 +50,7 @@ This document provides a comprehensive overview of the MorningAI project structu
 
 **Backend**:
 - Python 3.12
-- FastAPI
+- Flask
 - SQLAlchemy
 - PostgreSQL (Supabase)
 - Redis (Upstash)
@@ -206,7 +206,7 @@ agents/
 
 ```
 orchestrator/
-├── api/                    # FastAPI application
+├── api/                    # Flask application
 │   ├── __init__.py
 │   ├── main.py            # Application entry point
 │   └── auth.py            # JWT authentication
@@ -235,7 +235,7 @@ orchestrator/
 handoff/20250928/40_App/
 ├── api-backend/           # Backend API
 │   ├── src/              # Source code
-│   │   ├── main.py       # FastAPI application
+│   │   ├── main.py       # Flask application
 │   │   ├── database.py   # Database connection
 │   │   ├── models/       # SQLAlchemy models
 │   │   ├── routers/      # API routers
@@ -383,7 +383,7 @@ config/
 **Architecture**: Phase-based API structure (Phases 4-8)
 
 **Key Files**:
-- `src/main.py`: FastAPI application entry point
+- `src/main.py`: Flask application entry point
 - `src/database.py`: Database connection and session management
 - `src/models/`: SQLAlchemy models
 - `src/routers/`: API route handlers
@@ -409,7 +409,7 @@ config/
 **Architecture**: Graph-based task management
 
 **Key Components**:
-- **API** (`orchestrator/api/main.py`): FastAPI application
+- **API** (`orchestrator/api/main.py`): Flask application
 - **Task Queue** (`orchestrator/task_queue/redis_queue.py`): Redis-based queue
 - **Sandbox** (`orchestrator/sandbox/`): Isolated agent execution
 - **MCP** (`orchestrator/mcp/`): Management Control Plane
@@ -644,7 +644,7 @@ primary_region = "nrt"
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `src/main.py` | FastAPI application | `handoff/.../api-backend/src/` |
+| `src/main.py` | Flask application | `handoff/.../api-backend/src/` |
 | `src/database.py` | Database connection | `handoff/.../api-backend/src/` |
 | `requirements.txt` | Python dependencies | `handoff/.../api-backend/` |
 | `pytest.ini` | pytest configuration | `handoff/.../api-backend/` |
@@ -653,7 +653,7 @@ primary_region = "nrt"
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `api/main.py` | FastAPI application | `orchestrator/api/` |
+| `api/main.py` | Flask application | `orchestrator/api/` |
 | `api/auth.py` | JWT authentication | `orchestrator/api/` |
 | `task_queue/redis_queue.py` | Redis queue | `orchestrator/task_queue/` |
 | `Dockerfile` | Docker configuration | `orchestrator/` |
