@@ -123,6 +123,10 @@
       "30minutes": "30 minutes",
       "1hour": "1 hour",
       "4hours": "4 hours"
+    },
+    "2fa": {
+      "title": "Two-Factor Authentication",
+      "subtitle": "Secure your account with an additional layer of protection"
     }
   },
   "common": {
