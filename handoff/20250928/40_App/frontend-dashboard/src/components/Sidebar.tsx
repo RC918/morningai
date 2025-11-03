@@ -134,12 +134,12 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
               <img 
                 src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
                 alt="Morning AI" 
-                className="w-10 h-10 rounded-lg shadow-sm"
+                className="w-10 h-10 rounded-lg shadow-sm shrink-0"
                 style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
               />
-              <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white">Morning AI</h1>
-                <p className="text-xs text-gray-600 dark:text-gray-600">{t('sidebar.header.subtitle')}</p>
+              <div className="flex flex-col justify-center">
+                <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">Morning AI</h1>
+                <p className="text-xs text-gray-600 dark:text-gray-600 leading-tight">{t('sidebar.header.subtitle')}</p>
               </div>
             </Link>
           )}

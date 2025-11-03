@@ -193,7 +193,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
           <Link to="/" className="inline-block">
             <motion.div
               className="mx-auto w-16 h-16 mb-4"
-              whileHover={prefersReducedMotion ? {} : { scale: 1.1, rotate: 5 }}
+              whileHover={prefersReducedMotion ? {} : { opacity: 0.8 }}
               transition={{ duration: 0.3 }}
             >
               <img 
@@ -241,7 +241,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   placeholder={t('auth.login.usernamePlaceholder')}
                   value={credentials.username}
                   onChange={handleChange}
-                  leftIcon={<User className="w-4 h-4" />}
+                  leftIcon={<User className="w-5 h-5" />}
                   required
                   haptic="light"
                 />
@@ -254,7 +254,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   placeholder={t('auth.login.passwordPlaceholder')}
                   value={credentials.password}
                   onChange={handleChange}
-                  leftIcon={<Lock className="w-4 h-4" />}
+                  leftIcon={<Lock className="w-5 h-5" />}
                   showPasswordToggle
                   required
                   haptic="light"
