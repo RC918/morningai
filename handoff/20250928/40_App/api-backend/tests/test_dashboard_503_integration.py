@@ -18,11 +18,11 @@ class TestDashboard503Integration:
 
     def test_dual_failure_returns_503_with_health_seam(self, client):
         """Test dashboard returns 503 when both Redis and DB fail using check_db_health seam"""
-        with patch('src.utils.redis_client.get_redis_client') as mock_redis, \
+        with patch('src.utils.redis_client.get_redis_client') as mock_get_redis, \
              patch('src.routes.dashboard.check_db_health') as mock_db_health:
             
-            # Simulate Redis failure
-            mock_redis.side_effect = Exception("Redis connection failed")
+            # Simulate Redis failure - get_redis_client raises exception
+            mock_get_redis.side_effect = Exception("Redis connection failed")
             
             # Simulate DB failure using the health check seam
             mock_db_health.return_value = (False, "Database connection failed")
@@ -48,6 +48,7 @@ class TestDashboard503Integration:
         from unittest.mock import MagicMock
         
         mock_redis_client = MagicMock()
+        mock_redis_client.keys.return_value = ['queue:orchestrator']
         mock_redis_client.llen.return_value = 5
         
         with patch('src.utils.redis_client.get_redis_client', return_value=mock_redis_client), \
