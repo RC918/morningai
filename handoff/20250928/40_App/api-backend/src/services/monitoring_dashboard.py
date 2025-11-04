@@ -39,7 +39,7 @@ class MonitoringDashboard:
         """Collect comprehensive metrics from all resilience components"""
         try:
             from resilience_patterns import resilience_manager
-            from ..persistence.state_manager import PersistentStateManager
+            from src.persistence.state_manager import PersistentStateManager
             from saga_orchestrator import saga_orchestrator
             
             persistent_state_manager = PersistentStateManager()

@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Load fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --breakpoint-*: initial;
+  
+  /* Design Token: Font Families */
+  --font-family-primary: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-secondary: 'JetBrains Mono', 'Courier New', monospace;
+  --font-family-display: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Fix for vertical text rendering issue in Chinese locale */
+/* Ensure all text renders horizontally regardless of language */
+html,
+body,
+* {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+/* WCAG 2.1 AA Focus Management */
+/* Enhanced focus indicators for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip to content link - only visible on focus */
+.sr-only:not(:focus):not(:active) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* High contrast focus for buttons */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Focus within for containers */
+*:focus-within {
+  /* Container has focused element */
+}
+
+/* Keyboard navigation hint */
+@media (prefers-reduced-motion: no-preference) {
+  *:focus-visible {
+    transition: outline-offset 0.2s ease;
+  }
+}

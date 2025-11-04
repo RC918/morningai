@@ -1,0 +1,1153 @@
+{
+  "app": {
+    "name": "Morning AI",
+    "tagline": "智能決策系統管理平台",
+    "copyright": "© 2024 Morning AI. 版權所有",
+    "motto": "智能決策，自主學習，持續優化"
+  },
+  "auth": {
+    "login": {
+      "title": "登入到系統",
+      "description": "請輸入您的憑證以訪問管理儀表板",
+      "username": "用戶名",
+      "password": "密碼",
+      "usernamePlaceholder": "請輸入用戶名",
+      "passwordPlaceholder": "請輸入密碼",
+      "loginButton": "登入",
+      "loggingIn": "登入中...",
+      "loginFailed": "登入失敗，請檢查用戶名和密碼",
+      "loginError": "登入失敗：用戶名或密碼錯誤",
+      "devAccount": "開發環境測試帳號",
+      "loginSuccess": "登入成功",
+      "welcomeBack": "歡迎回來，{{name}}！",
+      "orContinueWith": "或使用以下方式繼續"
+    },
+    "logout": {
+      "logoutSuccess": "已登出",
+      "logoutMessage": "您已成功登出系統"
+    },
+    "sso": {
+      "loginWithGoogle": "使用 Google 繼續",
+      "loginWithApple": "使用 Apple 繼續",
+      "loginWithGitHub": "使用 GitHub 繼續",
+      "processing": "驗證中",
+      "processingMessage": "正在使用 {{provider}} 進行驗證...",
+      "success": "驗證成功",
+      "successMessage": "正在跳轉到儀表板...",
+      "error": "驗證失敗",
+      "redirectingToLogin": "正在跳轉到登入頁面...",
+      "initializationFailed": "無法初始化 SSO 登入",
+      "loginSuccess": "SSO 登入成功",
+      "loginFailed": "SSO 登入失敗"
+    },
+    "2fa": {
+      "verifyTitle": "雙因素驗證",
+      "verifyDescription": "請輸入您的驗證器應用程式中的 6 位數代碼",
+      "verifyBackupDescription": "請輸入您的備用代碼之一",
+      "totpCodeLabel": "驗證代碼",
+      "totpDigitLabel": "數字 {{index}}",
+      "totpCodeHelp": "請輸入您的驗證器應用程式中的 6 位數代碼",
+      "backupCodeLabel": "備用代碼",
+      "backupCodePlaceholder": "XXXX-XXXX-XXXX-XXXX",
+      "backupCodeHelp": "請輸入您的備用代碼，格式為 XXXX-XXXX-XXXX-XXXX",
+      "rememberDevice": "記住此裝置 30 天",
+      "useBackupCode": "改用備用代碼",
+      "useTotpCode": "使用驗證器代碼",
+      "verify": "驗證",
+      "verifying": "驗證中...",
+      "cancel": "取消",
+      "invalidCode": "代碼無效。剩餘 {{attempts}} 次嘗試。",
+      "invalidBackupCode": "備用代碼無效。剩餘 {{attempts}} 次嘗試。",
+      "tooManyAttempts": "嘗試次數過多。請稍後再試。"
+    }
+  },
+  "landing": {
+    "nav": {
+      "login": "登入",
+      "getStarted": "開始使用"
+    },
+    "hero": {
+      "ariaLabel": "主視覺區塊",
+      "badge": "全新推出 Morning AI",
+      "title": {
+        "line1": "智能決策",
+        "line2": "管理系統"
+      },
+      "subtitle": "透過 AI 驅動的洞察和自動化決策，賦能您的業務。體驗智能營運的未來。",
+      "cta": {
+        "primary": "開始使用",
+        "secondary": "了解更多"
+      },
+      "features": {
+        "ai": {
+          "title": "AI 驅動",
+          "description": "先進的機器學習演算法，實現智能決策"
+        },
+        "analytics": {
+          "title": "即時分析",
+          "description": "即時監控和分析您的業務指標"
+        },
+        "security": {
+          "title": "企業級安全",
+          "description": "銀行級安全保障，端到端加密"
+        },
+        "performance": {
+          "title": "高效能",
+          "description": "極速處理與優化"
+        }
+      }
+    },
+    "sso": {
+      "title": "開始使用 Morning AI",
+      "subtitle": "使用您偏好的帳號登入平台",
+      "google": "使用 Google 繼續",
+      "apple": "使用 Apple 繼續",
+      "github": "使用 GitHub 繼續",
+      "or": "或",
+      "emailLogin": "使用電子郵件登入",
+      "terms": "繼續即表示您同意我們的服務條款和隱私政策"
+    },
+    "features": {
+      "title": "為什麼選擇 Morning AI？",
+      "subtitle": "強大的功能，幫助您更快做出更好的決策",
+      "realtime": {
+        "title": "即時監控",
+        "description": "透過即時儀表板追蹤您的業務指標和 KPI"
+      },
+      "intelligent": {
+        "title": "智能自動化",
+        "description": "讓 AI 處理日常決策，您專注於策略規劃"
+      },
+      "secure": {
+        "title": "企業級安全",
+        "description": "您的資料受到業界領先的安全標準保護"
+      },
+      "scalable": {
+        "title": "彈性擴展",
+        "description": "從新創到企業，隨著您的業務成長"
+      },
+      "collaborative": {
+        "title": "團隊協作",
+        "description": "內建協作工具，無縫團隊合作"
+      },
+      "insights": {
+        "title": "可行動洞察",
+        "description": "獲得數據驅動的建議，優化您的營運"
+      }
+    }
+  },
+  "dashboard": {
+    "title": "自助儀表板",
+    "description": "可自訂的系統監控與任務追蹤",
+    "customize": "自訂儀表板",
+    "finishEditing": "完成編輯",
+    "resetLayout": "重置為預設布局",
+    "editInstructions": "拖拽組件重新排列，點擊垃圾桶圖標刪除組件，或添加新的組件",
+    "addWidget": "添加組件",
+    "selectWidget": "選擇組件",
+    "removeWidget": "移除小工具",
+    "undo": "撤銷",
+    "redo": "重做",
+    "saveStatus": {
+      "saved": "已保存",
+      "savedWithTime": "已保存 · {{time}}",
+      "saving": "保存中...",
+      "unsaved": "有未保存的變更",
+      "error": "保存失敗",
+      "retry": "重試",
+      "retryLabel": "重試保存",
+      "timeAgo": {
+        "seconds": "{{count}}秒前",
+        "minutes": "{{count}}分鐘前",
+        "hours": "{{count}}小時前",
+        "days": "{{count}}天前"
+      }
+    },
+    "decisions": {
+      "cpuOptimization": "CPU優化策略",
+      "cacheOptimization": "緩存優化",
+      "autoScaling": "自動擴容",
+      "performanceIncrease": "+{{percent}}% 性能提升",
+      "expectedResponseSpeed": "預計 +{{percent}}% 響應速度",
+      "capacityIncrease": "處理能力 +{{percent}}%"
+    }
+  },
+  "reportCenter": {
+    "title": "報表中心",
+    "description": "生成和管理系統報表",
+    "generation": {
+      "title": "報表生成",
+      "reportType": "報表類型",
+      "timeRange": "時間範圍",
+      "generatePDF": "生成 PDF",
+      "exportCSV": "導出 CSV"
+    },
+    "timeRanges": {
+      "1h": "過去1小時",
+      "24h": "過去24小時",
+      "7d": "過去7天",
+      "30d": "過去30天"
+    },
+    "history": {
+      "title": "報表歷史",
+      "systemPerformance": "系統性能報告",
+      "taskTracking": "任務追蹤報告",
+      "resilience": "韌性模式報告",
+      "empty": "尚無報表歷史記錄",
+      "emptyHint": "生成第一份報表開始使用"
+    },
+    "status": {
+      "completed": "已完成",
+      "failed": "失敗",
+      "generating": "生成中",
+      "unknown": "未知"
+    },
+    "quickActions": {
+      "title": "快速操作",
+      "dailyPerformance": "日性能報告",
+      "weeklyTasks": "週任務報告",
+      "monthlyResilience": "月韌性報告",
+      "monthlyCost": "月成本報告"
+    }
+  },
+  "metrics": {
+    "cpuUsage": "CPU 使用率",
+    "memoryUsage": "內存使用率",
+    "responseTime": "響應時間",
+    "errorRate": "錯誤率",
+    "activeStrategies": "活躍策略",
+    "pendingApprovals": "待審批",
+    "costToday": "今日成本",
+    "costSaved": "節省成本",
+    "performanceTrend": "性能趨勢",
+    "performanceDescription": "過去6小時的系統性能指標",
+    "responseTimeTrend": "響應時間趨勢",
+    "responseTimeDescription": "系統響應時間變化",
+    "analysis": {
+      "title": "指標分析",
+      "description": "效能與使用者體驗指標分析",
+      "loading": "載入指標中...",
+      "noData": "無指標資料",
+      "noDataDescription": "開始收集指標以查看效能分析",
+      "autoCollectionMessage": "當您使用應用程式時，指標會自動收集。使用應用程式一段時間後再回來查看您的效能資料。",
+      "setBaseline": "設為基準",
+      "clearBaseline": "清除基準",
+      "export": "匯出",
+      "clearData": "清除資料",
+      "baselineActive": "基準已啟用：",
+      "baselineComparison": "將目前指標與 {{date}} 的基準進行比較",
+      "totalMetrics": "總指標數",
+      "categories": "{{count}} 個類別",
+      "taskSuccess": "任務成功率",
+      "tasks": "{{successful}}/{{total}} 個任務",
+      "avgTTV": "平均 TTV",
+      "timeToValue": "價值實現時間",
+      "errorRate": "錯誤率",
+      "errors": "{{count}} 個錯誤",
+      "tabs": {
+        "webVitals": "網頁核心指標",
+        "uxMetrics": "使用者體驗指標",
+        "tasks": "任務效能",
+        "regression": "回歸分析",
+        "recommendations": "建議"
+      },
+      "webVitals": {
+        "title": "核心網頁指標",
+        "description": "衡量使用者體驗的效能指標",
+        "lcp": "最大內容繪製",
+        "cls": "累積版面配置位移",
+        "inp": "互動至下次繪製",
+        "fcp": "首次內容繪製",
+        "ttfb": "首位元組時間",
+        "current": "目前",
+        "average": "平均",
+        "p90": "P90",
+        "samples": "樣本數",
+        "noData": "尚未收集網頁核心指標資料"
+      },
+      "uxMetrics": {
+        "title": "使用者體驗指標",
+        "description": "自訂使用者體驗指標與測量",
+        "ttv": "價值實現時間 (TTV)",
+        "ttvDescription": "使用者實現首次價值的時間",
+        "average": "平均",
+        "median": "中位數",
+        "p90": "P90",
+        "samples": "樣本數",
+        "min": "分鐘",
+        "noData": "尚未收集使用者體驗指標資料"
+      },
+      "taskPerformance": {
+        "title": "任務效能",
+        "description": "使用者任務完成指標",
+        "totalTasks": "總任務數",
+        "successRate": "成功率",
+        "avgDuration": "平均時長",
+        "avgDurationValue": "{{duration}}秒",
+        "status": "狀態",
+        "taskBreakdown": "任務細分",
+        "successfulTasks": "成功任務",
+        "failedTasks": "失敗任務"
+      },
+      "regression": {
+        "title": "回歸分析",
+        "description": "與基準指標的比較",
+        "webVitalsChanges": "網頁核心指標變化",
+        "taskSuccessRateChange": "任務成功率變化",
+        "successRate": "成功率",
+        "successRateChange": "{{baseline}}% → {{current}}%",
+        "noBaseline": "未設定基準。點擊「設為基準」以啟用回歸分析。"
+      },
+      "recommendations": {
+        "title": "建議",
+        "description": "基於分析的改進建議",
+        "greatJob": "做得好！",
+        "allGood": "所有指標都在可接受範圍內。無需立即採取行動。"
+      },
+      "confirmClear": "您確定要清除所有指標資料嗎？此操作無法復原。",
+      "baselineSetSuccess": "基準設定成功！未來的報告將與此基準進行比較。"
+    }
+  },
+  "decisions": {
+    "title": "最近決策",
+    "description": "AI系統最近執行的決策和策略",
+    "status": {
+      "executed": "已執行",
+      "pending": "待審批",
+      "failed": "失敗"
+    },
+    "confidence": "信心度"
+  },
+  "loading": {
+    "default": "載入中...",
+    "processing": "處理中...",
+    "pleaseWait": "請稍候，系統正在處理您的請求..."
+  },
+  "empty": {
+    "noData": "暫無資料",
+    "noDataDescription": "目前沒有可顯示的資料，請稍後再試或新增資料。",
+    "noSearchResults": "找不到相關結果",
+    "noSearchResultsDescription": "請嘗試使用不同的關鍵字或調整搜尋條件。",
+    "error": "發生錯誤",
+    "errorDescription": "抱歉，系統遇到問題。請稍後再試或聯繫支援團隊。",
+    "success": "操作成功",
+    "successDescription": "您的操作已成功完成。",
+    "premiumFeature": "進階功能",
+    "premiumFeatureDescription": "此功能需要升級至專業版才能使用。"
+  },
+  "actions": {
+    "getStarted": "開始使用",
+    "learnMore": "了解更多",
+    "upgrade": "立即升級",
+    "viewPlans": "了解方案",
+    "save": "儲存",
+    "cancel": "取消",
+    "confirm": "確認",
+    "delete": "刪除",
+    "edit": "編輯",
+    "add": "新增",
+    "remove": "移除",
+    "close": "關閉",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "finish": "完成",
+    "retry": "重試",
+    "refresh": "重新整理"
+  },
+  "common": {
+    "yes": "是",
+    "no": "否",
+    "ok": "確定",
+    "search": "搜尋",
+    "filter": "篩選",
+    "sort": "排序",
+    "export": "匯出",
+    "import": "匯入",
+    "settings": "設定",
+    "help": "說明",
+    "about": "關於",
+    "logout": "登出",
+    "profile": "個人資料",
+    "notifications": "通知",
+    "language": "語言",
+    "apiError": "API 錯誤",
+    "loadingApp": "正在載入應用程式...",
+    "loadingPage": "正在載入頁面...",
+    "mainContentArea": "主要內容區域"
+  },
+  "settings": {
+    "title": "系統設定",
+    "description": "管理您的帳戶偏好設定和系統配置",
+    "saveChanges": "儲存變更",
+    "saving": "儲存中...",
+    "loadingTitle": "載入頁面標題",
+    "loadingDescription": "載入頁面描述",
+    "loadingMainSettings": "載入主要設定區域",
+    "loadingSecondarySettings": "載入次要設定區域",
+    "tabs": {
+      "profile": "個人資料",
+      "preferences": "偏好設定",
+      "notifications": "通知設定",
+      "security": "安全設定",
+      "system": "系統配置",
+      "billing": "帳單資訊"
+    },
+    "profile": {
+      "title": "個人資料",
+      "description": "管理您的個人資訊",
+      "avatar": "更換頭像",
+      "avatarHint": "JPG、PNG 或 GIF，最大 2MB",
+      "name": "姓名",
+      "email": "電子郵件",
+      "role": "帳號角色",
+      "saveChanges": "儲存變更",
+      "saving": "儲存中..."
+    },
+    "preferences": {
+      "title": "外觀設定",
+      "description": "自訂您的介面外觀和體驗",
+      "language": "語言",
+      "theme": "主題",
+      "themeLight": "淺色主題",
+      "themeDark": "深色主題",
+      "themeAuto": "自動",
+      "timezone": "時區",
+      "autoRefresh": "自動重新整理間隔 (秒)"
+    },
+    "notifications": {
+      "title": "通知偏好設定",
+      "description": "選擇您希望接收通知的方式",
+      "email": "電子郵件通知",
+      "emailDescription": "接收重要系統更新和警報",
+      "push": "推播通知",
+      "pushDescription": "瀏覽器推播通知",
+      "sms": "簡訊通知",
+      "smsDescription": "緊急事件簡訊通知",
+      "slack": "Slack 通知",
+      "slackDescription": "團隊協作通知",
+      "desktop": "桌面通知",
+      "desktopDescription": "在瀏覽器中顯示即時通知",
+      "aiSuggestions": "AI 建議通知",
+      "aiSuggestionsDescription": "接收 AI 的優化建議"
+    },
+    "security": {
+      "title": "安全設定",
+      "description": "管理您的帳戶安全和存取控制",
+      "currentPassword": "當前密碼",
+      "newPassword": "新密碼",
+      "confirmPassword": "確認新密碼",
+      "twoFactor": "雙重驗證",
+      "twoFactorDescription": "為您的帳戶增加額外的安全層",
+      "twoFactorEnabled": "已啟用",
+      "sessionTimeout": "工作階段逾時 (秒)",
+      "auditLogging": "稽核日誌",
+      "auditLoggingDescription": "記錄所有系統存取和操作",
+      "updatePassword": "更新密碼",
+      "updating": "更新中..."
+    },
+    "2fa": {
+      "title": "雙重驗證",
+      "subtitle": "為您的帳戶增加額外的安全保護層",
+      "loading": "載入中...",
+      "featureDisabled": {
+        "title": "功能無法使用",
+        "description": "此環境目前無法使用雙因素驗證。請聯絡您的系統管理員以獲取更多資訊。"
+      },
+      "status": {
+        "label": "狀態",
+        "enabled": "已啟用",
+        "disabled": "已停用",
+        "enabledOn": "於 {{date}} 啟用"
+      },
+      "actions": {
+        "enable": "啟用雙重驗證",
+        "disable": "停用雙重驗證",
+        "regenerate": "重新產生"
+      },
+      "backupCodes": {
+        "title": "備用代碼",
+        "remaining": "剩餘 {{count}} 組代碼",
+        "saveTitle": "儲存您的備用代碼",
+        "saveDescription": "請將這些代碼儲存在安全的地方。每組代碼只能使用一次。",
+        "copied": "已複製！",
+        "copyAll": "全部複製",
+        "download": "下載",
+        "important": "重要提示：",
+        "warningMessage": "這些代碼不會再次顯示。請確保在繼續之前已儲存。",
+        "confirmSaved": "我已儲存備用代碼",
+        "lowWarning": "您剩餘 {{count}} 組備用代碼。建議重新產生。",
+        "regenerateTitle": "重新產生備用代碼",
+        "regenerateDescription": "這將使您目前的備用代碼失效並產生新的代碼。",
+        "regenerateWarning": "警告：",
+        "regenerateWarningMessage": "重新產生後，您的舊備用代碼將無法使用。",
+        "regenerateButton": "重新產生代碼",
+        "regenerating": "重新產生中...",
+        "passwordLabel": "密碼",
+        "passwordHelper": "確認您的密碼以重新產生備用代碼"
+      },
+      "disable": {
+        "title": "停用雙重驗證",
+        "description": "這將移除您帳戶的雙重驗證保護。您可以隨時重新啟用。",
+        "warning": "警告：",
+        "warningMessage": "停用雙重驗證會降低您帳戶的安全性。",
+        "confirmButton": "停用雙重驗證",
+        "cancel": "取消",
+        "disabling": "停用中...",
+        "passwordLabel": "密碼",
+        "totpCodeLabel": "目前的 TOTP 代碼",
+        "totpCodePlaceholder": "000000",
+        "totpCodeHelper": "輸入驗證器應用程式中的 6 位數代碼"
+      },
+      "cardDescription": "為您的帳戶增加額外的安全保護層",
+      "setup": {
+        "qrCodeDescription": "使用您的驗證器應用程式掃描此 QR 碼",
+        "manualEntry": "或手動輸入此代碼：",
+        "recommendedApps": "推薦的驗證器應用程式：",
+        "title": "啟用雙重驗證",
+        "subtitle": "按照以下步驟保護您的帳戶",
+        "passwordPrompt": "首先，確認您的密碼以繼續",
+        "qrScanned": "我已掃描 QR 碼",
+        "verifyPrompt": "輸入驗證器應用程式中的 6 位數代碼",
+        "verificationCodeLabel": "驗證碼",
+        "verifying": "驗證中...",
+        "continue": "繼續",
+        "verify": "驗證",
+        "back": "返回",
+        "cancel": "取消",
+        "successTitle": "雙重驗證已成功啟用！",
+        "successDescription": "您的帳戶現在受到雙重驗證保護。",
+        "apps": {
+          "google": "Google Authenticator",
+          "microsoft": "Microsoft Authenticator",
+          "authy": "Authy",
+          "onepassword": "1Password"
+        }
+      },
+      "trustedDevices": {
+        "title": "信任的裝置",
+        "description": "管理信任 30 天無需雙因素驗證的裝置",
+        "noDevices": "沒有信任的裝置",
+        "noDevicesHelp": "當您在登入時勾選「記住此裝置」時，它將顯示在這裡",
+        "lastUsed": "最後使用",
+        "expires": "到期",
+        "expiringSoon": "即將到期",
+        "note": "信任的裝置將在 30 天後自動到期。您可以隨時撤銷存取權限。"
+      }
+    },
+    "system": {
+      "title": "系統配置",
+      "description": "調整系統行為和效能設定",
+      "autoApproval": "自動審批",
+      "autoApprovalDescription": "低風險決策自動審批",
+      "riskThreshold": "風險閾值",
+      "monitoringInterval": "監控間隔 (秒)",
+      "apiRateLimit": "API 速率限制 (每小時)"
+    },
+    "billing": {
+      "title": "帳單資訊",
+      "description": "管理您的訂閱和付款方式",
+      "currentPlan": "目前方案",
+      "billingCycle": "計費週期",
+      "billingCycleMonthly": "每月",
+      "billingCycleYearly": "每年",
+      "nextBillingDate": "下次計費日期",
+      "paymentMethod": "付款方式",
+      "updatePaymentMethod": "更新付款方式",
+      "viewBillingHistory": "查看帳單歷史"
+    },
+    "timezones": {
+      "taipei": "台北 (UTC+8)",
+      "tokyo": "東京 (UTC+9)",
+      "utc": "UTC (UTC+0)"
+    },
+    "languages": {
+      "zhTW": "繁體中文",
+      "enUS": "English",
+      "jaJP": "日本語"
+    }
+  },
+  "checkout": {
+    "title": "選擇您的方案",
+    "description": "升級到 Morning AI Pro，解鎖更多強大功能",
+    "useMockData": "使用測試資料",
+    "mockDataDescription": "切換使用測試資料或真實 API 資料",
+    "paymentMethods": "付款方式",
+    "paymentMethodsDescription": "選擇您偏好的付款方式",
+    "orderSummary": "訂單摘要",
+    "plan": "方案",
+    "price": "價格",
+    "perMonth": "/月",
+    "discountCode": "優惠代碼",
+    "discountPlaceholder": "輸入優惠代碼",
+    "apply": "套用",
+    "applyDiscount": "套用優惠代碼",
+    "availableDiscount": "可用優惠",
+    "total": "總計",
+    "secureCheckout": "安全結帳",
+    "secureCheckoutDescription": "進行安全結帳流程",
+    "sslProtection": "您的付款資訊受到 256 位元 SSL 加密保護",
+    "checkoutFailed": "結帳失敗，請稍後再試",
+    "mostPopular": "最受歡迎",
+    "comingSoon": "即將推出",
+    "features": {
+      "starter": {
+        "basic": "基礎 AI 助手功能",
+        "queries": "每月 100 次查詢",
+        "support": "標準客服支援",
+        "reports": "基礎報表功能"
+      },
+      "pro": {
+        "advanced": "進階 AI 助手功能",
+        "queries": "每月 1000 次查詢",
+        "support": "優先客服支援",
+        "reports": "進階報表與分析",
+        "workflows": "自訂工作流程",
+        "api": "API 存取權限"
+      },
+      "enterprise": {
+        "complete": "完整 AI 助手功能",
+        "queries": "無限制查詢",
+        "support": "專屬客服經理",
+        "reports": "完整報表與分析",
+        "workflows": "自訂工作流程",
+        "api": "完整 API 存取",
+        "sso": "單點登入 (SSO)",
+        "deployment": "專屬部署選項"
+      }
+    },
+    "selectPlanAria": "選擇 {{name}} 方案，價格 ${{price}}/{{billing}}"
+  },
+  "sidebar": {
+    "header": {
+      "subtitle": "智能決策系統"
+    },
+    "user": {
+      "defaultName": "管理員",
+      "defaultRole": "系統管理員"
+    },
+    "dashboard": {
+      "label": "監控儀表板",
+      "description": "系統狀態總覽"
+    },
+    "strategies": {
+      "label": "策略管理",
+      "description": "管理AI策略"
+    },
+    "approvals": {
+      "label": "決策審批",
+      "description": "人工審核待辦"
+    },
+    "history": {
+      "label": "歷史分析",
+      "description": "決策歷史回顧"
+    },
+    "costs": {
+      "label": "成本分析",
+      "description": "AI服務成本"
+    },
+    "settings": {
+      "label": "系統設置",
+      "description": "配置管理"
+    },
+    "checkout": {
+      "label": "訂閱方案",
+      "description": "選擇付費方案"
+    },
+    "logout": "登出"
+  },
+  "widgets": {
+    "cpuUsage": "CPU 使用率",
+    "cpuDescription": "監控 CPU 使用情況",
+    "memoryUsage": "記憶體使用率",
+    "memoryDescription": "追蹤記憶體消耗",
+    "responseTime": "響應時間",
+    "responseTimeDescription": "監控系統響應時間"
+  },
+  "checkoutCancel": {
+    "title": "付款已取消",
+    "reasons": {
+      "paymentFailed": "付款處理失敗，請檢查您的付款資訊",
+      "sessionExpired": "付款會話已過期，請重新開始",
+      "userCancelled": "您已取消付款流程"
+    },
+    "noCharge": "您的帳戶未被收費，可以隨時重新嘗試升級。",
+    "retry": "重新選擇方案",
+    "retryAria": "重新選擇方案",
+    "backToDashboard": "返回儀表板",
+    "backToDashboardAria": "返回儀表板",
+    "support": "需要協助？聯繫客服：support@morningai.com"
+  },
+  "checkoutSuccess": {
+    "title": "付款成功！",
+    "thankYou": "感謝您選擇 Morning AI",
+    "planActivated": "{{plan}} 方案已啟用",
+    "orderId": "訂單編號",
+    "emailSent": "確認郵件已發送至您的信箱，包含詳細的訂閱資訊和發票。",
+    "getStarted": "開始使用",
+    "getStartedAria": "前往儀表板開始使用",
+    "downloadInvoice": "下載發票",
+    "downloadInvoiceAria": "下載發票",
+    "support": "如有任何問題，請聯繫客服：support@morningai.com"
+  },
+  "wip": {
+    "title": "功能開發中",
+    "description": "此功能正在積極開發中，敬請期待！",
+    "autoRedirect": "{{countdown}} 秒後自動返回儀表板",
+    "developmentProgress": "開發進度",
+    "overallProgress": "整體進度",
+    "returnButton": "立即返回儀表板",
+    "returnAriaLabel": "立即返回儀表板",
+    "milestones": {
+      "requirementAnalysis": "需求分析",
+      "uiuxDesign": "UI/UX 設計",
+      "backendApi": "後端 API",
+      "frontendImplementation": "前端實作",
+      "testing": "測試驗證",
+      "completed": "已完成",
+      "inProgress": "開發中",
+      "planned": "規劃中",
+      "pending": "待開始"
+    }
+  },
+  "strategy": {
+    "title": "策略管理",
+    "description": "管理與設定自動化策略",
+    "createNew": "創建新策略",
+    "editStrategy": "編輯策略",
+    "deleteStrategy": "刪除策略",
+    "strategyName": "策略名稱",
+    "strategyDescription": "策略描述",
+    "addStrategy": "新增策略",
+    "activeStrategies": "啟用策略",
+    "totalTriggers": "總觸發次數",
+    "pausedStrategies": "暫停策略",
+    "strategyList": "策略列表",
+    "strategyListDescription": "查看和管理所有自動化策略",
+    "triggeredTimes": "觸發",
+    "times": "次",
+    "lastExecuted": "最後執行",
+    "status": {
+      "active": "啟用中",
+      "inactive": "停用",
+      "draft": "草稿",
+      "paused": "已暫停",
+      "error": "錯誤"
+    },
+    "examples": {
+      "cpuOptimization": {
+        "name": "CPU 優化策略",
+        "description": "當 CPU 使用率超過 85% 時自動擴容"
+      },
+      "dbConnectionPool": {
+        "name": "數據庫連接池優化",
+        "description": "自動調整連接池大小以應對高並發"
+      },
+      "cacheWarmup": {
+        "name": "緩存預熱策略",
+        "description": "定期預熱熱門數據緩存"
+      }
+    },
+    "timeAgo": {
+      "hoursAgo": "小時前",
+      "minutesAgo": "分鐘前",
+      "daysAgo": "天前"
+    }
+  },
+  "approval": {
+    "title": "決策審批中心",
+    "description": "審核AI系統提出的決策建議，確保系統安全穩定運行",
+    "pendingDecisions": "待審批",
+    "criticalDecisions": "緊急決策",
+    "avgConfidence": "平均信心度",
+    "estimatedCost": "預計成本",
+    "noDecisions": "沒有待審批的決策",
+    "noDecisionsDescription": "所有決策都已處理完畢，系統運行正常",
+    "approve": "批准",
+    "reject": "拒絕",
+    "rejectReason": "拒絕理由",
+    "rejectReasonPlaceholder": "請說明拒絕原因",
+    "rejectReasonRequired": "請提供拒絕理由",
+    "approved": "決策已批准",
+    "approvedDescription": "策略將立即執行",
+    "rejected": "決策已拒絕",
+    "rejectedDescription": "系統將尋找替代方案",
+    "approveFailed": "批准失敗",
+    "approveFailedDescription": "請稍後重試",
+    "rejectFailed": "拒絕失敗",
+    "rejectFailedDescription": "請稍後重試",
+    "autoApproveCountdown": "自動批准倒計時",
+    "triggerTime": "觸發時間",
+    "triggerCondition": "觸發條件",
+    "predictedImpact": "預期影響",
+    "riskAssessment": "風險評估",
+    "executionSteps": "執行步驟",
+    "detailsButton": "詳細信息",
+    "decisionDetails": "決策詳細信息和審批操作",
+    "approvalComment": "審批意見 (可選)",
+    "approvalCommentPlaceholder": "請輸入審批意見或備註...",
+    "rejectComment": "拒絕理由 (必填)",
+    "rejectCommentPlaceholder": "請說明拒絕原因...",
+    "confidence": "信心度",
+    "costIncrease": "成本增加",
+    "cpuReduction": "CPU降低",
+    "responseTimeImprovement": "響應時間改善",
+    "riskLevel": "風險等級",
+    "estimatedTime": "預計耗時",
+    "type": "類型",
+    "currentValue": "當前值",
+    "threshold": "閾值",
+    "duration": "持續時間",
+    "priority": {
+      "critical": "緊急",
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "risk": {
+      "veryLow": "極低",
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "veryHigh": "極高"
+    },
+    "mockData": {
+      "cpuOptimization": {
+        "name": "CPU優化策略",
+        "description": "當CPU使用率超過85%時自動擴容並優化緩存配置",
+        "action1": "增加2個計算實例",
+        "action1Time": "3分鐘",
+        "action2": "調整緩存TTL為300秒",
+        "action2Time": "30秒",
+        "duration": "5分鐘",
+        "factor1": "已測試策略",
+        "factor2": "可回滾",
+        "factor3": "低影響範圍"
+      },
+      "dbOptimization": {
+        "name": "數據庫連接池優化",
+        "description": "調整數據庫連接池大小以應對高並發",
+        "action1": "將連接池從50增加到80",
+        "action1Time": "1分鐘",
+        "duration": "2分鐘",
+        "factor1": "常規操作",
+        "factor2": "即時生效",
+        "factor3": "可動態調整"
+      },
+      "failover": {
+        "name": "緊急故障轉移",
+        "description": "檢測到主服務異常，建議切換到備用服務",
+        "action1": "切換到備用數據中心",
+        "action1Time": "2分鐘",
+        "action2": "通知運維團隊",
+        "action2Time": "即時",
+        "duration": "30秒",
+        "factor1": "緊急操作",
+        "factor2": "影響用戶",
+        "factor3": "需要監控"
+      }
+    }
+  },
+  "history": {
+    "title": "歷史分析",
+    "description": "查看系統運行歷史與趨勢分析",
+    "totalEvents": "總事件",
+    "optimizationExecutions": "優化執行",
+    "warningEvents": "警告事件",
+    "avgResponseTime": "平均響應時間",
+    "eventTimeline": "事件時間軸",
+    "eventTimelineDescription": "按時間順序查看所有系統事件",
+    "viewDetails": "查看詳情",
+    "customRange": "自訂範圍",
+    "periods": {
+      "24h": "過去 24 小時",
+      "7d": "過去 7 天",
+      "30d": "過去 30 天",
+      "90d": "過去 90 天"
+    },
+    "impact": {
+      "positive": "正面影響",
+      "negative": "負面影響",
+      "neutral": "中性"
+    },
+    "examples": {
+      "cpuOptimization": "CPU 優化執行",
+      "autoScaling": "自動擴容事件",
+      "memoryWarning": "記憶體使用率警告"
+    }
+  },
+  "cost": {
+    "title": "成本分析",
+    "description": "追蹤與分析 AI 服務成本",
+    "currentMonth": "本月支出",
+    "monthlyBudget": "月度預算",
+    "estimatedEndOfMonth": "預估月底",
+    "basedOnCurrentTrend": "基於當前使用趨勢",
+    "comparedToLastMonth": "較上月",
+    "usedPercentage": "已使用",
+    "exportReport": "導出報表",
+    "costBreakdown": "成本分類",
+    "costBreakdownDescription": "按服務類別查看成本分布",
+    "optimizationSuggestions": "成本優化建議",
+    "optimizationSuggestionsDescription": "AI 自動分析的節省機會",
+    "periods": {
+      "current": "本月",
+      "last": "上月",
+      "quarter": "本季",
+      "year": "本年"
+    },
+    "categories": {
+      "aiService": "AI 服務",
+      "compute": "計算資源",
+      "storage": "儲存空間",
+      "network": "網路流量"
+    },
+    "alerts": {
+      "aiServiceIncrease": "AI 服務成本較上月增加 35%",
+      "budgetExceeded": "預計本月總成本將超出預算 10%"
+    },
+    "suggestions": {
+      "optimizeAiUsage": "優化 AI 服務使用時段",
+      "optimizeAiUsageDescription": "在離峰時段執行批次任務，預計每月可節省 $120",
+      "adjustStorageStrategy": "調整儲存策略",
+      "adjustStorageStrategyDescription": "將冷數據遷移至低成本儲存，預計每月可節省 $45"
+    }
+  },
+  "errors": {
+    "networkError": {
+      "title": "網路連線問題",
+      "description": "無法連接到伺服器，請檢查您的網路連線",
+      "action": "重試"
+    },
+    "unauthorized": {
+      "title": "未授權訪問",
+      "description": "您的登入已過期，請重新登入",
+      "action": "重新登入"
+    },
+    "forbidden": {
+      "title": "權限不足",
+      "description": "您沒有權限執行此操作",
+      "action": "返回"
+    },
+    "notFound": {
+      "title": "找不到資源",
+      "description": "您請求的資源不存在或已被移除",
+      "action": "返回首頁"
+    },
+    "validationError": {
+      "title": "資料驗證失敗",
+      "description": "請檢查您輸入的資料是否正確",
+      "action": "返回修改"
+    },
+    "serverError": {
+      "title": "伺服器錯誤",
+      "description": "伺服器暫時無法處理您的請求，我們正在處理",
+      "action": "稍後重試"
+    },
+    "timeoutError": {
+      "title": "請求超時",
+      "description": "伺服器響應時間過長，請稍後再試",
+      "action": "重試"
+    },
+    "rateLimit": {
+      "title": "請求過於頻繁",
+      "description": "您的請求次數已達上限，請稍後再試",
+      "action": "稍後重試"
+    },
+    "unknownError": {
+      "title": "發生錯誤",
+      "description": "發生未知錯誤，請稍後再試",
+      "action": "重試"
+    }
+  },
+  "feedback": {
+    "loading": "載入中",
+    "processing": "處理中...",
+    "success": "操作成功",
+    "error": "操作失敗",
+    "offline": "您目前處於離線狀態",
+    "offlineDescription": "請檢查您的網絡連接",
+    "offlineMessage": "您目前處於離線狀態，部分功能可能無法使用",
+    "reconnecting": "正在重新連接...",
+    "reconnected": "已重新連接",
+    "reconnectedMessage": "網路連線已恢復",
+    "stepCounter": "步驟 {{current}} / {{total}}",
+    "close": "關閉",
+    "errorId": "錯誤 ID: {{id}}",
+    "switchToLightMode": "切換到淺色模式",
+    "switchToDarkMode": "切換到深色模式",
+    "currentPage": "當前頁面",
+    "goToPage": "前往頁面",
+    "unknownWidgetType": "未知的組件類型: {{widgetId}}",
+    "emptyState": {
+      "defaultPrimaryAction": "開始使用",
+      "defaultSecondaryAction": "了解更多",
+      "noData": {
+        "title": "暫無資料",
+        "description": "目前沒有可顯示的資料，請稍後再試或新增資料。"
+      },
+      "noSearchResults": {
+        "title": "找不到相關結果",
+        "description": "請嘗試使用不同的關鍵字或調整搜尋條件。"
+      },
+      "error": {
+        "title": "發生錯誤",
+        "description": "抱歉，系統遇到問題。請稍後再試或聯繫支援團隊。"
+      },
+      "success": {
+        "title": "操作成功",
+        "description": "您的操作已成功完成。"
+      },
+      "loading": {
+        "title": "處理中",
+        "description": "請稍候，系統正在處理您的請求..."
+      },
+      "premium": {
+        "title": "進階功能",
+        "description": "此功能需要升級至專業版才能使用。",
+        "primaryAction": "立即升級",
+        "secondaryAction": "了解方案"
+      }
+    }
+  },
+  "errorBoundary": {
+    "title": "應用程式發生錯誤",
+    "description": "很抱歉，應用程式遇到了意外錯誤。我們已經記錄了這個問題。",
+    "errorDetailsTitle": "錯誤詳情",
+    "errorIdLabel": "錯誤 ID:",
+    "reloadButton": "重新載入",
+    "reloadAriaLabel": "重新載入頁面",
+    "homeButton": "返回首頁",
+    "homeAriaLabel": "返回首頁",
+    "supportMessage": "如果問題持續發生，請聯繫技術支援團隊。"
+  },
+  "phase3Welcome": {
+    "title": "🎉 歡迎使用全新 Morning AI！",
+    "subtitle": "團隊協作功能現已上線",
+    "teamManagement": {
+      "title": "團隊管理",
+      "description": "在「系統設置」中查看和管理您的團隊成員"
+    },
+    "enhancedSecurity": {
+      "title": "增強安全性",
+      "description": "企業級資料隔離，確保您的數據安全"
+    },
+    "rolePermissions": {
+      "title": "角色權限",
+      "description": "靈活的成員角色管理：擁有者、管理員、成員、查看者"
+    },
+    "migrationNotice": "ℹ️ 您的歷史數據已安全遷移，無需任何操作即可繼續使用",
+    "laterButton": "稍後再說",
+    "settingsButton": "查看團隊設置"
+  },
+  "tokenExample": {
+    "title": "Design Token 範例",
+    "description": "此元件使用 theme-apple.css 定義的 CSS 變數，確保設計一致性並支援 Dark Mode。",
+    "cardTitle": "卡片標題",
+    "cardDescription": "這是一個使用 Design Tokens 的卡片元件範例。",
+    "statusSuccess": "成功",
+    "statusWarning": "警告",
+    "statusError": "錯誤",
+    "statusInfo": "資訊"
+  },
+  "form": {
+    "required": "必填",
+    "optional": "選填",
+    "fieldRequired": "此欄位為必填",
+    "invalidEmail": "請輸入有效的電子郵件地址",
+    "invalidFormat": "格式無效"
+  },
+  "search": {
+    "placeholder": "搜尋頁面、組件、設定...",
+    "recentSearches": "最近搜尋",
+    "noResults": "找不到結果",
+    "tryDifferentKeywords": "試試使用不同的關鍵字",
+    "navigate": "導航",
+    "select": "選擇",
+    "close": "關閉",
+    "categories": {
+      "pages": "頁面",
+      "widgets": "組件",
+      "settings": "設定",
+      "docs": "文檔"
+    }
+  },
+  "accessibility": {
+    "skipToContent": "跳至主要內容",
+    "closeDialog": "關閉對話框",
+    "openMenu": "開啟選單",
+    "closeMenu": "關閉選單",
+    "loading": "載入中",
+    "error": "錯誤",
+    "success": "成功",
+    "warning": "警告",
+    "info": "資訊",
+    "required": "必填欄位",
+    "optional": "選填欄位",
+    "searchPlaceholder": "搜尋...",
+    "noResults": "找不到結果",
+    "pageNavigation": "頁面導航",
+    "currentPage": "目前頁面",
+    "goToPage": "前往第 {page} 頁",
+    "previousPage": "上一頁",
+    "nextPage": "下一頁",
+    "sortBy": "依 {field} 排序",
+    "filterBy": "依 {field} 篩選",
+    "clearFilters": "清除所有篩選",
+    "selectAll": "全選",
+    "deselectAll": "取消全選",
+    "expandSection": "展開區塊",
+    "collapseSection": "收合區塊",
+    "showMore": "顯示更多",
+    "showLess": "顯示較少"
+  },
+  "toast": {
+    "closeNotification": "關閉通知"
+  },
+  "modal": {
+    "close": "關閉對話框"
+  },
+  "sheet": {
+    "close": "關閉底部彈出"
+  },
+  "accessibility": {
+    "title": "無障礙設定",
+    "subtitle": "自訂您的體驗",
+    "settings": "無障礙",
+    "openSettings": "開啟無障礙設定",
+    "reset": "重置為預設值",
+    "done": "完成",
+    "reducedMotion": {
+      "title": "減少動畫",
+      "description": "最小化動畫和過渡效果"
+    },
+    "highContrast": {
+      "title": "高對比度",
+      "description": "增加色彩對比度以提高可見度"
+    },
+    "fontSize": {
+      "title": "字體大小",
+      "description": "調整文字大小以提高可讀性",
+      "small": "小",
+      "medium": "中",
+      "large": "大",
+      "extraLarge": "特大"
+    },
+    "screenReader": {
+      "title": "螢幕閱讀器通知",
+      "description": "啟用即時區域通知"
+    },
+    "keyboardShortcuts": {
+      "title": "鍵盤快捷鍵",
+      "description": "啟用鍵盤導航快捷鍵"
+    },
+    "focusIndicators": {
+      "title": "焦點指示器",
+      "description": "自訂鍵盤焦點可見度",
+      "default": "預設",
+      "defaultDesc": "標準焦點輪廓",
+      "enhanced": "增強",
+      "enhancedDesc": "高可見度焦點輪廓"
+    }
+  }
+}

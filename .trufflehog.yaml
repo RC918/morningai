@@ -1,0 +1,35 @@
+
+
+only-verified: true
+
+exclude-paths:
+  - node_modules/
+  - .git/
+  - dist/
+  - build/
+  - .next/
+  - .turbo/
+  - coverage/
+  - .pytest_cache/
+  - __pycache__/
+  - "*.lock"
+  - "*.min.js"
+  - "*.min.css"
+  - "*.map"
+  - ".env.example"
+  - "docs/**/*.md"
+  - "README.md"
+  - "CHANGELOG.md"
+
+exclude-globs:
+  - "**/tests/**/*test*.py"
+  - "**/__tests__/**/*.ts"
+  - "**/__tests__/**/*.tsx"
+  - "**/fixtures/**"
+  - "**/mocks/**"
+
+max-file-size: 10485760  # 10MB
+
+concurrency: 8
+
+output-format: json

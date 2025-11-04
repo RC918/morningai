@@ -1,6 +1,24 @@
-# MorningAI Orchestrator Real Demo (20250928_2052)
+# MorningAI Orchestrator Worker Engine
 
-This demo shows:
+**Type**: RQ Worker (Redis Queue)  
+**Purpose**: Task execution engine  
+**Deployment**: Render (morningai-agent-worker)  
+**Queue**: orchestrator
+
+## Architecture
+
+This is the **worker layer** of the orchestrator system. It polls Redis for tasks and executes them using the graph-based orchestration engine.
+
+**Related Components**:
+- **API**: `orchestrator/` (root) - FastAPI service for task submission
+- **Deployment**: [render.yaml#L55-L94](https://github.com/RC918/morningai/blob/b59625751e80476b6f99ec9f61ace76b8e64f2c1/render.yaml#L55-L94)
+- **Architecture Decision**: [ADR-002: Producer-Consumer Architecture](../../../../docs/adr/002-producer-consumer-architecture.md)
+
+---
+
+## Features
+
+This worker engine demonstrates:
 - GitHub API (open PR, read CI status)
 - Redis Queue (RQ) for task slicing
 - Supabase pgvector (long-term memory)

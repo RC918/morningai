@@ -1,0 +1,50 @@
+name: Tolgee Translation Sync
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *' # 10:00 Asia/Taipei
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-translations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Tolgee CLI
+        run: npm i -g @tolgee/cli
+
+      - name: Pull translations for Frontend Dashboard
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          tolgee pull --api-key "$TOLGEE_API_KEY"
+
+      - name: Pull translations for Owner Console
+        working-directory: handoff/20250928/40_App/owner-console
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          tolgee pull --api-key "$TOLGEE_API_KEY"
+
+      - name: Create PR if changes
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(i18n): sync translations from Tolgee"
+          title: "chore(i18n): Tolgee sync"
+          body: "Automated Tolgee sync via GitHub Actions."
+          branch: chore/tolgee-sync
+          base: main

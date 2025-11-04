@@ -80,37 +80,48 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 else:
     SENTRY_DSN = None
 
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+redis_url = os.getenv("REDIS_URL")
+if not redis_url:
+    import sys
+    _api_backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../api-backend/src'))
+    if _api_backend_path not in sys.path:
+        sys.path.insert(0, _api_backend_path)
+    
+    try:
+        from utils.redis_config import get_secure_redis_url
+        redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+    except (ImportError, ValueError) as e:
+        redis_url = "redis://localhost:6379/0"
+        logger.warning(f"⚠️ Failed to get secure Redis URL: {e}, using fallback: {redis_url}")
+else:
+    if not redis_url.startswith("rediss://") and not redis_url.startswith("redis://localhost"):
+        logger.warning(f"⚠️ Redis URL does not use TLS: {redis_url[:30]}...")
 RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
 
-redis_retry = RedisRetry(ExponentialBackoff(base=1, cap=10), retries=3)
+redis_retry = RedisRetry(ExponentialBackoff(base=1, cap=10), retries=5)
 redis = Redis.from_url(
     redis_url, 
     decode_responses=True,
-    socket_connect_timeout=5,
-    socket_timeout=30,
+    socket_connect_timeout=10,
     socket_keepalive=True,
     socket_keepalive_options={
-        socket.TCP_KEEPIDLE: 60,
+        socket.TCP_KEEPIDLE: 30,
         socket.TCP_KEEPINTVL: 10,
-        socket.TCP_KEEPCNT: 3
+        socket.TCP_KEEPCNT: 6
     },
-    health_check_interval=30,
     retry=redis_retry,
     retry_on_timeout=True
 )
 redis_client_rq = Redis.from_url(
     redis_url, 
     decode_responses=False,
-    socket_connect_timeout=5,
-    socket_timeout=30,
+    socket_connect_timeout=10,
     socket_keepalive=True,
     socket_keepalive_options={
-        socket.TCP_KEEPIDLE: 60,
+        socket.TCP_KEEPIDLE: 30,
         socket.TCP_KEEPINTVL: 10,
-        socket.TCP_KEEPCNT: 3
+        socket.TCP_KEEPCNT: 6
     },
-    health_check_interval=30,
     retry=redis_retry,
     retry_on_timeout=True
 )
@@ -206,12 +217,16 @@ def cleanup_heartbeat():
             logger.info(f"Heartbeat thread stopped successfully", extra={"operation": "shutdown", "worker_id": WORKER_ID})
     
     try:
+        if redis_client_rq:
+            redis_client_rq.srem('rq:workers', WORKER_ID)
+            logger.info(f"Removed worker from rq:workers set", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        
         if redis:
             heartbeat_key = f"worker:heartbeat:{WORKER_ID}"
             redis.delete(heartbeat_key)
             logger.info(f"Cleaned up heartbeat key", extra={"operation": "shutdown", "worker_id": WORKER_ID, "key": heartbeat_key})
     except Exception as e:
-        logger.exception(f"Failed to cleanup heartbeat key", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        logger.exception(f"Failed to cleanup Redis keys", extra={"operation": "shutdown", "worker_id": WORKER_ID})
         if SENTRY_DSN:
             sentry_sdk.capture_exception(e)
 
@@ -273,6 +288,10 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     Execute orchestrator with retry logic (used by API for agent tasks)
     Configured with ttl=600, result_ttl=86400, failure_ttl=3600
     
+    Supports two modes:
+    - LangGraph mode (USE_LANGGRAPH=true): Full stateful workflow with retry logic
+    - Simple mode (default): Direct execution for faster response
+    
     Args:
         task_id: Unique task identifier (also used as trace_id)
         question: FAQ question or topic
@@ -281,7 +300,14 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     Returns:
         dict: {"pr_url": str, "trace_id": str, "state": str}
     """
-    from graph import execute
+    use_langgraph = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
+    
+    if use_langgraph:
+        from langgraph_orchestrator import run_orchestrator
+        logger.info(f"Using LangGraph orchestrator for task {task_id}")
+    else:
+        from graph import execute
+        logger.info(f"Using simple orchestrator for task {task_id}")
     
     job_id = task_id
     logger.info(f"Starting orchestrator task", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": task_id, "question": question[:50]})
@@ -336,10 +362,16 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 category='orchestrator',
                 message=f'Executing orchestrator',
                 level='info',
-                data={'task_id': task_id, 'trace_id': task_id}
+                data={'task_id': task_id, 'trace_id': task_id, 'use_langgraph': use_langgraph}
             )
         
-        pr_url, state, trace_id = execute(question, repo, trace_id=task_id)
+        if use_langgraph:
+            result = run_orchestrator(question, repo, task_id)
+            pr_url = result.get("pr_url", "")
+            state = result.get("ci_state", "unknown")
+            trace_id = result.get("trace_id", task_id)
+        else:
+            pr_url, state, trace_id = execute(question, repo, trace_id=task_id)
         
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(

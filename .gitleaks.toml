@@ -1,0 +1,60 @@
+# Gitleaks Configuration
+# https://github.com/gitleaks/gitleaks
+
+title = "MorningAI Gitleaks Configuration"
+
+# Paths to exclude from scanning
+[allowlist]
+description = "Allowlist for false positives - TIGHTENED for security"
+
+# Exclude entire paths (SPECIFIC ONLY)
+paths = [
+    # Build artifacts (safe to exclude)
+    '''.*/dist/.*''',
+    '''.*/build/.*''',
+    '''.*/\.next/.*''',
+    '''.*/\.turbo/.*''',
+    '''.*/node_modules/.*''',
+    '''.*/__pycache__/.*''',
+    '''.*/\.pytest_cache/.*''',
+    '''.*/coverage/.*''',
+    
+    # Lock files (dependency hashes, not secrets)
+    '''.*package-lock\.json$''',
+    '''.*pnpm-lock\.yaml$''',
+    '''.*poetry\.lock$''',
+    '''.*yarn\.lock$''',
+    
+    # Example/template files ONLY
+    '''.*\.env\.example$''',
+    '''.*\.env\.template$''',
+    '''.*env_schema\.yaml$''',
+    
+    # SQL backup files (may contain test data)
+    '''.*backup.*\.sql$''',
+]
+
+# Regex patterns to exclude (SPECIFIC PATTERNS ONLY)
+regexes = [
+    # Specific placeholder patterns (exact matches)
+    '''sk_test_placeholder''',
+    '''your_api_key_here''',
+    '''YOUR_JWT_TOKEN''',
+    '''your-api-key''',
+    '''invalid-token''',
+    '''example-token''',
+    
+    # Test/mock prefixes (but keep the rest for scanning)
+    '''test_key_12345''',
+    '''mock_token_''',
+    '''dummy_secret_''',
+    '''fake_api_key_''',
+]
+
+# Stop words (REMOVED - too broad, can miss real secrets)
+# stopwords = []
+
+# Specific commits to ignore (if needed)
+# commits = [
+#   "commit-hash-here",
+# ]

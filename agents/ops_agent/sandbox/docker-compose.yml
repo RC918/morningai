@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  ops-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - WORKSPACE_PATH=/workspace
+      - AGENT_ID=ops-agent
+      - SANDBOX_ENABLED=true
+    volumes:
+      - workspace:/workspace
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  workspace:

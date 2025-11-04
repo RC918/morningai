@@ -1,10 +1,20 @@
-flask
-jwt
-psycopg2-binary
-redis
-requests
-aiohttp
-cryptography
-pyyaml
-pytest
+# Root requirements.txt - Shared development and testing dependencies only
+# Service-specific runtime dependencies are in:
+# - handoff/20250928/40_App/api-backend/requirements.txt (Flask backend)
+# - orchestrator/requirements.txt (FastAPI orchestrator)
+
+# Configuration & Environment
+python-dotenv>=1.0.0
+pyyaml>=6.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.2.0
+
+# Code Quality
 flake8
+
+# Utilities
+typing_extensions>=4.15.0

@@ -26,7 +26,7 @@ As the newly appointed CTO for Morning AI, I have conducted a comprehensive tech
 - Phase 9-10 roadmap items all in "To Do" status (no active progress)
 - Agent orchestration system still in MVP stage
 - Missing production-grade monitoring and SLA/SLO enforcement
-- No formal database migration system
+- ~~No formal database migration system~~ ✅ **RESOLVED** (Alembic 1.13.1 implemented - PR #1107)
 
 ---
 
@@ -84,7 +84,7 @@ As the newly appointed CTO for Morning AI, I have conducted a comprehensive tech
 **Concerns:**
 - SQLite in production backend (should migrate to PostgreSQL)
 - Single Gunicorn worker (scalability bottleneck)
-- No database migration framework (Alembic recommended)
+- ~~No database migration framework (Alembic recommended)~~ ✅ **IMPLEMENTED** (Alembic 1.13.1 - PR #1107)
 - Frontend lacks TypeScript (currently JavaScript)
 - No API versioning strategy
 
@@ -104,9 +104,14 @@ As the newly appointed CTO for Morning AI, I have conducted a comprehensive tech
 - ⏳ Multi-tenant dashboard extensions
 
 **Agent MVP:**
-- ⏳ Orchestrator → CodeWriter PR
-- ⏳ Auto-QA validation CI
-- ⏳ Deploy agent online
+- ✅ Dev_Agent sandbox deployed to Fly.io (https://morningai-sandbox-dev-agent.fly.dev/) ✨ **NEW**
+  - VSCode Server, LSP (Python/TypeScript), Git, IDE, FileSystem tools
+  - Docker isolation, auto-scaling, $2/month
+- ✅ Ops_Agent sandbox deployed to Fly.io (https://morningai-sandbox-ops-agent.fly.dev/) ✨ **NEW**
+  - Performance monitoring, Shell, Browser, Render, Sentry tools
+  - Docker isolation, auto-scaling, $2/month
+- ⏳ Session State management (Redis + PostgreSQL) - Phase 1 Week 3-4
+- ⏳ OODA Loop integration with Meta-Agent - Phase 1 Week 5-6
 - ⏳ FAQ → PR → CI → Deploy closed-loop (partial - FAQ only)
 
 **Phase 10: Governance & Compliance**
@@ -357,6 +362,35 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
 - ✅ Graceful degradation (demo mode when Redis/GitHub unavailable)
 
 **Critical Limitations:**
+
+#### Agent MVP Maturity Assessment
+
+**Current Status**: Foundation Complete (35% complete) ✨ **UPDATED**
+
+**Completed:**
+- ✅ Basic agent architecture defined
+- ✅ Orchestrator proof-of-concept
+- ✅ MCP protocol integration complete
+- ✅ Dev_Agent sandbox deployed to Fly.io (PR #278)
+- ✅ Ops_Agent sandbox deployed to Fly.io (PR #279)
+- ✅ Docker isolation with security profiles
+- ✅ VSCode Server integration
+- ✅ LSP servers (Python, TypeScript, YAML, Dockerfile)
+- ✅ 10+ MCP tools (Git, IDE, FileSystem, Shell, Browser, Render, Sentry)
+
+**In Progress:**
+- ⏳ Session state persistence (Phase 1 Week 3-4)
+- ⏳ OODA Loop integration with Meta-Agent (Phase 1 Week 5-6)
+- ⏳ Knowledge graph indexing (Phase 1 Week 4)
+
+**Pending:**
+- 📋 Ops_Agent enhancement (LogAnalysis, Incident tools) - Phase 2
+- 📋 Root cause analysis algorithm - Phase 2
+- 📋 Predictive auto-scaling - Phase 2
+- 📋 OWASP security audit - Phase 3
+- 📋 Production hardening - Phase 3
+
+
 1. **Hard-coded FAQ template** - Not truly AI-generated
 2. **No LangGraph integration** - Despite being listed in tech stack
 3. **Sandbox disabled in production** - Security isolation not active
@@ -488,12 +522,14 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
    - **Owner:** CTO + QA
    - **Deadline:** 2025-10-21
 
-4. **Migrate Backend to PostgreSQL** - Remove SQLite in production
-   - Update `render.yaml` to use Supabase PostgreSQL
-   - Implement database migration framework (Alembic)
-   - Test migration in staging
+4. ~~**Migrate Backend to PostgreSQL**~~ - ✅ **COMPLETED (2025-11-04)**
+   - ✅ Implemented database migration framework (Alembic) - PR #1107
+   - ✅ Baseline migration created (91b9a61fcafa)
+   - ✅ CI/CD validation with PostgreSQL and SQLite
+   - ✅ Enum value policy documented and enforced
+   - ⏳ Production PostgreSQL cutover (future work, not blocking)
    - **Owner:** Backend Engineer
-   - **Deadline:** 2025-10-28
+   - **Completed:** 2025-11-04
 
 ### Short-Term Goals (Next 30 Days)
 
@@ -589,7 +625,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
 | Security | No secret scanning | High | Low | P0 |
 | Infra | Single instance (no HA) | High | Medium | P1 |
 | Monitoring | No centralized logging | Medium | Low | P1 |
-| Database | No migration framework | Medium | Low | P1 |
+| Database | ~~No migration framework~~ | ~~Medium~~ | ~~Low~~ | ~~P1~~ ✅ **RESOLVED** (PR #1107) |
 | Frontend | No TypeScript | Medium | High | P2 |
 | API | No versioning strategy | Low | Low | P2 |
 | Compliance | No audit logging | Medium | Medium | P2 |
@@ -653,6 +689,19 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
 - [ ] Secret scanning active in CI
 - [ ] Test collection errors resolved
 - [ ] PostgreSQL migration complete
+
+**November 2025 (Completed):**
+- [x] **Problem 7: Alembic Implementation** - PR #1107 merged (10/10 CTO approval)
+  - Alembic 1.13.1 infrastructure setup
+  - Baseline migration (91b9a61fcafa)
+  - CI/CD integration with PostgreSQL and SQLite testing
+  - Integration tests for enum value validation
+  - Enum policy: lowercase values with values_callable
+  - Documentation: ONBOARDING_GUIDE.md updated
+- [x] **Problem 8: Orchestrator Consolidation Tracking** - Issue #1105 created (9/10 CTO approval)
+  - Based on ADR-001 "Option B: Unified Architecture"
+  - Target: Q1 2026 consolidation
+  - Comprehensive task breakdown and acceptance criteria
 
 **November 2025:**
 - [ ] Stripe integration MVP deployed

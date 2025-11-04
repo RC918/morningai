@@ -2,15 +2,35 @@ import os
 import sys
 import datetime
 import asyncio
+import re
+import logging
+
+orchestrator_path = os.getenv('ORCHESTRATOR_PATH')
+if not orchestrator_path:
+    orchestrator_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../orchestrator'))
+
+if os.path.exists(orchestrator_path) and orchestrator_path not in sys.path:
+    sys.path.insert(0, orchestrator_path)
+    logging.info(f"Added orchestrator path to sys.path: {orchestrator_path}")
+elif not os.path.exists(orchestrator_path):
+    logging.warning(f"Orchestrator path does not exist: {orchestrator_path}. Orchestrator features may not work.")
 
 from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
+from src.routes.tenant import bp as tenant_bp
+from src.routes.faq import bp as faq_bp
+from src.routes.vectors import bp as vectors_bp
+from src.routes.governance import bp as governance_bp, admin_bp as admin_agents_bp
+from src.routes.agent_registry import bp as agent_registry_bp
+from src.routes.admin import bp as admin_bp
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.auth import auth_bp
+from src.routes.auth_enhanced import auth_enhanced_bp
 from src.routes.dashboard import dashboard_bp
+from src.routes.totp import totp_bp
 from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required
 from flask_cors import CORS
 import sys
@@ -66,28 +86,89 @@ except ImportError:
     SECURITY_AVAILABLE = False
 
 try:
-    from persistence.state_manager import PersistentStateManager
-    from services.monitoring_dashboard import monitoring_dashboard
-    from services.report_generator import report_generator
-    from utils.env_schema_validator import validate_environment
-    from routes.mock_api import mock_api
+    from src.persistence.state_manager import PersistentStateManager
+    from src.services.monitoring_dashboard import monitoring_dashboard
+    from src.services.report_generator import report_generator
+    from src.utils.env_schema_validator import validate_environment
+    from src.routes.mock_api import mock_api
     BACKEND_SERVICES_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    print(f"Warning: Backend services not available: {e}")
     BACKEND_SERVICES_AVAILABLE = False
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
+
+from src.services.auth_service import validate_security_config
+try:
+    validate_security_config()
+except SystemExit as e:
+    logger.error(f"Security configuration validation failed: {e}")
+    raise
+
+flask_secret = os.environ.get('FLASK_SECRET_KEY')
+if not flask_secret:
+    legacy_secret = os.environ.get('SECRET_KEY')
+    if legacy_secret:
+        logger.warning(
+            "DEPRECATION: SECRET_KEY is deprecated. Please use FLASK_SECRET_KEY instead. "
+            "SECRET_KEY support will be removed after 2025-11-30 (30-day grace period)."
+        )
+        flask_secret = legacy_secret
+    else:
+        flask_secret = 'asdf#FGSgvasgf$5$WGT'
+app.config['SECRET_KEY'] = flask_secret
 
 cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
-CORS(app, resources={r"/*": {
+cors_origins = [origin.strip() for origin in cors_origins]
+
+def is_vercel_preview(origin):
+    """
+    Check if origin is a Vercel preview URL
+    Only allows Vercel previews in non-production environments for security
+    """
+    if os.environ.get('ENVIRONMENT') == 'production':
+        return False
+    return origin and re.match(r'https://.*\.vercel\.app$', origin)
+
+@app.after_request
+def add_cors_headers(response):
+    """Add CORS headers for allowed origins including Vercel preview URLs"""
+    origin = request.headers.get('Origin')
+    
+    if origin in cors_origins or is_vercel_preview(origin):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID, X-CSRF-Token'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+        response.headers['Vary'] = 'Origin'
+    
+    return response
+
+cors_config = {
     "origins": cors_origins,
     "supports_credentials": True,
-    "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token"]
-}})
+    "allow_headers": ["Content-Type", "Authorization", "X-Request-ID", "X-CSRF-Token"],
+    "expose_headers": ["Content-Type", "Authorization", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+}
+
+CORS(app, resources={r"/*": cors_config})
 
 if SECURITY_AVAILABLE:
+    encryption_master_key = os.environ.get('ENCRYPTION_MASTER_KEY')
+    if not encryption_master_key:
+        legacy_master_key = os.environ.get('MASTER_KEY')
+        if legacy_master_key:
+            logger.warning(
+                "DEPRECATION: MASTER_KEY is deprecated. Please use ENCRYPTION_MASTER_KEY instead. "
+                "MASTER_KEY support will be removed after 2025-11-30 (30-day grace period)."
+            )
+            encryption_master_key = legacy_master_key
+        else:
+            encryption_master_key = 'default-master-key'
+    
     security_config = {
-        'master_key': os.environ.get('MASTER_KEY', 'default-master-key'),
+        'master_key': encryption_master_key,
         'secret_key': app.config['SECRET_KEY'],
         'audit_log_file': 'api_audit.log'
     }
@@ -96,9 +177,18 @@ if SECURITY_AVAILABLE:
 
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(auth_enhanced_bp, url_prefix='/api/auth/v2')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+app.register_blueprint(totp_bp, url_prefix='/api/auth/v2/totp')
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
+app.register_blueprint(agent_registry_bp)
+app.register_blueprint(tenant_bp)
+app.register_blueprint(faq_bp)
+app.register_blueprint(vectors_bp)
+app.register_blueprint(governance_bp)
+app.register_blueprint(admin_bp)
+app.register_blueprint(admin_agents_bp)
 
 if BACKEND_SERVICES_AVAILABLE:
     try:
@@ -134,9 +224,21 @@ def get_health_payload():
         except Exception as e:
             db_status = f"error: {str(e)[:100]}"
         
+        redis_info = {"status": "not_configured"}
+        try:
+            from src.utils.redis_client import get_redis_connection_info
+            redis_info = get_redis_connection_info()
+            redis_info["status"] = "connected"
+        except Exception as e:
+            redis_info = {
+                "status": "error",
+                "error": str(e)[:100]
+            }
+        
         return {
             "status": "healthy" if db_status == "connected" else "degraded",
             "database": str(db_status),
+            "redis": redis_info,
             "phase": str(os.environ.get('APP_PHASE', 'Phase 8: Self-service Dashboard & Reporting Center')),
             "version": str(os.environ.get('APP_VERSION', '8.0.0')),
             "timestamp": datetime.datetime.now().isoformat(),
@@ -158,12 +260,16 @@ def get_health_payload():
             "timestamp": datetime.datetime.now().isoformat()
         }
 
-@app.route('/health')
-@app.route('/healthz')
-@app.route('/api/health')
-@app.route('/api/healthz')
+@app.route('/health', methods=['GET', 'HEAD'])
+@app.route('/healthz', methods=['GET', 'HEAD'])
+@app.route('/api/health', methods=['GET', 'HEAD'])
+@app.route('/api/healthz', methods=['GET', 'HEAD'])
 def health_check():
-    """Health check endpoint with comprehensive system status"""
+    """Health check endpoint with comprehensive system status
+    
+    Supports both GET and HEAD methods for compatibility with various
+    health check systems (e.g., Render, Kubernetes, load balancers).
+    """
     health_payload = get_health_payload()
     if health_payload.get("status") == "unhealthy":
         return jsonify(health_payload), 500
@@ -172,16 +278,165 @@ def health_check():
 db_dir = os.path.join(os.path.dirname(__file__), 'database')
 os.makedirs(db_dir, exist_ok=True)
 
+<<<<<<< HEAD
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
 
+||||||| d4437046
+# uncomment if you need to use database
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+=======
+DATABASE_URL = os.environ.get('DATABASE_URL')
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
+
+if ENVIRONMENT == 'production':
+    if not DATABASE_URL:
+        logger.critical("❌ FATAL: Production environment requires DATABASE_URL to be set")
+        raise RuntimeError("Production must have DATABASE_URL configured")
+    
+    if DATABASE_URL.startswith('sqlite'):
+        logger.critical("❌ FATAL: Production environment cannot use SQLite (ephemeral storage)")
+        raise RuntimeError("Production must use PostgreSQL, not SQLite")
+    
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+    
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(DATABASE_URL)
+        db_driver = parsed.scheme
+        db_host = parsed.hostname or 'unknown'
+        logger.info(f"✅ Database configured: {db_driver} (host: {db_host})")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not parse DATABASE_URL for logging: {e}")
+        logger.info("✅ Database configured: PostgreSQL")
+else:
+    if DATABASE_URL and not DATABASE_URL.startswith('sqlite'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(DATABASE_URL)
+            db_driver = parsed.scheme
+            db_host = parsed.hostname or 'unknown'
+            logger.info(f"ℹ️  Database configured: {db_driver} (host: {db_host})")
+        except Exception:
+            logger.info("ℹ️  Database configured: PostgreSQL")
+    else:
+        sqlite_path = os.path.join(os.path.dirname(__file__), 'database', 'app.db')
+        app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{sqlite_path}"
+        logger.info(f"ℹ️  Database configured: SQLite (path: {sqlite_path})")
+
+>>>>>>> origin/main
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+import sys
+if 'pytest' in sys.modules or os.getenv('TESTING') == 'true':
+    from sqlalchemy.pool import StaticPool
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'poolclass': StaticPool,
+        'connect_args': {'check_same_thread': False}
+    }
+    logger.info("ℹ️  Test mode detected: Using SQLite in-memory with StaticPool")
+else:
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_size': 5,
+        'max_overflow': 10,
+        'pool_timeout': 10
+    }
+
 db.init_app(app)
-with app.app_context():
-    db.create_all()
+
+def validate_rate_limit_redis():
+    """
+    Validate Redis connection for rate limiting in production.
+    
+    This provides fail-fast behavior: if Redis is unavailable in production,
+    the application will refuse to start rather than running without rate limiting protection.
+    
+    Can be disabled by setting RATE_LIMIT_FAIL_FAST=false (not recommended).
+    
+    Raises:
+        RuntimeError: If Redis is unavailable in production environment
+    """
+    if not os.getenv('RATE_LIMIT_FAIL_FAST', 'true').lower() == 'true':
+        logger.info("ℹ️  Rate limit fail-fast disabled via RATE_LIMIT_FAIL_FAST=false")
+        return
+    
+    try:
+        from src.utils.redis_client import get_redis_client
+        redis_client = get_redis_client()
+        redis_client.ping()
+        logger.info("✅ Rate limiting Redis connection validated at startup")
+    except Exception as e:
+        logger.critical(f"❌ FATAL: Rate limiting Redis unavailable in production: {e}")
+        logger.critical("   This is a security issue - production requires rate limiting to prevent DoS attacks")
+        logger.critical("   Solution: Ensure REDIS_URL or UPSTASH_REDIS_REST_URL is configured")
+        logger.critical("   Emergency override (not recommended): Set RATE_LIMIT_FAIL_FAST=false")
+        raise RuntimeError("Production environment requires Redis for rate limiting")
+
+def init_test_database():
+    """Initialize test database with SQLite in-memory and create all tables"""
+    with app.app_context():
+        from src.models.agent_registry_db import AgentDB, TaskDB
+        db.create_all()
+        logger.info("✅ Test database tables initialized (SQLite in-memory)")
+
+def init_database_with_retry(max_retries=6, initial_delay=0.5):
+    """
+    Initialize database with exponential backoff retry logic.
+    
+    This handles transient connection issues during deployment, especially
+    with Supabase Session pooler which may briefly refuse connections during
+    cold starts or network blips.
+    
+    Retry schedule: 0.5s, 1s, 2s, 4s, 8s, 16s (total ~31.5s)
+    """
+    import time
+    
+    for attempt in range(max_retries):
+        try:
+            with app.app_context():
+                from src.models.agent_registry_db import AgentDB, TaskDB
+                db.create_all()
+            logger.info("✅ Database tables initialized successfully")
+            return
+        except Exception as e:
+            delay = initial_delay * (2 ** attempt)
+            is_last_attempt = (attempt == max_retries - 1)
+            
+            if is_last_attempt:
+                logger.critical(f"❌ FATAL: Failed to initialize database after {max_retries} attempts: {e}")
+                raise
+            else:
+                logger.warning(f"⚠️  Database initialization attempt {attempt + 1}/{max_retries} failed: {e}")
+                logger.info(f"🔄 Retrying in {delay}s...")
+                time.sleep(delay)
+
+if app.config.get('TESTING'):
+    init_test_database()
+    
+    @app.before_request
+    def ensure_tables():
+        """Safety net: Ensure agent_registry tables exist before each request in test mode"""
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        if 'agents' not in existing_tables or 'tasks' not in existing_tables:
+            from src.models.agent_registry_db import AgentDB, TaskDB
+            db.create_all()
+elif ENVIRONMENT == 'production':
+    validate_rate_limit_redis()
+    init_database_with_retry()
+else:
+    with app.app_context():
+        from src.models.agent_registry_db import AgentDB, TaskDB
+        db.create_all()
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -511,7 +766,20 @@ def generate_report():
             return Response(csv_data, mimetype='text/csv', 
                           headers={'Content-Disposition': f'attachment; filename=report_{report_type}_{time_range}.csv'})
         else:
-            return jsonify(report_data)
+            from dataclasses import asdict
+            report_dict = asdict(report_data)
+            
+            def serialize_datetime(obj):
+                if isinstance(obj, datetime.datetime):
+                    return obj.isoformat()
+                elif isinstance(obj, dict):
+                    return {k: serialize_datetime(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [serialize_datetime(item) for item in obj]
+                return obj
+            
+            report_dict = serialize_datetime(report_dict)
+            return jsonify(report_dict)
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -947,6 +1215,22 @@ def settings():
         return jsonify({"message": "Settings saved successfully", "data": data})
 
 if __name__ == '__main__':
+    try:
+        from src.utils.redis_client import check_redis_security
+        redis_security = check_redis_security()
+        
+        if redis_security['status'] == 'vulnerable':
+            logger.critical(f"⚠️ Redis Security Warning: {redis_security['message']}")
+            logger.critical(f"CVE-2025-49844 Risk: {redis_security['cve_2025_49844_risk']}")
+            for rec in redis_security.get('recommendations', []):
+                logger.warning(f"  - {rec}")
+        elif redis_security['status'] == 'secure':
+            logger.info(f"✅ Redis Security Check: {redis_security['message']}")
+        else:
+            logger.warning(f"⚠️ Redis Security Check: {redis_security['message']}")
+    except Exception as e:
+        logger.warning(f"Failed to check Redis security on startup: {e}")
+    
     port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_ENV') != 'production'
     app.run(host='0.0.0.0', port=port, debug=debug)

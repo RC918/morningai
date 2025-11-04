@@ -14,5 +14,9 @@ __pycache__/
 # Env
 .env
 .env.*
+!.env.example
 # Design caches
 *.sketchcache
+
+*storybook.log
+storybook-static

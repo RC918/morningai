@@ -1,0 +1,169 @@
+name: Verify Documentation Consistency
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'handoff/20250928/40_App/*/package.json'
+      - 'render.yaml'
+      - 'migrations/**'
+      - 'agents/*/migrations/**'
+      - 'handoff/20250928/40_App/api-backend/requirements.txt'
+  workflow_dispatch:
+
+jobs:
+  verify-system-state:
+    name: Verify Documentation vs Code Consistency
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Make verification script executable
+        run: chmod +x scripts/verify_system_state.sh
+      
+      - name: Run system state verification
+        id: verify
+        run: |
+          echo "Running verification script..."
+          ./scripts/verify_system_state.sh --verbose
+        continue-on-error: true
+      
+      - name: Check verification result
+        if: steps.verify.outcome == 'failure'
+        run: |
+          echo "::error::Documentation verification failed! Please ensure documentation matches code state."
+          echo "::error::Run './scripts/verify_system_state.sh --verbose' locally to see detailed errors."
+          exit 1
+      
+      - name: Post success comment
+        if: steps.verify.outcome == 'success' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Documentation Verification Passed**\n\nAll documentation claims have been verified against the actual code state.\n\n- React versions: ✓\n- pgvector implementation: ✓\n- Orchestrator architecture: ✓\n- URL mappings: ✓\n- Alembic status: ✓\n- Phase API modules: ✓\n- Dependencies: ✓\n- ADRs: ✓'
+            })
+
+  check-terminology:
+    name: Verify Terminology Consistency
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check URL mapping consistency
+        run: |
+          echo "Checking URL mapping consistency..."
+          
+          # Check that TERMINOLOGY.md exists
+          if [ ! -f "docs/TERMINOLOGY.md" ]; then
+            echo "::error::docs/TERMINOLOGY.md not found!"
+            exit 1
+          fi
+          
+          # Check that app.gm365.me is documented as Tenant Dashboard
+          if ! grep -q "app.gm365.me" docs/TERMINOLOGY.md; then
+            echo "::error::app.gm365.me not found in TERMINOLOGY.md"
+            exit 1
+          fi
+          
+          # Check that admin.gm365.me is documented as Owner Console
+          if ! grep -q "admin.gm365.me" docs/TERMINOLOGY.md; then
+            echo "::error::admin.gm365.me not found in TERMINOLOGY.md"
+            exit 1
+          fi
+          
+          echo "✓ URL mappings are consistent"
+      
+      - name: Check for outdated terminology
+        run: |
+          echo "Checking for outdated terminology..."
+          
+          # Check for old "frontend" references (should be "Tenant Dashboard" or "Owner Console")
+          OUTDATED_REFS=$(grep -r "frontend dashboard" docs/ --include="*.md" || true)
+          
+          if [ -n "$OUTDATED_REFS" ]; then
+            echo "::warning::Found potentially outdated 'frontend dashboard' references:"
+            echo "$OUTDATED_REFS"
+            echo "Consider using 'Tenant Dashboard' or 'Owner Console' instead."
+          fi
+          
+          echo "✓ Terminology check complete"
+
+  check-broken-links:
+    name: Check for Broken Links
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install lychee
+        run: |
+          curl -sL https://github.com/lycheeverse/lychee/releases/download/v0.15.1/lychee-v0.15.1-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv lychee /usr/local/bin/
+      
+      - name: Check links in documentation
+        run: |
+          echo "Checking for broken links in documentation..."
+          lychee --verbose --no-progress \
+            --exclude 'localhost' \
+            --exclude '127.0.0.1' \
+            --exclude 'example.com' \
+            --exclude 'vercel.app' \
+            --exclude 'render.com' \
+            --exclude 'supabase.co' \
+            --exclude 'upstash.io' \
+            --exclude 'sentry.io' \
+            --exclude 'github.com/RC918/morningai/pull' \
+            --exclude 'github.com/RC918/morningai/issues' \
+            --exclude 'app.devin.ai' \
+            'docs/**/*.md' \
+            'README.md' \
+            || true
+        continue-on-error: true
+      
+      - name: Report broken links
+        run: |
+          echo "::notice::Link check complete. Review output above for any broken links."
+
+  verify-test-documentation:
+    name: Verify Test Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check test statistics documentation
+        run: |
+          echo "Checking test statistics documentation..."
+          
+          if [ -f "docs/TEST_STATISTICS_EXPLANATION.md" ]; then
+            echo "✓ TEST_STATISTICS_EXPLANATION.md exists"
+            
+            # Check that it explains the three key numbers
+            if grep -q "487 tests collected" docs/TEST_STATISTICS_EXPLANATION.md && \
+               grep -q "926 tests passed" docs/TEST_STATISTICS_EXPLANATION.md && \
+               grep -q "23 passed" docs/TEST_STATISTICS_EXPLANATION.md; then
+              echo "✓ All three key test numbers are documented"
+            else
+              echo "::warning::TEST_STATISTICS_EXPLANATION.md may be missing some key numbers"
+            fi
+          else
+            echo "::warning::docs/TEST_STATISTICS_EXPLANATION.md not found"
+            echo "Consider creating this file to explain test statistics"
+          fi

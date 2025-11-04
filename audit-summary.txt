@@ -1,0 +1,7 @@
+PASS=19
+WARN=5
+FAIL=2
+TODO=0
+TOTAL=26
+MODE=relaxed
+NOTES=All 8 audit sections enabled. Running in relaxed mode.

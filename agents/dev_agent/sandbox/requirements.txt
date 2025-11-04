@@ -1,0 +1,7 @@
+aiohttp==3.9.1
+playwright==1.40.0
+requests==2.31.0
+pygit2==1.13.3
+gitpython==3.1.40
+tree-sitter==0.21.0
+python-lsp-server[all]==1.10.0

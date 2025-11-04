@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: Morning AI Governance API
+  description: |
+    API endpoints for agent governance, compliance monitoring, and audit logging.
+    
+    Design Decision: Split endpoints (Option C) with optional aggregator
+    - Separate endpoints avoid over-fetching and enable independent caching
+    - Each resource has its own query parameters and pagination
+    - /status endpoint provides dashboard-friendly aggregated view
+  version: 1.0.0
+
+servers:
+  - url: https://morningai-backend-v2.onrender.com/api/v1
+    description: Production
+  - url: http://localhost:5000/api/v1
+    description: Local Development
+
+paths:
+  /governance/agents:
+    get:
+      summary: List governance agents
+      description: Retrieve paginated list of agents with governance status
+      operationId: getGovernanceAgents
+      tags:
+        - Governance
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      agents:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Agent'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /governance/events:
+    get:
+      summary: List governance events
+      operationId: getGovernanceEvents
+      tags:
+        - Governance
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      events:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/GovernanceEvent'
+
+  /governance/violations:
+    get:
+      summary: List policy violations
+      operationId: getGovernanceViolations
+      tags:
+        - Governance
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      violations:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Violation'
+
+  /governance/statistics:
+    get:
+      summary: Get governance statistics
+      operationId: getGovernanceStatistics
+      tags:
+        - Governance
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GovernanceStatistics'
+
+  /governance/status:
+    get:
+      summary: Get governance dashboard status (aggregated)
+      description: Convenience endpoint for dashboard overview
+      operationId: getGovernanceStatus
+      tags:
+        - Governance
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      statistics:
+                        $ref: '#/components/schemas/GovernanceStatistics'
+                      agents:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Agent'
+                      events:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/GovernanceEvent'
+                      violations:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Violation'
+
+components:
+  schemas:
+    Agent:
+      type: object
+      properties:
+        agent_id:
+          type: string
+        agent_type:
+          type: string
+        status:
+          type: string
+        permission_level:
+          type: string
+        reputation_score:
+          type: number
+
+    GovernanceEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        action:
+          type: string
+        severity:
+          type: string
+
+    Violation:
+      type: object
+      properties:
+        id:
+          type: string
+        policy:
+          type: string
+        severity:
+          type: string
+        status:
+          type: string
+
+    GovernanceStatistics:
+      type: object
+      properties:
+        total_agents:
+          type: integer
+        active_agents:
+          type: integer
+        violations_24h:
+          type: integer
+        open_violations:
+          type: integer
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_items:
+          type: integer
+        total_pages:
+          type: integer
+
+security:
+  - cookieAuth: []

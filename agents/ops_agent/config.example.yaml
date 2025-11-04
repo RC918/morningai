@@ -1,0 +1,64 @@
+
+vercel:
+  token: "your-vercel-token"
+  team_id: "your-team-id"  # Optional
+  project_id: "your-project-id"
+
+notifications:
+  email:
+    mailtrap_token: "your-mailtrap-api-token"
+    default_recipient: "ops-alerts@yourcompany.com"
+  
+  smtp:
+    host: "smtp.gmail.com"
+    port: 587
+    user: "your-email@gmail.com"
+    password: "your-app-password"
+  
+  slack:
+    webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    default_channel: "#ops-alerts"
+  
+  webhook:
+    enabled: true
+
+monitoring:
+  cpu_threshold: 80.0
+  memory_threshold: 85.0
+  disk_threshold: 90.0
+  check_interval: 60  # seconds
+
+log_analysis:
+  retention_days: 30
+  error_pattern_threshold: 5
+  anomaly_detection:
+    enabled: true
+    sensitivity: 2.0  # Standard deviations
+
+alerts:
+  rules:
+    - name: "High CPU Usage"
+      condition: "cpu > 80%"
+      severity: "high"
+      channels: ["email", "slack"]
+      threshold: 80.0
+      enabled: true
+    
+    - name: "Memory Critical"
+      condition: "memory > 90%"
+      severity: "critical"
+      channels: ["email", "slack", "webhook"]
+      threshold: 90.0
+      enabled: true
+    
+    - name: "Deployment Failed"
+      condition: "deployment.state == ERROR"
+      severity: "critical"
+      channels: ["email", "slack"]
+      enabled: true
+    
+    - name: "Error Spike Detected"
+      condition: "error_rate_spike"
+      severity: "high"
+      channels: ["email", "slack"]
+      enabled: true

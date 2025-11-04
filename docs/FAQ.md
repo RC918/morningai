@@ -1,27 +1,74 @@
-# Frequently Asked Questions (FAQ)
+# System Architecture of MorningAI
 
-MorningAI is a comprehensive platform for documentation collection and analysis, focused on JavaScript tooling ecosystems.
+MorningAI employs a robust and scalable multi-tenant SaaS platform architecture designed to facilitate autonomous code generation, comprehensive FAQ generation, documentation management, and seamless multi-platform integration. This architecture leverages modern technologies across its frontend, backend, database, queue system, orchestration layer, AI engine, and deployment strategies to ensure high availability, scalability, and performance.
 
-Please refer to our [README](../README.md) for installation and setup instructions.
+## Overview
 
-- Frontend: React, Vite, TailwindCSS
-- Backend: Python, Flask
-- Orchestrator: LangGraph, Redis Queue, Supabase
+The system architecture of MorningAI is structured as follows:
 
-See our [CONTRIBUTING](CONTRIBUTING.md) guide for details.
+- **Frontend**: Developed with React and Vite for efficient bundling and optimized performance. Styling is managed with TailwindCSS for responsive design.
+- **Backend**: The server-side logic is handled by Python using the Flask framework. Gunicorn serves as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
+- **Database**: PostgreSQL is used for data storage, enhanced with Row Level Security (RLS) features provided by Supabase for data integrity and security.
+- **Queue System**: Redis Queue (RQ) is utilized for task queuing to manage background jobs effectively with worker heartbeat monitoring for operational reliability.
+- **Orchestration Layer**: LangGraph orchestrates agent workflows, enabling complex task management and autonomous operations within the platform.
+- **AI Engine**: OpenAI's GPT-4 powers the content generation capabilities of MorningAI, including code generation and FAQ/documentation creation.
+- **Deployment**: The entire infrastructure is deployed on Render.com with continuous integration/continuous deployment (CI/CD) practices in place to streamline updates and maintenance.
 
-## FAQ Entries
+### Code Examples
 
-### Q: How does the auto-merge workflow function?
-**A:** The auto-merge workflow automatically merges FAQ PRs that only modify `docs/FAQ.md` and have a trace-id in the title. It uses GitHub's native auto-merge feature which waits for all required CI checks to pass before merging. The workflow is triggered on `pull_request` events with types: opened, synchronize, and reopened.
+While direct code examples specific to system setup or configuration are too extensive to cover here comprehensively, below is a high-level example of initializing a Flask application which forms part of the backend setup:
 
-### Q: What was the circular dependency issue in PR #254?
-**A:** PR #254 introduced a "Wait for CI checks" step that caused the auto-merge workflow to wait for ALL checks including itself, creating an infinite deadlock. This was fixed in PR #255 by removing that step and relying on GitHub's native auto-merge mechanism which correctly excludes itself from the checks it waits for.
+```python
+from flask import Flask
+app = Flask(__name__)
 
-### Q: How can I verify the auto-merge fix is working?
-**A:** Create a PR that only modifies `docs/FAQ.md` with a trace-id in the title. The auto-merge workflow should complete within 5 minutes (not 19+ minutes like the broken version). Monitor the workflow in the Actions tab to confirm it doesn't get stuck in a "waiting" state.
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
+
+if __name__ == '__main__':
+    app.run()
+```
+
+This simple example demonstrates setting up a basic Flask application. In the context of MorningAI's backend architecture, additional configurations would be set up for integrating with Gunicorn, connecting to the PostgreSQL database via Supabase, and managing tasks through Redis Queue.
+
+### Related Documentation Links
+
+For more detailed information on each component of the system architecture:
+
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Vite: [https://vitejs.dev/guide/](https://vitejs.dev/guide/)
+- TailwindCSS: [https://tailwindcss.com/docs](https://tailwindcss.com/docs)
+- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- Gunicorn: [https://gunicorn.org/#docs](https://gunicorn.org/#docs)
+- PostgreSQL & Supabase: [https://supabase.com/docs](https://supabase.com/docs)
+- Redis Queue (RQ): [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- OpenAI GPT: [https://openai.com/api/](https://openai.com/api/)
+- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
+
+### Common Troubleshooting Tips
+
+**Issue**: Application not starting due to database connection errors.
+
+**Solution**: Verify database credentials in Supabase settings and ensure your environment variables in the backend service are correctly configured.
+
+**Issue**: Tasks not being processed by Redis Queue.
+
+**Solution**: Check that RQ workers are running and monitoring the correct Redis instance. Ensure heartbeat signals are received as expected by reviewing worker logs.
+
+**Issue**: Changes not reflected after deployment on Render.com.
+
+**Solution**: Confirm that your CI/CD pipeline successfully completed. Review build logs on Render.com for any errors during the build or deployment process.
+
+In conclusion, MorningAI's system architecture is designed with scalability and flexibility in mind, supporting a wide range of functionalities from code generation to real-time task orchestration. For developers working within this ecosystem, understanding each component's role and how they interact is crucial for leveraging the full capabilities of MorningAI.
 
 ---
-Generated by Orchestrator - Auto-merge Fix Verification
-Task: Test FAQ auto-merge workflow after circular dependency fix
-Trace ID: auto-merge-test-1760364102
+Generated by MorningAI Orchestrator using GPT-4
+
+---
+
+**Metadata**:
+- Task: What is the system architecture?
+- Trace ID: `783e73e9-0a1d-4770-ba31-139a2c9ec3dd`
+- Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
+- Repository: RC918/morningai

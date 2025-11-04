@@ -9,6 +9,8 @@ import asyncio
 import json
 import logging
 import time
+import os
+import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
@@ -19,6 +21,9 @@ from collections import defaultdict, deque
 import redis
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'handoff/20250928/40_App/api-backend/src'))
+from utils.redis_config import get_secure_redis_url
 
 # 配置日誌
 logging.basicConfig(
@@ -429,8 +434,10 @@ class OODALoop:
 class MetaAgentDecisionHub:
     """Meta-Agent 決策中樞"""
     
-    def __init__(self, redis_url: str = "redis://localhost:6379", db_url: str = None):
+    def __init__(self, redis_url: Optional[str] = None, db_url: str = None):
         try:
+            if not redis_url:
+                redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
             self.redis = redis.from_url(redis_url)
             self.db = None  # 暫時不使用數據庫連接
             self.ooda_loop = OODALoop(self.redis, self.db)

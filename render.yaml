@@ -2,21 +2,25 @@ services:
   - type: web
     name: morningai-backend-v2
     env: python
-    runtime: python-3.12
+    runtime: python
     buildCommand: |
       cd handoff/20250928/40_App/api-backend &&
       pip install --upgrade pip &&
       pip install -r requirements.txt &&
       cd ../orchestrator &&
+      pip install -r requirements.txt &&
       pip install -e .
-    startCommand: cd handoff/20250928/40_App/api-backend/src && gunicorn --bind 0.0.0.0:$PORT --timeout 120 --workers 1 main:app
+    startCommand: cd handoff/20250928/40_App/api-backend && gunicorn -c gunicorn.conf.py src.main:app
+    healthCheckPath: /health
     envVars:
       - key: FLASK_ENV
+        value: production
+      - key: ENVIRONMENT
         value: production
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///database/app.db
+        sync: false
       - key: REDIS_URL
         sync: false
       - key: SENTRY_DSN
@@ -41,11 +45,17 @@ services:
         value: false
       - key: RQ_QUEUE_NAME
         value: orchestrator
+      - key: USE_LANGGRAPH
+        value: false
+      - key: APP_VERSION
+        value: "8.0.0"
+      - key: CORS_ORIGINS
+        value: http://localhost:5173,http://localhost:5174,https://morningai.vercel.app,https://*.vercel.app
 
   - type: worker
     name: morningai-agent-worker
     env: python
-    runtime: python-3.12
+    runtime: python
     buildCommand: |
       cd handoff/20250928/40_App/orchestrator &&
       pip install --upgrade pip &&
@@ -79,3 +89,107 @@ services:
         sync: false
       - key: SANDBOX_ENABLED
         value: false
+      - key: ORCHESTRATOR_TEST_MODE
+        value: false
+
+  - type: web
+    name: braintrust-processor
+    runtime: docker
+    dockerfilePath: ./monitoring/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: COST_ALERT_THRESHOLD
+        value: "10.0"
+      - key: LATENCY_ALERT_THRESHOLD
+        value: "500.0"
+    autoDeploy: true
+
+  - type: web
+    name: morningai-orchestrator-api
+    runtime: docker
+    dockerfilePath: ./orchestrator/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: ORCHESTRATOR_JWT_SECRET
+        generateValue: true
+      - key: ORCHESTRATOR_API_KEYS
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ORCHESTRATOR_CORS_ORIGINS
+        value: http://localhost:5173,http://localhost:5174,https://morningai.vercel.app,https://*.vercel.app
+      - key: ORCHESTRATOR_RATE_LIMIT_TASKS
+        value: "10"
+      - key: ORCHESTRATOR_RATE_LIMIT_EVENTS
+        value: "20"
+      - key: ORCHESTRATOR_RATE_LIMIT_APPROVALS
+        value: "5"
+      - key: ORCHESTRATOR_RATE_LIMIT_STATS
+        value: "30"
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: ORCHESTRATOR_QUEUE_PREFIX
+        value: orchestrator
+      - key: ORCHESTRATOR_TASK_TTL
+        value: "86400"
+      - key: ORCHESTRATOR_APPROVAL_TIMEOUT
+        value: "86400"
+      - key: ORCHESTRATOR_APPROVAL_HISTORY_TTL
+        value: "2592000"
+      - key: ORCHESTRATOR_MAX_APPROVAL_HISTORY
+        value: "1000"
+    autoDeploy: true
+
+  - type: web
+    name: morningai-worker-dashboard
+    env: python
+    runtime: python
+    buildCommand: |
+      pip install --upgrade pip &&
+      pip install -r agents/ops_agent/dashboard/requirements.txt
+    startCommand: cd agents/ops_agent/dashboard && python app.py
+    healthCheckPath: /api/health
+    envVars:
+      - key: REDIS_URL
+        sync: false
+      - key: DASHBOARD_PORT
+        value: "8080"
+      - key: DASHBOARD_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://morningai-worker-dashboard.onrender.com
+    autoDeploy: true
+
+  - type: worker
+    name: morningai-ops-agent-worker
+    env: python
+    runtime: python
+    buildCommand: |
+      pip install --upgrade pip &&
+      pip install -r agents/ops_agent/requirements.txt
+    startCommand: cd agents/ops_agent && python worker.py
+    envVars:
+      - key: REDIS_URL
+        sync: false
+      - key: VERCEL_TOKEN
+        sync: false
+      - key: VERCEL_TEAM_ID
+        sync: false
+      - key: ORCHESTRATOR_API_URL
+        value: https://morningai-orchestrator-api.onrender.com
+      - key: ORCHESTRATOR_API_KEY
+        sync: false
+      - key: POLL_INTERVAL
+        value: "5"
+      - key: ENVIRONMENT
+        value: production
+    autoDeploy: true

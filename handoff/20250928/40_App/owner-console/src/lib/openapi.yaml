@@ -1,0 +1,304 @@
+openapi: 3.0.3
+info:
+  title: Morning AI API
+  description: Comprehensive AI Agent Ecosystem API
+  version: 1.0.0
+  contact:
+    name: Morning AI Team
+    email: api@morningai.com
+
+servers:
+  - url: http://localhost:5001/api
+    description: Local development server
+  - url: https://morningai-backend-v2.onrender.com/api
+    description: Production server
+
+paths:
+  /auth/verify:
+    get:
+      summary: Verify authentication token
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      summary: User login
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /billing/plans:
+    get:
+      summary: Get billing plans
+      tags: [Billing]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of billing plans
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BillingPlan'
+
+  /billing/checkout/session:
+    post:
+      summary: Create checkout session
+      tags: [Billing]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutSessionRequest'
+      responses:
+        '201':
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutSessionResponse'
+
+  /settings:
+    get:
+      summary: Get user settings
+      tags: [Settings]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettings'
+    
+    post:
+      summary: Save user settings
+      tags: [Settings]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSettings'
+      responses:
+        '200':
+          description: Settings saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /dashboard/data:
+    get:
+      summary: Get dashboard data
+      tags: [Dashboard]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardData'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        avatar:
+          type: string
+          format: uri
+        role:
+          type: string
+        tenant_id:
+          type: string
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+        expires_in:
+          type: integer
+
+    BillingPlan:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+        interval:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+
+    CheckoutSessionRequest:
+      type: object
+      required:
+        - plan_id
+      properties:
+        plan_id:
+          type: string
+        success_url:
+          type: string
+        cancel_url:
+          type: string
+
+    CheckoutSessionResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+        checkout_url:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
+    UserSettings:
+      type: object
+      properties:
+        profile:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+            avatar:
+              type: string
+              format: uri
+            role:
+              type: string
+        preferences:
+          type: object
+          properties:
+            language:
+              type: string
+            theme:
+              type: string
+            notifications:
+              type: object
+              properties:
+                email:
+                  type: boolean
+                desktop:
+                  type: boolean
+                aiSuggestions:
+                  type: boolean
+
+    DashboardData:
+      type: object
+      properties:
+        metrics:
+          type: object
+        charts:
+          type: array
+          items:
+            type: object
+        alerts:
+          type: array
+          items:
+            type: object
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            request_id:
+              type: string
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        request_id:
+          type: string

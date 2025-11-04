@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import logging
+import ssl
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
@@ -10,6 +11,7 @@ from redis.backoff import ExponentialBackoff
 from rq import Queue
 from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
+from src.utils.redis_config import get_secure_redis_url
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from redis_queue.worker import run_orchestrator_task
 
@@ -42,21 +44,34 @@ class FAQRequest(BaseModel):
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
-redis_client = Redis.from_url(
-    os.getenv("REDIS_URL", "redis://localhost:6379/0"), 
-    decode_responses=True,
-    socket_connect_timeout=5,
-    socket_timeout=30,
-    retry=retry,
-    retry_on_timeout=True
-)
-redis_client_rq = Redis.from_url(
-    os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-    socket_connect_timeout=5,
-    socket_timeout=30,
-    retry=retry,
-    retry_on_timeout=True
-)
+
+redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+
+redis_kwargs = {
+    "decode_responses": True,
+    "socket_connect_timeout": 5,
+    "socket_timeout": 30,
+    "retry": retry,
+    "retry_on_timeout": True
+}
+
+if redis_url.startswith("rediss://"):
+    redis_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+
+redis_client = Redis.from_url(redis_url, **redis_kwargs)
+
+redis_kwargs_rq = {
+    "socket_connect_timeout": 5,
+    "socket_timeout": 30,
+    "retry": retry,
+    "retry_on_timeout": True
+}
+
+if redis_url.startswith("rediss://"):
+    redis_kwargs_rq["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+
+redis_client_rq = Redis.from_url(redis_url, **redis_kwargs_rq)
+
 RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
 q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
@@ -69,8 +84,9 @@ def faq_method_not_allowed():
     }), 405, {"Allow": "POST"}
 
 @bp.route("/faq", methods=["POST"])
+@jwt_required
 def create_faq_task():
-    """Create FAQ generation task"""
+    """Create FAQ generation task (Phase 3: tenant-aware)"""
     try:
         payload = request.get_json(silent=True) or {}
         validated_request = FAQRequest(**payload)
@@ -89,10 +105,58 @@ def create_faq_task():
         repo = os.getenv("GITHUB_REPO", "RC918/morningai")
         task_id = str(uuid.uuid4())
         
+        user_id = getattr(request, 'user_id', None)
+        
+        if not user_id:
+            logger.error(f"No user_id found in authenticated request for task {task_id}")
+            return jsonify({
+                "error": {
+                    "code": "authentication_error",
+                    "message": "User ID not found in authenticated request. Please re-authenticate."
+                }
+            }), 401
+        
+        try:
+            from orchestrator.persistence.db_writer import fetch_user_tenant_id
+            tenant_id = fetch_user_tenant_id(user_id)
+            
+            if not tenant_id:
+                logger.error(f"User {user_id} not assigned to any tenant for task {task_id}")
+                return jsonify({
+                    "error": {
+                        "code": "tenant_not_found",
+                        "message": "User is not assigned to any organization. Please contact support."
+                    }
+                }), 403
+            
+            logger.info(f"Task {task_id} assigned to tenant={tenant_id} for user={user_id}")
+        except ImportError as e:
+            logger.warning(f"orchestrator module not available (testing environment?): {e}")
+            tenant_id = "00000000-0000-0000-0000-000000000001"
+        except ValueError as e:
+            logger.error(f"User {user_id} not in user_profiles: {e}")
+            return jsonify({
+                "error": {
+                    "code": "tenant_not_found",
+                    "message": "User is not assigned to any organization. Please contact support."
+                }
+            }), 403
+        except Exception as e:
+            logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
+            if sentry_sdk:
+                sentry_sdk.capture_exception(e)
+            return jsonify({
+                "error": {
+                    "code": "tenant_resolution_failed",
+                    "message": "Unable to resolve organization membership. Please try again or contact support."
+                }
+            }), 500
+        
         if sentry_sdk:
             sentry_sdk.set_tag("trace_id", task_id)
             sentry_sdk.set_tag("task_id", task_id)
             sentry_sdk.set_tag("operation", "faq_create")
+            sentry_sdk.set_tag("tenant_id", tenant_id)
         
         job = q.enqueue(
             run_orchestrator_task,
@@ -123,7 +187,8 @@ def create_faq_task():
                 task_id=task_id,
                 trace_id=task_id,
                 question=question,
-                job_id=job.id
+                job_id=job.id,
+                tenant_id=tenant_id
             )
             
             if sentry_sdk:
@@ -246,6 +311,29 @@ def get_task_status(task_id):
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
+        if redis_client is None or redis_client_rq is None:
+            logger.error("Redis clients not initialized")
+            return jsonify({
+                "error": "Redis connection not available",
+                "queue_length": 0,
+                "recent_job_ids": [],
+                "sample_task": None,
+                "timestamp": datetime.utcnow().isoformat()
+            }), 503
+        
+        try:
+            redis_client.ping()
+            redis_client_rq.ping()
+        except (RedisConnectionError, AttributeError, Exception) as conn_err:
+            logger.error(f"Redis connection test failed: {conn_err}")
+            return jsonify({
+                "error": "Redis connection unavailable",
+                "queue_length": 0,
+                "recent_job_ids": [],
+                "sample_task": None,
+                "timestamp": datetime.utcnow().isoformat()
+            }), 503
+        
         queue_length = redis_client_rq.llen(f"rq:queue:{RQ_QUEUE_NAME}")
         
         recent_jobs = redis_client_rq.lrange(f"rq:queue:{RQ_QUEUE_NAME}", 0, 4)
@@ -280,6 +368,19 @@ def debug_queue_status():
             "sample_task": sample_task,
             "timestamp": datetime.utcnow().isoformat()
         }), 200
+    except RedisConnectionError as e:
+        logger.error(f"Redis connection error in debug endpoint: {e}")
+        if sentry_sdk:
+            sentry_sdk.capture_exception(e)
+        return jsonify({
+            "error": "Redis connection error",
+            "queue_length": 0,
+            "recent_job_ids": [],
+            "sample_task": None,
+            "timestamp": datetime.utcnow().isoformat()
+        }), 503
     except Exception as e:
         logger.error(f"Failed to get debug status: {e}")
+        if sentry_sdk:
+            sentry_sdk.capture_exception(e)
         return jsonify({"error": str(e)}), 500

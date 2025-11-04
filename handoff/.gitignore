@@ -1,0 +1,70 @@
+# Handoff-specific build artifacts and dependencies
+# These patterns are scoped to the handoff directory to avoid accidentally
+# ignoring legitimate directories elsewhere in the repo
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+.playwright/
+
+# Caching
+.cache/
+.parcel-cache/
+.turbo/
+
+# Lighthouse CI
+.lhci/
+.lhci-diff.md
+
+# Storybook
+storybook-static/
+*storybook.log
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp

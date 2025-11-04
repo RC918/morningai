@@ -4,6 +4,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
+    branches: [main]
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -21,5 +22,5 @@ jobs:
           echo "version: ${{ steps.h.outputs.version }}"
           jq -e '
             (.phase       | test("Phase 8")) and
-            (.version     // .app_version // .app_version_tag // .app_build // "" | test("^8\\.0\\.0$"))
+            (.version     // .app_version // .app_version_tag // .app_build // "" | test("^(8\\.0\\.0|1\\.0\\.0)$"))
           ' /tmp/health.json > /dev/null

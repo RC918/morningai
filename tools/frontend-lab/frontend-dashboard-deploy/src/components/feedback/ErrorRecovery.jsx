@@ -1,0 +1,51 @@
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { getErrorMessage } from '@/lib/errorMessages'
+import * as Icons from 'lucide-react'
+import { motion } from 'framer-motion'
+
+export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }) => {
+  const errorInfo = getErrorMessage(error)
+  const Icon = Icons[errorInfo.icon] || Icons.AlertCircle
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={className}
+    >
+      <Card className="max-w-md mx-auto">
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Icon className="w-8 h-8 text-red-600" />
+          </div>
+          <CardTitle>{errorInfo.title}</CardTitle>
+          <CardDescription>{errorInfo.description}</CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <div className="flex gap-3 justify-center">
+            {onRetry && (
+              <Button onClick={onRetry}>
+                {errorInfo.action}
+              </Button>
+            )}
+            {onDismiss && (
+              <Button variant="outline" onClick={onDismiss}>
+                關閉
+              </Button>
+            )}
+          </div>
+          
+          {error?.requestId && (
+            <p className="text-xs text-gray-400 mt-4 text-center">
+              錯誤 ID: {error.requestId}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+}
+
+export default ErrorRecovery

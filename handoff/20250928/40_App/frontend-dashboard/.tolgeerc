@@ -1,0 +1,8 @@
+{
+  "projectId": 23882,
+  "apiUrl": "https://app.tolgee.io",
+  "format": "JSON_I18NEXT",
+  "pull": {
+    "path": "./src/i18n/locales"
+  }
+}

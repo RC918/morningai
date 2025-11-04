@@ -1,0 +1,32 @@
+# Gitleaks Ignore File
+# Add false positives here to prevent Gitleaks from flagging them
+#
+# ⚠️ SECURITY WARNING: Be SPECIFIC with ignores to avoid missing real secrets
+# Format: Use exact fingerprints from Gitleaks output
+# Example: /path/file.ext:rule-id:line-number
+#
+# AVOID broad wildcards like *.md:*:* which can miss real secrets in docs
+
+# Specific documentation examples with placeholder tokens
+# (Review and update these periodically)
+OPTIMIZATION_COMPLETION_REPORT.md:curl-auth-header:134
+OPTIMIZATION_COMPLETION_REPORT.md:curl-auth-header:138
+PR562_CRITICAL_FIXES_GUIDE.md:curl-auth-header:362
+SUPABASE_RLS_SECURITY_AUDIT_REPORT.md:curl-auth-header:220
+
+# Specific workflow files with known placeholder credentials
+.github/workflows/frontend.yml:stripe-access-token:28
+.github/workflows/frontend.yml:stripe-access-token:31
+
+# ⚠️ REVIEW REQUIRED: Add specific line numbers for each false positive
+# DO NOT use broad wildcards like *.md:*:* or **/tests/**:*:*
+# Instead, add specific files and line numbers as they are identified
+
+# Example of CORRECT format (specific):
+# docs/API_GUIDE.md:generic-api-key:42
+# tests/test_auth.py:generic-api-key:156
+
+# Example of INCORRECT format (too broad - DO NOT USE):
+# *.md:*:*
+# **/tests/**:*:*
+46e072ddb4d4175868ad1b6e108b9107426630c9:docs/SECRET_SCANNING_GUIDE.md:generic-api-key:153

@@ -1,0 +1,285 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "governance": "Agent Governance",
+    "tenants": "Tenant Management",
+    "monitoring": "System Monitoring",
+    "settings": "Platform Settings",
+    "logout": "Logout"
+  },
+  "dashboard": {
+    "title": "Platform Overview",
+    "subtitle": "Monitor your MorningAI platform at a glance",
+    "stats": {
+      "totalTenants": "Total Tenants",
+      "activeAgents": "Active Agents",
+      "monthlyCost": "Monthly Cost",
+      "systemHealth": "System Health",
+      "thisMonth": "this month",
+      "acrossAllTenants": "Across all tenants",
+      "platformWideUsage": "Platform-wide usage",
+      "allSystemsOperational": "All systems operational"
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "subtitle": "Latest platform events and changes",
+      "newTenant": "New tenant registered",
+      "agentDeployed": "Agent deployed",
+      "maintenanceScheduled": "System maintenance scheduled"
+    },
+    "systemStatus": {
+      "title": "System Status",
+      "subtitle": "Infrastructure health and performance",
+      "apiBackend": "API Backend",
+      "database": "Database",
+      "redisCache": "Redis Cache",
+      "workerNodes": "Worker Nodes",
+      "healthy": "Healthy"
+    }
+  },
+  "governance": {
+    "title": "Agent Governance",
+    "subtitle": "Monitor agent reputation, permissions, and compliance",
+    "refresh": "Refresh",
+    "stats": {
+      "totalAgents": "Total Agents",
+      "avgReputation": "Avg Reputation",
+      "dailyCost": "Daily Cost",
+      "violations": "Violations"
+    },
+    "tabs": {
+      "agents": "Agents",
+      "events": "Events",
+      "violations": "Violations"
+    },
+    "agents": {
+      "title": "Agent Reputation Leaderboard",
+      "subtitle": "Agents ranked by reputation score and permission level",
+      "noAgents": "No agents found",
+      "reputation": "Reputation"
+    },
+    "events": {
+      "title": "Recent Events",
+      "subtitle": "Reputation events and agent activities",
+      "noEvents": "No events found",
+      "delta": "Delta",
+      "trace": "Trace"
+    },
+    "violations": {
+      "title": "Policy Violations",
+      "subtitle": "Security and compliance violations",
+      "noViolations": "No violations detected",
+      "severity": "Severity",
+      "resolved": "Resolved"
+    },
+    "permissions": {
+      "prodFull": "Prod Full",
+      "prodLowRisk": "Prod Low Risk",
+      "staging": "Staging",
+      "sandbox": "Sandbox"
+    }
+  },
+  "tenants": {
+    "title": "Tenant Management",
+    "subtitle": "Manage tenant accounts and permissions",
+    "addTenant": "Add Tenant",
+    "activeTenants": "Active Tenants",
+    "allTenants": "All registered tenant organizations",
+    "agents": "agents",
+    "users": "users",
+    "active": "active",
+    "suspended": "suspended"
+  },
+  "monitoring": {
+    "title": "System Monitoring",
+    "subtitle": "Monitor system health and performance metrics",
+    "apiServices": "API Services",
+    "database": "Database",
+    "workers": "Workers",
+    "uptime": "Uptime",
+    "avgResponse": "Avg Response",
+    "connections": "Connections",
+    "queryTime": "Query Time",
+    "active": "Active",
+    "queueSize": "Queue Size"
+  },
+  "settings": {
+    "title": "Platform Settings",
+    "subtitle": "Configure platform-wide settings and policies",
+    "general": {
+      "title": "General Settings",
+      "subtitle": "Platform-wide configuration options",
+      "platformName": "Platform Name",
+      "supportEmail": "Support Email",
+      "saveChanges": "Save Changes"
+    },
+    "security": {
+      "title": "Security Policies",
+      "subtitle": "Configure security and compliance settings",
+      "requireMFA": "Require MFA",
+      "requireMFADesc": "Enforce multi-factor authentication for all users",
+      "sessionTimeout": "Session Timeout",
+      "sessionTimeoutDesc": "Auto-logout after inactivity",
+      "30minutes": "30 minutes",
+      "1hour": "1 hour",
+      "4hours": "4 hours"
+    },
+    "2fa": {
+      "title": "Two-Factor Authentication",
+      "subtitle": "Secure your account with an additional layer of protection",
+      "loading": "Loading...",
+      "featureDisabled": {
+        "title": "Feature Unavailable",
+        "description": "Two-factor authentication is currently unavailable in this environment. Please contact your administrator for more information."
+      },
+      "status": {
+        "label": "Status",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "enabledOn": "Enabled on {{date}}"
+      },
+      "actions": {
+        "enable": "Enable 2FA",
+        "disable": "Disable 2FA",
+        "regenerate": "Regenerate"
+      },
+      "backupCodes": {
+        "title": "Backup Codes",
+        "remaining": "{{count}} codes remaining",
+        "saveTitle": "Save Your Backup Codes",
+        "saveDescription": "Store these codes in a safe place. Each code can only be used once.",
+        "copied": "Copied!",
+        "copyAll": "Copy All",
+        "download": "Download",
+        "important": "Important:",
+        "warningMessage": "These codes will not be shown again. Make sure to save them before continuing.",
+        "confirmSaved": "I've Saved My Backup Codes",
+        "lowWarning": "You have {{count}} backup codes remaining. Consider regenerating them.",
+        "regenerateTitle": "Regenerate Backup Codes",
+        "regenerateDescription": "This will invalidate your current backup codes and generate new ones.",
+        "regenerateWarning": "Warning:",
+        "regenerateWarningMessage": "Your old backup codes will no longer work after regeneration.",
+        "regenerateButton": "Regenerate Codes",
+        "regenerating": "Regenerating...",
+        "passwordLabel": "Password",
+        "passwordHelper": "Confirm your password to regenerate backup codes"
+      },
+      "disable": {
+        "title": "Disable Two-Factor Authentication",
+        "description": "This will remove 2FA protection from your account. You can re-enable it at any time.",
+        "warning": "Warning:",
+        "warningMessage": "Disabling 2FA will make your account less secure.",
+        "confirmButton": "Disable 2FA",
+        "cancel": "Cancel",
+        "disabling": "Disabling...",
+        "passwordLabel": "Password",
+        "totpCodeLabel": "Current TOTP Code",
+        "totpCodePlaceholder": "000000",
+        "totpCodeHelper": "Enter the 6-digit code from your authenticator app"
+      },
+      "cardDescription": "Add an extra layer of security to your account",
+      "setup": {
+        "qrAlt": "Two-factor authentication QR code",
+        "qrCodeDescription": "Scan this QR code with your authenticator app",
+        "manualEntry": "Or enter this code manually:",
+        "recommendedApps": "Recommended authenticator apps:",
+        "title": "Enable Two-Factor Authentication",
+        "subtitle": "Follow the steps below to secure your account",
+        "passwordPrompt": "First, confirm your password to continue",
+        "qrScanned": "I've Scanned the QR Code",
+        "verifyPrompt": "Enter the 6-digit code from your authenticator app",
+        "verificationCodeLabel": "Verification Code",
+        "verifying": "Verifying...",
+        "continue": "Continue",
+        "verify": "Verify",
+        "back": "Back",
+        "cancel": "Cancel",
+        "successTitle": "2FA Enabled Successfully!",
+        "successDescription": "Your account is now protected with two-factor authentication.",
+        "apps": {
+          "google": "Google Authenticator",
+          "microsoft": "Microsoft Authenticator",
+          "authy": "Authy",
+          "onepassword": "1Password"
+        }
+      },
+      "trustedDevices": {
+        "title": "Trusted Devices",
+        "description": "Manage devices that are trusted for 30 days without requiring 2FA",
+        "noDevices": "No trusted devices",
+        "noDevicesHelp": "When you check 'Remember this device' during login, it will appear here",
+        "lastUsed": "Last used",
+        "expires": "Expires",
+        "expiringSoon": "expiring soon",
+        "note": "Trusted devices will automatically expire after 30 days. You can revoke access at any time."
+      }
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "refresh": "Refresh"
+  },
+  "auth": {
+    "login": {
+      "title": "Owner Console Login",
+      "description": "Enter your credentials to access the platform",
+      "username": "Username",
+      "password": "Password",
+      "usernamePlaceholder": "Enter your username",
+      "passwordPlaceholder": "Enter your password",
+      "loginButton": "Login",
+      "loggingIn": "Logging in...",
+      "loginFailed": "Login failed",
+      "loginError": "Invalid username or password",
+      "devAccount": "Development Account"
+    },
+    "logout": "Logout",
+    "email": "Email",
+    "forgotPassword": "Forgot password?",
+    "rememberMe": "Remember me",
+    "loginSuccess": "Login successful",
+    "logoutSuccess": "Logout successful",
+    "2fa": {
+      "verifyTitle": "Two-Factor Authentication",
+      "verifyDescription": "Enter the 6-digit code from your authenticator app",
+      "verifyBackupDescription": "Enter one of your backup codes",
+      "totpCodeLabel": "Authentication Code",
+      "totpDigitLabel": "Digit {{index}}",
+      "totpCodeHelp": "Enter the 6-digit code from your authenticator app",
+      "backupCodeLabel": "Backup Code",
+      "backupCodePlaceholder": "XXXX-XXXX-XXXX-XXXX",
+      "backupCodeHelp": "Enter your backup code in the format XXXX-XXXX-XXXX-XXXX",
+      "rememberDevice": "Remember this device for 30 days",
+      "useBackupCode": "Use backup code instead",
+      "useTotpCode": "Use authenticator code",
+      "verify": "Verify",
+      "verifying": "Verifying...",
+      "cancel": "Cancel",
+      "invalidCode": "Invalid code. {{attempts}} attempts remaining.",
+      "invalidBackupCode": "Invalid backup code. {{attempts}} attempts remaining.",
+      "tooManyAttempts": "Too many failed attempts. Please try again later."
+    }
+  },
+  "app": {
+    "name": "Morning AI",
+    "tagline": "Owner Console",
+    "copyright": "© 2025 Morning AI. All rights reserved.",
+    "motto": "Empowering the future with AI"
+  },
+  "sidebar": {
+    "user": {
+      "defaultName": "Owner",
+      "defaultRole": "Platform Owner"
+    }
+  }
+}

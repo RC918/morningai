@@ -1,0 +1,638 @@
+#
+#
+#
+
+version: "1.0.0"
+description: "MorningAI Platform Metrics Schema"
+
+
+categories:
+  agent:
+    description: "Metrics related to AI agent performance and behavior"
+    metrics:
+      - name: agent.task.duration
+        type: histogram
+        unit: seconds
+        description: "Time taken to complete a task"
+        labels:
+          - agent_id
+          - agent_type
+          - task_type
+          - status
+        buckets: [0.1, 0.5, 1, 5, 10, 30, 60, 300, 600]
+        
+      - name: agent.task.count
+        type: counter
+        unit: count
+        description: "Total number of tasks processed"
+        labels:
+          - agent_id
+          - agent_type
+          - task_type
+          - status
+        
+      - name: agent.reputation.score
+        type: gauge
+        unit: score
+        description: "Current agent reputation score (0-999)"
+        labels:
+          - agent_id
+          - agent_type
+        
+      - name: agent.health.status
+        type: gauge
+        unit: boolean
+        description: "Agent health status (1=healthy, 0=unhealthy)"
+        labels:
+          - agent_id
+          - agent_type
+        
+      - name: agent.heartbeat.latency
+        type: histogram
+        unit: milliseconds
+        description: "Time since last heartbeat"
+        labels:
+          - agent_id
+          - agent_type
+        buckets: [100, 500, 1000, 5000, 10000, 30000, 60000, 120000]
+        
+      - name: agent.error.count
+        type: counter
+        unit: count
+        description: "Number of agent errors"
+        labels:
+          - agent_id
+          - agent_type
+          - error_type
+        
+      - name: agent.cost.total
+        type: counter
+        unit: dollars
+        description: "Total cost incurred by agent (LLM API calls)"
+        labels:
+          - agent_id
+          - agent_type
+          - model
+        
+      - name: agent.pr.merged
+        type: counter
+        unit: count
+        description: "Number of PRs merged"
+        labels:
+          - agent_id
+          - agent_type
+        
+      - name: agent.pr.reverted
+        type: counter
+        unit: count
+        description: "Number of PRs reverted"
+        labels:
+          - agent_id
+          - agent_type
+        
+      - name: agent.test.pass_rate
+        type: gauge
+        unit: percentage
+        description: "Test pass rate (0.0-1.0)"
+        labels:
+          - agent_id
+          - agent_type
+
+  api:
+    description: "Metrics related to API performance and usage"
+    metrics:
+      - name: api.request.duration
+        type: histogram
+        unit: seconds
+        description: "API request duration"
+        labels:
+          - method
+          - endpoint
+          - status_code
+          - tenant_id
+        buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]
+        
+      - name: api.request.count
+        type: counter
+        unit: count
+        description: "Total number of API requests"
+        labels:
+          - method
+          - endpoint
+          - status_code
+          - tenant_id
+        
+      - name: api.request.size
+        type: histogram
+        unit: bytes
+        description: "API request body size"
+        labels:
+          - method
+          - endpoint
+        buckets: [100, 1000, 10000, 100000, 1000000, 10000000]
+        
+      - name: api.response.size
+        type: histogram
+        unit: bytes
+        description: "API response body size"
+        labels:
+          - method
+          - endpoint
+        buckets: [100, 1000, 10000, 100000, 1000000, 10000000]
+        
+      - name: api.error.count
+        type: counter
+        unit: count
+        description: "Number of API errors"
+        labels:
+          - method
+          - endpoint
+          - error_code
+          - tenant_id
+        
+      - name: api.rate_limit.exceeded
+        type: counter
+        unit: count
+        description: "Number of rate limit violations"
+        labels:
+          - endpoint
+          - tenant_id
+          - user_id
+
+  database:
+    description: "Metrics related to database performance"
+    metrics:
+      - name: database.query.duration
+        type: histogram
+        unit: seconds
+        description: "Database query execution time"
+        labels:
+          - operation
+          - table
+        buckets: [0.001, 0.01, 0.05, 0.1, 0.5, 1, 5, 10]
+        
+      - name: database.query.count
+        type: counter
+        unit: count
+        description: "Total number of database queries"
+        labels:
+          - operation
+          - table
+        
+      - name: database.connection.pool.size
+        type: gauge
+        unit: count
+        description: "Current database connection pool size"
+        labels:
+          - pool_name
+        
+      - name: database.connection.pool.active
+        type: gauge
+        unit: count
+        description: "Number of active database connections"
+        labels:
+          - pool_name
+        
+      - name: database.error.count
+        type: counter
+        unit: count
+        description: "Number of database errors"
+        labels:
+          - operation
+          - error_type
+
+  queue:
+    description: "Metrics related to task queue (Redis Queue)"
+    metrics:
+      - name: queue.task.enqueued
+        type: counter
+        unit: count
+        description: "Number of tasks enqueued"
+        labels:
+          - queue_name
+          - task_type
+        
+      - name: queue.task.dequeued
+        type: counter
+        unit: count
+        description: "Number of tasks dequeued"
+        labels:
+          - queue_name
+          - task_type
+        
+      - name: queue.task.completed
+        type: counter
+        unit: count
+        description: "Number of tasks completed"
+        labels:
+          - queue_name
+          - task_type
+        
+      - name: queue.task.failed
+        type: counter
+        unit: count
+        description: "Number of tasks failed"
+        labels:
+          - queue_name
+          - task_type
+        
+      - name: queue.depth
+        type: gauge
+        unit: count
+        description: "Current queue depth"
+        labels:
+          - queue_name
+        
+      - name: queue.worker.count
+        type: gauge
+        unit: count
+        description: "Number of active workers"
+        labels:
+          - queue_name
+        
+      - name: queue.task.wait_time
+        type: histogram
+        unit: seconds
+        description: "Time task spent waiting in queue"
+        labels:
+          - queue_name
+          - task_type
+        buckets: [1, 5, 10, 30, 60, 300, 600, 1800, 3600]
+
+  system:
+    description: "Metrics related to system resources"
+    metrics:
+      - name: system.cpu.usage
+        type: gauge
+        unit: percentage
+        description: "CPU usage percentage"
+        labels:
+          - service
+          - instance
+        
+      - name: system.memory.usage
+        type: gauge
+        unit: bytes
+        description: "Memory usage in bytes"
+        labels:
+          - service
+          - instance
+        
+      - name: system.memory.usage_percentage
+        type: gauge
+        unit: percentage
+        description: "Memory usage percentage"
+        labels:
+          - service
+          - instance
+        
+      - name: system.disk.usage
+        type: gauge
+        unit: bytes
+        description: "Disk usage in bytes"
+        labels:
+          - service
+          - instance
+          - mount_point
+        
+      - name: system.network.bytes_sent
+        type: counter
+        unit: bytes
+        description: "Total bytes sent over network"
+        labels:
+          - service
+          - instance
+        
+      - name: system.network.bytes_received
+        type: counter
+        unit: bytes
+        description: "Total bytes received over network"
+        labels:
+          - service
+          - instance
+
+  business:
+    description: "Metrics related to business KPIs"
+    metrics:
+      - name: business.user.active
+        type: gauge
+        unit: count
+        description: "Number of active users"
+        labels:
+          - tenant_id
+          - time_window
+        
+      - name: business.tenant.count
+        type: gauge
+        unit: count
+        description: "Total number of tenants"
+        labels:
+          - plan_tier
+        
+      - name: business.revenue.mrr
+        type: gauge
+        unit: dollars
+        description: "Monthly Recurring Revenue"
+        labels:
+          - tenant_id
+          - plan_tier
+        
+      - name: business.cost.total
+        type: counter
+        unit: dollars
+        description: "Total operational costs"
+        labels:
+          - cost_category
+          - tenant_id
+        
+      - name: business.conversion.rate
+        type: gauge
+        unit: percentage
+        description: "Conversion rate (trial to paid)"
+        labels:
+          - plan_tier
+
+  frontend:
+    description: "Metrics related to frontend performance"
+    metrics:
+      - name: frontend.lcp
+        type: histogram
+        unit: seconds
+        description: "Largest Contentful Paint"
+        labels:
+          - page
+          - tenant_id
+        buckets: [0.5, 1, 1.5, 2, 2.5, 3, 4, 5]
+        
+      - name: frontend.fid
+        type: histogram
+        unit: milliseconds
+        description: "First Input Delay"
+        labels:
+          - page
+          - tenant_id
+        buckets: [10, 50, 100, 200, 300, 500, 1000]
+        
+      - name: frontend.cls
+        type: histogram
+        unit: score
+        description: "Cumulative Layout Shift"
+        labels:
+          - page
+          - tenant_id
+        buckets: [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5]
+        
+      - name: frontend.ttfb
+        type: histogram
+        unit: milliseconds
+        description: "Time to First Byte"
+        labels:
+          - page
+          - tenant_id
+        buckets: [100, 200, 300, 500, 800, 1000, 1500, 2000]
+        
+      - name: frontend.error.count
+        type: counter
+        unit: count
+        description: "Number of frontend errors"
+        labels:
+          - error_type
+          - page
+          - tenant_id
+
+
+sla:
+  - name: api_response_time
+    description: "95th percentile API response time must be < 500ms"
+    metric: api.request.duration
+    threshold: 0.5
+    percentile: 95
+    window: 5m
+    
+  - name: api_availability
+    description: "API availability must be > 99.9%"
+    metric: api.request.count
+    success_rate: 0.999
+    window: 1h
+    
+  - name: agent_task_success_rate
+    description: "Agent task success rate must be > 85%"
+    metric: agent.task.count
+    success_rate: 0.85
+    window: 1h
+    
+  - name: database_query_performance
+    description: "95th percentile database query time must be < 100ms"
+    metric: database.query.duration
+    threshold: 0.1
+    percentile: 95
+    window: 5m
+    
+  - name: queue_processing_time
+    description: "95th percentile queue wait time must be < 60s"
+    metric: queue.task.wait_time
+    threshold: 60
+    percentile: 95
+    window: 5m
+
+
+alerts:
+  - name: agent_down
+    severity: critical
+    description: "Agent has not sent heartbeat in 2 minutes"
+    condition: "agent.heartbeat.latency > 120000"
+    window: 2m
+    notification_channels:
+      - slack
+      - pagerduty
+      - email
+    
+  - name: api_error_rate_high
+    severity: critical
+    description: "API error rate exceeds 5%"
+    condition: "rate(api.error.count) / rate(api.request.count) > 0.05"
+    window: 5m
+    notification_channels:
+      - slack
+      - pagerduty
+      - email
+    
+  - name: database_connection_pool_exhausted
+    severity: critical
+    description: "Database connection pool is exhausted"
+    condition: "database.connection.pool.active / database.connection.pool.size > 0.95"
+    window: 1m
+    notification_channels:
+      - slack
+      - pagerduty
+      - email
+  
+  - name: agent_reputation_low
+    severity: warning
+    description: "Agent reputation score below 90"
+    condition: "agent.reputation.score < 90"
+    window: 5m
+    notification_channels:
+      - slack
+      - email
+    
+  - name: queue_depth_high
+    severity: warning
+    description: "Queue depth exceeds 100 tasks"
+    condition: "queue.depth > 100"
+    window: 5m
+    notification_channels:
+      - slack
+      - email
+    
+  - name: api_response_time_slow
+    severity: warning
+    description: "API response time p95 exceeds 1s"
+    condition: "histogram_quantile(0.95, api.request.duration) > 1"
+    window: 5m
+    notification_channels:
+      - slack
+      - email
+  
+  - name: high_cost_agent
+    severity: info
+    description: "Agent cost exceeds $10/hour"
+    condition: "rate(agent.cost.total[1h]) > 10"
+    window: 1h
+    notification_channels:
+      - slack
+
+
+retention:
+  high_resolution:
+    duration: 24h
+    metrics:
+      - api.request.duration
+      - database.query.duration
+      - agent.heartbeat.latency
+  
+  medium_resolution:
+    duration: 7d
+    metrics:
+      - agent.task.count
+      - api.request.count
+      - queue.depth
+  
+  low_resolution:
+    duration: 90d
+    metrics:
+      - business.revenue.mrr
+      - business.user.active
+      - agent.reputation.score
+  
+  archive:
+    duration: 2y
+    metrics:
+      - business.revenue.mrr
+      - business.tenant.count
+
+
+dashboards:
+  - name: agent_performance
+    description: "Real-time agent performance metrics"
+    panels:
+      - title: "Agent Task Duration"
+        metric: agent.task.duration
+        visualization: histogram
+        
+      - title: "Agent Reputation Scores"
+        metric: agent.reputation.score
+        visualization: gauge
+        
+      - title: "Agent Task Success Rate"
+        metric: agent.task.count
+        visualization: timeseries
+        filters:
+          - status: completed
+          - status: failed
+        
+      - title: "Agent Cost by Type"
+        metric: agent.cost.total
+        visualization: pie_chart
+        group_by: agent_type
+  
+  - name: api_performance
+    description: "API performance and usage metrics"
+    panels:
+      - title: "API Request Rate"
+        metric: api.request.count
+        visualization: timeseries
+        
+      - title: "API Response Time (p50, p95, p99)"
+        metric: api.request.duration
+        visualization: timeseries
+        percentiles: [50, 95, 99]
+        
+      - title: "API Error Rate"
+        metric: api.error.count
+        visualization: timeseries
+        
+      - title: "Top Endpoints by Traffic"
+        metric: api.request.count
+        visualization: table
+        group_by: endpoint
+        sort: desc
+        limit: 10
+  
+  - name: system_health
+    description: "Overall system health and resource usage"
+    panels:
+      - title: "CPU Usage"
+        metric: system.cpu.usage
+        visualization: timeseries
+        
+      - title: "Memory Usage"
+        metric: system.memory.usage_percentage
+        visualization: timeseries
+        
+      - title: "Queue Depth"
+        metric: queue.depth
+        visualization: timeseries
+        
+      - title: "Database Connection Pool"
+        metric: database.connection.pool.active
+        visualization: gauge
+  
+  - name: business_metrics
+    description: "Business KPIs and revenue metrics"
+    panels:
+      - title: "Monthly Recurring Revenue"
+        metric: business.revenue.mrr
+        visualization: timeseries
+        
+      - title: "Active Users"
+        metric: business.user.active
+        visualization: timeseries
+        
+      - title: "Tenant Count by Plan"
+        metric: business.tenant.count
+        visualization: bar_chart
+        group_by: plan_tier
+        
+      - title: "Conversion Rate"
+        metric: business.conversion.rate
+        visualization: gauge
+
+
+integrations:
+  sentry:
+    enabled: true
+    dsn: "${SENTRY_DSN}"
+    environment: "${ENVIRONMENT}"
+    release: "${APP_VERSION}"
+    traces_sample_rate: 1.0
+    
+  datadog:
+    enabled: false
+    api_key: "${DATADOG_API_KEY}"
+    site: "datadoghq.com"
+    
+  prometheus:
+    enabled: false
+    port: 9090
+    path: "/metrics"

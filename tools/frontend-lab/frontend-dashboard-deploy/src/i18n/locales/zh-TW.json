@@ -1,0 +1,293 @@
+{
+  "app": {
+    "name": "Morning AI",
+    "tagline": "智能決策系統管理平台",
+    "copyright": "© 2024 Morning AI. 版權所有",
+    "motto": "智能決策，自主學習，持續優化"
+  },
+  "auth": {
+    "login": {
+      "title": "登錄到系統",
+      "description": "請輸入您的憑證以訪問管理儀表板",
+      "username": "用戶名",
+      "password": "密碼",
+      "usernamePlaceholder": "請輸入用戶名",
+      "passwordPlaceholder": "請輸入密碼",
+      "loginButton": "登錄",
+      "loggingIn": "登錄中...",
+      "loginFailed": "登錄失敗，請檢查用戶名和密碼",
+      "loginError": "登錄失敗：用戶名或密碼錯誤",
+      "devAccount": "開發環境測試帳號"
+    }
+  },
+  "landing": {
+    "nav": {
+      "login": "登入",
+      "getStarted": "開始使用"
+    },
+    "hero": {
+      "ariaLabel": "主視覺區塊",
+      "badge": "全新推出 Morning AI",
+      "title": {
+        "line1": "智能決策",
+        "line2": "管理系統"
+      },
+      "subtitle": "透過 AI 驅動的洞察和自動化決策，賦能您的業務。體驗智能營運的未來。",
+      "cta": {
+        "primary": "開始使用",
+        "secondary": "了解更多"
+      },
+      "features": {
+        "ai": {
+          "title": "AI 驅動",
+          "description": "先進的機器學習演算法，實現智能決策"
+        },
+        "analytics": {
+          "title": "即時分析",
+          "description": "即時監控和分析您的業務指標"
+        },
+        "security": {
+          "title": "企業級安全",
+          "description": "銀行級安全保障，端到端加密"
+        },
+        "performance": {
+          "title": "高效能",
+          "description": "極速處理與優化"
+        }
+      }
+    },
+    "sso": {
+      "title": "開始使用 Morning AI",
+      "subtitle": "使用您偏好的帳號登入平台",
+      "google": "使用 Google 繼續",
+      "apple": "使用 Apple 繼續",
+      "github": "使用 GitHub 繼續",
+      "or": "或",
+      "emailLogin": "使用電子郵件登入",
+      "terms": "繼續即表示您同意我們的服務條款和隱私政策"
+    },
+    "features": {
+      "title": "為什麼選擇 Morning AI？",
+      "subtitle": "強大的功能，幫助您更快做出更好的決策",
+      "realtime": {
+        "title": "即時監控",
+        "description": "透過即時儀表板追蹤您的業務指標和 KPI"
+      },
+      "intelligent": {
+        "title": "智能自動化",
+        "description": "讓 AI 處理日常決策，您專注於策略規劃"
+      },
+      "secure": {
+        "title": "企業級安全",
+        "description": "您的資料受到業界領先的安全標準保護"
+      },
+      "scalable": {
+        "title": "彈性擴展",
+        "description": "從新創到企業，隨著您的業務成長"
+      },
+      "collaborative": {
+        "title": "團隊協作",
+        "description": "內建協作工具，無縫團隊合作"
+      },
+      "insights": {
+        "title": "可行動洞察",
+        "description": "獲得數據驅動的建議，優化您的營運"
+      }
+    }
+  },
+  "dashboard": {
+    "title": "自助儀表板",
+    "description": "可自訂的系統監控與任務追蹤",
+    "customize": "自訂儀表板",
+    "finishEditing": "完成編輯",
+    "resetLayout": "重置為預設布局",
+    "editInstructions": "拖拽組件重新排列，點擊垃圾桶圖標刪除組件，或添加新的組件",
+    "addWidget": "添加組件",
+    "selectWidget": "選擇組件",
+    "removeWidget": "移除小工具"
+  },
+  "reportCenter": {
+    "title": "報表中心",
+    "description": "生成和管理系統報表"
+  },
+  "metrics": {
+    "cpuUsage": "CPU 使用率",
+    "memoryUsage": "內存使用率",
+    "responseTime": "響應時間",
+    "errorRate": "錯誤率",
+    "activeStrategies": "活躍策略",
+    "pendingApprovals": "待審批",
+    "costToday": "今日成本",
+    "costSaved": "節省成本",
+    "performanceTrend": "性能趨勢",
+    "performanceDescription": "過去6小時的系統性能指標",
+    "responseTimeTrend": "響應時間趨勢",
+    "responseTimeDescription": "系統響應時間變化"
+  },
+  "decisions": {
+    "title": "最近決策",
+    "description": "AI系統最近執行的決策和策略",
+    "status": {
+      "executed": "已執行",
+      "pending": "待審批",
+      "failed": "失敗"
+    },
+    "confidence": "信心度"
+  },
+  "loading": {
+    "default": "載入中...",
+    "processing": "處理中...",
+    "pleaseWait": "請稍候，系統正在處理您的請求..."
+  },
+  "empty": {
+    "noData": "暫無資料",
+    "noDataDescription": "目前沒有可顯示的資料，請稍後再試或新增資料。",
+    "noSearchResults": "找不到相關結果",
+    "noSearchResultsDescription": "請嘗試使用不同的關鍵字或調整搜尋條件。",
+    "error": "發生錯誤",
+    "errorDescription": "抱歉，系統遇到問題。請稍後再試或聯繫支援團隊。",
+    "success": "操作成功",
+    "successDescription": "您的操作已成功完成。",
+    "premiumFeature": "進階功能",
+    "premiumFeatureDescription": "此功能需要升級至專業版才能使用。"
+  },
+  "actions": {
+    "getStarted": "開始使用",
+    "learnMore": "了解更多",
+    "upgrade": "立即升級",
+    "viewPlans": "了解方案",
+    "save": "儲存",
+    "cancel": "取消",
+    "confirm": "確認",
+    "delete": "刪除",
+    "edit": "編輯",
+    "add": "新增",
+    "remove": "移除",
+    "close": "關閉",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "finish": "完成",
+    "retry": "重試",
+    "refresh": "重新整理"
+  },
+  "common": {
+    "yes": "是",
+    "no": "否",
+    "ok": "確定",
+    "search": "搜尋",
+    "filter": "篩選",
+    "sort": "排序",
+    "export": "匯出",
+    "import": "匯入",
+    "settings": "設定",
+    "help": "說明",
+    "about": "關於",
+    "logout": "登出",
+    "profile": "個人資料",
+    "notifications": "通知",
+    "language": "語言"
+  },
+  "settings": {
+    "title": "系統設定",
+    "description": "管理您的帳號與系統偏好設定",
+    "tabs": {
+      "profile": "個人資料",
+      "preferences": "偏好設定",
+      "notifications": "通知",
+      "security": "安全性"
+    },
+    "profile": {
+      "title": "個人資料",
+      "description": "管理您的個人資訊",
+      "avatar": "更換頭像",
+      "avatarHint": "JPG、PNG 或 GIF，最大 2MB",
+      "name": "姓名",
+      "email": "電子郵件",
+      "role": "帳號角色",
+      "saveChanges": "儲存變更",
+      "saving": "儲存中..."
+    },
+    "preferences": {
+      "title": "介面偏好",
+      "description": "自訂您的使用體驗",
+      "language": "語言",
+      "theme": "主題",
+      "themeLight": "淺色",
+      "themeDark": "深色",
+      "themeAuto": "自動"
+    },
+    "notifications": {
+      "title": "通知設定",
+      "description": "管理您希望接收的通知",
+      "email": "電子郵件通知",
+      "emailDescription": "接收重要更新的電子郵件",
+      "desktop": "桌面通知",
+      "desktopDescription": "在瀏覽器中顯示即時通知",
+      "aiSuggestions": "AI 建議通知",
+      "aiSuggestionsDescription": "接收 AI 的優化建議"
+    },
+    "security": {
+      "title": "安全性設定",
+      "description": "保護您的帳號安全",
+      "currentPassword": "當前密碼",
+      "newPassword": "新密碼",
+      "confirmPassword": "確認新密碼",
+      "twoFactor": "雙因素驗證 (2FA)",
+      "twoFactorDescription": "為您的帳號增加額外安全層",
+      "twoFactorEnabled": "已啟用",
+      "updatePassword": "更新密碼",
+      "updating": "更新中..."
+    }
+  },
+  "checkout": {
+    "title": "選擇您的方案",
+    "description": "升級到 Morning AI Pro，解鎖更多強大功能",
+    "useMockData": "使用測試資料",
+    "mockDataDescription": "切換使用測試資料或真實 API 資料",
+    "paymentMethods": "付款方式",
+    "paymentMethodsDescription": "選擇您偏好的付款方式",
+    "orderSummary": "訂單摘要",
+    "plan": "方案",
+    "price": "價格",
+    "perMonth": "/月",
+    "discountCode": "優惠代碼",
+    "discountPlaceholder": "輸入優惠代碼",
+    "apply": "套用",
+    "applyDiscount": "套用優惠代碼",
+    "availableDiscount": "可用優惠",
+    "total": "總計",
+    "secureCheckout": "安全結帳",
+    "secureCheckoutDescription": "進行安全結帳流程",
+    "sslProtection": "您的付款資訊受到 256 位元 SSL 加密保護",
+    "checkoutFailed": "結帳失敗，請稍後再試",
+    "mostPopular": "最受歡迎",
+    "comingSoon": "即將推出",
+    "features": {
+      "starter": {
+        "basic": "基礎 AI 助手功能",
+        "queries": "每月 100 次查詢",
+        "support": "標準客服支援",
+        "reports": "基礎報表功能"
+      },
+      "pro": {
+        "advanced": "進階 AI 助手功能",
+        "queries": "每月 1000 次查詢",
+        "support": "優先客服支援",
+        "reports": "進階報表與分析",
+        "workflows": "自訂工作流程",
+        "api": "API 存取權限"
+      },
+      "enterprise": {
+        "complete": "完整 AI 助手功能",
+        "queries": "無限制查詢",
+        "support": "專屬客服經理",
+        "reports": "完整報表與分析",
+        "workflows": "自訂工作流程",
+        "api": "完整 API 存取",
+        "sso": "單點登入 (SSO)",
+        "deployment": "專屬部署選項"
+      }
+    }
+  }
+}

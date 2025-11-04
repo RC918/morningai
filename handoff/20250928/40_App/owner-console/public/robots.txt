@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /checkout/success
+Disallow: /checkout/cancel
+
+Sitemap: https://gm365.me/sitemap.xml

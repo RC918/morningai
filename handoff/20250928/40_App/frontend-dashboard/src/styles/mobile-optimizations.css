@@ -1,0 +1,178 @@
+/* Mobile Typography Optimizations - Issue #469 */
+
+/* Base font size adjustments for mobile */
+@media (max-width: 640px) {
+  /* Reduce base font sizes for better mobile readability */
+  html {
+    font-size: 14px;
+  }
+  
+  /* Headings - reduce size on mobile */
+  h1, .text-3xl, .text-4xl, .text-5xl {
+    font-size: 1.75rem !important; /* 24.5px */
+    line-height: 2rem !important;
+  }
+  
+  h2, .text-2xl {
+    font-size: 1.5rem !important; /* 21px */
+    line-height: 1.75rem !important;
+  }
+  
+  h3, .text-xl {
+    font-size: 1.25rem !important; /* 17.5px */
+    line-height: 1.5rem !important;
+  }
+  
+  h4, .text-lg {
+    font-size: 1.125rem !important; /* 15.75px */
+    line-height: 1.5rem !important;
+  }
+  
+  /* Body text */
+  p, .text-base {
+    font-size: 1rem !important; /* 14px */
+    line-height: 1.5rem !important;
+  }
+  
+  .text-sm {
+    font-size: 0.875rem !important; /* 12.25px */
+    line-height: 1.25rem !important;
+  }
+  
+  .text-xs {
+    font-size: 0.75rem !important; /* 10.5px */
+    line-height: 1rem !important;
+  }
+}
+
+/* Touch Target Optimizations - Minimum 44x44px per WCAG */
+@media (max-width: 640px) {
+  /* Buttons */
+  button, .btn, [role="button"] {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 0.75rem 1rem !important;
+  }
+  
+  /* Small buttons should still meet minimum touch target */
+  button.btn-sm, .btn-sm {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 0.625rem 0.875rem !important;
+  }
+  
+  /* Icon-only buttons */
+  button:has(svg:only-child), [role="button"]:has(svg:only-child) {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 0.625rem !important;
+  }
+  
+  /* Links */
+  a {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.5rem 0 !important;
+  }
+  
+  /* Form inputs */
+  input, select, textarea {
+    min-height: 44px !important;
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 0.75rem !important;
+  }
+  
+  /* Checkboxes and radio buttons */
+  input[type="checkbox"], input[type="radio"] {
+    min-width: 24px !important;
+    min-height: 24px !important;
+    margin: 10px !important; /* Adds padding around for easier touch */
+  }
+  
+  /* Navigation items */
+  nav a, nav button {
+    min-height: 48px !important;
+    padding: 0.875rem 1rem !important;
+  }
+  
+  /* Card actions */
+  .card button, .card a {
+    min-height: 44px !important;
+    margin: 0.25rem !important;
+  }
+  
+  /* Dropdown items */
+  [role="menuitem"], [role="option"] {
+    min-height: 44px !important;
+    padding: 0.75rem 1rem !important;
+  }
+  
+  /* Tab buttons */
+  [role="tab"] {
+    min-height: 48px !important;
+    padding: 0.875rem 1.25rem !important;
+  }
+}
+
+/* Spacing adjustments for mobile */
+@media (max-width: 640px) {
+  /* Reduce padding in containers */
+  .p-6 {
+    padding: 1rem !important;
+  }
+  
+  .p-4 {
+    padding: 0.75rem !important;
+  }
+  
+  /* Increase spacing between interactive elements */
+  .space-x-2 > * + * {
+    margin-left: 0.75rem !important;
+  }
+  
+  .space-y-2 > * + * {
+    margin-top: 0.75rem !important;
+  }
+  
+  /* Grid gaps */
+  .gap-2 {
+    gap: 0.75rem !important;
+  }
+  
+  .gap-4 {
+    gap: 1rem !important;
+  }
+}
+
+/* Improve readability on mobile */
+@media (max-width: 640px) {
+  /* Increase line height for better readability */
+  body {
+    line-height: 1.6 !important;
+  }
+  
+  /* Ensure sufficient contrast */
+  .text-gray-600 {
+    color: rgb(75 85 99) !important; /* Darker gray for better contrast */
+  }
+  
+  .text-gray-500 {
+    color: rgb(107 114 128) !important;
+  }
+}
+
+/* Prevent text from being too wide on mobile */
+@media (max-width: 640px) {
+  p, .prose {
+    max-width: 100% !important;
+  }
+}
+
+/* Ensure modals and dialogs are mobile-friendly */
+@media (max-width: 640px) {
+  [role="dialog"], .modal {
+    max-width: calc(100vw - 2rem) !important;
+    margin: 1rem !important;
+  }
+}
