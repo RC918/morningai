@@ -83,6 +83,85 @@ export interface DashboardData {
   alerts?: DashboardDataAlertsItem[];
 }
 
+export type MonitoringDashboardDataSystemHealthOverallStatus = typeof MonitoringDashboardDataSystemHealthOverallStatus[keyof typeof MonitoringDashboardDataSystemHealthOverallStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const MonitoringDashboardDataSystemHealthOverallStatus = {
+  healthy: 'healthy',
+  degraded: 'degraded',
+  unhealthy: 'unhealthy',
+} as const;
+
+export type MonitoringDashboardDataSystemHealth = {
+  overall_status?: MonitoringDashboardDataSystemHealthOverallStatus;
+  error_rate?: number;
+  avg_latency?: number;
+  open_circuit_breakers?: number;
+};
+
+export type MonitoringDashboardDataMetrics = {
+  api_request_rate?: MetricValue;
+  agent_task_success_rate?: MetricValue;
+  queue_depth?: MetricValue;
+  active_agents?: MetricValue;
+};
+
+export interface MonitoringDashboardData {
+  system_health?: MonitoringDashboardDataSystemHealth;
+  metrics?: MonitoringDashboardDataMetrics;
+  agents?: AgentMetrics[];
+  alerts?: AlertItem[];
+}
+
+export type MetricValueTrend = typeof MetricValueTrend[keyof typeof MetricValueTrend];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const MetricValueTrend = {
+  up: 'up',
+  down: 'down',
+  stable: 'stable',
+  unknown: 'unknown',
+} as const;
+
+export interface MetricValue {
+  current: number;
+  previous?: number;
+  unit: string;
+  trend?: MetricValueTrend;
+  available?: boolean;
+  source?: string;
+  error?: string;
+}
+
+export interface AgentMetrics {
+  agent_id: string;
+  agent_type: string;
+  status: string;
+  reputation_score: number;
+  task_success_rate: number;
+  active_tasks: number;
+  computed?: boolean;
+}
+
+export type AlertItemSeverity = typeof AlertItemSeverity[keyof typeof AlertItemSeverity];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const AlertItemSeverity = {
+  critical: 'critical',
+  warning: 'warning',
+  info: 'info',
+} as const;
+
+export interface AlertItem {
+  id: string;
+  severity: AlertItemSeverity;
+  message: string;
+  timestamp: string;
+}
+
 export type ErrorError = {
   code?: string;
   message?: string;
@@ -337,7 +416,7 @@ export const postSettings = async (userSettings: UserSettings, options?: Request
 
 
 /**
- * @summary Get dashboard data
+ * @summary Get dashboard data (legacy)
  */
 export type getDashboardDataResponse200 = {
   data: DashboardData
@@ -362,6 +441,54 @@ export const getGetDashboardDataUrl = () => {
 export const getDashboardData = async ( options?: RequestInit): Promise<getDashboardDataResponse> => {
   
   return apiClient<getDashboardDataResponse>(getGetDashboardDataUrl(),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+/**
+ * @summary Get monitoring dashboard with real metrics
+ */
+export type getPhase7MonitoringDashboardResponse200 = {
+  data: MonitoringDashboardData
+  status: 200
+}
+
+export type getPhase7MonitoringDashboardResponse500 = {
+  data: Error
+  status: 500
+}
+
+export type getPhase7MonitoringDashboardResponse503 = {
+  data: Error
+  status: 503
+}
+    
+export type getPhase7MonitoringDashboardResponseSuccess = (getPhase7MonitoringDashboardResponse200) & {
+  headers: Headers;
+};
+export type getPhase7MonitoringDashboardResponseError = (getPhase7MonitoringDashboardResponse500 | getPhase7MonitoringDashboardResponse503) & {
+  headers: Headers;
+};
+
+export type getPhase7MonitoringDashboardResponse = (getPhase7MonitoringDashboardResponseSuccess | getPhase7MonitoringDashboardResponseError)
+
+export const getGetPhase7MonitoringDashboardUrl = () => {
+
+
+  
+
+  return `/phase7/monitoring/dashboard`
+}
+
+export const getPhase7MonitoringDashboard = async ( options?: RequestInit): Promise<getPhase7MonitoringDashboardResponse> => {
+  
+  return apiClient<getPhase7MonitoringDashboardResponse>(getGetPhase7MonitoringDashboardUrl(),
   {      
     ...options,
     method: 'GET'
