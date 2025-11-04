@@ -6,8 +6,8 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
-  GetApiGovernanceEventsParams,
-  GetApiGovernanceViolationsParams,
+  GetGovernanceEventsParams,
+  GetGovernanceViolationsParams,
   GovernanceError,
   GovernanceEventsResponse,
   GovernanceStatistics,
@@ -20,31 +20,31 @@ import { apiClient } from '../../lib/api-client';
  * Returns reputation events with optional filtering by agent
  * @summary Get reputation events history
  */
-export type getApiGovernanceEventsResponse200 = {
+export type getGovernanceEventsResponse200 = {
   data: GovernanceEventsResponse
   status: 200
 }
 
-export type getApiGovernanceEventsResponse500 = {
+export type getGovernanceEventsResponse500 = {
   data: GovernanceError
   status: 500
 }
 
-export type getApiGovernanceEventsResponse503 = {
+export type getGovernanceEventsResponse503 = {
   data: GovernanceError
   status: 503
 }
     
-export type getApiGovernanceEventsResponseSuccess = (getApiGovernanceEventsResponse200) & {
+export type getGovernanceEventsResponseSuccess = (getGovernanceEventsResponse200) & {
   headers: Headers;
 };
-export type getApiGovernanceEventsResponseError = (getApiGovernanceEventsResponse500 | getApiGovernanceEventsResponse503) & {
+export type getGovernanceEventsResponseError = (getGovernanceEventsResponse500 | getGovernanceEventsResponse503) & {
   headers: Headers;
 };
 
-export type getApiGovernanceEventsResponse = (getApiGovernanceEventsResponseSuccess | getApiGovernanceEventsResponseError)
+export type getGovernanceEventsResponse = (getGovernanceEventsResponseSuccess | getGovernanceEventsResponseError)
 
-export const getGetApiGovernanceEventsUrl = (params?: GetApiGovernanceEventsParams,) => {
+export const getGetGovernanceEventsUrl = (params?: GetGovernanceEventsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -59,9 +59,9 @@ export const getGetApiGovernanceEventsUrl = (params?: GetApiGovernanceEventsPara
   return stringifiedParams.length > 0 ? `/api/governance/events?${stringifiedParams}` : `/api/governance/events`
 }
 
-export const getApiGovernanceEvents = async (params?: GetApiGovernanceEventsParams, options?: RequestInit): Promise<getApiGovernanceEventsResponse> => {
+export const getGovernanceEvents = async (params?: GetGovernanceEventsParams, options?: RequestInit): Promise<getGovernanceEventsResponse> => {
   
-  return apiClient<getApiGovernanceEventsResponse>(getGetApiGovernanceEventsUrl(params),
+  return apiClient<getGovernanceEventsResponse>(getGetGovernanceEventsUrl(params),
   {      
     ...options,
     method: 'GET'
@@ -75,31 +75,31 @@ export const getApiGovernanceEvents = async (params?: GetApiGovernanceEventsPara
  * Returns policy violations with optional filtering by agent
  * @summary Get policy violation records
  */
-export type getApiGovernanceViolationsResponse200 = {
+export type getGovernanceViolationsResponse200 = {
   data: GovernanceViolationsResponse
   status: 200
 }
 
-export type getApiGovernanceViolationsResponse500 = {
+export type getGovernanceViolationsResponse500 = {
   data: GovernanceError
   status: 500
 }
 
-export type getApiGovernanceViolationsResponse503 = {
+export type getGovernanceViolationsResponse503 = {
   data: GovernanceError
   status: 503
 }
     
-export type getApiGovernanceViolationsResponseSuccess = (getApiGovernanceViolationsResponse200) & {
+export type getGovernanceViolationsResponseSuccess = (getGovernanceViolationsResponse200) & {
   headers: Headers;
 };
-export type getApiGovernanceViolationsResponseError = (getApiGovernanceViolationsResponse500 | getApiGovernanceViolationsResponse503) & {
+export type getGovernanceViolationsResponseError = (getGovernanceViolationsResponse500 | getGovernanceViolationsResponse503) & {
   headers: Headers;
 };
 
-export type getApiGovernanceViolationsResponse = (getApiGovernanceViolationsResponseSuccess | getApiGovernanceViolationsResponseError)
+export type getGovernanceViolationsResponse = (getGovernanceViolationsResponseSuccess | getGovernanceViolationsResponseError)
 
-export const getGetApiGovernanceViolationsUrl = (params?: GetApiGovernanceViolationsParams,) => {
+export const getGetGovernanceViolationsUrl = (params?: GetGovernanceViolationsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -114,9 +114,9 @@ export const getGetApiGovernanceViolationsUrl = (params?: GetApiGovernanceViolat
   return stringifiedParams.length > 0 ? `/api/governance/violations?${stringifiedParams}` : `/api/governance/violations`
 }
 
-export const getApiGovernanceViolations = async (params?: GetApiGovernanceViolationsParams, options?: RequestInit): Promise<getApiGovernanceViolationsResponse> => {
+export const getGovernanceViolations = async (params?: GetGovernanceViolationsParams, options?: RequestInit): Promise<getGovernanceViolationsResponse> => {
   
-  return apiClient<getApiGovernanceViolationsResponse>(getGetApiGovernanceViolationsUrl(params),
+  return apiClient<getGovernanceViolationsResponse>(getGetGovernanceViolationsUrl(params),
   {      
     ...options,
     method: 'GET'
@@ -130,31 +130,31 @@ export const getApiGovernanceViolations = async (params?: GetApiGovernanceViolat
  * Returns reputation and cost statistics
  * @summary Get overall governance system statistics
  */
-export type getApiGovernanceStatisticsResponse200 = {
+export type getGovernanceStatisticsResponse200 = {
   data: GovernanceStatistics
   status: 200
 }
 
-export type getApiGovernanceStatisticsResponse500 = {
+export type getGovernanceStatisticsResponse500 = {
   data: GovernanceError
   status: 500
 }
 
-export type getApiGovernanceStatisticsResponse503 = {
+export type getGovernanceStatisticsResponse503 = {
   data: GovernanceError
   status: 503
 }
     
-export type getApiGovernanceStatisticsResponseSuccess = (getApiGovernanceStatisticsResponse200) & {
+export type getGovernanceStatisticsResponseSuccess = (getGovernanceStatisticsResponse200) & {
   headers: Headers;
 };
-export type getApiGovernanceStatisticsResponseError = (getApiGovernanceStatisticsResponse500 | getApiGovernanceStatisticsResponse503) & {
+export type getGovernanceStatisticsResponseError = (getGovernanceStatisticsResponse500 | getGovernanceStatisticsResponse503) & {
   headers: Headers;
 };
 
-export type getApiGovernanceStatisticsResponse = (getApiGovernanceStatisticsResponseSuccess | getApiGovernanceStatisticsResponseError)
+export type getGovernanceStatisticsResponse = (getGovernanceStatisticsResponseSuccess | getGovernanceStatisticsResponseError)
 
-export const getGetApiGovernanceStatisticsUrl = () => {
+export const getGetGovernanceStatisticsUrl = () => {
 
 
   
@@ -162,9 +162,9 @@ export const getGetApiGovernanceStatisticsUrl = () => {
   return `/api/governance/statistics`
 }
 
-export const getApiGovernanceStatistics = async ( options?: RequestInit): Promise<getApiGovernanceStatisticsResponse> => {
+export const getGovernanceStatistics = async ( options?: RequestInit): Promise<getGovernanceStatisticsResponse> => {
   
-  return apiClient<getApiGovernanceStatisticsResponse>(getGetApiGovernanceStatisticsUrl(),
+  return apiClient<getGovernanceStatisticsResponse>(getGetGovernanceStatisticsUrl(),
   {      
     ...options,
     method: 'GET'
