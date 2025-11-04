@@ -190,6 +190,9 @@ app.register_blueprint(governance_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(admin_agents_bp)
 
+from src.routes.dashboard import get_dashboard_data as monitoring_dashboard_handler
+app.add_url_rule('/api/phase7/monitoring/dashboard', view_func=monitoring_dashboard_handler, methods=['GET'], endpoint='phase7_monitoring_dashboard')
+
 if BACKEND_SERVICES_AVAILABLE:
     try:
         app.register_blueprint(mock_api)
@@ -694,9 +697,9 @@ def get_available_widgets():
     ]
     return jsonify(widgets)
 
-@app.route('/api/dashboard/data', methods=['GET', 'POST'])
-def get_dashboard_data():
-    """Get real-time dashboard data"""
+@app.route('/api/dashboard/data', methods=['GET', 'POST'], endpoint='get_dashboard_data_legacy')
+def get_dashboard_data_legacy():
+    """Get real-time dashboard data (legacy endpoint)"""
     try:
         if not BACKEND_SERVICES_AVAILABLE:
             return jsonify({"error": "Backend services not available"}), 500
