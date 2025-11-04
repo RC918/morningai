@@ -278,17 +278,6 @@ def health_check():
 db_dir = os.path.join(os.path.dirname(__file__), 'database')
 os.makedirs(db_dir, exist_ok=True)
 
-<<<<<<< HEAD
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
-
-||||||| d4437046
-# uncomment if you need to use database
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
-=======
 DATABASE_URL = os.environ.get('DATABASE_URL')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
 
@@ -328,7 +317,6 @@ else:
         app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{sqlite_path}"
         logger.info(f"ℹ️  Database configured: SQLite (path: {sqlite_path})")
 
->>>>>>> origin/main
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 import sys
