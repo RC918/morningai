@@ -22,9 +22,13 @@ from src.services.auth_service import (
     clear_auth_cookies,
     get_user_by_id,
     generate_csrf_token,
-    COOKIE_SAMESITE
+    COOKIE_SAMESITE,
+    COOKIE_SECURE,
+    FEATURE_2FA_PREAUTH,
+    PREAUTH_TOKEN_TTL
 )
 from src.middleware.csrf import csrf_protect, should_enforce_csrf
+from src.utils.preauth_token import generate_preauth_token
 import logging
 
 logger = logging.getLogger(__name__)
@@ -141,7 +145,7 @@ def login():
             
             if FEATURE_2FA_PREAUTH:
                 try:
-                    token, nonce = generate_preauth_token(
+                    token = generate_preauth_token(
                         user['id'],
                         user['email'],
                         ttl=PREAUTH_TOKEN_TTL
