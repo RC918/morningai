@@ -19,7 +19,7 @@ class TestDashboardDegradationPaths:
 
     def test_redis_failure_degradation(self, client):
         """Test dashboard returns fallback data when Redis fails"""
-        with patch('src.routes.dashboard.get_redis_client') as mock_redis:
+        with patch('src.utils.redis_client.get_redis_client') as mock_redis:
             mock_redis.side_effect = Exception("Redis connection failed")
             
             response = client.get('/api/phase7/monitoring/dashboard')
@@ -68,7 +68,7 @@ class TestDashboardDegradationPaths:
 
     def test_dual_failure_returns_503(self, client):
         """Test dashboard returns 503 Service Unavailable when both Redis and DB fail"""
-        with patch('src.routes.dashboard.get_redis_client') as mock_redis, \
+        with patch('src.utils.redis_client.get_redis_client') as mock_redis, \
              patch('src.routes.dashboard.db.engine.connect') as mock_db:
             
             mock_redis.side_effect = Exception("Redis connection failed")
@@ -84,7 +84,7 @@ class TestDashboardDegradationPaths:
 
     def test_redis_failure_with_computed_false(self, client):
         """Test that agent metrics include computed: false when using fallback"""
-        with patch('src.routes.dashboard.get_redis_client') as mock_redis:
+        with patch('src.utils.redis_client.get_redis_client') as mock_redis:
             mock_redis.side_effect = Exception("Redis connection failed")
             
             response = client.get('/api/phase7/monitoring/dashboard')
