@@ -77,28 +77,36 @@ Branch Aliases allow you to map a specific branch to a stable domain, creating a
 
 #### For morningai Project
 
-1. Navigate to https://vercel.com/morning-ai/morningai/settings/domains
-2. Click **"Add"** button
-3. Enter domain: `staging-dashboard.morningai.app` (or your preferred staging domain)
-4. Click **"Add"**
-5. In the domain settings, click **"Edit"**
-6. Select **"Git Branch"**: `develop`
-7. Click **"Save"**
-
-**Expected Result**: The `develop` branch will always deploy to `staging-dashboard.morningai.app`.
+**Completed via API on 2025-11-04**:
+- Domain: `staging.morningai.me`
+- Git Branch: `develop`
+- Verified: ✅ Yes
 
 #### For owner-console Project
 
-1. Navigate to https://vercel.com/morning-ai/owner-console/settings/domains
-2. Add domain: `staging-owner.morningai.app`
-3. Assign to branch: `develop`
+**Completed via API on 2025-11-04**:
+- Domain: `staging-owner.morningai.me`
+- Git Branch: `develop`
+- Verified: ✅ Yes
 
-**DNS Configuration**: You'll need to add DNS records for these staging domains:
+**DNS Configuration** (Cloudflare - morningai.me zone):
+
+Completed via Cloudflare API on 2025-11-04:
 ```
 Type: CNAME
-Name: staging-dashboard
+Name: staging
 Value: cname.vercel-dns.com
+TTL: 300 (Auto)
+Proxy status: DNS only (gray cloud)
+
+Type: CNAME
+Name: staging-owner
+Value: cname.vercel-dns.com
+TTL: 300 (Auto)
+Proxy status: DNS only (gray cloud)
 ```
+
+**Note**: DNS records must be DNS-only (proxied=false) for Vercel domain verification to work correctly.
 
 ### Step 4: Configure Ignored Build Step (Optional)
 

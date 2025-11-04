@@ -93,9 +93,24 @@ Same as Preview/Staging, but with additional debugging flags:
 
 ## Variables to Remove (Security Audit)
 
-The following variables are currently configured in Vercel but are **not used** in the frontend code and should be **removed** or **moved to backend**:
+### Current State (API Query - 2025-11-04)
 
-### Backend-Only Variables (Remove from Vercel Frontend)
+The Vercel API shows the following variables currently exist in the morningai project:
+- `NODE_ENV`
+- `VITE_API_BASE_URL`
+- `VITE_SENTRY_DSN`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_URL`
+- `VITE_USE_MOCK`
+- `VITE_FEATURES`
+- `VITE_PHASE3_DEPLOYMENT_DATE`
+- `VITE_TOLGEE_API_URL`
+
+**Note**: `OPENAI_MAX_DAILY_COST` was removed via API on 2025-11-04.
+
+### Backend-Only Variables (If Present, Remove from Vercel Frontend)
+
+If any of the following variables are present in your Vercel frontend projects, they should be **removed** or **moved to backend infrastructure**:
 
 | Variable | Why Remove | Where to Move |
 |----------|-----------|---------------|
@@ -108,9 +123,10 @@ The following variables are currently configured in Vercel but are **not used** 
 | `SENTRY_PROJECT` | Sentry project (build-time only) | GitHub Actions secrets |
 | `UPSTASH_REDIS_REST_URL` | Backend Redis URL | Render backend env vars |
 | `UPSTASH_REDIS_REST_TOKEN` | Backend Redis token | Render backend env vars |
-| `OPENAI_MAX_DAILY_COST` | Backend OpenAI limit | Render backend env vars |
 
-**Action Required**: Audit these variables and remove them from Vercel Dashboard if not used by serverless functions.
+**Rationale**: These are backend-only variables and should not exist in frontend Vercel projects. Exposing them in the frontend bundle is a security risk.
+
+**Action Required**: Audit your Vercel Dashboard and remove any of these variables if present.
 
 ## How to Configure Environment Variables
 

@@ -5,9 +5,14 @@ set -e
 e="${VERCEL_ENV:-}"
 r="${VERCEL_GIT_COMMIT_REF:-main}"
 
-if git diff --quiet HEAD^ HEAD -- ':(exclude)docs/' ':(exclude)*.md' 2>/dev/null; then
-  echo "⏭️  Skipping deployment: only documentation changed"
-  exit 0
+sha="${VERCEL_GIT_COMMIT_SHA:-$(git rev-parse HEAD)}"
+changed="$(git show --pretty='' --name-only "$sha" 2>/dev/null || echo '')"
+
+if [ -n "$changed" ]; then
+  if ! echo "$changed" | grep -Ev '^(docs/|.*\.md$)' >/dev/null; then
+    echo "⏭️  Skipping deployment: only documentation changed"
+    exit 0
+  fi
 fi
 
 if [ "$e" = "preview" ]; then

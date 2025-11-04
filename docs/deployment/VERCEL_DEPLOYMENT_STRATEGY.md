@@ -25,7 +25,7 @@ We have **two Vercel projects** in the `morning-ai` team:
 | Environment | Branch | Deployment Type | URL Pattern |
 |------------|--------|----------------|-------------|
 | **Production** | `main` | Automatic | `morningai.vercel.app` / custom domain |
-| **Staging** | `develop` | Automatic (via Branch Alias) | `staging-dashboard.morningai.app` |
+| **Staging** | `develop` | Automatic (via Branch Alias) | `staging.morningai.me`, `staging-owner.morningai.me` |
 | **Preview** | `feature/*`, `fix/*`, `devin/*` | Automatic | `morningai-{hash}.vercel.app` |
 | **Skip** | All other branches | None | N/A |
 
@@ -33,8 +33,8 @@ We have **two Vercel projects** in the `morning-ai` team:
 
 The deployment logic is controlled by `scripts/vercel-ignore.sh`:
 
-1. **Docs-only changes**: Skip deployment if only `docs/` or `*.md` files changed
-2. **Preview deployments**: Only allow `feature/*`, `fix/*`, `devin/*` branches
+1. **Docs-only changes**: Skip deployment if only `docs/` or `*.md` files changed (uses `VERCEL_GIT_COMMIT_SHA` for robustness)
+2. **Preview deployments**: Only allow `develop`, `feature/*`, `fix/*`, `devin/*` branches
 3. **Production deployments**: Only allow `main` branch
 4. **All other branches**: Skip deployment
 
@@ -94,10 +94,13 @@ Repeat for the `owner-console` project.
 
 ### Step 2: Configure Branch Aliases (Staging Environment)
 
-1. Go to Vercel Dashboard → Projects → morningai → Settings → Domains
-2. Add a new domain: `staging-dashboard.morningai.app` (or your preferred staging domain)
-3. In the domain settings, assign it to branch: `develop`
-4. Repeat for `owner-console` with `staging-owner.morningai.app`
+**Completed via API on 2025-11-04**:
+- `staging.morningai.me` → `develop` branch (morningai project)
+- `staging-owner.morningai.me` → `develop` branch (owner-console project)
+
+**DNS Configuration** (Cloudflare - morningai.me zone):
+- CNAME: `staging.morningai.me` → `cname.vercel-dns.com` (DNS-only, proxied=false)
+- CNAME: `staging-owner.morningai.me` → `cname.vercel-dns.com` (DNS-only, proxied=false)
 
 This creates a **stable staging environment** that always deploys from the `develop` branch.
 
@@ -276,6 +279,23 @@ All deployments send errors and performance data to Sentry:
 1. Check if branch matches the deployment rules in `vercel-ignore.sh`
 2. Verify GitHub is connected in Vercel Dashboard
 3. Check if only docs were changed (will skip deployment)
+
+### Staging Domain Shows "404: DEPLOYMENT_NOT_FOUND"
+
+**Symptom**: Accessing `staging.morningai.me` or `staging-owner.morningai.me` shows a 404 error with code `DEPLOYMENT_NOT_FOUND`.
+
+**Root Cause**: The `develop` branch has no deployments yet, or the ignore script is blocking develop branch deployments.
+
+**Solution**:
+1. Ensure `vercel-ignore.sh` allows `develop` branch in the preview case statement
+2. Merge the updated script to the `develop` branch (Vercel runs the script from the commit being deployed)
+3. Push a commit to `develop` to trigger the first deployment:
+   ```bash
+   git checkout develop
+   git merge main  # or merge your PR branch
+   git push origin develop
+   ```
+4. Wait for Vercel to deploy, then check the staging URLs again
 
 ### Build Failures
 
