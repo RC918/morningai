@@ -63,22 +63,22 @@ fi
 echo ""
 echo "2. Verifying pgvector implementation..."
 
-if grep -q "pgvector" migrations/010_create_embeddings_tables.sql 2>/dev/null; then
-    check_pass "pgvector in main migrations (010_create_embeddings_tables.sql)"
+if grep -R -qE 'CREATE[[:space:]]+EXTENSION[[:space:]]+IF[[:space:]]+NOT[[:space:]]+EXISTS[[:space:]]+vector' migrations/ 2>/dev/null; then
+    check_pass "pgvector (vector extension) in main migrations/"
 else
-    check_fail "pgvector NOT found in migrations/010_create_embeddings_tables.sql"
+    check_fail "pgvector (vector extension) NOT found in migrations/"
 fi
 
-if grep -q "pgvector" agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql 2>/dev/null; then
-    check_pass "pgvector in dev_agent migrations"
+if grep -R -qE 'CREATE[[:space:]]+EXTENSION[[:space:]]+IF[[:space:]]+NOT[[:space:]]+EXISTS[[:space:]]+vector' agents/dev_agent/migrations/ 2>/dev/null; then
+    check_pass "pgvector (vector extension) in dev_agent migrations"
 else
-    check_fail "pgvector NOT found in agents/dev_agent/migrations/"
+    check_fail "pgvector (vector extension) NOT found in agents/dev_agent/migrations/"
 fi
 
-if grep -q "pgvector" agents/faq_agent/migrations/001_create_faq_tables.sql 2>/dev/null; then
-    check_pass "pgvector in faq_agent migrations"
+if grep -R -qE 'CREATE[[:space:]]+EXTENSION[[:space:]]+IF[[:space:]]+NOT[[:space:]]+EXISTS[[:space:]]+vector' agents/faq_agent/migrations/ 2>/dev/null; then
+    check_pass "pgvector (vector extension) in faq_agent migrations"
 else
-    check_fail "pgvector NOT found in agents/faq_agent/migrations/"
+    check_fail "pgvector (vector extension) NOT found in agents/faq_agent/migrations/"
 fi
 
 if [ -f "handoff/20250928/40_App/api-backend/src/routes/vectors.py" ]; then
@@ -90,7 +90,7 @@ fi
 echo ""
 echo "3. Verifying dual orchestrator architecture..."
 
-if grep -q "USE_LANGGRAPH: false" render.yaml; then
+if awk '/- key: USE_LANGGRAPH/{getline; if ($0 ~ /value: false/) ok=1} END{exit(ok?0:1)}' render.yaml 2>/dev/null; then
     check_pass "USE_LANGGRAPH=false in render.yaml"
 else
     check_fail "USE_LANGGRAPH flag not set to false in render.yaml"
