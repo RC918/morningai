@@ -186,6 +186,15 @@
 | Tenant | 租戶 | 技術文檔 | "多租戶隔離策略" |
 | Row-Level Security (RLS) | 行級安全策略 / RLS | 技術文檔 | "啟用 RLS 策略" |
 | Migration | 資料庫遷移 / 遷移 | 技術文檔 | "執行資料庫遷移腳本" |
+| Alembic | Alembic | 技術文檔 | "使用 Alembic 管理 schema 版本" |
+| Baseline Migration | 基線遷移 / Baseline Migration | 技術文檔 | "創建 baseline migration" |
+| Upgrade | 升級 / Upgrade | 技術文檔 | "執行 alembic upgrade head" |
+| Downgrade | 降級 / Downgrade | 技術文檔 | "回滾 migration: alembic downgrade -1" |
+| Revision | 版本 / Revision | 技術文檔 | "Migration revision ID: 91b9a61fcafa" |
+| Enum | 枚舉 / Enum | 技術文檔 | "定義 enum 類型" |
+| Enum Value | 枚舉值 | 技術文檔 | "enum 值必須小寫" |
+| Enum Name | 枚舉名稱 | 技術文檔 | "enum 名稱為大寫" |
+| values_callable | values_callable | 技術文檔 | "使用 values_callable 參數" |
 | Index | 索引 | 技術文檔 | "創建資料庫索引" |
 | Query | 查詢 | 所有文檔 | "執行資料查詢" |
 | Schema | 資料庫模式 / Schema | 技術文檔 | "定義資料庫 schema" |
@@ -196,6 +205,7 @@
 | Foreign Key | 外鍵 | 技術文檔 | "建立外鍵關聯" |
 | Materialized View | 物化視圖 | 技術文檔 | "刷新物化視圖" |
 | Connection Pool | 連接池 | 技術文檔 | "配置資料庫連接池" |
+| DATABASE_URL | DATABASE_URL | 技術文檔 | "設置 DATABASE_URL 環境變數" |
 
 ### 後端架構 (Backend Architecture)
 

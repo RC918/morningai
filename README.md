@@ -99,6 +99,53 @@ MorningAI 採用多環境部署架構，確保開發、測試和生產環境的�
 
 ---
 
+## 資料庫遷移 (Database Migrations)
+
+MorningAI 使用 **Alembic 1.13.1** 進行資料庫 schema 版本管理。
+
+### 快速開始
+
+```bash
+cd handoff/20250928/40_App/api-backend
+
+# 設置 DATABASE_URL (開發環境使用 SQLite)
+export DATABASE_URL="sqlite:////absolute/path/to/dev.db"
+
+# 執行 migrations
+alembic upgrade head
+
+# 創建新 migration
+alembic revision --autogenerate -m "描述變更"
+```
+
+### 關鍵資訊
+
+- **Baseline Migration**: `91b9a61fcafa` (Initial baseline migration)
+- **開發環境**: SQLite (使用絕對路徑避免 "no such table" 錯誤)
+- **生產環境**: PostgreSQL (Supabase)
+- **CI 驗證**: 每次 PR 自動測試 PostgreSQL 和 SQLite migrations
+
+### Enum 值政策 ⚠️
+
+**重要**: 所有 enum 必須使用小寫值並配置 `values_callable`:
+
+```python
+# ✅ 正確
+agent_type = db.Column(
+    db.Enum(AgentTypeDB, values_callable=lambda e: [i.value for i in e], name='agenttypedb'),
+    nullable=False
+)
+```
+
+### 相關文檔
+
+- **[Database Migrations Guide](docs/database/MIGRATIONS.md)** - 完整的 Alembic 工作流程、最佳實踐和故障排除
+- **[Onboarding Guide](docs/ONBOARDING_GUIDE.md)** - 包含 Alembic 設置說明
+- **輔助腳本**: `scripts/run_alembic_migrations.sh`
+- **整合測試**: `scripts/test_migration_data_insertion.py`
+
+---
+
 ## Python 依賴管理
 
 MorningAI 採用服務分離的依賴管理策略，確保每個服務只安裝所需的依賴：

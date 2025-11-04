@@ -92,7 +92,7 @@ morningai/
 ├── handoff/                    # Handoff deliverables (⚠️ DO NOT IMPORT - vendor/design only)
 ├── docs/                       # Documentation
 ├── config/                     # Configuration files (env.schema.yaml is SSOT)
-├── scripts/                    # Utility scripts (env generation, drift check, secret verification)
+├── scripts/                    # Utility scripts (env generation, drift check, secret verification, system state verification)
 ├── packages/                   # Shared packages (shared-ui for cross-app components)
 ├── tests/                      # Root-level tests
 ├── phase4_meta_agent_api.py   # Phase 4 API module (imported by backend)
@@ -240,12 +240,24 @@ handoff/20250928/40_App/
 │   │   ├── routers/      # API routers
 │   │   └── ...           # Other modules
 │   │
+│   ├── alembic/          # Database migrations (Alembic 1.13.1)
+│   │   ├── versions/     # Migration files
+│   │   │   └── 91b9a61fcafa_initial_baseline_migration.py
+│   │   ├── env.py        # Alembic environment config
+│   │   ├── script.py.mako  # Migration template
+│   │   └── README        # Alembic documentation
+│   │
+│   ├── scripts/          # Utility scripts
+│   │   ├── run_alembic_migrations.sh  # Migration helper
+│   │   └── test_migration_data_insertion.py  # Integration test
+│   │
 │   ├── tests/            # Test suite
 │   │   ├── test_database_connection.py
 │   │   ├── test_phase4_6_comprehensive.py
 │   │   └── ...           # 20+ test files
 │   │
-│   ├── requirements.txt  # Python dependencies
+│   ├── alembic.ini       # Alembic configuration
+│   ├── requirements.txt  # Python dependencies (includes Alembic==1.13.1)
 │   ├── pytest.ini        # pytest configuration
 │   └── .env.example      # Environment variables
 │
@@ -305,7 +317,8 @@ docs/
 │   └── env_schema.md    # Environment variables schema
 │
 ├── database/            # Database documentation
-│   └── migrations/      # Migration documentation
+│   ├── MIGRATIONS.md    # Alembic migration guide (comprehensive)
+│   └── migrations/      # Legacy migration documentation
 │
 ├── faq/                 # FAQ documentation
 ├── coverage/            # Coverage reports
