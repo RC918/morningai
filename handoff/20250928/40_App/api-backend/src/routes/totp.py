@@ -97,7 +97,7 @@ def setup_totp():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('password_hash', ''), password):
+        if not check_password_hash(user.get('hashed_password', ''), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -258,7 +258,7 @@ def disable_totp():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('password_hash', ''), password):
+        if not check_password_hash(user.get('hashed_password', ''), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -328,7 +328,7 @@ def regenerate_backup_codes():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('password_hash', ''), password):
+        if not check_password_hash(user.get('hashed_password', ''), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')

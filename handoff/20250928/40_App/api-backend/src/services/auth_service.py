@@ -378,7 +378,7 @@ def _get_mock_users() -> Dict:
         'owner@morningai.com': {
             'id': 'owner-001',
             'email': 'owner@morningai.com',
-            'password_hash': generate_password_hash(os.environ.get('OWNER_PASSWORD', 'owner123')),
+            'hashed_password': generate_password_hash(os.environ.get('OWNER_PASSWORD', 'owner123')),
             'name': 'Platform Owner',
             'role': 'owner',
             'tenant_id': 'platform',
@@ -387,7 +387,7 @@ def _get_mock_users() -> Dict:
         'admin@morningai.com': {
             'id': 'admin-001',
             'email': 'admin@morningai.com',
-            'password_hash': generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'admin123')),
+            'hashed_password': generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'admin123')),
             'name': 'System Admin',
             'role': 'admin',
             'tenant_id': 'tenant-001',
@@ -417,7 +417,7 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
         logger.warning(f"User not found: {email}")
         return None
     
-    if not check_password_hash(user['password_hash'], password):
+    if not check_password_hash(user['hashed_password'], password):
         logger.warning(f"Invalid password for user: {email}")
         return None
     
@@ -455,6 +455,7 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
                 'name': user['name'],
                 'role': user['role'],
                 'tenant_id': user['tenant_id'],
-                'avatar': user['avatar']
+                'avatar': user['avatar'],
+                'password_hash': user['password_hash']
             }
     return None

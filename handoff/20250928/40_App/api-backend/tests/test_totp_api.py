@@ -95,7 +95,7 @@ class TestTOTPSetup:
         mock_get_user.return_value = {
             'id': mock_user_id,
             'email': 'test@example.com',
-            'password_hash': 'hashed_password'
+            'hashed_password': 'hashed_password'
         }
         mock_check_password.return_value = True
         
@@ -136,7 +136,7 @@ class TestTOTPSetup:
         mock_get_user.return_value = {
             'id': mock_user_id,
             'email': 'test@example.com',
-            'password_hash': 'hashed_password'
+            'hashed_password': 'hashed_password'
         }
         mock_check_password.return_value = False
         
