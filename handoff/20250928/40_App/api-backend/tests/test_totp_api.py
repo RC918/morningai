@@ -51,6 +51,12 @@ def mock_jwt_decode(monkeypatch, mock_user_id):
     monkeypatch.setattr('src.middleware.auth_middleware.jwt.decode', fake_decode)
 
 
+@pytest.fixture(autouse=True)
+def enable_2fa_feature(monkeypatch):
+    """Enable 2FA feature flag for all tests."""
+    monkeypatch.setenv('FEATURE_2FA_ENABLED', 'true')
+
+
 @pytest.fixture
 def mock_supabase():
     """Mock Supabase client for testing."""
@@ -150,15 +156,12 @@ class TestTOTPVerifySetup:
     """Test TOTP verification endpoint."""
     
     @patch('src.routes.totp.get_totp_manager')
-    def test_verify_setup_invalid_code_format(self, mock_totp_manager, client, mock_supabase, mock_user_id):
+    def test_verify_setup_invalid_code_format(self, mock_totp_manager, client, mock_supabase, mock_user_id, auth_headers):
         """Test TOTP verification with invalid code format."""
-        from flask import g
-        g.user_id = mock_user_id
-        
         response = client.post(
             '/api/auth/v2/totp/verify-setup',
             json={'code': 'ABCDEF'},
-            headers={'Authorization': 'Bearer mock-token'}
+            headers=auth_headers
         )
         
         assert response.status_code == 400
@@ -180,17 +183,14 @@ class TestTOTPVerifySetup:
         assert 'error' in data
     
     @patch('src.routes.totp.get_totp_manager')
-    def test_verify_setup_not_setup(self, mock_totp_manager, client, mock_supabase, mock_user_id):
+    def test_verify_setup_not_setup(self, mock_totp_manager, client, mock_supabase, mock_user_id, auth_headers):
         """Test TOTP verification when 2FA not set up."""
-        from flask import g
-        g.user_id = mock_user_id
-        
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
         
         response = client.post(
             '/api/auth/v2/totp/verify-setup',
             json={'code': '123456'},
-            headers={'Authorization': 'Bearer mock-token'}
+            headers=auth_headers
         )
         
         assert response.status_code == 400
@@ -202,16 +202,13 @@ class TestTOTPVerifySetup:
 class TestTOTPStatus:
     """Test TOTP status endpoint."""
     
-    def test_get_status_not_enabled(self, client, mock_supabase, mock_user_id):
+    def test_get_status_not_enabled(self, client, mock_supabase, mock_user_id, auth_headers):
         """Test getting status when 2FA not enabled."""
-        from flask import g
-        g.user_id = mock_user_id
-        
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
         
         response = client.get(
             '/api/auth/v2/totp/status',
-            headers={'Authorization': 'Bearer mock-token'}
+            headers=auth_headers
         )
         
         assert response.status_code == 200
@@ -220,11 +217,8 @@ class TestTOTPStatus:
         assert data['verified_at'] is None
         assert data['backup_codes_remaining'] == 0
     
-    def test_get_status_enabled(self, client, mock_supabase, mock_user_id):
+    def test_get_status_enabled(self, client, mock_supabase, mock_user_id, auth_headers):
         """Test getting status when 2FA is enabled."""
-        from flask import g
-        g.user_id = mock_user_id
-        
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [{
             'enabled': True,
             'verified_at': '2025-11-03T12:00:00'
@@ -236,7 +230,7 @@ class TestTOTPStatus:
         
         response = client.get(
             '/api/auth/v2/totp/status',
-            headers={'Authorization': 'Bearer mock-token'}
+            headers=auth_headers
         )
         
         assert response.status_code == 200

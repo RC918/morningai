@@ -355,6 +355,12 @@ def get_totp_status():
             "backup_codes_remaining": 7
         }
     """
+    feature_enabled = os.environ.get('FEATURE_2FA_ENABLED', 'false').lower() == 'true' or \
+                      os.environ.get('OWNER_CONSOLE_2FA_ENABLED', 'false').lower() == 'true'
+    
+    if not feature_enabled:
+        return jsonify({'error': 'Feature not available'}), 404
+    
     try:
         user_id = request.user_id
         
