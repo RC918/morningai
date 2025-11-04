@@ -18,8 +18,8 @@ from datetime import datetime
 class TestPreAuthTokenE2E:
     """End-to-end tests for pre-auth token authentication flow"""
     
-    @patch('src.routes.auth_enhanced.check_2fa_required')
-    @patch('src.routes.auth_enhanced.authenticate_user')
+    @patch('src.routes.totp.check_2fa_required')
+    @patch('src.services.auth_service.authenticate_user')
     @patch('src.routes.auth_enhanced.generate_preauth_token')
     @patch('src.services.auth_service.FEATURE_2FA_PREAUTH', True)
     def test_complete_flow_login_to_verify(

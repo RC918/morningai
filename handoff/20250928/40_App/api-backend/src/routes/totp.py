@@ -557,6 +557,7 @@ def check_2fa_required(user_id: str, user_role: str = None) -> bool:
 
 @totp_bp.route('/verify-login', methods=['POST'])
 @rate_limit  # 5 attempts per 5 minutes
+@csrf_protect
 def verify_totp_login():
     """
     Verify TOTP code during login and complete authentication.
