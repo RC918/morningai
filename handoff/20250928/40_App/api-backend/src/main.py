@@ -178,7 +178,7 @@ if SECURITY_AVAILABLE:
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(auth_enhanced_bp, url_prefix='/api/auth/v2')
-app.register_blueprint(dashboard_bp, url_prefix='/api/phase7/monitoring')
+app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 app.register_blueprint(totp_bp, url_prefix='/api/auth/v2/totp')
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
@@ -189,6 +189,9 @@ app.register_blueprint(vectors_bp)
 app.register_blueprint(governance_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(admin_agents_bp)
+
+from src.routes.dashboard import get_dashboard_data
+app.add_url_rule('/api/phase7/monitoring/dashboard', view_func=get_dashboard_data, methods=['GET'], endpoint='phase7_monitoring_dashboard')
 
 if BACKEND_SERVICES_AVAILABLE:
     try:

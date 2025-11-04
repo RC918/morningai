@@ -4,7 +4,6 @@ import datetime
 import logging
 from typing import Dict, List
 from src.middleware.auth_middleware import jwt_required
-import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,6 +19,13 @@ def get_dashboard_data():
     Get comprehensive dashboard data for MetricsDashboard component
     Returns real metrics from system health, Redis, and database
     """
+    try:
+        from src.main import BACKEND_SERVICES_AVAILABLE
+        if not BACKEND_SERVICES_AVAILABLE:
+            return jsonify({'error': 'Backend services not available'}), 500
+    except ImportError:
+        pass
+    
     try:
         from src.utils.redis_client import check_redis_security, get_redis_client
         from src.models.user import db
@@ -41,6 +47,9 @@ def get_dashboard_data():
             'alerts': []
         }
         
+        redis_available = False
+        db_available = False
+        
         try:
             redis_client = get_redis_client()
             if redis_client:
@@ -52,6 +61,7 @@ def get_dashboard_data():
                 
                 dashboard_data['metrics']['queue_depth']['current'] = total_queue_depth
                 logger.info(f"Real queue depth from Redis: {total_queue_depth}")
+                redis_available = True
         except Exception as e:
             logger.warning(f"Failed to get Redis queue stats: {e}")
             dashboard_data['metrics']['queue_depth']['current'] = random.randint(5, 15)
@@ -61,6 +71,7 @@ def get_dashboard_data():
                 conn.exec_driver_sql("SELECT 1")
             dashboard_data['system_health']['overall_status'] = 'healthy'
             logger.info("Database connection: healthy")
+            db_available = True
         except Exception as e:
             logger.error(f"Database connection failed: {e}")
             dashboard_data['system_health']['overall_status'] = 'degraded'
@@ -70,6 +81,10 @@ def get_dashboard_data():
                 'message': 'Database connection failed',
                 'timestamp': datetime.datetime.now().isoformat()
             })
+        
+        if not redis_available and not db_available:
+            logger.error("Both Redis and Database are unavailable")
+            return jsonify({'error': 'Core services unavailable'}), 500
         
         try:
             redis_security = check_redis_security()
