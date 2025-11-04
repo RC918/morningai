@@ -55,6 +55,11 @@ jobs:
         run: |
           cd handoff/20250928/40_App/owner-console
           pnpm run typecheck
+      
+      - name: Test owner-console
+        run: |
+          cd handoff/20250928/40_App/owner-console
+          pnpm run test
   
   i18n-baseline-check:
     name: i18n Violation Baseline Check

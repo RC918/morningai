@@ -24,8 +24,9 @@ global.fetch = mockFetch;
 describe('Auth Module', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     vi.clearAllMocks();
-    mockFetch.mockClear();
+    mockFetch.mockReset();
     
     Object.defineProperty(document, 'cookie', {
       writable: true,

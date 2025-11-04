@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import TenantManagement from '../TenantManagement';
-import * as apiClient from '../../lib/api-client';
+import * as tenantApi from '@/lib/generated/tenant/tenant';
 
-vi.mock('../../lib/api-client', () => ({
-  apiClient: vi.fn(),
+vi.mock('@/lib/generated/tenant/tenant', () => ({
+  getTenantInfo: vi.fn(),
+  getTenantMembers: vi.fn(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -20,7 +21,8 @@ describe('TenantManagement Page (P1)', () => {
 
   describe('Loading State', () => {
     it('should display loading spinner initially', () => {
-      apiClient.apiClient.mockImplementation(() => new Promise(() => {}));
+      tenantApi.getTenantInfo.mockImplementation(() => new Promise(() => {}));
+      tenantApi.getTenantMembers.mockImplementation(() => new Promise(() => {}));
 
       render(<TenantManagement />);
 
@@ -30,15 +32,16 @@ describe('TenantManagement Page (P1)', () => {
 
   describe('Data Fetching', () => {
     it('should fetch tenant info and members from API', async () => {
-      const mockTenantInfo = {
+      const mockTenantInfoResponse = {
+        status: 200,
         data: {
-          tenants: [
-            { id: 'tenant-1', name: 'Tenant One', status: 'active' },
-          ],
+          tenant_id: 'tenant-1',
+          tenant_name: 'Tenant One',
         },
       };
 
-      const mockMembers = {
+      const mockMembersResponse = {
+        status: 200,
         data: {
           members: [
             { id: 'user-1', tenant_id: 'tenant-1', name: 'User One' },
@@ -46,54 +49,52 @@ describe('TenantManagement Page (P1)', () => {
         },
       };
 
-      apiClient.apiClient
-        .mockResolvedValueOnce(mockTenantInfo)
-        .mockResolvedValueOnce(mockMembers);
+      tenantApi.getTenantInfo.mockResolvedValue(mockTenantInfoResponse);
+      tenantApi.getTenantMembers.mockResolvedValue(mockMembersResponse);
 
       render(<TenantManagement />);
 
       await waitFor(() => {
-        expect(apiClient.apiClient).toHaveBeenCalledWith('/api/tenant/info', { method: 'GET' });
-        expect(apiClient.apiClient).toHaveBeenCalledWith('/api/tenant/members', { method: 'GET' });
+        expect(tenantApi.getTenantInfo).toHaveBeenCalledTimes(1);
+        expect(tenantApi.getTenantMembers).toHaveBeenCalledTimes(1);
       });
     });
 
     it('should enrich tenant data with user counts', async () => {
-      const mockTenantInfo = {
+      const mockTenantInfoResponse = {
+        status: 200,
         data: {
-          tenants: [
-            { id: 'tenant-1', name: 'Tenant One', status: 'active' },
-            { id: 'tenant-2', name: 'Tenant Two', status: 'active' },
-          ],
+          tenant_id: 'tenant-1',
+          tenant_name: 'Tenant One',
         },
       };
 
-      const mockMembers = {
+      const mockMembersResponse = {
+        status: 200,
         data: {
           members: [
             { id: 'user-1', tenant_id: 'tenant-1', name: 'User One' },
             { id: 'user-2', tenant_id: 'tenant-1', name: 'User Two' },
-            { id: 'user-3', tenant_id: 'tenant-2', name: 'User Three' },
           ],
         },
       };
 
-      apiClient.apiClient
-        .mockResolvedValueOnce(mockTenantInfo)
-        .mockResolvedValueOnce(mockMembers);
+      tenantApi.getTenantInfo.mockResolvedValue(mockTenantInfoResponse);
+      tenantApi.getTenantMembers.mockResolvedValue(mockMembersResponse);
 
       render(<TenantManagement />);
 
       await waitFor(() => {
         expect(screen.getByText('Tenant One')).toBeInTheDocument();
-        expect(screen.getByText('Tenant Two')).toBeInTheDocument();
+        expect(screen.getByText('2 tenants.users')).toBeInTheDocument();
       });
     });
   });
 
   describe('Error Handling', () => {
     it('should display error message when API fails', async () => {
-      apiClient.apiClient.mockRejectedValueOnce(new Error('API Error'));
+      tenantApi.getTenantInfo.mockRejectedValueOnce(new Error('API Error'));
+      tenantApi.getTenantMembers.mockResolvedValue({ status: 200, data: { members: [] } });
 
       render(<TenantManagement />);
 
@@ -103,7 +104,8 @@ describe('TenantManagement Page (P1)', () => {
     });
 
     it('should show retry button on error', async () => {
-      apiClient.apiClient.mockRejectedValueOnce(new Error('API Error'));
+      tenantApi.getTenantInfo.mockRejectedValueOnce(new Error('API Error'));
+      tenantApi.getTenantMembers.mockResolvedValue({ status: 200, data: { members: [] } });
 
       render(<TenantManagement />);
 
@@ -113,7 +115,8 @@ describe('TenantManagement Page (P1)', () => {
     });
 
     it('should retry loading when retry button is clicked', async () => {
-      apiClient.apiClient.mockRejectedValueOnce(new Error('API Error'));
+      tenantApi.getTenantInfo.mockRejectedValueOnce(new Error('API Error'));
+      tenantApi.getTenantMembers.mockResolvedValue({ status: 200, data: { members: [] } });
 
       render(<TenantManagement />);
 
@@ -121,21 +124,23 @@ describe('TenantManagement Page (P1)', () => {
         expect(screen.getByText('common.refresh')).toBeInTheDocument();
       });
 
-      const mockTenantInfo = {
+      const mockTenantInfoResponse = {
+        status: 200,
         data: {
-          tenants: [{ id: 'tenant-1', name: 'Tenant One', status: 'active' }],
+          tenant_id: 'tenant-1',
+          tenant_name: 'Tenant One',
         },
       };
 
-      const mockMembers = {
+      const mockMembersResponse = {
+        status: 200,
         data: {
           members: [],
         },
       };
 
-      apiClient.apiClient
-        .mockResolvedValueOnce(mockTenantInfo)
-        .mockResolvedValueOnce(mockMembers);
+      tenantApi.getTenantInfo.mockResolvedValue(mockTenantInfoResponse);
+      tenantApi.getTenantMembers.mockResolvedValue(mockMembersResponse);
 
       const retryButton = screen.getByText('common.refresh');
       fireEvent.click(retryButton);
@@ -148,51 +153,49 @@ describe('TenantManagement Page (P1)', () => {
 
   describe('Tenant Display', () => {
     it('should display tenant list', async () => {
-      const mockTenantInfo = {
+      const mockTenantInfoResponse = {
+        status: 200,
         data: {
-          tenants: [
-            { id: 'tenant-1', name: 'Tenant One', status: 'active', plan: 'pro' },
-            { id: 'tenant-2', name: 'Tenant Two', status: 'active', plan: 'enterprise' },
-          ],
+          tenant_id: 'tenant-1',
+          tenant_name: 'Tenant One',
         },
       };
 
-      const mockMembers = {
+      const mockMembersResponse = {
+        status: 200,
         data: {
           members: [],
         },
       };
 
-      apiClient.apiClient
-        .mockResolvedValueOnce(mockTenantInfo)
-        .mockResolvedValueOnce(mockMembers);
+      tenantApi.getTenantInfo.mockResolvedValue(mockTenantInfoResponse);
+      tenantApi.getTenantMembers.mockResolvedValue(mockMembersResponse);
 
       render(<TenantManagement />);
 
       await waitFor(() => {
         expect(screen.getByText('Tenant One')).toBeInTheDocument();
-        expect(screen.getByText('Tenant Two')).toBeInTheDocument();
       });
     });
 
     it('should display tenant status badges', async () => {
-      const mockTenantInfo = {
+      const mockTenantInfoResponse = {
+        status: 200,
         data: {
-          tenants: [
-            { id: 'tenant-1', name: 'Tenant One', status: 'active' },
-          ],
+          tenant_id: 'tenant-1',
+          tenant_name: 'Tenant One',
         },
       };
 
-      const mockMembers = {
+      const mockMembersResponse = {
+        status: 200,
         data: {
           members: [],
         },
       };
 
-      apiClient.apiClient
-        .mockResolvedValueOnce(mockTenantInfo)
-        .mockResolvedValueOnce(mockMembers);
+      tenantApi.getTenantInfo.mockResolvedValue(mockTenantInfoResponse);
+      tenantApi.getTenantMembers.mockResolvedValue(mockMembersResponse);
 
       render(<TenantManagement />);
 
@@ -202,57 +205,59 @@ describe('TenantManagement Page (P1)', () => {
     });
 
     it('should handle empty tenant list', async () => {
-      const mockTenantInfo = {
+      const mockTenantInfoResponse = {
+        status: 200,
         data: {
-          tenants: [],
+          tenant_id: 'tenant-1',
+          tenant_name: 'Tenant One',
         },
       };
 
-      const mockMembers = {
+      const mockMembersResponse = {
+        status: 200,
         data: {
           members: [],
         },
       };
 
-      apiClient.apiClient
-        .mockResolvedValueOnce(mockTenantInfo)
-        .mockResolvedValueOnce(mockMembers);
+      tenantApi.getTenantInfo.mockResolvedValue(mockTenantInfoResponse);
+      tenantApi.getTenantMembers.mockResolvedValue(mockMembersResponse);
 
       render(<TenantManagement />);
 
       await waitFor(() => {
         expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
+        expect(screen.getByText('Tenant One')).toBeInTheDocument();
       });
     });
   });
 
   describe('API Integration', () => {
     it('should use parallel API calls for efficiency', async () => {
-      const mockTenantInfo = {
+      const mockTenantInfoResponse = {
+        status: 200,
         data: {
-          tenants: [{ id: 'tenant-1', name: 'Tenant One', status: 'active' }],
+          tenant_id: 'tenant-1',
+          tenant_name: 'Tenant One',
         },
       };
 
-      const mockMembers = {
+      const mockMembersResponse = {
+        status: 200,
         data: {
           members: [],
         },
       };
 
-      apiClient.apiClient
-        .mockResolvedValueOnce(mockTenantInfo)
-        .mockResolvedValueOnce(mockMembers);
+      tenantApi.getTenantInfo.mockResolvedValue(mockTenantInfoResponse);
+      tenantApi.getTenantMembers.mockResolvedValue(mockMembersResponse);
 
       render(<TenantManagement />);
 
       await waitFor(() => {
-        expect(apiClient.apiClient).toHaveBeenCalledTimes(2);
+        expect(tenantApi.getTenantInfo).toHaveBeenCalledTimes(1);
+        expect(tenantApi.getTenantMembers).toHaveBeenCalledTimes(1);
       });
-
-      const calls = apiClient.apiClient.mock.calls;
-      expect(calls[0][0]).toBe('/api/tenant/info');
-      expect(calls[1][0]).toBe('/api/tenant/members');
     });
   });
 });

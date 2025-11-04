@@ -36,6 +36,12 @@ export async function apiClient<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
+  let finalUrl = url;
+  
+  if (!url.startsWith('/api/') && (url.startsWith('/admin') || url.startsWith('/tenant') || url.startsWith('/governance'))) {
+    finalUrl = '/api' + url;
+  }
+  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
@@ -49,7 +55,7 @@ export async function apiClient<T>(
     }
   }
   
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const res = await fetch(`${API_BASE_URL}${finalUrl}`, {
     ...options,
     credentials: 'include',  // P0-3: Always include credentials for HttpOnly cookies
     headers,

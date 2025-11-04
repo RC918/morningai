@@ -101,7 +101,15 @@
     "connections": "Connections",
     "queryTime": "Query Time",
     "active": "Active",
-    "queueSize": "Queue Size"
+    "queueSize": "Queue Size",
+    "systemHealth": "System Health",
+    "overallStatus": "Overall Status",
+    "cpuUsage": "CPU Usage",
+    "cores": "Cores",
+    "memory": "Memory",
+    "disk": "Disk",
+    "usedTotal": "Used/Total",
+    "gbFormat": "{{used}}GB / {{total}}GB"
   },
   "settings": {
     "title": "Platform Settings",
@@ -227,7 +235,9 @@
     "search": "Search",
     "filter": "Filter",
     "export": "Export",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "usage": "Usage",
+    "idShort": "ID: {{id}}"
   },
   "auth": {
     "login": {
