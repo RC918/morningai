@@ -190,8 +190,8 @@ app.register_blueprint(governance_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(admin_agents_bp)
 
-from src.routes.dashboard import get_dashboard_data
-app.add_url_rule('/api/phase7/monitoring/dashboard', view_func=get_dashboard_data, methods=['GET'], endpoint='phase7_monitoring_dashboard')
+from src.routes.dashboard import get_dashboard_data as monitoring_dashboard_handler
+app.add_url_rule('/api/phase7/monitoring/dashboard', view_func=monitoring_dashboard_handler, methods=['GET'], endpoint='phase7_monitoring_dashboard')
 
 if BACKEND_SERVICES_AVAILABLE:
     try:
