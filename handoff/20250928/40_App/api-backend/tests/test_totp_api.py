@@ -79,8 +79,8 @@ class TestTOTPSetup:
     @patch('src.routes.totp.get_totp_manager')
     @patch('src.routes.totp.get_backup_manager')
     @patch('src.routes.totp.get_user_by_id')
-    @patch('src.routes.totp.check_password_hash')
-    def test_setup_totp_success(self, mock_check_password, mock_get_user, mock_backup_manager, mock_totp_manager, client, mock_supabase, mock_user_id):
+    @patch('src.routes.totp.authenticate_user')
+    def test_setup_totp_success(self, mock_authenticate, mock_get_user, mock_backup_manager, mock_totp_manager, client, mock_supabase, mock_user_id):
         """Test successful TOTP setup."""
         mock_totp = MagicMock()
         mock_totp.generate_secret.return_value = 'TEST_SECRET_BASE32'
@@ -95,10 +95,9 @@ class TestTOTPSetup:
         
         mock_get_user.return_value = {
             'id': mock_user_id,
-            'email': 'test@example.com',
-            'hashed_password': 'hashed_password'
+            'email': 'test@example.com'
         }
-        mock_check_password.return_value = True
+        mock_authenticate.return_value = {'id': mock_user_id, 'email': 'test@example.com'}
         
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
         
@@ -131,15 +130,14 @@ class TestTOTPSetup:
         assert 'Password confirmation required' in data['error']
     
     @patch('src.routes.totp.get_user_by_id')
-    @patch('src.routes.totp.check_password_hash')
-    def test_setup_totp_invalid_password(self, mock_check_password, mock_get_user, client, mock_user_id, auth_headers):
+    @patch('src.routes.totp.authenticate_user')
+    def test_setup_totp_invalid_password(self, mock_authenticate, mock_get_user, client, mock_user_id, auth_headers):
         """Test TOTP setup with invalid password."""
         mock_get_user.return_value = {
             'id': mock_user_id,
-            'email': 'test@example.com',
-            'hashed_password': 'hashed_password'
+            'email': 'test@example.com'
         }
-        mock_check_password.return_value = False
+        mock_authenticate.return_value = None
         
         response = client.post(
             '/api/auth/v2/totp/setup',

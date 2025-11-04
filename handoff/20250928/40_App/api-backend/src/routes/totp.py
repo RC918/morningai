@@ -25,6 +25,7 @@ from supabase import create_client
 
 from ..services.auth_service import (
     get_user_by_id,
+    authenticate_user,
     FEATURE_2FA_PREAUTH,
     COOKIE_SECURE
 )
@@ -118,7 +119,8 @@ def setup_totp():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('hashed_password', ''), password):
+        # Supabase users don't have hashed_password in the user object, so we use authenticate_user
+        if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -279,7 +281,8 @@ def disable_totp():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('hashed_password', ''), password):
+        # Supabase users don't have hashed_password in the user object, so we use authenticate_user
+        if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -349,7 +352,8 @@ def regenerate_backup_codes():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('hashed_password', ''), password):
+        # Supabase users don't have hashed_password in the user object, so we use authenticate_user
+        if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
