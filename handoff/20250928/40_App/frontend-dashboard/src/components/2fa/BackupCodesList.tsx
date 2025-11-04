@@ -52,6 +52,7 @@ export function BackupCodesList({ backupCodes, onContinue }: BackupCodesListProp
             {backupCodes.map((code, index) => (
               <div
                 key={index}
+                data-testid="backup-code"
                 className="px-3 py-2 bg-background rounded border border-border"
               >
                 {code}

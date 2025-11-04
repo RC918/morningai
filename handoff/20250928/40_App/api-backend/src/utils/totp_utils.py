@@ -300,30 +300,3 @@ def calculate_device_expiry(days: int = 30) -> datetime:
         Expiry datetime
     """
     return datetime.utcnow() + timedelta(days=days)
-
-
-if __name__ == "__main__":
-    
-    manager = TOTPManager()
-    secret = manager.generate_secret()
-    print(f"Secret: {secret}")
-    
-    encrypted = manager.encrypt_secret(secret)
-    print(f"Encrypted: {encrypted}")
-    
-    decrypted = manager.decrypt_secret(encrypted)
-    print(f"Decrypted: {decrypted}")
-    assert secret == decrypted
-    
-    qr_code = manager.generate_qr_code(secret, "user@example.com")
-    print(f"QR Code (first 100 chars): {qr_code[:100]}...")
-    
-    backup_manager = BackupCodeManager()
-    codes = backup_manager.generate_backup_codes(8)
-    print(f"\nBackup Codes:")
-    for code in codes:
-        print(f"  {code}")
-        code_hash = backup_manager.hash_backup_code(code)
-        assert backup_manager.verify_backup_code(code, code_hash)
-    
-    print("\n✅ All tests passed!")
