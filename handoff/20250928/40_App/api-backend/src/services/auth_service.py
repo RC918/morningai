@@ -456,6 +456,6 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
                 'role': user['role'],
                 'tenant_id': user['tenant_id'],
                 'avatar': user['avatar'],
-                'password_hash': user['password_hash']
+                'hashed_password': user['hashed_password']
             }
     return None
