@@ -494,7 +494,7 @@ def verify_backup_code_for_login(user_id: str, backup_code: str) -> tuple[bool, 
                 supabase.table('totp_backup_codes').update({
                     'used': True,
                     'used_at': datetime.utcnow().isoformat()
-                }).eq('id', code_record['id']).execute()
+                }).eq('user_id', user_id).eq('code_hash', code_record['code_hash']).execute()
                 
                 remaining = supabase.table('totp_backup_codes').select('*').eq('user_id', user_id).eq('used', False).execute()
                 remaining_count = len(remaining.data) if remaining.data else 0
