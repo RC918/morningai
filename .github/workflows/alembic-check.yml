@@ -54,6 +54,15 @@ jobs:
           alembic upgrade head
           alembic current
           echo "✅ Migrations applied successfully"
+      
+      - name: Test data insertion with enum values (PostgreSQL)
+        working-directory: handoff/20250928/40_App/api-backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          echo "Testing data insertion to verify enum values..."
+          python scripts/test_migration_data_insertion.py
+          echo "✅ Data insertion test passed"
 
       - name: Verify migration can downgrade
         working-directory: handoff/20250928/40_App/api-backend
