@@ -1,96 +1,63 @@
-# System Architecture of MorningAI
+# MorningAI System Architecture
 
-MorningAI is designed as a scalable, multi-tenant Software as a Service (SaaS) platform that leverages a microservices architecture to provide autonomous code generation, FAQ generation, documentation management, and multi-platform integration capabilities. This architecture enables efficient real-time task orchestration and memory storage for vector operations.
+The system architecture of MorningAI is designed to support scalable, efficient, and real-time operations for code generation, documentation management, and multi-platform integration. This architecture utilizes a modern technology stack and a variety of services to ensure high performance and reliability.
 
-## Core Components
+## Overview
 
-### Frontend
+MorningAI's architecture is built around several key components:
 
-- **Technology**: The frontend is built with React for its efficient UI rendering and state management capabilities. Vite is used as the build tool for its fast hot module replacement (HMR), and TailwindCSS for utility-first styling.
-- **Path**: The frontend code can be found under `frontend/` in the repository.
+- **Frontend:** Developed using React, Vite, and TailwindCSS for a responsive and modern user interface.
+- **Backend:** Powered by Python with Flask framework and Gunicorn as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
+- **Database:** PostgreSQL is used for data storage, enhanced with Row Level Security (RLS) for data protection. It's hosted on Supabase which provides additional features like pgvector for vector memory storage.
+- **Queue System:** Redis Queue (RQ) is implemented for task queuing to manage background jobs and real-time task orchestration.
+- **Orchestration:** LangGraph is utilized for managing agent workflows, ensuring tasks are performed efficiently and in the correct order.
+- **AI Engine:** OpenAI's GPT-4 serves as the core for content generation, including FAQ generation and code suggestions.
+- **Deployment:** The entire infrastructure is deployed on Render.com with continuous integration and continuous deployment (CI/CD) practices.
 
-### Backend
+### Code Examples
 
-- **Technology**: Python with Flask is used for the backend due to its simplicity and effectiveness in creating RESTful services. Gunicorn serves as the WSGI HTTP Server to handle requests, configured for multi-worker support to enhance concurrency.
-- **Path**: Backend services are located under `backend/`.
-
-### Database
-
-- **Technology**: PostgreSQL is utilized for its robustness and reliability. Supabase adds a layer of real-time functionality and row-level security, ensuring data integrity and security across tenants.
-- **Integration**: pgvector is employed within Supabase for efficient vector memory storage, crucial for AI-related operations.
-- **Configuration Files**: Database schemas and configurations can be found in `database/`.
-
-### Queue System
-
-- **Technology**: Redis Queue (RQ) is used for task queuing to manage background job processing efficiently, with worker heartbeat monitoring to ensure reliability.
-- **Setup**: Configuration for RQ can be found in `queue/`.
-
-### Orchestration
-
-- **System**: LangGraph orchestrates agent workflows, managing dependencies between different services seamlessly.
-- **Configuration Files**: Orchestration rules and workflows are defined in `orchestration/`.
-
-### AI Integration
-
-- **Technology**: OpenAI's GPT-4 powers the platform's content generation features, including autonomous code generation and FAQ content creation.
-- **Integration Points**: AI models are integrated via API calls, with configurations located in `ai/`.
-
-### Deployment
-
-- **Service**: Render.com is chosen for deployment because of its support for CI/CD, allowing automatic deployments from the repository.
-- **Configuration Files**: Deployment configurations are available in `.render/`.
-
-## Code Example
-
-A simple example of initializing a Flask application with Gunicorn could look like this:
+While specific code examples depend on the task at hand, here's a basic structure to interact with the backend API using Flask:
 
 ```python
-from flask import Flask
+from flask import Flask, jsonify
+
 app = Flask(__name__)
 
-@app.route("/")
+@app.route('/api/v1/hello', methods=['GET'])
 def hello_world():
-    return "Hello, MorningAI!"
+    return jsonify({'message': 'Hello World from MorningAI'})
 
-if __name__ == "__main__":
-    app.run()
+if __name__ == '__main__':
+    app.run(debug=True)
 ```
 
-This Python file would be typically located under `backend/app.py`. To run this Flask app with Gunicorn, you would use:
+This example demonstrates setting up a simple API endpoint with Flask.
 
-```bash
-gunicorn -w 4 app:app
-```
+### Related Documentation Links
 
-Here `-w 4` specifies running 4 worker processes.
+For more detailed information on each component of our system architecture, you can refer to the following documentation:
 
-## Related Documentation Links
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask: [https://flask.palletsprojects.com/en/2.1.x/](https://flask.palletsprojects.com/en/2.1.x/)
+- PostgreSQL (Supabase): [https://supabase.com/docs](https://supabase.com/docs)
+- Redis Queue (RQ): [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- Render.com CI/CD: [https://render.com/docs](https://render.com/docs)
 
-For more detailed information on each component mentioned above:
-- [React Documentation](https://reactjs.org/docs/getting-started.html)
-- [Vite Guide](https://vitejs.dev/guide/)
-- [TailwindCSS Documentation](https://tailwindcss.com/docs)
-- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
-- [Gunicorn Configurations](https://docs.gunicorn.org/en/stable/configure.html)
-- [Supabase Documentation](https://supabase.com/docs)
-- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
-- [Render.com CI/CD](https://render.com/docs/ci-cd)
+### Common Troubleshooting Tips
 
-## Common Troubleshooting Tips
+**Issue**: Application not responding after deployment.
 
-1. **Database Connectivity Issues**:
-   - Ensure that the connection strings in your environment variables match those provided by Supabase.
-   - Check if your Supabase project has Row Level Security enabled for required tables.
+**Solution**: Ensure that all environment variables are correctly set in Render.com dashboard. Also, check if the Gunicorn server is properly configured to handle web traffic.
 
-2. **Failed Deployments on Render.com**:
-   - Verify that your `.render/render.yaml` file is correctly configured according to Render's documentation.
-   - Check the deployment logs on Render.com for specific error messages.
+**Issue**: Database connection errors.
 
-3. **Issues with Background Jobs**:
-   - Ensure Redis server is up and accessible.
-   - Check RQ dashboard or logs for failed jobs or errors.
+**Solution**: Verify that your database credentials are correct and that your application's IP address is whitelisted in Supabase. Additionally, check your PostgreSQL configurations for any misconfigurations.
 
-Remember to consult the official documentation of each technology stack component when troubleshooting specific issues.
+**Issue**: Failed background jobs in Redis Queue.
+
+**Solution**: Monitor the Redis Queue dashboard for failed jobs. Review job logs to understand why they failed. Ensure your workers are running and have sufficient resources to process the tasks.
+
+For any further assistance or questions regarding MorningAI's system architecture or troubleshooting specific issues, please refer to our community forum or contact support directly through our platform.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -99,6 +66,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `68316d29-849e-4d45-b988-9643a8150dff`
+- Trace ID: `83036170-70e9-46f9-8ba6-d9bfd7973dcf`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
