@@ -41,6 +41,9 @@ ENABLE_MOCK_USERS = os.environ.get('ENABLE_MOCK_USERS', 'true').lower() == 'true
 # CSRF Configuration
 CSRF_TOKEN_LENGTH = 32  # bytes
 
+FEATURE_2FA_PREAUTH = os.environ.get('FEATURE_2FA_PREAUTH', 'false').lower() == 'true'
+PREAUTH_TOKEN_TTL = int(os.environ.get('PREAUTH_TOKEN_TTL', '300'))  # 5 minutes default
+
 
 def validate_security_config():
     """
