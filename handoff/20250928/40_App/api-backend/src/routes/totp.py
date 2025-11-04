@@ -40,13 +40,17 @@ def is_2fa_feature_enabled() -> bool:
     """
     Check if 2FA feature is enabled via feature flag.
     
-    2FA is disabled in test mode (Flask TESTING=True) to keep existing tests unchanged.
+    2FA is disabled in test mode (Flask TESTING=True) to keep existing tests unchanged,
+    unless FORCE_ENABLE_2FA_IN_TESTS is set to 'true' (for TOTP API tests).
     In production/staging, Owner role enforcement remains active.
     
     Returns:
         True if FEATURE_2FA_ENABLED is set to 'true' (case-insensitive), False otherwise
-        False if running in Flask test mode (TESTING=True)
+        False if running in Flask test mode (TESTING=True) unless forced
     """
+    if os.environ.get('FORCE_ENABLE_2FA_IN_TESTS', 'false').lower() == 'true':
+        return os.environ.get('FEATURE_2FA_ENABLED', 'true').lower() == 'true'
+    
     try:
         from flask import current_app
         if current_app and current_app.config.get('TESTING'):

@@ -84,6 +84,8 @@ def jwt_required(f):
             raw_role = payload.get('role', 'user')
             normalized_role = normalize_role(raw_role)
             
+            from flask import g
+            
             request.current_user = {
                 'user_id': user_id,
                 'username': payload.get('username') or payload.get('email'),
@@ -93,6 +95,7 @@ def jwt_required(f):
             }
             
             request.user_id = user_id
+            g.user_id = user_id
             
             return f(*args, **kwargs)
             
