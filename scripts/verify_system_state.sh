@@ -45,8 +45,8 @@ echo "========================================="
 echo ""
 
 echo "1. Verifying React versions..."
-FRONTEND_REACT=$(grep -A 1 '"react":' handoff/20250928/40_App/frontend-dashboard/package.json | grep -oP '\d+\.\d+\.\d+' | head -1)
-OWNER_REACT=$(grep -A 1 '"react":' handoff/20250928/40_App/owner-console/package.json | grep -oP '\d+\.\d+\.\d+' | head -1)
+FRONTEND_REACT=$(grep '"react":' handoff/20250928/40_App/frontend-dashboard/package.json | sed -E 's/[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/' | head -1)
+OWNER_REACT=$(grep '"react":' handoff/20250928/40_App/owner-console/package.json | sed -E 's/[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/' | head -1)
 
 if [[ "$FRONTEND_REACT" == "19.1.0" ]]; then
     check_pass "frontend-dashboard React version: $FRONTEND_REACT"
@@ -87,13 +87,29 @@ else
     check_fail "Vector API NOT found at src/routes/vectors.py"
 fi
 
+if grep -R -qE 'vector\s*\(\s*[0-9]+\s*\)' migrations/ agents/*/migrations/ 2>/dev/null; then
+    check_pass "pgvector columns actively used in migrations (e.g., vector(1536))"
+    log_verbose "$(grep -R -E 'vector\s*\(\s*[0-9]+\s*\)' migrations/ agents/*/migrations/ 2>/dev/null | wc -l) vector column definitions found"
+else
+    check_warn "No vector column definitions found (extension created but not yet used)"
+fi
+
 echo ""
 echo "3. Verifying dual orchestrator architecture..."
 
-if awk '/- key: USE_LANGGRAPH/{getline; if ($0 ~ /value: false/) ok=1} END{exit(ok?0:1)}' render.yaml 2>/dev/null; then
-    check_pass "USE_LANGGRAPH=false in render.yaml"
+if command -v yq >/dev/null 2>&1; then
+    USE_LANGGRAPH_VALUE=$(yq eval '.services[] | select(.envVars[] | select(.key == "USE_LANGGRAPH")) | .envVars[] | select(.key == "USE_LANGGRAPH") | .value' render.yaml 2>/dev/null | head -1)
+    if [[ "$USE_LANGGRAPH_VALUE" == "false" ]]; then
+        check_pass "USE_LANGGRAPH=false in render.yaml (verified with yq)"
+    else
+        check_fail "USE_LANGGRAPH flag not set to false in render.yaml (got: $USE_LANGGRAPH_VALUE)"
+    fi
 else
-    check_fail "USE_LANGGRAPH flag not set to false in render.yaml"
+    if awk '/- key: USE_LANGGRAPH/{getline; if ($0 ~ /value: false/) ok=1} END{exit(ok?0:1)}' render.yaml 2>/dev/null; then
+        check_pass "USE_LANGGRAPH=false in render.yaml (verified with awk)"
+    else
+        check_fail "USE_LANGGRAPH flag not set to false in render.yaml"
+    fi
 fi
 
 if grep -q "handoff/.*/orchestrator" render.yaml; then
@@ -162,8 +178,9 @@ for file in "${PHASE_FILES[@]}"; do
     fi
 done
 
-if grep -q "^from phase[4-7]" handoff/20250928/40_App/api-backend/src/main.py 2>/dev/null; then
+if grep -qE '^(from|import)[[:space:]]+phase[4-7]' handoff/20250928/40_App/api-backend/src/main.py 2>/dev/null; then
     check_fail "main.py directly imports Phase API modules (should be lazy loaded)"
+    log_verbose "Found: $(grep -E '^(from|import)[[:space:]]+phase[4-7]' handoff/20250928/40_App/api-backend/src/main.py 2>/dev/null)"
 else
     check_pass "main.py does NOT directly import Phase API modules"
 fi
