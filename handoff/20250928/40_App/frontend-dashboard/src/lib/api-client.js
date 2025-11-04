@@ -1,4 +1,10 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
+const USE_COOKIE_AUTH = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
+
+function getCsrfToken() {
+  const match = document.cookie.match(/csrf_token=([^;]+)/)
+  return match ? match[1] : null
+}
 
 export const customFetch = async (options) => {
   const { url, ...fetchOptions } = options
@@ -13,11 +19,23 @@ export const customFetch = async (options) => {
     ...fetchOptions,
   }
 
-  const token = localStorage.getItem('auth_token')
-  if (token) {
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${token}`,
+  if (USE_COOKIE_AUTH) {
+    config.credentials = 'include'
+    
+    const method = (fetchOptions.method || 'GET').toUpperCase()
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken
+      }
+    }
+  } else {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      config.headers = {
+        ...config.headers,
+        Authorization: `Bearer ${token}`,
+      }
     }
   }
 
