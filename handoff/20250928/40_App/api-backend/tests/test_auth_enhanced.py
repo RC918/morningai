@@ -480,10 +480,11 @@ class Test2FAIntegration:
                 mock_2fa.return_value = True
                 
                 response = client.post('/api/auth/login',
-                    json={
+                    data=json.dumps({
                         'email': 'owner@example.com',
                         'password': 'test_password'
-                    }
+                    }),
+                    content_type='application/json'
                 )
                 
                 assert response.status_code == 200
