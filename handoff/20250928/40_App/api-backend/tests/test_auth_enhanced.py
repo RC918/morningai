@@ -392,12 +392,12 @@ class TestErrorHandling:
 class Test2FAIntegration:
     """Test 2FA integration with login flow"""
     
-    def test_is_2fa_feature_enabled_in_test_mode(self):
+    def test_is_2fa_feature_enabled_in_test_mode(self, client):
         """Test that 2FA is disabled when Flask TESTING=True"""
         from src.routes.totp import is_2fa_feature_enabled
         
-        with patch('src.routes.totp.current_app') as mock_app:
-            mock_app.config.get.return_value = True
+        with client.application.app_context():
+            client.application.config['TESTING'] = True
             result = is_2fa_feature_enabled()
             assert result is False
     
@@ -406,16 +406,13 @@ class Test2FAIntegration:
         from src.routes.totp import is_2fa_feature_enabled
         import os
         
-        with patch('src.routes.totp.current_app') as mock_app:
-            mock_app.config.get.return_value = False
-            
-            with patch.dict(os.environ, {'FEATURE_2FA_ENABLED': 'true'}):
-                result = is_2fa_feature_enabled()
-                assert result is True
-            
-            with patch.dict(os.environ, {'FEATURE_2FA_ENABLED': 'false'}):
-                result = is_2fa_feature_enabled()
-                assert result is False
+        with patch.dict(os.environ, {'FEATURE_2FA_ENABLED': 'true'}):
+            result = is_2fa_feature_enabled()
+            assert result is True
+        
+        with patch.dict(os.environ, {'FEATURE_2FA_ENABLED': 'false'}):
+            result = is_2fa_feature_enabled()
+            assert result is False
     
     def test_check_2fa_required_owner_role(self):
         """Test that Owner role always requires 2FA"""
@@ -470,34 +467,35 @@ class Test2FAIntegration:
     
     def test_login_requires_2fa_response(self, client):
         """Test that login returns requires_2fa when 2FA is needed"""
-        with patch('src.routes.auth_enhanced.get_user_by_email') as mock_get_user:
-            mock_get_user.return_value = {
+        with patch('src.routes.auth_enhanced.authenticate_user') as mock_auth:
+            mock_auth.return_value = {
                 'id': 'user-001',
                 'email': 'owner@example.com',
                 'role': 'owner',
-                'password_hash': '$2b$12$test_hash'
+                'name': 'Owner User',
+                'tenant_id': 'tenant-001'
             }
             
-            with patch('src.routes.auth_enhanced.verify_password') as mock_verify:
-                mock_verify.return_value = True
+            with patch('src.routes.auth_enhanced.check_2fa_required') as mock_2fa:
+                mock_2fa.return_value = True
                 
-                with patch('src.routes.auth_enhanced.check_2fa_required') as mock_2fa:
-                    mock_2fa.return_value = True
-                    
-                    response = client.post('/api/auth/v2/login',
-                        json={
-                            'email': 'owner@example.com',
-                            'password': 'test_password'
-                        }
-                    )
-                    
-                    assert response.status_code == 200
-                    data = json.loads(response.data)
-                    assert data.get('requires_2fa') is True
-                    assert 'user' in data
-                    assert data['user']['id'] == 'user-001'
-                    assert data['user']['email'] == 'owner@example.com'
-                    assert 'access_token' not in response.headers.get('Set-Cookie', '')
+                response = client.post('/api/auth/login',
+                    json={
+                        'email': 'owner@example.com',
+                        'password': 'test_password'
+                    }
+                )
+                
+                assert response.status_code == 200
+                data = json.loads(response.data)
+                assert data.get('requires_2fa') is True
+                assert 'user' in data
+                assert data['user']['id'] == 'user-001'
+                assert data['user']['email'] == 'owner@example.com'
+                
+                set_cookie_header = response.headers.get('Set-Cookie', '')
+                assert 'access_token' not in set_cookie_header
+                assert 'refresh_token' not in set_cookie_header
 
 
 if __name__ == '__main__':
