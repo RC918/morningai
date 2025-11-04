@@ -757,6 +757,147 @@ function MyComponent() {
 
 詳細說明請參閱 `TOLGEE_POC_SETUP.md`。
 
+## 資料庫遷移規範 (Database Migrations)
+
+MorningAI 使用 **Alembic 1.13.1** 進行資料庫 schema 版本管理。
+
+### 創建新 Migration
+
+```bash
+cd handoff/20250928/40_App/api-backend
+
+# 設置 DATABASE_URL
+export DATABASE_URL="sqlite:////absolute/path/to/dev.db"
+
+# 自動生成 migration
+alembic revision --autogenerate -m "add user email verification"
+```
+
+### Migration 命名規範
+
+```bash
+# ✅ 好的命名 - 清楚描述變更
+alembic revision --autogenerate -m "add user email verification"
+alembic revision --autogenerate -m "add agent reputation score index"
+alembic revision --autogenerate -m "create billing_plans table"
+
+# ❌ 不好的命名 - 太模糊
+alembic revision --autogenerate -m "update"
+alembic revision --autogenerate -m "fix"
+alembic revision --autogenerate -m "changes"
+```
+
+### 必須手動檢查的項目
+
+創建 migration 後，**必須手動檢查**以下項目：
+
+1. **Upgrade 邏輯正確**
+   ```python
+   def upgrade():
+       # 檢查所有 CREATE TABLE, ALTER TABLE 語句
+       op.create_table('new_table', ...)
+   ```
+
+2. **Downgrade 邏輯正確**（可回滾）
+   ```python
+   def downgrade():
+       # 必須能夠完全回滾 upgrade 的變更
+       op.drop_table('new_table')
+   ```
+
+3. **Enum 值使用小寫**（關鍵！）
+   ```python
+   # ✅ 正確 - 使用小寫 enum 值
+   sa.Enum('dev_agent', 'ops_agent', 'pm_agent', name='agenttypedb')
+   
+   # ❌ 錯誤 - 使用大寫會導致 PostgreSQL 拒絕插入
+   sa.Enum('DEV_AGENT', 'OPS_AGENT', 'PM_AGENT', name='agenttypedb')
+   ```
+
+4. **外鍵約束正確**
+   ```python
+   op.create_foreign_key(
+       'fk_tasks_agent_id',
+       'tasks', 'agents',
+       ['agent_id'], ['agent_id'],
+       ondelete='CASCADE'  # 明確指定刪除行為
+   )
+   ```
+
+5. **索引定義合理**
+   ```python
+   op.create_index('idx_tasks_status', 'tasks', ['status'])
+   ```
+
+### Enum 值政策（重要！）
+
+**問題**: SQLAlchemy 預設會將 enum **名稱**（大寫）而非 enum **值**（小寫）寫入資料庫。
+
+**解決方案**: 在模型中使用 `values_callable` 參數
+
+```python
+# src/models/agent_registry_db.py
+
+class AgentTypeDB(str, Enum):
+    DEV_AGENT = "dev_agent"        # ✅ 值為小寫
+    OPS_AGENT = "ops_agent"
+
+class AgentDB(db.Model):
+    agent_type = db.Column(
+        db.Enum(
+            AgentTypeDB,
+            values_callable=lambda e: [i.value for i in e],  # ✅ 關鍵參數
+            name='agenttypedb'
+        ),
+        nullable=False
+    )
+```
+
+### 本地測試 Migration
+
+```bash
+# 1. Upgrade
+alembic upgrade head
+
+# 2. 測試 downgrade
+alembic downgrade -1
+
+# 3. 重新 upgrade
+alembic upgrade head
+
+# 4. 測試資料插入
+python scripts/test_migration_data_insertion.py
+```
+
+### 提交前檢查清單
+
+- [ ] Migration 檔案已手動檢查
+- [ ] Upgrade 和 downgrade 都已本地測試
+- [ ] Enum 值使用小寫
+- [ ] 外鍵約束有明確的 ondelete 行為
+- [ ] 已執行 `python scripts/test_migration_data_insertion.py`
+- [ ] DATABASE_URL 使用絕對路徑（SQLite）
+
+### 禁止的操作
+
+1. **不要編輯已部署的 migration**
+   - 一旦 migration 已部署到生產環境，不要編輯它
+   - 創建新的 migration 來修正問題
+
+2. **不要編輯 `alembic/versions/` 之外的生成文件**
+   - `alembic/env.py` 和 `alembic.ini` 是手動維護的配置文件
+
+3. **不要跳過 downgrade 測試**
+   - 所有 migration 必須可以回滾
+
+### 相關文檔
+
+- **[Database Migrations Guide](docs/database/MIGRATIONS.md)** - 完整的 Alembic 工作流程和故障排除
+- **[Onboarding Guide](docs/ONBOARDING_GUIDE.md)** - 包含 Alembic 設置說明
+- **PR #1107**: https://github.com/RC918/morningai/pull/1107 - Alembic 實作參考
+
+---
+
 ## 驗收標準
 
 所有 PR 需通過：

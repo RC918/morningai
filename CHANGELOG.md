@@ -30,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Migration**: Set `ORCHESTRATOR_PATH` in production if orchestrator is not at the default location
 
 ### Added
+- **Alembic Database Migration Framework** (PR #1107)
+  - Alembic 1.13.1 infrastructure setup
+  - Baseline migration (revision: 91b9a61fcafa) capturing current schema
+  - CI/CD integration with PostgreSQL and SQLite testing
+  - Integration test for enum value validation (`scripts/test_migration_data_insertion.py`)
+  - Migration helper script (`scripts/run_alembic_migrations.sh`)
+  - Comprehensive documentation (`docs/database/MIGRATIONS.md`)
+  - Enum policy: lowercase values with `values_callable` parameter
+- **Orchestrator Consolidation Tracking** (Issue #1105)
+  - GitHub issue tracking 2026 Q1 orchestrator consolidation
+  - Based on ADR-001 "Option B: Unified Architecture"
+  - Comprehensive task breakdown and acceptance criteria
 - Added deployment verification script (`scripts/verify_deployment.py`) to check environment configuration
 - Added comprehensive unit tests for production fixes (`tests/test_production_fixes.py`)
 - Added logging for orchestrator path resolution

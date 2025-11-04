@@ -141,6 +141,16 @@ We accept the dual orchestrator architecture as an **interim solution** with the
 
 ---
 
+## Related Tracking
+
+- **GitHub Issue #1105**: [Orchestrator Consolidation Tracking](https://github.com/RC918/morningai/issues/1105)
+  - Comprehensive task breakdown for 2026 Q1 consolidation
+  - Based on "Option B: Unified Architecture" from this ADR
+  - Acceptance criteria and testing requirements
+  - Status: Open (target Q1 2026)
+
+---
+
 ## Review Schedule
 
 - **2025-12-01**: Review migration plan progress
@@ -149,5 +159,5 @@ We accept the dual orchestrator architecture as an **interim solution** with the
 
 ---
 
-**Last Updated**: 2025-11-03  
+**Last Updated**: 2025-11-04  
 **Next Review**: 2025-12-01
