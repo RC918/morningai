@@ -400,8 +400,8 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     """
     Authenticate user with email and password
     
-    In production: Should integrate with real user database
-    In development: Uses mock users if ENABLE_MOCK_USERS=true
+    In production: Uses Supabase Auth
+    In development: Uses mock users if ENABLE_MOCK_USERS=true, otherwise Supabase Auth
     
     Returns:
         User dict or None if authentication failed
@@ -410,33 +410,86 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
         logger.error("Mock users should not be enabled in production")
         return None
     
-    mock_users = _get_mock_users()
+    if ENABLE_MOCK_USERS:
+        mock_users = _get_mock_users()
+        
+        user = mock_users.get(email)
+        if not user:
+            logger.warning(f"User not found: {email}")
+            return None
+        
+        if not check_password_hash(user['hashed_password'], password):
+            logger.warning(f"Invalid password for user: {email}")
+            return None
+        
+        return {
+            'id': user['id'],
+            'email': user['email'],
+            'name': user['name'],
+            'role': user['role'],
+            'tenant_id': user['tenant_id'],
+            'avatar': user['avatar']
+        }
     
-    user = mock_users.get(email)
-    if not user:
-        logger.warning(f"User not found: {email}")
+    import requests
+    
+    supabase_url = os.environ.get('SUPABASE_URL')
+    supabase_anon_key = os.environ.get('SUPABASE_ANON_KEY')
+    
+    if not supabase_url or not supabase_anon_key:
+        logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set when ENABLE_MOCK_USERS=false")
         return None
     
-    if not check_password_hash(user['hashed_password'], password):
-        logger.warning(f"Invalid password for user: {email}")
+    try:
+        auth_url = f"{supabase_url}/auth/v1/token?grant_type=password"
+        headers = {
+            'apikey': supabase_anon_key,
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            'email': email,
+            'password': password
+        }
+        
+        response = requests.post(auth_url, headers=headers, json=payload, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            user_data = data.get('user', {})
+            user_metadata = user_data.get('user_metadata', {}) or user_data.get('raw_user_meta_data', {})
+            
+            user_id = user_data.get('id')
+            user_email = user_data.get('email', email)
+            user_name = user_metadata.get('name', user_email.split('@')[0])
+            user_role = user_metadata.get('role', 'member')
+            tenant_id = user_metadata.get('tenant_id', user_metadata.get('tenantId'))
+            avatar = user_metadata.get('avatar')
+            
+            logger.info(f"User authenticated via Supabase: {user_email} (role: {user_role})")
+            
+            return {
+                'id': user_id,
+                'email': user_email,
+                'name': user_name,
+                'role': user_role,
+                'tenant_id': tenant_id,
+                'avatar': avatar
+            }
+        else:
+            logger.warning(f"Supabase Auth failed for {email}: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        logger.exception(f"Supabase Auth error for {email}: {e}")
         return None
-    
-    return {
-        'id': user['id'],
-        'email': user['email'],
-        'name': user['name'],
-        'role': user['role'],
-        'tenant_id': user['tenant_id'],
-        'avatar': user['avatar']
-    }
 
 
 def get_user_by_id(user_id: str) -> Optional[Dict]:
     """
     Get user by ID
     
-    In production: Should integrate with real user database
-    In development: Uses mock users if ENABLE_MOCK_USERS=true
+    In production: Uses Supabase Auth
+    In development: Uses mock users if ENABLE_MOCK_USERS=true, otherwise Supabase Auth
     
     Returns:
         User dict or None if not found
@@ -445,17 +498,63 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
         logger.error("Mock users should not be enabled in production")
         return None
     
-    mock_users = _get_mock_users()
+    if ENABLE_MOCK_USERS:
+        mock_users = _get_mock_users()
+        
+        for user in mock_users.values():
+            if user['id'] == user_id:
+                return {
+                    'id': user['id'],
+                    'email': user['email'],
+                    'name': user['name'],
+                    'role': user['role'],
+                    'tenant_id': user['tenant_id'],
+                    'avatar': user['avatar'],
+                    'hashed_password': user['hashed_password']
+                }
+        return None
     
-    for user in mock_users.values():
-        if user['id'] == user_id:
+    import requests
+    
+    supabase_url = os.environ.get('SUPABASE_URL')
+    supabase_service_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if not supabase_url or not supabase_service_key:
+        logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set when ENABLE_MOCK_USERS=false")
+        return None
+    
+    try:
+        admin_url = f"{supabase_url}/auth/v1/admin/users/{user_id}"
+        headers = {
+            'apikey': supabase_service_key,
+            'Authorization': f'Bearer {supabase_service_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.get(admin_url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            user_data = response.json()
+            user_metadata = user_data.get('user_metadata', {}) or user_data.get('raw_user_meta_data', {})
+            
+            user_email = user_data.get('email')
+            user_name = user_metadata.get('name', user_email.split('@')[0] if user_email else 'User')
+            user_role = user_metadata.get('role', 'member')
+            tenant_id = user_metadata.get('tenant_id', user_metadata.get('tenantId'))
+            avatar = user_metadata.get('avatar')
+            
             return {
-                'id': user['id'],
-                'email': user['email'],
-                'name': user['name'],
-                'role': user['role'],
-                'tenant_id': user['tenant_id'],
-                'avatar': user['avatar'],
-                'hashed_password': user['hashed_password']
+                'id': user_id,
+                'email': user_email,
+                'name': user_name,
+                'role': user_role,
+                'tenant_id': tenant_id,
+                'avatar': avatar
             }
-    return None
+        else:
+            logger.warning(f"Supabase get user failed for {user_id}: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        logger.exception(f"Supabase get user error for {user_id}: {e}")
+        return None
