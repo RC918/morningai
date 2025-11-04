@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Monitoring Dashboard v2** (PR #1114, PR #1118)
+  - Real-time monitoring dashboard with intelligent degradation handling
+  - Primary endpoint: `/api/phase7/monitoring/dashboard` (public, no auth)
+  - Legacy endpoint: `/api/dashboard/data` (deprecated)
+  - Graceful degradation semantics:
+    - Redis failure → 200 OK with fallback metrics (`available: false`, `source: 'fallback'`)
+    - DB failure → 200 OK with degraded status + critical alert
+    - Both failures → 503 Service Unavailable with `ServiceUnavailableError`
+  - OpenAPI schema: `ServiceUnavailableError` with optional `request_id` field
+  - DB health check test seam (`check_db_health()`) for reliable testing
+  - Integration tests: `test_dashboard_503_integration.py`
+  - TypeScript types with `@deprecated` markers for legacy endpoint
+  - Comprehensive documentation in ONBOARDING_GUIDE.md, ENVIRONMENTS.md, PROJECT_STRUCTURE_REPORT.md
+  - Troubleshooting guide: `docs/deployment/troubleshooting-monitoring.md`
+
+### Changed
+- **OpenAPI Authentication Alignment** (PR #1118)
+  - Removed `bearerAuth` security requirement from monitoring endpoints
+  - Both `/api/dashboard/data` and `/api/phase7/monitoring/dashboard` are now correctly documented as public endpoints
+  - Matches actual implementation (no `@jwt_required` decorator)
+
+### Deprecated
+- **Legacy Dashboard Endpoint** (PR #1118)
+  - `/api/dashboard/data` is deprecated in favor of `/api/phase7/monitoring/dashboard`
+  - TypeScript types include `@deprecated` JSDoc markers with migration guidance
+  - Deprecation timeline: TBD (tracked in future release notes)
+
 ### Fixed
 - **[Frontend Dashboard]** Fixed critical layout compression issue where `max-w-3xl` utility compiled to `64px` instead of `768px`, causing entire page to be squeezed into a narrow vertical column
   - **Root Cause**: Misconfigured Tailwind v4 `@theme` block (duplicate blocks, wrong token names, incorrect placement)

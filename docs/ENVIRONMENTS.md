@@ -448,6 +448,9 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 # Orchestrator
 curl https://morningai-orchestrator-api.onrender.com/health
+
+# Monitoring Dashboard
+curl https://morningai-backend-v2.onrender.com/api/phase7/monitoring/dashboard
 ```
 
 **Staging**:
@@ -457,6 +460,9 @@ curl https://morningai-backend-v2-stg.onrender.com/healthz
 
 # Orchestrator
 curl https://morningai-orchestrator-api-stg.onrender.com/health
+
+# Monitoring Dashboard
+curl https://morningai-backend-v2-stg.onrender.com/api/phase7/monitoring/dashboard
 ```
 
 **Local**:
@@ -466,7 +472,41 @@ curl http://localhost:8000/healthz
 
 # Orchestrator
 curl http://localhost:8001/health
+
+# Monitoring Dashboard
+curl http://localhost:8000/api/phase7/monitoring/dashboard
 ```
+
+### Monitoring Dashboard Endpoints
+
+**Primary Endpoint** (Recommended):
+- **Path**: `/api/phase7/monitoring/dashboard`
+- **Method**: GET
+- **Auth**: Public (no JWT required)
+- **Status**: ✅ Production Ready
+
+**Legacy Endpoint** (Deprecated):
+- **Path**: `/api/dashboard/data`
+- **Method**: GET
+- **Auth**: Public (no JWT required)
+- **Status**: ⚠️ **DEPRECATED** - Use `/api/phase7/monitoring/dashboard` instead
+- **Deprecation Timeline**: TBD (tracked in future release notes)
+
+**Degradation Behavior**:
+
+| Scenario | HTTP Status | Response Behavior |
+|----------|-------------|-------------------|
+| All services healthy | 200 OK | Full metrics with real data |
+| Redis unavailable | 200 OK | Fallback metrics with `available: false`, `source: 'fallback'`, `error: 'Redis unavailable'` |
+| Database unavailable | 200 OK | `overall_status: 'degraded'` with critical alert |
+| Both Redis + DB unavailable | 503 Service Unavailable | `ServiceUnavailableError` response |
+
+**Environment Variables**:
+- `REDIS_URL`: Required for queue metrics
+- `DATABASE_URL`: Required for health checks
+- `BACKEND_SERVICES_AVAILABLE`: Gate flag (auto-set by backend)
+
+**Documentation**: See [Monitoring Troubleshooting Guide](deployment/troubleshooting-monitoring.md) for 503 error diagnosis
 
 ### Expected Responses
 
