@@ -16,6 +16,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Get changed markdown files
         id: changed-files
         uses: tj-actions/changed-files@v44
@@ -25,10 +30,10 @@ jobs:
 
       - name: Check links in changed markdown files
         if: steps.changed-files.outputs.any_changed == 'true'
-        uses: gaurav-nelson/github-action-markdown-link-check@v1
-        with:
-          use-quiet-mode: 'no'
-          use-verbose-mode: 'yes'
-          config-file: '.github/markdown-link-check-config.json'
-          check-modified-files-only: 'yes'
-          base-branch: 'main'
+        run: |
+          echo "Checking links in modified markdown files..."
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Checking $file"
+            npx -y markdown-link-check -q -c .github/markdown-link-check-config.json "$file" || exit 1
+          done
+          echo "All links are valid!"
