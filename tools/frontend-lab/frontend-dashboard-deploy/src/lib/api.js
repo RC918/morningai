@@ -1,11 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
-const USE_COOKIE_AUTH = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
-
-function getCsrfToken() {
-  const match = document.cookie.match(/csrf_token=([^;]+)/)
-  return match ? match[1] : null
-}
 
 class ApiClient {
   constructor() {
@@ -25,21 +19,9 @@ class ApiClient {
       ...options,
     }
 
-    if (USE_COOKIE_AUTH) {
-      config.credentials = 'include'
-      
-      const method = (options.method || 'GET').toUpperCase()
-      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-        const csrfToken = getCsrfToken()
-        if (csrfToken) {
-          config.headers['X-CSRF-Token'] = csrfToken
-        }
-      }
-    } else {
-      const token = localStorage.getItem('auth_token')
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-      }
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
 
     try {
