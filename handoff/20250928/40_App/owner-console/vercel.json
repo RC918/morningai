@@ -4,6 +4,7 @@
   "buildCommand": "cd ../../../ && pnpm --filter @morningai/shared-ui build && pnpm --filter owner-console build",
   "installCommand": "cd ../../../ && pnpm install --prod=false",
   "outputDirectory": "dist",
+  "ignoreCommand": "bash ../../../../scripts/vercel-ignore.sh",
   "rewrites": [
     {
       "source": "/(.*)",
