@@ -13,6 +13,9 @@
       "pattern": "^https://.*\\.vercel\\.app"
     },
     {
+      "pattern": "^https://(app|admin)\\.gm365\\.me"
+    },
+    {
       "pattern": "/tmp/"
     }
   ],
