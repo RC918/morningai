@@ -12,12 +12,12 @@ fi
 
 if [ "$e" = "preview" ]; then
   case "$r" in
-    feature/*|fix/*|devin/*)
+    develop|feature/*|fix/*|devin/*)
       echo "✅ Allowing preview deployment for branch: $r"
       exit 1
       ;;
     *)
-      echo "⏭️  Skipping preview deployment for branch: $r (not a feature/fix/devin branch)"
+      echo "⏭️  Skipping preview deployment for branch: $r (not a develop/feature/fix/devin branch)"
       exit 0
       ;;
   esac
