@@ -10,34 +10,34 @@ import type {
   UserSettings
 } from '../owner-console-api.schemas';
 
-import { apiClient } from '../../api-client';
+import { apiClient } from '../../lib/api-client';
 
 /**
  * @summary Get user settings
  */
-export type getSettingsResponse200 = {
+export type getApiSettingsResponse200 = {
   data: UserSettings
   status: 200
 }
     
-export type getSettingsResponseSuccess = (getSettingsResponse200) & {
+export type getApiSettingsResponseSuccess = (getApiSettingsResponse200) & {
   headers: Headers;
 };
 ;
 
-export type getSettingsResponse = (getSettingsResponseSuccess)
+export type getApiSettingsResponse = (getApiSettingsResponseSuccess)
 
-export const getGetSettingsUrl = () => {
+export const getGetApiSettingsUrl = () => {
 
 
   
 
-  return `/settings`
+  return `/api/settings`
 }
 
-export const getSettings = async ( options?: RequestInit): Promise<getSettingsResponse> => {
+export const getApiSettings = async ( options?: RequestInit): Promise<getApiSettingsResponse> => {
   
-  return apiClient<getSettingsResponse>(getGetSettingsUrl(),
+  return apiClient<getApiSettingsResponse>(getGetApiSettingsUrl(),
   {      
     ...options,
     method: 'GET'
@@ -50,29 +50,29 @@ export const getSettings = async ( options?: RequestInit): Promise<getSettingsRe
 /**
  * @summary Save user settings
  */
-export type postSettingsResponse200 = {
+export type postApiSettingsResponse200 = {
   data: SuccessResponse
   status: 200
 }
     
-export type postSettingsResponseSuccess = (postSettingsResponse200) & {
+export type postApiSettingsResponseSuccess = (postApiSettingsResponse200) & {
   headers: Headers;
 };
 ;
 
-export type postSettingsResponse = (postSettingsResponseSuccess)
+export type postApiSettingsResponse = (postApiSettingsResponseSuccess)
 
-export const getPostSettingsUrl = () => {
+export const getPostApiSettingsUrl = () => {
 
 
   
 
-  return `/settings`
+  return `/api/settings`
 }
 
-export const postSettings = async (userSettings: UserSettings, options?: RequestInit): Promise<postSettingsResponse> => {
+export const postApiSettings = async (userSettings: UserSettings, options?: RequestInit): Promise<postApiSettingsResponse> => {
   
-  return apiClient<postSettingsResponse>(getPostSettingsUrl(),
+  return apiClient<postApiSettingsResponse>(getPostApiSettingsUrl(),
   {      
     ...options,
     method: 'POST',

@@ -9,49 +9,49 @@ import type {
   AdminAgentsResponse,
   AdminError,
   AdminErrorWithStatus,
-  GetAdminAgentsParams,
-  GetAdminSystemLogsParams,
+  GetApiAdminAgentsParams,
+  GetApiAdminSystemLogsParams,
   SystemHealth,
   SystemLogs,
   SystemMetrics
 } from '../owner-console-api.schemas';
 
-import { apiClient } from '../../api-client';
+import { apiClient } from '../../lib/api-client';
 
 /**
  * Returns overall system health including status, uptime, and service checks. Requires Owner role.
  * @summary Get system health status
  */
-export type getAdminSystemHealthResponse200 = {
+export type getApiAdminSystemHealthResponse200 = {
   data: SystemHealth
   status: 200
 }
 
-export type getAdminSystemHealthResponse500 = {
+export type getApiAdminSystemHealthResponse500 = {
   data: AdminError
   status: 500
 }
     
-export type getAdminSystemHealthResponseSuccess = (getAdminSystemHealthResponse200) & {
+export type getApiAdminSystemHealthResponseSuccess = (getApiAdminSystemHealthResponse200) & {
   headers: Headers;
 };
-export type getAdminSystemHealthResponseError = (getAdminSystemHealthResponse500) & {
+export type getApiAdminSystemHealthResponseError = (getApiAdminSystemHealthResponse500) & {
   headers: Headers;
 };
 
-export type getAdminSystemHealthResponse = (getAdminSystemHealthResponseSuccess | getAdminSystemHealthResponseError)
+export type getApiAdminSystemHealthResponse = (getApiAdminSystemHealthResponseSuccess | getApiAdminSystemHealthResponseError)
 
-export const getGetAdminSystemHealthUrl = () => {
+export const getGetApiAdminSystemHealthUrl = () => {
 
 
   
 
-  return `/admin/system/health`
+  return `/api/admin/system/health`
 }
 
-export const getAdminSystemHealth = async ( options?: RequestInit): Promise<getAdminSystemHealthResponse> => {
+export const getApiAdminSystemHealth = async ( options?: RequestInit): Promise<getApiAdminSystemHealthResponse> => {
   
-  return apiClient<getAdminSystemHealthResponse>(getGetAdminSystemHealthUrl(),
+  return apiClient<getApiAdminSystemHealthResponse>(getGetApiAdminSystemHealthUrl(),
   {      
     ...options,
     method: 'GET'
@@ -65,41 +65,41 @@ export const getAdminSystemHealth = async ( options?: RequestInit): Promise<getA
  * Returns system resource usage metrics (CPU, memory, disk, requests). Requires Owner role.
  * @summary Get system metrics
  */
-export type getAdminSystemMetricsResponse200 = {
+export type getApiAdminSystemMetricsResponse200 = {
   data: SystemMetrics
   status: 200
 }
 
-export type getAdminSystemMetricsResponse500 = {
+export type getApiAdminSystemMetricsResponse500 = {
   data: AdminError
   status: 500
 }
 
-export type getAdminSystemMetricsResponse503 = {
+export type getApiAdminSystemMetricsResponse503 = {
   data: AdminErrorWithStatus
   status: 503
 }
     
-export type getAdminSystemMetricsResponseSuccess = (getAdminSystemMetricsResponse200) & {
+export type getApiAdminSystemMetricsResponseSuccess = (getApiAdminSystemMetricsResponse200) & {
   headers: Headers;
 };
-export type getAdminSystemMetricsResponseError = (getAdminSystemMetricsResponse500 | getAdminSystemMetricsResponse503) & {
+export type getApiAdminSystemMetricsResponseError = (getApiAdminSystemMetricsResponse500 | getApiAdminSystemMetricsResponse503) & {
   headers: Headers;
 };
 
-export type getAdminSystemMetricsResponse = (getAdminSystemMetricsResponseSuccess | getAdminSystemMetricsResponseError)
+export type getApiAdminSystemMetricsResponse = (getApiAdminSystemMetricsResponseSuccess | getApiAdminSystemMetricsResponseError)
 
-export const getGetAdminSystemMetricsUrl = () => {
+export const getGetApiAdminSystemMetricsUrl = () => {
 
 
   
 
-  return `/admin/system/metrics`
+  return `/api/admin/system/metrics`
 }
 
-export const getAdminSystemMetrics = async ( options?: RequestInit): Promise<getAdminSystemMetricsResponse> => {
+export const getApiAdminSystemMetrics = async ( options?: RequestInit): Promise<getApiAdminSystemMetricsResponse> => {
   
-  return apiClient<getAdminSystemMetricsResponse>(getGetAdminSystemMetricsUrl(),
+  return apiClient<getApiAdminSystemMetricsResponse>(getGetApiAdminSystemMetricsUrl(),
   {      
     ...options,
     method: 'GET'
@@ -113,26 +113,26 @@ export const getAdminSystemMetrics = async ( options?: RequestInit): Promise<get
  * Returns recent system logs with filtering options. Requires Owner role.
  * @summary Get system logs
  */
-export type getAdminSystemLogsResponse200 = {
+export type getApiAdminSystemLogsResponse200 = {
   data: SystemLogs
   status: 200
 }
 
-export type getAdminSystemLogsResponse500 = {
+export type getApiAdminSystemLogsResponse500 = {
   data: AdminError
   status: 500
 }
     
-export type getAdminSystemLogsResponseSuccess = (getAdminSystemLogsResponse200) & {
+export type getApiAdminSystemLogsResponseSuccess = (getApiAdminSystemLogsResponse200) & {
   headers: Headers;
 };
-export type getAdminSystemLogsResponseError = (getAdminSystemLogsResponse500) & {
+export type getApiAdminSystemLogsResponseError = (getApiAdminSystemLogsResponse500) & {
   headers: Headers;
 };
 
-export type getAdminSystemLogsResponse = (getAdminSystemLogsResponseSuccess | getAdminSystemLogsResponseError)
+export type getApiAdminSystemLogsResponse = (getApiAdminSystemLogsResponseSuccess | getApiAdminSystemLogsResponseError)
 
-export const getGetAdminSystemLogsUrl = (params?: GetAdminSystemLogsParams,) => {
+export const getGetApiAdminSystemLogsUrl = (params?: GetApiAdminSystemLogsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -144,12 +144,12 @@ export const getGetAdminSystemLogsUrl = (params?: GetAdminSystemLogsParams,) => 
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/admin/system/logs?${stringifiedParams}` : `/admin/system/logs`
+  return stringifiedParams.length > 0 ? `/api/admin/system/logs?${stringifiedParams}` : `/api/admin/system/logs`
 }
 
-export const getAdminSystemLogs = async (params?: GetAdminSystemLogsParams, options?: RequestInit): Promise<getAdminSystemLogsResponse> => {
+export const getApiAdminSystemLogs = async (params?: GetApiAdminSystemLogsParams, options?: RequestInit): Promise<getApiAdminSystemLogsResponse> => {
   
-  return apiClient<getAdminSystemLogsResponse>(getGetAdminSystemLogsUrl(params),
+  return apiClient<getApiAdminSystemLogsResponse>(getGetApiAdminSystemLogsUrl(params),
   {      
     ...options,
     method: 'GET'
@@ -163,31 +163,31 @@ export const getAdminSystemLogs = async (params?: GetAdminSystemLogsParams, opti
  * Returns list of all agents with status and metadata. Requires Owner role.
  * @summary Get all agents
  */
-export type getAdminAgentsResponse200 = {
+export type getApiAdminAgentsResponse200 = {
   data: AdminAgentsResponse
   status: 200
 }
 
-export type getAdminAgentsResponse500 = {
+export type getApiAdminAgentsResponse500 = {
   data: AdminError
   status: 500
 }
 
-export type getAdminAgentsResponse503 = {
+export type getApiAdminAgentsResponse503 = {
   data: AdminError
   status: 503
 }
     
-export type getAdminAgentsResponseSuccess = (getAdminAgentsResponse200) & {
+export type getApiAdminAgentsResponseSuccess = (getApiAdminAgentsResponse200) & {
   headers: Headers;
 };
-export type getAdminAgentsResponseError = (getAdminAgentsResponse500 | getAdminAgentsResponse503) & {
+export type getApiAdminAgentsResponseError = (getApiAdminAgentsResponse500 | getApiAdminAgentsResponse503) & {
   headers: Headers;
 };
 
-export type getAdminAgentsResponse = (getAdminAgentsResponseSuccess | getAdminAgentsResponseError)
+export type getApiAdminAgentsResponse = (getApiAdminAgentsResponseSuccess | getApiAdminAgentsResponseError)
 
-export const getGetAdminAgentsUrl = (params?: GetAdminAgentsParams,) => {
+export const getGetApiAdminAgentsUrl = (params?: GetApiAdminAgentsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -199,12 +199,12 @@ export const getGetAdminAgentsUrl = (params?: GetAdminAgentsParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/admin/agents?${stringifiedParams}` : `/admin/agents`
+  return stringifiedParams.length > 0 ? `/api/admin/agents?${stringifiedParams}` : `/api/admin/agents`
 }
 
-export const getAdminAgents = async (params?: GetAdminAgentsParams, options?: RequestInit): Promise<getAdminAgentsResponse> => {
+export const getApiAdminAgents = async (params?: GetApiAdminAgentsParams, options?: RequestInit): Promise<getApiAdminAgentsResponse> => {
   
-  return apiClient<getAdminAgentsResponse>(getGetAdminAgentsUrl(params),
+  return apiClient<getApiAdminAgentsResponse>(getGetApiAdminAgentsUrl(params),
   {      
     ...options,
     method: 'GET'

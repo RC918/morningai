@@ -6,53 +6,53 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
-  GetTenantMembersParams,
+  GetApiTenantMembersParams,
   TenantError,
   TenantInfo,
   TenantMembersResponse
 } from '../owner-console-api.schemas';
 
-import { apiClient } from '../../api-client';
+import { apiClient } from '../../lib/api-client';
 
 /**
  * Returns tenant details including member and task counts
  * @summary Get detailed tenant information
  */
-export type getTenantInfoResponse200 = {
+export type getApiTenantInfoResponse200 = {
   data: TenantInfo
   status: 200
 }
 
-export type getTenantInfoResponse404 = {
+export type getApiTenantInfoResponse404 = {
   data: TenantError
   status: 404
 }
 
-export type getTenantInfoResponse500 = {
+export type getApiTenantInfoResponse500 = {
   data: TenantError
   status: 500
 }
     
-export type getTenantInfoResponseSuccess = (getTenantInfoResponse200) & {
+export type getApiTenantInfoResponseSuccess = (getApiTenantInfoResponse200) & {
   headers: Headers;
 };
-export type getTenantInfoResponseError = (getTenantInfoResponse404 | getTenantInfoResponse500) & {
+export type getApiTenantInfoResponseError = (getApiTenantInfoResponse404 | getApiTenantInfoResponse500) & {
   headers: Headers;
 };
 
-export type getTenantInfoResponse = (getTenantInfoResponseSuccess | getTenantInfoResponseError)
+export type getApiTenantInfoResponse = (getApiTenantInfoResponseSuccess | getApiTenantInfoResponseError)
 
-export const getGetTenantInfoUrl = () => {
+export const getGetApiTenantInfoUrl = () => {
 
 
   
 
-  return `/tenant/info`
+  return `/api/tenant/info`
 }
 
-export const getTenantInfo = async ( options?: RequestInit): Promise<getTenantInfoResponse> => {
+export const getApiTenantInfo = async ( options?: RequestInit): Promise<getApiTenantInfoResponse> => {
   
-  return apiClient<getTenantInfoResponse>(getGetTenantInfoUrl(),
+  return apiClient<getApiTenantInfoResponse>(getGetApiTenantInfoUrl(),
   {      
     ...options,
     method: 'GET'
@@ -66,36 +66,36 @@ export const getTenantInfo = async ( options?: RequestInit): Promise<getTenantIn
  * Returns paginated list of tenant members with profile info
  * @summary Get list of members in tenant
  */
-export type getTenantMembersResponse200 = {
+export type getApiTenantMembersResponse200 = {
   data: TenantMembersResponse
   status: 200
 }
 
-export type getTenantMembersResponse400 = {
+export type getApiTenantMembersResponse400 = {
   data: TenantError
   status: 400
 }
 
-export type getTenantMembersResponse404 = {
+export type getApiTenantMembersResponse404 = {
   data: TenantError
   status: 404
 }
 
-export type getTenantMembersResponse500 = {
+export type getApiTenantMembersResponse500 = {
   data: TenantError
   status: 500
 }
     
-export type getTenantMembersResponseSuccess = (getTenantMembersResponse200) & {
+export type getApiTenantMembersResponseSuccess = (getApiTenantMembersResponse200) & {
   headers: Headers;
 };
-export type getTenantMembersResponseError = (getTenantMembersResponse400 | getTenantMembersResponse404 | getTenantMembersResponse500) & {
+export type getApiTenantMembersResponseError = (getApiTenantMembersResponse400 | getApiTenantMembersResponse404 | getApiTenantMembersResponse500) & {
   headers: Headers;
 };
 
-export type getTenantMembersResponse = (getTenantMembersResponseSuccess | getTenantMembersResponseError)
+export type getApiTenantMembersResponse = (getApiTenantMembersResponseSuccess | getApiTenantMembersResponseError)
 
-export const getGetTenantMembersUrl = (params?: GetTenantMembersParams,) => {
+export const getGetApiTenantMembersUrl = (params?: GetApiTenantMembersParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -107,12 +107,12 @@ export const getGetTenantMembersUrl = (params?: GetTenantMembersParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/tenant/members?${stringifiedParams}` : `/tenant/members`
+  return stringifiedParams.length > 0 ? `/api/tenant/members?${stringifiedParams}` : `/api/tenant/members`
 }
 
-export const getTenantMembers = async (params?: GetTenantMembersParams, options?: RequestInit): Promise<getTenantMembersResponse> => {
+export const getApiTenantMembers = async (params?: GetApiTenantMembersParams, options?: RequestInit): Promise<getApiTenantMembersResponse> => {
   
-  return apiClient<getTenantMembersResponse>(getGetTenantMembersUrl(params),
+  return apiClient<getApiTenantMembersResponse>(getGetApiTenantMembersUrl(params),
   {      
     ...options,
     method: 'GET'

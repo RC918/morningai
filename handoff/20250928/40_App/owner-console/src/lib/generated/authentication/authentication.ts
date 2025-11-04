@@ -12,41 +12,41 @@ import type {
   User
 } from '../owner-console-api.schemas';
 
-import { apiClient } from '../../api-client';
+import { apiClient } from '../../lib/api-client';
 
 /**
  * @summary Verify authentication token
  */
-export type getAuthVerifyResponse200 = {
+export type getApiAuthVerifyResponse200 = {
   data: User
   status: 200
 }
 
-export type getAuthVerifyResponse401 = {
+export type getApiAuthVerifyResponse401 = {
   data: Error
   status: 401
 }
     
-export type getAuthVerifyResponseSuccess = (getAuthVerifyResponse200) & {
+export type getApiAuthVerifyResponseSuccess = (getApiAuthVerifyResponse200) & {
   headers: Headers;
 };
-export type getAuthVerifyResponseError = (getAuthVerifyResponse401) & {
+export type getApiAuthVerifyResponseError = (getApiAuthVerifyResponse401) & {
   headers: Headers;
 };
 
-export type getAuthVerifyResponse = (getAuthVerifyResponseSuccess | getAuthVerifyResponseError)
+export type getApiAuthVerifyResponse = (getApiAuthVerifyResponseSuccess | getApiAuthVerifyResponseError)
 
-export const getGetAuthVerifyUrl = () => {
+export const getGetApiAuthVerifyUrl = () => {
 
 
   
 
-  return `/auth/verify`
+  return `/api/auth/verify`
 }
 
-export const getAuthVerify = async ( options?: RequestInit): Promise<getAuthVerifyResponse> => {
+export const getApiAuthVerify = async ( options?: RequestInit): Promise<getApiAuthVerifyResponse> => {
   
-  return apiClient<getAuthVerifyResponse>(getGetAuthVerifyUrl(),
+  return apiClient<getApiAuthVerifyResponse>(getGetApiAuthVerifyUrl(),
   {      
     ...options,
     method: 'GET'
@@ -59,36 +59,36 @@ export const getAuthVerify = async ( options?: RequestInit): Promise<getAuthVeri
 /**
  * @summary User login
  */
-export type postAuthLoginResponse200 = {
+export type postApiAuthLoginResponse200 = {
   data: LoginResponse
   status: 200
 }
 
-export type postAuthLoginResponse401 = {
+export type postApiAuthLoginResponse401 = {
   data: Error
   status: 401
 }
     
-export type postAuthLoginResponseSuccess = (postAuthLoginResponse200) & {
+export type postApiAuthLoginResponseSuccess = (postApiAuthLoginResponse200) & {
   headers: Headers;
 };
-export type postAuthLoginResponseError = (postAuthLoginResponse401) & {
+export type postApiAuthLoginResponseError = (postApiAuthLoginResponse401) & {
   headers: Headers;
 };
 
-export type postAuthLoginResponse = (postAuthLoginResponseSuccess | postAuthLoginResponseError)
+export type postApiAuthLoginResponse = (postApiAuthLoginResponseSuccess | postApiAuthLoginResponseError)
 
-export const getPostAuthLoginUrl = () => {
+export const getPostApiAuthLoginUrl = () => {
 
 
   
 
-  return `/auth/login`
+  return `/api/auth/login`
 }
 
-export const postAuthLogin = async (loginRequest: LoginRequest, options?: RequestInit): Promise<postAuthLoginResponse> => {
+export const postApiAuthLogin = async (loginRequest: LoginRequest, options?: RequestInit): Promise<postApiAuthLoginResponse> => {
   
-  return apiClient<postAuthLoginResponse>(getPostAuthLoginUrl(),
+  return apiClient<postApiAuthLoginResponse>(getPostApiAuthLoginUrl(),
   {      
     ...options,
     method: 'POST',

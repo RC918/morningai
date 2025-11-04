@@ -312,15 +312,15 @@ export interface TenantError {
   error?: TenantErrorError;
 }
 
-export type GetBillingPlans200 = {
+export type GetApiBillingPlans200 = {
   plans?: BillingPlan[];
 };
 
-export type GetAdminSystemLogsParams = {
+export type GetApiAdminSystemLogsParams = {
 /**
  * Filter by log level
  */
-level?: GetAdminSystemLogsLevel;
+level?: GetApiAdminSystemLogsLevel;
 /**
  * Number of logs to return
  * @maximum 1000
@@ -332,11 +332,11 @@ limit?: number;
 since?: string;
 };
 
-export type GetAdminSystemLogsLevel = typeof GetAdminSystemLogsLevel[keyof typeof GetAdminSystemLogsLevel];
+export type GetApiAdminSystemLogsLevel = typeof GetApiAdminSystemLogsLevel[keyof typeof GetApiAdminSystemLogsLevel];
 
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-export const GetAdminSystemLogsLevel = {
+export const GetApiAdminSystemLogsLevel = {
   DEBUG: 'DEBUG',
   INFO: 'INFO',
   WARNING: 'WARNING',
@@ -344,7 +344,7 @@ export const GetAdminSystemLogsLevel = {
   CRITICAL: 'CRITICAL',
 } as const;
 
-export type GetAdminAgentsParams = {
+export type GetApiAdminAgentsParams = {
 /**
  * Filter by status (active, paused, all)
  */
@@ -356,7 +356,7 @@ status?: string;
 limit?: number;
 };
 
-export type GetGovernanceEventsParams = {
+export type GetApiGovernanceEventsParams = {
 /**
  * Filter by agent ID
  */
@@ -367,7 +367,7 @@ agent_id?: string;
 limit?: number;
 };
 
-export type GetGovernanceViolationsParams = {
+export type GetApiGovernanceViolationsParams = {
 /**
  * Filter by agent ID
  */
@@ -378,7 +378,7 @@ agent_id?: string;
 limit?: number;
 };
 
-export type GetTenantMembersParams = {
+export type GetApiTenantMembersParams = {
 /**
  * Max number of results
  * @maximum 100

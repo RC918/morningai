@@ -8,13 +8,13 @@ info:
     email: api@morningai.com
 
 servers:
-  - url: http://localhost:5001/api
+  - url: http://localhost:5001
     description: Local development server
-  - url: https://morningai-backend-v2.onrender.com/api
+  - url: https://morningai-backend-v2.onrender.com
     description: Production server
 
 paths:
-  /auth/verify:
+  /api/auth/verify:
     get:
       summary: Verify authentication token
       tags: [Authentication]
@@ -34,7 +34,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /auth/login:
+  /api/auth/login:
     post:
       summary: User login
       tags: [Authentication]
@@ -58,7 +58,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /billing/plans:
+  /api/billing/plans:
     get:
       summary: Get billing plans
       tags: [Billing]
@@ -77,7 +77,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/BillingPlan'
 
-  /billing/checkout/session:
+  /api/billing/checkout/session:
     post:
       summary: Create checkout session
       tags: [Billing]
@@ -97,7 +97,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CheckoutSessionResponse'
 
-  /settings:
+  /api/settings:
     get:
       summary: Get user settings
       tags: [Settings]
@@ -130,7 +130,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
 
-  /dashboard/data:
+  /api/dashboard/data:
     get:
       summary: Get dashboard data
       tags: [Dashboard]
@@ -144,7 +144,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DashboardData'
 
-  /admin/system/health:
+  /api/admin/system/health:
     get:
       summary: Get system health status
       description: Returns overall system health including status, uptime, and service checks. Requires Owner role.
@@ -165,7 +165,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminError'
 
-  /admin/system/metrics:
+  /api/admin/system/metrics:
     get:
       summary: Get system metrics
       description: Returns system resource usage metrics (CPU, memory, disk, requests). Requires Owner role.
@@ -192,7 +192,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminError'
 
-  /admin/system/logs:
+  /api/admin/system/logs:
     get:
       summary: Get system logs
       description: Returns recent system logs with filtering options. Requires Owner role.
@@ -233,7 +233,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminError'
 
-  /admin/agents:
+  /api/admin/agents:
     get:
       summary: Get all agents
       description: Returns list of all agents with status and metadata. Requires Owner role.
@@ -274,7 +274,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminError'
 
-  /governance/events:
+  /api/governance/events:
     get:
       summary: Get reputation events history
       description: Returns reputation events with optional filtering by agent
@@ -313,7 +313,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/GovernanceError'
 
-  /governance/violations:
+  /api/governance/violations:
     get:
       summary: Get policy violation records
       description: Returns policy violations with optional filtering by agent
@@ -352,7 +352,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/GovernanceError'
 
-  /governance/statistics:
+  /api/governance/statistics:
     get:
       summary: Get overall governance system statistics
       description: Returns reputation and cost statistics
@@ -379,7 +379,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/GovernanceError'
 
-  /tenant/info:
+  /api/tenant/info:
     get:
       summary: Get detailed tenant information
       description: Returns tenant details including member and task counts
@@ -406,7 +406,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TenantError'
 
-  /tenant/members:
+  /api/tenant/members:
     get:
       summary: Get list of members in tenant
       description: Returns paginated list of tenant members with profile info

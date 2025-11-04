@@ -8,37 +8,37 @@
 import type {
   CheckoutSessionRequest,
   CheckoutSessionResponse,
-  GetBillingPlans200
+  GetApiBillingPlans200
 } from '../owner-console-api.schemas';
 
-import { apiClient } from '../../api-client';
+import { apiClient } from '../../lib/api-client';
 
 /**
  * @summary Get billing plans
  */
-export type getBillingPlansResponse200 = {
-  data: GetBillingPlans200
+export type getApiBillingPlansResponse200 = {
+  data: GetApiBillingPlans200
   status: 200
 }
     
-export type getBillingPlansResponseSuccess = (getBillingPlansResponse200) & {
+export type getApiBillingPlansResponseSuccess = (getApiBillingPlansResponse200) & {
   headers: Headers;
 };
 ;
 
-export type getBillingPlansResponse = (getBillingPlansResponseSuccess)
+export type getApiBillingPlansResponse = (getApiBillingPlansResponseSuccess)
 
-export const getGetBillingPlansUrl = () => {
+export const getGetApiBillingPlansUrl = () => {
 
 
   
 
-  return `/billing/plans`
+  return `/api/billing/plans`
 }
 
-export const getBillingPlans = async ( options?: RequestInit): Promise<getBillingPlansResponse> => {
+export const getApiBillingPlans = async ( options?: RequestInit): Promise<getApiBillingPlansResponse> => {
   
-  return apiClient<getBillingPlansResponse>(getGetBillingPlansUrl(),
+  return apiClient<getApiBillingPlansResponse>(getGetApiBillingPlansUrl(),
   {      
     ...options,
     method: 'GET'
@@ -51,29 +51,29 @@ export const getBillingPlans = async ( options?: RequestInit): Promise<getBillin
 /**
  * @summary Create checkout session
  */
-export type postBillingCheckoutSessionResponse201 = {
+export type postApiBillingCheckoutSessionResponse201 = {
   data: CheckoutSessionResponse
   status: 201
 }
     
-export type postBillingCheckoutSessionResponseSuccess = (postBillingCheckoutSessionResponse201) & {
+export type postApiBillingCheckoutSessionResponseSuccess = (postApiBillingCheckoutSessionResponse201) & {
   headers: Headers;
 };
 ;
 
-export type postBillingCheckoutSessionResponse = (postBillingCheckoutSessionResponseSuccess)
+export type postApiBillingCheckoutSessionResponse = (postApiBillingCheckoutSessionResponseSuccess)
 
-export const getPostBillingCheckoutSessionUrl = () => {
+export const getPostApiBillingCheckoutSessionUrl = () => {
 
 
   
 
-  return `/billing/checkout/session`
+  return `/api/billing/checkout/session`
 }
 
-export const postBillingCheckoutSession = async (checkoutSessionRequest: CheckoutSessionRequest, options?: RequestInit): Promise<postBillingCheckoutSessionResponse> => {
+export const postApiBillingCheckoutSession = async (checkoutSessionRequest: CheckoutSessionRequest, options?: RequestInit): Promise<postApiBillingCheckoutSessionResponse> => {
   
-  return apiClient<postBillingCheckoutSessionResponse>(getPostBillingCheckoutSessionUrl(),
+  return apiClient<postApiBillingCheckoutSessionResponse>(getPostApiBillingCheckoutSessionUrl(),
   {      
     ...options,
     method: 'POST',

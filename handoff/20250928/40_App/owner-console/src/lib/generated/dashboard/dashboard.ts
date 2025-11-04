@@ -9,34 +9,34 @@ import type {
   DashboardData
 } from '../owner-console-api.schemas';
 
-import { apiClient } from '../../api-client';
+import { apiClient } from '../../lib/api-client';
 
 /**
  * @summary Get dashboard data
  */
-export type getDashboardDataResponse200 = {
+export type getApiDashboardDataResponse200 = {
   data: DashboardData
   status: 200
 }
     
-export type getDashboardDataResponseSuccess = (getDashboardDataResponse200) & {
+export type getApiDashboardDataResponseSuccess = (getApiDashboardDataResponse200) & {
   headers: Headers;
 };
 ;
 
-export type getDashboardDataResponse = (getDashboardDataResponseSuccess)
+export type getApiDashboardDataResponse = (getApiDashboardDataResponseSuccess)
 
-export const getGetDashboardDataUrl = () => {
+export const getGetApiDashboardDataUrl = () => {
 
 
   
 
-  return `/dashboard/data`
+  return `/api/dashboard/data`
 }
 
-export const getDashboardData = async ( options?: RequestInit): Promise<getDashboardDataResponse> => {
+export const getApiDashboardData = async ( options?: RequestInit): Promise<getApiDashboardDataResponse> => {
   
-  return apiClient<getDashboardDataResponse>(getGetDashboardDataUrl(),
+  return apiClient<getApiDashboardDataResponse>(getGetApiDashboardDataUrl(),
   {      
     ...options,
     method: 'GET'
