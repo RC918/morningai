@@ -465,7 +465,7 @@ class Test2FAIntegration:
                     result = check_2fa_required('user-003')
                     assert result is False
     
-    def test_login_requires_2fa_response(self, client):
+    def test_login_requires_2fa_response(self, client, mock_redis):
         """Test that login returns requires_2fa when 2FA is needed"""
         with patch('src.routes.auth_enhanced.authenticate_user') as mock_auth:
             mock_auth.return_value = {
@@ -479,12 +479,11 @@ class Test2FAIntegration:
             with patch('src.routes.totp.check_2fa_required') as mock_2fa:
                 mock_2fa.return_value = True
                 
-                response = client.post('/api/auth/login',
-                    data=json.dumps({
+                response = client.post('/api/auth/v2/login',
+                    json={
                         'email': 'owner@example.com',
                         'password': 'test_password'
-                    }),
-                    content_type='application/json'
+                    }
                 )
                 
                 assert response.status_code == 200
