@@ -66,8 +66,8 @@ class TestDashboardDegradationPaths:
             db_alerts = [a for a in alerts if 'database' in a.get('message', '').lower()]
             assert len(db_alerts) > 0
 
-    def test_dual_failure_returns_500(self, client):
-        """Test dashboard returns 500 when both Redis and DB fail"""
+    def test_dual_failure_returns_503(self, client):
+        """Test dashboard returns 503 Service Unavailable when both Redis and DB fail"""
         with patch('src.routes.dashboard.get_redis_client') as mock_redis, \
              patch('src.routes.dashboard.db.engine.connect') as mock_db:
             
@@ -76,10 +76,11 @@ class TestDashboardDegradationPaths:
             
             response = client.get('/api/phase7/monitoring/dashboard')
             
-            assert response.status_code == 500
+            assert response.status_code == 503
             data = response.get_json()
             
-            assert 'error' in data or 'message' in data
+            assert 'error' in data
+            assert data.get('status') == 'service_unavailable'
 
     def test_redis_failure_with_computed_false(self, client):
         """Test that agent metrics include computed: false when using fallback"""

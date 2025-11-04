@@ -91,7 +91,11 @@ def get_dashboard_data():
         
         if not redis_available and not db_available:
             logger.error("Both Redis and Database are unavailable")
-            return jsonify({'error': 'Core services unavailable'}), 500
+            return jsonify({
+                'error': 'Core services unavailable',
+                'message': 'Both Redis and Database connections failed',
+                'status': 'service_unavailable'
+            }), 503
         
         try:
             redis_security = check_redis_security()
