@@ -79,7 +79,11 @@ app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'sta
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 
 cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
-CORS(app, resources={r"/*": {"origins": cors_origins}})
+CORS(app, resources={r"/*": {
+    "origins": cors_origins,
+    "supports_credentials": True,
+    "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token"]
+}})
 
 if SECURITY_AVAILABLE:
     security_config = {

@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
 from werkzeug.security import check_password_hash, generate_password_hash
 import jwt
 import datetime
+import secrets
 from src.models.user import db, User
 
 auth_bp = Blueprint('auth', __name__)
@@ -64,17 +65,54 @@ def login():
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
         }, jwt_secret, algorithm='HS256')
         
-        # 返回用戶信息和token
-        return jsonify({
-            'user': {
-                'id': user_data['id'],
-                'username': user_data['username'],
-                'name': user_data['name'],
-                'role': user_data['role'],
-                'avatar': user_data['avatar']
-            },
-            'token': token
-        })
+        user_info = {
+            'id': user_data['id'],
+            'username': user_data['username'],
+            'name': user_data['name'],
+            'role': user_data['role'],
+            'avatar': user_data['avatar']
+        }
+        
+        use_cookie_auth = os.environ.get('FEATURE_COOKIE_AUTH', 'false').lower() == 'true'
+        
+        if use_cookie_auth:
+            csrf_token = secrets.token_urlsafe(32)
+            
+            response = make_response(jsonify({
+                'user': user_info,
+                'token': token
+            }))
+            
+            is_production = os.environ.get('FLASK_ENV') == 'production'
+            secure = is_production
+            samesite = 'None' if is_production else 'Lax'
+            
+            response.set_cookie(
+                'access_token',
+                token,
+                httponly=True,
+                secure=secure,
+                samesite=samesite,
+                max_age=86400,
+                path='/'
+            )
+            
+            response.set_cookie(
+                'csrf_token',
+                csrf_token,
+                httponly=False,
+                secure=secure,
+                samesite=samesite,
+                max_age=86400,
+                path='/'
+            )
+            
+            return response
+        else:
+            return jsonify({
+                'user': user_info,
+                'token': token
+            })
         
     except Exception as e:
         return jsonify({'message': '登錄失敗，請稍後重試'}), 500
@@ -83,15 +121,21 @@ def login():
 def verify_token():
     """驗證token有效性"""
     try:
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
-            return jsonify({'message': '缺少認證頭'}), 401
+        token = None
         
-        # 提取token
-        try:
-            token = auth_header.split(' ')[1]  # Bearer <token>
-        except IndexError:
-            return jsonify({'message': '無效的認證格式'}), 401
+        use_cookie_auth = os.environ.get('FEATURE_COOKIE_AUTH', 'false').lower() == 'true'
+        if use_cookie_auth:
+            token = request.cookies.get('access_token')
+        
+        if not token:
+            auth_header = request.headers.get('Authorization')
+            if not auth_header:
+                return jsonify({'message': '缺少認證頭'}), 401
+            
+            try:
+                token = auth_header.split(' ')[1]
+            except IndexError:
+                return jsonify({'message': '無效的認證格式'}), 401
         
         # 驗證token
         try:
@@ -123,6 +167,15 @@ def verify_token():
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
     """用戶登出"""
-    # 在實際應用中，可以將token加入黑名單
-    return jsonify({'message': '登出成功'})
+    use_cookie_auth = os.environ.get('FEATURE_COOKIE_AUTH', 'false').lower() == 'true'
+    
+    if use_cookie_auth:
+        response = make_response(jsonify({'message': '登出成功'}))
+        
+        response.set_cookie('access_token', '', expires=0, path='/')
+        response.set_cookie('csrf_token', '', expires=0, path='/')
+        
+        return response
+    else:
+        return jsonify({'message': '登出成功'})
 
