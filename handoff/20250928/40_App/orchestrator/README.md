@@ -1,18 +1,19 @@
-# MorningAI Orchestrator Worker Engine
+# MorningAI Worker Orchestrator
 
-**Type**: RQ Worker (Redis Queue)  
-**Purpose**: Task execution engine  
+**Component**: Worker Orchestrator  
+**Role**: Task Execution (RQ + LangGraph)  
+**Maturity**: Production  
 **Deployment**: Render (morningai-agent-worker)  
 **Queue**: orchestrator
 
 ## Architecture
 
-This is the **worker layer** of the orchestrator system. It polls Redis for tasks and executes them using the graph-based orchestration engine.
+This is the **worker layer** of the orchestrator system (consumer in producer-consumer pattern). It polls Redis for tasks and executes them using the LangGraph-based orchestration engine.
 
 **Related Components**:
-- **API**: `orchestrator/` (root) - FastAPI service for task submission
+- **API Orchestrator**: `orchestrator/` (root) - FastAPI service for task submission
 - **Deployment**: [render.yaml#L55-L94](https://github.com/RC918/morningai/blob/b59625751e80476b6f99ec9f61ace76b8e64f2c1/render.yaml#L55-L94)
-- **Architecture Decision**: [ADR-002: Producer-Consumer Architecture](../../../../docs/adr/002-producer-consumer-architecture.md)
+- **Architecture Decision**: [ADR-001: Dual Orchestrator Architecture](../../../../docs/adr/001-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](../../../../docs/adr/002-producer-consumer-architecture.md)
 
 ---
 

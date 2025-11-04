@@ -65,6 +65,17 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - **Orchestrator API**: https://morningai-orchestrator-api.onrender.com
 - **Frontend**: https://morningai.vercel.app
 
+⚠️ **Orchestrator Architecture (Dual System)**
+
+MorningAI uses a producer-consumer architecture with two orchestrator implementations:
+
+| Component | Role | Maturity | Service | Path |
+|-----------|------|----------|---------|------|
+| **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` |
+| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+
+**See**: [ADR-001](adr/001-dual-orchestrator-architecture.md), [ADR-002](adr/002-producer-consumer-architecture.md) • **Consolidation**: 2026 Q1
+
 **Infrastructure**:
 - **Database**: Supabase PostgreSQL (production)
 - **Redis**: Upstash (TLS enabled)

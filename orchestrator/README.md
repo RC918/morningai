@@ -1,25 +1,26 @@
-# MorningAI Orchestrator API Service
+# MorningAI API Orchestrator
 
-**Type**: FastAPI Web Service  
-**Purpose**: Task submission endpoint  
+**Component**: API Orchestrator  
+**Role**: API Layer (FastAPI)  
+**Maturity**: Beta  
 **Deployment**: Render (morningai-orchestrator-api)  
 **Port**: 8000  
 **Health Check**: /health
 
 ## Architecture
 
-This is the **API layer** of the orchestrator system. It receives task submissions via HTTP and enqueues them to Redis for worker processing.
+This is the **API layer** of the orchestrator system (producer in producer-consumer pattern). It receives task submissions via HTTP and enqueues them to Redis for worker processing.
 
 **Related Components**:
-- **Worker**: `handoff/20250928/40_App/orchestrator/` (RQ Worker - task execution engine)
+- **Worker Orchestrator**: `handoff/20250928/40_App/orchestrator/` (RQ Worker - task execution engine)
 - **Deployment**: [render.yaml#L111-L150](https://github.com/RC918/morningai/blob/b59625751e80476b6f99ec9f61ace76b8e64f2c1/render.yaml#L111-L150)
-- **Architecture Decision**: [ADR-002: Producer-Consumer Architecture](../docs/adr/002-producer-consumer-architecture.md)
+- **Architecture Decision**: [ADR-001: Dual Orchestrator Architecture](../docs/adr/001-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](../docs/adr/002-producer-consumer-architecture.md)
 
 ---
 
 Multi-Agent Task Orchestration and Event Bus for MorningAI platform.
 
-## ⚠️ Status: Beta
+## ⚠️ Maturity: Beta
 
 **This module is in beta state. Security features implemented, testing in progress.**
 

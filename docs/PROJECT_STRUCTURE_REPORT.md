@@ -429,11 +429,27 @@ config/
 
 **Current State**: Two orchestrator implementations in use:
 
-#### 3.1 New Orchestrator (Production API)
+| Component | Role | Maturity | Service | Path | Documentation |
+|-----------|------|----------|---------|------|---------------|
+| **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` | [README](../orchestrator/README.md) |
+| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` | [README](../handoff/20250928/40_App/orchestrator/README.md) |
+
+**Architecture**: Producer-consumer pattern. API Orchestrator receives HTTP requests and enqueues tasks to Redis. Worker Orchestrator polls Redis and executes tasks using LangGraph workflows.
+
+**Key Documentation**:
+- [ADR-001: Dual Orchestrator Architecture](./adr/001-dual-orchestrator-architecture.md) - Rationale and migration plan
+- [ADR-002: Producer-Consumer Architecture](./adr/002-producer-consumer-architecture.md) - Technical architecture details
+- [render.yaml](../render.yaml) - Deployment configuration (lines 55-94, 111-150)
+
+**Consolidation Plan**: 2026 Q1 (tracked in [Issue #1105](https://github.com/RC918/morningai/issues/1105))
+
+#### 3.1 API Orchestrator (Production API Layer)
 
 **Location**: `orchestrator/` (root directory)
 
-**Architecture**: Graph-based task management (FastAPI)
+**Role**: API Layer (FastAPI) - Receives HTTP task submissions and enqueues to Redis
+
+**Maturity**: Beta
 
 **Key Components**:
 - **API** (`orchestrator/api/main.py`): FastAPI application
@@ -449,11 +465,13 @@ config/
 - Port: 8000
 - Environment: `USE_LANGGRAPH=false`
 
-#### 3.2 Legacy Orchestrator (RQ Workers)
+#### 3.2 Worker Orchestrator (Task Execution Layer)
 
 **Location**: `handoff/20250928/40_App/orchestrator/`
 
-**Architecture**: LangGraph-based workflow engine
+**Role**: Task Execution (RQ + LangGraph) - Polls Redis and executes tasks
+
+**Maturity**: Production
 
 **Key Components**:
 - **LangGraph Orchestrator** (`langgraph_orchestrator.py`): Stateful workflows
@@ -462,11 +480,9 @@ config/
 **Dependencies**: Includes LangGraph and related dependencies
 
 **Deployment**:
-- Render service: Worker instances
+- Render service: `morningai-agent-worker`
 - Used by: RQ workers for background job processing
 - Path: `handoff/20250928/40_App/orchestrator`
-
-**Future Plan**: Consolidate to single orchestrator architecture by 2026 Q1 (tracked in ADR-001)
 
 ### 4. Frontend System
 
