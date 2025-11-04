@@ -594,31 +594,47 @@ pnpm format
 
 ### Database Migrations
 
-⚠️ **Note**: Alembic is planned but not yet implemented. Current migrations are manual SQL files in `migrations/` directory.
+✅ **Alembic Migration Framework**: MorningAI uses Alembic for database schema version control and migrations.
 
-**Planned Alembic Workflow** (coming soon):
-
-**Create Migration**:
+**Quick Start**:
 ```bash
 cd handoff/20250928/40_App/api-backend
-alembic revision --autogenerate -m "description"
-```
 
-**Apply Migration**:
-```bash
+# Run all pending migrations
 alembic upgrade head
+
+# Check current migration version
+alembic current
+
+# View migration history
+alembic history --verbose
+
+# Create new migration (auto-generate from model changes)
+alembic revision --autogenerate -m "Description of changes"
 ```
 
-**Rollback Migration**:
+**Helper Script**:
 ```bash
-alembic downgrade -1
+# Use the migration helper script
+./scripts/run_alembic_migrations.sh upgrade    # Apply migrations
+./scripts/run_alembic_migrations.sh current    # Check version
+./scripts/run_alembic_migrations.sh history    # View history
+./scripts/run_alembic_migrations.sh revision "Add new table"  # Create migration
 ```
 
-**Current Workflow** (manual SQL):
-```bash
-# Apply SQL migrations manually
-psql $DATABASE_URL < migrations/001_initial_schema.sql
-```
+**Configuration**:
+- **Alembic Config**: `alembic.ini`
+- **Environment Setup**: `alembic/env.py` (auto-loads DATABASE_URL from environment)
+- **Migrations Directory**: `alembic/versions/`
+- **Models**: `src/models/` (SQLAlchemy models)
+
+**CI/CD Integration**:
+- Migrations are automatically validated in CI against PostgreSQL
+- GitHub Actions workflow: `.github/workflows/alembic-check.yml`
+- Both PostgreSQL and SQLite migrations are tested
+
+**Legacy Migrations**:
+Manual SQL files in `migrations/` directory are for historical reference only. All new schema changes should use Alembic.
 
 ### Checking Service Health
 

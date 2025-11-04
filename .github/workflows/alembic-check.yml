@@ -1,0 +1,75 @@
+name: Alembic Migration Check
+
+on:
+  pull_request:
+    paths:
+      - 'handoff/20250928/40_App/api-backend/**'
+      - '.github/workflows/alembic-check.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'handoff/20250928/40_App/api-backend/**'
+
+jobs:
+  validate-migrations:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: handoff/20250928/40_App/api-backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Alembic migrations (PostgreSQL)
+        working-directory: handoff/20250928/40_App/api-backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          echo "Testing migrations against PostgreSQL..."
+          alembic upgrade head
+          alembic current
+          echo "✅ Migrations applied successfully"
+
+      - name: Verify migration can downgrade
+        working-directory: handoff/20250928/40_App/api-backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          echo "Testing downgrade..."
+          alembic downgrade -1
+          echo "✅ Downgrade successful"
+
+      - name: Test SQLite migrations (development)
+        working-directory: handoff/20250928/40_App/api-backend
+        run: |
+          echo "Testing migrations against SQLite..."
+          rm -f test_phase7.db
+          DATABASE_URL=sqlite:///test_phase7.db alembic upgrade head
+          DATABASE_URL=sqlite:///test_phase7.db alembic current
+          echo "✅ SQLite migrations work"
+          rm -f test_phase7.db
