@@ -101,7 +101,15 @@
     "connections": "連線數",
     "queryTime": "查詢時間",
     "active": "活躍",
-    "queueSize": "佇列大小"
+    "queueSize": "佇列大小",
+    "systemHealth": "系統健康",
+    "overallStatus": "整體狀態",
+    "cpuUsage": "CPU 使用率",
+    "cores": "核心數",
+    "memory": "記憶體",
+    "disk": "磁碟",
+    "usedTotal": "已用/總量",
+    "gbFormat": "{{used}}GB / {{total}}GB"
   },
   "settings": {
     "title": "平台設定",
@@ -227,7 +235,9 @@
     "search": "搜尋",
     "filter": "篩選",
     "export": "匯出",
-    "refresh": "重新整理"
+    "refresh": "重新整理",
+    "usage": "使用量",
+    "idShort": "ID：{{id}}"
   },
   "auth": {
     "login": {
