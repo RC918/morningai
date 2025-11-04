@@ -566,7 +566,7 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 4. Commit all changes together
 ### Production URLs
 
-**Frontend Applications** (see [TERMINOLOGY.md](./TERMINOLOGY.md#域名映射-domain-mapping) for details):
+**Frontend Applications** (see [TERMINOLOGY.md](./TERMINOLOGY.md#域名映射-domain-mapping) for domain mapping details):
 - **Tenant Dashboard**: https://app.gm365.me (租戶用戶)
 - **Owner Console**: https://admin.gm365.me (平台所有者)
 - **Legacy URL**: https://morningai.vercel.app (still active, redirects to app.gm365.me)

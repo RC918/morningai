@@ -345,7 +345,7 @@ curl https://morningai-backend-v2.onrender.com/healthz
 - Database schema changes
 - Breaking changes
 
-**Template**: [.github/ISSUE_TEMPLATE/rfc.md](.github/ISSUE_TEMPLATE/rfc.md)
+**Template**: [.github/ISSUE_TEMPLATE/rfc.md](../.github/ISSUE_TEMPLATE/rfc.md)
 
 ---
 
@@ -758,7 +758,7 @@ pytest tests/test_specific.py -v
 ### Internal Resources
 
 **Documentation**:
-- Check [docs/](docs/) directory for comprehensive documentation
+- Check the `docs/` directory for comprehensive documentation
 - Search for specific topics in documentation
 
 **Team Communication**:
