@@ -1,0 +1,29 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^http://localhost"
+    },
+    {
+      "pattern": "^https://.*\\.fly\\.dev"
+    },
+    {
+      "pattern": "^https://.*\\.onrender\\.com"
+    },
+    {
+      "pattern": "^https://.*\\.vercel\\.app"
+    },
+    {
+      "pattern": "^https://(app|admin)\\.gm365\\.me"
+    },
+    {
+      "pattern": "/tmp/"
+    }
+  ],
+  "replacementPatterns": [],
+  "httpHeaders": [],
+  "timeout": "20s",
+  "retryOn429": true,
+  "retryCount": 3,
+  "fallbackRetryDelay": "30s",
+  "aliveStatusCodes": [200, 206]
+}

@@ -4,6 +4,11 @@
 **發布日期**: 2025-11-03  
 **用途**: 統一中英文技術術語翻譯，確保文檔、UI、API 的一致性
 
+> 📚 **相關文件**: 
+> - [Onboarding Guide](./ONBOARDING_GUIDE.md) - 新人入職指南和環境設置
+> - [專案結構報告](./PROJECT_STRUCTURE_REPORT.md) - 詳細的目錄組織和架構模式
+> - [README](../README.md) - 專案概覽和快速導航
+
 ---
 
 ## 應用架構術語 (Application Architecture Terms)

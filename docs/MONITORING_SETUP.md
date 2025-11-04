@@ -255,7 +255,7 @@ To view monitoring history:
 ## Related Documentation
 
 - [API Usage Guide](../orchestrator/API_USAGE.md)
-- [Deployment Guide](../RENDER_DEPLOYMENT_GUIDE.md)
+- [Vercel Deployment Guide](./VERCEL_DEPLOYMENT_GUIDE.md)
 - [Monitoring Guide](../orchestrator/MONITORING.md)
 
 ## Support

@@ -208,15 +208,69 @@ MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊�
 
 ---
 
-## 開發貢獻流程
+## 📚 相關文件 (Related Documentation)
 
-請參閱以下文件了解專案的開發規範與 CI/CD 流程：
+### 🚀 新人必讀 (Getting Started)
+
+**首次接觸專案？從這裡開始：**
+1. **[Onboarding Guide](docs/ONBOARDING_GUIDE.md)** - 完整的新人入職指南，包含環境設置、開發流程、常見任務
+2. **[Project Structure Report](docs/PROJECT_STRUCTURE_REPORT.md)** - 專案結構詳解，了解目錄組織和架構模式
+3. **[Terminology Standards](docs/TERMINOLOGY.md)** - 術語對照表，統一中英文技術術語（必讀）
+
+### 🔧 開發與部署 (Development & Deployment)
+
+**開發貢獻流程：**
 - **[本地開發設定](docs/setup_local.md)** - 快速啟動指南與常見問題排除
 - **[Staging 環境指南](docs/ops/STAGING_SETUP_GUIDE.md)** - 完整的 staging 環境設置與使用指南
-- [貢獻規則](docs/CONTRIBUTING.md) - 分工規則、API 變更流程、驗收標準
+- **[貢獻規則](docs/CONTRIBUTING.md)** - 分工規則、API 變更流程、驗收標準
+- **[環境變數 Schema](config/env.schema.yaml)** - 環境變數配置的單一真源（53 個變數）
+
+**CI/CD 與腳本：**
 - [CI 工作流矩陣](docs/ci_matrix.md) - 完整的 GitHub Actions 工作流說明、觸發條件、Branch Protection 規則
 - [管理腳本指南](docs/scripts_overview.md) - 標準化管理腳本的使用方式與安全注意事項
-- [環境變數 Schema](docs/config/env_schema.md) - 完整的環境變數配置說明（53 個變數）
+- [驗證腳本](scripts/verify_system_state.sh) - 系統狀態驗證腳本（30 項檢查）
+
+### 🏗️ 架構與設計 (Architecture & Design)
+
+**系統架構：**
+- [Architecture](docs/ARCHITECTURE.md) - 系統架構文檔
+- [Architecture Decision Records (ADRs)](docs/adr/README.md) - 重要架構決策記錄
+  - [ADR-001: Dual Orchestrator Architecture](docs/adr/001-dual-orchestrator-architecture.md)
+  - [ADR-002: Producer-Consumer Architecture](docs/adr/002-producer-consumer-architecture.md)
+  - [ADR-003: Backend of Record](docs/adr/003-backend-of-record.md)
+
+**治理與監控：**
+- [Agent Governance Framework](docs/GOVERNANCE_FRAMEWORK.md) - 多代理系統治理框架（成本追蹤、權限管理、聲譽系統）
+- [Monitoring Setup](docs/MONITORING_SETUP.md) - 監控設置指南
+
+### 🔒 安全與合規 (Security & Compliance)
+
+- **[Secret Rotation Policy](docs/SECRET_ROTATION_POLICY.md)** - 季度密鑰輪換程序、SLO、演練
+- **[Secret Scanning Guide](docs/SECRET_SCANNING_GUIDE.md)** - 防止代碼中暴露密鑰
+- **[Redis 安全要求](docs/REDIS_SECURITY.md)** - CVE-2025-49844 (RediShell) 防護指南
+- [Security Advisor 修復指南](SECURITY_ADVISOR_FIXES.md) - Supabase 安全警告處理說明
+
+### 📊 測試與品質 (Testing & Quality)
+
+- **[Test Statistics Explanation](docs/TEST_STATISTICS_EXPLANATION.md)** - 測試統計數據說明（487 vs 926 vs 23）
+- [Test Coverage Improvement Plan](docs/TEST_COVERAGE_IMPROVEMENT_PLAN.md) - 12 週路線圖達到 60%+ 覆蓋率
+- [Testing Documentation](docs/TESTING.md) - 測試文檔
+
+### 🎨 UI/UX 設計系統 (Design System)
+
+- **[UI/UX 快速上手指南](docs/UI_UX_QUICKSTART.md)** - ⚡ 5 分鐘快速入門（新人必讀）
+- **[UI/UX 速查表](docs/UI_UX_CHEATSHEET.md)** - 📋 一頁速查表（常用命令、組件、Tokens）
+- **[UI/UX 資源指南](docs/UI_UX_RESOURCES.md)** - 🎨 中心化資源索引（設計系統、組件庫、預覽環境）
+- [設計系統指南](DESIGN_SYSTEM_GUIDELINES.md) - 設計規範與最佳實踐
+
+### 📈 戰略與路線圖 (Strategy & Roadmap)
+
+- [CTO Strategic Plan](CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md) - 6 個月轉型計畫（MVP → World-Class）
+- [CTO Technical Assessment](CTO_TECHNICAL_ASSESSMENT_REPORT.md) - 技術評估報告
+- [Strategic Integration Analysis](CTO_STRATEGIC_INTEGRATION_ANALYSIS.md) - 戰略整合分析
+- [Strategic Roadmap](.github/projects/cto-strategic-roadmap-q4-2025-q2-2026.yml) - Q4 2025 - Q2 2026 詳細時間表
+
+---
 
 ## 核心文檔
 
@@ -343,7 +397,7 @@ Morning AI 已部署兩個 AI Agent Sandbox 到 Fly.io，提供安全隔離的�
 - **URL**: https://morningai-sandbox-ops-agent.fly.dev/
 - **功能**: 性能監控、容量分析、系統運維
 - **用途**: 自動化運維、事件響應、性能優化
-- **文檔**: [Ops_Agent README](agents/ops_agent/)
+- **文檔**: [Ops_Agent README](agents/ops_agent/README.md)
 
 **架構文檔**: [Agent Sandbox Architecture](docs/agent-sandbox-architecture.md)  
 **總成本**: ~$4/月（閒置時自動縮放至 $0）

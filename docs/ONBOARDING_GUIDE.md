@@ -2,7 +2,11 @@
 
 **Welcome to MorningAI!** 🎉
 
-> 📚 **術語標準**: 請參閱 [術語對照表](./TERMINOLOGY.md) 了解標準化的應用名稱和用戶類型定義。
+> 📚 **相關文件**: 
+> - [術語對照表](./TERMINOLOGY.md) - 標準化的應用名稱和用戶類型定義
+> - [專案結構報告](./PROJECT_STRUCTURE_REPORT.md) - 詳細的目錄組織和架構模式
+> - [README](../README.md) - 專案概覽和快速導航
+> - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
 This guide will help you get started with the MorningAI project, understand the architecture, set up your development environment, and start contributing.
 
@@ -341,7 +345,7 @@ curl https://morningai-backend-v2.onrender.com/healthz
 - Database schema changes
 - Breaking changes
 
-**Template**: [.github/ISSUE_TEMPLATE/rfc.md](.github/ISSUE_TEMPLATE/rfc.md)
+**Template**: [.github/ISSUE_TEMPLATE/rfc.md](../.github/ISSUE_TEMPLATE/rfc.md)
 
 ---
 
@@ -754,7 +758,7 @@ pytest tests/test_specific.py -v
 ### Internal Resources
 
 **Documentation**:
-- Check [docs/](docs/) directory for comprehensive documentation
+- Check the `docs/` directory for comprehensive documentation
 - Search for specific topics in documentation
 
 **Team Communication**:

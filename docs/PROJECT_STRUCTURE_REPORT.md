@@ -1,6 +1,10 @@
 # MorningAI Project Structure Report
 
-> 📚 **術語標準**: 請參閱 [術語對照表](./TERMINOLOGY.md) 了解標準化的應用名稱和用戶類型定義。
+> 📚 **相關文件**: 
+> - [術語對照表](./TERMINOLOGY.md) - 標準化的應用名稱和用戶類型定義
+> - [Onboarding Guide](./ONBOARDING_GUIDE.md) - 新人入職指南和環境設置
+> - [README](../README.md) - 專案概覽和快速導航
+> - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
 **Document Version**: 1.1.0  
 **Last Updated**: 2025-11-03  
@@ -562,7 +566,7 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 4. Commit all changes together
 ### Production URLs
 
-**Frontend Applications** (see [TERMINOLOGY.md](./TERMINOLOGY.md#域名映射-domain-mapping) for details):
+**Frontend Applications** (see [TERMINOLOGY.md](./TERMINOLOGY.md#域名映射-domain-mapping) for domain mapping details):
 - **Tenant Dashboard**: https://app.gm365.me (租戶用戶)
 - **Owner Console**: https://admin.gm365.me (平台所有者)
 - **Legacy URL**: https://morningai.vercel.app (still active, redirects to app.gm365.me)
