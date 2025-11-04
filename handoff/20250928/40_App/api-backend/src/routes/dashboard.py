@@ -64,7 +64,14 @@ def get_dashboard_data():
                 redis_available = True
         except Exception as e:
             logger.warning(f"Failed to get Redis queue stats: {e}")
-            dashboard_data['metrics']['queue_depth']['current'] = random.randint(5, 15)
+            dashboard_data['metrics']['queue_depth'] = {
+                'current': 0,
+                'unit': 'tasks',
+                'trend': 'unknown',
+                'available': False,
+                'source': 'fallback',
+                'error': 'Redis unavailable'
+            }
         
         try:
             with db.engine.connect() as conn:
@@ -124,22 +131,21 @@ def get_dashboard_data():
                     'agent_type': agent.agent_type or 'unknown',
                     'status': agent.status,
                     'reputation_score': agent.reputation_score or 500,
-                    'task_success_rate': 0.95,  # TODO: Calculate from task history
-                    'active_tasks': 0  # TODO: Get from task assignments
+                    'task_success_rate': 0.95,
+                    'active_tasks': 0,
+                    'computed': False
                 })
         except Exception as e:
             logger.warning(f"Failed to get agent data from DB: {e}")
-            dashboard_data['metrics']['active_agents']['current'] = 3
-            dashboard_data['agents'] = [
-                {
-                    'agent_id': 'agent-001',
-                    'agent_type': 'dev_agent',
-                    'status': 'active',
-                    'reputation_score': 750,
-                    'task_success_rate': 0.95,
-                    'active_tasks': 2
-                }
-            ]
+            dashboard_data['metrics']['active_agents'] = {
+                'current': 0,
+                'unit': 'agents',
+                'trend': 'unknown',
+                'available': False,
+                'source': 'fallback',
+                'error': 'Database unavailable'
+            }
+            dashboard_data['agents'] = []
         
         dashboard_data['system_health']['error_rate'] = 0.01 if dashboard_data['system_health']['overall_status'] == 'healthy' else 0.05
         dashboard_data['system_health']['avg_latency'] = 0.15  # 150ms average
