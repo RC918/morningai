@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ import { AlertCircle } from 'lucide-react';
 import { disableTwoFA } from '../../lib/2fa-api';
 
 export function DisableTwoFAModal({ open, onClose, onSuccess }) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,9 +52,9 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
+          <DialogTitle>{t('settings.2fa.disable.title')}</DialogTitle>
           <DialogDescription>
-            This will remove 2FA protection from your account. You can re-enable it at any time.
+            {t('settings.2fa.disable.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -60,7 +62,7 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }) {
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-500 mt-0.5" />
             <p className="text-xs text-yellow-800 dark:text-yellow-200">
-              <strong>Warning:</strong> Disabling 2FA will make your account less secure.
+              <strong>{t('settings.2fa.disable.warning')}</strong> {t('settings.2fa.disable.warningMessage')}
             </p>
           </div>
 
@@ -72,7 +74,7 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }) {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('settings.2fa.disable.passwordLabel')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -83,19 +85,19 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="totp-code">Current TOTP Code</Label>
+              <Label htmlFor="totp-code">{t('settings.2fa.disable.totpCodeLabel')}</Label>
               <Input
                 id="totp-code"
                 type="text"
                 value={totpCode}
                 onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
+                placeholder={t('settings.2fa.disable.totpCodePlaceholder')}
                 maxLength={6}
                 required
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
-                Enter the 6-digit code from your authenticator app
+                {t('settings.2fa.disable.totpCodeHelper')}
               </p>
             </div>
           </div>
@@ -108,7 +110,7 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }) {
               disabled={loading}
               className="flex-1"
             >
-              Cancel
+              {t('settings.2fa.disable.cancel')}
             </Button>
             <Button
               type="submit"
@@ -116,7 +118,7 @@ export function DisableTwoFAModal({ open, onClose, onSuccess }) {
               disabled={loading || !password || totpCode.length !== 6}
               className="flex-1"
             >
-              {loading ? 'Disabling...' : 'Disable 2FA'}
+              {loading ? t('settings.2fa.disable.disabling') : t('settings.2fa.disable.confirmButton')}
             </Button>
           </div>
         </form>

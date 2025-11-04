@@ -179,6 +179,7 @@
       },
       "cardDescription": "為您的帳戶增加額外的安全保護層",
       "setup": {
+        "qrAlt": "雙因素驗證 QR 碼",
         "qrCodeDescription": "使用您的驗證器應用程式掃描此 QR 碼",
         "manualEntry": "或手動輸入此代碼：",
         "recommendedApps": "推薦的驗證器應用程式：",

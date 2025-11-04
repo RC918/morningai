@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import { regenerateBackupCodes } from '../../lib/2fa-api';
 import { BackupCodesList } from './BackupCodesList';
 
 export function RegenerateBackupCodesModal({ open, onClose, onSuccess }) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [newCodes, setNewCodes] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -55,11 +57,11 @@ export function RegenerateBackupCodesModal({ open, onClose, onSuccess }) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Regenerate Backup Codes</DialogTitle>
+          <DialogTitle>{t('settings.2fa.backupCodes.regenerateTitle')}</DialogTitle>
           <DialogDescription>
             {newCodes
-              ? 'Save your new backup codes in a safe place'
-              : 'Create new backup codes for your account'}
+              ? t('settings.2fa.backupCodes.saveDescription')
+              : t('settings.2fa.backupCodes.regenerateDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -68,7 +70,7 @@ export function RegenerateBackupCodesModal({ open, onClose, onSuccess }) {
             <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-500 mt-0.5" />
               <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                <strong>Warning:</strong> This will invalidate all your existing backup codes.
+                <strong>{t('settings.2fa.backupCodes.regenerateWarning')}</strong> {t('settings.2fa.backupCodes.regenerateWarningMessage')}
               </p>
             </div>
 
@@ -79,7 +81,7 @@ export function RegenerateBackupCodesModal({ open, onClose, onSuccess }) {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('settings.2fa.backupCodes.passwordLabel')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -89,7 +91,7 @@ export function RegenerateBackupCodesModal({ open, onClose, onSuccess }) {
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
-                Confirm your password to regenerate backup codes
+                {t('settings.2fa.backupCodes.passwordHelper')}
               </p>
             </div>
 
@@ -101,14 +103,14 @@ export function RegenerateBackupCodesModal({ open, onClose, onSuccess }) {
                 disabled={loading}
                 className="flex-1"
               >
-                Cancel
+                {t('settings.2fa.disable.cancel')}
               </Button>
               <Button
                 type="submit"
                 disabled={loading || !password}
                 className="flex-1"
               >
-                {loading ? 'Generating...' : 'Regenerate Codes'}
+                {loading ? t('settings.2fa.backupCodes.regenerating') : t('settings.2fa.backupCodes.regenerateButton')}
               </Button>
             </div>
           </form>

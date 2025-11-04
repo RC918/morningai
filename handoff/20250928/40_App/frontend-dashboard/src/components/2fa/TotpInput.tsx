@@ -40,7 +40,7 @@ export function TotpInput({
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const springConfig = getSpringConfig('smooth');
 
-  const digits = value.padEnd(6, '').split('').slice(0, 6);
+  const digits = value.padEnd(6, ' ').split('').slice(0, 6);
 
   useEffect(() => {
     if (autoFocus && inputRefs.current[0]) {
@@ -59,9 +59,15 @@ export function TotpInput({
 
     const sanitized = digitValue.replace(/\D/g, '');
     if (sanitized.length === 0) {
-      const newDigits = [...digits];
-      newDigits[index] = '';
-      onChange(newDigits.join('').replace(/\s/g, ''));
+      if (digits[index].trim()) {
+        const newDigits = [...digits];
+        newDigits[index] = ' ';
+        onChange(newDigits.join('').replace(/\s/g, ''));
+        
+        if (index > 0) {
+          inputRefs.current[index - 1]?.focus();
+        }
+      }
       return;
     }
 
@@ -98,7 +104,8 @@ export function TotpInput({
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (disabled) return;
 
-    if (e.key === 'Backspace' && !digits[index] && index > 0) {
+    const currentInput = e.currentTarget as HTMLInputElement;
+    if (e.key === 'Backspace' && !currentInput.value && index > 0) {
       inputRefs.current[index - 1]?.focus();
       e.preventDefault();
     } else if (e.key === 'ArrowLeft' && index > 0) {
@@ -121,10 +128,20 @@ export function TotpInput({
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '');
     if (pastedData) {
-      onChange(pastedData);
-      const targetIndex = Math.min(pastedData.length - 1, 5);
+      const newDigits = [...digits];
+      const target = e.currentTarget as HTMLInputElement;
+      const startIndex = inputRefs.current.indexOf(target);
+      
+      for (let i = 0; i < pastedData.length && startIndex + i < 6; i++) {
+        newDigits[startIndex + i] = pastedData[i];
+      }
+      
+      const newValue = newDigits.join('').replace(/\s/g, '');
+      onChange(newValue);
+      
+      const targetIndex = Math.min(startIndex + pastedData.length - 1, 5);
       inputRefs.current[targetIndex]?.focus();
     }
   };
@@ -138,13 +155,14 @@ export function TotpInput({
         {digits.map((digit, index) => (
           <motion.input
             key={index}
+            data-testid={`totp-input-${index}`}
             ref={(el) => {
               inputRefs.current[index] = el;
             }}
             type="text"
             inputMode="numeric"
             maxLength={1}
-            value={digit}
+            value={digit.trim()}
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
             onFocus={() => handleFocus(index)}

@@ -158,15 +158,30 @@ cd ../../../..
 
 ### Step 4: Configure Environment Variables
 
-**IMPORTANT**: All environment variables are defined in `config/env.schema.yaml` as the single source of truth. Use the generator script to create `.env.example` files:
+**Environment Schema Workflow** (Single Source of Truth):
+
+MorningAI uses `config/env.schema.yaml` as the canonical source for all environment variables. This ensures consistency across all services and environments.
 
 ```bash
-# Generate all .env.example files from schema
+# 1. View canonical environment variable definitions
+cat config/env.schema.yaml
+
+# 2. Generate .env.example files from schema (auto-updates all services)
 python scripts/generate-env-examples.py
 
-# Check for drift between schema and .env.example files
+# 3. Check for drift between schema and .env.example files
 python scripts/check-env-drift.py
+
+# 4. Verify secret inventory matches schema (security operations)
+python scripts/verify_secret_inventory.py  # (Added in PR #1084)
 ```
+
+**Key Points**:
+- ✅ Always update `config/env.schema.yaml` first when adding/changing variables
+- ✅ Run `generate-env-examples.py` to propagate changes to all `.env.example` files
+- ✅ CI automatically checks for drift on every PR
+- ✅ See [Secret Rotation Policy](./SECRET_ROTATION_POLICY.md) for security operations
+
 **Backend** (`handoff/20250928/40_App/api-backend/.env`):
 ```bash
 ENVIRONMENT=development
@@ -352,12 +367,12 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 ### Frontend
 
-- **Framework**: React 18 + Vite
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + Custom Design System
+- **Framework**: React 19.1.0 + Vite 6
+- **Language**: TypeScript 5.9
+- **Styling**: Tailwind CSS 4.1.7 + Custom Design System
 - **State Management**: React Context + Hooks
 - **UI Components**: Apple-inspired design system
-- **Testing**: Vitest + React Testing Library
+- **Testing**: Vitest + React Testing Library (planned)
 - **Deployment**: Vercel
 
 ### Infrastructure
@@ -461,6 +476,44 @@ The following production backend modules are located in the root directory and i
 
 ## Important Documentation
 
+### Core Documentation
+
+- **[Project Structure Report](./PROJECT_STRUCTURE_REPORT.md)**: Comprehensive overview of repository structure
+- **[Environments Guide](./ENVIRONMENTS.md)**: Environment architecture and deployment
+- **[Contributing Guide](./CONTRIBUTING.md)**: Contribution guidelines and workflows
+- **[Terminology Standards](./TERMINOLOGY.md)**: Standardized application names and user types
+
+### Security & Operations
+
+- **[Secret Rotation Policy](./SECRET_ROTATION_POLICY.md)**: Quarterly secret rotation procedures, SLOs, and drills
+- **[Secret Scanning Guide](./SECRET_SCANNING_GUIDE.md)**: Prevention of secret exposure in code
+- **[Test Coverage Improvement Plan](./TEST_COVERAGE_IMPROVEMENT_PLAN.md)**: 12-week roadmap to 60%+ coverage
+
+### Quick Reference
+
+**Environment Schema Operations**:
+```bash
+# Generate .env.example files from schema
+python scripts/generate-env-examples.py
+
+# Check for drift
+python scripts/check-env-drift.py
+
+# Verify secret inventory
+python scripts/verify_secret_inventory.py
+```
+
+**Testing & Coverage**:
+```bash
+# Backend tests with coverage
+cd handoff/20250928/40_App/api-backend
+pytest --cov=src --cov-report=term-missing
+
+# Frontend tests with coverage
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm test:coverage
+```
+
 ### Getting Started
 - **[Local Setup Guide](setup_local.md)** - Quick start and troubleshooting
 - **[Environment Architecture](ENVIRONMENTS.md)** - Complete environment documentation
@@ -537,6 +590,10 @@ pnpm format
 
 ### Database Migrations
 
+⚠️ **Note**: Alembic is planned but not yet implemented. Current migrations are manual SQL files in `migrations/` directory.
+
+**Planned Alembic Workflow** (coming soon):
+
 **Create Migration**:
 ```bash
 cd handoff/20250928/40_App/api-backend
@@ -551,6 +608,12 @@ alembic upgrade head
 **Rollback Migration**:
 ```bash
 alembic downgrade -1
+```
+
+**Current Workflow** (manual SQL):
+```bash
+# Apply SQL migrations manually
+psql $DATABASE_URL < migrations/001_initial_schema.sql
 ```
 
 ### Checking Service Health
@@ -741,6 +804,6 @@ After completing this onboarding guide, you should:
 
 ---
 
-**Last Updated**: 2025-10-28  
-**Version**: 1.0.0  
+**Last Updated**: 2025-11-03  
+**Version**: 1.1.0  
 **Maintained By**: CTO / DevOps Team

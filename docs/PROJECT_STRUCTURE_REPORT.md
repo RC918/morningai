@@ -2,8 +2,8 @@
 
 > 📚 **術語標準**: 請參閱 [術語對照表](./TERMINOLOGY.md) 了解標準化的應用名稱和用戶類型定義。
 
-**Document Version**: 1.0.0  
-**Last Updated**: 2025-10-28  
+**Document Version**: 1.1.0  
+**Last Updated**: 2025-11-03  
 **Project Phase**: Phase 8 (v8.0.0)
 
 ---
@@ -59,10 +59,10 @@ This document provides a comprehensive overview of the MorningAI project structu
 - RQ (Redis Queue)
 
 **Frontend**:
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
+- React 19.1.0
+- TypeScript 5.9
+- Vite 6
+- Tailwind CSS 4.1.7
 - Custom Design System
 
 **Infrastructure**:
@@ -84,10 +84,12 @@ morningai/
 ├── .github/                    # GitHub configuration
 ├── .fly-web/                   # Fly.io deployment config
 ├── agents/                     # AI agent implementations
-├── orchestrator/               # Task orchestration system
-├── handoff/                    # Handoff deliverables
+├── orchestrator/               # Task orchestration system (FastAPI)
+├── handoff/                    # Handoff deliverables (⚠️ DO NOT IMPORT - vendor/design only)
 ├── docs/                       # Documentation
-├── config/                     # Configuration files
+├── config/                     # Configuration files (env.schema.yaml is SSOT)
+├── scripts/                    # Utility scripts (env generation, drift check, secret verification)
+├── packages/                   # Shared packages (shared-ui for cross-app components)
 ├── tests/                      # Root-level tests
 ├── phase4_meta_agent_api.py   # Phase 4 API module (imported by backend)
 ├── phase5_data_intelligence_api.py  # Phase 5 API module (imported by backend)
@@ -107,52 +109,39 @@ morningai/
 
 **Location**: Root directory (`/`)
 
-**Purpose**: Production backend API modules for Phases 4-7
+**Status**: ⚠️ **Legacy modules - not directly imported by production backend**
 
-The following files are production backend modules imported by `handoff/20250928/40_App/api-backend/src/main.py`:
+The following files exist in the root directory but are **not directly imported** by `handoff/20250928/40_App/api-backend/src/main.py`:
 
 - **`phase4_meta_agent_api.py`**: Meta-agent coordination API
   - Implements OODA loop (Observe, Orient, Decide, Act)
   - LangGraph workflow engine
   - AI governance console
-  - Status: PRODUCTION
-  - Related: ADR-003 (Backend of Record)
+  - Status: LEGACY (checked via sys.modules, not directly imported)
 
 - **`phase5_data_intelligence_api.py`**: Data intelligence and BI API
   - QuickSight integration
   - Growth marketing engine
   - Referral programs
   - Business intelligence dashboards
-  - Status: PRODUCTION
-  - Related: ADR-003 (Backend of Record)
+  - Status: LEGACY (checked via sys.modules, not directly imported)
 
 - **`phase6_security_governance_api.py`**: Security and governance API
   - Zero Trust security model
   - SecurityReviewer Agent
   - HITL (Human-in-the-Loop) security analysis
   - Security audit system
-  - Status: PRODUCTION
-  - Related: ADR-003 (Backend of Record)
+  - Status: LEGACY (checked via sys.modules, not directly imported)
 
 - **`phase6_startup.py`**: Phase 6 initialization script
-  - Starts monitoring system
-  - Starts security manager
-  - Starts Meta-Agent decision hub
-  - Starts AI governance module
-  - Status: PRODUCTION
-  - Related: ADR-003 (Backend of Record)
+  - Status: LEGACY (referenced in tests)
 
 - **`phase7_startup.py`**: Phase 7 initialization script
-  - Initializes Ops_Agent, Growth_Strategist, PM_Agent
-  - Integrates Phase 6 components
-  - Manages HITL approval system
-  - Background task coordination
-  - Status: PRODUCTION
-  - Related: ADR-003 (Backend of Record)
+  - Status: LEGACY (referenced in main.py:450 within function)
 
-**Why in root directory?** Historical reasons. These modules were developed during Phase 4-7 implementation and are imported by the backend at `handoff/20250928/40_App/api-backend/src/main.py`.
+**Current Implementation**: The backend health endpoint (`main.py:246-248`) checks if these modules exist in `sys.modules` but does not directly import them. They may be imported by test files or dynamically loaded in specific scenarios.
 
-**Future plan**: Move to `handoff/20250928/40_App/api-backend/src/phases/` directory in future refactor (tracked separately).
+**Future plan**: Clarify usage pattern (plugin loader vs deprecation) and update documentation accordingly.
 
 ### GitHub Configuration (`.github/`)
 
@@ -233,6 +222,10 @@ orchestrator/
 
 ### Handoff Directory (`handoff/20250928/40_App/`)
 
+⚠️ **IMPORTANT**: The `handoff/` directory contains vendor deliverables and design assets from the initial project handoff. **DO NOT import or run code from this directory**. It is excluded from CI paths-ignore and should be treated as reference/archive material only.
+
+The production applications are located within this directory but are the only active code:
+
 ```
 handoff/20250928/40_App/
 ├── api-backend/           # Backend API
@@ -277,8 +270,8 @@ handoff/20250928/40_App/
 │   ├── package.json     # Node.js dependencies
 │   └── README.md        # Owner console documentation
 │
-└── orchestrator/        # Legacy orchestrator (not used)
-    └── ...              # Old orchestrator files
+└── orchestrator/        # Legacy orchestrator (⚠️ STILL USED BY WORKERS)
+    └── ...              # Contains LangGraph implementation, used by RQ workers
 ```
 
 ### Documentation Directory (`docs/`)
@@ -375,8 +368,17 @@ config/
 **Key Concepts**:
 - **OODA Loop**: Observe → Orient → Decide → Act
 - **Session State**: Long-term memory in PostgreSQL
-- **Knowledge Graph**: Semantic search with embeddings
+- **Knowledge Graph**: Semantic search with pgvector embeddings (dimension 1536)
 - **Learned Patterns**: Coding styles, bug patterns, fix patterns
+
+**Vector Storage (pgvector)**: ✅ **IMPLEMENTED**
+- **Location**: 
+  - `migrations/010_create_embeddings_tables.sql` - Main embeddings tables
+  - `agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql` - Dev agent knowledge graph
+  - `agents/faq_agent/migrations/001_create_faq_tables.sql` - FAQ agent embeddings
+- **Runtime Usage**: `src/routes/vectors.py` - Vector visualization API (t-SNE, PCA, clustering, drift detection)
+- **Dimension**: 1536 (OpenAI text-embedding-ada-002)
+- **Status**: Production-ready with full API implementation
 
 ### 2. Backend API System
 
@@ -406,9 +408,15 @@ config/
 
 ### 3. Orchestrator System
 
-**Location**: `orchestrator/`
+⚠️ **DUAL ORCHESTRATOR ARCHITECTURE** - See [ADR-001](./adr/001-dual-orchestrator-architecture.md) for details
 
-**Architecture**: Graph-based task management
+**Current State**: Two orchestrator implementations in use:
+
+#### 3.1 New Orchestrator (Production API)
+
+**Location**: `orchestrator/` (root directory)
+
+**Architecture**: Graph-based task management (FastAPI)
 
 **Key Components**:
 - **API** (`orchestrator/api/main.py`): FastAPI application
@@ -416,16 +424,32 @@ config/
 - **Sandbox** (`orchestrator/sandbox/`): Isolated agent execution
 - **MCP** (`orchestrator/mcp/`): Management Control Plane
 
-**Execution Model**:
-```bash
-python graph.py --goal "demo task"
-```
+**Dependencies**: Does NOT include LangGraph (`orchestrator/requirements.txt`)
 
-**Docker Configuration**:
-- Base Image: `python:3.12-slim`
+**Deployment**: 
+- Render service: `morningai-orchestrator-api`
+- Docker runtime (`orchestrator/Dockerfile`)
 - Port: 8000
-- Health Check: `/health` endpoint
-- Deployment: Render (Docker runtime)
+- Environment: `USE_LANGGRAPH=false`
+
+#### 3.2 Legacy Orchestrator (RQ Workers)
+
+**Location**: `handoff/20250928/40_App/orchestrator/`
+
+**Architecture**: LangGraph-based workflow engine
+
+**Key Components**:
+- **LangGraph Orchestrator** (`langgraph_orchestrator.py`): Stateful workflows
+- **Redis Queue Worker**: RQ job processing
+
+**Dependencies**: Includes LangGraph and related dependencies
+
+**Deployment**:
+- Render service: Worker instances
+- Used by: RQ workers for background job processing
+- Path: `handoff/20250928/40_App/orchestrator`
+
+**Future Plan**: Consolidate to single orchestrator architecture by 2026 Q1 (tracked in ADR-001)
 
 ### 4. Frontend System
 
@@ -437,7 +461,7 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 
 **Purpose**: End-user analytics and monitoring interface
 
-**Architecture**: React 18 + Vite + TypeScript
+**Architecture**: React 19.1.0 + Vite 6 + TypeScript 5.9
 
 **Key Components**:
 - **Design System**: Apple-inspired components
@@ -468,7 +492,7 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 
 **Purpose**: Owner management, governance, and system administration
 
-**Architecture**: React 18 + Vite + JSX/TypeScript
+**Architecture**: React 19.1.0 + Vite 6 + TypeScript 5.9
 
 **Key Features**:
 - System Monitoring (health checks, metrics, logs)
@@ -480,6 +504,8 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 **Deployment**:
 - Production: https://admin.gm365.me
 - Vercel deployment
+
+⚠️ **Cross-Import Restrictions**: ESLint enforces `no-restricted-imports` to prevent accidental imports between frontend-dashboard and owner-console. Use `packages/shared-ui` for shared components.
 
 #### 4.3 Frontend Boundaries and Separation
 
@@ -513,7 +539,7 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 **Purpose**: Canonical definition of all environment variables across the entire application
 
 **Key Features**:
-- 53 total variables (19 required, 34 optional)
+- 56 total variables (19 required, 37 optional)
 - Categorized by purpose (Authentication, Security, Database, Cloud Services, etc.)
 - Type validation (secret, url, string, boolean, integer)
 - Security level classification (critical, secret, public)
@@ -534,12 +560,24 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 2. Run `python scripts/generate-env-examples.py` to regenerate `.env.example` files
 3. Run `python scripts/check-env-drift.py` to verify no drift
 4. Commit all changes together
+### Production URLs
+
+**Frontend Applications** (see [TERMINOLOGY.md](./TERMINOLOGY.md#域名映射-domain-mapping) for details):
+- **Tenant Dashboard**: https://app.gm365.me (租戶用戶)
+- **Owner Console**: https://admin.gm365.me (平台所有者)
+- **Legacy URL**: https://morningai.vercel.app (still active, redirects to app.gm365.me)
+
+**Backend Services**:
+- Backend API: https://morningai-backend-v2.onrender.com
+- Orchestrator API: https://morningai-orchestrator-api.onrender.com
+
 ### Production Environment
 
 **Services**:
 - Backend: https://morningai-backend-v2.onrender.com
 - Orchestrator: https://morningai-orchestrator-api.onrender.com
-- Frontend: https://morningai.vercel.app
+- Tenant Dashboard: https://app.gm365.me
+- Owner Console: https://admin.gm365.me
 
 **Infrastructure**:
 - Database: Supabase PostgreSQL (production)

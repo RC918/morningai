@@ -19,7 +19,7 @@ import os
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash
 from supabase import create_client
 
@@ -106,13 +106,13 @@ def setup_totp():
         if not password:
             return jsonify({'error': 'Password confirmation required'}), 400
         
-        user_id = g.user_id
+        user_id = request.user_id
         user = get_user_by_id(user_id)
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('password_hash', ''), password):
+        if not check_password_hash(user.get('hashed_password', ''), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -199,7 +199,7 @@ def verify_totp_setup():
         if not code or len(code) != 6 or not code.isdigit():
             return jsonify({'error': 'Invalid TOTP code format (must be 6 digits)'}), 400
         
-        user_id = g.user_id
+        user_id = request.user_id
         
         supabase_url = os.environ.get('SUPABASE_URL')
         supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -267,13 +267,13 @@ def disable_totp():
         if not password or not totp_code or len(totp_code) != 6 or not totp_code.isdigit():
             return jsonify({'error': 'Password and valid TOTP code (6 digits) required'}), 400
         
-        user_id = g.user_id
+        user_id = request.user_id
         user = get_user_by_id(user_id)
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('password_hash', ''), password):
+        if not check_password_hash(user.get('hashed_password', ''), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -337,13 +337,13 @@ def regenerate_backup_codes():
         if not password:
             return jsonify({'error': 'Password confirmation required'}), 400
         
-        user_id = g.user_id
+        user_id = request.user_id
         user = get_user_by_id(user_id)
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('password_hash', ''), password):
+        if not check_password_hash(user.get('hashed_password', ''), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -401,7 +401,7 @@ def get_totp_status():
         }), 200
     
     try:
-        user_id = g.user_id
+        user_id = request.user_id
         
         supabase_url = os.environ.get('SUPABASE_URL')
         supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
