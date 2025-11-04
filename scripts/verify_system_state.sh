@@ -152,18 +152,30 @@ else
 fi
 
 echo ""
-echo "5. Verifying Alembic status (should NOT be implemented)..."
+echo "5. Verifying Alembic status (should be implemented)..."
 
-if [ ! -f "handoff/20250928/40_App/api-backend/alembic.ini" ]; then
-    check_pass "Alembic NOT implemented (no alembic.ini)"
+if [ -f "handoff/20250928/40_App/api-backend/alembic.ini" ]; then
+    check_pass "Alembic implemented (alembic.ini exists)"
 else
-    check_fail "Alembic appears to be implemented (alembic.ini exists)"
+    check_fail "Alembic NOT implemented (alembic.ini missing)"
 fi
 
-if [ ! -d "handoff/20250928/40_App/api-backend/alembic" ]; then
-    check_pass "Alembic NOT implemented (no alembic/ directory)"
+if [ -d "handoff/20250928/40_App/api-backend/alembic" ]; then
+    check_pass "Alembic implemented (alembic/ directory exists)"
 else
-    check_fail "Alembic appears to be implemented (alembic/ directory exists)"
+    check_fail "Alembic NOT implemented (alembic/ directory missing)"
+fi
+
+if [ -d "handoff/20250928/40_App/api-backend/alembic/versions" ]; then
+    check_pass "Alembic versions directory exists"
+else
+    check_fail "Alembic versions directory missing"
+fi
+
+if grep -q "^alembic" handoff/20250928/40_App/api-backend/requirements.txt; then
+    check_pass "Alembic in requirements.txt"
+else
+    check_fail "Alembic NOT in requirements.txt"
 fi
 
 echo ""
