@@ -3,12 +3,13 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import jwt
 import datetime
 import secrets
+import os
 from src.models.user import db, User
 
 auth_bp = Blueprint('auth', __name__)
 
+
 # 模擬用戶數據（實際應用中應該從數據庫讀取）
-import os
 MOCK_USERS = {
     'admin': {
         'id': 1,
@@ -83,7 +84,7 @@ def login():
                 'token': token
             }))
             
-            is_production = os.environ.get('FLASK_ENV') == 'production'
+            is_production = os.environ.get('ENVIRONMENT') == 'production'
             secure = is_production
             samesite = 'None' if is_production else 'Lax'
             
@@ -172,8 +173,12 @@ def logout():
     if use_cookie_auth:
         response = make_response(jsonify({'message': '登出成功'}))
         
-        response.set_cookie('access_token', '', expires=0, path='/')
-        response.set_cookie('csrf_token', '', expires=0, path='/')
+        is_production = os.environ.get('ENVIRONMENT') == 'production'
+        secure = is_production
+        samesite = 'None' if is_production else 'Lax'
+        
+        response.set_cookie('access_token', '', expires=0, path='/', secure=secure, samesite=samesite)
+        response.set_cookie('csrf_token', '', expires=0, path='/', secure=secure, samesite=samesite)
         
         return response
     else:
