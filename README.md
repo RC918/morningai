@@ -234,7 +234,7 @@ MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊�
 
 **系統架構：**
 - [Architecture](docs/ARCHITECTURE.md) - 系統架構文檔
-- [Architecture Decision Records (ADRs)](docs/adr/) - 重要架構決策記錄
+- [Architecture Decision Records (ADRs)](docs/adr/README.md) - 重要架構決策記錄
   - [ADR-001: Dual Orchestrator Architecture](docs/adr/001-dual-orchestrator-architecture.md)
   - [ADR-002: Producer-Consumer Architecture](docs/adr/002-producer-consumer-architecture.md)
   - [ADR-003: Backend of Record](docs/adr/003-backend-of-record.md)
