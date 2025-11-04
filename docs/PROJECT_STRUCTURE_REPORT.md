@@ -1,6 +1,10 @@
 # MorningAI Project Structure Report
 
-> 📚 **術語標準**: 請參閱 [術語對照表](./TERMINOLOGY.md) 了解標準化的應用名稱和用戶類型定義。
+> 📚 **相關文件**: 
+> - [術語對照表](./TERMINOLOGY.md) - 標準化的應用名稱和用戶類型定義
+> - [Onboarding Guide](./ONBOARDING_GUIDE.md) - 新人入職指南和環境設置
+> - [README](../README.md) - 專案概覽和快速導航
+> - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
 **Document Version**: 1.1.0  
 **Last Updated**: 2025-11-03  

@@ -2,7 +2,11 @@
 
 **Welcome to MorningAI!** 🎉
 
-> 📚 **術語標準**: 請參閱 [術語對照表](./TERMINOLOGY.md) 了解標準化的應用名稱和用戶類型定義。
+> 📚 **相關文件**: 
+> - [術語對照表](./TERMINOLOGY.md) - 標準化的應用名稱和用戶類型定義
+> - [專案結構報告](./PROJECT_STRUCTURE_REPORT.md) - 詳細的目錄組織和架構模式
+> - [README](../README.md) - 專案概覽和快速導航
+> - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
 This guide will help you get started with the MorningAI project, understand the architecture, set up your development environment, and start contributing.
 
