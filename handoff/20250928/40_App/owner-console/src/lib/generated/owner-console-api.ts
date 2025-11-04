@@ -172,6 +172,26 @@ export interface Error {
   error?: ErrorError;
 }
 
+/**
+ * Service status indicator
+ */
+export type ServiceUnavailableErrorStatus = typeof ServiceUnavailableErrorStatus[keyof typeof ServiceUnavailableErrorStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ServiceUnavailableErrorStatus = {
+  service_unavailable: 'service_unavailable',
+} as const;
+
+export interface ServiceUnavailableError {
+  /** Error message describing the unavailable service */
+  error: string;
+  /** Detailed error message */
+  message?: string;
+  /** Service status indicator */
+  status: ServiceUnavailableErrorStatus;
+}
+
 export interface SuccessResponse {
   success?: boolean;
   message?: string;
@@ -416,6 +436,7 @@ export const postSettings = async (userSettings: UserSettings, options?: Request
 
 
 /**
+ * @deprecated
  * @summary Get dashboard data (legacy)
  */
 export type getDashboardDataResponse200 = {
@@ -465,7 +486,7 @@ export type getPhase7MonitoringDashboardResponse500 = {
 }
 
 export type getPhase7MonitoringDashboardResponse503 = {
-  data: Error
+  data: ServiceUnavailableError
   status: 503
 }
     
