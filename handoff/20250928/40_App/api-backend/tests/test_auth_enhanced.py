@@ -476,7 +476,7 @@ class Test2FAIntegration:
                 'tenant_id': 'tenant-001'
             }
             
-            with patch('src.routes.auth_enhanced.check_2fa_required') as mock_2fa:
+            with patch('src.routes.totp.check_2fa_required') as mock_2fa:
                 mock_2fa.return_value = True
                 
                 response = client.post('/api/auth/login',
