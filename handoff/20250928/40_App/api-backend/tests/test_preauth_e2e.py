@@ -88,7 +88,7 @@ class TestPreAuthTokenE2E:
         result = validate_and_consume_preauth_token("expired-token")
         assert result is None
     
-    @patch('src.routes.totp.authenticate_user')
+    @patch('src.services.auth_service.authenticate_user')
     @patch('src.services.auth_service.FEATURE_2FA_PREAUTH', True)
     def test_password_fallback_when_no_token(self, mock_authenticate):
         """Test password fallback when pre-auth token is not provided"""
@@ -106,7 +106,7 @@ class TestPreAuthTokenE2E:
         assert True
     
     @patch('src.routes.totp.validate_and_consume_preauth_token')
-    @patch('src.routes.totp.authenticate_user')
+    @patch('src.services.auth_service.authenticate_user')
     @patch('src.services.auth_service.FEATURE_2FA_PREAUTH', True)
     def test_password_fallback_when_token_invalid(
         self,
@@ -130,7 +130,7 @@ class TestPreAuthTokenE2E:
         assert True
     
     @patch('src.services.auth_service.FEATURE_2FA_PREAUTH', False)
-    @patch('src.routes.totp.authenticate_user')
+    @patch('src.services.auth_service.authenticate_user')
     def test_feature_flag_disabled(self, mock_authenticate):
         """Test that pre-auth token is not used when feature flag is disabled"""
         user_id = "test-user-123"
