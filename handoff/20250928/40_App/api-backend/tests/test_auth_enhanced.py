@@ -496,6 +496,50 @@ class Test2FAIntegration:
                 set_cookie_header = response.headers.get('Set-Cookie', '')
                 assert 'access_token' not in set_cookie_header
                 assert 'refresh_token' not in set_cookie_header
+    
+    def test_verify_login_missing_totp_and_backup_code(self, client, mock_redis):
+        """Test that verify-login returns 400 when both totp_code and backup_code are missing"""
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+            mock_feature.return_value = True
+            
+            response = client.post('/api/auth/v2/totp/verify-login',
+                json={
+                    'email': 'owner@example.com',
+                    'password': 'test_password'
+                }
+            )
+            
+            assert response.status_code == 400
+            data = json.loads(response.data)
+            assert 'error' in data
+    
+    def test_verify_login_missing_credentials(self, client, mock_redis):
+        """Test that verify-login returns 400 when email or password is missing"""
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+            mock_feature.return_value = True
+            
+            response = client.post('/api/auth/v2/totp/verify-login',
+                json={
+                    'totp_code': '123456'
+                }
+            )
+            
+            assert response.status_code == 400
+            data = json.loads(response.data)
+            assert 'error' in data
+    
+    def test_check_2fa_required_exception_handling(self, client, mock_redis):
+        """Test that check_2fa_required returns False on exception"""
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+            mock_feature.return_value = True
+            
+            with patch('src.routes.totp.create_client') as mock_client:
+                mock_client.side_effect = Exception('Database error')
+                
+                from src.routes.totp import check_2fa_required
+                result = check_2fa_required('user-123')
+                
+                assert result is False
 
 
 if __name__ == '__main__':
