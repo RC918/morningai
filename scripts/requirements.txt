@@ -13,7 +13,7 @@ requests>=2.31.0
 # Database (apply_phase3_migrations.py)
 psycopg2-binary>=2.9.0
 
-# YAML parsing (generate_env_example.py)
+# YAML parsing (generate-env-examples.py, check-env-drift.py)
 PyYAML>=6.0
 
 # Redis (worker-heartbeat-monitor.yml, env-diagnose.yml, validate_redis_tls.py)

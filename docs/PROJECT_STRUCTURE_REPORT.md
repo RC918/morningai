@@ -84,10 +84,12 @@ morningai/
 ├── .github/                    # GitHub configuration
 ├── .fly-web/                   # Fly.io deployment config
 ├── agents/                     # AI agent implementations
-├── orchestrator/               # Task orchestration system
-├── handoff/                    # Handoff deliverables
+├── orchestrator/               # Task orchestration system (FastAPI)
+├── handoff/                    # Handoff deliverables (⚠️ DO NOT IMPORT - vendor/design only)
 ├── docs/                       # Documentation
-├── config/                     # Configuration files
+├── config/                     # Configuration files (env.schema.yaml is SSOT)
+├── scripts/                    # Utility scripts (env generation, drift check, secret verification)
+├── packages/                   # Shared packages (shared-ui for cross-app components)
 ├── tests/                      # Root-level tests
 ├── phase4_meta_agent_api.py   # Phase 4 API module (imported by backend)
 ├── phase5_data_intelligence_api.py  # Phase 5 API module (imported by backend)
@@ -232,6 +234,10 @@ orchestrator/
 ```
 
 ### Handoff Directory (`handoff/20250928/40_App/`)
+
+⚠️ **IMPORTANT**: The `handoff/` directory contains vendor deliverables and design assets from the initial project handoff. **DO NOT import or run code from this directory**. It is excluded from CI paths-ignore and should be treated as reference/archive material only.
+
+The production applications are located within this directory but are the only active code:
 
 ```
 handoff/20250928/40_App/
@@ -481,6 +487,8 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 - Production: https://admin.gm365.me
 - Vercel deployment
 
+⚠️ **Cross-Import Restrictions**: ESLint enforces `no-restricted-imports` to prevent accidental imports between frontend-dashboard and owner-console. Use `packages/shared-ui` for shared components.
+
 #### 4.3 Frontend Boundaries and Separation
 
 **IMPORTANT**: The two frontend applications are completely separate and should NOT share code or cross-import from each other.
@@ -513,28 +521,27 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 **Purpose**: Canonical definition of all environment variables across the entire application
 
 **Key Features**:
-- 53 total variables (19 required, 34 optional)
+- 56 total variables (19 required, 37 optional)
 - Categorized by purpose (Authentication, Security, Database, Cloud Services, etc.)
 - Type validation (secret, url, string, boolean, integer)
 - Security level classification (critical, secret, public)
 - Comprehensive descriptions and examples
 
-**Generator Script**: `scripts/generate_env_example.py`
+**Generator Script**: `scripts/generate-env-examples.py`
 - Generates `.env.example` files from schema
 - Ensures consistency across all components
 - Run after modifying `config/env.schema.yaml`
 
-**Drift Checker**: `scripts/check_env_drift.py`
+**Drift Checker**: `scripts/check-env-drift.py`
 - Validates `.env.example` files match schema
 - Runs in CI to prevent drift
 - Exit code 1 if drift detected
 
 **Workflow**:
 1. Modify `config/env.schema.yaml` (single source of truth)
-2. Run `python scripts/generate_env_example.py` to regenerate `.env.example` files
-3. Run `python scripts/check_env_drift.py` to verify no drift
+2. Run `python scripts/generate-env-examples.py` to regenerate `.env.example` files
+3. Run `python scripts/check-env-drift.py` to verify no drift
 4. Commit all changes together
-
 ### Production Environment
 
 **Services**:

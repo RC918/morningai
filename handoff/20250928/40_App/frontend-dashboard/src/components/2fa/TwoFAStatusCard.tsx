@@ -73,6 +73,35 @@ export function TwoFAStatusCard({
     );
   }
 
+  if (status?.feature_disabled) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            {t('settings.2fa.title')}
+          </CardTitle>
+          <CardDescription>
+            {t('settings.2fa.subtitle')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium text-blue-900 dark:text-blue-100">
+                {t('settings.2fa.featureDisabled.title')}
+              </p>
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                {t('settings.2fa.featureDisabled.description')}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const isEnabled = status?.enabled ?? false;
 
   return (

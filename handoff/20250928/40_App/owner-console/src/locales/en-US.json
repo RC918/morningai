@@ -128,6 +128,10 @@
       "title": "Two-Factor Authentication",
       "subtitle": "Secure your account with an additional layer of protection",
       "loading": "Loading...",
+      "featureDisabled": {
+        "title": "Feature Unavailable",
+        "description": "Two-factor authentication is currently unavailable in this environment. Please contact your administrator for more information."
+      },
       "status": {
         "label": "Status",
         "enabled": "Enabled",
@@ -175,6 +179,7 @@
       },
       "cardDescription": "Add an extra layer of security to your account",
       "setup": {
+        "qrAlt": "Two-factor authentication QR code",
         "qrCodeDescription": "Scan this QR code with your authenticator app",
         "manualEntry": "Or enter this code manually:",
         "recommendedApps": "Recommended authenticator apps:",

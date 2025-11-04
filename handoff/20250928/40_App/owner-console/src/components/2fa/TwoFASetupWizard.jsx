@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui';
 import { Button } from '@morningai/shared-ui';
 import { Input } from '@morningai/shared-ui';
@@ -9,6 +10,7 @@ import { QRCodeDisplay } from './QRCodeDisplay';
 import { BackupCodesList } from './BackupCodesList';
 
 export function TwoFASetupWizard({ onComplete, onCancel }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState('password');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
@@ -58,10 +60,10 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
 
   const renderStepIndicator = () => {
     const steps = [
-      { id: 'password', label: 'Password', icon: Key },
+      { id: 'password', label: t('settings.2fa.disable.passwordLabel'), icon: Key },
       { id: 'qr', label: 'QR Code', icon: QrCode },
-      { id: 'verify', label: 'Verify', icon: Shield },
-      { id: 'backup', label: 'Backup', icon: FileKey },
+      { id: 'verify', label: t('settings.2fa.setup.verify'), icon: Shield },
+      { id: 'backup', label: t('settings.2fa.backupCodes.title'), icon: FileKey },
     ];
 
     const currentIndex = steps.findIndex(s => s.id === step);
@@ -115,9 +117,9 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
             <CheckCircle2 className="w-8 h-8 text-white" />
           </div>
           <div className="text-center space-y-2">
-            <h3 className="text-xl font-semibold">2FA Enabled Successfully!</h3>
+            <h3 className="text-xl font-semibold">{t('settings.2fa.setup.successTitle')}</h3>
             <p className="text-sm text-muted-foreground">
-              Your account is now protected with two-factor authentication.
+              {t('settings.2fa.setup.successDescription')}
             </p>
           </div>
         </CardContent>
@@ -130,10 +132,10 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="w-5 h-5" />
-          Enable Two-Factor Authentication
+          {t('settings.2fa.setup.title')}
         </CardTitle>
         <CardDescription>
-          Follow the steps below to secure your account
+          {t('settings.2fa.setup.subtitle')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -149,10 +151,10 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                First, confirm your password to continue
+                {t('settings.2fa.setup.passwordPrompt')}
               </p>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('settings.2fa.disable.passwordLabel')}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -171,10 +173,10 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
                 disabled={loading}
                 className="flex-1"
               >
-                Cancel
+                {t('settings.2fa.setup.cancel')}
               </Button>
               <Button type="submit" disabled={loading || !password} className="flex-1">
-                {loading ? 'Verifying...' : 'Continue'}
+                {loading ? t('settings.2fa.setup.verifying') : t('settings.2fa.setup.continue')}
               </Button>
             </div>
           </form>
@@ -184,7 +186,7 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
           <div className="space-y-4">
             <QRCodeDisplay qrCode={setupData.qr_code} secret={setupData.secret} />
             <Button onClick={() => setStep('verify')} className="w-full">
-              I've Scanned the QR Code
+              {t('settings.2fa.setup.qrScanned')}
             </Button>
           </div>
         )}
@@ -193,16 +195,16 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
           <form onSubmit={handleVerifySubmit} className="space-y-4">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Enter the 6-digit code from your authenticator app
+                {t('settings.2fa.setup.verifyPrompt')}
               </p>
               <div className="space-y-2">
-                <Label htmlFor="totp-code">Verification Code</Label>
+                <Label htmlFor="totp-code">{t('settings.2fa.setup.verificationCodeLabel')}</Label>
                 <Input
                   id="totp-code"
                   type="text"
                   value={totpCode}
                   onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
+                  placeholder={t('settings.2fa.disable.totpCodePlaceholder')}
                   maxLength={6}
                   required
                   disabled={loading}
@@ -217,14 +219,14 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
                 disabled={loading}
                 className="flex-1"
               >
-                Back
+                {t('settings.2fa.setup.back')}
               </Button>
               <Button
                 type="submit"
                 disabled={loading || totpCode.length !== 6}
                 className="flex-1"
               >
-                {loading ? 'Verifying...' : 'Verify'}
+                {loading ? t('settings.2fa.setup.verifying') : t('settings.2fa.setup.verify')}
               </Button>
             </div>
           </form>

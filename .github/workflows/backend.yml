@@ -3,8 +3,14 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - 'handoff/20250928/50_Infra/**'
+      - 'handoff/20250928/60_Design/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'handoff/20250928/50_Infra/**'
+      - 'handoff/20250928/60_Design/**'
 jobs:
   validate-env-schema:
     runs-on: ubuntu-latest
@@ -49,6 +55,9 @@ jobs:
           
           print(f"✅ Schema valid: {len(schema['fields'])} variables defined")
           EOF
+      - name: Check for environment config drift
+        run: |
+          python scripts/check-env-drift.py
   
   validate-openapi-spec:
     runs-on: ubuntu-latest
