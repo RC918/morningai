@@ -111,6 +111,8 @@ export function clearTokens(): void {
   } catch (error) {
     console.error('Failed to clear auth data:', error);
   }
+  
+  clearCsrfToken();
 }
 
 /**
@@ -187,9 +189,28 @@ if (typeof sessionStorage !== 'undefined') {
 }
 
 /**
- * Get CSRF token from in-memory storage
+ * Get CSRF token from cookie (preferred) or in-memory storage (fallback)
+ * Tests set csrf_token cookie, so we must read from there first
  */
 function getCsrfToken(): string | null {
+  if (typeof document !== 'undefined') {
+    const cookieToken = getCookie('csrf_token');
+    if (cookieToken) {
+      return cookieToken;
+    }
+  }
+  
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      const sessionToken = sessionStorage.getItem('csrf_token');
+      if (sessionToken) {
+        return sessionToken;
+      }
+    } catch (error) {
+      console.error('Failed to read CSRF token from sessionStorage:', error);
+    }
+  }
+  
   return csrfToken;
 }
 
@@ -236,8 +257,23 @@ function clearCsrfToken(): void {
 async function ensureCsrfToken(): Promise<void> {
   if (typeof window === 'undefined') return;
   
-  const existingToken = getCsrfToken();
-  if (existingToken) return;
+  const cookieToken = typeof document !== 'undefined' ? getCookie('csrf_token') : null;
+  let sessionToken = null;
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionToken = sessionStorage.getItem('csrf_token');
+    } catch (error) {
+      console.error('Failed to read CSRF token from sessionStorage:', error);
+    }
+  }
+  
+  if (cookieToken || sessionToken) {
+    return;
+  }
+  
+  if (csrfToken) {
+    clearCsrfToken();
+  }
   
   if (csrfTokenPromise) {
     return csrfTokenPromise;
@@ -309,6 +345,10 @@ function shouldIncludeCSRF(method?: string): boolean {
  * @returns Promise<boolean> - True if this is a CSRF failure, false otherwise
  */
 async function isCsrfFailure(response: Response): Promise<boolean> {
+  if (!response.headers || typeof response.headers.get !== 'function') {
+    return false;
+  }
+  
   const contentType = response.headers.get('Content-Type') || '';
   if (!contentType.includes('application/json')) {
     return false;
