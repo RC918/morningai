@@ -9,6 +9,7 @@ Endpoints:
 - GET /api/auth/me - Get current user info
 """
 
+import os
 from flask import Blueprint, request, jsonify, make_response
 from src.services.auth_service import (
     authenticate_user,
@@ -138,7 +139,8 @@ def login():
         
         is_2fa_enabled = check_2fa_required(user_id)
         
-        if user_role == 'owner' and not is_2fa_enabled:
+        enforce_owner_2fa = os.environ.get('AUTH_ENFORCE_OWNER_2FA', 'false').lower() == 'true'
+        if enforce_owner_2fa and user_role == 'owner' and not is_2fa_enabled:
             return jsonify({
                 'requires_2fa': True,
                 'message': 'Owner accounts must enable 2FA before login',
@@ -164,9 +166,10 @@ def login():
                 if not verify_totp_for_login(user_id, totp_code):
                     return jsonify({'message': 'Invalid TOTP code'}), 401
             elif backup_code:
-                is_valid, remaining_codes = verify_backup_code_for_login(user_id, backup_code)
+                is_valid, backup_remaining = verify_backup_code_for_login(user_id, backup_code)
                 if not is_valid:
                     return jsonify({'message': 'Invalid backup code'}), 401
+                remaining_codes = backup_remaining
         
         access_token, access_expiry_ms = generate_access_token(
             user_id, user['email'], user_role
@@ -187,8 +190,7 @@ def login():
             }
         }
         
-        if backup_code and is_2fa_enabled:
-            _, remaining_codes = verify_backup_code_for_login(user_id, backup_code)
+        if backup_code and is_2fa_enabled and 'remaining_codes' in locals():
             response_data['backup_codes_remaining'] = remaining_codes
         
         response = make_response(jsonify(response_data), 200)

@@ -517,13 +517,18 @@ def check_2fa_required(user_id: str) -> bool:
     try:
         supabase_url = os.environ.get('SUPABASE_URL')
         supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        
+        if not supabase_url or not supabase_key:
+            logger.debug(f"Supabase credentials not configured, skipping 2FA check for user {user_id}")
+            return False
+        
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('enabled').eq('user_id', user_id).execute()
         
         return bool(user_2fa.data and user_2fa.data[0].get('enabled'))
         
     except Exception as e:
-        logger.error(f"Error checking 2FA requirement: {str(e)}", exc_info=True)
+        logger.warning(f"Error checking 2FA requirement: {str(e)}")
         return False
 
 
