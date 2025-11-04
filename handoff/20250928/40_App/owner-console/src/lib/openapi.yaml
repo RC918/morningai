@@ -133,9 +133,28 @@ paths:
   /dashboard/data:
     get:
       summary: Get dashboard data (legacy)
+      deprecated: true
+      description: |
+        **DEPRECATED**: Use `/phase7/monitoring/dashboard` instead for real-time metrics with degradation markers.
+        
+        This legacy endpoint returns comprehensive dashboard data including system health, metrics, circuit breakers, and saga orchestrator status.
+        
+        **Example Response**:
+        ```json
+        {
+          "timestamp": "2025-11-04T16:53:22.509781",
+          "system_health": "healthy",
+          "system_metrics": {...},
+          "circuit_breakers": {...},
+          "bulkheads": {...},
+          "saga_orchestrator": {...},
+          "storage_stats": {...},
+          "task_execution": {...},
+          "trends": {...},
+          "alerts": []
+        }
+        ```
       tags: [Dashboard]
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Dashboard data
@@ -147,9 +166,69 @@ paths:
   /phase7/monitoring/dashboard:
     get:
       summary: Get monitoring dashboard with real metrics
+      description: |
+        Returns real-time monitoring dashboard data with intelligent degradation handling.
+        
+        **Degradation Behavior**:
+        - When Redis is unavailable: Returns fallback data with `available: false`, `source: 'fallback'`, `error: 'Redis unavailable'`
+        - When Database is unavailable: Returns degraded status with alerts
+        - When both are unavailable: Returns HTTP 503 Service Unavailable
+        
+        **Example Response (Normal)**:
+        ```json
+        {
+          "system_health": {
+            "overall_status": "healthy",
+            "error_rate": 0.01,
+            "avg_latency": 0.15,
+            "open_circuit_breakers": 0
+          },
+          "metrics": {
+            "queue_depth": {
+              "current": 5,
+              "unit": "tasks",
+              "trend": "stable"
+            },
+            "active_agents": {
+              "current": 3,
+              "unit": "agents",
+              "trend": "up"
+            }
+          },
+          "agents": [],
+          "alerts": []
+        }
+        ```
+        
+        **Example Response (Redis Degraded)**:
+        ```json
+        {
+          "system_health": {
+            "overall_status": "healthy",
+            ...
+          },
+          "metrics": {
+            "queue_depth": {
+              "current": 0,
+              "unit": "tasks",
+              "trend": "unknown",
+              "available": false,
+              "source": "fallback",
+              "error": "Redis unavailable"
+            }
+          },
+          "agents": [],
+          "alerts": [
+            {
+              "id": "redis_error",
+              "severity": "warning",
+              "message": "Redis connection unavailable",
+              "timestamp": "2025-11-04T16:45:58.648953"
+            }
+          ]
+        }
+        ```
       tags: [Monitoring]
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Monitoring dashboard data with real metrics
@@ -168,7 +247,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ServiceUnavailableError'
 
 components:
   securitySchemes:
@@ -419,6 +498,30 @@ components:
               type: string
             request_id:
               type: string
+
+    ServiceUnavailableError:
+      type: object
+      required:
+        - error
+        - status
+      properties:
+        error:
+          type: string
+          description: Error message describing the unavailable service
+        message:
+          type: string
+          description: Detailed error message
+        status:
+          type: string
+          enum: [service_unavailable]
+          description: Service status indicator
+        request_id:
+          type: string
+          description: Optional request ID for tracing and observability
+      example:
+        error: "Core services unavailable"
+        message: "Both Redis and Database connections failed"
+        status: "service_unavailable"
 
     SuccessResponse:
       type: object

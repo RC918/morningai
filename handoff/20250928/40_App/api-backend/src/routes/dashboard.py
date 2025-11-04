@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 import random
 import datetime
 import logging
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from src.middleware.auth_middleware import jwt_required
 
 logging.basicConfig(
@@ -12,6 +12,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 dashboard_bp = Blueprint('dashboard', __name__)
+
+
+def check_db_health() -> Tuple[bool, str]:
+    """
+    Check database connectivity health.
+    
+    This is a testable seam that can be mocked in tests to simulate DB failures.
+    
+    Returns:
+        Tuple[bool, str]: (is_healthy, error_message)
+    """
+    try:
+        from src.models.user import db
+        with db.engine.connect() as conn:
+            conn.exec_driver_sql("SELECT 1")
+        return True, ""
+    except Exception as e:
+        return False, str(e)
 
 @dashboard_bp.route('/dashboard', methods=['GET'])
 def get_dashboard_data():
@@ -73,14 +91,13 @@ def get_dashboard_data():
                 'error': 'Redis unavailable'
             }
         
-        try:
-            with db.engine.connect() as conn:
-                conn.exec_driver_sql("SELECT 1")
+        db_healthy, db_error = check_db_health()
+        if db_healthy:
             dashboard_data['system_health']['overall_status'] = 'healthy'
             logger.info("Database connection: healthy")
             db_available = True
-        except Exception as e:
-            logger.error(f"Database connection failed: {e}")
+        else:
+            logger.error(f"Database connection failed: {db_error}")
             dashboard_data['system_health']['overall_status'] = 'degraded'
             dashboard_data['alerts'].append({
                 'id': 'db_error',

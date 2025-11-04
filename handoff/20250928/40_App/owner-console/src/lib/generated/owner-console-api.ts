@@ -172,6 +172,28 @@ export interface Error {
   error?: ErrorError;
 }
 
+/**
+ * Service status indicator
+ */
+export type ServiceUnavailableErrorStatus = typeof ServiceUnavailableErrorStatus[keyof typeof ServiceUnavailableErrorStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ServiceUnavailableErrorStatus = {
+  service_unavailable: 'service_unavailable',
+} as const;
+
+export interface ServiceUnavailableError {
+  /** Error message describing the unavailable service */
+  error: string;
+  /** Detailed error message */
+  message?: string;
+  /** Service status indicator */
+  status: ServiceUnavailableErrorStatus;
+  /** Optional request ID for tracing and observability */
+  request_id?: string;
+}
+
 export interface SuccessResponse {
   success?: boolean;
   message?: string;
@@ -416,6 +438,27 @@ export const postSettings = async (userSettings: UserSettings, options?: Request
 
 
 /**
+ * **DEPRECATED**: Use `/phase7/monitoring/dashboard` instead for real-time metrics with degradation markers.
+
+This legacy endpoint returns comprehensive dashboard data including system health, metrics, circuit breakers, and saga orchestrator status.
+
+**Example Response**:
+```json
+{
+  "timestamp": "2025-11-04T16:53:22.509781",
+  "system_health": "healthy",
+  "system_metrics": {...},
+  "circuit_breakers": {...},
+  "bulkheads": {...},
+  "saga_orchestrator": {...},
+  "storage_stats": {...},
+  "task_execution": {...},
+  "trends": {...},
+  "alerts": []
+}
+```
+
+ * @deprecated
  * @summary Get dashboard data (legacy)
  */
 export type getDashboardDataResponse200 = {
@@ -439,6 +482,9 @@ export const getGetDashboardDataUrl = () => {
 }
 
 export const getDashboardData = async ( options?: RequestInit): Promise<getDashboardDataResponse> => {
+/**
+ * @deprecated Use getPhase7MonitoringDashboard instead for real-time metrics with degradation markers
+ */
   
   return apiClient<getDashboardDataResponse>(getGetDashboardDataUrl(),
   {      
@@ -452,6 +498,68 @@ export const getDashboardData = async ( options?: RequestInit): Promise<getDashb
 
 
 /**
+ * Returns real-time monitoring dashboard data with intelligent degradation handling.
+
+**Degradation Behavior**:
+- When Redis is unavailable: Returns fallback data with `available: false`, `source: 'fallback'`, `error: 'Redis unavailable'`
+- When Database is unavailable: Returns degraded status with alerts
+- When both are unavailable: Returns HTTP 503 Service Unavailable
+
+**Example Response (Normal)**:
+```json
+{
+  "system_health": {
+    "overall_status": "healthy",
+    "error_rate": 0.01,
+    "avg_latency": 0.15,
+    "open_circuit_breakers": 0
+  },
+  "metrics": {
+    "queue_depth": {
+      "current": 5,
+      "unit": "tasks",
+      "trend": "stable"
+    },
+    "active_agents": {
+      "current": 3,
+      "unit": "agents",
+      "trend": "up"
+    }
+  },
+  "agents": [],
+  "alerts": []
+}
+```
+
+**Example Response (Redis Degraded)**:
+```json
+{
+  "system_health": {
+    "overall_status": "healthy",
+    ...
+  },
+  "metrics": {
+    "queue_depth": {
+      "current": 0,
+      "unit": "tasks",
+      "trend": "unknown",
+      "available": false,
+      "source": "fallback",
+      "error": "Redis unavailable"
+    }
+  },
+  "agents": [],
+  "alerts": [
+    {
+      "id": "redis_error",
+      "severity": "warning",
+      "message": "Redis connection unavailable",
+      "timestamp": "2025-11-04T16:45:58.648953"
+    }
+  ]
+}
+```
+
  * @summary Get monitoring dashboard with real metrics
  */
 export type getPhase7MonitoringDashboardResponse200 = {
@@ -465,7 +573,7 @@ export type getPhase7MonitoringDashboardResponse500 = {
 }
 
 export type getPhase7MonitoringDashboardResponse503 = {
-  data: Error
+  data: ServiceUnavailableError
   status: 503
 }
     
