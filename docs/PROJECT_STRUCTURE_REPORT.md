@@ -6,8 +6,8 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.1.0  
-**Last Updated**: 2025-11-03  
+**Document Version**: 1.2.0  
+**Last Updated**: 2025-11-04  
 **Project Phase**: Phase 8 (v8.0.0)
 
 ---
@@ -621,6 +621,8 @@ SENTRY_ENVIRONMENT=production
 **Services**:
 - Backend: https://morningai-backend-v2-stg.onrender.com
 - Orchestrator: https://morningai-orchestrator-api-stg.onrender.com
+- Frontend (Dashboard): https://staging.morningai.me
+- Frontend (Owner Console): https://staging-owner.morningai.me
 
 **Infrastructure**:
 - Database: Supabase PostgreSQL (staging: dckisglnlemvpvmyvnut)
@@ -629,7 +631,7 @@ SENTRY_ENVIRONMENT=production
 
 **Branch**: `develop`
 
-**Status**: ✅ Fully Operational (as of 2025-10-28)
+**Status**: ✅ Fully Operational (as of 2025-11-04)
 
 **Environment Variables**:
 ```bash
@@ -677,8 +679,12 @@ TESTING=false
 - **Cost**: $7/month per service (Starter plan)
 
 **Vercel** (Frontend):
-- **Production**: `morningai.vercel.app`
-- **Preview**: Auto-deploy for all branches
+- **Production**: `app.gm365.me` (dashboard), `admin.gm365.me` (owner console)
+- **Staging**: `staging.morningai.me` (dashboard), `staging-owner.morningai.me` (owner console)
+- **Preview**: Auto-deploy for `feature/*`, `fix/*`, `devin/*` branches
+- **Branch Policy**: `develop` → staging, `main` → production
+- **Ignore Script**: `scripts/vercel-ignore.sh` (skips docs-only changes)
+- **Documentation**: [docs/deployment/VERCEL_DEPLOYMENT_STRATEGY.md](deployment/VERCEL_DEPLOYMENT_STRATEGY.md)
 - **Cost**: $0/month (Free tier)
 
 **Fly.io** (Agent Sandboxes):

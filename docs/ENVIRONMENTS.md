@@ -159,10 +159,26 @@ RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (expo
 }
 ```
 
-#### Frontend Staging
-- **Status**: Not deployed (optional)
-- **Alternative**: Use local frontend with staging backend
-- **Configuration**: Set `VITE_API_URL=https://morningai-backend-v2-stg.onrender.com`
+#### Frontend Dashboard Staging
+- **URL**: https://staging.morningai.me
+- **Platform**: Vercel
+- **Framework**: Vite + React
+- **Branch**: `develop`
+- **Auto-Deploy**: Yes (on push to `develop`)
+- **Status**: ✅ Healthy
+
+#### Owner Console Staging
+- **URL**: https://staging-owner.morningai.me
+- **Platform**: Vercel
+- **Framework**: Vite + React
+- **Branch**: `develop`
+- **Auto-Deploy**: Yes (on push to `develop`)
+- **Status**: ✅ Healthy
+
+**Deployment Strategy**:
+- **Branch Policy**: `develop` → staging, `main` → production, `feature/*|fix/*|devin/*` → preview
+- **Ignore Script**: `scripts/vercel-ignore.sh` (skips docs-only changes)
+- **Documentation**: See [docs/deployment/VERCEL_DEPLOYMENT_STRATEGY.md](deployment/VERCEL_DEPLOYMENT_STRATEGY.md) for complete setup and troubleshooting
 
 ### Infrastructure
 

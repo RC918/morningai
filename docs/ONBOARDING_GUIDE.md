@@ -76,6 +76,8 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 **Services**:
 - **Backend API**: https://morningai-backend-v2-stg.onrender.com
 - **Orchestrator API**: https://morningai-orchestrator-api-stg.onrender.com
+- **Frontend (Dashboard)**: https://staging.morningai.me
+- **Frontend (Owner Console)**: https://staging-owner.morningai.me
 
 **Infrastructure**:
 - **Database**: Supabase PostgreSQL (staging: dckisglnlemvpvmyvnut)
@@ -83,6 +85,11 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - **Branch**: `develop`
 - **Auto-Deploy**: Yes
 - **Status**: ✅ Fully Operational
+
+**Frontend Deployment** (Vercel):
+- **Branch Policy**: `develop` → staging, `main` → production, `feature/*|fix/*|devin/*` → preview
+- **Ignore Script**: Skips deployment for docs-only changes
+- **Documentation**: [docs/deployment/VERCEL_DEPLOYMENT_STRATEGY.md](../deployment/VERCEL_DEPLOYMENT_STRATEGY.md)
 
 **Purpose**:
 - Pre-production testing
