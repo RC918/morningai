@@ -185,13 +185,14 @@ sed -i 's|frontend-dashboard-deploy|handoff/20250928/40_App/frontend-dashboard|g
 Files to update (20+ files):
 - `lighthouserc.json`
 - `lighthouserc.main.json`
-- `scripts/make-lhci-cookie.js`
 - `scripts/make-lhci-pr-comment.js`
 - `scripts/update-baseline-and-trend.js`
 - `scripts/compare_package_json.js`
 - `pnpm-workspace.yaml`
 - `docs/LIGHTHOUSE_CI_GUIDE.md`
 - `.github/workflows/` (any LHCI workflows)
+
+Note: `scripts/make-lhci-cookie.js` was removed in PR #917 as it was unused.
 
 **Step 3: Verify CI** (Day 3)
 - [ ] LHCI runs against production frontend
@@ -489,11 +490,17 @@ python-dotenv
 
 ---
 
-### Issue #5: 99_Original_Bundle Cleanup ⚠️ MEDIUM
+### Issue #5: 99_Original_Bundle Cleanup ✅ COMPLETED
 
 **Problem**: 12,575 files, 129MB of vendored code slowing CI and bloating repo.
 
 **Solution**: Move to GitHub Release Assets
+
+**Status**: ✅ COMPLETED (2025-10-30)
+- Archive created and uploaded to GitHub releases (v1.0-legacy)
+- Documentation added (docs/LEGACY_BUNDLE.md)
+- All references updated
+- Directory removed from repository
 
 **Step 1: Create release** (30 min)
 ```bash

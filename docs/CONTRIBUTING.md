@@ -1,5 +1,38 @@
 # Contribution Rules (Devin-friendly)
 
+## Setup Instructions
+
+### Python Dependencies
+
+MorningAI uses service-separated dependency management. Each service has its own `requirements.txt`:
+
+**Backend API Service**:
+```bash
+cd handoff/20250928/40_App/api-backend
+pip install -r requirements.txt
+```
+
+**Orchestrator Service**:
+```bash
+cd orchestrator
+pip install -r requirements.txt
+pip install -e .  # Install orchestrator package
+```
+
+**Development/Testing Tools** (root):
+```bash
+pip install -r requirements.txt  # pytest, flake8, python-dotenv
+```
+
+**Important**: 
+- Do NOT use root `requirements.txt` to run services
+- Each service has its own `requirements.txt` with all required dependencies
+- Root `requirements.txt` is only for development/testing tools
+
+For detailed requirements structure, see [README.md](../README.md#python-依賴管理).
+
+---
+
 ## 分工規則
 - **Design PR**：只允許改動 `docs/UX/**`, `docs/UX/tokens.json`, `docs/**.md`, `frontend/樣式與文案`。
   - 不得改動 `handoff/**/30_API/openapi/**`, `**/api/**`, `**/src/**` 的後端與 API 相關檔。
@@ -275,5 +308,40 @@ CI 會自動檢查：
 
 ---
 
-**最後更新**：2025-10-23  
+## 術語標準 (Terminology Standards)
+
+### 應用名稱
+
+使用標準化的應用名稱以確保文檔和代碼的一致性：
+
+| 英文 | 中文 | 代碼目錄 | Production URL |
+|------|------|----------|----------------|
+| **Tenant Dashboard** | **租戶端** | `frontend-dashboard/` | https://app.gm365.me |
+| **Owner Console** | **所有者後台** | `owner-console/` | https://admin.gm365.me |
+
+### 用戶類型
+
+| 英文 | 中文 | 說明 |
+|------|------|------|
+| **Tenant User** | **租戶用戶** | 使用 Tenant Dashboard 的客戶組織成員 |
+| **Platform Owner** | **平台所有者** | 使用 Owner Console 的平台管理員 |
+
+### 禁用術語
+
+以下術語已棄用，請勿在新代碼或文檔中使用：
+
+- ❌ End-User / end user（使用 Tenant User）
+- ❌ 終端用戶（使用 租戶用戶）
+- ❌ 最終用戶（使用 租戶用戶）
+- ❌ Frontend Dashboard（作為主要名稱，使用 Tenant Dashboard）
+- ❌ Admin Console（使用 Owner Console）
+
+### 詳細術語指南
+
+完整的術語定義和使用指南，請參閱：
+- **[術語對照表](./TERMINOLOGY.md)** - 完整的中英文術語標準
+
+---
+
+**最後更新**：2025-11-03  
 **相關 PR**：#639, #641

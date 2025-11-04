@@ -31,11 +31,17 @@ const meta = {
       }
     }
   },
-  tags: ['autodocs']
+  tags: ['autodocs'],
+  args: {
+    children: null
+  },
+  argTypes: {
+    children: { control: false }
+  }
 } satisfies Meta<typeof AppleControlCenter.Provider>
 
 export default meta
-type Story = StoryObj<any>
+type Story = StoryObj<typeof meta>
 
 const ControlCenterDemo = ({ controls }: { controls: Control[] }) => {
   const { useControlCenter } = AppleControlCenter
@@ -94,6 +100,7 @@ const basicControls: Control[] = [
 ]
 
 export const Default: Story = {
+  args: {},
   render: () => (
     <AppleControlCenter.Provider controls={basicControls}>
       <ControlCenterDemo controls={basicControls} />
@@ -174,6 +181,7 @@ const controlsWithSizes: Control[] = [
 ]
 
 export const DifferentSizes: Story = {
+  args: {},
   render: () => (
     <AppleControlCenter.Provider controls={controlsWithSizes}>
       <ControlCenterDemo controls={controlsWithSizes} />
@@ -295,6 +303,7 @@ const controlsWithActions: Control[] = [
 ]
 
 export const WithLongPressActions: Story = {
+  args: {},
   render: () => (
     <AppleControlCenter.Provider controls={controlsWithActions}>
       <ControlCenterDemo controls={controlsWithActions} />
@@ -360,6 +369,7 @@ const allVariants: Control[] = [
 ]
 
 export const AllVariants: Story = {
+  args: {},
   render: () => (
     <AppleControlCenter.Provider controls={allVariants}>
       <ControlCenterDemo controls={allVariants} />
@@ -412,6 +422,7 @@ const largeControls: Control[] = [
 ]
 
 export const LargeControls: Story = {
+  args: {},
   render: () => (
     <AppleControlCenter.Provider controls={largeControls}>
       <ControlCenterDemo controls={largeControls} />
@@ -487,6 +498,7 @@ const mixedLayout: Control[] = [
 ]
 
 export const MixedLayout: Story = {
+  args: {},
   render: () => (
     <AppleControlCenter.Provider controls={mixedLayout}>
       <ControlCenterDemo controls={mixedLayout} />
@@ -550,6 +562,7 @@ const darkModeControl: Control[] = [
 ]
 
 export const DarkModeExample: Story = {
+  args: {},
   render: () => (
     <AppleControlCenter.Provider controls={darkModeControl}>
       <ControlCenterDemo controls={darkModeControl} />
@@ -577,6 +590,7 @@ const minimalControls: Control[] = [
 ]
 
 export const MinimalControls: Story = {
+  args: {},
   render: () => (
     <AppleControlCenter.Provider controls={minimalControls}>
       <ControlCenterDemo controls={minimalControls} />
@@ -601,6 +615,7 @@ const InteractiveDemo = () => {
 }
 
 export const Interactive: Story = {
+  args: {},
   render: () => (
     <AppleControlCenter.Provider controls={mixedLayout}>
       <InteractiveDemo />

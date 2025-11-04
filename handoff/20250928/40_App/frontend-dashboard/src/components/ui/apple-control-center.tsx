@@ -192,7 +192,7 @@ const ControlCard: React.FC<{
             )}
             >
               {React.isValidElement(control.icon) 
-                ? React.cloneElement(control.icon, { className: 'w-6 h-6' } as any)
+                ? React.cloneElement(control.icon as React.ReactElement<{ className?: string }>, { className: 'w-6 h-6' })
                 : control.icon
               }
             </div>
@@ -298,7 +298,7 @@ const ControlCard: React.FC<{
                       {action.icon && (
                         <div className="text-white">
                           {React.isValidElement(action.icon)
-                            ? React.cloneElement(action.icon, { className: 'w-5 h-5' } as any)
+                            ? React.cloneElement(action.icon as React.ReactElement<{ className?: string }>, { className: 'w-5 h-5' })
                             : action.icon
                           }
                         </div>

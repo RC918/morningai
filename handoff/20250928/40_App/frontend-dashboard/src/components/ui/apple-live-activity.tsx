@@ -178,7 +178,7 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
               {typeof icon === 'string' ? (
                 <span className="text-xl">{icon}</span>
               ) : (
-                React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5 text-white' })
+                <div className="w-5 h-5 text-white">{icon}</div>
               )}
             </motion.div>
           )}

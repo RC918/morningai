@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 
-const CPUUsageWidget = ({ data }) => {
+const CPUUsageWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -40,7 +40,7 @@ const CPUUsageWidget = ({ data }) => {
 }
 
 
-const MemoryUsageWidget = ({ data }) => {
+const MemoryUsageWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -63,7 +63,7 @@ const MemoryUsageWidget = ({ data }) => {
 }
 
 
-const ResponseTimeWidget = ({ data }) => {
+const ResponseTimeWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -85,7 +85,7 @@ const ResponseTimeWidget = ({ data }) => {
 }
 
 
-const ErrorRateWidget = ({ data }) => {
+const ErrorRateWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -108,7 +108,7 @@ const ErrorRateWidget = ({ data }) => {
   )
 }
 
-const ActiveStrategiesWidget = ({ data }) => {
+const ActiveStrategiesWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -116,7 +116,7 @@ const ActiveStrategiesWidget = ({ data }) => {
         <CardTitle className="text-lg">{t('widgets.activeStrategies.title')}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold text-blue-600">
+        <div className="text-3xl font-bold text-primary-500">
           {data?.system_metrics?.active_strategies || 0}
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-600 mt-2">
@@ -127,7 +127,7 @@ const ActiveStrategiesWidget = ({ data }) => {
   )
 }
 
-const PendingApprovalsWidget = ({ data }) => {
+const PendingApprovalsWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -135,7 +135,7 @@ const PendingApprovalsWidget = ({ data }) => {
         <CardTitle className="text-lg">{t('widgets.pendingApprovals.title')}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold text-orange-600">
+        <div className="text-3xl font-bold text-warning-500">
           {data?.system_metrics?.pending_approvals || 0}
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-600 mt-2">
@@ -146,7 +146,7 @@ const PendingApprovalsWidget = ({ data }) => {
   )
 }
 
-const CostTodayWidget = ({ data }) => {
+const CostTodayWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -168,7 +168,7 @@ const CostTodayWidget = ({ data }) => {
 }
 
 
-const TaskExecutionWidget = ({ data }) => {
+const TaskExecutionWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -177,7 +177,7 @@ const TaskExecutionWidget = ({ data }) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {(Array.isArray(data?.task_execution?.recent_tasks) ? data.task_execution.recent_tasks : []).map((task, index) => (
+          {(Array.isArray(data?.task_execution?.recent_tasks) ? data.task_execution.recent_tasks : []).map((task: any, index: number) => (
             <div key={index} className="flex items-center justify-between p-2 border rounded">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4" />
@@ -204,7 +204,7 @@ const TaskExecutionWidget = ({ data }) => {
               <div className="text-xs text-gray-600 dark:text-gray-600">{t('widgets.taskExecution.todayTasks')}</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-green-600">
+              <div className="text-lg font-bold text-success-500">
                 {((data?.task_execution?.success_rate || 0) * 100).toFixed(1)}%
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-600">{t('widgets.taskExecution.successRate')}</div>
@@ -221,7 +221,7 @@ const TaskExecutionWidget = ({ data }) => {
 }
 
 
-const CircuitBreakersWidget = ({ data }) => {
+const CircuitBreakersWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   let circuitBreakersArray = []
   
@@ -289,7 +289,7 @@ const CircuitBreakersWidget = ({ data }) => {
 }
 
 
-const PerformanceTrendWidget = ({ data }) => {
+const PerformanceTrendWidget = ({ data }: { data: any }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -307,14 +307,14 @@ const PerformanceTrendWidget = ({ data }) => {
             <Line 
               type="monotone" 
               dataKey="cpu" 
-              stroke="#007AFF" 
+              stroke="var(--color-primary, #007AFF)" 
               strokeWidth={2}
               name={t('widgets.performanceTrend.cpuLabel')}
             />
             <Line 
               type="monotone" 
               dataKey="memory" 
-              stroke="#10b981" 
+              stroke="var(--color-success, #10b981)" 
               strokeWidth={2}
               name={t('widgets.performanceTrend.memoryLabel')}
             />
@@ -338,7 +338,7 @@ export const WidgetLibrary = {
   performance_trend: PerformanceTrendWidget
 }
 
-const UnknownWidgetComponent = ({ widgetId }) => {
+const UnknownWidgetComponent = ({ widgetId }: { widgetId: string }) => {
   const { t } = useTranslation()
   return (
     <Card>
@@ -352,6 +352,6 @@ const UnknownWidgetComponent = ({ widgetId }) => {
   )
 }
 
-export const getWidgetComponent = (widgetId) => {
-  return WidgetLibrary[widgetId] || (() => <UnknownWidgetComponent widgetId={widgetId} />)
+export const getWidgetComponent = (widgetId: string) => {
+  return WidgetLibrary[widgetId as keyof typeof WidgetLibrary] || (() => <UnknownWidgetComponent widgetId={widgetId} />)
 }

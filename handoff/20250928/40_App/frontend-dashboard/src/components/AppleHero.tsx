@@ -196,9 +196,9 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
                 >
                   <Icon className="w-6 h-6 text-white dark:text-gray-900" />
                 </motion.div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {feature.title}
-                </h3>
+                </h2>
                 <p className="text-gray-600 dark:text-gray-600 text-sm">
                   {feature.description}
                 </p>

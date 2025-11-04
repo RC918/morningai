@@ -15,7 +15,7 @@ interface ErrorRecoveryProps {
 export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }: ErrorRecoveryProps): React.ReactElement => {
   const { t } = useTranslation()
   const errorInfo = getErrorMessage(error)
-  const Icon = Icons[errorInfo.icon] || Icons.AlertCircle
+  const Icon = (Icons as any)[errorInfo.icon] || Icons.AlertCircle
   
   return (
     <motion.div

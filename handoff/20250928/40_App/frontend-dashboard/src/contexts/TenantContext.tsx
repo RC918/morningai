@@ -1,42 +1,38 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiClient } from '../lib/api-client';
 
-const TenantContext = createContext(null);
+interface Tenant {
+  id: string;
+  name: string;
+  createdAt: string;
+}
 
-export const TenantProvider = ({ children }) => {
-  const [tenant, setTenant] = useState(null);
+interface TenantContextValue {
+  tenant: Tenant | null;
+  loading: boolean;
+  error: string | null;
+  refreshTenant: () => void;
+}
+
+const TenantContext = createContext<TenantContextValue | null>(null);
+
+export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
+  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchTenantInfo = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const data = await apiClient<{
+        tenant_id: string;
+        tenant_name: string;
+        created_at: string;
+      }>('/api/tenant/me', {
+        method: 'GET'
       });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          setError('Tenant information not found. Please contact support.');
-        } else {
-          throw new Error('Failed to fetch tenant information');
-        }
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
       
       setTenant({
         id: data.tenant_id,
@@ -46,8 +42,18 @@ export const TenantProvider = ({ children }) => {
 
       setLoading(false);
     } catch (err) {
-      console.error('Error fetching tenant info:', err);
-      setError(err.message || 'Failed to load tenant information');
+      if (err && typeof err === 'object' && 'status' in err && err.status === 404) {
+        console.warn('Tenant information not found (404)');
+        setError('Tenant information not found. Please contact support.');
+      } else if (err && typeof err === 'object' && 'status' in err && (err.status === 401 || err.status === 403)) {
+        console.warn('Tenant fetch requires authentication');
+        setError('Authentication required');
+      } else {
+        console.error('Error fetching tenant info:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load tenant information';
+        setError(errorMessage);
+      }
+      
       setLoading(false);
     }
   };

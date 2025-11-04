@@ -24,7 +24,7 @@ const AuthCallback = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [status, setStatus] = useState('processing');
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -53,7 +53,7 @@ const AuthCallback = () => {
         }, 1500);
       } catch (err) {
         console.error('Auth callback error:', err);
-        setError(err.message || t('auth.sso.loginFailed'));
+        setError(err instanceof Error ? err.message : t('auth.sso.loginFailed'));
         setStatus('error');
         setTimeout(() => navigate('/login'), 3000);
       }

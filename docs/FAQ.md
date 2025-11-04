@@ -1,80 +1,66 @@
-# E2E Test FAQ for MorningAI
+# System Architecture of MorningAI
 
-End-to-end (E2E) testing is a critical component of the MorningAI platform development cycle, ensuring that the system operates as expected from start to finish under various scenarios. This FAQ aims to assist developers in understanding and applying E2E testing methodologies within the MorningAI project.
+MorningAI employs a robust and scalable multi-tenant SaaS platform architecture designed to facilitate autonomous code generation, comprehensive FAQ generation, documentation management, and seamless multi-platform integration. This architecture leverages modern technologies across its frontend, backend, database, queue system, orchestration layer, AI engine, and deployment strategies to ensure high availability, scalability, and performance.
 
-## What is E2E Testing?
+## Overview
 
-E2E testing involves testing the entire application — from the frontend through all backend services, to its external interfaces — to ensure all integrated components behave as expected. In the context of MorningAI, this means verifying that autonomous agent systems, documentation generation, multi-platform integrations, and real-time task orchestration work seamlessly together.
+The system architecture of MorningAI is structured as follows:
 
-## How to Set Up E2E Tests in MorningAI?
+- **Frontend**: Developed with React and Vite for efficient bundling and optimized performance. Styling is managed with TailwindCSS for responsive design.
+- **Backend**: The server-side logic is handled by Python using the Flask framework. Gunicorn serves as the WSGI HTTP Server with multi-worker support for handling concurrent requests efficiently.
+- **Database**: PostgreSQL is used for data storage, enhanced with Row Level Security (RLS) features provided by Supabase for data integrity and security.
+- **Queue System**: Redis Queue (RQ) is utilized for task queuing to manage background jobs effectively with worker heartbeat monitoring for operational reliability.
+- **Orchestration Layer**: LangGraph orchestrates agent workflows, enabling complex task management and autonomous operations within the platform.
+- **AI Engine**: OpenAI's GPT-4 powers the content generation capabilities of MorningAI, including code generation and FAQ/documentation creation.
+- **Deployment**: The entire infrastructure is deployed on Render.com with continuous integration/continuous deployment (CI/CD) practices in place to streamline updates and maintenance.
 
-MorningAI uses a combination of technologies for E2E testing, primarily focusing on Cypress for frontend tests and PyTest for backend services. Here’s how you can set up basic E2E tests:
+### Code Examples
 
-### Frontend with Cypress
+While direct code examples specific to system setup or configuration are too extensive to cover here comprehensively, below is a high-level example of initializing a Flask application which forms part of the backend setup:
 
-1. **Installation**: Ensure you have Node.js installed. Then, install Cypress via npm:
+```python
+from flask import Flask
+app = Flask(__name__)
 
-   ```sh
-   cd path/to/morningai/frontend
-   npm install cypress --save-dev
-   ```
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
 
-2. **Writing Tests**: Create a new test file under `cypress/integration/morningai/`:
+if __name__ == '__main__':
+    app.run()
+```
 
-   ```js
-   describe('Login Flow', () => {
-     it('successfully logs in', () => {
-       cy.visit('/login')
-       cy.get('input[name=username]').type('testuser')
-       cy.get('input[name=password]').type('password123{enter}')
-       cy.url().should('include', '/dashboard')
-     })
-   })
-   ```
+This simple example demonstrates setting up a basic Flask application. In the context of MorningAI's backend architecture, additional configurations would be set up for integrating with Gunicorn, connecting to the PostgreSQL database via Supabase, and managing tasks through Redis Queue.
 
-3. **Running Tests**: Execute your tests with:
+### Related Documentation Links
 
-   ```sh
-   npx cypress open
-   ```
+For more detailed information on each component of the system architecture:
 
-### Backend with PyTest
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Vite: [https://vitejs.dev/guide/](https://vitejs.dev/guide/)
+- TailwindCSS: [https://tailwindcss.com/docs](https://tailwindcss.com/docs)
+- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- Gunicorn: [https://gunicorn.org/#docs](https://gunicorn.org/#docs)
+- PostgreSQL & Supabase: [https://supabase.com/docs](https://supabase.com/docs)
+- Redis Queue (RQ): [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- OpenAI GPT: [https://openai.com/api/](https://openai.com/api/)
+- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
 
-1. **Installation**: Ensure Python is installed, then add PyTest to your environment:
+### Common Troubleshooting Tips
 
-   ```sh
-   pip install pytest
-   ```
+**Issue**: Application not starting due to database connection errors.
 
-2. **Writing Tests**: Create a test file in `tests/e2e/` for testing backend functionalities:
+**Solution**: Verify database credentials in Supabase settings and ensure your environment variables in the backend service are correctly configured.
 
-   ```python
-   def test_task_orchestration(client):
-       response = client.post('/tasks/orchestrate', json={'task': 'build_docs'})
-       assert response.status_code == 200
-       assert response.json['status'] == 'success'
-   ```
+**Issue**: Tasks not being processed by Redis Queue.
 
-3. **Running Tests**: Run your PyTest suite with:
+**Solution**: Check that RQ workers are running and monitoring the correct Redis instance. Ensure heartbeat signals are received as expected by reviewing worker logs.
 
-   ```sh
-   pytest tests/e2e/
-   ```
+**Issue**: Changes not reflected after deployment on Render.com.
 
-## Related Documentation Links
+**Solution**: Confirm that your CI/CD pipeline successfully completed. Review build logs on Render.com for any errors during the build or deployment process.
 
-- Cypress Documentation: [https://www.cypress.io/docs](https://www.cypress.io/docs)
-- PyTest Documentation: [https://docs.pytest.org/en/stable/](https://docs.pytest.org/en/stable/)
-- Flask Testing: [http://flask.pocoo.org/docs/latest/testing/](http://flask.pocoo.org/docs/latest/testing/)
-
-## Common Troubleshooting Tips
-
-- **Cypress Not Running**: Ensure your Node.js and npm versions are up to date and compatible with Cypress. Also, verify that all dependencies are correctly installed.
-- **Tests Failing Due to Timing Issues**: Incorporate wait commands or assertions that wait for specific elements or conditions before proceeding.
-- **Backend Test Connection Issues**: Ensure the test configuration points to a test database and Redis instance, not production or development environments.
-- **Flaky Tests**: Aim to make your tests deterministic by removing external dependencies where possible or mocking/stubbing them out.
-
-Remember, effective E2E testing in MorningAI requires understanding both the individual components and how they interact within the full application ecosystem.
+In conclusion, MorningAI's system architecture is designed with scalability and flexibility in mind, supporting a wide range of functionalities from code generation to real-time task orchestration. For developers working within this ecosystem, understanding each component's role and how they interact is crucial for leveraging the full capabilities of MorningAI.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -82,7 +68,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: E2E test FAQ update
-- Trace ID: `fea3a993-b3b4-45d9-b83f-3ec4318a4a7b`
+- Task: What is the system architecture?
+- Trace ID: `783e73e9-0a1d-4770-ba31-139a2c9ec3dd`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai

@@ -15,6 +15,7 @@
 > See [Integration Analysis](CTO_STRATEGIC_INTEGRATION_ANALYSIS.md) for detailed comparison and refined timeline.
 
 > **⚠️ Development Guidelines**  
+> - **UI Components**: MorningAI 使用 `@morningai/shared-ui` 作為唯一的 UI 元件庫，開發新 UI 請參考 [Shared UI 使用指南](docs/shared-ui-guide.md)
 > - For API/schema changes, submit an RFC first (see [RFC Template](.github/ISSUE_TEMPLATE/rfc.md))
 > - Design PRs: UI/copy/styles only
 > - Engineering PRs: API/logic only
@@ -47,17 +48,17 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 
 ### 前端應用
 
-1. **Owner Console** (`handoff/20250928/40_App/owner-console/`)
+1. **Owner Console（所有者後台）** (`handoff/20250928/40_App/owner-console/`)
    - 獨立的平台管理控制台
    - 僅 Owner 角色可訪問
    - 功能：Agent Governance、Tenant Management、System Monitoring、Platform Settings
-   - 部署 URL: `admin.morningai.com` 或 `owner.morningai.com`
+   - 部署 URL: https://admin.gm365.me
 
-2. **Tenant Dashboard** (`handoff/20250928/40_App/frontend-dashboard/`)
-   - 租戶使用的主要界面
+2. **Tenant Dashboard（租戶端）** (`handoff/20250928/40_App/frontend-dashboard/`)
+   - 租戶用戶使用的主要界面
    - 租戶用戶可訪問
    - 功能：Dashboard、Strategies、Approvals、History、Costs
-   - 部署 URL: `dashboard.morningai.com` 或 `app.morningai.com`
+   - 部署 URL: https://app.gm365.me
 
 ### 後端 API
 
@@ -75,7 +76,8 @@ MorningAI 採用多環境部署架構，確保開發、測試和生產環境的�
 ### 🚀 Production Environment (生產環境)
 - **Backend API**: https://morningai-backend-v2.onrender.com
 - **Orchestrator API**: https://morningai-orchestrator-api.onrender.com
-- **Frontend**: https://morningai.vercel.app
+- **Tenant Dashboard**: https://app.gm365.me
+- **Owner Console**: https://admin.gm365.me
 - **Database**: Supabase PostgreSQL (production)
 - **Branch**: `main`
 
@@ -97,15 +99,225 @@ MorningAI 採用多環境部署架構，確保開發、測試和生產環境的�
 
 ---
 
-## 開發貢獻流程
+## 資料庫遷移 (Database Migrations)
 
-請參閱以下文件了解專案的開發規範與 CI/CD 流程：
+MorningAI 使用 **Alembic 1.13.1** 進行資料庫 schema 版本管理。
+
+### 快速開始
+
+```bash
+cd handoff/20250928/40_App/api-backend
+
+# 設置 DATABASE_URL (開發環境使用 SQLite)
+export DATABASE_URL="sqlite:////absolute/path/to/dev.db"
+
+# 執行 migrations
+alembic upgrade head
+
+# 創建新 migration
+alembic revision --autogenerate -m "描述變更"
+```
+
+### 關鍵資訊
+
+- **Baseline Migration**: `91b9a61fcafa` (Initial baseline migration)
+- **開發環境**: SQLite (使用絕對路徑避免 "no such table" 錯誤)
+- **生產環境**: PostgreSQL (Supabase)
+- **CI 驗證**: 每次 PR 自動測試 PostgreSQL 和 SQLite migrations
+
+### Enum 值政策 ⚠️
+
+**重要**: 所有 enum 必須使用小寫值並配置 `values_callable`:
+
+```python
+# ✅ 正確
+agent_type = db.Column(
+    db.Enum(AgentTypeDB, values_callable=lambda e: [i.value for i in e], name='agenttypedb'),
+    nullable=False
+)
+```
+
+### 相關文檔
+
+- **[Database Migrations Guide](docs/database/MIGRATIONS.md)** - 完整的 Alembic 工作流程、最佳實踐和故障排除
+- **[Onboarding Guide](docs/ONBOARDING_GUIDE.md)** - 包含 Alembic 設置說明
+- **輔助腳本**: `scripts/run_alembic_migrations.sh`
+- **整合測試**: `scripts/test_migration_data_insertion.py`
+
+---
+
+## Python 依賴管理
+
+MorningAI 採用服務分離的依賴管理策略，確保每個服務只安裝所需的依賴：
+
+### 📦 Requirements 結構
+
+```
+requirements.txt                                    # 共享開發/測試依賴（pytest, flake8, python-dotenv）
+handoff/20250928/40_App/api-backend/requirements.txt    # Flask 後端服務依賴
+orchestrator/requirements.txt                       # FastAPI Orchestrator 服務依賴
+agents/*/requirements.txt                           # 各 Agent 服務依賴
+```
+
+### 🔧 安裝依賴
+
+**Backend API 服務**:
+```bash
+cd handoff/20250928/40_App/api-backend
+pip install -r requirements.txt
+```
+
+**Orchestrator 服務**:
+```bash
+cd orchestrator
+pip install -r requirements.txt
+pip install -e .  # 安裝 orchestrator 套件
+```
+
+**開發/測試工具** (root):
+```bash
+pip install -r requirements.txt  # pytest, flake8, python-dotenv
+```
+
+### ⚠️ 重要提示
+
+- **不要**在 root 目錄直接 `pip install -r requirements.txt` 來運行服務
+- 每個服務有獨立的 requirements.txt，包含該服務所需的所有依賴
+- Root requirements.txt 僅用於開發/測試工具（pytest, flake8 等）
+- CI/CD 會自動為每個服務安裝正確的依賴
+
+---
+
+## LHCI 資訊模式（非阻塞）
+
+MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊模式」（非阻塞信號蒐集階段）。
+
+### 🎯 目的
+
+在高風險重構期間（如 Orchestrator 重構），LHCI 以非阻塞模式運行，持續蒐集效能信號但不阻塞開發流程。
+
+### ⏰ 觸發條件
+
+- **Nightly Schedule**: 每日 UTC 00:00 自動執行
+- **Manual Trigger**: 透過 GitHub Actions 手動觸發 `workflow_dispatch`
+
+### 🔧 執行限制
+
+- **Timeout**: 12 分鐘（防止長時間掛起）
+- **Number of Runs**: 1 次（加速執行）
+- **Continue on Error**: 失敗不影響 workflow 狀態
+- **Artifacts**: 始終上傳 LHCI 報告供分析
+
+### 📊 手動觸發方式
+
+1. 前往 [GitHub Actions](https://github.com/RC918/morningai/actions/workflows/lhci.yml)
+2. 點擊 "Run workflow" 按鈕
+3. 選擇 branch（通常是 `main`）
+4. 點擊 "Run workflow" 確認
+
+### 📁 查看結果
+
+**方式 1: GitHub Artifacts**
+1. 前往 [Actions 頁面](https://github.com/RC918/morningai/actions/workflows/lhci.yml)
+2. 點擊最近的 workflow run
+3. 下載 `lhci-artifacts-main` artifact
+4. 解壓縮後查看 `.lighthouseci/` 目錄中的 HTML/JSON 報告
+
+**方式 2: Tracking Issue**
+- 查看 [LHCI Stabilization Tracking Issue #911](https://github.com/RC918/morningai/issues/911) 中的每日執行記錄
+
+### 🎯 穩定化退出條件（2 週觀察期）
+
+**階段 1: 穩定性驗證**
+- ✅ 連續 5 次 nightly 執行成功（綠燈）
+- ✅ Performance 中位數分數 ≥ 90
+
+**階段 2: 恢復 PR 檢查（首週仍 continue-on-error: true）**
+- 在 PR 上執行 LHCI，但失敗不阻塞合併
+- 觀察 1 週，收集 flake 率數據
+
+**階段 3: 完全恢復阻塞檢查**
+- Flake 率 < 5%
+- 移除 `continue-on-error: true`
+- LHCI 失敗將阻塞 PR 合併
+
+### 🔍 故障排除
+
+**常見問題**:
+- **Preview server 啟動失敗**: 檢查 `VITE_*` 環境變數是否正確設定
+- **Port 衝突**: 確認 4173 port 未被佔用（已在 PR #894 修復）
+- **Authentication 失敗**: 檢查 `TEST_EMAIL` 和 `TEST_PASSWORD` secrets
+- **FCP timeout**: 檢查 CSS 是否有 `visibility: hidden` 或 `opacity: 0` 導致延遲
+
+**相關文檔**:
+- [Lighthouse CI 完整指南](docs/LIGHTHOUSE_CI_GUIDE.md)
+- [LHCI Stabilization Tracking Issue #911](https://github.com/RC918/morningai/issues/911)
+
+---
+
+## 📚 相關文件 (Related Documentation)
+
+### 🚀 新人必讀 (Getting Started)
+
+**首次接觸專案？從這裡開始：**
+1. **[Onboarding Guide](docs/ONBOARDING_GUIDE.md)** - 完整的新人入職指南，包含環境設置、開發流程、常見任務
+2. **[Project Structure Report](docs/PROJECT_STRUCTURE_REPORT.md)** - 專案結構詳解，了解目錄組織和架構模式
+3. **[Terminology Standards](docs/TERMINOLOGY.md)** - 術語對照表，統一中英文技術術語（必讀）
+
+### 🔧 開發與部署 (Development & Deployment)
+
+**開發貢獻流程：**
 - **[本地開發設定](docs/setup_local.md)** - 快速啟動指南與常見問題排除
 - **[Staging 環境指南](docs/ops/STAGING_SETUP_GUIDE.md)** - 完整的 staging 環境設置與使用指南
-- [貢獻規則](docs/CONTRIBUTING.md) - 分工規則、API 變更流程、驗收標準
+- **[貢獻規則](docs/CONTRIBUTING.md)** - 分工規則、API 變更流程、驗收標準
+- **[環境變數 Schema](config/env.schema.yaml)** - 環境變數配置的單一真源（53 個變數）
+
+**CI/CD 與腳本：**
 - [CI 工作流矩陣](docs/ci_matrix.md) - 完整的 GitHub Actions 工作流說明、觸發條件、Branch Protection 規則
 - [管理腳本指南](docs/scripts_overview.md) - 標準化管理腳本的使用方式與安全注意事項
-- [環境變數 Schema](docs/config/env_schema.md) - 完整的環境變數配置說明（53 個變數）
+- [驗證腳本](scripts/verify_system_state.sh) - 系統狀態驗證腳本（30 項檢查）
+
+### 🏗️ 架構與設計 (Architecture & Design)
+
+**系統架構：**
+- [Architecture](docs/ARCHITECTURE.md) - 系統架構文檔
+- [Architecture Decision Records (ADRs)](docs/adr/README.md) - 重要架構決策記錄
+  - [ADR-001: Dual Orchestrator Architecture](docs/adr/001-dual-orchestrator-architecture.md)
+  - [ADR-002: Producer-Consumer Architecture](docs/adr/002-producer-consumer-architecture.md)
+  - [ADR-003: Backend of Record](docs/adr/003-backend-of-record.md)
+
+**治理與監控：**
+- [Agent Governance Framework](docs/GOVERNANCE_FRAMEWORK.md) - 多代理系統治理框架（成本追蹤、權限管理、聲譽系統）
+- [Monitoring Setup](docs/MONITORING_SETUP.md) - 監控設置指南
+
+### 🔒 安全與合規 (Security & Compliance)
+
+- **[Secret Rotation Policy](docs/SECRET_ROTATION_POLICY.md)** - 季度密鑰輪換程序、SLO、演練
+- **[Secret Scanning Guide](docs/SECRET_SCANNING_GUIDE.md)** - 防止代碼中暴露密鑰
+- **[Redis 安全要求](docs/REDIS_SECURITY.md)** - CVE-2025-49844 (RediShell) 防護指南
+- [Security Advisor 修復指南](SECURITY_ADVISOR_FIXES.md) - Supabase 安全警告處理說明
+
+### 📊 測試與品質 (Testing & Quality)
+
+- **[Test Statistics Explanation](docs/TEST_STATISTICS_EXPLANATION.md)** - 測試統計數據說明（487 vs 926 vs 23）
+- [Test Coverage Improvement Plan](docs/TEST_COVERAGE_IMPROVEMENT_PLAN.md) - 12 週路線圖達到 60%+ 覆蓋率
+- [Testing Documentation](docs/TESTING.md) - 測試文檔
+
+### 🎨 UI/UX 設計系統 (Design System)
+
+- **[UI/UX 快速上手指南](docs/UI_UX_QUICKSTART.md)** - ⚡ 5 分鐘快速入門（新人必讀）
+- **[UI/UX 速查表](docs/UI_UX_CHEATSHEET.md)** - 📋 一頁速查表（常用命令、組件、Tokens）
+- **[UI/UX 資源指南](docs/UI_UX_RESOURCES.md)** - 🎨 中心化資源索引（設計系統、組件庫、預覽環境）
+- [設計系統指南](DESIGN_SYSTEM_GUIDELINES.md) - 設計規範與最佳實踐
+
+### 📈 戰略與路線圖 (Strategy & Roadmap)
+
+- [CTO Strategic Plan](CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md) - 6 個月轉型計畫（MVP → World-Class）
+- [CTO Technical Assessment](CTO_TECHNICAL_ASSESSMENT_REPORT.md) - 技術評估報告
+- [Strategic Integration Analysis](CTO_STRATEGIC_INTEGRATION_ANALYSIS.md) - 戰略整合分析
+- [Strategic Roadmap](.github/projects/cto-strategic-roadmap-q4-2025-q2-2026.yml) - Q4 2025 - Q2 2026 詳細時間表
+
+---
 
 ## 核心文檔
 
@@ -232,7 +444,7 @@ Morning AI 已部署兩個 AI Agent Sandbox 到 Fly.io，提供安全隔離的�
 - **URL**: https://morningai-sandbox-ops-agent.fly.dev/
 - **功能**: 性能監控、容量分析、系統運維
 - **用途**: 自動化運維、事件響應、性能優化
-- **文檔**: [Ops_Agent README](agents/ops_agent/)
+- **文檔**: [Ops_Agent README](agents/ops_agent/README.md)
 
 **架構文檔**: [Agent Sandbox Architecture](docs/agent-sandbox-architecture.md)  
 **總成本**: ~$4/月（閒置時自動縮放至 $0）

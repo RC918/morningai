@@ -1,0 +1,966 @@
+openapi: 3.1.0
+info:
+  title: MorningAI Agent Registry API
+  version: 1.0.0
+  description: |
+    Agent Registry & Task Router API for MorningAI platform.
+    
+    This API provides:
+    - Agent registration and discovery
+    - Task routing and assignment
+    - Agent health monitoring
+    - Task status tracking
+    
+    **Issue**: #760 - Agent Registry & Task Router
+    **Squad**: MVP Squad
+    **Feature Flag**: `MVP_AGENT_REGISTRY`
+    
+  contact:
+    name: MorningAI Engineering Team
+    email: ryan2939z@gmail.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://morningai-backend-v2.onrender.com/api/v1
+    description: Production
+  - url: http://localhost:5000/api/v1
+    description: Local Development
+
+tags:
+  - name: agents
+    description: Agent registration and management
+  - name: tasks
+    description: Task routing and execution
+  - name: health
+    description: Agent health monitoring
+
+security:
+  - BearerAuth: []
+
+paths:
+  /agents:
+    get:
+      summary: List all registered agents
+      description: |
+        Returns a list of all agents registered in the system.
+        Supports filtering by agent type, status, and permission level.
+      operationId: listAgents
+      tags:
+        - agents
+      parameters:
+        - name: agent_type
+          in: query
+          description: Filter by agent type
+          required: false
+          schema:
+            $ref: '#/components/schemas/AgentType'
+        - name: status
+          in: query
+          description: Filter by agent status
+          required: false
+          schema:
+            $ref: '#/components/schemas/AgentStatus'
+        - name: permission_level
+          in: query
+          description: Filter by permission level
+          required: false
+          schema:
+            $ref: '#/components/schemas/PermissionLevel'
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      summary: Register a new agent
+      description: |
+        Registers a new agent in the system.
+        Requires admin or service role permissions.
+      operationId: registerAgent
+      tags:
+        - agents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegistrationRequest'
+      responses:
+        '201':
+          description: Agent registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Agent already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /agents/{agent_id}:
+    get:
+      summary: Get agent details
+      description: Returns detailed information about a specific agent
+      operationId: getAgent
+      tags:
+        - agents
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: Agent UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    patch:
+      summary: Update agent
+      description: Updates agent configuration or status
+      operationId: updateAgent
+      tags:
+        - agents
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: Agent UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentUpdateRequest'
+      responses:
+        '200':
+          description: Agent updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      summary: Unregister agent
+      description: Removes an agent from the registry
+      operationId: unregisterAgent
+      tags:
+        - agents
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: Agent UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Agent unregistered successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /agents/{agent_id}/health:
+    get:
+      summary: Get agent health status
+      description: Returns current health status and metrics for an agent
+      operationId: getAgentHealth
+      tags:
+        - health
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: Agent UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentHealth'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      summary: Report agent health
+      description: Allows agents to report their health status (heartbeat)
+      operationId: reportAgentHealth
+      tags:
+        - health
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: Agent UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentHealthReport'
+      responses:
+        '200':
+          description: Health report received
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentHealth'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks:
+    get:
+      summary: List tasks
+      description: Returns a list of tasks with optional filtering
+      operationId: listTasks
+      tags:
+        - tasks
+      parameters:
+        - name: status
+          in: query
+          description: Filter by task status
+          required: false
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+        - name: agent_id
+          in: query
+          description: Filter by assigned agent
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: tenant_id
+          in: query
+          description: Filter by tenant (Owner Console only)
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      summary: Create a new task
+      description: Creates a new task and routes it to an appropriate agent
+      operationId: createTask
+      tags:
+        - tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreationRequest'
+      responses:
+        '202':
+          description: Task accepted and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{task_id}:
+    get:
+      summary: Get task details
+      description: Returns detailed information about a specific task
+      operationId: getTask
+      tags:
+        - tasks
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: Task UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    patch:
+      summary: Update task status
+      description: Updates task status or metadata
+      operationId: updateTask
+      tags:
+        - tasks
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: Task UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdateRequest'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{task_id}/cancel:
+    post:
+      summary: Cancel a task
+      description: Cancels a running or queued task
+      operationId: cancelTask
+      tags:
+        - tasks
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: Task UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Reason for cancellation
+                  maxLength: 500
+      responses:
+        '200':
+          description: Task cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Task cannot be cancelled (already completed or failed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/auth/login
+
+  schemas:
+    AgentType:
+      type: string
+      enum:
+        - dev_agent
+        - ops_agent
+        - pm_agent
+        - growth_strategist
+        - meta_agent
+      description: Type of agent
+
+    AgentStatus:
+      type: string
+      enum:
+        - active
+        - idle
+        - busy
+        - offline
+        - error
+      description: Current status of the agent
+
+    PermissionLevel:
+      type: string
+      enum:
+        - sandbox_only
+        - staging_access
+        - prod_low_risk
+        - prod_full_access
+      description: Permission level based on reputation score
+
+    TaskStatus:
+      type: string
+      enum:
+        - queued
+        - assigned
+        - running
+        - completed
+        - failed
+        - cancelled
+      description: Current status of the task
+
+    Agent:
+      type: object
+      required:
+        - agent_id
+        - agent_type
+        - status
+        - permission_level
+        - reputation_score
+        - created_at
+        - last_activity
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+          description: Unique agent identifier
+        agent_type:
+          $ref: '#/components/schemas/AgentType'
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        permission_level:
+          $ref: '#/components/schemas/PermissionLevel'
+        reputation_score:
+          type: integer
+          minimum: 0
+          maximum: 999
+          description: Agent reputation score (0-999)
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: List of agent capabilities
+          example: ["bug_fixing", "pr_creation", "code_review"]
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional agent metadata
+        created_at:
+          type: string
+          format: date-time
+          description: Agent registration timestamp
+        last_activity:
+          type: string
+          format: date-time
+          description: Last activity timestamp
+        statistics:
+          type: object
+          properties:
+            pr_merged_count:
+              type: integer
+              minimum: 0
+            pr_reverted_count:
+              type: integer
+              minimum: 0
+            test_pass_count:
+              type: integer
+              minimum: 0
+            test_fail_count:
+              type: integer
+              minimum: 0
+            test_pass_rate:
+              type: number
+              format: float
+              minimum: 0.0
+              maximum: 1.0
+
+    AgentListResponse:
+      type: object
+      required:
+        - agents
+        - pagination
+      properties:
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Agent'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    AgentRegistrationRequest:
+      type: object
+      required:
+        - agent_type
+        - capabilities
+      properties:
+        agent_type:
+          $ref: '#/components/schemas/AgentType'
+        capabilities:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: List of agent capabilities
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional agent metadata
+
+    AgentUpdateRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        capabilities:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+          additionalProperties: true
+
+    AgentHealth:
+      type: object
+      required:
+        - agent_id
+        - status
+        - last_heartbeat
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        last_heartbeat:
+          type: string
+          format: date-time
+        metrics:
+          type: object
+          properties:
+            cpu_usage:
+              type: number
+              format: float
+              minimum: 0.0
+              maximum: 100.0
+            memory_usage:
+              type: number
+              format: float
+              minimum: 0.0
+              maximum: 100.0
+            active_tasks:
+              type: integer
+              minimum: 0
+            queue_depth:
+              type: integer
+              minimum: 0
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              error_type:
+                type: string
+              message:
+                type: string
+
+    AgentHealthReport:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        metrics:
+          type: object
+          properties:
+            cpu_usage:
+              type: number
+              format: float
+            memory_usage:
+              type: number
+              format: float
+            active_tasks:
+              type: integer
+            queue_depth:
+              type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              error_type:
+                type: string
+              message:
+                type: string
+
+    Task:
+      type: object
+      required:
+        - task_id
+        - task_type
+        - status
+        - created_at
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          description: Unique task identifier
+        task_type:
+          type: string
+          description: Type of task
+          example: "faq_generation"
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        agent_id:
+          type: string
+          format: uuid
+          description: Assigned agent ID (null if not assigned)
+          nullable: true
+        tenant_id:
+          type: string
+          format: uuid
+          description: Tenant ID (for multi-tenant isolation)
+        user_id:
+          type: string
+          format: uuid
+          description: User who created the task
+        payload:
+          type: object
+          additionalProperties: true
+          description: Task-specific payload
+        result:
+          type: object
+          additionalProperties: true
+          description: Task result (null if not completed)
+          nullable: true
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+          description: Error details (null if no error)
+          nullable: true
+        trace_id:
+          type: string
+          format: uuid
+          description: Distributed tracing ID
+        pr_url:
+          type: string
+          format: uri
+          description: Pull request URL (if applicable)
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    TaskListResponse:
+      type: object
+      required:
+        - tasks
+        - pagination
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    TaskCreationRequest:
+      type: object
+      required:
+        - task_type
+        - payload
+      properties:
+        task_type:
+          type: string
+          description: Type of task to create
+          example: "faq_generation"
+        payload:
+          type: object
+          additionalProperties: true
+          description: Task-specific payload
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 10
+          default: 5
+          description: Task priority (0=lowest, 10=highest)
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional task metadata
+
+    TaskUpdateRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        result:
+          type: object
+          additionalProperties: true
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+
+    Pagination:
+      type: object
+      required:
+        - page
+        - page_size
+        - total_items
+        - total_pages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          description: Current page number
+        page_size:
+          type: integer
+          minimum: 1
+          description: Items per page
+        total_items:
+          type: integer
+          minimum: 0
+          description: Total number of items
+        total_pages:
+          type: integer
+          minimum: 0
+          description: Total number of pages
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "invalid_input"
+            message: "Invalid request parameters"
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "unauthorized"
+            message: "Authentication required"
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "forbidden"
+            message: "Insufficient permissions"
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "not_found"
+            message: "Resource not found"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "internal_error"
+            message: "An unexpected error occurred"

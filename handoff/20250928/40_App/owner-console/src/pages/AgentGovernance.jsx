@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { useTranslation } from 'react-i18next'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger, Alert, AlertDescription, AlertTitle } from '@morningai/shared-ui'
 import { 
   Shield, 
   TrendingUp,
@@ -16,6 +13,7 @@ import {
 import { apiClient } from '@/lib/api'
 
 const AgentGovernance = () => {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [agents, setAgents] = useState([])
@@ -34,7 +32,7 @@ const AgentGovernance = () => {
       setError(null)
       
       const [agentsData, eventsData, violationsData, statsData] = await Promise.all([
-        apiClient.getGovernanceAgents(),
+        apiClient.getAgents({ status: 'all', limit: 100 }),
         apiClient.getGovernanceEvents({ limit: 50 }),
         apiClient.getGovernanceViolations({ limit: 50 }),
         apiClient.getGovernanceStatistics()
@@ -49,6 +47,19 @@ const AgentGovernance = () => {
       setError(error.message || 'Failed to load governance data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800 border-green-300'
+      case 'paused':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+      case 'error':
+        return 'bg-red-100 text-red-800 border-red-300'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-300'
     }
   }
 
@@ -69,10 +80,10 @@ const AgentGovernance = () => {
 
   const getPermissionLevelLabel = (level) => {
     const labels = {
-      'prod_full_access': 'Production Full',
-      'prod_low_risk': 'Production Low Risk',
-      'staging_access': 'Staging',
-      'sandbox_only': 'Sandbox Only'
+      'prod_full_access': t('governance.permissions.prodFull'),
+      'prod_low_risk': t('governance.permissions.prodLowRisk'),
+      'staging_access': t('governance.permissions.staging'),
+      'sandbox_only': t('governance.permissions.sandbox')
     }
     return labels[level] || level
   }
@@ -111,20 +122,20 @@ const AgentGovernance = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <Shield className="w-8 h-8 text-blue-600" />
-            Agent Governance
+            {t('governance.title')}
           </h1>
-          <p className="text-gray-600 mt-1">Monitor agent reputation, permissions, and compliance</p>
+          <p className="text-gray-600 mt-1">{t('governance.subtitle')}</p>
         </div>
         <Button onClick={loadGovernanceData} variant="outline" disabled={loading}>
           <Activity className="w-4 h-4 mr-2" />
-          Refresh
+          {t('governance.refresh')}
         </Button>
       </div>
 
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('common.error')}</AlertTitle>
           <AlertDescription>
             {error}
             <Button 
@@ -133,7 +144,7 @@ const AgentGovernance = () => {
               size="sm" 
               className="ml-4"
             >
-              Retry
+              {t('common.refresh')}
             </Button>
           </AlertDescription>
         </Alert>
@@ -144,7 +155,7 @@ const AgentGovernance = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">Total Agents</p>
+                <p className="text-sm text-gray-600">{t('governance.stats.totalAgents')}</p>
                 <Shield className="w-5 h-5 text-blue-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
@@ -156,7 +167,7 @@ const AgentGovernance = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">Avg Reputation</p>
+                <p className="text-sm text-gray-600">{t('governance.stats.avgReputation')}</p>
                 <TrendingUp className="w-5 h-5 text-green-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
@@ -168,7 +179,7 @@ const AgentGovernance = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">Daily Cost</p>
+                <p className="text-sm text-gray-600">{t('governance.stats.dailyCost')}</p>
                 <DollarSign className="w-5 h-5 text-purple-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
@@ -180,7 +191,7 @@ const AgentGovernance = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">Violations</p>
+                <p className="text-sm text-gray-600">{t('governance.stats.violations')}</p>
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
@@ -193,45 +204,45 @@ const AgentGovernance = () => {
 
       <Tabs defaultValue="agents" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="agents">Agents</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="violations">Violations</TabsTrigger>
+          <TabsTrigger value="agents">{t('governance.tabs.agents')}</TabsTrigger>
+          <TabsTrigger value="events">{t('governance.tabs.events')}</TabsTrigger>
+          <TabsTrigger value="violations">{t('governance.tabs.violations')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Agent Reputation Leaderboard</CardTitle>
-              <CardDescription>Agents ranked by reputation score and permission level</CardDescription>
+              <CardTitle>{t('governance.agents.title')}</CardTitle>
+              <CardDescription>{t('governance.agents.subtitle')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {agents.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No agents found</p>
+                  <p className="text-center text-gray-500 py-8">{t('governance.agents.noAgents')}</p>
                 ) : (
                   agents.map((agent, index) => (
-                    <div 
-                      key={agent.agent_id} 
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                    <button
+                      key={agent.id} 
+                      className="w-full text-left flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => setSelectedAgent(agent)}
                     >
                       <div className="flex items-center gap-4">
                         <div className="text-2xl font-bold text-gray-400">#{index + 1}</div>
                         <div>
-                          <p className="font-semibold text-gray-900">{agent.agent_type}</p>
-                          <p className="text-sm text-gray-600">ID: {agent.agent_id?.substring(0, 8)}...</p>
+                          <p className="font-semibold text-gray-900">{agent.name}</p>
+                          <p className="text-sm text-gray-600">ID: {agent.id?.substring(0, 8)}...</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900">{agent.reputation_score}</p>
-                          <p className="text-sm text-gray-600">Reputation</p>
+                          <p className="text-2xl font-bold text-gray-900">{agent.reputation_score || 0}</p>
+                          <p className="text-sm text-gray-600">{t('governance.agents.reputation')}</p>
                         </div>
-                        <Badge className={getPermissionLevelColor(agent.permission_level)}>
-                          {getPermissionLevelLabel(agent.permission_level)}
+                        <Badge className={getStatusColor(agent.status)}>
+                          {agent.status?.toUpperCase()}
                         </Badge>
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -242,13 +253,13 @@ const AgentGovernance = () => {
         <TabsContent value="events" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Recent Events</CardTitle>
-              <CardDescription>Reputation events and agent activities</CardDescription>
+              <CardTitle>{t('governance.events.title')}</CardTitle>
+              <CardDescription>{t('governance.events.subtitle')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {events.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No events found</p>
+                  <p className="text-center text-gray-500 py-8">{t('governance.events.noEvents')}</p>
                 ) : (
                   events.map((event) => (
                     <div key={event.event_id} className="flex items-start gap-3 p-3 border rounded-lg">
@@ -263,11 +274,11 @@ const AgentGovernance = () => {
                         )}
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="outline" className="text-xs">
-                            Delta: {event.delta > 0 ? '+' : ''}{event.delta}
+                            {t('governance.events.delta')}: {event.delta > 0 ? '+' : ''}{event.delta}
                           </Badge>
                           {event.trace_id && (
                             <Badge variant="outline" className="text-xs">
-                              Trace: {event.trace_id.substring(0, 8)}
+                              {t('governance.events.trace')}: {event.trace_id.substring(0, 8)}
                             </Badge>
                           )}
                         </div>
@@ -283,15 +294,15 @@ const AgentGovernance = () => {
         <TabsContent value="violations" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Policy Violations</CardTitle>
-              <CardDescription>Security and compliance violations</CardDescription>
+              <CardTitle>{t('governance.violations.title')}</CardTitle>
+              <CardDescription>{t('governance.violations.subtitle')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {violations.length === 0 ? (
                   <div className="text-center py-8">
                     <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-2" />
-                    <p className="text-gray-500">No violations detected</p>
+                    <p className="text-gray-500">{t('governance.violations.noViolations')}</p>
                   </div>
                 ) : (
                   violations.map((violation) => (
@@ -305,11 +316,11 @@ const AgentGovernance = () => {
                         <p className="text-sm text-red-700 mt-1">{violation.description}</p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="destructive" className="text-xs">
-                            Severity: {violation.severity}
+                            {t('governance.violations.severity')}: {violation.severity}
                           </Badge>
                           {violation.resolved && (
                             <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
-                              Resolved
+                              {t('governance.violations.resolved')}
                             </Badge>
                           )}
                         </div>

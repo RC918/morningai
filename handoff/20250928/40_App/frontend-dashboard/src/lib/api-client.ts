@@ -1,72 +1,44 @@
-const API_BASE_URL =
-  (typeof window !== 'undefined' && (window as any).__VITE_API_BASE_URL__) ||
-  (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') ||
-  'https://morningai-backend-v2.onrender.com';
+/**
+ * API Client Adapter (P1 Fix: Consolidate duplicate API clients)
+ * 
+ * This file now serves as a thin adapter that forwards to the canonical api.ts implementation.
+ * This eliminates code duplication while preserving the functional-style API for new code.
+ * 
+ * Migration path:
+ * - Phase 1 (this PR): Adapter forwards to api.ts, both import paths work
+ * - Phase 2 (follow-up PR): Migrate all imports to use api.ts directly
+ * - Phase 3 (follow-up PR): Remove this adapter file
+ */
 
-export async function apiClient<T>(
-  url: string,
-  options?: RequestInit
-): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
+import { apiClient as classApiClient } from './api'
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
-  }
-
-  const ct = res.headers.get('content-type') || '';
-  const data = ct.includes('application/json') ? await res.json() : await res.text();
+/**
+ * Functional-style API client that forwards to the canonical class-based implementation
+ * 
+ * Usage: apiClient<T>('/api/endpoint', { method: 'POST', body: JSON.stringify(data) })
+ * 
+ * Note: This adapter normalizes URLs to work with api.ts which expects endpoints without '/api' prefix
+ */
+export const apiClient = async <T>(url: string, options?: RequestInit): Promise<T> => {
+  const endpoint = url.startsWith('/api') ? url.slice(4) : url
   
-  return {
-    data,
-    status: res.status,
-    headers: res.headers,
-  } as T;
+  return classApiClient.request(endpoint, options as any) as Promise<T>
 }
 
-export async function apiClientLegacy({
-  url,
-  method,
-  params,
-  data,
-  headers,
-}: {
-  url: string;
-  method: string;
-  params?: Record<string, any>;
-  data?: any;
-  headers?: Record<string, string>;
-}) {
-  const qs = params
-    ? '?' +
-      new URLSearchParams(
-        Object.fromEntries(
-          Object.entries(params).map(([k, v]) => [k, String(v)])
-        )
-      ).toString()
-    : '';
-
-  const res = await fetch(`${API_BASE_URL}${url}${qs}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(headers || {}) },
-    body: data != null ? JSON.stringify(data) : undefined,
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
-  }
-  const ct = res.headers.get('content-type') || '';
-  return ct.includes('application/json') ? res.json() : res.text();
+/**
+ * Legacy customFetch for backward compatibility
+ * Forwards to the canonical implementation
+ * 
+ * @deprecated Use apiClient() instead
+ */
+export const customFetch = async (options: { url: string; [key: string]: any }) => {
+  const { url, ...fetchOptions } = options
+  const endpoint = url.startsWith('/api') ? url.slice(4) : url
+  
+  return classApiClient.request(endpoint, fetchOptions as any)
 }
 
-export async function customFetch(options: { url: string; method?: string; [key: string]: any }) {
-  const { url, method = 'GET', ...rest } = options;
-  return apiClientLegacy({ url, method, ...rest });
-}
+/**
+ * Bootstrap CSRF token - forwards to canonical implementation
+ */
+export const bootstrapCsrf = () => classApiClient.bootstrapCsrf()

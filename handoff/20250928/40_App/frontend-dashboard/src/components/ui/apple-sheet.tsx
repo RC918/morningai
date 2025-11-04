@@ -42,8 +42,14 @@ const sheetSizes: Record<SheetSize, string> = {
   full: 'h-[calc(100vh-2rem)]'
 }
 
-interface SheetProps extends SheetOptions {
+interface SheetProps {
   id: string
+  title?: string
+  description?: string
+  children: React.ReactNode
+  size?: SheetSize
+  showClose?: boolean
+  showHandle?: boolean
   onClose: (id: string) => void
 }
 
@@ -224,7 +230,7 @@ export const AppleSheetProvider = ({ children }: { children: React.ReactNode }) 
     }
   }, [])
 
-  const closeSheet = useCallback((id) => {
+  const closeSheet = useCallback((id: string) => {
     setSheets(prev => prev.filter(s => s.id !== id))
   }, [])
 
@@ -244,7 +250,17 @@ export const AppleSheetProvider = ({ children }: { children: React.ReactNode }) 
       {children}
       <AnimatePresence mode="wait">
         {sheets.map((sheet) => (
-          <Sheet key={sheet.id} {...sheet} onClose={closeSheet} />
+          <Sheet 
+            key={sheet.id} 
+            id={sheet.id!}
+            title={sheet.title}
+            description={sheet.description}
+            children={sheet.children}
+            size={sheet.size}
+            showClose={sheet.showClose}
+            showHandle={sheet.showHandle}
+            onClose={closeSheet} 
+          />
         ))}
       </AnimatePresence>
     </SheetContext.Provider>

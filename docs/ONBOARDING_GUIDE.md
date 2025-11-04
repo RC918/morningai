@@ -2,6 +2,12 @@
 
 **Welcome to MorningAI!** 🎉
 
+> 📚 **相關文件**: 
+> - [術語對照表](./TERMINOLOGY.md) - 標準化的應用名稱和用戶類型定義
+> - [專案結構報告](./PROJECT_STRUCTURE_REPORT.md) - 詳細的目錄組織和架構模式
+> - [README](../README.md) - 專案概覽和快速導航
+> - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
+
 This guide will help you get started with the MorningAI project, understand the architecture, set up your development environment, and start contributing.
 
 ---
@@ -156,6 +162,30 @@ cd ../../../..
 
 ### Step 4: Configure Environment Variables
 
+**Environment Schema Workflow** (Single Source of Truth):
+
+MorningAI uses `config/env.schema.yaml` as the canonical source for all environment variables. This ensures consistency across all services and environments.
+
+```bash
+# 1. View canonical environment variable definitions
+cat config/env.schema.yaml
+
+# 2. Generate .env.example files from schema (auto-updates all services)
+python scripts/generate-env-examples.py
+
+# 3. Check for drift between schema and .env.example files
+python scripts/check-env-drift.py
+
+# 4. Verify secret inventory matches schema (security operations)
+python scripts/verify_secret_inventory.py  # (Added in PR #1084)
+```
+
+**Key Points**:
+- ✅ Always update `config/env.schema.yaml` first when adding/changing variables
+- ✅ Run `generate-env-examples.py` to propagate changes to all `.env.example` files
+- ✅ CI automatically checks for drift on every PR
+- ✅ See [Secret Rotation Policy](./SECRET_ROTATION_POLICY.md) for security operations
+
 **Backend** (`handoff/20250928/40_App/api-backend/.env`):
 ```bash
 ENVIRONMENT=development
@@ -168,7 +198,7 @@ REDIS_URL=<staging-redis-url>
 REDIS_KEY_PREFIX=dev:
 ```
 
-**Frontend** (`handoff/20250928/40_App/frontend-dashboard/.env.local`):
+**Frontend Dashboard** (`handoff/20250928/40_App/frontend-dashboard/.env.local`):
 ```bash
 VITE_API_URL=http://localhost:8000
 VITE_ORCHESTRATOR_URL=http://localhost:8001
@@ -179,15 +209,31 @@ VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
 VITE_ORCHESTRATOR_URL=https://morningai-orchestrator-api-stg.onrender.com
 ```
 
-**Note**: Contact your team lead for staging credentials.
+**Owner Console** (`handoff/20250928/40_App/owner-console/.env.local`):
+```bash
+VITE_API_URL=http://localhost:8000
+VITE_ENVIRONMENT=development
+
+# Or point to staging backend (recommended)
+VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
+```
+
+**Note**: Contact your team lead for staging credentials. See `config/env.schema.yaml` for complete list of all environment variables.
 
 ### Step 5: Run Services Locally
 
-**Backend**:
+**Backend** (Flask):
 ```bash
 cd handoff/20250928/40_App/api-backend
 source ../../../../../../.venv/bin/activate
-uvicorn src.main:app --reload
+
+# Option 1: Flask CLI (recommended for development)
+export FLASK_APP=src.main
+flask run --port 8000
+
+# Option 2: Gunicorn (production-like)
+gunicorn "src.main:app" --bind 0.0.0.0:8000 --reload
+
 # Access at http://localhost:8000
 ```
 
@@ -299,7 +345,7 @@ curl https://morningai-backend-v2.onrender.com/healthz
 - Database schema changes
 - Breaking changes
 
-**Template**: [.github/ISSUE_TEMPLATE/rfc.md](.github/ISSUE_TEMPLATE/rfc.md)
+**Template**: [.github/ISSUE_TEMPLATE/rfc.md](../.github/ISSUE_TEMPLATE/rfc.md)
 
 ---
 
@@ -307,7 +353,7 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 ### Backend
 
-- **Framework**: FastAPI (Python 3.12)
+- **Framework**: Flask (Python 3.12)
 - **Database**: PostgreSQL (Supabase)
 - **ORM**: SQLAlchemy
 - **Cache**: Redis (Upstash)
@@ -325,12 +371,12 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 ### Frontend
 
-- **Framework**: React 18 + Vite
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + Custom Design System
+- **Framework**: React 19.1.0 + Vite 6
+- **Language**: TypeScript 5.9
+- **Styling**: Tailwind CSS 4.1.7 + Custom Design System
 - **State Management**: React Context + Hooks
 - **UI Components**: Apple-inspired design system
-- **Testing**: Vitest + React Testing Library
+- **Testing**: Vitest + React Testing Library (planned)
 - **Deployment**: Vercel
 
 ### Infrastructure
@@ -372,10 +418,16 @@ morningai/
 │   ├── Dockerfile                  # Docker configuration
 │   └── requirements.txt            # Python dependencies
 │
+├── phase4_meta_agent_api.py       # Phase 4 API (imported by backend)
+├── phase5_data_intelligence_api.py # Phase 5 API (imported by backend)
+├── phase6_security_governance_api.py # Phase 6 API (imported by backend)
+├── phase6_startup.py              # Phase 6 initialization
+├── phase7_startup.py              # Phase 7 initialization
+│
 ├── handoff/20250928/40_App/
 │   ├── api-backend/                # Backend API
 │   │   ├── src/                    # Source code
-│   │   │   ├── main.py            # FastAPI application
+│   │   │   ├── main.py            # Flask application (imports phase*.py)
 │   │   │   ├── database.py        # Database connection
 │   │   │   └── ...                # API modules
 │   │   ├── tests/                 # Test suite
@@ -412,9 +464,59 @@ morningai/
 
 **Detailed Structure**: See [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md)
 
+### Phase API Modules (Root Directory)
+
+The following production backend modules are located in the root directory and imported by `handoff/20250928/40_App/api-backend/src/main.py`:
+
+- **`phase4_meta_agent_api.py`**: Meta-agent coordination (OODA loop, LangGraph workflows, AI governance)
+- **`phase5_data_intelligence_api.py`**: Data intelligence (QuickSight, growth marketing, BI dashboards)
+- **`phase6_security_governance_api.py`**: Security & governance (Zero Trust, SecurityReviewer Agent, HITL analysis)
+- **`phase6_startup.py`**: Phase 6 initialization (monitoring, security, Meta-Agent hub)
+- **`phase7_startup.py`**: Phase 7 initialization (Ops_Agent, Growth_Strategist, PM_Agent, HITL system)
+
+**Note**: These files are in the root directory for historical reasons. They are production code imported by the backend. Future refactoring may move them to `handoff/20250928/40_App/api-backend/src/phases/`.
+
 ---
 
 ## Important Documentation
+
+### Core Documentation
+
+- **[Project Structure Report](./PROJECT_STRUCTURE_REPORT.md)**: Comprehensive overview of repository structure
+- **[Environments Guide](./ENVIRONMENTS.md)**: Environment architecture and deployment
+- **[Contributing Guide](./CONTRIBUTING.md)**: Contribution guidelines and workflows
+- **[Terminology Standards](./TERMINOLOGY.md)**: Standardized application names and user types
+
+### Security & Operations
+
+- **[Secret Rotation Policy](./SECRET_ROTATION_POLICY.md)**: Quarterly secret rotation procedures, SLOs, and drills
+- **[Secret Scanning Guide](./SECRET_SCANNING_GUIDE.md)**: Prevention of secret exposure in code
+- **[Test Coverage Improvement Plan](./TEST_COVERAGE_IMPROVEMENT_PLAN.md)**: 12-week roadmap to 60%+ coverage
+
+### Quick Reference
+
+**Environment Schema Operations**:
+```bash
+# Generate .env.example files from schema
+python scripts/generate-env-examples.py
+
+# Check for drift
+python scripts/check-env-drift.py
+
+# Verify secret inventory
+python scripts/verify_secret_inventory.py
+```
+
+**Testing & Coverage**:
+```bash
+# Backend tests with coverage
+cd handoff/20250928/40_App/api-backend
+pytest --cov=src --cov-report=term-missing
+
+# Frontend tests with coverage
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm test:coverage
+```
 
 ### Getting Started
 - **[Local Setup Guide](setup_local.md)** - Quick start and troubleshooting
@@ -492,21 +594,47 @@ pnpm format
 
 ### Database Migrations
 
-**Create Migration**:
+✅ **Alembic Migration Framework**: MorningAI uses Alembic for database schema version control and migrations.
+
+**Quick Start**:
 ```bash
 cd handoff/20250928/40_App/api-backend
-alembic revision --autogenerate -m "description"
-```
 
-**Apply Migration**:
-```bash
+# Run all pending migrations
 alembic upgrade head
+
+# Check current migration version
+alembic current
+
+# View migration history
+alembic history --verbose
+
+# Create new migration (auto-generate from model changes)
+alembic revision --autogenerate -m "Description of changes"
 ```
 
-**Rollback Migration**:
+**Helper Script**:
 ```bash
-alembic downgrade -1
+# Use the migration helper script
+./scripts/run_alembic_migrations.sh upgrade    # Apply migrations
+./scripts/run_alembic_migrations.sh current    # Check version
+./scripts/run_alembic_migrations.sh history    # View history
+./scripts/run_alembic_migrations.sh revision "Add new table"  # Create migration
 ```
+
+**Configuration**:
+- **Alembic Config**: `alembic.ini`
+- **Environment Setup**: `alembic/env.py` (auto-loads DATABASE_URL from environment)
+- **Migrations Directory**: `alembic/versions/`
+- **Models**: `src/models/` (SQLAlchemy models)
+
+**CI/CD Integration**:
+- Migrations are automatically validated in CI against PostgreSQL
+- GitHub Actions workflow: `.github/workflows/alembic-check.yml`
+- Both PostgreSQL and SQLite migrations are tested
+
+**Legacy Migrations**:
+Manual SQL files in `migrations/` directory are for historical reference only. All new schema changes should use Alembic.
 
 ### Checking Service Health
 
@@ -646,7 +774,7 @@ pytest tests/test_specific.py -v
 ### Internal Resources
 
 **Documentation**:
-- Check [docs/](docs/) directory for comprehensive documentation
+- Check the `docs/` directory for comprehensive documentation
 - Search for specific topics in documentation
 
 **Team Communication**:
@@ -661,7 +789,7 @@ pytest tests/test_specific.py -v
 ### External Resources
 
 **Technologies**:
-- **FastAPI**: https://fastapi.tiangolo.com/
+- **Flask**: https://flask.palletsprojects.com/
 - **React**: https://react.dev/
 - **Supabase**: https://supabase.com/docs
 - **Render**: https://render.com/docs
@@ -696,6 +824,6 @@ After completing this onboarding guide, you should:
 
 ---
 
-**Last Updated**: 2025-10-28  
-**Version**: 1.0.0  
+**Last Updated**: 2025-11-03  
+**Version**: 1.1.0  
 **Maintained By**: CTO / DevOps Team

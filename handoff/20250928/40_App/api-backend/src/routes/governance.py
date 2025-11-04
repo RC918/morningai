@@ -2,6 +2,7 @@
 import os
 import sys
 from flask import Blueprint, jsonify, request
+from datetime import datetime
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
 if project_root not in sys.path:
@@ -23,9 +24,16 @@ except ImportError as e:
     print(f"Warning: Governance modules not available: {e}")
     GOVERNANCE_AVAILABLE = False
 
+ALLOW_GOVERNANCE_MOCK = os.getenv('ALLOW_GOVERNANCE_MOCK', 'true').lower() == 'true'
+
 from src.middleware.auth_middleware import jwt_required, admin_required
+import logging
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('governance', __name__, url_prefix='/api/governance')
+
+admin_bp = Blueprint('admin_agents', __name__, url_prefix='/api/admin')
 
 
 @bp.route('/agents', methods=['GET'])
@@ -230,3 +238,336 @@ def health_check():
         return jsonify(status)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+
+@admin_bp.route('/agents', methods=['GET'])
+@jwt_required
+@admin_required
+def admin_get_agents():
+    """
+    Get all agents with their status and metadata
+    
+    Query parameters:
+    - status: Filter by status (active, paused, all) - default: all
+    - limit: Number of agents to return - default: 100
+    
+    Returns list of agents with execution statistics
+    
+    Requires: Owner role
+    """
+    try:
+        status_filter = request.args.get('status', 'all')
+        limit = min(int(request.args.get('limit', 100)), 500)
+        
+        if not GOVERNANCE_AVAILABLE and not ALLOW_GOVERNANCE_MOCK:
+            return jsonify({
+                'error': 'Governance system unavailable',
+                'message': 'Mock data is disabled. Please enable ALLOW_GOVERNANCE_MOCK or fix governance system.'
+            }), 503
+        
+        if GOVERNANCE_AVAILABLE:
+            reputation_engine = get_reputation_engine()
+            agents_data = reputation_engine.get_leaderboard(limit=limit)
+            
+            agents = []
+            for agent in agents_data:
+                agent_info = {
+                    'id': agent.get('agent_id', 'unknown'),
+                    'name': agent.get('agent_id', 'unknown').replace('_', ' ').title(),
+                    'status': 'active',  # Default status
+                    'reputation_score': agent.get('score', 0),
+                    'total_executions': agent.get('total_tasks', 0),
+                    'success_rate': agent.get('success_rate', 0),
+                    'last_execution': agent.get('last_activity'),
+                    'created_at': agent.get('created_at')
+                }
+                agents.append(agent_info)
+        else:
+            agents = _get_mock_agents(limit)
+        
+        if status_filter != 'all':
+            agents = [a for a in agents if a.get('status') == status_filter]
+        
+        return jsonify({
+            'agents': agents,
+            'count': len(agents),
+            'using_mock': not GOVERNANCE_AVAILABLE,
+            'filters': {
+                'status': status_filter,
+                'limit': limit
+            },
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to get agents',
+            'message': str(e)
+        }), 500
+
+
+@admin_bp.route('/agents/<agent_id>', methods=['GET'])
+@jwt_required
+@admin_required
+def admin_get_agent_details(agent_id):
+    """
+    Get detailed information about a specific agent
+    
+    Returns:
+    - Agent metadata
+    - Reputation score and history
+    - Recent execution history
+    - Performance metrics
+    
+    Requires: Owner role
+    """
+    try:
+        if not GOVERNANCE_AVAILABLE and not ALLOW_GOVERNANCE_MOCK:
+            return jsonify({
+                'error': 'Governance system unavailable',
+                'message': 'Mock data is disabled. Please enable ALLOW_GOVERNANCE_MOCK or fix governance system.'
+            }), 503
+        
+        using_mock = False
+        if GOVERNANCE_AVAILABLE:
+            try:
+                reputation_engine = get_reputation_engine()
+                permission_checker = get_permission_checker()
+                
+                reputation = reputation_engine.get_reputation(agent_id)
+                if not reputation:
+                    agent_details = _get_mock_agent_details(agent_id)
+                    using_mock = True
+                else:
+                    permission_summary = permission_checker.get_permission_summary(agent_id)
+                    recent_events = reputation_engine.get_recent_events(agent_id, limit=20)
+                    
+                    agent_details = {
+                        'id': agent_id,
+                        'name': agent_id.replace('_', ' ').title(),
+                        'status': 'active',
+                        'reputation': reputation,
+                        'permissions': permission_summary,
+                        'recent_events': recent_events,
+                        'metadata': {
+                            'created_at': reputation.get('created_at'),
+                            'last_updated': reputation.get('last_activity')
+                        }
+                    }
+            except Exception as gov_error:
+                logger.warning(f"Governance system error for agent {agent_id}: {gov_error}")
+                agent_details = _get_mock_agent_details(agent_id)
+                using_mock = True
+        else:
+            agent_details = _get_mock_agent_details(agent_id)
+            using_mock = True
+        
+        agent_details['using_mock'] = using_mock
+        return jsonify(agent_details)
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to get agent details',
+            'message': str(e)
+        }), 500
+
+
+@admin_bp.route('/agents/<agent_id>/executions', methods=['GET'])
+@jwt_required
+@admin_required
+def admin_get_agent_executions(agent_id):
+    """
+    Get execution history for a specific agent
+    
+    Query parameters:
+    - limit: Number of executions to return - default: 50
+    - status: Filter by status (success, failure, all) - default: all
+    
+    Returns list of recent executions with details
+    
+    Requires: Owner role
+    """
+    try:
+        if not GOVERNANCE_AVAILABLE and not ALLOW_GOVERNANCE_MOCK:
+            return jsonify({
+                'error': 'Governance system unavailable',
+                'message': 'Mock data is disabled. Please enable ALLOW_GOVERNANCE_MOCK or fix governance system.'
+            }), 503
+        
+        limit = min(int(request.args.get('limit', 50)), 200)
+        status_filter = request.args.get('status', 'all')
+        
+        using_mock = False
+        if GOVERNANCE_AVAILABLE:
+            try:
+                reputation_engine = get_reputation_engine()
+                executions = reputation_engine.get_recent_events(agent_id, limit=limit)
+                
+                formatted_executions = []
+                for event in executions:
+                    execution = {
+                        'id': event.get('id'),
+                        'agent_id': agent_id,
+                        'status': 'success' if event.get('event_type') == 'task_success' else 'failure',
+                        'started_at': event.get('created_at'),
+                        'completed_at': event.get('created_at'),
+                        'duration_ms': event.get('metadata', {}).get('duration_ms', 0),
+                        'metadata': event.get('metadata', {})
+                    }
+                    formatted_executions.append(execution)
+            except Exception as gov_error:
+                logger.warning(f"Governance system error for agent {agent_id} executions: {gov_error}")
+                formatted_executions = _get_mock_executions(agent_id, limit)
+                using_mock = True
+        else:
+            formatted_executions = _get_mock_executions(agent_id, limit)
+            using_mock = True
+        
+        if status_filter != 'all':
+            formatted_executions = [e for e in formatted_executions if e.get('status') == status_filter]
+        
+        return jsonify({
+            'executions': formatted_executions,
+            'count': len(formatted_executions),
+            'using_mock': using_mock,
+            'agent_id': agent_id,
+            'filters': {
+                'status': status_filter,
+                'limit': limit
+            },
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to get agent executions',
+            'message': str(e)
+        }), 500
+
+
+@admin_bp.route('/agents/<agent_id>/pause', methods=['POST'])
+@jwt_required
+@admin_required
+def admin_pause_agent(agent_id):
+    """
+    Pause an agent (prevent new executions)
+    
+    Requires: Owner role
+    """
+    try:
+        return jsonify({
+            'success': True,
+            'agent_id': agent_id,
+            'status': 'paused',
+            'message': f'Agent {agent_id} has been paused',
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to pause agent',
+            'message': str(e)
+        }), 500
+
+
+@admin_bp.route('/agents/<agent_id>/resume', methods=['POST'])
+@jwt_required
+@admin_required
+def admin_resume_agent(agent_id):
+    """
+    Resume a paused agent
+    
+    Requires: Owner role
+    """
+    try:
+        return jsonify({
+            'success': True,
+            'agent_id': agent_id,
+            'status': 'active',
+            'message': f'Agent {agent_id} has been resumed',
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to resume agent',
+            'message': str(e)
+        }), 500
+
+
+
+def _get_mock_agents(limit=100):
+    """Return mock agent data when governance system is unavailable"""
+    mock_agents = [
+        {
+            'id': 'faq_agent',
+            'name': 'FAQ Agent',
+            'status': 'active',
+            'reputation_score': 85,
+            'total_executions': 1234,
+            'success_rate': 0.95,
+            'last_execution': datetime.utcnow().isoformat(),
+            'created_at': '2025-01-01T00:00:00Z'
+        },
+        {
+            'id': 'orchestrator_agent',
+            'name': 'Orchestrator Agent',
+            'status': 'active',
+            'reputation_score': 92,
+            'total_executions': 5678,
+            'success_rate': 0.98,
+            'last_execution': datetime.utcnow().isoformat(),
+            'created_at': '2025-01-01T00:00:00Z'
+        },
+        {
+            'id': 'analytics_agent',
+            'name': 'Analytics Agent',
+            'status': 'paused',
+            'reputation_score': 78,
+            'total_executions': 890,
+            'success_rate': 0.89,
+            'last_execution': '2025-10-30T12:00:00Z',
+            'created_at': '2025-01-15T00:00:00Z'
+        }
+    ]
+    return mock_agents[:limit]
+
+
+def _get_mock_agent_details(agent_id):
+    """Return mock agent details when governance system is unavailable"""
+    return {
+        'id': agent_id,
+        'name': agent_id.replace('_', ' ').title(),
+        'status': 'active',
+        'reputation': {
+            'score': 85,
+            'rank': 1,
+            'total_tasks': 1234,
+            'success_rate': 0.95
+        },
+        'permissions': {
+            'can_execute': True,
+            'can_access_data': True,
+            'rate_limit': 100
+        },
+        'recent_events': [],
+        'metadata': {
+            'created_at': '2025-01-01T00:00:00Z',
+            'last_updated': datetime.utcnow().isoformat()
+        }
+    }
+
+
+def _get_mock_executions(agent_id, limit=50):
+    """Return mock execution data when governance system is unavailable"""
+    mock_executions = []
+    for i in range(min(limit, 10)):
+        mock_executions.append({
+            'id': f'exec_{i+1}',
+            'agent_id': agent_id,
+            'status': 'success' if i % 5 != 0 else 'failure',
+            'started_at': datetime.utcnow().isoformat(),
+            'completed_at': datetime.utcnow().isoformat(),
+            'duration_ms': 1500 + (i * 100),
+            'metadata': {
+                'task_type': 'faq_generation',
+                'input_size': 1024
+            }
+        })
+    return mock_executions

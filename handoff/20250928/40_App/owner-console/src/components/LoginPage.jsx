@@ -2,23 +2,22 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { Lock, User, AlertCircle, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AppleButton } from '@/components/apple/apple-button'
+import { AppleInput } from '@/components/apple/apple-input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@morningai/shared-ui'
 import { LanguageSwitcher } from './LanguageSwitcher'
-import apiClient from '@/lib/api'
+import { TwoFactorVerify } from './2fa/TwoFactorVerify'
 
 const LoginPage = ({ onLogin }) => {
   const { t } = useTranslation()
   const [credentials, setCredentials] = useState({
-    username: '',
+    email: '',
     password: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const [show2FADialog, setShow2FADialog] = useState(false)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -36,30 +35,46 @@ const LoginPage = ({ onLogin }) => {
     setError('')
 
     try {
-      const result = await apiClient.login(credentials)
+      const result = await onLogin(credentials)
       
-      if (result.user && result.token) {
-        onLogin(result.user, result.token)
-      } else {
-        setError(result.message || t('auth.login.loginFailed'))
+      if (result && result.requires_2fa) {
+        setShow2FADialog(true)
+        setLoading(false)
+        return
       }
     } catch (error) {
-      if (credentials.username === 'admin' && credentials.password === 'admin123') {
-        const mockUser = {
-          id: 1,
-          name: t('sidebar.user.defaultName'),
-          username: 'admin',
-          role: t('sidebar.user.defaultRole'),
-          avatar: null
-        }
-        const mockToken = 'mock-jwt-token-' + Date.now()
-        onLogin(mockUser, mockToken)
-      } else {
-        setError(t('auth.login.loginError'))
-      }
+      console.error('Login error:', error)
+      setError(error.message || t('auth.login.loginError'))
     } finally {
       setLoading(false)
     }
+  }
+
+  const handle2FAVerify = async (params) => {
+    const { verifyTwoFALogin } = await import('@/lib/2fa-api')
+    const { getCurrentUser } = await import('@/lib/auth')
+    
+    await verifyTwoFALogin({
+      email: credentials.email,
+      password: credentials.password,
+      totp_code: params.isBackup ? undefined : params.code,
+      backup_code: params.isBackup ? params.code : undefined,
+      remember_device: params.rememberDevice,
+    })
+
+    setShow2FADialog(false)
+    
+    try {
+      const user = await getCurrentUser()
+      onLogin(user)
+    } catch (error) {
+      setError(error.message || t('auth.login.loginError'))
+    }
+  }
+
+  const handle2FACancel = () => {
+    setShow2FADialog(false)
+    setError('')
   }
 
   const handleChange = (e) => {
@@ -152,66 +167,57 @@ const LoginPage = ({ onLogin }) => {
                   </motion.div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="username">{t('auth.login.username')}</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                    <Input
-                      id="username"
-                      name="username"
-                      type="text"
-                      placeholder={t('auth.login.usernamePlaceholder')}
-                      value={credentials.username}
-                      onChange={handleChange}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+                <AppleInput
+                  id="email"
+                  name="email"
+                  type="email"
+                  label={t('auth.login.email', 'Email')}
+                  placeholder={t('auth.login.emailPlaceholder', 'owner@morningai.com')}
+                  value={credentials.email}
+                  onChange={handleChange}
+                  leftIcon={<User className="h-4 w-4" />}
+                  required
+                  haptic="light"
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">{t('auth.login.password')}</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      placeholder={t('auth.login.passwordPlaceholder')}
-                      value={credentials.password}
-                      onChange={handleChange}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+                <AppleInput
+                  id="password"
+                  name="password"
+                  type="password"
+                  label={t('auth.login.password')}
+                  placeholder={t('auth.login.passwordPlaceholder')}
+                  value={credentials.password}
+                  onChange={handleChange}
+                  leftIcon={<Lock className="h-4 w-4" />}
+                  showPasswordToggle
+                  required
+                  haptic="light"
+                />
 
-                <motion.div
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+                <AppleButton 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={loading}
+                  variant="primary"
+                  size="default"
+                  haptic="medium"
                 >
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('auth.login.loggingIn')}
-                      </>
-                    ) : (
-                      t('auth.login.loginButton')
-                    )}
-                  </Button>
-                </motion.div>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('auth.login.loggingIn')}
+                    </>
+                  ) : (
+                    t('auth.login.loginButton')
+                  )}
+                </AppleButton>
               </form>
 
               <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h4>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount', 'Development Account')}</h4>
                 <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin</code></p>
-                  <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin123</code></p>
+                  <p>{t('auth.login.email', 'Email')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.emailPlaceholder', 'owner@morningai.com')}</code></p>
+                  <p>{t('auth.login.password', 'Password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.passwordPlaceholder', 'owner123')}</code></p>
                 </div>
               </div>
             </CardContent>
@@ -226,6 +232,12 @@ const LoginPage = ({ onLogin }) => {
           <p className="mt-1">{t('app.motto')}</p>
         </motion.div>
       </motion.div>
+
+      <TwoFactorVerify
+        open={show2FADialog}
+        onClose={handle2FACancel}
+        onVerify={handle2FAVerify}
+      />
     </div>
   )
 }

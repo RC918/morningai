@@ -52,7 +52,7 @@ const appleButtonVariants = cva(
 )
 
 export interface AppleButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onAnimationStart' | 'onDragStart' | 'onDragEnd' | 'onDrag'>,
     VariantProps<typeof appleButtonVariants> {
   asChild?: boolean
 }
@@ -74,7 +74,7 @@ function AppleButton({
   const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled) return
     
-    if (haptic !== "none" && buttonRef.current) {
+    if (haptic !== "none" && haptic !== null && buttonRef.current) {
       triggerHaptic(buttonRef.current, haptic)
     }
     

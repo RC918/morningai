@@ -1,0 +1,28 @@
+# CODEOWNERS for MorningAI
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @RC918
+
+# Design System & Shared UI
+/packages/shared-ui/ @RC918
+/docs/shared-ui-guide.md @RC918
+/docs/UI_UX_*.md @RC918
+/docs/UX/ @RC918
+
+# Prevent changes to deprecated directories (require explicit approval)
+/tools/frontend-lab/ @RC918
+
+# API & OpenAPI specifications (require RFC for changes)
+/handoff/**/30_API/openapi/ @RC918
+**/openapi.yaml @RC918
+
+# Infrastructure & CI/CD
+/.github/workflows/ @RC918
+/vercel.json @RC918
+/**/vercel.json @RC918
+
+# Security-sensitive files
+/.github/workflows/*security*.yml @RC918
+/.github/workflows/*secret*.yml @RC918
+/docs/*SECURITY*.md @RC918

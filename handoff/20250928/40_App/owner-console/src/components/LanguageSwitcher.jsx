@@ -1,13 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Globe, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@morningai/shared-ui'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const languages = [

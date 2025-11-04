@@ -39,6 +39,26 @@
       "initializationFailed": "Failed to initialize SSO login",
       "loginSuccess": "SSO Login Successful",
       "loginFailed": "SSO Login Failed"
+    },
+    "2fa": {
+      "verifyTitle": "Two-Factor Authentication",
+      "verifyDescription": "Enter the 6-digit code from your authenticator app",
+      "verifyBackupDescription": "Enter one of your backup codes",
+      "totpCodeLabel": "Authentication Code",
+      "totpDigitLabel": "Digit {{index}}",
+      "totpCodeHelp": "Enter the 6-digit code from your authenticator app",
+      "backupCodeLabel": "Backup Code",
+      "backupCodePlaceholder": "XXXX-XXXX-XXXX-XXXX",
+      "backupCodeHelp": "Enter your backup code in the format XXXX-XXXX-XXXX-XXXX",
+      "rememberDevice": "Remember this device for 30 days",
+      "useBackupCode": "Use backup code instead",
+      "useTotpCode": "Use authenticator code",
+      "verify": "Verify",
+      "verifying": "Verifying...",
+      "cancel": "Cancel",
+      "invalidCode": "Invalid code. {{attempts}} attempts remaining.",
+      "invalidBackupCode": "Invalid backup code. {{attempts}} attempts remaining.",
+      "tooManyAttempts": "Too many failed attempts. Please try again later."
     }
   },
   "landing": {
@@ -202,7 +222,91 @@
     "performanceTrend": "Performance Trend",
     "performanceDescription": "System performance metrics for the past 6 hours",
     "responseTimeTrend": "Response Time Trend",
-    "responseTimeDescription": "System response time changes"
+    "responseTimeDescription": "System response time changes",
+    "analysis": {
+      "title": "Metrics Analysis",
+      "description": "Performance and UX metrics analysis",
+      "loading": "Loading metrics...",
+      "noData": "No Metrics Data",
+      "noDataDescription": "Start collecting metrics to see performance analysis",
+      "autoCollectionMessage": "Metrics collection is automatic when you use the application. Come back after using the app for a while to see your performance data.",
+      "setBaseline": "Set as Baseline",
+      "clearBaseline": "Clear Baseline",
+      "export": "Export",
+      "clearData": "Clear Data",
+      "baselineActive": "Baseline Active:",
+      "baselineComparison": "Comparing current metrics against baseline from {{date}}",
+      "totalMetrics": "Total Metrics",
+      "categories": "{{count}} categories",
+      "taskSuccess": "Task Success",
+      "tasks": "{{successful}}/{{total}} tasks",
+      "avgTTV": "Avg TTV",
+      "timeToValue": "Time to Value",
+      "errorRate": "Error Rate",
+      "errors": "{{count}} errors",
+      "tabs": {
+        "webVitals": "Web Vitals",
+        "uxMetrics": "UX Metrics",
+        "tasks": "Task Performance",
+        "regression": "Regression Analysis",
+        "recommendations": "Recommendations"
+      },
+      "webVitals": {
+        "title": "Core Web Vitals",
+        "description": "Performance metrics that measure user experience",
+        "lcp": "Largest Contentful Paint",
+        "cls": "Cumulative Layout Shift",
+        "inp": "Interaction to Next Paint",
+        "fcp": "First Contentful Paint",
+        "ttfb": "Time to First Byte",
+        "current": "Current",
+        "average": "Average",
+        "p90": "P90",
+        "samples": "Samples",
+        "noData": "No Web Vitals data collected yet"
+      },
+      "uxMetrics": {
+        "title": "User Experience Metrics",
+        "description": "Custom UX metrics and measurements",
+        "ttv": "Time to Value (TTV)",
+        "ttvDescription": "Time until user achieves first value",
+        "average": "Average",
+        "median": "Median",
+        "p90": "P90",
+        "samples": "Samples",
+        "min": "min",
+        "noData": "No UX metrics data collected yet"
+      },
+      "taskPerformance": {
+        "title": "Task Performance",
+        "description": "User task completion metrics",
+        "totalTasks": "Total Tasks",
+        "successRate": "Success Rate",
+        "avgDuration": "Avg Duration",
+        "avgDurationValue": "{{duration}}s",
+        "status": "Status",
+        "taskBreakdown": "Task Breakdown",
+        "successfulTasks": "Successful Tasks",
+        "failedTasks": "Failed Tasks"
+      },
+      "regression": {
+        "title": "Regression Analysis",
+        "description": "Comparison with baseline metrics",
+        "webVitalsChanges": "Web Vitals Changes",
+        "taskSuccessRateChange": "Task Success Rate Change",
+        "successRate": "Success Rate",
+        "successRateChange": "{{baseline}}% → {{current}}%",
+        "noBaseline": "No baseline set. Click \"Set as Baseline\" to enable regression analysis."
+      },
+      "recommendations": {
+        "title": "Recommendations",
+        "description": "Suggested improvements based on analysis",
+        "greatJob": "Great job!",
+        "allGood": "All metrics are within acceptable ranges. No immediate action required."
+      },
+      "confirmClear": "Are you sure you want to clear all metrics data? This cannot be undone.",
+      "baselineSetSuccess": "Baseline set successfully! Future reports will compare against this baseline."
+    }
   },
   "decisions": {
     "title": "Recent Decisions",
@@ -341,6 +445,95 @@
       "auditLoggingDescription": "Record all system access and operations",
       "updatePassword": "Update Password",
       "updating": "Updating..."
+    },
+    "2fa": {
+      "title": "Two-Factor Authentication",
+      "subtitle": "Secure your account with an additional layer of protection",
+      "loading": "Loading...",
+      "featureDisabled": {
+        "title": "Feature Unavailable",
+        "description": "Two-factor authentication is currently unavailable in this environment. Please contact your administrator for more information."
+      },
+      "status": {
+        "label": "Status",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "enabledOn": "Enabled on {{date}}"
+      },
+      "actions": {
+        "enable": "Enable 2FA",
+        "disable": "Disable 2FA",
+        "regenerate": "Regenerate"
+      },
+      "backupCodes": {
+        "title": "Backup Codes",
+        "remaining": "{{count}} codes remaining",
+        "saveTitle": "Save Your Backup Codes",
+        "saveDescription": "Store these codes in a safe place. Each code can only be used once.",
+        "copied": "Copied!",
+        "copyAll": "Copy All",
+        "download": "Download",
+        "important": "Important:",
+        "warningMessage": "These codes will not be shown again. Make sure to save them before continuing.",
+        "confirmSaved": "I've Saved My Backup Codes",
+        "lowWarning": "You have {{count}} backup codes remaining. Consider regenerating them.",
+        "regenerateTitle": "Regenerate Backup Codes",
+        "regenerateDescription": "This will invalidate your current backup codes and generate new ones.",
+        "regenerateWarning": "Warning:",
+        "regenerateWarningMessage": "Your old backup codes will no longer work after regeneration.",
+        "regenerateButton": "Regenerate Codes",
+        "regenerating": "Regenerating...",
+        "passwordLabel": "Password",
+        "passwordHelper": "Confirm your password to regenerate backup codes"
+      },
+      "disable": {
+        "title": "Disable Two-Factor Authentication",
+        "description": "This will remove 2FA protection from your account. You can re-enable it at any time.",
+        "warning": "Warning:",
+        "warningMessage": "Disabling 2FA will make your account less secure.",
+        "confirmButton": "Disable 2FA",
+        "cancel": "Cancel",
+        "disabling": "Disabling...",
+        "passwordLabel": "Password",
+        "totpCodeLabel": "Current TOTP Code",
+        "totpCodePlaceholder": "000000",
+        "totpCodeHelper": "Enter the 6-digit code from your authenticator app"
+      },
+      "cardDescription": "Add an extra layer of security to your account",
+      "setup": {
+        "qrCodeDescription": "Scan this QR code with your authenticator app",
+        "manualEntry": "Or enter this code manually:",
+        "recommendedApps": "Recommended authenticator apps:",
+        "title": "Enable Two-Factor Authentication",
+        "subtitle": "Follow the steps below to secure your account",
+        "passwordPrompt": "First, confirm your password to continue",
+        "qrScanned": "I've Scanned the QR Code",
+        "verifyPrompt": "Enter the 6-digit code from your authenticator app",
+        "verificationCodeLabel": "Verification Code",
+        "verifying": "Verifying...",
+        "continue": "Continue",
+        "verify": "Verify",
+        "back": "Back",
+        "cancel": "Cancel",
+        "successTitle": "2FA Enabled Successfully!",
+        "successDescription": "Your account is now protected with two-factor authentication.",
+        "apps": {
+          "google": "Google Authenticator",
+          "microsoft": "Microsoft Authenticator",
+          "authy": "Authy",
+          "onepassword": "1Password"
+        }
+      },
+      "trustedDevices": {
+        "title": "Trusted Devices",
+        "description": "Manage devices that are trusted for 30 days without requiring 2FA",
+        "noDevices": "No trusted devices",
+        "noDevicesHelp": "When you check 'Remember this device' during login, it will appear here",
+        "lastUsed": "Last used",
+        "expires": "Expires",
+        "expiringSoon": "expiring soon",
+        "note": "Trusted devices will automatically expire after 30 days. You can revoke access at any time."
+      }
     },
     "system": {
       "title": "System Configuration",

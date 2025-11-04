@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import LandingPage from '../LandingPage'
 
 vi.mock('@/components/ui/apple-button', () => ({
-  AppleButton: ({ children, ...props }) => <button {...props}>{children}</button>
+  AppleButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => <button {...props}>{children}</button>
 }))
 
 vi.mock('react-router-dom', async () => {
@@ -12,19 +12,19 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => vi.fn(),
-    Link: ({ children, to, ...props }) => <a href={to} {...props}>{children}</a>
+    Link: ({ children, to, ...props }: { children: React.ReactNode; to: string; [key: string]: any }) => <a href={to} {...props}>{children}</a>
   }
 })
 
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }) => <div {...props}>{children}</div>,
-    section: ({ children, ...props }) => <section {...props}>{children}</section>,
-    h1: ({ children, ...props }) => <h1 {...props}>{children}</h1>,
-    h2: ({ children, ...props }) => <h2 {...props}>{children}</h2>,
-    p: ({ children, ...props }) => <p {...props}>{children}</p>
+    div: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => <div {...props}>{children}</div>,
+    section: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => <section {...props}>{children}</section>,
+    h1: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => <h1 {...props}>{children}</h1>,
+    h2: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => <h2 {...props}>{children}</h2>,
+    p: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => <p {...props}>{children}</p>
   },
-  AnimatePresence: ({ children }) => <>{children}</>,
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useScroll: () => ({ scrollYProgress: { get: () => 0 } }),
   useTransform: () => ({ get: () => 0 }),
   useInView: () => true,
@@ -32,7 +32,7 @@ vi.mock('framer-motion', () => ({
 }))
 
 vi.mock('../AppleHero', () => ({
-  default: ({ onGetStarted, onLearnMore }) => (
+  default: ({ onGetStarted, onLearnMore }: { onGetStarted: () => void; onLearnMore: () => void }) => (
     <div data-testid="apple-hero">
       <button onClick={onGetStarted}>Get Started</button>
       <button onClick={onLearnMore}>Learn More</button>
@@ -43,7 +43,10 @@ vi.mock('../AppleHero', () => ({
 const renderLandingPage = () => {
   return render(
     <BrowserRouter>
-      <LandingPage />
+      <LandingPage 
+        onNavigateToLogin={vi.fn()} 
+        onSSOLogin={vi.fn()} 
+      />
     </BrowserRouter>
   )
 }

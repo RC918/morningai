@@ -1,5 +1,5 @@
 import React from 'react'
-import { motion } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 import { AppleButton } from '@/components/ui/apple-button'
 import { 
   FileText, 
@@ -33,7 +33,7 @@ interface EmptyStateLibraryProps {
   className?: string
 }
 
-const emptyStateVariants = {
+const emptyStateVariants: Variants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
   visible: { 
     opacity: 1, 
@@ -46,7 +46,7 @@ const emptyStateVariants = {
   }
 }
 
-const iconVariants = {
+const iconVariants: Variants = {
   hidden: { scale: 0, rotate: -180 },
   visible: { 
     scale: 1, 
@@ -60,7 +60,7 @@ const iconVariants = {
   }
 }
 
-const floatingVariants = {
+const floatingVariants: Variants = {
   animate: {
     y: [-5, 5, -5],
     transition: {
@@ -148,7 +148,7 @@ export const EmptyStateLibrary = ({
 
   return (
     <motion.div
-      variants={emptyStateVariants as any}
+      variants={emptyStateVariants}
       initial="hidden"
       animate="visible"
       className={`flex flex-col items-center justify-center py-12 px-4 ${className}`}
@@ -160,18 +160,18 @@ export const EmptyStateLibrary = ({
           aria-hidden="true"
           role="presentation"
           className="w-64 h-64 mb-6"
-          variants={floatingVariants as any}
+          variants={floatingVariants}
           animate="animate"
         />
       ) : (
         <motion.div
-          variants={iconVariants as any}
+          variants={iconVariants}
           initial="hidden"
           animate="visible"
           className={`w-24 h-24 ${currentVariant.bgColor} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}
         >
           <motion.div
-            variants={floatingVariants as any}
+            variants={floatingVariants}
             animate="animate"
           >
             <Icon className={`w-12 h-12 ${currentVariant.iconColor}`} />

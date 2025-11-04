@@ -72,7 +72,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 
 ### 用戶界面 (User Interface)
 
-**目標受眾**: 終端用戶、產品經理、業務人員
+**目標受眾**: 租戶用戶、產品經理、業務人員
 
 **語言策略**:
 - **主要語言**: 繁體中文

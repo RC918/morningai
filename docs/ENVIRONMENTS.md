@@ -83,6 +83,17 @@ SENTRY_DSN=<production-dsn>
 SENTRY_ENVIRONMENT=production
 ```
 
+**Rate Limiting**:
+```bash
+# Rate limiting configuration (optional, defaults shown)
+RATE_LIMIT_REQUESTS=60                  # Maximum requests per window
+RATE_LIMIT_WINDOW=60                    # Time window in seconds
+RATE_LIMIT_FAIL_FAST=true               # Fail on startup if Redis unavailable (production only)
+RATE_LIMIT_BY_USER=false                # Use user_id instead of IP for rate limiting
+RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempts
+RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
+```
+
 ---
 
 ## 🧪 Staging Environment
@@ -206,6 +217,14 @@ MASTER_ENCRYPTION_KEY=<staging-secret>
 # Monitoring
 SENTRY_DSN=<same-as-production>
 SENTRY_ENVIRONMENT=staging
+
+# Rate Limiting (optional, defaults shown)
+RATE_LIMIT_REQUESTS=60                  # Maximum requests per window
+RATE_LIMIT_WINDOW=60                    # Time window in seconds
+RATE_LIMIT_FAIL_FAST=false              # Allow startup without Redis (staging)
+RATE_LIMIT_BY_USER=false                # Use user_id instead of IP for rate limiting
+RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempts
+RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
 ```
 
 **Orchestrator Staging**:
@@ -242,12 +261,25 @@ For complete staging environment setup instructions, see:
 #### Backend API
 - **URL**: http://localhost:8000
 - **Runtime**: Python 3.12+
-- **Start Command**: `uvicorn src.main:app --reload`
+- **Framework**: Flask
+- **Start Command**: 
+  ```bash
+  # Option 1: Flask CLI (recommended for development)
+  export FLASK_APP=src.main
+  flask run --port 8000
+  
+  # Option 2: Gunicorn (production-like)
+  gunicorn "src.main:app" --bind 0.0.0.0:8000 --reload
+  
+  # Quick one-liner (equivalent to Option 1)
+  export FLASK_APP=src.main && flask run --port 8000
+  ```
 - **Working Directory**: `handoff/20250928/40_App/api-backend`
 
 #### Orchestrator API
 - **URL**: http://localhost:8001
 - **Runtime**: Python 3.12+
+- **Framework**: FastAPI
 - **Start Command**: `uvicorn orchestrator.api.main:app --port 8001 --reload`
 - **Working Directory**: Repository root
 
@@ -283,6 +315,14 @@ TESTING=false
 DATABASE_URL=<staging-database-url>
 REDIS_URL=<staging-redis-url>
 REDIS_KEY_PREFIX=dev:
+
+# Rate Limiting (optional, defaults shown)
+RATE_LIMIT_REQUESTS=60                  # Maximum requests per window
+RATE_LIMIT_WINDOW=60                    # Time window in seconds
+RATE_LIMIT_FAIL_FAST=false              # Allow startup without Redis (development)
+RATE_LIMIT_BY_USER=false                # Use user_id instead of IP for rate limiting
+RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempts
+RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
 ```
 
 **Frontend `.env.local`**:
@@ -629,7 +669,8 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 ### Production
 - **Backend**: https://morningai-backend-v2.onrender.com
 - **Orchestrator**: https://morningai-orchestrator-api.onrender.com
-- **Frontend**: https://morningai.vercel.app
+- **Tenant Dashboard**: https://app.gm365.me
+- **Owner Console**: https://admin.gm365.me
 - **Render Dashboard**: https://dashboard.render.com/
 
 ### Staging

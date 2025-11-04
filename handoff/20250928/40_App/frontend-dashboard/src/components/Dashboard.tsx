@@ -137,7 +137,7 @@ const Dashboard = (): React.ReactElement => {
     redo,
     canUndo,
     canRedo
-  } = useUndoRedo<Widget[]>([])
+  } = useUndoRedo([])
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({
     cpu_usage: 72,
     memory_usage: 68,
@@ -358,8 +358,8 @@ const Dashboard = (): React.ReactElement => {
           <div className="mt-2">
             <SaveStatusIndicator 
               status={saveStatus.status}
-              lastSaved={saveStatus.lastSaved}
-              error={saveStatus.error}
+              lastSaved={saveStatus.lastSaved ?? undefined}
+              error={saveStatus.error ?? undefined}
               onRetry={saveDashboardLayout}
             />
           </div>
@@ -474,7 +474,7 @@ const Dashboard = (): React.ReactElement => {
 
         {/* Customizable Dashboard Widgets */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {dashboardLayout.map((widget, index) => {
+          {dashboardLayout.map((widget: Widget, index: number) => {
             const WidgetComponent = getWidgetComponent(widget.id)
             const widgetWithComponent = {
               ...widget,
@@ -518,14 +518,14 @@ const Dashboard = (): React.ReactElement => {
                     <Line 
                       type="monotone" 
                       dataKey="cpu" 
-                      stroke="#007AFF" 
+                      stroke="var(--color-primary, #007AFF)" 
                       strokeWidth={2}
                       name="CPU (%)"
                     />
                     <Line 
                       type="monotone" 
                       dataKey="memory" 
-                      stroke="#10b981" 
+                      stroke="var(--color-success, #10b981)" 
                       strokeWidth={2}
                       name={t('metrics.memoryUsage')}
                     />
@@ -550,8 +550,8 @@ const Dashboard = (): React.ReactElement => {
                     <Area 
                       type="monotone" 
                       dataKey="response_time" 
-                      stroke="#f59e0b" 
-                      fill="#fef3c7"
+                      stroke="var(--color-warning, #f59e0b)" 
+                      fill="var(--color-warning-light, #fef3c7)"
                       name={t('metrics.responseTime')}
                     />
                   </AreaChart>

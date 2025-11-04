@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **[Frontend Dashboard]** Fixed critical layout compression issue where `max-w-3xl` utility compiled to `64px` instead of `768px`, causing entire page to be squeezed into a narrow vertical column
+  - **Root Cause**: Misconfigured Tailwind v4 `@theme` block (duplicate blocks, wrong token names, incorrect placement)
+  - **Solution**: Created `tailwind.config.js` with proper content paths including `@morningai/shared-ui`, removed duplicate `@theme` block, placed `@theme` before `@import "tailwindcss"`, used correct `--container-*` tokens
+  - **Impact**: Affects all Tailwind v4 applications using shared-ui package
+  - **See**: [Tailwind v4 Configuration Guide](docs/TAILWIND_V4_CONFIGURATION_GUIDE.md) | [PR #1034](https://github.com/RC918/morningai/pull/1034)
 - Fixed Redis connection configuration to prevent localhost fallback in production
 - Fixed orchestrator module import errors by adding configurable path resolution
 - Fixed report generator datetime serialization to support timezone-aware datetime objects
@@ -25,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Migration**: Set `ORCHESTRATOR_PATH` in production if orchestrator is not at the default location
 
 ### Added
+- **Alembic Database Migration Framework** (PR #1107)
+  - Alembic 1.13.1 infrastructure setup
+  - Baseline migration (revision: 91b9a61fcafa) capturing current schema
+  - CI/CD integration with PostgreSQL and SQLite testing
+  - Integration test for enum value validation (`scripts/test_migration_data_insertion.py`)
+  - Migration helper script (`scripts/run_alembic_migrations.sh`)
+  - Comprehensive documentation (`docs/database/MIGRATIONS.md`)
+  - Enum policy: lowercase values with `values_callable` parameter
+- **Orchestrator Consolidation Tracking** (Issue #1105)
+  - GitHub issue tracking 2026 Q1 orchestrator consolidation
+  - Based on ADR-001 "Option B: Unified Architecture"
+  - Comprehensive task breakdown and acceptance criteria
 - Added deployment verification script (`scripts/verify_deployment.py`) to check environment configuration
 - Added comprehensive unit tests for production fixes (`tests/test_production_fixes.py`)
 - Added logging for orchestrator path resolution

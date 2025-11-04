@@ -1,7 +1,8 @@
 """
 Pytest configuration for API backend tests.
 
-This module sets up the Python path and provides common fixtures for all tests.
+This module sets up the Python path, provides common fixtures,
+and enables new fixtures from the fixtures/ directory.
 """
 import sys
 import os
@@ -9,6 +10,7 @@ from pathlib import Path
 import pytest
 from unittest.mock import patch
 
+# Setup Python path for imports
 backend_dir = Path(__file__).parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
@@ -20,6 +22,12 @@ if str(src_dir) not in sys.path:
 orchestrator_dir = backend_dir.parent / "orchestrator"
 if orchestrator_dir.exists() and str(orchestrator_dir) not in sys.path:
     sys.path.insert(0, str(orchestrator_dir))
+
+# Enable fixtures from fixtures/ directory (RFC #619 Phase 1)
+pytest_plugins = [
+    "tests.fixtures.auth",
+    "tests.fixtures.database",
+]
 
 
 @pytest.fixture(autouse=True)
@@ -40,6 +48,8 @@ def disable_sentry_in_tests(monkeypatch):
     monkeypatch.setenv("TESTING", "true")
 
 
+# Legacy fixtures (maintained for backward compatibility)
+# These will be deprecated in RFC #619 Phase 2
 @pytest.fixture
 def admin_token():
     """Generate admin JWT token for testing"""

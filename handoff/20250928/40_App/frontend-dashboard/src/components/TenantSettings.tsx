@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTenant } from '../contexts/TenantContext';
 import { AppleButton } from './ui/apple-button';
+import { apiClient } from '../lib/api-client';
 
 interface Member {
   id: string
@@ -38,35 +39,14 @@ const TenantSettings = (): React.ReactElement => {
       setLoading(true);
       setError(null);
 
-      const token: string | null = localStorage.getItem('token');
-      
-      if (!token) {
-        setError('Not authenticated');
-        setLoading(false);
-        return;
-      }
-
-      const [membersRes, infoRes]: [Response, Response] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/members`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+      const [membersData, infoData] = await Promise.all([
+        apiClient<{ members?: Member[] }>('/api/tenant/members', {
+          method: 'GET'
         }),
-        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/info`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        apiClient<TenantInfo>('/api/tenant/info', {
+          method: 'GET'
         })
       ]);
-
-      if (!membersRes.ok || !infoRes.ok) {
-        throw new Error('Failed to fetch tenant data');
-      }
-
-      const membersData: { members?: Member[] } = await membersRes.json();
-      const infoData: TenantInfo = await infoRes.json();
 
       setMembers(membersData.members || []);
       setTenantInfo(infoData);
@@ -82,24 +62,10 @@ const TenantSettings = (): React.ReactElement => {
     try {
       setUpdatingMember(memberId);
 
-      const token: string | null = localStorage.getItem('token');
-      
-      const response: Response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/tenant/members/${memberId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ role: newRole })
-        }
-      );
-
-      if (!response.ok) {
-        const errorData: ApiErrorResponse = await response.json();
-        throw new Error(errorData.error?.message || 'Failed to update member role');
-      }
+      await apiClient(`/api/tenant/members/${memberId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ role: newRole })
+      });
 
       await fetchTenantData();
       setUpdatingMember(null);

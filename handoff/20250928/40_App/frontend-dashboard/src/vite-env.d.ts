@@ -16,10 +16,10 @@ interface ImportMetaEnv {
   readonly VITE_TOLGEE_API_URL: string
   readonly VITE_TOLGEE_API_KEY: string
   readonly VITE_TOLGEE_PROJECT_ID: string
-  readonly MODE: string
-  readonly DEV: boolean
-  readonly PROD: boolean
-  readonly SSR: boolean
+  MODE: string
+  DEV: boolean
+  PROD: boolean
+  SSR: boolean
 }
 
 interface ImportMeta {
@@ -27,6 +27,7 @@ interface ImportMeta {
 }
 
 interface Window {
+  __SENTRY_INITIALIZED__?: boolean
   Sentry?: typeof import('@sentry/react')
   gtag?: (
     command: 'config' | 'event' | 'set',

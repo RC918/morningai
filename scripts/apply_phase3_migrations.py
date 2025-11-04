@@ -5,6 +5,16 @@ Executes SQL migrations directly via psycopg2
 """
 import os
 import sys
+
+try:
+    import psycopg2  # noqa: F401
+except ImportError:
+    sys.stderr.write(
+        "ERROR: Missing dependency 'psycopg2'.\n"
+        "Install script dependencies: pip install -r scripts/requirements.txt\n"
+    )
+    sys.exit(2)
+
 import psycopg2
 
 def read_sql_file(filepath):

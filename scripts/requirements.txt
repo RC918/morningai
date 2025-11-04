@@ -1,0 +1,20 @@
+# Scripts dependencies
+# Install with: pip install -r scripts/requirements.txt
+#
+# For scripts that import internal modules (orchestrator, agents, governance),
+# you may also need to install those packages:
+#   pip install -e orchestrator
+#   pip install -r agents/dev_agent/requirements.txt
+#   pip install -r handoff/20250928/40_App/orchestrator/requirements.txt
+
+# HTTP requests (monitor_orchestrator.py, configure_sentry_alerts.py, send_phase3_notification_email.py)
+requests>=2.31.0
+
+# Database (apply_phase3_migrations.py)
+psycopg2-binary>=2.9.0
+
+# YAML parsing (generate-env-examples.py, check-env-drift.py)
+PyYAML>=6.0
+
+# Redis (worker-heartbeat-monitor.yml, env-diagnose.yml, validate_redis_tls.py)
+redis>=5.0.0

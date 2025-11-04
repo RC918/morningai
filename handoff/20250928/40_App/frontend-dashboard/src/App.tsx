@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TolgeeProvider } from '@tolgee/react'
@@ -27,6 +27,7 @@ import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { reportWebVitals } from '@/lib/performance'
 import useAppStore from '@/stores/appStore'
 import apiClient from '@/lib/api'
+import { bootstrapCsrf } from '@/lib/api-client'
 import { supabase, getSession, signInWithOAuth } from '@/lib/supabaseClient'
 import '@/i18n/config'
 import { tolgee } from '@/i18n/config'
@@ -35,6 +36,7 @@ import './styles/mobile-optimizations.css'
 import './styles/motion-governance.css'
 import './styles/micro-interactions.css'
 import './styles/theme-apple.css'
+import './styles/final-override.css'
 
 const Dashboard = lazy(() => import('@/components/Dashboard'))
 const StrategyManagement = lazy(() => import('@/components/StrategyManagement'))
@@ -48,34 +50,19 @@ const CheckoutPage = lazy(() => import('@/components/CheckoutPage'))
 const CheckoutSuccess = lazy(() => import('@/components/CheckoutSuccess'))
 const CheckoutCancel = lazy(() => import('@/components/CheckoutCancel'))
 const AuthCallback = lazy(() => import('@/components/AuthCallback'))
+const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 
 function AppContent() {
   const { t } = useTranslation()
+  const location = useLocation()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
 
   useEffect(() => {
-    const sentryDsn = import.meta.env.VITE_SENTRY_DSN
-    if (sentryDsn && !window.Sentry) {
-      import('@sentry/react').then((Sentry) => {
-        Sentry.init({
-          dsn: sentryDsn,
-          environment: import.meta.env.MODE,
-          integrations: [
-            Sentry.browserTracingIntegration(),
-            Sentry.replayIntegration()
-          ],
-          tracesSampleRate: 1.0,
-          replaysSessionSampleRate: 0.1,
-          replaysOnErrorSampleRate: 1.0,
-        })
-        window.Sentry = Sentry
-      })
-    }
-
-    const handleApiError = (event) => {
-      const { endpoint, error, status, requestId } = event.detail
+    const handleApiError = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const { endpoint, error, status, requestId } = customEvent.detail
       addToast({
         title: t('common.apiError'),
         description: `${endpoint}: ${error} (ID: ${requestId})`,
@@ -83,13 +70,23 @@ function AppContent() {
       })
     }
 
-    window.addEventListener('api-error', handleApiError)
+    window.addEventListener('api-error', handleApiError as EventListener)
+
+    const PUBLIC_ROUTES = new Set(['/', '/login', '/signup', '/pricing', '/auth/callback'])
+    if (PUBLIC_ROUTES.has(location.pathname)) {
+      setLoading(false)
+      return () => {
+        window.removeEventListener('api-error', handleApiError as EventListener)
+      }
+    }
 
     const checkAuth = async () => {
       try {
         const { session, error: sessionError } = await getSession()
         
         if (session && !sessionError) {
+          await bootstrapCsrf()
+          
           const supabaseUser = session.user
           setUser({
             id: supabaseUser.id,
@@ -104,24 +101,37 @@ function AppContent() {
           return
         }
         
-        const token = localStorage.getItem('auth_token')
-        if (token) {
+        try {
+          await bootstrapCsrf()
           const userData = await apiClient.verifyAuth()
           setUser(userData)
           setIsAuthenticated(true)
+        } catch (authError) {
+          if (import.meta.env.DEV) {
+            setUser({
+              id: 'dev_user',
+              name: 'Ryan Chen',
+              email: 'ryan@morningai.com',
+              avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
+              role: 'Owner',
+              tenant_id: 'tenant_001'
+            })
+            setIsAuthenticated(true)
+          }
         }
       } catch (error) {
         console.error('Auth check failed:', error)
-        localStorage.removeItem('auth_token')
-        setUser({
-          id: 'dev_user',
-          name: 'Ryan Chen',
-          email: 'ryan@morningai.com',
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
-          role: 'Owner',
-          tenant_id: 'tenant_001'
-        })
-        setIsAuthenticated(true)
+        if (import.meta.env.DEV) {
+          setUser({
+            id: 'dev_user',
+            name: 'Ryan Chen',
+            email: 'ryan@morningai.com',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
+            role: 'Owner',
+            tenant_id: 'tenant_001'
+          })
+          setIsAuthenticated(true)
+        }
       } finally {
         setLoading(false)
       }
@@ -131,14 +141,13 @@ function AppContent() {
     applyDesignTokens('.theme-morning-ai')
 
     return () => {
-      window.removeEventListener('api-error', handleApiError)
+      window.removeEventListener('api-error', handleApiError as EventListener)
     }
-  }, [addToast, setUser])
+  }, [addToast, setUser, location.pathname, t])
 
-  const handleLogin = (userData, token) => {
+  const handleLogin = (userData: any) => {
     setUser(userData)
     setIsAuthenticated(true)
-    localStorage.setItem('auth_token', token)
     addToast({
       title: t('auth.login.loginSuccess'),
       description: t('auth.login.welcomeBack', { name: userData.name }),
@@ -162,7 +171,6 @@ function AppContent() {
       tenant_id: 'tenant_001'
     })
     setIsAuthenticated(false)
-    localStorage.removeItem('auth_token')
     addToast({
       title: t('auth.logout.logoutSuccess'),
       description: t('auth.logout.logoutMessage'),
@@ -180,7 +188,7 @@ function AppContent() {
     window.location.href = '/login'
   }
 
-  const handleSSOLogin = async (provider) => {
+  const handleSSOLogin = async (provider: string) => {
     try {
       const { error } = await signInWithOAuth(provider, {
         redirectTo: `${window.location.origin}/auth/callback`
@@ -198,7 +206,7 @@ function AppContent() {
       console.error('SSO login error:', error)
       addToast({
         title: t('auth.login.loginError'),
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive"
       })
     }
@@ -206,92 +214,110 @@ function AppContent() {
 
   return (
     <ErrorBoundary>
-      <TenantProvider>
-        <Router>
-          <div className="theme-morning-ai theme-apple">
-            <OfflineIndicator />
-            
-            {!isAuthenticated ? (
+      <div className="theme-morning-ai theme-apple">
+        <OfflineIndicator />
+        
+        {!isAuthenticated ? (
+          <Routes>
+            <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
+            <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        ) : (
+          <TenantProvider>
+          <div className="flex h-screen bg-gray-100">
+          <SkipToContent />
+          <Sidebar user={user} onLogout={handleLogout} />
+          
+          <main id="main-content" className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
+            <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
               <Routes>
-                <Route path="/" element={<LandingPage onNavigateToLogin={handleNavigateToLogin} onSSOLogin={handleSSOLogin} />} />
-                <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-                <Route path="/signup" element={<SignupPage />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            ) : (
-              <div className="flex h-screen bg-gray-100">
-              <SkipToContent />
-              <Sidebar user={user} onLogout={handleLogout} />
-              
-              <main id="main-content" className="flex-1 overflow-y-auto" role="main" aria-label={t('common.mainContentArea')}>
-                <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
-                  <Routes>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              
-              {/* Feature-gated routes */}
-              {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<Dashboard />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
-                <Route path="/strategies" element={<StrategyManagement />} />
-              ) : (
-                <Route path="/strategies" element={<WIPPage title={t('wip.strategyManagement')} />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
-                <Route path="/approvals" element={<DecisionApproval />} />
-              ) : (
-                <Route path="/approvals" element={<WIPPage title={t('wip.decisionApproval')} />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
-                <Route path="/history" element={<HistoryAnalysis />} />
-              ) : (
-                <Route path="/history" element={<WIPPage title={t('wip.historyAnalysis')} />} />
-              )}
-              {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
-                <Route path="/costs" element={<CostAnalysis />} />
-              ) : (
-                <Route path="/costs" element={<WIPPage title={t('wip.costAnalysis')} />} />
-              )}
-              <Route path="/governance" element={<AgentGovernance />} />
-              {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
-                <Route path="/settings" element={<SystemSettings />} />
-              ) : (
-                <Route path="/settings" element={<WIPPage title={t('wip.systemSettings')} />} />
-              )}
-              <Route path="/tenant-settings" element={<TenantSettings />} />
-              {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
-                <Route path="/checkout" element={<CheckoutPage />} />
-              ) : (
-                <Route path="/checkout" element={<WIPPage title={t('wip.checkoutPage')} />} />
-              )}
-              <Route path="/checkout/success" element={<CheckoutSuccess />} />
-              <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* Feature-gated routes */}
+          {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
+            <Route path="/dashboard" element={<Dashboard />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.STRATEGIES) ? (
+            <Route path="/strategies" element={<StrategyManagement />} />
+          ) : (
+            <Route path="/strategies" element={<WIPPage title={t('wip.strategyManagement')} />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.APPROVALS) ? (
+            <Route path="/approvals" element={<DecisionApproval />} />
+          ) : (
+            <Route path="/approvals" element={<WIPPage title={t('wip.decisionApproval')} />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.HISTORY) ? (
+            <Route path="/history" element={<HistoryAnalysis />} />
+          ) : (
+            <Route path="/history" element={<WIPPage title={t('wip.historyAnalysis')} />} />
+          )}
+          {isFeatureEnabled(AVAILABLE_FEATURES.COSTS) ? (
+            <Route path="/costs" element={<CostAnalysis />} />
+          ) : (
+            <Route path="/costs" element={<WIPPage title={t('wip.costAnalysis')} />} />
+          )}
+          <Route path="/governance" element={<AgentGovernance />} />
+          {isFeatureEnabled(AVAILABLE_FEATURES.SETTINGS) ? (
+            <Route path="/settings" element={<SystemSettings />} />
+          ) : (
+            <Route path="/settings" element={<WIPPage title={t('wip.systemSettings')} />} />
+          )}
+          <Route path="/tenant-settings" element={<TenantSettings />} />
+          <Route path="/settings/2fa" element={<Settings2FA />} />
+          {isFeatureEnabled(AVAILABLE_FEATURES.CHECKOUT) ? (
+            <Route path="/checkout" element={<CheckoutPage />} />
+          ) : (
+            <Route path="/checkout" element={<WIPPage title={t('wip.checkoutPage')} />} />
+          )}
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+          <Route path="/checkout/cancel" element={<CheckoutCancel />} />
 
-              {/* WIP pages for disabled features */}
-              <Route path="/wip" element={<WIPPage />} />
-              
-              {/* Fallback to dashboard if no dashboard feature enabled */}
-              {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
-                <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
-              )}
-                  </Routes>
-                </Suspense>
-              </main>
-              
-                <Toaster />
-                <GlobalSearch />
-              </div>
-            )}
+          {/* WIP pages for disabled features */}
+          <Route path="/wip" element={<WIPPage />} />
+          
+          {/* Fallback to dashboard if no dashboard feature enabled */}
+          {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
+            <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
+          )}
+              </Routes>
+            </Suspense>
+          </main>
+          
+            <Toaster />
+            <GlobalSearch />
           </div>
-        </Router>
-      </TenantProvider>
+          </TenantProvider>
+        )}
+      </div>
     </ErrorBoundary>
   )
 }
 
 function App() {
   useEffect(() => {
+    const sentryDsn = import.meta.env.VITE_SENTRY_DSN
+    if (sentryDsn && !window.__SENTRY_INITIALIZED__) {
+      import('@sentry/react').then((Sentry) => {
+        Sentry.init({
+          dsn: sentryDsn,
+          environment: import.meta.env.MODE,
+          integrations: [
+            Sentry.browserTracingIntegration(),
+            Sentry.replayIntegration()
+          ],
+          tracesSampleRate: 1.0,
+          replaysSessionSampleRate: 0.1,
+          replaysOnErrorSampleRate: 1.0,
+        })
+        window.Sentry = Sentry
+        window.__SENTRY_INITIALIZED__ = true
+      })
+    }
+
     reportWebVitals((metric) => {
       if (import.meta.env.DEV) {
         console.log(`[Web Vitals] ${metric.name}:`, metric.value, metric)
@@ -317,7 +343,9 @@ function App() {
               <AppleSpotlight.Provider>
                 <AppleControlCenter.Provider>
                   <AppleLiveActivity.Provider position="top">
-                    <AppContent />
+                    <Router>
+                      <AppContent />
+                    </Router>
                   </AppleLiveActivity.Provider>
                 </AppleControlCenter.Provider>
               </AppleSpotlight.Provider>

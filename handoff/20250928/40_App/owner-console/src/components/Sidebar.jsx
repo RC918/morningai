@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { 
   LayoutDashboard, 
   Settings, 
@@ -10,12 +11,12 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button, Avatar, AvatarFallback, AvatarImage } from '@morningai/shared-ui'
 import { DarkModeToggle } from './DarkModeToggle'
 import { LanguageSwitcher } from './LanguageSwitcher'
 
 const Sidebar = ({ user, onLogout }) => {
+  const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
 
@@ -23,32 +24,32 @@ const Sidebar = ({ user, onLogout }) => {
     {
       path: '/dashboard',
       icon: LayoutDashboard,
-      label: 'Dashboard',
-      description: 'Platform overview and metrics'
+      labelKey: 'nav.dashboard',
+      descriptionKey: 'dashboard.subtitle'
     },
     {
       path: '/governance',
       icon: Shield,
-      label: 'Agent Governance',
-      description: 'Monitor agent reputation and compliance'
+      labelKey: 'nav.governance',
+      descriptionKey: 'governance.subtitle'
     },
     {
       path: '/tenants',
       icon: Users,
-      label: 'Tenant Management',
-      description: 'Manage tenant accounts and permissions'
+      labelKey: 'nav.tenants',
+      descriptionKey: 'tenants.subtitle'
     },
     {
       path: '/monitoring',
       icon: Activity,
-      label: 'System Monitoring',
-      description: 'Monitor system health and performance'
+      labelKey: 'nav.monitoring',
+      descriptionKey: 'monitoring.subtitle'
     },
     {
       path: '/settings',
       icon: Settings,
-      label: 'Platform Settings',
-      description: 'Configure platform-wide settings'
+      labelKey: 'nav.settings',
+      descriptionKey: 'settings.subtitle'
     }
   ]
 
@@ -78,8 +79,8 @@ const Sidebar = ({ user, onLogout }) => {
                 style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
               />
               <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white">Owner Console</h1>
-                <p className="text-xs text-gray-600 dark:text-gray-600">Platform Management</p>
+                <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t('app.tagline')}</h1>
+                <p className="text-xs text-gray-600 dark:text-gray-600">{t('tenants.subtitle')}</p>
               </div>
             </Link>
           )}
@@ -113,10 +114,10 @@ const Sidebar = ({ user, onLogout }) => {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {user?.name || 'Owner'}
+                {user?.name || t('sidebar.user.defaultName')}
               </p>
               <p className="text-xs text-purple-600 dark:text-purple-400 truncate font-semibold">
-                {user?.role || 'Platform Owner'}
+                {user?.role || t('sidebar.user.defaultRole')}
               </p>
             </div>
           )}
@@ -124,7 +125,7 @@ const Sidebar = ({ user, onLogout }) => {
       </div>
 
       <nav className="flex-1 p-4" aria-label="Main navigation">
-        <ul className="space-y-2" role="list">
+        <ul className="space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.path)
@@ -145,10 +146,10 @@ const Sidebar = ({ user, onLogout }) => {
                   {!collapsed && (
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <span>{item.label}</span>
+                        <span>{t(item.labelKey)}</span>
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-600 mt-1">
-                        {item.description}
+                        {t(item.descriptionKey)}
                       </p>
                     </div>
                   )}
@@ -171,10 +172,10 @@ const Sidebar = ({ user, onLogout }) => {
           size="sm"
           onClick={onLogout}
           className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white`}
-          aria-label="Logout"
+          aria-label={t('nav.logout')}
         >
           <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />
-          {!collapsed && 'Logout'}
+          {!collapsed && t('nav.logout')}
         </Button>
       </div>
     </div>

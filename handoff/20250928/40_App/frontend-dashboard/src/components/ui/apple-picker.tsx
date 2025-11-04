@@ -45,7 +45,7 @@ const PickerItem = ({
 }) => {
   const offset = useTransform(
     y,
-    (value) => {
+    (value: number) => {
       const itemOffset = getOffsetFromIndex(index)
       const distance = (value - itemOffset) / itemHeight
       return distance

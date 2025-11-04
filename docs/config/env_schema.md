@@ -2,7 +2,7 @@
 
 ## Overview
 
-Morning AI uses a comprehensive environment configuration system with **53 variables** across 11 categories. This document provides the complete reference for all environment variables, their security levels, and usage guidelines.
+Morning AI uses a comprehensive environment configuration system with **56 variables** across 11 categories. This document provides the complete reference for all environment variables, their security levels, and usage guidelines.
 
 **Schema Location**: `/config/env.schema.yaml`  
 **Example File**: `/.env.example`  
@@ -200,7 +200,7 @@ All VITE_* prefixed for Vite build:
 
 2. **Regenerate .env.example**:
    ```bash
-   python scripts/generate_env_example.py
+   python scripts/generate-env-examples.py
    ```
 
 3. **Update documentation** (this file) if it's a new category or has special usage
@@ -270,7 +270,7 @@ else:
 - For integers, ensure numeric value
 
 ### "Schema validation failed in CI"
-- Run `python scripts/generate_env_example.py` after schema changes
+- Run `python scripts/generate-env-examples.py` after schema changes
 - Ensure all fields have: type, description, category
 - Check YAML syntax is valid
 
@@ -289,11 +289,12 @@ else:
 - Schema: `/config/env.schema.yaml`
 - Validator: `/env_schema_validator.py`
 - Example: `/.env.example`
-- Generator: `/scripts/generate_env_example.py`
+- Generator: `/scripts/generate-env-examples.py`
+- Drift Check: `/scripts/check-env-drift.py`
 - CI Validation: `/.github/workflows/backend.yml`
 
 ---
 
-**Last Updated**: Phase 11 Task 4 (2025-10-13)  
-**Total Variables**: 53 (19 required, 34 optional)  
+**Last Updated**: Phase 11 Task 4 (2025-11-03)  
+**Total Variables**: 56 (19 required, 37 optional)  
 **Maintainer**: Morning AI Engineering Team

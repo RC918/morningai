@@ -123,6 +123,96 @@
       "30minutes": "30 分鐘",
       "1hour": "1 小時",
       "4hours": "4 小時"
+    },
+    "2fa": {
+      "title": "雙重驗證",
+      "subtitle": "為您的帳戶增加額外的安全保護層",
+      "loading": "載入中...",
+      "featureDisabled": {
+        "title": "功能無法使用",
+        "description": "此環境目前無法使用雙因素驗證。請聯絡您的系統管理員以獲取更多資訊。"
+      },
+      "status": {
+        "label": "狀態",
+        "enabled": "已啟用",
+        "disabled": "已停用",
+        "enabledOn": "於 {{date}} 啟用"
+      },
+      "actions": {
+        "enable": "啟用雙重驗證",
+        "disable": "停用雙重驗證",
+        "regenerate": "重新產生"
+      },
+      "backupCodes": {
+        "title": "備用代碼",
+        "remaining": "剩餘 {{count}} 組代碼",
+        "saveTitle": "儲存您的備用代碼",
+        "saveDescription": "請將這些代碼儲存在安全的地方。每組代碼只能使用一次。",
+        "copied": "已複製！",
+        "copyAll": "全部複製",
+        "download": "下載",
+        "important": "重要提示：",
+        "warningMessage": "這些代碼不會再次顯示。請確保在繼續之前已儲存。",
+        "confirmSaved": "我已儲存備用代碼",
+        "lowWarning": "您剩餘 {{count}} 組備用代碼。建議重新產生。",
+        "regenerateTitle": "重新產生備用代碼",
+        "regenerateDescription": "這將使您目前的備用代碼失效並產生新的代碼。",
+        "regenerateWarning": "警告：",
+        "regenerateWarningMessage": "重新產生後，您的舊備用代碼將無法使用。",
+        "regenerateButton": "重新產生代碼",
+        "regenerating": "重新產生中...",
+        "passwordLabel": "密碼",
+        "passwordHelper": "確認您的密碼以重新產生備用代碼"
+      },
+      "disable": {
+        "title": "停用雙重驗證",
+        "description": "這將移除您帳戶的雙重驗證保護。您可以隨時重新啟用。",
+        "warning": "警告：",
+        "warningMessage": "停用雙重驗證會降低您帳戶的安全性。",
+        "confirmButton": "停用雙重驗證",
+        "cancel": "取消",
+        "disabling": "停用中...",
+        "passwordLabel": "密碼",
+        "totpCodeLabel": "目前的 TOTP 代碼",
+        "totpCodePlaceholder": "000000",
+        "totpCodeHelper": "輸入驗證器應用程式中的 6 位數代碼"
+      },
+      "cardDescription": "為您的帳戶增加額外的安全保護層",
+      "setup": {
+        "qrAlt": "雙因素驗證 QR 碼",
+        "qrCodeDescription": "使用您的驗證器應用程式掃描此 QR 碼",
+        "manualEntry": "或手動輸入此代碼：",
+        "recommendedApps": "推薦的驗證器應用程式：",
+        "title": "啟用雙重驗證",
+        "subtitle": "按照以下步驟保護您的帳戶",
+        "passwordPrompt": "首先，確認您的密碼以繼續",
+        "qrScanned": "我已掃描 QR 碼",
+        "verifyPrompt": "輸入驗證器應用程式中的 6 位數代碼",
+        "verificationCodeLabel": "驗證碼",
+        "verifying": "驗證中...",
+        "continue": "繼續",
+        "verify": "驗證",
+        "back": "返回",
+        "cancel": "取消",
+        "successTitle": "雙重驗證已成功啟用！",
+        "successDescription": "您的帳戶現在受到雙重驗證保護。",
+        "apps": {
+          "google": "Google Authenticator",
+          "microsoft": "Microsoft Authenticator",
+          "authy": "Authy",
+          "onepassword": "1Password"
+        }
+      },
+      "trustedDevices": {
+        "title": "信任的裝置",
+        "description": "管理信任 30 天無需雙因素驗證的裝置",
+        "noDevices": "沒有信任的裝置",
+        "noDevicesHelp": "當您在登入時勾選「記住此裝置」時，它將顯示在這裡",
+        "lastUsed": "最後使用",
+        "expires": "到期",
+        "expiringSoon": "即將到期",
+        "note": "信任的裝置將在 30 天後自動到期。您可以隨時撤銷存取權限。"
+      }
     }
   },
   "common": {
@@ -158,7 +248,27 @@
     "forgotPassword": "忘記密碼？",
     "rememberMe": "記住我",
     "loginSuccess": "登入成功",
-    "logoutSuccess": "登出成功"
+    "logoutSuccess": "登出成功",
+    "2fa": {
+      "verifyTitle": "雙因素驗證",
+      "verifyDescription": "請輸入您的驗證器應用程式中的 6 位數代碼",
+      "verifyBackupDescription": "請輸入您的備用代碼之一",
+      "totpCodeLabel": "驗證代碼",
+      "totpDigitLabel": "數字 {{index}}",
+      "totpCodeHelp": "請輸入您的驗證器應用程式中的 6 位數代碼",
+      "backupCodeLabel": "備用代碼",
+      "backupCodePlaceholder": "XXXX-XXXX-XXXX-XXXX",
+      "backupCodeHelp": "請輸入您的備用代碼，格式為 XXXX-XXXX-XXXX-XXXX",
+      "rememberDevice": "記住此裝置 30 天",
+      "useBackupCode": "改用備用代碼",
+      "useTotpCode": "使用驗證器代碼",
+      "verify": "驗證",
+      "verifying": "驗證中...",
+      "cancel": "取消",
+      "invalidCode": "代碼無效。剩餘 {{attempts}} 次嘗試。",
+      "invalidBackupCode": "備用代碼無效。剩餘 {{attempts}} 次嘗試。",
+      "tooManyAttempts": "嘗試次數過多。請稍後再試。"
+    }
   },
   "app": {
     "name": "Morning AI",

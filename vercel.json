@@ -1,9 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "pnpm --filter frontend-dashboard build",
+  "buildCommand": "pnpm --filter @morningai/shared-ui build && pnpm --filter frontend-dashboard build",
   "installCommand": "pnpm install --prod=false",
   "outputDirectory": "handoff/20250928/40_App/frontend-dashboard/dist",
+  "ignoreCommand": "bash ./scripts/vercel-ignore.sh",
   "rewrites": [
     {
       "source": "/(.*)",

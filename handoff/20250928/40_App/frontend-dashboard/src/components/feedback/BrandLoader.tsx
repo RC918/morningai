@@ -1,5 +1,5 @@
 import React from 'react'
-import { motion } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -24,7 +24,7 @@ export const BrandLoader = ({
 
   const currentSize: { container: string; icon: string; text: string } = sizes[size]
 
-  const logoVariants = {
+  const logoVariants: Variants = {
     initial: { scale: 0.8, opacity: 0 },
     animate: {
       scale: [0.8, 1.1, 1],
@@ -38,7 +38,7 @@ export const BrandLoader = ({
     }
   }
 
-  const sparkleVariants = {
+  const sparkleVariants: Variants = {
     animate: (i: number) => ({
       scale: [0, 1, 0],
       opacity: [0, 1, 0],
@@ -53,7 +53,7 @@ export const BrandLoader = ({
     })
   }
 
-  const pulseVariants = {
+  const pulseVariants: Variants = {
     animate: {
       scale: [1, 1.5, 1],
       opacity: [0.5, 0, 0.5],
@@ -69,7 +69,7 @@ export const BrandLoader = ({
     return (
       <div className="flex items-center space-x-3">
         <motion.div
-          variants={logoVariants as any}
+          variants={logoVariants}
           initial="initial"
           animate="animate"
           className={`${currentSize.container} rounded-xl flex items-center justify-center shadow-lg`}
@@ -91,7 +91,7 @@ export const BrandLoader = ({
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
       <div className="relative">
         <motion.div
-          variants={pulseVariants as any}
+          variants={pulseVariants}
           animate="animate"
           className={`absolute inset-0 ${currentSize.container} bg-gradient-to-br from-blue-400 to-purple-600 rounded-2xl blur-xl`}
         />
@@ -100,7 +100,7 @@ export const BrandLoader = ({
           <motion.div
             key={i}
             custom={i}
-            variants={sparkleVariants as any}
+            variants={sparkleVariants}
             animate="animate"
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           >
@@ -109,7 +109,7 @@ export const BrandLoader = ({
         ))}
 
         <motion.div
-          variants={logoVariants as any}
+          variants={logoVariants}
           initial="initial"
           animate="animate"
           className={`relative ${currentSize.container} rounded-2xl flex items-center justify-center shadow-2xl`}

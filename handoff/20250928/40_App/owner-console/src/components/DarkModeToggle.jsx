@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { Moon, Sun } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@morningai/shared-ui'
 import { useTranslation } from 'react-i18next'
 
 export const DarkModeToggle = ({ variant = 'default' }) => {

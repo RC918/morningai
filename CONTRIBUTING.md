@@ -5,6 +5,7 @@
 ## 目錄
 
 - [分工規則](#分工規則)
+- [設計系統與 Shared UI](#設計系統與-shared-ui)
 - [API 變更流程](#api-變更流程)
 - [測試策略](#測試策略)
 - [GitHub Actions 最佳實踐](#github-actions-最佳實踐)
@@ -32,6 +33,75 @@
 
 **禁止改動**：
 - `docs/UX/**` 與設計稿資源
+
+## 設計系統與 Shared UI
+
+### 使用 @morningai/shared-ui
+
+MorningAI 使用統一的設計系統，所有 UI 元件集中在 `packages/shared-ui/`。
+
+#### 基本原則
+
+1. **優先使用 shared-ui** - 開發新功能前，先檢查 shared-ui 是否有可用元件
+2. **不要重複造輪子** - 避免在應用層重新實作已存在的元件
+3. **新元件放 shared-ui** - 如果元件會被多個應用使用，應加入 shared-ui
+4. **使用 Design Tokens** - 使用 CSS 變數而非硬編碼顏色/間距
+
+#### 檢查可用元件
+
+```bash
+# 查看所有可用元件
+cat packages/shared-ui/src/index.ts
+
+# 或啟動 Storybook 瀏覽
+pnpm --filter frontend-dashboard storybook
+```
+
+#### 使用範例
+
+```tsx
+// ✅ 好的做法 - 使用 shared-ui
+import { Button, Card, Input } from '@morningai/shared-ui'
+
+function MyComponent() {
+  return (
+    <Card>
+      <Input placeholder="輸入..." />
+      <Button>提交</Button>
+    </Card>
+  )
+}
+
+// ❌ 不好的做法 - 在應用層重新實作
+// src/components/my-button.tsx
+export function MyButton() {
+  return <button className="...">按鈕</button>
+}
+```
+
+#### 加入新元件到 Shared UI
+
+如果元件會被多個應用使用：
+
+1. 在 `packages/shared-ui/src/components/` 建立元件
+2. 在 `packages/shared-ui/src/index.ts` 匯出
+3. 加入 Storybook story 到 `packages/shared-ui/src/stories/`
+4. 執行 `pnpm --filter @morningai/shared-ui build`
+5. 更新 `packages/shared-ui/README.md`
+
+#### 相關文件
+
+- 📚 [Shared UI 使用指南](docs/shared-ui-guide.md) - 完整使用指南
+- 📦 [Shared UI README](packages/shared-ui/README.md) - 套件文件
+- 🎨 Storybook: `pnpm --filter frontend-dashboard storybook`
+
+### 廢棄目錄
+
+以下目錄已廢棄，**請勿使用**：
+
+- ⛔ `tools/frontend-lab/` - 已遷移到 `handoff/20250928/40_App/frontend-dashboard/`
+
+如誤用廢棄目錄，CI 會自動阻止 PR 合併。
 
 ## API 變更流程
 
@@ -410,6 +480,126 @@ on:
 - [ ] 設置適當的 `timeout-minutes`
 - [ ] 有 `concurrency` 控制（如果適用）
 
+## i18n 國際化規範
+
+### i18n Violation Baseline 機制
+
+MorningAI 使用 **violation baseline** 機制來防止新的 i18n 違規，同時允許團隊逐步修復現有違規。
+
+#### 工作原理
+
+1. **Baseline 檔案**: `scripts/i18n-baseline.json` 記錄當前的違規數量
+2. **Pre-commit Hook**: 在 commit 時自動修復可修復的 i18n 問題（使用 `eslint --fix --quiet`）
+3. **CI Baseline Check**: 在 CI 中檢查違規數量，如果超過 baseline 則失敗
+
+#### 使用 i18n
+
+**✅ 正確做法** - 使用 `t()` 函數：
+```tsx
+import { useTranslation } from 'react-i18next'
+
+function MyComponent() {
+  const { t } = useTranslation()
+  
+  return (
+    <div>
+      <h1>{t('welcome.title')}</h1>
+      <p>{t('welcome.description')}</p>
+      <Button>{t('common.submit')}</Button>
+    </div>
+  )
+}
+```
+
+**❌ 錯誤做法** - 硬編碼字串：
+```tsx
+// ❌ 會被 ESLint 阻擋
+function MyComponent() {
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <p>This is a description</p>
+      <Button>Submit</Button>
+    </div>
+  )
+}
+```
+
+#### 添加翻譯 Key
+
+1. 在 `src/i18n/locales/en-US.json` 添加英文翻譯
+2. 在 `src/i18n/locales/zh-TW.json` 添加中文翻譯
+
+```json
+// en-US.json
+{
+  "welcome": {
+    "title": "Welcome",
+    "description": "This is a description"
+  },
+  "common": {
+    "submit": "Submit"
+  }
+}
+
+// zh-TW.json
+{
+  "welcome": {
+    "title": "歡迎",
+    "description": "這是描述"
+  },
+  "common": {
+    "submit": "提交"
+  }
+}
+```
+
+#### 檢查違規數量
+
+```bash
+# 檢查當前違規數量
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm lint | grep "i18next/no-literal-string" | wc -l
+
+cd handoff/20250928/40_App/owner-console
+pnpm lint | grep "i18next/no-literal-string" | wc -l
+
+# 或使用 baseline check script
+node scripts/check-i18n-baseline.js
+```
+
+#### 更新 Baseline
+
+當你修復了一些違規後，更新 baseline：
+
+1. 運行 `node scripts/check-i18n-baseline.js` 確認改進
+2. 如果違規數量減少，手動更新 `scripts/i18n-baseline.json`
+3. Commit 更新後的 baseline 檔案
+
+#### Pre-commit Hook
+
+Pre-commit hook 會自動：
+- 對 staged 的 `.js/.jsx/.ts/.tsx` 檔案運行 `eslint --fix --quiet`
+- 自動修復可修復的問題
+- 只在有 i18n 違規（error）時阻擋 commit
+
+如果 commit 被阻擋：
+1. 查看 ESLint 錯誤訊息
+2. 將硬編碼字串替換為 `t()` 調用
+3. 添加對應的翻譯 key
+4. 重新 commit
+
+#### CI Baseline Check
+
+CI 會在每次 PR 時檢查：
+- 如果違規數量 **增加**：❌ CI 失敗
+- 如果違規數量 **減少**：✅ CI 通過並顯示改進
+- 如果違規數量 **不變**：✅ CI 通過
+
+#### 30/60/90 天違規清理計劃
+
+參見 `docs/i18n-cleanup-plan.md` 了解詳細的違規清理計劃和進度追蹤。
+
 ## TypeScript 類型檢查規範
 
 ### 標準 TypeCheck 命令
@@ -494,25 +684,246 @@ interface MetricsReport {
 }
 ```
 
+## i18n 政策（強制執行）
+
+**所有用戶可見的字串都必須使用 i18n。** 這由 ESLint 強制執行，違反將導致 CI 失敗。
+
+### ✅ 正確用法
+
+```tsx
+import { useTranslation } from 'react-i18next';
+
+function MyComponent() {
+  const { t } = useTranslation();
+  
+  return (
+    <div>
+      {/* ✅ 使用 t() 處理簡單字串 */}
+      <h1>{t('settings.2fa.title')}</h1>
+      <p>{t('settings.2fa.subtitle')}</p>
+      
+      {/* ✅ 使用 t() 處理插值 */}
+      <p>{t('dashboard.welcome', { name: userName })}</p>
+      
+      {/* ✅ 使用 Trans 組件處理包含 HTML 的字串 */}
+      <Trans i18nKey="settings.2fa.description">
+        使用<strong>雙重驗證</strong>保護您的帳戶
+      </Trans>
+      
+      {/* ✅ 使用 t() 處理無障礙屬性 */}
+      <button aria-label={t('common.close')}>×</button>
+      <img alt={t('dashboard.chart.alt')} src="chart.png" />
+    </div>
+  );
+}
+```
+
+### ❌ 錯誤用法（會導致 ESLint 錯誤）
+
+```tsx
+function MyComponent() {
+  return (
+    <div>
+      {/* ❌ 硬編碼字串 - ESLint 會報錯 */}
+      <h1>雙重驗證</h1>
+      <p>保護您的帳戶</p>
+      
+      {/* ❌ 硬編碼無障礙屬性 - ESLint 會報錯 */}
+      <button aria-label="關閉">×</button>
+      <img alt="儀表板圖表" src="chart.png" />
+    </div>
+  );
+}
+```
+
+### Translation Key 命名規範
+
+使用階層式命名空間結構：`{page}.{section}.{element}`
+
+範例：
+- `settings.2fa.title` - Settings 頁面，2FA 區塊，標題元素
+- `dashboard.metrics.cpuUsage` - Dashboard 頁面，metrics 區塊，CPU 使用率標籤
+- `common.actions.save` - 通用字串，actions 區塊，儲存按鈕
+
+### 新增 Translation Keys
+
+1. **同時加入兩個語系檔案：**
+   - `src/i18n/locales/en-US.json`（英文）
+   - `src/i18n/locales/zh-TW.json`（繁體中文）
+
+2. **使用適當的巢狀結構**
+
+3. **測試兩種語言** - 在應用中切換語言並確認所有字串正確顯示
+
+詳細說明請參閱 `TOLGEE_POC_SETUP.md`。
+
+## 資料庫遷移規範 (Database Migrations)
+
+MorningAI 使用 **Alembic 1.13.1** 進行資料庫 schema 版本管理。
+
+### 創建新 Migration
+
+```bash
+cd handoff/20250928/40_App/api-backend
+
+# 設置 DATABASE_URL
+export DATABASE_URL="sqlite:////absolute/path/to/dev.db"
+
+# 自動生成 migration
+alembic revision --autogenerate -m "add user email verification"
+```
+
+### Migration 命名規範
+
+```bash
+# ✅ 好的命名 - 清楚描述變更
+alembic revision --autogenerate -m "add user email verification"
+alembic revision --autogenerate -m "add agent reputation score index"
+alembic revision --autogenerate -m "create billing_plans table"
+
+# ❌ 不好的命名 - 太模糊
+alembic revision --autogenerate -m "update"
+alembic revision --autogenerate -m "fix"
+alembic revision --autogenerate -m "changes"
+```
+
+### 必須手動檢查的項目
+
+創建 migration 後，**必須手動檢查**以下項目：
+
+1. **Upgrade 邏輯正確**
+   ```python
+   def upgrade():
+       # 檢查所有 CREATE TABLE, ALTER TABLE 語句
+       op.create_table('new_table', ...)
+   ```
+
+2. **Downgrade 邏輯正確**（可回滾）
+   ```python
+   def downgrade():
+       # 必須能夠完全回滾 upgrade 的變更
+       op.drop_table('new_table')
+   ```
+
+3. **Enum 值使用小寫**（關鍵！）
+   ```python
+   # ✅ 正確 - 使用小寫 enum 值
+   sa.Enum('dev_agent', 'ops_agent', 'pm_agent', name='agenttypedb')
+   
+   # ❌ 錯誤 - 使用大寫會導致 PostgreSQL 拒絕插入
+   sa.Enum('DEV_AGENT', 'OPS_AGENT', 'PM_AGENT', name='agenttypedb')
+   ```
+
+4. **外鍵約束正確**
+   ```python
+   op.create_foreign_key(
+       'fk_tasks_agent_id',
+       'tasks', 'agents',
+       ['agent_id'], ['agent_id'],
+       ondelete='CASCADE'  # 明確指定刪除行為
+   )
+   ```
+
+5. **索引定義合理**
+   ```python
+   op.create_index('idx_tasks_status', 'tasks', ['status'])
+   ```
+
+### Enum 值政策（重要！）
+
+**問題**: SQLAlchemy 預設會將 enum **名稱**（大寫）而非 enum **值**（小寫）寫入資料庫。
+
+**解決方案**: 在模型中使用 `values_callable` 參數
+
+```python
+# src/models/agent_registry_db.py
+
+class AgentTypeDB(str, Enum):
+    DEV_AGENT = "dev_agent"        # ✅ 值為小寫
+    OPS_AGENT = "ops_agent"
+
+class AgentDB(db.Model):
+    agent_type = db.Column(
+        db.Enum(
+            AgentTypeDB,
+            values_callable=lambda e: [i.value for i in e],  # ✅ 關鍵參數
+            name='agenttypedb'
+        ),
+        nullable=False
+    )
+```
+
+### 本地測試 Migration
+
+```bash
+# 1. Upgrade
+alembic upgrade head
+
+# 2. 測試 downgrade
+alembic downgrade -1
+
+# 3. 重新 upgrade
+alembic upgrade head
+
+# 4. 測試資料插入
+python scripts/test_migration_data_insertion.py
+```
+
+### 提交前檢查清單
+
+- [ ] Migration 檔案已手動檢查
+- [ ] Upgrade 和 downgrade 都已本地測試
+- [ ] Enum 值使用小寫
+- [ ] 外鍵約束有明確的 ondelete 行為
+- [ ] 已執行 `python scripts/test_migration_data_insertion.py`
+- [ ] DATABASE_URL 使用絕對路徑（SQLite）
+
+### 禁止的操作
+
+1. **不要編輯已部署的 migration**
+   - 一旦 migration 已部署到生產環境，不要編輯它
+   - 創建新的 migration 來修正問題
+
+2. **不要編輯 `alembic/versions/` 之外的生成文件**
+   - `alembic/env.py` 和 `alembic.ini` 是手動維護的配置文件
+
+3. **不要跳過 downgrade 測試**
+   - 所有 migration 必須可以回滾
+
+### 相關文檔
+
+- **[Database Migrations Guide](docs/database/MIGRATIONS.md)** - 完整的 Alembic 工作流程和故障排除
+- **[Onboarding Guide](docs/ONBOARDING_GUIDE.md)** - 包含 Alembic 設置說明
+- **PR #1107**: https://github.com/RC918/morningai/pull/1107 - Alembic 實作參考
+
+---
+
 ## 驗收標準
 
 所有 PR 需通過：
 
-1. **OpenAPI 驗證**
+1. **i18n 要求（強制）**
+   - 所有用戶可見字串使用 `t()` 或 `<Trans>`（無硬編碼字串）
+   - 新 translation keys 已加入 `en-US.json` 和 `zh-TW.json`
+   - Translation keys 使用適當的命名空間
+   - 無障礙屬性已翻譯
+   - ESLint i18n 規則通過（無 `i18next/no-literal-string` 錯誤）
+
+2. **OpenAPI 驗證**
    - API schema 符合 OpenAPI 3.0 規範
    - 所有 endpoints 都有文檔
 
-2. **測試覆蓋率**
+3. **測試覆蓋率**
    - 單元測試覆蓋率 ≥ 80%
    - 整合測試覆蓋率 ≥ 60%
    - 所有測試通過
 
-3. **CI 檢查**
-   - Lint 檢查通過
+4. **CI 檢查**
+   - Lint 檢查通過（**包含 i18n 規則**）
    - Type 檢查通過（**不得引入新錯誤**）
    - Build 成功
 
-4. **Post-deploy Health 斷言**
+5. **Post-deploy Health 斷言**
    - 部署後健康檢查通過
    - 關鍵 API endpoints 可訪問
 

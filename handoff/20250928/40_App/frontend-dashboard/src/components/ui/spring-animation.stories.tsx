@@ -12,7 +12,9 @@ import {
   createAnimationSequence,
   getStaggerConfig,
   getAnimationMetrics,
-  trackAnimation
+  trackAnimation,
+  type AnimationVariantType,
+  type HapticType
 } from '../../lib/spring-animation';
 import '../../styles/spring-animations.css';
 
@@ -107,9 +109,9 @@ export const SpringPresets: Story = {
 
 export const AnimationVariants: Story = {
   render: () => {
-    const [activeVariant, setActiveVariant] = useState<string | null>(null);
+    const [activeVariant, setActiveVariant] = useState<AnimationVariantType | null>(null);
     
-    const variants = [
+    const variants: Array<{ name: AnimationVariantType; label: string; description: string }> = [
       { name: 'fade', label: 'Fade', description: '淡入淡出' },
       { name: 'scale', label: 'Scale', description: '縮放' },
       { name: 'pop', label: 'Pop', description: '彈出' },
@@ -147,6 +149,7 @@ export const AnimationVariants: Story = {
             {activeVariant && (
               <motion.div
                 key={activeVariant}
+                // @ts-expect-error TODO(#935): AnimationVariant not compatible with Framer Motion Variants
                 variants={getSpringVariants(activeVariant, 'default')}
                 initial="initial"
                 animate="animate"
@@ -171,7 +174,7 @@ export const AnimationVariants: Story = {
 
 export const HapticFeedback: Story = {
   render: () => {
-    const haptics = [
+    const haptics: Array<{ type: HapticType; label: string; description: string; color: string }> = [
       { type: 'light', label: 'Light', description: '輕微', color: 'bg-gray-500' },
       { type: 'medium', label: 'Medium', description: '中等', color: 'bg-blue-500' },
       { type: 'heavy', label: 'Heavy', description: '重度', color: 'bg-purple-500' },
@@ -192,9 +195,9 @@ export const HapticFeedback: Story = {
           {haptics.map((haptic) => (
             <motion.button
               key={haptic.type}
-              onClick={(e) => triggerHaptic(e.currentTarget, haptic.type as any)}
+              onClick={(e) => triggerHaptic(e.currentTarget, haptic.type)}
               whileHover={{ scale: 1.05 }}
-              whileTap={getHapticAnimation(haptic.type as any)}
+              whileTap={getHapticAnimation(haptic.type)}
               className={`${haptic.color} text-white p-6 rounded-xl shadow-md`}
             >
               <h3 className="text-lg font-semibold mb-1">{haptic.label}</h3>
@@ -340,6 +343,7 @@ export const ModalAnimations: Story = {
               
               {/* 對話框 */}
               <motion.div
+                // @ts-expect-error TODO(#935): AnimationVariant not compatible with Framer Motion Variants
                 variants={getSpringVariants('slideUp', 'default')}
                 initial="initial"
                 animate="animate"
@@ -414,6 +418,7 @@ export const ListStaggerAnimation: Story = {
               {items.map((item) => (
                 <motion.div
                   key={item.id}
+                  // @ts-expect-error TODO(#935): AnimationVariant not compatible with Framer Motion Variants
                   variants={getSpringVariants('slideUp', 'default')}
                   className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md"
                 >
@@ -502,6 +507,7 @@ export const FeedbackAnimations: Story = {
             {showSuccess && (
               <motion.div
                 ref={successRef}
+                // @ts-expect-error TODO(#935): AnimationVariant not compatible with Framer Motion Variants
                 variants={getSpringVariants('bounce', 'bouncy')}
                 initial="initial"
                 animate="animate"
@@ -521,6 +527,7 @@ export const FeedbackAnimations: Story = {
             {showError && (
               <motion.div
                 ref={errorRef}
+                // @ts-expect-error TODO(#935): AnimationVariant not compatible with Framer Motion Variants
                 variants={getSpringVariants('shake', 'wobbly')}
                 initial="initial"
                 animate="animate"
@@ -772,8 +779,8 @@ export const CompleteDemo: Story = {
               whileTap={{ scale: 0.95 }}
               transition={getSpringConfig('snappy')}
               onClick={(e) => {
-                const hapticType = ['medium', 'success', 'warning', 'error'][i];
-                triggerHaptic(e.currentTarget, hapticType as any);
+                const hapticType = (['medium', 'success', 'warning', 'error'] as const)[i] as HapticType;
+                triggerHaptic(e.currentTarget, hapticType);
               }}
               className={`px-6 py-3 text-white rounded-lg shadow-md ${
                 ['bg-blue-600', 'bg-green-600', 'bg-yellow-600', 'bg-red-600'][i]

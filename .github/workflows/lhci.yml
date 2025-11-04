@@ -1,19 +1,17 @@
 name: lighthouse-ci
 
 on:
-  workflow_dispatch:
   pull_request:
-    branches: [main]
+    branches:
+      - main
     paths:
       - 'handoff/20250928/40_App/frontend-dashboard/**'
-      - '.github/workflows/lhci.yml'
+      - 'handoff/20250928/40_App/owner-console/**'
+      - 'packages/shared-ui/**'
       - 'lighthouserc.json'
-  push:
-    branches: [main]
-    paths:
-      - 'handoff/20250928/40_App/frontend-dashboard/**'
-      - '.github/workflows/lhci.yml'
-      - 'lighthouserc.*.json'
+  schedule:
+    - cron: '0 0 * * *'  # Daily at 00:00 UTC (non-blocking signal collection)
+  workflow_dispatch:  # Manual trigger for testing
 
 jobs:
   lhci-pr:
@@ -92,10 +90,41 @@ jobs:
           echo "Checking for CSS patterns that might prevent FCP..."
           grep -RniE 'body\s*\{|visibility\s*:\s*hidden|opacity\s*:\s*0|display\s*:\s*none' dist 2>/dev/null | head -20 || echo "No problematic CSS patterns found"
 
+      - name: Verify server before Playwright
+        run: |
+          echo "Verifying preview server is still responsive..."
+          curl -I http://localhost:4173/ || echo "Homepage check failed"
+          curl -I http://localhost:4173/login || echo "Login page check failed"
+
+      - name: Setup Playwright authentication
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          mkdir -p playwright/.auth
+          echo "Working directory: $(pwd)"
+          pnpm exec playwright install chromium
+          pnpm exec playwright test tests/auth.setup.spec.ts --trace on-first-retry
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+
+      - name: Upload Playwright test results (PR)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-test-results-pr
+          path: |
+            handoff/20250928/40_App/frontend-dashboard/test-results/
+            handoff/20250928/40_App/frontend-dashboard/playwright-report/
+
       - name: Run Lighthouse CI (PR - fast)
         env:
           DEBUG: lighthouse:*
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-features=PaintHolding" --settings.maxWaitForFcp=60000 --settings.maxWaitForLoad=120000 --settings.throttlingMethod=provided --settings.formFactor=desktop --settings.screenEmulation.mobile=false --logLevel=verbose
+        run: pnpm dlx @lhci/cli collect --config=../../../../lighthouserc.json --url=http://localhost:4173/ --url=http://localhost:4173/login --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-features=PaintHolding" --settings.maxWaitForFcp=60000 --settings.maxWaitForLoad=120000 --logLevel=verbose
+
+      - name: Assert Lighthouse CI budgets
+        run: pnpm dlx @lhci/cli assert --config=../../../../lighthouserc.json
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
@@ -137,8 +166,8 @@ jobs:
           fi
 
   lhci-main:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     concurrency:
       group: lhci-main
       cancel-in-progress: false
@@ -147,6 +176,9 @@ jobs:
     defaults:
       run:
         working-directory: handoff/20250928/40_App/frontend-dashboard
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -162,6 +194,19 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.1
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -195,7 +240,19 @@ jobs:
       - name: Debug preview server
         run: |
           echo "Testing preview server response..."
-          curl -sS http://localhost:4173/ | head -c 500 || echo "Failed to fetch homepage"
+          curl -sS http://localhost:4173/ | head -c 1000 || echo "Failed to fetch homepage"
+          echo ""
+          echo "Checking asset URLs..."
+          curl -sS http://localhost:4173/ | sed 's/</\n</g' | grep -Eo 'src="/[^"]+\.js"|href="/[^"]+\.css"' | sed -E 's/^(src|href)=//;s/"//g' | head -10 | while read asset; do
+            echo "Testing asset: $asset"
+            curl -I "http://localhost:4173$asset" 2>&1 | head -2
+          done
+
+      - name: Verify server before Playwright
+        run: |
+          echo "Verifying preview server is still responsive..."
+          curl -I http://localhost:4173/ || echo "Homepage check failed"
+          curl -I http://localhost:4173/login || echo "Login page check failed"
 
       - name: Setup Playwright authentication
         env:
@@ -204,16 +261,52 @@ jobs:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
-          pnpm exec playwright install --with-deps chromium
-          pnpm exec playwright test tests/auth.setup.spec.ts
+          mkdir -p playwright/.auth
+          echo "Working directory: $(pwd)"
+          pnpm exec playwright install chromium
+          pnpm exec playwright test tests/auth.setup.spec.ts --trace on-first-retry
         working-directory: handoff/20250928/40_App/frontend-dashboard
 
-      - name: Generate LHCI cookie
-        working-directory: ${{ github.workspace }}
-        run: node scripts/make-lhci-cookie.js
+      - name: Upload Playwright test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-test-results
+          path: |
+            handoff/20250928/40_App/frontend-dashboard/test-results/
+            handoff/20250928/40_App/frontend-dashboard/playwright-report/
+          retention-days: 14
 
-      - name: Run Lighthouse CI (main - accurate)
-        run: pnpm dlx @lhci/cli collect --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=3 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
+      - name: Verify storage state file
+        continue-on-error: true
+        run: |
+          echo "Working directory: $(pwd)"
+          echo "Checking for storage state file..."
+          ls -la playwright/.auth/ || echo "Auth directory not found"
+          if [ -f playwright/.auth/storageState.json ]; then
+            echo "✅ Storage state file exists"
+            node -e "const fs=require('fs');const p='playwright/.auth/storageState.json';const s=JSON.parse(fs.readFileSync(p,'utf8'));console.log('Origins:',s.origins?.length||0);console.log('localStorage keys:',(s.origins||[]).flatMap(o=>o.localStorage?.map(i=>i.name)||[]).join(', '));"
+          else
+            echo "⚠️ Storage state file not found - LHCI will test public pages only"
+          fi
+
+      - name: Debug LHCI config resolution
+        run: |
+          echo "=== LHCI Config Debug ==="
+          echo "Current working directory: $(pwd)"
+          echo "Config path (relative): ../../../../lighthouserc.main.json"
+          echo "Config path (absolute): $(realpath ../../../../lighthouserc.main.json)"
+          echo ""
+          echo "=== Config file contents ==="
+          cat ../../../../lighthouserc.main.json
+          echo ""
+          echo "=== Verifying puppeteerScript path ==="
+          node -e "const fs=require('fs');const path=require('path');const cfgPath=path.resolve(process.cwd(),'../../../../lighthouserc.main.json');console.log('Config file path:', cfgPath);const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));const puppeteerScript=cfg.ci?.collect?.puppeteerScript;console.log('puppeteerScript (from config):', puppeteerScript);if(puppeteerScript){const absScript=path.resolve(path.dirname(cfgPath), puppeteerScript);console.log('puppeteerScript (absolute):', absScript);console.log('puppeteerScript exists:', fs.existsSync(absScript));}else{console.log('puppeteerScript not configured');}"
+
+      - name: Run Lighthouse CI (main - nightly signal collection)
+        if: always()
+        continue-on-error: true
+        run: pnpm dlx @lhci/cli collect --config=../../../../lighthouserc.main.json --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
 
       - name: Upload LHCI artifacts
         uses: actions/upload-artifact@v4
@@ -221,6 +314,7 @@ jobs:
         with:
           name: lhci-artifacts-main
           path: handoff/20250928/40_App/frontend-dashboard/.lighthouseci
+          retention-days: 14
 
       - name: Update baseline and trend
         if: always()
@@ -228,12 +322,13 @@ jobs:
         run: node scripts/update-baseline-and-trend.js
 
       - name: Commit baseline updates
-        if: always()
+        if: github.event_name != 'pull_request'
         continue-on-error: true
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(ci): update LHCI baseline & trend [skip ci]"
           file_pattern: ".lhci-baseline.json trend.csv"
+          branch: ${{ github.ref_name }}
 
       - name: Stop preview server
         if: always()

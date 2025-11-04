@@ -3,8 +3,14 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - 'handoff/20250928/50_Infra/**'
+      - 'handoff/20250928/60_Design/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'handoff/20250928/50_Infra/**'
+      - 'handoff/20250928/60_Design/**'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,3 +45,97 @@ jobs:
       
       - name: Lint frontend with Turborepo
         run: pnpm run lint --filter=frontend-dashboard
+      
+      - name: Typecheck frontend-dashboard
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm run typecheck
+      
+      - name: Typecheck owner-console
+        run: |
+          cd handoff/20250928/40_App/owner-console
+          pnpm run typecheck
+  
+  i18n-baseline-check:
+    name: i18n Violation Baseline Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+      
+      - name: Run i18n baseline check
+        run: node scripts/check-i18n-baseline.mjs
+      
+      - name: Upload baseline report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-baseline-report
+          path: scripts/i18n-baseline.json
+          retention-days: 30
+  
+  typecheck-strict:
+    name: TypeScript Strict Mode Progress
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      BASELINE_SOURCE_ERRORS: 187
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+      
+      - name: Run strict typecheck
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm run typecheck:strict 2>&1 | tee strict-report.txt || true
+          SOURCE_ERRORS=$(grep "src/" strict-report.txt | grep "error TS" | wc -l || echo 0)
+          echo "::notice::Source code errors: $SOURCE_ERRORS / ${{ env.BASELINE_SOURCE_ERRORS }} (baseline)"
+          echo "SOURCE_ERRORS=$SOURCE_ERRORS" >> $GITHUB_ENV
+      
+      - name: Upload strict typecheck report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strict-typecheck-report
+          path: handoff/20250928/40_App/frontend-dashboard/strict-report.txt
+          retention-days: 30
+      
+      - name: Comment on PR with progress
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: typescript-strict-progress
+          body: |
+            ## 📊 TypeScript Strict Mode Progress
+            
+            **Source Code Errors**: ${{ env.SOURCE_ERRORS }} / ${{ env.BASELINE_SOURCE_ERRORS }} (baseline)
+            
+            This is a non-blocking check to track progress toward full strict mode adoption.
+            See [Issue #935](https://github.com/RC918/morningai/issues/935) for details.
+            
+            📎 [View full report artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

@@ -12,7 +12,12 @@ import { AppleButton } from '@/components/ui/apple-button';
 import { Users, Shield, UserCog } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export function Phase3WelcomeModal({ isOpen, onClose }) {
+interface Phase3WelcomeModalProps {
+  isOpen: boolean
+  onClose: () => void
+}
+
+export function Phase3WelcomeModal({ isOpen, onClose }: Phase3WelcomeModalProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   

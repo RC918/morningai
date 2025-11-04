@@ -39,7 +39,7 @@ const appleInputVariants = cva(
 )
 
 export interface AppleInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'>,
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'onAnimationStart' | 'onDragStart' | 'onDragEnd' | 'onDrag'>,
     VariantProps<typeof appleInputVariants> {
   label?: string
   helperText?: string

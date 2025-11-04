@@ -14,11 +14,17 @@ const meta = {
       }
     }
   },
-  tags: ['autodocs']
+  tags: ['autodocs'],
+  args: {
+    children: null
+  },
+  argTypes: {
+    children: { control: false }
+  }
 } satisfies Meta<typeof AppleLiveActivity.Provider>
 
 export default meta
-type Story = StoryObj<any>
+type Story = StoryObj<typeof meta>
 
 const LiveActivityDemo = ({ config }: { config: any }) => {
   const { useLiveActivity } = AppleLiveActivity
@@ -36,6 +42,7 @@ const LiveActivityDemo = ({ config }: { config: any }) => {
 }
 
 export const Default: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -52,6 +59,7 @@ export const Default: Story = {
 }
 
 export const WithActions: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -81,6 +89,7 @@ export const WithActions: Story = {
 }
 
 export const WithMetadata: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -117,6 +126,7 @@ export const WithMetadata: Story = {
 }
 
 export const SuccessVariant: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -142,6 +152,7 @@ export const SuccessVariant: Story = {
 }
 
 export const ErrorVariant: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -166,6 +177,7 @@ export const ErrorVariant: Story = {
 }
 
 export const WarningVariant: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -197,6 +209,7 @@ export const WarningVariant: Story = {
 }
 
 export const PrimaryVariant: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -220,6 +233,7 @@ export const PrimaryVariant: Story = {
 }
 
 export const NonExpandable: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -236,6 +250,7 @@ export const NonExpandable: Story = {
 }
 
 export const WithoutProgress: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -251,6 +266,7 @@ export const WithoutProgress: Story = {
 }
 
 export const EmojiIcon: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveActivityDemo
@@ -351,6 +367,7 @@ const LiveProgressDemo = () => {
 }
 
 export const LiveProgress: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <LiveProgressDemo />
@@ -411,6 +428,7 @@ const MultipleActivitiesDemo = () => {
 }
 
 export const MultipleActivities: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider>
       <MultipleActivitiesDemo />
@@ -419,6 +437,7 @@ export const MultipleActivities: Story = {
 }
 
 export const BottomPosition: Story = {
+  args: {},
   render: () => (
     <AppleLiveActivity.Provider position="bottom">
       <LiveActivityDemo

@@ -9,7 +9,12 @@ import { LanguageSwitcher } from './LanguageSwitcher'
 import { DarkModeToggle } from './DarkModeToggle'
 import { LazyImage } from '@/components/ui/lazy-image'
 
-const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
+interface LandingPageProps {
+  onNavigateToLogin: () => void
+  onSSOLogin: (provider: string) => void
+}
+
+const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
   const { t } = useTranslation()
   const ssoRef = useRef(null)
   const featuresRef = useRef(null)
@@ -22,7 +27,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
     
-    const handleChange = (e) => setPrefersReducedMotion(e.matches)
+    const handleChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
     mediaQuery.addEventListener('change', handleChange)
     
     return () => mediaQuery.removeEventListener('change', handleChange)
@@ -42,7 +47,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }) => {
     }
   }
 
-  const handleSSOLogin = (provider) => {
+  const handleSSOLogin = (provider: string) => {
     if (onSSOLogin) {
       onSSOLogin(provider)
     } else {

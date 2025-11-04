@@ -20,13 +20,17 @@ from src.routes.agent import bp as agent_bp
 from src.routes.tenant import bp as tenant_bp
 from src.routes.faq import bp as faq_bp
 from src.routes.vectors import bp as vectors_bp
-from src.routes.governance import bp as governance_bp
+from src.routes.governance import bp as governance_bp, admin_bp as admin_agents_bp
+from src.routes.agent_registry import bp as agent_registry_bp
+from src.routes.admin import bp as admin_bp
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.auth import auth_bp
+from src.routes.auth_enhanced import auth_enhanced_bp
 from src.routes.dashboard import dashboard_bp
+from src.routes.totp import totp_bp
 from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required
 from flask_cors import CORS
 import sys
@@ -93,13 +97,37 @@ except ImportError as e:
     BACKEND_SERVICES_AVAILABLE = False
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
+
+from src.services.auth_service import validate_security_config
+try:
+    validate_security_config()
+except SystemExit as e:
+    logger.error(f"Security configuration validation failed: {e}")
+    raise
+
+flask_secret = os.environ.get('FLASK_SECRET_KEY')
+if not flask_secret:
+    legacy_secret = os.environ.get('SECRET_KEY')
+    if legacy_secret:
+        logger.warning(
+            "DEPRECATION: SECRET_KEY is deprecated. Please use FLASK_SECRET_KEY instead. "
+            "SECRET_KEY support will be removed after 2025-11-30 (30-day grace period)."
+        )
+        flask_secret = legacy_secret
+    else:
+        flask_secret = 'asdf#FGSgvasgf$5$WGT'
+app.config['SECRET_KEY'] = flask_secret
 
 cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
 cors_origins = [origin.strip() for origin in cors_origins]
 
 def is_vercel_preview(origin):
-    """Check if origin is a Vercel preview URL"""
+    """
+    Check if origin is a Vercel preview URL
+    Only allows Vercel previews in non-production environments for security
+    """
+    if os.environ.get('ENVIRONMENT') == 'production':
+        return False
     return origin and re.match(r'https://.*\.vercel\.app$', origin)
 
 @app.after_request
@@ -110,24 +138,37 @@ def add_cors_headers(response):
     if origin in cors_origins or is_vercel_preview(origin):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Request-ID, X-CSRF-Token'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+        response.headers['Vary'] = 'Origin'
     
     return response
 
 cors_config = {
     "origins": cors_origins,
     "supports_credentials": True,
-    "allow_headers": ["Content-Type", "Authorization", "X-Request-ID"],
-    "expose_headers": ["Content-Type", "Authorization"],
+    "allow_headers": ["Content-Type", "Authorization", "X-Request-ID", "X-CSRF-Token"],
+    "expose_headers": ["Content-Type", "Authorization", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
 }
 
 CORS(app, resources={r"/*": cors_config})
 
 if SECURITY_AVAILABLE:
+    encryption_master_key = os.environ.get('ENCRYPTION_MASTER_KEY')
+    if not encryption_master_key:
+        legacy_master_key = os.environ.get('MASTER_KEY')
+        if legacy_master_key:
+            logger.warning(
+                "DEPRECATION: MASTER_KEY is deprecated. Please use ENCRYPTION_MASTER_KEY instead. "
+                "MASTER_KEY support will be removed after 2025-11-30 (30-day grace period)."
+            )
+            encryption_master_key = legacy_master_key
+        else:
+            encryption_master_key = 'default-master-key'
+    
     security_config = {
-        'master_key': os.environ.get('MASTER_KEY', 'default-master-key'),
+        'master_key': encryption_master_key,
         'secret_key': app.config['SECRET_KEY'],
         'audit_log_file': 'api_audit.log'
     }
@@ -136,13 +177,18 @@ if SECURITY_AVAILABLE:
 
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(auth_enhanced_bp, url_prefix='/api/auth/v2')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+app.register_blueprint(totp_bp, url_prefix='/api/auth/v2/totp')
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
+app.register_blueprint(agent_registry_bp)
 app.register_blueprint(tenant_bp)
 app.register_blueprint(faq_bp)
 app.register_blueprint(vectors_bp)
 app.register_blueprint(governance_bp)
+app.register_blueprint(admin_bp)
+app.register_blueprint(admin_agents_bp)
 
 if BACKEND_SERVICES_AVAILABLE:
     try:
@@ -273,15 +319,61 @@ else:
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-    'pool_size': 5,
-    'max_overflow': 10,
-    'pool_timeout': 10
-}
+import sys
+if 'pytest' in sys.modules or os.getenv('TESTING') == 'true':
+    from sqlalchemy.pool import StaticPool
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'poolclass': StaticPool,
+        'connect_args': {'check_same_thread': False}
+    }
+    logger.info("ℹ️  Test mode detected: Using SQLite in-memory with StaticPool")
+else:
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_size': 5,
+        'max_overflow': 10,
+        'pool_timeout': 10
+    }
 
 db.init_app(app)
+
+def validate_rate_limit_redis():
+    """
+    Validate Redis connection for rate limiting in production.
+    
+    This provides fail-fast behavior: if Redis is unavailable in production,
+    the application will refuse to start rather than running without rate limiting protection.
+    
+    Can be disabled by setting RATE_LIMIT_FAIL_FAST=false (not recommended).
+    
+    Raises:
+        RuntimeError: If Redis is unavailable in production environment
+    """
+    if not os.getenv('RATE_LIMIT_FAIL_FAST', 'true').lower() == 'true':
+        logger.info("ℹ️  Rate limit fail-fast disabled via RATE_LIMIT_FAIL_FAST=false")
+        return
+    
+    try:
+        from src.utils.redis_client import get_redis_client
+        redis_client = get_redis_client()
+        redis_client.ping()
+        logger.info("✅ Rate limiting Redis connection validated at startup")
+    except Exception as e:
+        logger.critical(f"❌ FATAL: Rate limiting Redis unavailable in production: {e}")
+        logger.critical("   This is a security issue - production requires rate limiting to prevent DoS attacks")
+        logger.critical("   Solution: Ensure REDIS_URL or UPSTASH_REDIS_REST_URL is configured")
+        logger.critical("   Emergency override (not recommended): Set RATE_LIMIT_FAIL_FAST=false")
+        raise RuntimeError("Production environment requires Redis for rate limiting")
+
+def init_test_database():
+    """Initialize test database with SQLite in-memory and create all tables"""
+    with app.app_context():
+        from src.models.agent_registry_db import AgentDB, TaskDB
+        db.create_all()
+        logger.info("✅ Test database tables initialized (SQLite in-memory)")
 
 def init_database_with_retry(max_retries=6, initial_delay=0.5):
     """
@@ -298,6 +390,7 @@ def init_database_with_retry(max_retries=6, initial_delay=0.5):
     for attempt in range(max_retries):
         try:
             with app.app_context():
+                from src.models.agent_registry_db import AgentDB, TaskDB
                 db.create_all()
             logger.info("✅ Database tables initialized successfully")
             return
@@ -313,10 +406,24 @@ def init_database_with_retry(max_retries=6, initial_delay=0.5):
                 logger.info(f"🔄 Retrying in {delay}s...")
                 time.sleep(delay)
 
-if ENVIRONMENT == 'production':
+if app.config.get('TESTING'):
+    init_test_database()
+    
+    @app.before_request
+    def ensure_tables():
+        """Safety net: Ensure agent_registry tables exist before each request in test mode"""
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        if 'agents' not in existing_tables or 'tasks' not in existing_tables:
+            from src.models.agent_registry_db import AgentDB, TaskDB
+            db.create_all()
+elif ENVIRONMENT == 'production':
+    validate_rate_limit_redis()
     init_database_with_retry()
 else:
     with app.app_context():
+        from src.models.agent_registry_db import AgentDB, TaskDB
         db.create_all()
 
 @app.route('/', defaults={'path': ''})

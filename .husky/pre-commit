@@ -1,5 +1,13 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# Run lint-staged for frontend-dashboard
+set -e
+
+# Run lint-staged for both apps
+echo "Running lint-staged for frontend-dashboard..."
 cd handoff/20250928/40_App/frontend-dashboard && pnpm exec lint-staged
+
+echo "Running lint-staged for owner-console..."
+cd ../owner-console && pnpm exec lint-staged
+
+echo "✅ Pre-commit checks passed!"

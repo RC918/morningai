@@ -44,9 +44,9 @@ export const DarkModeToggle = ({ variant = 'default' }: DarkModeToggleProps): Re
         style={{ width: '40px', height: '40px' }}
       >
         {isDark ? (
-          <Sun className="w-5 h-5 text-gray-600 dark:text-gray-300" style={{ width: '20px', height: '20px' }} />
+          <Sun className="w-5 h-5 text-gray-600 dark:text-gray-300" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
         ) : (
-          <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" style={{ width: '20px', height: '20px' }} />
+          <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
         )}
       </button>
     )
@@ -62,9 +62,9 @@ export const DarkModeToggle = ({ variant = 'default' }: DarkModeToggleProps): Re
       style={{ width: '40px', height: '40px' }}
     >
       {isDark ? (
-        <Sun className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
+        <Sun className="w-5 h-5" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
       ) : (
-        <Moon className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
+        <Moon className="w-5 h-5" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
       )}
     </AppleButton>
   )

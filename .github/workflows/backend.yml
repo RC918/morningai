@@ -3,8 +3,14 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - 'handoff/20250928/50_Infra/**'
+      - 'handoff/20250928/60_Design/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'handoff/20250928/50_Infra/**'
+      - 'handoff/20250928/60_Design/**'
 jobs:
   validate-env-schema:
     runs-on: ubuntu-latest
@@ -49,8 +55,42 @@ jobs:
           
           print(f"✅ Schema valid: {len(schema['fields'])} variables defined")
           EOF
+      - name: Check for environment config drift
+        run: |
+          python scripts/check-env-drift.py
+  
+  validate-openapi-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install OpenAPI validator
+        run: |
+          pip install openapi-spec-validator pyyaml
+      - name: Validate OpenAPI spec
+        run: |
+          python - <<'EOF'
+          from openapi_spec_validator import validate_spec
+          from openapi_spec_validator.readers import read_from_filename
+          import sys
+          
+          try:
+              spec_dict, spec_url = read_from_filename('docs/openapi.yaml')
+              validate_spec(spec_dict)
+              print("✅ OpenAPI spec is valid (OpenAPI 3.0.3)")
+              print(f"   - API: {spec_dict['info']['title']} v{spec_dict['info']['version']}")
+              print(f"   - Endpoints: {len(spec_dict['paths'])} paths")
+              print(f"   - Schemas: {len(spec_dict['components']['schemas'])} components")
+          except Exception as e:
+              print(f"❌ OpenAPI spec validation failed: {e}")
+              sys.exit(1)
+          EOF
+  
   test:
-    needs: validate-env-schema
+    needs: [validate-env-schema, validate-openapi-spec]
     runs-on: ubuntu-latest
     services:
       redis:
@@ -71,6 +111,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd handoff/20250928/40_App/api-backend
+          pip uninstall -y jwt || true
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-asyncio
           cd ../orchestrator
@@ -82,6 +123,10 @@ jobs:
         run: |
           cd handoff/20250928/40_App/api-backend
           python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=74 -v
+          echo "### Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          python -m coverage report >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:

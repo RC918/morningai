@@ -1,7 +1,13 @@
 # MorningAI Project Structure Report
 
-**Document Version**: 1.0.0  
-**Last Updated**: 2025-10-28  
+> 📚 **相關文件**: 
+> - [術語對照表](./TERMINOLOGY.md) - 標準化的應用名稱和用戶類型定義
+> - [Onboarding Guide](./ONBOARDING_GUIDE.md) - 新人入職指南和環境設置
+> - [README](../README.md) - 專案概覽和快速導航
+> - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
+
+**Document Version**: 1.1.0  
+**Last Updated**: 2025-11-03  
 **Project Phase**: Phase 8 (v8.0.0)
 
 ---
@@ -50,17 +56,17 @@ This document provides a comprehensive overview of the MorningAI project structu
 
 **Backend**:
 - Python 3.12
-- FastAPI
+- Flask
 - SQLAlchemy
 - PostgreSQL (Supabase)
 - Redis (Upstash)
 - RQ (Redis Queue)
 
 **Frontend**:
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
+- React 19.1.0
+- TypeScript 5.9
+- Vite 6
+- Tailwind CSS 4.1.7
 - Custom Design System
 
 **Infrastructure**:
@@ -82,11 +88,18 @@ morningai/
 ├── .github/                    # GitHub configuration
 ├── .fly-web/                   # Fly.io deployment config
 ├── agents/                     # AI agent implementations
-├── orchestrator/               # Task orchestration system
-├── handoff/                    # Handoff deliverables
+├── orchestrator/               # Task orchestration system (FastAPI)
+├── handoff/                    # Handoff deliverables (⚠️ DO NOT IMPORT - vendor/design only)
 ├── docs/                       # Documentation
-├── config/                     # Configuration files
+├── config/                     # Configuration files (env.schema.yaml is SSOT)
+├── scripts/                    # Utility scripts (env generation, drift check, secret verification, system state verification)
+├── packages/                   # Shared packages (shared-ui for cross-app components)
 ├── tests/                      # Root-level tests
+├── phase4_meta_agent_api.py   # Phase 4 API module (imported by backend)
+├── phase5_data_intelligence_api.py  # Phase 5 API module (imported by backend)
+├── phase6_security_governance_api.py  # Phase 6 API module (imported by backend)
+├── phase6_startup.py          # Phase 6 initialization (imported by backend)
+├── phase7_startup.py          # Phase 7 initialization (imported by backend)
 ├── .env.example               # Environment variables template
 ├── .gitignore                 # Git ignore rules
 ├── package.json               # Root package.json (pnpm workspace)
@@ -95,6 +108,44 @@ morningai/
 ├── README.md                  # Project overview
 └── turbo.json                 # Turbo configuration
 ```
+
+### Phase API Modules (Root Directory)
+
+**Location**: Root directory (`/`)
+
+**Status**: ⚠️ **Legacy modules - not directly imported by production backend**
+
+The following files exist in the root directory but are **not directly imported** by `handoff/20250928/40_App/api-backend/src/main.py`:
+
+- **`phase4_meta_agent_api.py`**: Meta-agent coordination API
+  - Implements OODA loop (Observe, Orient, Decide, Act)
+  - LangGraph workflow engine
+  - AI governance console
+  - Status: LEGACY (checked via sys.modules, not directly imported)
+
+- **`phase5_data_intelligence_api.py`**: Data intelligence and BI API
+  - QuickSight integration
+  - Growth marketing engine
+  - Referral programs
+  - Business intelligence dashboards
+  - Status: LEGACY (checked via sys.modules, not directly imported)
+
+- **`phase6_security_governance_api.py`**: Security and governance API
+  - Zero Trust security model
+  - SecurityReviewer Agent
+  - HITL (Human-in-the-Loop) security analysis
+  - Security audit system
+  - Status: LEGACY (checked via sys.modules, not directly imported)
+
+- **`phase6_startup.py`**: Phase 6 initialization script
+  - Status: LEGACY (referenced in tests)
+
+- **`phase7_startup.py`**: Phase 7 initialization script
+  - Status: LEGACY (referenced in main.py:450 within function)
+
+**Current Implementation**: The backend health endpoint (`main.py:246-248`) checks if these modules exist in `sys.modules` but does not directly import them. They may be imported by test files or dynamically loaded in specific scenarios.
+
+**Future plan**: Clarify usage pattern (plugin loader vs deprecation) and update documentation accordingly.
 
 ### GitHub Configuration (`.github/`)
 
@@ -175,22 +226,38 @@ orchestrator/
 
 ### Handoff Directory (`handoff/20250928/40_App/`)
 
+⚠️ **IMPORTANT**: The `handoff/` directory contains vendor deliverables and design assets from the initial project handoff. **DO NOT import or run code from this directory**. It is excluded from CI paths-ignore and should be treated as reference/archive material only.
+
+The production applications are located within this directory but are the only active code:
+
 ```
 handoff/20250928/40_App/
 ├── api-backend/           # Backend API
 │   ├── src/              # Source code
-│   │   ├── main.py       # FastAPI application
+│   │   ├── main.py       # Flask application
 │   │   ├── database.py   # Database connection
 │   │   ├── models/       # SQLAlchemy models
 │   │   ├── routers/      # API routers
 │   │   └── ...           # Other modules
+│   │
+│   ├── alembic/          # Database migrations (Alembic 1.13.1)
+│   │   ├── versions/     # Migration files
+│   │   │   └── 91b9a61fcafa_initial_baseline_migration.py
+│   │   ├── env.py        # Alembic environment config
+│   │   ├── script.py.mako  # Migration template
+│   │   └── README        # Alembic documentation
+│   │
+│   ├── scripts/          # Utility scripts
+│   │   ├── run_alembic_migrations.sh  # Migration helper
+│   │   └── test_migration_data_insertion.py  # Integration test
 │   │
 │   ├── tests/            # Test suite
 │   │   ├── test_database_connection.py
 │   │   ├── test_phase4_6_comprehensive.py
 │   │   └── ...           # 20+ test files
 │   │
-│   ├── requirements.txt  # Python dependencies
+│   ├── alembic.ini       # Alembic configuration
+│   ├── requirements.txt  # Python dependencies (includes Alembic==1.13.1)
 │   ├── pytest.ini        # pytest configuration
 │   └── .env.example      # Environment variables
 │
@@ -219,8 +286,8 @@ handoff/20250928/40_App/
 │   ├── package.json     # Node.js dependencies
 │   └── README.md        # Owner console documentation
 │
-└── orchestrator/        # Legacy orchestrator (not used)
-    └── ...              # Old orchestrator files
+└── orchestrator/        # Legacy orchestrator (⚠️ STILL USED BY WORKERS)
+    └── ...              # Contains LangGraph implementation, used by RQ workers
 ```
 
 ### Documentation Directory (`docs/`)
@@ -250,7 +317,8 @@ docs/
 │   └── env_schema.md    # Environment variables schema
 │
 ├── database/            # Database documentation
-│   └── migrations/      # Migration documentation
+│   ├── MIGRATIONS.md    # Alembic migration guide (comprehensive)
+│   └── migrations/      # Legacy migration documentation
 │
 ├── faq/                 # FAQ documentation
 ├── coverage/            # Coverage reports
@@ -317,8 +385,17 @@ config/
 **Key Concepts**:
 - **OODA Loop**: Observe → Orient → Decide → Act
 - **Session State**: Long-term memory in PostgreSQL
-- **Knowledge Graph**: Semantic search with embeddings
+- **Knowledge Graph**: Semantic search with pgvector embeddings (dimension 1536)
 - **Learned Patterns**: Coding styles, bug patterns, fix patterns
+
+**Vector Storage (pgvector)**: ✅ **IMPLEMENTED**
+- **Location**: 
+  - `migrations/010_create_embeddings_tables.sql` - Main embeddings tables
+  - `agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql` - Dev agent knowledge graph
+  - `agents/faq_agent/migrations/001_create_faq_tables.sql` - FAQ agent embeddings
+- **Runtime Usage**: `src/routes/vectors.py` - Vector visualization API (t-SNE, PCA, clustering, drift detection)
+- **Dimension**: 1536 (OpenAI text-embedding-ada-002)
+- **Status**: Production-ready with full API implementation
 
 ### 2. Backend API System
 
@@ -327,7 +404,7 @@ config/
 **Architecture**: Phase-based API structure (Phases 4-8)
 
 **Key Files**:
-- `src/main.py`: FastAPI application entry point
+- `src/main.py`: Flask application entry point
 - `src/database.py`: Database connection and session management
 - `src/models/`: SQLAlchemy models
 - `src/routers/`: API route handlers
@@ -348,9 +425,15 @@ config/
 
 ### 3. Orchestrator System
 
-**Location**: `orchestrator/`
+⚠️ **DUAL ORCHESTRATOR ARCHITECTURE** - See [ADR-001](./adr/001-dual-orchestrator-architecture.md) for details
 
-**Architecture**: Graph-based task management
+**Current State**: Two orchestrator implementations in use:
+
+#### 3.1 New Orchestrator (Production API)
+
+**Location**: `orchestrator/` (root directory)
+
+**Architecture**: Graph-based task management (FastAPI)
 
 **Key Components**:
 - **API** (`orchestrator/api/main.py`): FastAPI application
@@ -358,22 +441,44 @@ config/
 - **Sandbox** (`orchestrator/sandbox/`): Isolated agent execution
 - **MCP** (`orchestrator/mcp/`): Management Control Plane
 
-**Execution Model**:
-```bash
-python graph.py --goal "demo task"
-```
+**Dependencies**: Does NOT include LangGraph (`orchestrator/requirements.txt`)
 
-**Docker Configuration**:
-- Base Image: `python:3.12-slim`
+**Deployment**: 
+- Render service: `morningai-orchestrator-api`
+- Docker runtime (`orchestrator/Dockerfile`)
 - Port: 8000
-- Health Check: `/health` endpoint
-- Deployment: Render (Docker runtime)
+- Environment: `USE_LANGGRAPH=false`
+
+#### 3.2 Legacy Orchestrator (RQ Workers)
+
+**Location**: `handoff/20250928/40_App/orchestrator/`
+
+**Architecture**: LangGraph-based workflow engine
+
+**Key Components**:
+- **LangGraph Orchestrator** (`langgraph_orchestrator.py`): Stateful workflows
+- **Redis Queue Worker**: RQ job processing
+
+**Dependencies**: Includes LangGraph and related dependencies
+
+**Deployment**:
+- Render service: Worker instances
+- Used by: RQ workers for background job processing
+- Path: `handoff/20250928/40_App/orchestrator`
+
+**Future Plan**: Consolidate to single orchestrator architecture by 2026 Q1 (tracked in ADR-001)
 
 ### 4. Frontend System
 
+MorningAI has two separate frontend applications with distinct purposes and boundaries:
+
+#### 4.1 Frontend Dashboard (End-User Application)
+
 **Location**: `handoff/20250928/40_App/frontend-dashboard/`
 
-**Architecture**: React 18 + Vite + TypeScript
+**Purpose**: End-user analytics and monitoring interface
+
+**Architecture**: React 19.1.0 + Vite 6 + TypeScript 5.9
 
 **Key Components**:
 - **Design System**: Apple-inspired components
@@ -394,16 +499,102 @@ python graph.py --goal "demo task"
 - E2E Tests: Playwright (planned)
 - Accessibility: WCAG AAA compliance
 
+**Deployment**:
+- Production: https://app.gm365.me
+- Vercel deployment
+
+#### 4.2 Owner Console (Admin/Governance Application)
+
+**Location**: `handoff/20250928/40_App/owner-console/`
+
+**Purpose**: Owner management, governance, and system administration
+
+**Architecture**: React 19.1.0 + Vite 6 + TypeScript 5.9
+
+**Key Features**:
+- System Monitoring (health checks, metrics, logs)
+- Agent Governance (agent management, execution tracking, reputation)
+- Tenant Management
+- 2FA Settings
+- Admin controls
+
+**Deployment**:
+- Production: https://admin.gm365.me
+- Vercel deployment
+
+⚠️ **Cross-Import Restrictions**: ESLint enforces `no-restricted-imports` to prevent accidental imports between frontend-dashboard and owner-console. Use `packages/shared-ui` for shared components.
+
+#### 4.3 Frontend Boundaries and Separation
+
+**IMPORTANT**: The two frontend applications are completely separate and should NOT share code or cross-import from each other.
+
+**Boundary Rules**:
+1. **No Cross-Imports**: `frontend-dashboard` MUST NOT import from `owner-console` and vice versa
+2. **Shared Code**: Common code should be extracted to `packages/shared-ui` or `packages/*`
+3. **API Clients**: Each app has its own API client configuration
+4. **Authentication**: Each app has its own auth flow (though both use the same backend)
+5. **Deployment**: Each app deploys independently to different domains
+
+**Enforcement**:
+- ESLint `no-restricted-imports` rules enforce boundaries
+- CI checks prevent cross-imports
+- Separate package.json dependencies
+
+**Why Separate Apps?**
+- **frontend-dashboard**: End-user facing, analytics focus, public access
+- **owner-console**: Admin facing, governance focus, restricted access
+- Different user personas, different security requirements, different deployment cadences
+
 ---
 
 ## Environment Configuration
+
+### Environment Schema (Single Source of Truth)
+
+**Location**: `config/env.schema.yaml`
+
+**Purpose**: Canonical definition of all environment variables across the entire application
+
+**Key Features**:
+- 56 total variables (19 required, 37 optional)
+- Categorized by purpose (Authentication, Security, Database, Cloud Services, etc.)
+- Type validation (secret, url, string, boolean, integer)
+- Security level classification (critical, secret, public)
+- Comprehensive descriptions and examples
+
+**Generator Script**: `scripts/generate-env-examples.py`
+- Generates `.env.example` files from schema
+- Ensures consistency across all components
+- Run after modifying `config/env.schema.yaml`
+
+**Drift Checker**: `scripts/check-env-drift.py`
+- Validates `.env.example` files match schema
+- Runs in CI to prevent drift
+- Exit code 1 if drift detected
+
+**Workflow**:
+1. Modify `config/env.schema.yaml` (single source of truth)
+2. Run `python scripts/generate-env-examples.py` to regenerate `.env.example` files
+3. Run `python scripts/check-env-drift.py` to verify no drift
+4. Commit all changes together
+### Production URLs
+
+**Frontend Applications** (see [TERMINOLOGY.md](./TERMINOLOGY.md#域名映射-domain-mapping) for domain mapping details):
+- **Tenant Dashboard**: https://app.gm365.me (租戶用戶)
+- **Owner Console**: https://admin.gm365.me (平台所有者)
+- **Legacy URL**: https://morningai.vercel.app (still active, redirects to app.gm365.me)
+
+**Backend Services**:
+- Backend API: https://morningai-backend-v2.onrender.com
+- Orchestrator API: https://morningai-orchestrator-api.onrender.com
 
 ### Production Environment
 
 **Services**:
 - Backend: https://morningai-backend-v2.onrender.com
 - Orchestrator: https://morningai-orchestrator-api.onrender.com
-- Frontend: https://morningai.vercel.app
+- Tenant Dashboard: https://app.gm365.me
+- Owner Console: https://admin.gm365.me
 
 **Infrastructure**:
 - Database: Supabase PostgreSQL (production)
@@ -588,7 +779,7 @@ primary_region = "nrt"
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `src/main.py` | FastAPI application | `handoff/.../api-backend/src/` |
+| `src/main.py` | Flask application | `handoff/.../api-backend/src/` |
 | `src/database.py` | Database connection | `handoff/.../api-backend/src/` |
 | `requirements.txt` | Python dependencies | `handoff/.../api-backend/` |
 | `pytest.ini` | pytest configuration | `handoff/.../api-backend/` |

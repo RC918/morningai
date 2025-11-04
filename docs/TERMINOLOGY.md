@@ -1,8 +1,144 @@
 # MorningAI 術語對照表 (Terminology Guide)
 
-**版本**: 1.0  
-**發布日期**: 2025-10-21  
+**版本**: 1.1  
+**發布日期**: 2025-11-03  
 **用途**: 統一中英文技術術語翻譯，確保文檔、UI、API 的一致性
+
+> 📚 **相關文件**: 
+> - [Onboarding Guide](./ONBOARDING_GUIDE.md) - 新人入職指南和環境設置
+> - [專案結構報告](./PROJECT_STRUCTURE_REPORT.md) - 詳細的目錄組織和架構模式
+> - [README](../README.md) - 專案概覽和快速導航
+
+---
+
+## 應用架構術語 (Application Architecture Terms)
+
+### 前端應用 (Frontend Applications)
+
+#### Tenant Dashboard（租戶端）
+
+**英文**: Tenant Dashboard  
+**中文**: 租戶端  
+**完整描述**: Tenant User Application
+
+**定義**: 租戶用戶（客戶組織成員）使用的前端應用，提供分析、監控和操作功能。
+
+**關鍵特徵**:
+- **使用者**: 租戶用戶（客戶及其團隊成員）
+- **Production URL**: https://app.gm365.me
+- **代碼位置**: `handoff/20250928/40_App/frontend-dashboard/`
+- **主題色**: 藍色
+- **存取範圍**: 僅限租戶範圍資料
+
+**功能**:
+- Dashboard（分析和指標）
+- Strategies（策略管理）
+- Approvals（審批工作流）
+- History（歷史記錄和審計日誌）
+- Costs（成本追蹤）
+
+**別名**（僅供參考，避免在新文檔中使用）:
+- ~~Frontend Dashboard~~（已棄用作為主要術語）
+- ~~End-User Application~~（已棄用）
+
+---
+
+#### Owner Console（平台所有者／治理後台）
+
+**英文**: Owner Console  
+**中文**: 平台所有者／治理後台  
+**簡稱**: 所有者後台
+
+**定義**: 平台所有者使用的管理前端應用，用於管理整個 MorningAI 平台，包括所有租戶、系統監控和治理。
+
+**關鍵特徵**:
+- **使用者**: 僅限平台所有者和管理員
+- **Production URL**: https://admin.gm365.me
+- **代碼位置**: `handoff/20250928/40_App/owner-console/`
+- **主題色**: 紫色
+- **存取範圍**: 平台級存取，所有租戶
+
+**功能**:
+- Agent Governance（信譽、權限、合規性）
+- Tenant Management（帳戶管理、權限）
+- System Monitoring（健康檢查、性能指標）
+- Platform Settings（配置、安全策略）
+
+**別名**（僅供參考，避免在新文檔中使用）:
+- ~~Admin Console~~（避免與租戶管理功能混淆）
+
+---
+
+### 用戶類型 (User Types)
+
+#### Tenant User（租戶用戶）
+
+**英文**: Tenant User  
+**中文**: 租戶用戶
+
+**定義**: 屬於客戶組織（租戶）的用戶，使用 Tenant Dashboard 存取其組織的資料和功能。
+
+**特徵**:
+- 屬於特定租戶/組織
+- 僅能存取自己租戶的資料（由 RLS 強制執行）
+- 使用 https://app.gm365.me
+- 具有租戶範圍權限
+
+**範例**:
+- 查看儀表板的業務分析師
+- 審批策略的產品經理
+- 查看歷史記錄和成本的團隊成員
+
+**禁用術語**（請勿使用）:
+- ❌ End-User / end user
+- ❌ 終端用戶
+- ❌ 最終用戶
+- ❌ Consumer（除非在特定行銷情境中）
+
+---
+
+#### Platform Owner（平台所有者）
+
+**英文**: Platform Owner  
+**中文**: 平台所有者
+
+**定義**: 具有平台級存取權限的管理員，管理整個 MorningAI 系統，包括所有租戶、治理和系統運營。
+
+**特徵**:
+- 在資料庫中具有 `role: 'Owner'`
+- 可存取所有租戶資料
+- 使用 https://admin.gm365.me
+- 管理平台級設定和策略
+
+**範例**:
+- 系統管理員
+- 平台運營人員
+- 治理管理員
+
+---
+
+### 域名映射 (Domain Mapping)
+
+#### Production 環境
+
+| 應用 | 域名 | 使用者 |
+|------|------|--------|
+| Tenant Dashboard | https://app.gm365.me | 租戶用戶 |
+| Owner Console | https://admin.gm365.me | 平台所有者 |
+
+#### Staging 環境
+
+| 應用 | 域名 | 使用者 |
+|------|------|--------|
+| Tenant Dashboard | TBD | 租戶用戶 |
+| Owner Console | TBD | 平台所有者 |
+
+#### Local Development
+
+| 應用 | URL | 使用者 |
+|------|-----|--------|
+| Tenant Dashboard | http://localhost:5173 | 租戶用戶 |
+| Owner Console | http://localhost:5174 | 平台所有者 |
 
 ---
 
@@ -50,6 +186,15 @@
 | Tenant | 租戶 | 技術文檔 | "多租戶隔離策略" |
 | Row-Level Security (RLS) | 行級安全策略 / RLS | 技術文檔 | "啟用 RLS 策略" |
 | Migration | 資料庫遷移 / 遷移 | 技術文檔 | "執行資料庫遷移腳本" |
+| Alembic | Alembic | 技術文檔 | "使用 Alembic 管理 schema 版本" |
+| Baseline Migration | 基線遷移 / Baseline Migration | 技術文檔 | "創建 baseline migration" |
+| Upgrade | 升級 / Upgrade | 技術文檔 | "執行 alembic upgrade head" |
+| Downgrade | 降級 / Downgrade | 技術文檔 | "回滾 migration: alembic downgrade -1" |
+| Revision | 版本 / Revision | 技術文檔 | "Migration revision ID: 91b9a61fcafa" |
+| Enum | 枚舉 / Enum | 技術文檔 | "定義 enum 類型" |
+| Enum Value | 枚舉值 | 技術文檔 | "enum 值必須小寫" |
+| Enum Name | 枚舉名稱 | 技術文檔 | "enum 名稱為大寫" |
+| values_callable | values_callable | 技術文檔 | "使用 values_callable 參數" |
 | Index | 索引 | 技術文檔 | "創建資料庫索引" |
 | Query | 查詢 | 所有文檔 | "執行資料查詢" |
 | Schema | 資料庫模式 / Schema | 技術文檔 | "定義資料庫 schema" |
@@ -60,6 +205,7 @@
 | Foreign Key | 外鍵 | 技術文檔 | "建立外鍵關聯" |
 | Materialized View | 物化視圖 | 技術文檔 | "刷新物化視圖" |
 | Connection Pool | 連接池 | 技術文檔 | "配置資料庫連接池" |
+| DATABASE_URL | DATABASE_URL | 技術文檔 | "設置 DATABASE_URL 環境變數" |
 
 ### 後端架構 (Backend Architecture)
 
