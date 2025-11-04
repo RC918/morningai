@@ -32,6 +32,7 @@ from ..utils.totp_utils import TOTPManager, BackupCodeManager, generate_device_f
 from ..utils.preauth_token import validate_and_consume_preauth_token
 from ..middleware.auth_middleware import jwt_required
 from ..middleware.rate_limit import rate_limit
+from ..middleware.csrf import csrf_protect
 
 logger = logging.getLogger(__name__)
 
@@ -601,11 +602,20 @@ def verify_totp_login():
             if user_data:
                 user = get_user_by_id(user_data['id'])
                 if user:
-                    logger.info(f"Using pre-auth token for user {user['id']}")
+                    logger.info(f"Using pre-auth token for user {user['id']}", extra={
+                        'event': 'preauth_token_used',
+                        'user_id': user['id']
+                    })
                 else:
-                    logger.warning(f"Pre-auth token valid but user {user_data['id']} not found")
+                    logger.warning(f"Pre-auth token valid but user {user_data['id']} not found", extra={
+                        'event': 'preauth_user_not_found',
+                        'user_id': user_data['id']
+                    })
             else:
-                logger.warning("Invalid or expired pre-auth token, falling back to password")
+                logger.warning("Invalid or expired pre-auth token, falling back to password", extra={
+                    'event': 'password_fallback_used',
+                    'reason': 'invalid_preauth_token'
+                })
         
         if not user:
             email = data.get('email')
@@ -619,7 +629,11 @@ def verify_totp_login():
             if not user:
                 return jsonify({'error': 'Invalid email or password'}), 401
             
-            logger.info(f"Using password fallback for user {user['id']}")
+            logger.info(f"Using password fallback for user {user['id']}", extra={
+                'event': 'password_fallback_used',
+                'user_id': user['id'],
+                'reason': 'no_preauth_token'
+            })
         
         user_id = user['id']
         
@@ -696,16 +710,15 @@ def verify_totp_login():
         response = make_response(jsonify(response_data), 200)
         set_auth_cookies(response, access_token, refresh_token, access_expiry_ms)
         
-        if FEATURE_2FA_PREAUTH:
-            response.set_cookie(
-                'pre_auth_token',
-                '',
-                max_age=0,
-                httponly=True,
-                secure=COOKIE_SECURE,
-                samesite='Lax',
-                path='/api/auth/v2/totp'
-            )
+        response.set_cookie(
+            'pre_auth_token',
+            '',
+            max_age=0,
+            httponly=True,
+            secure=COOKIE_SECURE,
+            samesite='Lax',
+            path='/api/auth/v2/totp'
+        )
         
         logger.info(f"2FA login completed successfully for user {user_id}")
         return response

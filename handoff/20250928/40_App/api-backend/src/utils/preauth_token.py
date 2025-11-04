@@ -50,7 +50,11 @@ def generate_preauth_token(user_id: str, email: str, ttl: int = 300) -> str:
         json.dumps(token_data)
     )
     
-    logger.info(f"Pre-auth token issued for user {user_id}, expires in {ttl}s")
+    logger.info(f"Pre-auth token issued for user {user_id}, expires in {ttl}s", extra={
+        'event': 'preauth_token_issued',
+        'user_id': user_id,
+        'ttl': ttl
+    })
     
     return token
 
@@ -77,7 +81,10 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
         stored_data = redis_client.get(redis_key)
         
         if not stored_data:
-            logger.warning("Pre-auth token not found or expired")
+            logger.warning("Pre-auth token not found or expired", extra={
+                'event': 'preauth_token_expired',
+                'token_prefix': token[:8] if token else None
+            })
             return None
         
         # Parse stored data
@@ -92,7 +99,10 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
         # Delete token (one-time-use)
         redis_client.delete(redis_key)
         
-        logger.info(f"Pre-auth token consumed for user {user_id}")
+        logger.info(f"Pre-auth token consumed for user {user_id}", extra={
+            'event': 'preauth_token_consumed',
+            'user_id': user_id
+        })
         
         return {
             'id': user_id,
@@ -100,10 +110,16 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
         }
     
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse pre-auth token data: {e}")
+        logger.error(f"Failed to parse pre-auth token data: {e}", extra={
+            'event': 'preauth_validation_failed',
+            'error': 'json_decode_error'
+        })
         return None
     except Exception as e:
-        logger.error(f"Error validating pre-auth token: {e}")
+        logger.error(f"Error validating pre-auth token: {e}", extra={
+            'event': 'preauth_validation_failed',
+            'error': str(e)
+        })
         return None
 
 
