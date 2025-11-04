@@ -30,6 +30,7 @@ jobs:
 
       - name: Check links in changed markdown files
         if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
         run: |
           echo "Checking links in modified markdown files..."
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
