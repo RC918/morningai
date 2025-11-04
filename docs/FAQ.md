@@ -1,92 +1,88 @@
 # System Architecture of MorningAI
 
-MorningAI leverages a modern, scalable, and efficient architecture designed to provide robust autonomous agent systems for code generation, comprehensive FAQ generation, documentation management, and seamless multi-platform integration. The system architecture is built on a foundation of cutting-edge technologies and frameworks, ensuring high performance, reliability, and ease of use for developers.
+MorningAI employs a modern, scalable, and resilient system architecture designed to support the autonomous generation of code, FAQ documentation management, and multi-platform integration. The architecture is built on a foundation of proven technologies and practices to ensure high performance, reliability, and ease of use for developers.
 
 ## Core Components
 
 ### Frontend
 - **Technology Stack**: React with Vite for bundling and TailwindCSS for styling.
-- **Functionality**: Provides the user interface for interacting with MorningAI's features. It communicates with the backend through RESTful APIs or GraphQL.
-- **Path in Repository**: `RC918/morningai/frontend/`
+- **Functionality**: Provides a responsive user interface for interacting with the platform's features.
+- **Path**: `frontend/`
 
-#### Code Example:
+#### Example:
 ```jsx
-// frontend/src/App.jsx
 import React from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
-import HomePage from './pages/HomePage';
-import Dashboard from './pages/Dashboard';
+import ReactDOM from 'react-dom';
+import './index.css';
+import App from './App';
 
-function App() {
-  return (
-    <Router>
-      <Switch>
-        <Route path="/" exact component={HomePage} />
-        <Route path="/dashboard" component={Dashboard} />
-      </Switch>
-    </Router>
-  );
-}
-
-export default App;
+ReactDOM.render(<App />, document.getElementById('root'));
 ```
 
 ### Backend
-- **Technology Stack**: Python with Flask as the web framework and Gunicorn as the WSGI HTTP Server.
-- **Functionality**: Handles business logic, database operations, authentication, and serves API endpoints.
-- **Path in Repository**: `RC918/morningai/backend/`
+- **Technology Stack**: Python with Flask framework and Gunicorn as the WSGI HTTP Server with multi-worker support for handling requests.
+- **Database**: PostgreSQL managed by Supabase, utilizing Row Level Security (RLS) for data integrity and security.
+- **Path**: `backend/`
 
-#### Code Example:
+#### Example:
 ```python
-# backend/app.py
 from flask import Flask
-from flask_restful import Api
-
 app = Flask(__name__)
-api = Api(app)
 
 @app.route('/')
 def hello_world():
     return 'Hello, World!'
-
-if __name__ == '__main__':
-    app.run(debug=True)
 ```
 
-### Database
-- **Technology Stack**: PostgreSQL with Supabase for easy scaling and row-level security.
-- **Functionality**: Stores user data, generated content, and system configurations securely.
-- **Integration Point**: Backend services interact with the database via ORM or direct SQL queries.
+### AI Integration
+- **Technology**: OpenAI's GPT-4 for generating content.
+- **Usage**: Integrated within backend services to autonomously generate code snippets, FAQs, and other documentation.
 
 ### Queue System
-- **Technology Stack**: Redis Queue (RQ) for managing background tasks with worker heartbeat monitoring.
-- **Functionality**: Handles asynchronous tasks such as large-scale code generation requests or batch processing of data.
+- **Technology Stack**: Redis Queue (RQ) for managing background tasks with real-time task orchestration.
+- **Functionality**: Handles asynchronous tasks such as code generation requests or document processing to ensure efficient operation without blocking the main application flow.
+- **Path**: `queue/`
 
-### AI and Orchestration
-- **AI Technology**: OpenAI GPT-4 for generating content dynamically based on user inputs.
-- **Orchestration Tool**: LangGraph is used for defining and managing workflows of autonomous agents within the system.
+#### Example:
+```python
+from rq import Queue
+from redis import Redis
+from my_module import count_words_at_url
 
-### Deployment
-- **Platform**: Render.com provides hosting with integrated CI/CD pipelines for seamless deployments and updates.
-- **Configuration File Path in Repository**: `.render/*` (This includes Dockerfiles, render.yaml files, etc.)
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+
+result = q.enqueue(count_words_at_url, 'http://nvie.com')
+```
+
+### Deployment and CI/CD
+- **Platform**: Render.com for hosting both frontend and backend components with continuous integration and deployment pipelines.
+- **Features**: Automated deployments from GitHub upon new commits to the main branch, ensuring that the latest version of the application is always available.
 
 ## Related Documentation Links
-- [React Documentation](https://reactjs.org/docs/getting-started.html)
-- [Flask Documentation](https://flask.palletsprojects.com/en/latest/)
-- [Supabase Documentation](https://supabase.io/docs)
-- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
-- [Render Deployment Documentation](https://render.com/docs)
+
+- React: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- Flask: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- Gunicorn: [https://gunicorn.org/#docs](https://gunicorn.org/#docs)
+- PostgreSQL & Supabase: [https://supabase.io/docs](https://supabase.io/docs)
+- Redis Queue (RQ): [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- Render.com CI/CD: [https://render.com/docs](https://render.com/docs)
 
 ## Common Troubleshooting Tips
 
-### Database Connection Issues
-Ensure that the PostgreSQL credentials are correctly set in your environment variables or configuration files. Double-check the Supabase connection string for typos or incorrect parameters.
+**1. Frontend not updating after deployment:**
+Ensure that your CI/CD pipeline in Render.com is correctly configured to build the latest version of your frontend application. Check the build logs for any errors during the deployment process.
 
-### Redis Queue Worker Not Starting
-Verify that Redis is running and accessible. Check your worker startup scripts to ensure they are correctly pointing to your Redis instance. Logs often provide insights into connectivity or startup issues.
+**2. Backend service errors or downtime:**
+Verify that Gunicorn is configured with an appropriate number of workers for your traffic load. Monitor your application logs for any exceptions or error messages that can provide clues about the issue.
 
-### Frontend Build Failures
-Check that all Node.js dependencies are correctly installed with `npm install` or `yarn install`. Ensure that your environment supports all features used by React, Vite, and TailwindCSS. Look into the error logs provided during the build process for specific issues.
+**3. Database connection issues:**
+Ensure that your database credentials are correctly set in your backend configuration. For Supabase-managed PostgreSQL databases, verify that network access is properly configured and that your application's IP addresses are allowed.
+
+**4. Task queue delays or failures:**
+Check the Redis server health and ensure it's running correctly. Review the job queue in RQ Dashboard to identify failed jobs and investigate their error messages.
+
+For more detailed instructions on setup/configuration or additional troubleshooting advice, please refer to our comprehensive developer documentation located in the repository under `docs/`.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -95,6 +91,6 @@ Generated by MorningAI Orchestrator using GPT-4
 
 **Metadata**:
 - Task: What is the system architecture?
-- Trace ID: `27ed9661-7c57-456a-aa09-20e44285ab02`
+- Trace ID: `6acdf323-5f27-4bfa-a725-047945d61662`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
