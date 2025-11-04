@@ -19,11 +19,17 @@ import os
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
 from werkzeug.security import check_password_hash
 from supabase import create_client
 
-from ..services.auth_service import get_user_by_id
+from ..services.auth_service import (
+    get_user_by_id,
+    authenticate_user,
+    generate_access_token,
+    generate_refresh_token,
+    set_auth_cookies
+)
 from ..utils.totp_utils import TOTPManager, BackupCodeManager, generate_device_fingerprint, calculate_device_expiry
 from ..middleware.auth_middleware import jwt_required
 from ..middleware.rate_limit import rate_limit
@@ -479,7 +485,7 @@ def verify_backup_code_for_login(user_id: str, backup_code: str) -> tuple[bool, 
                 supabase.table('totp_backup_codes').update({
                     'used': True,
                     'used_at': datetime.utcnow().isoformat()
-                }).eq('id', code_record['id']).execute()
+                }).eq('user_id', user_id).eq('code_hash', code_record['code_hash']).execute()
                 
                 remaining = supabase.table('totp_backup_codes').select('*').eq('user_id', user_id).eq('used', False).execute()
                 remaining_count = len(remaining.data) if remaining.data else 0
@@ -519,3 +525,120 @@ def check_2fa_required(user_id: str) -> bool:
     except Exception as e:
         logger.error(f"Error checking 2FA requirement: {str(e)}", exc_info=True)
         return False
+
+
+@totp_bp.route('/verify-login', methods=['POST'])
+@rate_limit
+def verify_login():
+    """
+    Verify TOTP/backup code during login and optionally trust device
+    
+    Request:
+        {
+            "email": "user@example.com",
+            "password": "password123",
+            "totp_code": "123456",
+            "backup_code": "XXXX-XXXX-XXXX-XXXX",
+            "remember_device": true,
+            "device_name": "Chrome on MacBook"
+        }
+    
+    Response:
+        {
+            "user": {...},
+            "tokens": {"expiresAt": 1234567890000},
+            "device_trusted": true,
+            "backup_codes_remaining": 7
+        }
+    """
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        totp_code = data.get('totp_code')
+        backup_code = data.get('backup_code')
+        remember_device = data.get('remember_device', False)
+        device_name = data.get('device_name')
+        
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
+        
+        if not totp_code and not backup_code:
+            return jsonify({'error': 'TOTP code or backup code is required'}), 400
+        
+        user = authenticate_user(email, password)
+        if not user:
+            return jsonify({'error': 'Invalid email or password'}), 401
+        
+        user_id = user['id']
+        
+        backup_codes_remaining = None
+        if totp_code:
+            if not verify_totp_for_login(user_id, totp_code):
+                return jsonify({'error': 'Invalid TOTP code'}), 401
+        elif backup_code:
+            is_valid, remaining_codes = verify_backup_code_for_login(user_id, backup_code)
+            if not is_valid:
+                return jsonify({'error': 'Invalid backup code'}), 401
+            backup_codes_remaining = remaining_codes
+        
+        device_trusted = False
+        if remember_device:
+            try:
+                supabase_url = os.environ.get('SUPABASE_URL')
+                supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+                supabase = create_client(supabase_url, supabase_key)
+                
+                client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+                if client_ip:
+                    client_ip = client_ip.split(',')[0].strip()
+                user_agent = request.headers.get('User-Agent', '')
+                
+                device_fingerprint = generate_device_fingerprint(user_agent, client_ip)
+                expires_at = calculate_device_expiry()
+                
+                supabase.table('trusted_devices').upsert({
+                    'user_id': user_id,
+                    'device_fingerprint': device_fingerprint,
+                    'device_name': device_name or 'Unknown Device',
+                    'expires_at': expires_at.isoformat(),
+                    'created_at': datetime.utcnow().isoformat()
+                }, on_conflict='user_id,device_fingerprint').execute()
+                
+                device_trusted = True
+                logger.info(f"Device trusted for user {user_id}")
+            except Exception as e:
+                logger.error(f"Failed to trust device: {str(e)}", exc_info=True)
+        
+        access_token, access_expiry_ms = generate_access_token(
+            user_id, user['email'], user['role']
+        )
+        refresh_token = generate_refresh_token(user_id, user['email'])
+        
+        response_data = {
+            'user': {
+                'id': user_id,
+                'email': user['email'],
+                'name': user['name'],
+                'role': user['role'],
+                'tenantId': user['tenant_id'],
+                'avatar': user.get('avatar')
+            },
+            'tokens': {
+                'expiresAt': access_expiry_ms
+            },
+            'device_trusted': device_trusted
+        }
+        
+        if backup_codes_remaining is not None:
+            response_data['backup_codes_remaining'] = backup_codes_remaining
+        
+        response = make_response(jsonify(response_data), 200)
+        set_auth_cookies(response, access_token, refresh_token, access_expiry_ms)
+        
+        logger.info(f"User verified login successfully: {user['email']}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Verify login failed: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500

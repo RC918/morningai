@@ -29,6 +29,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from src.routes.totp import verify_backup_code_for_login, verify_totp_for_login, check_2fa_required
+
 auth_enhanced_bp = Blueprint('auth_enhanced', __name__)
 
 
@@ -80,17 +82,29 @@ def get_csrf_token():
 @auth_enhanced_bp.route('/login', methods=['POST'])
 def login():
     """
-    Login with email and password
+    Login with email and password, with 2FA support
     
     Sets HttpOnly cookies for access and refresh tokens
     
     Request body:
         {
             "email": "user@example.com",
-            "password": "password123"
+            "password": "password123",
+            "totp_code": "123456",  // Optional: for 2FA verification
+            "backup_code": "XXXX-XXXX-XXXX-XXXX"  // Optional: alternative to totp_code
         }
     
-    Response:
+    Response (2FA required):
+        {
+            "requires_2fa": true,
+            "user": {
+                "id": "user-001",
+                "email": "user@example.com",
+                "role": "owner"
+            }
+        }
+    
+    Response (success):
         {
             "user": {
                 "id": "user-001",
@@ -101,13 +115,16 @@ def login():
             },
             "tokens": {
                 "expiresAt": 1234567890000
-            }
+            },
+            "backup_codes_remaining": 7  // Only if backup_code was used
         }
     """
     try:
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
+        totp_code = data.get('totp_code')
+        backup_code = data.get('backup_code')
         
         if not email or not password:
             return jsonify({'message': 'Email and password are required'}), 400
@@ -116,17 +133,52 @@ def login():
         if not user:
             return jsonify({'message': 'Invalid email or password'}), 401
         
+        user_id = user['id']
+        user_role = user['role']
+        
+        is_2fa_enabled = check_2fa_required(user_id)
+        
+        if user_role == 'owner' and not is_2fa_enabled:
+            return jsonify({
+                'requires_2fa': True,
+                'message': 'Owner accounts must enable 2FA before login',
+                'user': {
+                    'id': user_id,
+                    'email': user['email'],
+                    'role': user_role
+                }
+            }), 200
+        
+        if is_2fa_enabled:
+            if not totp_code and not backup_code:
+                return jsonify({
+                    'requires_2fa': True,
+                    'user': {
+                        'id': user_id,
+                        'email': user['email'],
+                        'role': user_role
+                    }
+                }), 200
+            
+            if totp_code:
+                if not verify_totp_for_login(user_id, totp_code):
+                    return jsonify({'message': 'Invalid TOTP code'}), 401
+            elif backup_code:
+                is_valid, remaining_codes = verify_backup_code_for_login(user_id, backup_code)
+                if not is_valid:
+                    return jsonify({'message': 'Invalid backup code'}), 401
+        
         access_token, access_expiry_ms = generate_access_token(
-            user['id'], user['email'], user['role']
+            user_id, user['email'], user_role
         )
-        refresh_token = generate_refresh_token(user['id'], user['email'])
+        refresh_token = generate_refresh_token(user_id, user['email'])
         
         response_data = {
             'user': {
-                'id': user['id'],
+                'id': user_id,
                 'email': user['email'],
                 'name': user['name'],
-                'role': user['role'],
+                'role': user_role,
                 'tenantId': user['tenant_id'],
                 'avatar': user.get('avatar')
             },
@@ -134,6 +186,10 @@ def login():
                 'expiresAt': access_expiry_ms
             }
         }
+        
+        if backup_code and is_2fa_enabled:
+            _, remaining_codes = verify_backup_code_for_login(user_id, backup_code)
+            response_data['backup_codes_remaining'] = remaining_codes
         
         response = make_response(jsonify(response_data), 200)
         set_auth_cookies(response, access_token, refresh_token, access_expiry_ms)
