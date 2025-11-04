@@ -41,7 +41,8 @@ class TestDashboardDegradationPaths:
 
     def test_db_failure_degradation(self, client):
         """Test dashboard returns fallback data when DB fails"""
-        with patch('src.extensions.db.engine.connect') as mock_db:
+        from src.extensions import db
+        with patch.object(db.engine, 'connect') as mock_db:
             mock_db.side_effect = Exception("Database connection failed")
             
             response = client.get('/api/phase7/monitoring/dashboard')
@@ -68,8 +69,9 @@ class TestDashboardDegradationPaths:
 
     def test_dual_failure_returns_503(self, client):
         """Test dashboard returns 503 Service Unavailable when both Redis and DB fail"""
+        from src.extensions import db
         with patch('src.utils.redis_client.get_redis_client') as mock_redis, \
-             patch('src.extensions.db.engine.connect') as mock_db:
+             patch.object(db.engine, 'connect') as mock_db:
             
             mock_redis.side_effect = Exception("Redis connection failed")
             mock_db.side_effect = Exception("Database connection failed")
