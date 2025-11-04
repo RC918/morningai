@@ -540,6 +540,55 @@ class Test2FAIntegration:
                 result = check_2fa_required('user-123')
                 
                 assert result is False
+    
+    def test_verify_login_feature_disabled(self, client, mock_redis):
+        """Test that verify-login returns 403 when 2FA feature is disabled"""
+        response = client.post('/api/auth/v2/totp/verify-login',
+            json={
+                'email': 'owner@example.com',
+                'password': 'test_password',
+                'totp_code': '123456'
+            }
+        )
+        
+        assert response.status_code == 403
+        data = json.loads(response.data)
+        assert 'error' in data
+    
+    def test_verify_login_invalid_totp_format(self, client, mock_redis):
+        """Test that verify-login returns 400 for invalid TOTP format"""
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+            mock_feature.return_value = True
+            
+            with patch('src.services.auth_service.authenticate_user') as mock_auth:
+                mock_auth.return_value = {
+                    'id': 'user-001',
+                    'email': 'owner@example.com',
+                    'role': 'owner'
+                }
+                
+                with patch('src.routes.totp.check_2fa_required') as mock_2fa:
+                    mock_2fa.return_value = True
+                    
+                    response = client.post('/api/auth/v2/totp/verify-login',
+                        json={
+                            'email': 'owner@example.com',
+                            'password': 'test_password',
+                            'totp_code': 'abc123'
+                        }
+                    )
+                    
+                    assert response.status_code == 400
+                    data = json.loads(response.data)
+                    assert 'error' in data
+    
+    def test_check_2fa_required_feature_disabled(self, client, mock_redis):
+        """Test that check_2fa_required returns False when feature is disabled"""
+        from src.routes.totp import check_2fa_required
+        
+        result = check_2fa_required('user-123')
+        
+        assert result is False
 
 
 if __name__ == '__main__':
