@@ -55,6 +55,7 @@ def mock_jwt_decode(monkeypatch, mock_user_id):
 def enable_2fa_feature(monkeypatch):
     """Enable 2FA feature flag for all tests."""
     monkeypatch.setenv('FEATURE_2FA_ENABLED', 'true')
+    monkeypatch.setenv('FORCE_ENABLE_2FA_IN_TESTS', 'true')
 
 
 @pytest.fixture
