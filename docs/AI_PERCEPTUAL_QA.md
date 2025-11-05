@@ -825,3 +825,82 @@ Common issues:
 - Design Tokens: `packages/shared-ui/src/tokens.json`
 - Motion Tests: `handoff/20250928/40_App/*/scripts/test-motion.cjs`
 - UX Pipeline: `.github/workflows/ux-pipeline.yml`
+
+## Calibration Infrastructure (Phase 2 v2)
+
+**Status:** Implemented  
+**Purpose:** Collect and analyze AI QA results to tune thresholds and optimize prompt versions.
+
+### Overview
+
+The calibration infrastructure automatically aggregates AI Perceptual QA results into a CSV file for statistical analysis. This enables data-driven threshold tuning and prompt optimization.
+
+### Components
+
+#### 1. Prompt Version Control
+
+**Location:** `prompts/ux_vision_v0.1.json`
+
+Prompts are now versioned and stored as JSON files, enabling:
+- A/B testing between prompt versions
+- Tracking which prompt version produced each score
+- Easy rollback if a new prompt performs poorly
+
+**Usage:**
+```bash
+# Use default prompt (v0.1)
+OPENAI_API_KEY=sk-... pnpm run ux:qa
+
+# Test new prompt version
+PROMPT_VERSION=v0.2 OPENAI_API_KEY=sk-... pnpm run ux:qa
+```
+
+#### 2. Metadata Tracking
+
+AI QA reports now include calibration metadata:
+- `prompt_version`: Version of prompt used (e.g., "v0.1")
+- `commit_sha`: Git commit SHA
+- `pr_number`: GitHub PR number (if available)
+- `model`: AI model used (e.g., "gpt-4o-mini")
+
+#### 3. Calibration Data Aggregator
+
+**Script:** `scripts/ux/analyze.mjs`
+
+Reads UX QA reports and generates `calibration.csv` with per-page rows for analysis.
+
+**CSV Columns:** row_id, prompt_version, model, app, page_route, page_name, harmony_score, delight_score, pr_number, commit_sha, labels, decision, timestamp, source_file
+
+**Usage:**
+```bash
+# Local analysis
+pnpm run ux:analyze
+
+# Custom input/output
+INPUT_DIR=./ux-qa-results OUTPUT_FILE=./my-calibration.csv pnpm run ux:analyze
+```
+
+#### 4. GitHub Labels
+
+Four labels for calibration tracking:
+- `ai-calibration-good` (Green): PR with good UX (expected to pass)
+- `ai-calibration-bad` (Red): PR with known UX issues (expected to fail)
+- `ai-qa-bypass` (Yellow): Emergency bypass for AI QA
+- `ai-qa-blocking-optin` (Blue): Opt-in to blocking mode (early testing)
+
+#### 5. Tracking Files
+
+- **CALIBRATION_TRACKER.md**: Manual tracking table for calibration PRs
+- **CALIBRATION_REPORT_v1.md**: Template for calibration analysis report
+
+### Workflow Integration
+
+Every PR with AI QA enabled automatically produces a calibration.csv artifact (retention: 30 days).
+
+### Data Collection Strategy
+
+**Week 1:** Collect 20-30 PRs (15-20 good, 8-10 bad with isolated UX issues)  
+**Week 2:** Analyze data, tune thresholds, document findings  
+**Week 3-4:** Progressive rollout with opt-in blocking
+
+See CALIBRATION_TRACKER.md and CALIBRATION_REPORT_v1.md for details.

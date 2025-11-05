@@ -406,6 +406,13 @@ jobs:
         run: pnpm run ux:qa
         continue-on-error: true
       
+      - name: Generate calibration data
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm run ux:analyze
+        continue-on-error: true
+      
       - name: Stop preview server
         if: always()
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
@@ -421,6 +428,14 @@ jobs:
           name: ux-qa-results-${{ matrix.app }}
           path: ux-qa-results/
           retention-days: 7
+      
+      - name: Upload calibration data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibration-csv-${{ matrix.app }}
+          path: calibration.csv
+          retention-days: 30
       
       - name: Check thresholds
         if: always()

@@ -1,0 +1,37 @@
+{
+  "version": "v0.1",
+  "name": "UX Vision Perceptual QA",
+  "description": "AI-powered visual harmony scoring based on design system tokens",
+  "model_defaults": {
+    "model": "gpt-4o-mini",
+    "temperature": 0,
+    "max_tokens": 1500,
+    "image_detail": "auto"
+  },
+  "system_message": "You are a UI design QA assistant. Output strict JSON only.",
+  "user_template": "You are a UI design QA assistant. Analyze this screenshot for visual harmony based on the design system tokens provided.\n\n**Design System Tokens:**\n{tokens}\n\n**Page Context:**\n- Name: {page_name}\n- Description: {page_description}\n\n**Evaluation Rubric (0-100 scale):**\n\n1. **Color Harmony (0-100):**\n   - Are colors from the token palette?\n   - Is contrast sufficient (WCAG AA minimum)?\n   - Is brand color usage consistent?\n   - Penalize: non-token colors, poor contrast, inconsistent brand usage\n\n2. **Spacing Consistency (0-100):**\n   - Do margins/padding follow the spacing scale?\n   - Is vertical rhythm consistent?\n   - Are elements properly spaced?\n   - Penalize: arbitrary spacing, inconsistent rhythm, cramped/loose layouts\n\n3. **Typography Consistency (0-100):**\n   - Do font sizes match the typography scale?\n   - Are font weights appropriate?\n   - Is line-height comfortable?\n   - Penalize: off-scale sizes, inconsistent weights, poor readability\n\n4. **Alignment & Grid (0-100):**\n   - Are elements properly aligned?\n   - Is the grid system consistent?\n   - Are cards/components aligned?\n   - Penalize: misaligned elements, ragged grids, inconsistent columns\n\n5. **Contrast Quality (0-100):**\n   - Is text readable against backgrounds?\n   - Are interactive elements distinguishable?\n   - Is visual hierarchy clear?\n   - Penalize: low contrast, unclear hierarchy, hard-to-read text\n\n**Output Requirements:**\n- Provide scores for each dimension (0-100)\n- Calculate overall score as weighted average: (color*0.25 + spacing*0.20 + typography*0.20 + alignment*0.20 + contrast*0.15)\n- List 3-5 actionable findings (specific issues or improvements)\n- Be objective and consistent\n- Output ONLY valid JSON matching the schema\n\n**JSON Schema:**\n{schema}",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "overall": { "type": "number", "minimum": 0, "maximum": 100 },
+      "color": { "type": "number", "minimum": 0, "maximum": 100 },
+      "spacing": { "type": "number", "minimum": 0, "maximum": 100 },
+      "typography": { "type": "number", "minimum": 0, "maximum": 100 },
+      "alignment": { "type": "number", "minimum": 0, "maximum": 100 },
+      "contrast": { "type": "number", "minimum": 0, "maximum": 100 },
+      "findings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "maxItems": 5
+      }
+    },
+    "required": ["overall", "color", "spacing", "typography", "alignment", "contrast", "findings"]
+  },
+  "weights": {
+    "color": 0.25,
+    "spacing": 0.20,
+    "typography": 0.20,
+    "alignment": 0.20,
+    "contrast": 0.15
+  }
+}
