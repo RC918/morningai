@@ -6,7 +6,7 @@
  */
 
 const { chromium } = require('@playwright/test');
-const { injectAxe } = require('@axe-core/playwright');
+const AxeBuilder = require('@axe-core/playwright').default;
 const fs = require('fs');
 const path = require('path');
 
@@ -57,13 +57,8 @@ async function runA11yTests() {
         timeout: 10000 
       });
       
-      await injectAxe(page);
-      
-      const violations = await page.evaluate(async () => {
-        const axe = window.axe;
-        const results = await axe.run();
-        return results.violations;
-      });
+      const accessibilityScanResults = await new AxeBuilder({ page }).analyze();
+      const violations = accessibilityScanResults.violations;
       
       const criticalViolations = violations.filter(v => 
         v.impact === 'critical' || v.impact === 'serious'
