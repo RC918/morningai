@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MetricsDashboard } from '../MetricsDashboard';
 
 vi.mock('react-i18next', () => ({
@@ -27,6 +28,7 @@ vi.mock('react-i18next', () => ({
         'metricsDashboard.tabs.agents': 'Agents',
         'metricsDashboard.tabs.systemHealth': 'System Health',
         'metricsDashboard.tabs.performance': 'Performance',
+        'metricsDashboard.agents.noData': 'No agent data available. Agent metrics will be displayed here once the monitoring system collects data.',
         'metricsDashboard.agent.idLabel': `ID: ${params?.id || ''}`,
         'metricsDashboard.agent.reputationScore': 'Reputation Score',
         'metricsDashboard.agent.successRate': 'Success Rate',
@@ -298,6 +300,7 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should display empty agent state when no agents', async () => {
+      const user = userEvent.setup();
       mockApiClientWithMeta.mockResolvedValueOnce({
         status: 200,
         data: mockData,
@@ -307,8 +310,14 @@ describe('MetricsDashboard Component (P1)', () => {
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/No agent data available/i)).toBeInTheDocument();
+        expect(screen.getByText('HEALTHY')).toBeInTheDocument();
       });
+
+      const agentsTab = screen.getByRole('tab', { name: /agents/i });
+      await user.click(agentsTab);
+
+      const emptyStateText = await screen.findByText(/No agent data available/i, {}, { timeout: 3000 });
+      expect(emptyStateText).toBeInTheDocument();
     });
   });
 
@@ -487,6 +496,7 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should handle empty agents array and show empty state', async () => {
+      const user = userEvent.setup();
       const backendResponse = {
         timestamp: '2025-11-05T00:00:00Z',
         system_health: 'healthy',
@@ -507,8 +517,14 @@ describe('MetricsDashboard Component (P1)', () => {
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/No agent data available/i)).toBeInTheDocument();
+        expect(screen.getByText('HEALTHY')).toBeInTheDocument();
       });
+
+      const agentsTab = screen.getByRole('tab', { name: /agents/i });
+      await user.click(agentsTab);
+
+      const emptyStateText = await screen.findByText(/No agent data available/i, {}, { timeout: 3000 });
+      expect(emptyStateText).toBeInTheDocument();
     });
   });
 });
