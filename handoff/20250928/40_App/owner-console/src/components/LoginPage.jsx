@@ -239,7 +239,7 @@ const LoginPage = ({ onLogin, onAuthenticated }) => {
 
       <TwoFactorVerify
         open={show2FADialog}
-        onClose={handle2FACancel}
+        onClose={() => setShow2FADialog(false)}
         onVerify={handle2FAVerify}
       />
     </div>

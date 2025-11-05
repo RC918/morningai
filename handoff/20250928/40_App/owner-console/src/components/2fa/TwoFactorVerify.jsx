@@ -104,7 +104,7 @@ export function TwoFactorVerify({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
