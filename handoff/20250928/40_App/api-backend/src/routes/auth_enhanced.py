@@ -157,7 +157,7 @@ def login():
                         max_age=PREAUTH_TOKEN_TTL,
                         httponly=True,
                         secure=COOKIE_SECURE,
-                        samesite='Lax',
+                        samesite=COOKIE_SAMESITE,
                         path='/api/auth/v2/totp'
                     )
                     
