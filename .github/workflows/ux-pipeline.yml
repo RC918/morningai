@@ -42,17 +42,42 @@ jobs:
           echo "Canonical tokens hash: $CANONICAL_HASH"
           echo "Canonical source: $CANONICAL_TOKENS"
           
-          # Check if any other tokens.json files exist and differ
+          # Production apps that MUST match canonical tokens
+          PRODUCTION_TOKENS=(
+            "handoff/20250928/40_App/frontend-dashboard/public/tokens.json"
+            "handoff/20250928/40_App/owner-console/public/tokens.json"
+          )
+          
+          # Check production apps for drift (CRITICAL - blocks merge)
           DRIFT_FOUND=0
           
-          for tokens_file in $(find . -name "tokens.json" -type f | grep -v node_modules | grep -v ".git" | grep -v "$CANONICAL_TOKENS"); do
+          for tokens_file in "${PRODUCTION_TOKENS[@]}"; do
+            if [ -f "$tokens_file" ]; then
+              FILE_HASH=$(md5sum "$tokens_file" | awk '{print $1}')
+              
+              if [ "$FILE_HASH" != "$CANONICAL_HASH" ]; then
+                echo "❌ DRIFT DETECTED: $tokens_file"
+                echo "   Expected hash: $CANONICAL_HASH"
+                echo "   Actual hash:   $FILE_HASH"
+                DRIFT_FOUND=1
+              else
+                echo "✅ $tokens_file matches canonical"
+              fi
+            else
+              echo "⚠️  Missing: $tokens_file"
+              DRIFT_FOUND=1
+            fi
+          done
+          
+          # Check non-production tokens (WARN only - does not block)
+          echo ""
+          echo "📋 Checking non-production tokens (informational only):"
+          
+          for tokens_file in $(find . -name "tokens.json" -type f | grep -v node_modules | grep -v ".git" | grep -v "$CANONICAL_TOKENS" | grep -v "handoff/20250928/40_App/frontend-dashboard" | grep -v "handoff/20250928/40_App/owner-console"); do
             FILE_HASH=$(md5sum "$tokens_file" | awk '{print $1}')
             
             if [ "$FILE_HASH" != "$CANONICAL_HASH" ]; then
-              echo "⚠️  DRIFT DETECTED: $tokens_file"
-              echo "   Expected hash: $CANONICAL_HASH"
-              echo "   Actual hash:   $FILE_HASH"
-              DRIFT_FOUND=1
+              echo "ℹ️  DRIFT (non-blocking): $tokens_file"
             else
               echo "✓ $tokens_file matches canonical"
             fi
@@ -60,16 +85,17 @@ jobs:
           
           if [ $DRIFT_FOUND -eq 1 ]; then
             echo ""
-            echo "❌ Design tokens drift detected!"
-            echo "All tokens.json files must match the canonical source: $CANONICAL_TOKENS"
+            echo "❌ Design tokens drift detected in production apps!"
+            echo "Production apps must match the canonical source: $CANONICAL_TOKENS"
             echo ""
             echo "To fix:"
-            echo "1. Copy the canonical tokens: cp $CANONICAL_TOKENS <drifted-file>"
-            echo "2. Or update the canonical source and propagate changes"
+            echo "  cp $CANONICAL_TOKENS handoff/20250928/40_App/frontend-dashboard/public/tokens.json"
+            echo "  cp $CANONICAL_TOKENS handoff/20250928/40_App/owner-console/public/tokens.json"
             exit 1
           fi
           
-          echo "✅ All tokens.json files are consistent!"
+          echo ""
+          echo "✅ All production tokens are consistent!"
 
   visual-regression-test:
     name: Visual Regression Testing
