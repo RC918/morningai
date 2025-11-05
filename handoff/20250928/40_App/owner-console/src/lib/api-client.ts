@@ -75,7 +75,13 @@ export async function apiClient<T>(
  */
 export async function bootstrapCsrf(): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
+    const csrfUrl = `${API_BASE_URL}/api/auth/v2/csrf`;
+    console.debug('[api-client.ts] bootstrapCsrf() called');
+    console.debug('[api-client.ts] API_BASE_URL =', API_BASE_URL);
+    console.debug('[api-client.ts] CSRF URL =', csrfUrl);
+    console.debug('[api-client.ts] import.meta.env.VITE_API_BASE_URL =', import.meta.env.VITE_API_BASE_URL);
+    
+    const response = await fetch(csrfUrl, {
       credentials: 'include',
     });
     

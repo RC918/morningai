@@ -246,7 +246,13 @@ async function ensureCsrfToken(): Promise<void> {
   
   csrfTokenPromise = (async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
+      const csrfUrl = `${API_BASE_URL}/api/auth/v2/csrf`;
+      console.debug('[auth.ts] ensureCsrfToken() called');
+      console.debug('[auth.ts] API_BASE_URL =', API_BASE_URL);
+      console.debug('[auth.ts] CSRF URL =', csrfUrl);
+      console.debug('[auth.ts] import.meta.env.VITE_API_BASE_URL =', import.meta.env.VITE_API_BASE_URL);
+      
+      const response = await fetch(csrfUrl, {
         method: 'GET',
         credentials: 'include',
       });
