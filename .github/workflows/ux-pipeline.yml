@@ -301,7 +301,7 @@ jobs:
   ai-perceptual-qa:
     name: AI Perceptual QA
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && vars.UX_AI_ENABLE == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -402,7 +402,7 @@ jobs:
             echo ""
             echo "ℹ️  AI Perceptual QA is informational only (non-blocking)"
           else
-            echo "⏭️  AI Perceptual QA skipped (OPENAI_API_KEY not set)"
+            echo "⚠️  UX report not generated (check previous steps for errors)"
           fi
 
   ux-quality-gate:
