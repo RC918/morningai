@@ -138,7 +138,7 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
                 style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
               />
               <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white">Morning AI</h1>
+                <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
                 <p className="text-xs text-gray-600 dark:text-gray-600">{t('sidebar.header.subtitle')}</p>
               </div>
             </Link>
