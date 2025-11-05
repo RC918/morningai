@@ -82,21 +82,28 @@ export async function apiClient<T>(
 export async function bootstrapCsrf(): Promise<void> {
   try {
     const csrfUrl = `${API_BASE_URL}/api/auth/v2/csrf`;
-    console.debug('[api-client.ts] bootstrapCsrf() called');
-    console.debug('[api-client.ts] API_BASE_URL =', API_BASE_URL);
-    console.debug('[api-client.ts] CSRF URL =', csrfUrl);
-    console.debug('[api-client.ts] import.meta.env.VITE_API_BASE_URL =', import.meta.env.VITE_API_BASE_URL);
     
     const response = await fetch(csrfUrl, {
       credentials: 'include',
     });
     
-    if (response.ok) {
-      const data = await response.json();
-      if (data.csrf_token) {
-        csrfTokenCache = data.csrf_token;
-        console.debug('CSRF token cached from response body');
-      }
+    if (!response.ok) {
+      console.warn(`CSRF bootstrap failed: ${response.status} ${response.statusText}`);
+      return;
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('CSRF bootstrap error: Expected JSON but got', contentType);
+      console.error('Request URL:', csrfUrl);
+      console.error('Response preview:', text.substring(0, 200));
+      return;
+    }
+    
+    const data = await response.json();
+    if (data.csrf_token) {
+      csrfTokenCache = data.csrf_token;
     }
   } catch (error) {
     console.warn('Failed to bootstrap CSRF token:', error);

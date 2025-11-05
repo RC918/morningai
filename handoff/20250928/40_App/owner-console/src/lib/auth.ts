@@ -282,23 +282,29 @@ async function ensureCsrfToken(): Promise<void> {
   csrfTokenPromise = (async () => {
     try {
       const csrfUrl = `${API_BASE_URL}/api/auth/v2/csrf`;
-      console.debug('[auth.ts] ensureCsrfToken() called');
-      console.debug('[auth.ts] API_BASE_URL =', API_BASE_URL);
-      console.debug('[auth.ts] CSRF URL =', csrfUrl);
-      console.debug('[auth.ts] import.meta.env.VITE_API_BASE_URL =', import.meta.env.VITE_API_BASE_URL);
       
       const response = await fetch(csrfUrl, {
         method: 'GET',
         credentials: 'include',
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.csrf_token) {
-          storeCsrfToken(data.csrf_token);
-        }
-      } else {
+      if (!response.ok) {
         console.error('Failed to fetch CSRF token:', response.status, response.statusText);
+        return;
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('CSRF fetch error: Expected JSON but got', contentType);
+        console.error('Request URL:', csrfUrl);
+        console.error('Response preview:', text.substring(0, 200));
+        return;
+      }
+      
+      const data = await response.json();
+      if (data.csrf_token) {
+        storeCsrfToken(data.csrf_token);
       }
     } catch (error) {
       console.error('Failed to fetch CSRF token:', error);
