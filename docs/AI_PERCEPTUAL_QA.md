@@ -241,19 +241,246 @@ open ux-qa-results/frontend-dashboard-ux-report.html
 SKIP_AI=true pnpm run ux:qa
 ```
 
-## Calibration Period
+## Calibration Process
 
-**Phase 2 v1 is informational only:**
-- AI scores are logged but don't block merges
-- Allows calibration of thresholds
-- Identifies noisy/inconsistent scoring
-- Builds baseline data
+**Current Status:** Phase 2 v1 (Informational Only)
 
-**Future (Phase 2 v2):**
-- After 2-3 weeks of data collection
-- Set conservative thresholds
-- Enable blocking on critical violations
-- Add label override mechanism
+AI Perceptual QA is currently in **calibration mode** - scores are logged but don't block merges. Before enabling Phase 2 v2 (blocking thresholds), we need to collect baseline data and tune thresholds based on real-world usage.
+
+### Why Calibration is Needed
+
+AI scoring can be subjective and context-dependent. Without calibration:
+- Thresholds may be too strict (false positives - good UX flagged as bad)
+- Thresholds may be too lenient (false negatives - bad UX passing checks)
+- Score variance may be too high (inconsistent scoring)
+- Team may lose trust in the system
+
+### Calibration Methodology
+
+#### Phase 1: Data Collection (2-4 weeks)
+
+**Goal:** Collect 20-30 PR samples to understand score distributions.
+
+**Process:**
+1. **Enable AI Perceptual QA** on all UX-critical PRs:
+   - Design system updates
+   - Major UI refactors
+   - New page implementations
+   - Component library changes
+
+2. **Record scores** in a tracking spreadsheet:
+   ```
+   | PR # | Page | Harmony | Motion | Delight | Notes |
+   |------|------|---------|--------|---------|-------|
+   | 1234 | Landing | 82 | 95 | 88.5 | Good |
+   | 1235 | Dashboard | 68 | 88 | 78 | Color issues |
+   ```
+
+3. **Categorize PRs** by outcome:
+   - ✅ **Good UX** (team agrees quality is high)
+   - ⚠️ **Acceptable UX** (minor issues, but mergeable)
+   - ❌ **Poor UX** (should have been caught)
+
+4. **Document patterns**:
+   - Which pages typically score lower?
+   - Which dimensions (color, spacing, etc.) are most variable?
+   - Are there systematic biases? (e.g., dark mode always scores lower)
+
+#### Phase 2: Statistical Analysis
+
+**Goal:** Determine realistic thresholds based on collected data.
+
+**Analysis Steps:**
+
+1. **Calculate percentiles** for each metric:
+   ```
+   Visual Harmony:
+   - P10: 65
+   - P25: 72
+   - P50 (median): 78
+   - P75: 85
+   - P90: 92
+   
+   Delight Index:
+   - P10: 70
+   - P25: 76
+   - P50: 82
+   - P75: 88
+   - P90: 94
+   ```
+
+2. **Correlate scores with outcomes**:
+   - What % of "Good UX" PRs scored above 80?
+   - What % of "Poor UX" PRs scored below 70?
+   - Where is the optimal threshold to minimize false positives/negatives?
+
+3. **Identify outliers**:
+   - PRs with high scores but poor UX (false negatives)
+   - PRs with low scores but good UX (false positives)
+   - Investigate root causes (AI misunderstanding, edge cases, etc.)
+
+4. **Set thresholds** based on data:
+   - **Minimum threshold**: P25-P30 (catches bottom 25-30% of PRs)
+   - **Target threshold**: P75-P80 (aspirational, not blocking)
+   - **Critical threshold**: P10 (absolute minimum, blocks merge)
+
+**Example threshold tuning:**
+```javascript
+// Current (uncalibrated)
+THRESHOLDS: {
+  harmony: { min: 70, target: 85 },
+  delight: { min: 75, target: 90 },
+}
+
+// After calibration (example)
+THRESHOLDS: {
+  harmony: { critical: 60, min: 72, target: 85 },
+  delight: { critical: 65, min: 76, target: 88 },
+}
+```
+
+#### Phase 3: Validation (1 week)
+
+**Goal:** Test thresholds on historical PRs to verify accuracy.
+
+**Process:**
+1. **Backtest** on collected data:
+   - Apply new thresholds to all 20-30 PRs
+   - Count false positives (good UX blocked)
+   - Count false negatives (poor UX passed)
+   - Target: <10% false positive rate
+
+2. **Dry-run mode**:
+   - Enable blocking in CI but with `continue-on-error: true`
+   - Log which PRs would have been blocked
+   - Review with team for 1 week
+
+3. **Adjust thresholds** based on feedback:
+   - If too many false positives: lower thresholds
+   - If too many false negatives: raise thresholds
+   - If high variance: investigate AI prompt or scoring logic
+
+#### Phase 4: Phase 2 v2 Rollout
+
+**Goal:** Enable blocking mode with confidence.
+
+**Implementation:**
+1. **Update workflow** (`.github/workflows/ux-pipeline.yml`):
+   ```yaml
+   - name: Run AI Perceptual QA
+     run: pnpm run ux:qa
+     continue-on-error: false  # Change from true to false
+   ```
+
+2. **Add override mechanism**:
+   - Label: `ux-qa-override` to bypass checks
+   - Requires approval from design lead
+   - Document reason in PR description
+
+3. **Monitor for 1 week**:
+   - Track override usage (should be <5% of PRs)
+   - Collect feedback from team
+   - Fine-tune thresholds if needed
+
+4. **Document final thresholds** in this file
+
+### Score Interpretation Guide
+
+Understanding what scores mean in practice:
+
+**Visual Harmony Scores:**
+- **90-100**: Exceptional - Perfect adherence to design system
+- **80-89**: Good - Minor deviations, acceptable quality
+- **70-79**: Acceptable - Some issues, but not critical
+- **60-69**: Poor - Multiple violations, needs review
+- **<60**: Critical - Significant design system violations
+
+**Motion Performance Scores:**
+- **90-100**: Excellent - Smooth, no dropped frames
+- **80-89**: Good - Occasional frame drops, acceptable
+- **70-79**: Acceptable - Noticeable jank, but usable
+- **60-69**: Poor - Frequent frame drops, poor UX
+- **<60**: Critical - Severe performance issues
+
+**Delight Index:**
+- **85-100**: Delightful - High-quality UX
+- **75-84**: Good - Solid UX, minor improvements possible
+- **65-74**: Acceptable - Meets minimum standards
+- **55-64**: Poor - Below standards, needs improvement
+- **<55**: Critical - Unacceptable UX quality
+
+### Threshold Adjustment Process
+
+When to adjust thresholds:
+
+1. **Too many false positives** (>10% of PRs):
+   - Lower minimum thresholds by 5 points
+   - Review AI prompt for biases
+   - Consider page-specific thresholds
+
+2. **Too many false negatives** (poor UX passing):
+   - Raise minimum thresholds by 5 points
+   - Add more specific scoring criteria
+   - Review design token coverage
+
+3. **High score variance** (same page, different scores):
+   - Investigate AI model consistency
+   - Add more context to prompts
+   - Consider averaging multiple runs
+
+4. **Team feedback** (scores don't match perception):
+   - Collect specific examples
+   - Adjust dimension weights
+   - Refine scoring rubric
+
+### Override Procedures
+
+For Phase 2 v2 (blocking mode), when a PR fails AI Perceptual QA:
+
+1. **Review findings** in HTML report:
+   ```bash
+   open ux-qa-results/frontend-dashboard-ux-report.html
+   ```
+
+2. **Assess validity**:
+   - Are the findings accurate?
+   - Are they critical enough to block merge?
+   - Is this a false positive?
+
+3. **Fix issues** (preferred):
+   - Address color/spacing/typography violations
+   - Improve motion performance
+   - Re-run QA to verify fixes
+
+4. **Request override** (if false positive):
+   - Add label: `ux-qa-override`
+   - Document reason in PR description
+   - Get approval from design lead
+   - Merge with override
+
+5. **Report false positives**:
+   - Create issue with PR link and screenshots
+   - Help improve calibration
+   - Adjust thresholds if pattern emerges
+
+### Historical Data Tracking
+
+**Recommended tracking spreadsheet:**
+
+| Date | PR # | App | Page | Harmony | Motion | Delight | Outcome | Notes |
+|------|------|-----|------|---------|--------|---------|---------|-------|
+| 2025-11-05 | 1234 | dashboard | Landing | 82 | 95 | 88.5 | ✅ Good | Clean design |
+| 2025-11-06 | 1235 | dashboard | Dashboard | 68 | 88 | 78 | ⚠️ Acceptable | Color issues |
+| 2025-11-07 | 1236 | dashboard | Settings | 55 | 92 | 73.5 | ❌ Poor | Off-scale spacing |
+
+**Metrics to track:**
+- Score distributions (P10, P25, P50, P75, P90)
+- False positive rate (good UX blocked)
+- False negative rate (poor UX passed)
+- Override usage (% of PRs)
+- Team satisfaction (survey)
+
+**Future:** Consider building a dashboard in Owner Console to visualize trends and track calibration progress.
 
 ## Extending
 
