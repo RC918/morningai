@@ -14,6 +14,7 @@
     "test:smoke": "node scripts/smoke-tests.js",
     "test:e2e": "playwright test",
     "test:vrt": "playwright test -g @vrt",
+    "test:motion": "node scripts/test-motion.js",
     "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit"
   },

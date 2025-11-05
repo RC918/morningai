@@ -28,10 +28,11 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --tsconfig tsconfig.build.json",
+    "build": "npm run compile:tokens && tsup src/index.ts --format cjs,esm --dts --tsconfig tsconfig.build.json",
     "dev": "tsup src/index.ts --format cjs,esm --watch",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "compile:tokens": "node scripts/compile-tokens.js"
   },
   "engines": {
     "node": ">=20.0.0",
