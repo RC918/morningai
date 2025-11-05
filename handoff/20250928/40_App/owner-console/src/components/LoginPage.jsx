@@ -244,26 +244,6 @@ const LoginPage = ({ onLogin, onAuthenticated }) => {
         </motion.div>
       </motion.div>
 
-      {show2FADialog && (
-        <div 
-          id="debug-2fa-overlay" 
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 10,
-            background: 'rgba(255, 0, 0, 0.3)',
-            color: '#fff',
-            display: 'grid',
-            placeItems: 'center',
-            fontSize: '24px',
-            fontWeight: 'bold',
-            pointerEvents: 'none'
-          }}
-        >
-          {`DEBUG: 2FA Dialog State = TRUE`}
-        </div>
-      )}
-
       <TwoFactorVerify
         open={show2FADialog}
         onClose={() => setShow2FADialog(false)}
