@@ -45,12 +45,13 @@ export interface LoginCredentials {
 
 export interface LoginResponse {
   user: User;
-  tokens: AuthTokens;
+  tokens?: AuthTokens; // Optional because cookie-based auth may not return tokens
 }
 
 export interface RefreshTokenResponse {
-  tokens: {
-    expiresAt: number;
+  tokens?: {
+    expiresAt?: number;
+    expires_at?: number;
   };
 }
 
@@ -514,7 +515,13 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   
   const data: LoginResponse = await response.json();
   
-  storeTokenExpiry(data.tokens.expiresAt);
+  const expiresAt = data.tokens?.expiresAt ?? (data.tokens as any)?.expires_at;
+  if (typeof expiresAt === 'number') {
+    storeTokenExpiry(expiresAt);
+  } else {
+    console.debug('No token expiry in login response; relying on cookie lifetimes');
+  }
+  
   storeUser(data.user);
   
   return data;
@@ -578,13 +585,17 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
   
   const data: RefreshTokenResponse = await response.json();
   
-  const newTokens: AuthTokens = {
-    expiresAt: data.tokens.expiresAt,
-  };
-  
-  storeTokenExpiry(newTokens.expiresAt);
-  
-  return newTokens;
+  const expiresAt = data.tokens?.expiresAt ?? data.tokens?.expires_at;
+  if (typeof expiresAt === 'number') {
+    const newTokens: AuthTokens = {
+      expiresAt,
+    };
+    storeTokenExpiry(newTokens.expiresAt);
+    return newTokens;
+  } else {
+    console.debug('No token expiry in refresh response; relying on cookie lifetimes');
+    return { expiresAt: Date.now() + 60 * 60 * 1000 };
+  }
 }
 
 /**
