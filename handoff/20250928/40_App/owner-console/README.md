@@ -177,3 +177,4 @@ Owner Console（所有者後台）使用与 Tenant Dashboard（租戶端）相�
 - [Components Guide](/docs/UX/Design System/Components.md)
 - [API Documentation](/handoff/20250928/40_App/30_API/openapi/)
 # Trigger Vercel redeploy after env var changes
+# Trigger redeploy with correct API URL
