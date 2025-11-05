@@ -333,6 +333,7 @@ jobs:
         run: pnpm run build
       
       - name: Install Playwright browsers
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
         run: pnpm exec playwright install --with-deps chromium
       
       - name: Start preview server
