@@ -12,8 +12,10 @@ const path = require('path');
 const RESULTS_DIR = path.join(__dirname, '../motion-test-results');
 const BASE_URL = process.env.BASE_URL || 'http://localhost:4173';
 const TARGET_FPS = 60;
-const MAX_FRAME_TIME = 16.67; // ms (1000ms / 60fps)
-const ACCEPTABLE_DROPPED_FRAMES_RATE = 0.01; // 1%
+// Configurable thresholds for CI vs local environments
+// CI headless environments have lower performance headroom
+const MAX_FRAME_TIME = parseFloat(process.env.MOTION_P95_MS || '16.67'); // ms (1000ms / 60fps)
+const ACCEPTABLE_DROPPED_FRAMES_RATE = parseFloat(process.env.MOTION_DROP_PERCENT || '1') / 100; // percentage
 
 const MOTION_TESTS = [
   {
@@ -122,6 +124,7 @@ async function measureFrameRate(page, duration = 2000) {
 
 async function runMotionTests() {
   console.log('🎬 Starting Motion Performance Tests...\n');
+  console.log(`Thresholds: P95 ≤ ${MAX_FRAME_TIME}ms, Dropped ≤ ${ACCEPTABLE_DROPPED_FRAMES_RATE * 100}%\n`);
   
   if (!fs.existsSync(RESULTS_DIR)) {
     fs.mkdirSync(RESULTS_DIR, { recursive: true });

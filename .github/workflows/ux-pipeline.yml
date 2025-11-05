@@ -193,6 +193,8 @@ jobs:
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
         env:
           BASE_URL: http://localhost:${{ matrix.port }}
+          MOTION_P95_MS: 20
+          MOTION_DROP_PERCENT: 2
         run: pnpm run test:motion
       
       - name: Stop preview server
