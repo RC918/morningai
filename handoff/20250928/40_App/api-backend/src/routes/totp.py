@@ -27,7 +27,8 @@ from ..services.auth_service import (
     get_user_by_id,
     authenticate_user,
     FEATURE_2FA_PREAUTH,
-    COOKIE_SECURE
+    COOKIE_SECURE,
+    COOKIE_SAMESITE
 )
 from ..utils.totp_utils import TOTPManager, BackupCodeManager, generate_device_fingerprint, calculate_device_expiry
 from ..utils.preauth_token import validate_and_consume_preauth_token
@@ -721,7 +722,7 @@ def verify_totp_login():
             max_age=0,
             httponly=True,
             secure=COOKIE_SECURE,
-            samesite='Lax',
+            samesite=COOKIE_SAMESITE,
             path='/api/auth/v2/totp'
         )
         
