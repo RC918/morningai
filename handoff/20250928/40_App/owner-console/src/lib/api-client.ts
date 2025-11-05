@@ -1,3 +1,5 @@
+import { isFeatureEnabled } from './feature-flags';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 /**
@@ -6,6 +8,112 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
  * So we cache the token from the response body as a fallback
  */
 let csrfTokenCache: string | null = null;
+
+/**
+ * Get mock data for API endpoints when OWNER_CONSOLE_API feature flag is disabled
+ * Returns minimal but correct response shapes to prevent runtime errors
+ */
+function getMockData(url: string, _options: RequestInit = {}): any {
+  // System monitoring endpoints
+  if (url.includes('/api/admin/system/health')) {
+    return { status: 'healthy' };
+  }
+  
+  if (url.includes('/api/admin/system/metrics')) {
+    return {
+      system_health: {
+        overall_status: 'healthy',
+        error_rate: 0,
+        avg_latency: 0,
+        open_circuit_breakers: 0,
+      },
+      performance: {},
+      breakers: [],
+    };
+  }
+  
+  if (url.includes('/api/admin/system/logs')) {
+    return { items: [] };
+  }
+  
+  // Agent endpoints
+  if (url.includes('/api/admin/agents') && url.includes('/executions')) {
+    return { items: [] };
+  }
+  
+  if (url.includes('/api/admin/agents/') && !url.includes('/executions')) {
+    const agentId = url.split('/api/admin/agents/')[1]?.split('/')[0] || 'mock-agent';
+    return {
+      id: agentId,
+      name: 'Mock Agent',
+      status: 'idle',
+    };
+  }
+  
+  if (url.includes('/api/admin/agents')) {
+    return { items: [] };
+  }
+  
+  // Tenant endpoints
+  if (url.includes('/api/tenant/info')) {
+    return { tenants: [] };
+  }
+  
+  if (url.includes('/api/tenant/members')) {
+    return { items: [] };
+  }
+  
+  // Governance endpoints
+  if (url.includes('/api/governance/agents')) {
+    return { items: [] };
+  }
+  
+  if (url.includes('/api/governance/events')) {
+    return { items: [] };
+  }
+  
+  if (url.includes('/api/governance/violations')) {
+    return { items: [] };
+  }
+  
+  if (url.includes('/api/governance/statistics')) {
+    return {
+      totals: {
+        agents: 0,
+        violations: 0,
+        events: 0,
+      },
+    };
+  }
+  
+  // 2FA endpoints
+  if (url.includes('/api/auth/v2/totp/status')) {
+    return { enabled: false };
+  }
+  
+  if (url.includes('/api/auth/v2/totp/setup')) {
+    return {
+      secret: 'MOCK_SECRET_KEY',
+      qr_code: 'data:image/png;base64,mock',
+    };
+  }
+  
+  if (url.includes('/api/auth/v2/totp/verify-setup')) {
+    return { success: true };
+  }
+  
+  if (url.includes('/api/auth/v2/totp/disable')) {
+    return { success: true };
+  }
+  
+  if (url.includes('/api/auth/v2/totp/backup-codes')) {
+    return {
+      codes: ['MOCK-CODE-1', 'MOCK-CODE-2', 'MOCK-CODE-3'],
+    };
+  }
+  
+  return {};
+}
 
 /**
  * Get CSRF token from cache or cookie
@@ -28,11 +136,24 @@ function getCsrfToken(): string | null {
  * P0-3 Security Fix:
  * - Adds credentials: 'include' to send HttpOnly cookies
  * - Injects X-CSRF-Token header for POST/PUT/PATCH/DELETE requests
+ * 
+ * Feature Flag Support:
+ * - When OWNER_CONSOLE_API is disabled, returns mock data to prevent HTTP 401 errors
+ * - Mock mode is useful for development and testing without backend dependencies
  */
 export async function apiClient<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // Return mock data when feature flag is disabled
+  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
+    return Promise.resolve({
+      data: getMockData(url, options),
+      status: 200,
+      headers: new Headers(),
+    }) as T;
+  }
+  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
@@ -72,8 +193,18 @@ export async function apiClient<T>(
  * 
  * P0 Fix: Cache CSRF token from response body for cross-origin scenarios
  * Backend returns { csrf_token: "..." } in response body which we can read cross-origin
+ * 
+ * Feature Flag Support:
+ * - When OWNER_CONSOLE_API is disabled, sets a mock CSRF token instead of fetching
  */
 export async function bootstrapCsrf(): Promise<void> {
+  // Set mock CSRF token when feature flag is disabled
+  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
+    csrfTokenCache = 'mock-csrf-token';
+    console.debug('Mock CSRF token set (OWNER_CONSOLE_API disabled)');
+    return;
+  }
+  
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
       credentials: 'include',
