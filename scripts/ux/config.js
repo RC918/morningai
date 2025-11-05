@@ -32,6 +32,20 @@ const PAGES = {
       requiresAuth: false,
       viewport: { width: 1366, height: 900 },
     },
+    {
+      name: 'Dashboard',
+      path: '/dashboard',
+      description: 'Main dashboard with key metrics',
+      requiresAuth: true,
+      viewport: { width: 1366, height: 900 },
+    },
+    {
+      name: 'Settings',
+      path: '/settings',
+      description: 'System settings page',
+      requiresAuth: true,
+      viewport: { width: 1366, height: 900 },
+    },
   ],
   'owner-console': [
     {
@@ -69,7 +83,7 @@ const DELIGHT_WEIGHTS = {
 };
 
 const BUDGET = {
-  maxPagesPerApp: parseInt(process.env.UX_AI_MAX_PAGES || '2'), // Reduced to 2 for Phase 2 v1 (public pages only)
+  maxPagesPerApp: parseInt(process.env.UX_AI_MAX_PAGES || '4'), // Increased to 4 for Phase 2 v2 (includes authenticated pages)
   maxImageWidth: 1366,
   imageFormat: 'jpeg',
   imageQuality: 0.85,
