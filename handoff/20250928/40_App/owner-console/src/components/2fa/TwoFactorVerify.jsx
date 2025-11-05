@@ -108,7 +108,7 @@ export function TwoFactorVerify({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { console.info('[2FA] onOpenChange', { isOpen }); if (!isOpen) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md z-[10001]">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">

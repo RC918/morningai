@@ -250,7 +250,7 @@ const LoginPage = ({ onLogin, onAuthenticated }) => {
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9999,
+            zIndex: 10,
             background: 'rgba(255, 0, 0, 0.3)',
             color: '#fff',
             display: 'grid',
