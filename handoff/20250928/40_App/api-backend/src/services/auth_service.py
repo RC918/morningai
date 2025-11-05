@@ -30,8 +30,8 @@ JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')  # No default - must be set
 JWT_ALGORITHM = 'HS256'
 
 # Cookie Configuration
-COOKIE_SECURE = IS_PRODUCTION  # Always secure in production
-COOKIE_SAMESITE = os.environ.get('COOKIE_SAMESITE', 'Strict')  # Configurable: 'Strict', 'Lax', or 'None'
+COOKIE_SECURE = os.environ.get('COOKIE_SECURE', 'true' if IS_PRODUCTION else 'false').lower() == 'true'
+COOKIE_SAMESITE = os.environ.get('COOKIE_SAMESITE', 'Lax')  # Configurable: 'Strict', 'Lax', or 'None'
 COOKIE_HTTPONLY = True
 COOKIE_DOMAIN = os.environ.get('COOKIE_DOMAIN', None)  # Optional: restrict to specific domain
 COOKIE_PATH = os.environ.get('COOKIE_PATH', '/')  # Optional: restrict to specific path
