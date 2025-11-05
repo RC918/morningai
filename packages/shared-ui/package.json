@@ -22,6 +22,9 @@
     "./tokens.json": {
       "types": "./src/tokens.d.ts",
       "default": "./src/tokens.json"
+    },
+    "./tokens.css": {
+      "default": "./dist/tokens.css"
     }
   },
   "files": [
