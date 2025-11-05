@@ -21,6 +21,7 @@
     "test:e2e": "playwright test",
     "test:vrt": "playwright test -g @vrt",
     "test:motion": "node scripts/test-motion.js",
+    "test:a11y": "node scripts/test-a11y.js",
     "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
@@ -95,6 +96,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@axe-core/react": "^4.11.0",
     "@eslint/js": "^9.25.0",
     "@playwright/test": "^1.56.1",
