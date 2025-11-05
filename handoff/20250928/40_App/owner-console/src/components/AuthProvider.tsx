@@ -9,6 +9,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import {
   User,
   LoginCredentials,
+  LoginResponse,
   login as authLogin,
   logout as authLogout,
   getCurrentUser,
