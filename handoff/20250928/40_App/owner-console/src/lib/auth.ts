@@ -534,14 +534,26 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
     });
     
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Login failed' }));
-      throw new Error(error.message || 'Login failed');
+      const error = await response.json().catch(() => ({ message: 'Invalid email or password' }));
+      throw new Error(error.message || 'Invalid email or password');
     }
     
     const data: LoginResponse = await response.json();
     
-    storeTokenExpiry(data.tokens.expiresAt);
-    storeUser(data.user);
+    if (data.requires_2fa) {
+      return data;
+    }
+    
+    if (data.tokens && data.tokens.expiresAt) {
+      storeTokenExpiry(data.tokens.expiresAt);
+    } else if (data.tokens && (data.tokens as any).expires_in) {
+      const expiresAt = Date.now() + (data.tokens as any).expires_in * 1000;
+      storeTokenExpiry(expiresAt);
+    }
+    
+    if (data.user) {
+      storeUser(data.user);
+    }
     
     return data;
   } catch (error) {
