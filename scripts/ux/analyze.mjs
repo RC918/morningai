@@ -176,7 +176,7 @@ async function extractRows(reportData) {
 }
 
 /**
- * Convert rows to CSV format
+ * Convert rows to CSV format with proper escaping
  */
 function rowsToCSV(rows) {
   if (rows.length === 0) {
@@ -191,10 +191,25 @@ function rowsToCSV(rows) {
   for (const row of rows) {
     const values = headers.map(h => {
       const value = row[h];
-      // Escape values containing commas or quotes
-      if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-        return `"${value.replace(/"/g, '""')}"`;
+      
+      // Handle empty values
+      if (value === null || value === undefined || value === '') {
+        return '';
       }
+      
+      // Special handling for labels: serialize as JSON array to avoid semicolon issues
+      if (h === 'labels' && typeof value === 'string' && value.length > 0) {
+        const labelsArray = value.split(';').filter(l => l.trim());
+        return `"${JSON.stringify(labelsArray).replace(/"/g, '""')}"`;
+      }
+      
+      // Escape values containing commas, quotes, or newlines
+      if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r'))) {
+        // Replace newlines with spaces and escape quotes
+        const cleaned = value.replace(/[\r\n]+/g, ' ').replace(/"/g, '""');
+        return `"${cleaned}"`;
+      }
+      
       return value;
     });
     csvLines.push(values.join(','));
