@@ -141,7 +141,7 @@ const LoginPage = ({ onLogin }) => {
             />
           </motion.div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
-          <p className="text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? {} : itemVariants}>
@@ -225,7 +225,7 @@ const LoginPage = ({ onLogin }) => {
         </motion.div>
 
         <motion.div
-          className="text-center mt-8 text-sm text-gray-600 dark:text-gray-600"
+          className="text-center mt-8 text-sm text-gray-600 dark:text-gray-400"
           variants={prefersReducedMotion ? {} : itemVariants}
         >
           <p>{t('app.copyright')}</p>

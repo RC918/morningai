@@ -80,7 +80,7 @@ const Sidebar = ({ user, onLogout }) => {
               />
               <div>
                 <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t('app.tagline')}</h1>
-                <p className="text-xs text-gray-600 dark:text-gray-600">{t('tenants.subtitle')}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{t('tenants.subtitle')}</p>
               </div>
             </Link>
           )}
@@ -148,7 +148,7 @@ const Sidebar = ({ user, onLogout }) => {
                       <div className="flex items-center justify-between">
                         <span>{t(item.labelKey)}</span>
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-600 mt-1">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         {t(item.descriptionKey)}
                       </p>
                     </div>

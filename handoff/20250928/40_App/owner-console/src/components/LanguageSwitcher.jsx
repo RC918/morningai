@@ -29,6 +29,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
             size="sm" 
             className={`${className} bg-white hover:bg-gray-50 shadow-md flex items-center justify-center`}
             style={{ width: '40px', height: '40px', padding: '0' }}
+            aria-label="Change language"
           >
             <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
           </Button>
