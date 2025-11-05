@@ -194,13 +194,14 @@ ai-perceptual-qa:
   name: AI Perceptual QA
   runs-on: ubuntu-latest
   needs: [smoke-tests]
-  if: github.event_name == 'pull_request'
+  if: github.event_name == 'pull_request' && vars.UX_AI_ENABLE == 'true'
   strategy:
     matrix:
       app: [frontend-dashboard]
 ```
 
 **Features:**
+- **Opt-in by default**: Job only runs when `UX_AI_ENABLE` is set to `true`
 - Smoke tests run first (fast-fail)
 - AI QA runs on PRs only (cost control)
 - Optional (skips if OPENAI_API_KEY not set)
@@ -209,11 +210,45 @@ ai-perceptual-qa:
 - Displays scores in CI logs
 
 **Environment Variables:**
-- `OPENAI_API_KEY`: Required for AI scoring
+- `UX_AI_ENABLE`: **Required** - Set to `true` to enable AI Perceptual QA (default: disabled)
+- `OPENAI_API_KEY`: Required for AI scoring (GitHub Secret)
+- `QA_TEST_EMAIL`: Test account email (for authenticated pages)
+- `QA_TEST_PASSWORD`: Test account password (for authenticated pages)
 - `UX_AI_MODEL`: Model to use (default: gpt-4o-mini)
-- `UX_AI_MAX_PAGES`: Max pages per app (default: 3)
+- `UX_AI_MAX_PAGES`: Max pages per app (default: 4)
 - `UX_HARMONY_MIN`: Harmony threshold (default: 70)
 - `UX_DELIGHT_MIN`: Delight threshold (default: 75)
+
+### Enabling AI Perceptual QA in CI
+
+AI Perceptual QA is **disabled by default** to control costs. To enable it:
+
+1. **Set Repository Variable:**
+   - Go to GitHub repo: Settings > Secrets and variables > Actions > Variables tab
+   - Click "New repository variable"
+   - Name: `UX_AI_ENABLE`
+   - Value: `true`
+   - Click "Add variable"
+
+2. **Set OpenAI API Key (if not already set):**
+   - Go to Secrets tab (same page)
+   - Click "New repository secret"
+   - Name: `OPENAI_API_KEY`
+   - Value: `sk-...` (your OpenAI API key)
+   - Click "Add secret"
+
+3. **Create a PR** - AI Perceptual QA will now run automatically
+
+**When to enable:**
+- UX-critical changes (design system updates, major UI refactors)
+- Before major releases
+- When investigating visual regression issues
+- During calibration period (collecting baseline data)
+
+**Cost considerations:**
+- Each run costs ~$0.01-0.02 per app
+- Runs only on PRs (not on every commit)
+- Can be disabled anytime by setting `UX_AI_ENABLE` to `false` or removing the variable
 
 ## Cost Management
 
@@ -244,9 +279,85 @@ ux-qa-results/
 └── frontend-dashboard-ux-report.html
 ```
 
+## Authentication Support (Phase 2 v2)
+
+AI Perceptual QA now supports capturing screenshots of authenticated pages (Dashboard, Settings, etc.) in addition to public pages.
+
+### Setup
+
+**1. Create Test Account**
+
+Create a dedicated test account in your authentication system (Supabase, Auth0, etc.) with known credentials. This account should have access to all pages you want to test.
+
+**2. Store Credentials Securely**
+
+**Local Testing:**
+```bash
+export QA_TEST_EMAIL="test@example.com"
+export QA_TEST_PASSWORD="test-password-123"
+```
+
+**CI/CD (GitHub Actions):**
+```bash
+# Settings > Secrets and variables > Actions > New repository secret
+# Name: QA_TEST_EMAIL
+# Value: test@example.com
+
+# Name: QA_TEST_PASSWORD
+# Value: test-password-123
+```
+
+**3. Configure Pages**
+
+Edit `scripts/ux/config.js` to mark pages that require authentication:
+
+```javascript
+PAGES: {
+  'frontend-dashboard': [
+    {
+      name: 'Landing Page',
+      path: '/',
+      requiresAuth: false,  // Public page
+    },
+    {
+      name: 'Dashboard',
+      path: '/dashboard',
+      requiresAuth: true,   // Requires authentication
+    },
+  ],
+}
+```
+
+### How It Works
+
+1. **Authentication Flow:**
+   - Script checks if any pages require authentication
+   - If credentials provided, navigates to `/login`
+   - Fills username/password and submits form
+   - Waits for redirect to authenticated area
+   - Verifies authentication by checking for sidebar
+
+2. **Session Persistence:**
+   - Saves authentication state to `ux-qa-results/auth-storage.json`
+   - Reuses saved state in subsequent runs (faster)
+   - State includes cookies, localStorage, sessionStorage
+
+3. **Graceful Degradation:**
+   - If credentials not provided, skips authenticated pages
+   - Logs warning and continues with public pages only
+   - Marks skipped pages in manifest with error message
+
+### Security Considerations
+
+- Test credentials are stored in GitHub Secrets (encrypted at rest)
+- Auth storage file is gitignored (never committed)
+- Use dedicated test account (not production user)
+- Rotate test credentials periodically
+- Test account should have minimal permissions
+
 ## Usage Examples
 
-### Local Testing
+### Local Testing (Public Pages Only)
 
 ```bash
 # 1. Start preview server
@@ -265,15 +376,41 @@ pnpm run ux:qa
 open ux-qa-results/frontend-dashboard-ux-report.html
 ```
 
+### Local Testing (With Authentication)
+
+```bash
+# 1. Start preview server
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm run build
+pnpm run preview --port 4173
+
+# 2. Run UX QA with test credentials (in another terminal)
+cd /path/to/morningai
+BASE_URL=http://localhost:4173 \
+APP_NAME=frontend-dashboard \
+OPENAI_API_KEY=sk-... \
+QA_TEST_EMAIL="admin" \
+QA_TEST_PASSWORD="admin123" \
+pnpm run ux:qa
+
+# 3. View results
+open ux-qa-results/frontend-dashboard-ux-report.html
+```
+
 ### CI Testing
 
 ```bash
-# Set secret in GitHub repo settings
-# Settings > Secrets and variables > Actions > New repository secret
+# 1. Enable AI Perceptual QA
+# Settings > Secrets and variables > Actions > Variables tab
+# Name: UX_AI_ENABLE
+# Value: true
+
+# 2. Set OpenAI API Key (if not already set)
+# Settings > Secrets and variables > Actions > Secrets tab
 # Name: OPENAI_API_KEY
 # Value: sk-...
 
-# Create PR - AI Perceptual QA will run automatically
+# 3. Create PR - AI Perceptual QA will run automatically
 ```
 
 ### Skip AI Scoring
@@ -582,6 +719,14 @@ UX_AI_MODEL=gpt-4o pnpm run ux:qa
 
 ## Troubleshooting
 
+### AI Perceptual QA Job Not Running
+
+**Symptom:** The `ai-perceptual-qa` job doesn't appear in CI checks at all.
+
+**Solution:** AI Perceptual QA is disabled by default. Set `UX_AI_ENABLE` repository variable to `true`:
+1. Go to Settings > Secrets and variables > Actions > Variables tab
+2. Add variable: `UX_AI_ENABLE` = `true`
+
 ### Smoke Tests Failed
 
 ```
@@ -608,7 +753,7 @@ UX_AI_MODEL=gpt-4o pnpm run ux:qa
 ⏭️  Skipping AI Perceptual QA: OPENAI_API_KEY not set
 ```
 
-**Solution:** Set `OPENAI_API_KEY` environment variable.
+**Solution:** Set `OPENAI_API_KEY` secret in GitHub repo settings (Secrets tab).
 
 ### Screenshot Capture Failed
 
@@ -619,6 +764,29 @@ UX_AI_MODEL=gpt-4o pnpm run ux:qa
 **Solution:** Start preview server first:
 ```bash
 pnpm run build && pnpm run preview --port 4173
+```
+
+### Authentication Failed
+
+```
+❌ Authentication failed - no authenticated elements found
+```
+
+**Solution:** 
+1. Verify test credentials are correct
+2. Check if login form selectors changed
+3. Ensure Supabase/auth service is configured
+4. Try logging in manually to verify credentials work
+
+### Authenticated Pages Skipped
+
+```
+⏭️  Skipping: Dashboard (requires authentication)
+```
+
+**Solution:** Provide test credentials:
+```bash
+QA_TEST_EMAIL="admin" QA_TEST_PASSWORD="admin123" pnpm run ux:qa
 ```
 
 ### JSON Parse Error

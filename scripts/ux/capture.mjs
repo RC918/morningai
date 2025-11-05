@@ -18,6 +18,59 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:4173';
 const APP_NAME = process.env.APP_NAME || 'frontend-dashboard';
 const OUTPUT_DIR = path.join(__dirname, '../../ux-qa-results');
 const SCREENSHOTS_DIR = path.join(OUTPUT_DIR, 'screenshots', APP_NAME);
+const AUTH_STORAGE_PATH = path.join(OUTPUT_DIR, 'auth-storage.json');
+
+// Authentication credentials from environment
+const QA_TEST_EMAIL = process.env.QA_TEST_EMAIL;
+const QA_TEST_PASSWORD = process.env.QA_TEST_PASSWORD;
+
+/**
+ * Setup authentication by logging in with test credentials
+ * @param {Page} page - Playwright page instance
+ * @returns {Promise<boolean>} - True if authentication succeeded
+ */
+async function setupAuth(page) {
+  if (!QA_TEST_EMAIL || !QA_TEST_PASSWORD) {
+    console.log('⚠️  No test credentials provided (QA_TEST_EMAIL, QA_TEST_PASSWORD)');
+    console.log('   Skipping authentication - only public pages will be captured\n');
+    return false;
+  }
+
+  console.log('🔐 Setting up authentication...');
+  
+  try {
+    // Navigate to login page
+    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
+    
+    // Wait for form to be visible
+    await page.waitForSelector('input[name="username"]', { state: 'visible', timeout: 10000 });
+    
+    // Fill in credentials using attribute-based selectors
+    await page.fill('input[name="username"]', QA_TEST_EMAIL);
+    await page.fill('input[name="password"]', QA_TEST_PASSWORD);
+    
+    // Submit form by pressing Enter on password field (more reliable than clicking button)
+    await page.press('input[name="password"]', 'Enter');
+    
+    // Wait for navigation to dashboard after successful login
+    await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 15000 });
+    
+    // Verify authentication by checking for authenticated-only elements
+    // The sidebar is only visible when authenticated
+    const isAuthenticated = await page.locator('nav[role="navigation"]').isVisible().catch(() => false);
+    
+    if (isAuthenticated) {
+      console.log('✅ Authentication successful\n');
+      return true;
+    } else {
+      console.log('❌ Authentication failed - no authenticated elements found\n');
+      return false;
+    }
+  } catch (error) {
+    console.error(`❌ Authentication error: ${error.message}\n`);
+    return false;
+  }
+}
 
 async function captureScreenshots() {
   console.log(`📸 Capturing screenshots for ${APP_NAME}...`);
@@ -29,12 +82,26 @@ async function captureScreenshots() {
   }
 
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
+  
+  // Check if we have saved auth state
+  let contextOptions = {
     viewport: { width: 1366, height: 900 },
     deviceScaleFactor: 1,
     colorScheme: 'light', // Force light theme for consistency
     locale: 'en-US', // Force en-US locale
-  });
+  };
+  
+  // Try to load saved auth state if it exists
+  if (fs.existsSync(AUTH_STORAGE_PATH)) {
+    try {
+      contextOptions.storageState = AUTH_STORAGE_PATH;
+      console.log('📂 Loaded saved authentication state\n');
+    } catch (error) {
+      console.log('⚠️  Could not load saved auth state, will authenticate fresh\n');
+    }
+  }
+  
+  const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
 
   page.setDefaultTimeout(10000);
@@ -42,8 +109,38 @@ async function captureScreenshots() {
 
   const pages = config.PAGES[APP_NAME] || [];
   const capturedPages = [];
+  
+  // Determine if we need authentication
+  const requiresAuth = pages.some(p => p.requiresAuth);
+  let isAuthenticated = false;
+  
+  if (requiresAuth) {
+    // Attempt authentication
+    isAuthenticated = await setupAuth(page);
+    
+    // Save auth state for future runs
+    if (isAuthenticated) {
+      try {
+        await context.storageState({ path: AUTH_STORAGE_PATH });
+        console.log(`💾 Saved authentication state to ${AUTH_STORAGE_PATH}\n`);
+      } catch (error) {
+        console.log(`⚠️  Could not save auth state: ${error.message}\n`);
+      }
+    }
+  }
 
   for (const pageConfig of pages.slice(0, config.BUDGET.maxPagesPerApp)) {
+    // Skip authenticated pages if not authenticated
+    if (pageConfig.requiresAuth && !isAuthenticated) {
+      console.log(`⏭️  Skipping: ${pageConfig.name} (requires authentication)`);
+      capturedPages.push({
+        name: pageConfig.name,
+        path: pageConfig.path,
+        error: 'Requires authentication (credentials not provided)',
+        skipped: true,
+      });
+      continue;
+    }
     console.log(`Capturing: ${pageConfig.name} (${pageConfig.path})`);
 
     try {
@@ -52,6 +149,9 @@ async function captureScreenshots() {
 
       // Wait for page to stabilize
       await page.waitForTimeout(500);
+      
+      // Record actual URL after navigation (to detect redirects)
+      const actualUrl = page.url();
 
       // Hide dynamic elements that could cause variance
       await page.addStyleTag({
@@ -86,6 +186,8 @@ async function captureScreenshots() {
         description: pageConfig.description,
         screenshotPath,
         url,
+        actualUrl, // Record actual URL to detect redirects
+        requiresAuth: pageConfig.requiresAuth || false,
       });
     } catch (error) {
       console.error(`  ❌ Error capturing ${pageConfig.name}: ${error.message}`);
