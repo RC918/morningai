@@ -695,7 +695,7 @@ def get_available_widgets():
     return jsonify(widgets)
 
 @app.route('/api/dashboard/data', methods=['GET', 'POST'])
-def get_dashboard_data():
+def get_dashboard_data_endpoint():
     """Get real-time dashboard data"""
     try:
         if not BACKEND_SERVICES_AVAILABLE:
