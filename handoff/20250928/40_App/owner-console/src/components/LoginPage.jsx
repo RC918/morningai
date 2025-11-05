@@ -35,23 +35,26 @@ const LoginPage = ({ onLogin, onAuthenticated }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    console.info('[LoginPage] handleSubmit called', { email: credentials.email, build: '8cbea49b-trace' })
     setLoading(true)
     setError('')
 
     try {
+      console.info('[LoginPage] Calling onLogin...')
       const result = await onLogin(credentials)
-      console.log('[LoginPage] Login result:', result)
+      console.info('[LoginPage] onLogin returned', { result, requires_2fa: result?.requires_2fa, has_user: !!result?.user })
       
       if (result && result.requires_2fa) {
-        console.log('[LoginPage] 2FA required, showing dialog')
+        console.info('[LoginPage] 2FA required, setting show2FADialog to TRUE')
         setShow2FADialog(true)
         setLoading(false)
+        console.info('[LoginPage] show2FADialog set, returning early')
         return
       }
       
-      console.log('[LoginPage] Login successful without 2FA')
+      console.info('[LoginPage] Login successful without 2FA')
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('[LoginPage] Login error:', error)
       setError(error.message || t('auth.login.loginError'))
     } finally {
       setLoading(false)

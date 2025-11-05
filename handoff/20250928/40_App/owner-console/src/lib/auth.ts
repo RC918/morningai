@@ -521,6 +521,7 @@ async function authenticatedFetch(
  * Tokens are stored in HttpOnly cookies by the backend
  */
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+  console.info('[auth.ts] login() called', { email: credentials.email, build: '8cbea49b-trace' });
   await ensureCsrfToken();
   
   try {
@@ -533,14 +534,18 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
       body: JSON.stringify(credentials),
     });
     
+    console.info('[auth.ts] login response status', { status: response.status, ok: response.ok });
+    
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Invalid email or password' }));
       throw new Error(error.message || 'Invalid email or password');
     }
     
     const data: LoginResponse = await response.json();
+    console.info('[auth.ts] login response data', { requires_2fa: data.requires_2fa, has_user: !!data.user });
     
     if (data.requires_2fa) {
+      console.info('[auth.ts] 2FA required, returning early');
       return data;
     }
     

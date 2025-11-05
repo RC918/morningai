@@ -62,17 +62,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
+    console.info('[AuthProvider] login() called', { email: credentials.email });
     try {
       const response = await authLogin(credentials);
+      console.info('[AuthProvider] authLogin response', { requires_2fa: response.requires_2fa, has_user: !!response.user });
       
       if (response.requires_2fa) {
+        console.info('[AuthProvider] 2FA required, returning early');
         return response;
       }
       
+      console.info('[AuthProvider] Setting user and authenticated state');
       setUser(response.user);
       setIsAuthenticated(true);
       return response;
     } catch (error) {
+      console.error('[AuthProvider] login error', error);
       setUser(null);
       setIsAuthenticated(false);
       throw error;
