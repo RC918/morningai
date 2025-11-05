@@ -288,7 +288,8 @@
     "export": "匯出",
     "refresh": "重新整理",
     "usage": "使用量",
-    "idShort": "ID：{{id}}"
+    "idShort": "ID：{{id}}",
+    "changeLanguage": "切換語言"
   },
   "auth": {
     "login": {

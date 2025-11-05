@@ -90,7 +90,7 @@ const Sidebar = ({ user, onLogout }) => {
             size="sm"
             onClick={() => setCollapsed(!collapsed)}
             className="p-1"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
             aria-expanded={!collapsed}
           >
             {collapsed ? (
