@@ -21,7 +21,11 @@
     "typecheck:owner": "turbo run typecheck --filter=owner-console",
     "clean": "pnpm -r exec rm -rf node_modules dist build .next",
     "clean:cache": "rm -rf node_modules/.cache .pnpm-store .turbo",
-    "prepare": "husky"
+    "prepare": "husky",
+    "ux:qa": "node scripts/ux/run-qa.mjs",
+    "ux:capture": "node scripts/ux/capture.mjs",
+    "ux:score": "node scripts/ux/score-ai.mjs",
+    "ux:aggregate": "node scripts/ux/aggregate.mjs"
   },
   "engines": {
     "node": ">=20.0.0",
@@ -58,5 +62,8 @@
       "@storybook/test": "^8.6.14",
       "storybook": "^8.6.14"
     }
+  },
+  "dependencies": {
+    "openai": "^6.8.1"
   }
 }
