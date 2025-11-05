@@ -17,7 +17,7 @@
  * - delight_score: Delight index (0-100, app-level)
  * - pr_number: GitHub PR number (if available)
  * - commit_sha: Git commit SHA
- * - labels: Semicolon-separated PR labels (if available)
+ * - labels: JSON array of PR labels (if available)
  * - decision: pass/fail based on harmony threshold
  * - timestamp: ISO timestamp of the analysis
  * - source_file: Path to source report file
