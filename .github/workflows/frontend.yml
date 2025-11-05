@@ -172,6 +172,8 @@ jobs:
       
       - name: Strict i18n Check on Changed Files
         run: |
+          set -o pipefail
+          
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.sha }}"
           
@@ -198,20 +200,27 @@ jobs:
           if [ -n "$OC_FILES" ]; then
             echo ""
             echo "=== Checking owner-console files ==="
-            echo "$OC_FILES" | xargs -r pnpm -F owner-console exec eslint --max-warnings=0 --rule 'i18next/no-literal-string: error' || EXIT_CODE=1
+            # Strip workspace prefix from paths (convert to workspace-relative)
+            OC_FILES_RELATIVE=$(echo "$OC_FILES" | sed 's|^handoff/.*/40_App/owner-console/||')
+            echo "Relative paths: $OC_FILES_RELATIVE"
+            echo "$OC_FILES_RELATIVE" | xargs -r pnpm -F owner-console exec eslint --max-warnings=0 --rule 'i18next/no-literal-string: ["error", {"markupOnly": false, "ignoreCallee": ["t","Trans","clsx","cn","tw","cva"]}]' || EXIT_CODE=1
           fi
           
           # Check frontend-dashboard files
           if [ -n "$FD_FILES" ]; then
             echo ""
             echo "=== Checking frontend-dashboard files ==="
-            echo "$FD_FILES" | xargs -r pnpm -F frontend-dashboard exec eslint --max-warnings=0 --rule 'i18next/no-literal-string: error' || EXIT_CODE=1
+            # Strip workspace prefix from paths (convert to workspace-relative)
+            FD_FILES_RELATIVE=$(echo "$FD_FILES" | sed 's|^handoff/.*/40_App/frontend-dashboard/||')
+            echo "Relative paths: $FD_FILES_RELATIVE"
+            echo "$FD_FILES_RELATIVE" | xargs -r pnpm -F frontend-dashboard exec eslint --max-warnings=0 --rule 'i18next/no-literal-string: ["error", {"markupOnly": false, "ignoreCallee": ["t","Trans","clsx","cn","tw","cva"]}]' || EXIT_CODE=1
           fi
           
           if [ $EXIT_CODE -ne 0 ]; then
             echo ""
             echo "❌ i18n violations found in changed files!"
             echo "All user-visible strings must use t() or <Trans> for internationalization."
+            echo "Note: This strict check enforces i18n on ALL user-visible strings, including object properties."
             exit 1
           fi
           

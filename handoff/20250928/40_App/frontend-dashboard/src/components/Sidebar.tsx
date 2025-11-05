@@ -89,8 +89,8 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
     {
       path: '/governance',
       icon: Shield,
-      label: 'Agent Governance',
-      description: 'Monitor agent reputation and compliance',
+      label: t('sidebar.governance.label'),
+      description: t('sidebar.governance.description'),
       feature: AVAILABLE_FEATURES.GOVERNANCE
     },
     {
