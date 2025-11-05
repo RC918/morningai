@@ -111,6 +111,54 @@
     "usedTotal": "已用/總量",
     "gbFormat": "{{used}}GB / {{total}}GB"
   },
+  "metricsDashboard": {
+    "title": "指標儀表板",
+    "subtitle": "即時系統效能與 agent 監控",
+    "error": "錯誤",
+    "loadingMetrics": "載入指標中...",
+    "devMode": {
+      "title": "開發模式 - 模擬資料",
+      "description": "此儀表板顯示的是僅供開發用途的模擬資料。一旦監控後端部署完成，將提供真實指標。",
+      "warning": "請勿將此資料用於生產決策。"
+    },
+    "autoRefresh": "自動重新整理：{{status}}",
+    "autoRefreshOn": "開啟",
+    "autoRefreshOff": "關閉",
+    "metrics": {
+      "apiRequestRate": "API 請求率",
+      "apiRequestRateDesc": "每分鐘請求數",
+      "taskSuccessRate": "任務成功率",
+      "taskSuccessRateDesc": "Agent 任務完成率",
+      "queueDepth": "佇列深度",
+      "queueDepthDesc": "等待中的任務",
+      "activeAgents": "活躍 Agents",
+      "activeAgentsDesc": "目前活躍的 agents"
+    },
+    "tabs": {
+      "agents": "Agents",
+      "systemHealth": "系統健康度",
+      "performance": "效能"
+    },
+    "agent": {
+      "idLabel": "ID：{{id}}",
+      "reputationScore": "聲譽分數",
+      "successRate": "成功率",
+      "activeTasks": "活躍任務"
+    },
+    "systemHealth": {
+      "errorRate": "錯誤率",
+      "avgLatency": "平均延遲",
+      "latencyValue": "{{value}}毫秒",
+      "latencyTarget": "目標：< 1000毫秒",
+      "circuitBreakers": "斷路器",
+      "openCircuitBreakers": "開啟的斷路器"
+    },
+    "performance": {
+      "title": "效能指標",
+      "subtitle": "詳細的效能指標與趨勢",
+      "description": "效能圖表與詳細指標將顯示在此處。正在整合監控後端。"
+    }
+  },
   "settings": {
     "title": "平台設定",
     "subtitle": "配置平台全域設定與政策",

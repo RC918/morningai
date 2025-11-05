@@ -111,6 +111,54 @@
     "usedTotal": "Used/Total",
     "gbFormat": "{{used}}GB / {{total}}GB"
   },
+  "metricsDashboard": {
+    "title": "Metrics Dashboard",
+    "subtitle": "Real-time system performance and agent monitoring",
+    "error": "Error",
+    "loadingMetrics": "Loading metrics...",
+    "devMode": {
+      "title": "Development Mode - Mock Data",
+      "description": "This dashboard is displaying simulated data for development purposes only. Real metrics will be available once the monitoring backend is deployed.",
+      "warning": "Do not use this data for production decisions."
+    },
+    "autoRefresh": "Auto-refresh: {{status}}",
+    "autoRefreshOn": "ON",
+    "autoRefreshOff": "OFF",
+    "metrics": {
+      "apiRequestRate": "API Request Rate",
+      "apiRequestRateDesc": "Requests per minute",
+      "taskSuccessRate": "Task Success Rate",
+      "taskSuccessRateDesc": "Agent task completion rate",
+      "queueDepth": "Queue Depth",
+      "queueDepthDesc": "Tasks waiting in queue",
+      "activeAgents": "Active Agents",
+      "activeAgentsDesc": "Currently active agents"
+    },
+    "tabs": {
+      "agents": "Agents",
+      "systemHealth": "System Health",
+      "performance": "Performance"
+    },
+    "agent": {
+      "idLabel": "ID: {{id}}",
+      "reputationScore": "Reputation Score",
+      "successRate": "Success Rate",
+      "activeTasks": "Active Tasks"
+    },
+    "systemHealth": {
+      "errorRate": "Error Rate",
+      "avgLatency": "Avg Latency",
+      "latencyValue": "{{value}}ms",
+      "latencyTarget": "Target: < 1000ms",
+      "circuitBreakers": "Circuit Breakers",
+      "openCircuitBreakers": "Open circuit breakers"
+    },
+    "performance": {
+      "title": "Performance Metrics",
+      "subtitle": "Detailed performance metrics and trends",
+      "description": "Performance charts and detailed metrics will be displayed here. Integration with monitoring backend in progress."
+    }
+  },
   "settings": {
     "title": "Platform Settings",
     "subtitle": "Configure platform-wide settings and policies",

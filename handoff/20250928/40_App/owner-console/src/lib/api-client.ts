@@ -204,3 +204,52 @@ const governanceApi = {
 (apiClient as any).getGovernanceEvents = governanceApi.getGovernanceEvents;
 (apiClient as any).getGovernanceViolations = governanceApi.getGovernanceViolations;
 (apiClient as any).getGovernanceStatistics = governanceApi.getGovernanceStatistics;
+
+/**
+ * API client with metadata (status, headers) for endpoints that need response metadata
+ * Used by components that need to check response status or headers
+ */
+export async function apiClientWithMeta<T>(
+  url: string,
+  options: RequestInit = {}
+): Promise<{ data: T; status: number; headers: Headers }> {
+  let finalUrl = url;
+  
+  if (!url.startsWith('/api/') && (url.startsWith('/admin') || url.startsWith('/tenant') || url.startsWith('/governance') || url.startsWith('/phase7'))) {
+    finalUrl = '/api' + url;
+  }
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
+  const csrfToken = getCsrfToken();
+  if (csrfToken) {
+    headers['X-CSRF-Token'] = csrfToken;
+  }
+
+  const response = await fetch(API_BASE_URL + finalUrl, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  if (response.headers.get('X-CSRF-Token')) {
+    csrfTokenCache = response.headers.get('X-CSRF-Token');
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error(errorData.message || `HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    data,
+    status: response.status,
+    headers: response.headers
+  };
+}
+
+export default apiClient;

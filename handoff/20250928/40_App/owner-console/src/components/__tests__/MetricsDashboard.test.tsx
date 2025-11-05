@@ -2,14 +2,62 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MetricsDashboard } from '../MetricsDashboard';
 
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: any) => {
+      const translations: Record<string, string> = {
+        'metricsDashboard.title': 'Metrics Dashboard',
+        'metricsDashboard.subtitle': 'Real-time system performance and agent monitoring',
+        'metricsDashboard.loadingMetrics': 'Loading metrics...',
+        'metricsDashboard.error': 'Error',
+        'metricsDashboard.devMode.title': 'Development Mode - Mock Data',
+        'metricsDashboard.devMode.description': 'This dashboard is displaying simulated data for development purposes only. Real metrics will be available once the monitoring backend is deployed.',
+        'metricsDashboard.devMode.warning': 'Do not use this data for production decisions.',
+        'metricsDashboard.autoRefresh': `Auto-refresh: ${params?.status || ''}`,
+        'metricsDashboard.autoRefreshOn': 'ON',
+        'metricsDashboard.autoRefreshOff': 'OFF',
+        'metricsDashboard.metrics.apiRequestRate': 'API Request Rate',
+        'metricsDashboard.metrics.apiRequestRateDesc': 'Requests per minute',
+        'metricsDashboard.metrics.taskSuccessRate': 'Task Success Rate',
+        'metricsDashboard.metrics.taskSuccessRateDesc': 'Agent task completion rate',
+        'metricsDashboard.metrics.queueDepth': 'Queue Depth',
+        'metricsDashboard.metrics.queueDepthDesc': 'Tasks waiting in queue',
+        'metricsDashboard.metrics.activeAgents': 'Active Agents',
+        'metricsDashboard.metrics.activeAgentsDesc': 'Currently active agents',
+        'metricsDashboard.tabs.agents': 'Agents',
+        'metricsDashboard.tabs.systemHealth': 'System Health',
+        'metricsDashboard.tabs.performance': 'Performance',
+        'metricsDashboard.agent.idLabel': `ID: ${params?.id || ''}`,
+        'metricsDashboard.agent.reputationScore': 'Reputation Score',
+        'metricsDashboard.agent.successRate': 'Success Rate',
+        'metricsDashboard.agent.activeTasks': 'Active Tasks',
+        'metricsDashboard.systemHealth.errorRate': 'Error Rate',
+        'metricsDashboard.systemHealth.avgLatency': 'Avg Latency',
+        'metricsDashboard.systemHealth.latencyValue': `${params?.value || ''}ms`,
+        'metricsDashboard.systemHealth.latencyTarget': 'Target: < 1000ms',
+        'metricsDashboard.systemHealth.circuitBreakers': 'Circuit Breakers',
+        'metricsDashboard.systemHealth.openCircuitBreakers': 'Open circuit breakers',
+        'metricsDashboard.performance.title': 'Performance Metrics',
+        'metricsDashboard.performance.subtitle': 'Detailed performance metrics and trends',
+        'metricsDashboard.performance.description': 'Performance charts and detailed metrics will be displayed here. Integration with monitoring backend in progress.',
+      };
+      return translations[key] || key;
+    },
+  }),
+}));
+
+vi.mock('../../lib/api-client', () => ({
+  apiClientWithMeta: vi.fn(),
+}));
+
+import { apiClientWithMeta } from '../../lib/api-client';
+
+const mockApiClientWithMeta = apiClientWithMeta as ReturnType<typeof vi.fn>;
 
 describe('MetricsDashboard Component (P1)', () => {
   beforeEach(() => {
-    mockFetch.mockClear();
-    vi.stubEnv('NODE_ENV', 'development');
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:5000');
+    mockApiClientWithMeta.mockClear();
+    vi.stubEnv('MODE', 'development');
   });
 
   afterEach(() => {
@@ -18,7 +66,7 @@ describe('MetricsDashboard Component (P1)', () => {
 
   describe('Loading State', () => {
     it('should display loading spinner initially', () => {
-      mockFetch.mockImplementation(() => new Promise(() => {}));
+      mockApiClientWithMeta.mockImplementation(() => new Promise(() => {}));
 
       render(<MetricsDashboard />);
 
@@ -27,8 +75,8 @@ describe('MetricsDashboard Component (P1)', () => {
   });
 
   describe('Error Handling', () => {
-    it('should fall back to mock data when fetch fails in development', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    it('should fall back to mock data when API call fails in development', async () => {
+      mockApiClientWithMeta.mockRejectedValueOnce(new Error('Network error'));
 
       render(<MetricsDashboard />);
 
@@ -37,20 +85,24 @@ describe('MetricsDashboard Component (P1)', () => {
       });
     });
 
-    it('should display error for production without API URL', async () => {
-      vi.stubEnv('NODE_ENV', 'production');
-      vi.stubEnv('VITE_API_BASE_URL', '');
+    it('should throw error in production when API endpoint not found', async () => {
+      vi.stubEnv('MODE', 'production');
+      mockApiClientWithMeta.mockResolvedValueOnce({ 
+        status: 404,
+        data: null,
+        headers: new Headers()
+      });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/CRITICAL.*must be configured/i)).toBeInTheDocument();
+        expect(screen.getByText(/CRITICAL.*not implemented/i)).toBeInTheDocument();
       });
     });
   });
 
   describe('Data Fetching', () => {
-    it('should fetch data from correct API endpoint', async () => {
+    it('should call apiClientWithMeta with correct endpoint', async () => {
       const mockData = {
         system_health: {
           overall_status: 'healthy',
@@ -68,27 +120,28 @@ describe('MetricsDashboard Component (P1)', () => {
         alerts: [],
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:5000/api/phase7/monitoring/dashboard',
+        expect(mockApiClientWithMeta).toHaveBeenCalledWith(
+          '/phase7/monitoring/dashboard',
           expect.objectContaining({
-            credentials: 'include',
+            method: 'GET',
           })
         );
       });
     });
 
-    it('should include credentials in API request', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+    it('should use apiClientWithMeta which includes credentials automatically', async () => {
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: {
           system_health: { overall_status: 'healthy', error_rate: 0, avg_latency: 0, open_circuit_breakers: 0 },
           metrics: {
             api_request_rate: { current: 1000, unit: 'req/min' },
@@ -98,23 +151,27 @@ describe('MetricsDashboard Component (P1)', () => {
           },
           agents: [],
           alerts: [],
-        }),
+        },
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        const fetchCall = mockFetch.mock.calls[0];
-        expect(fetchCall[1].credentials).toBe('include');
+        expect(mockApiClientWithMeta).toHaveBeenCalledWith(
+          '/phase7/monitoring/dashboard',
+          { method: 'GET' }
+        );
       });
     });
   });
 
   describe('Mock Data Fallback', () => {
     it('should display mock data warning in development', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
+      mockApiClientWithMeta.mockResolvedValueOnce({
         status: 404,
+        data: null,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -126,9 +183,10 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should use mock data when API is unavailable in development', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
+      mockApiClientWithMeta.mockResolvedValueOnce({
         status: 404,
+        data: null,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -175,9 +233,10 @@ describe('MetricsDashboard Component (P1)', () => {
     };
 
     it('should display dashboard title', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -188,9 +247,10 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should display system health status', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -201,9 +261,10 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should display key metrics', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -217,9 +278,10 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should display metric values correctly', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -231,9 +293,10 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should display alerts when present', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -245,9 +308,10 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should display agent information', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -273,9 +337,10 @@ describe('MetricsDashboard Component (P1)', () => {
         alerts: [],
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValue({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
