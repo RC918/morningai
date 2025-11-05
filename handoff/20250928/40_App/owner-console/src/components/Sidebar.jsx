@@ -124,7 +124,7 @@ const Sidebar = ({ user, onLogout }) => {
         </div>
       </div>
 
-      <nav className="flex-1 p-4" aria-label="Main navigation">
+      <nav className="flex-1 p-4" aria-label={t('nav.mainNavigation')}>
         <ul className="space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon
