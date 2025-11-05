@@ -546,7 +546,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
     return data;
   } catch (error) {
     if (error instanceof TypeError && error.message.toLowerCase().includes('fetch')) {
-      throw new Error('無法連接到後端服務，請檢查網絡連接或聯繫管理員');
+      throw new Error('Network connection failed. Please check your connection or contact support.');
     }
     throw error;
   }
