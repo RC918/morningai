@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const RESULTS_DIR = path.join(__dirname, '../motion-test-results');
+const BASE_URL = process.env.BASE_URL || 'http://localhost:4173';
 const TARGET_FPS = 60;
 const MAX_FRAME_TIME = 16.67; // ms (1000ms / 60fps)
 const ACCEPTABLE_DROPPED_FRAMES_RATE = 0.01; // 1%
@@ -17,7 +18,7 @@ const ACCEPTABLE_DROPPED_FRAMES_RATE = 0.01; // 1%
 const MOTION_TESTS = [
   {
     name: 'Page Transition',
-    url: 'http://localhost:4173',
+    url: BASE_URL,
     action: async (page) => {
       await page.click('a[href="/dashboard"]');
       await page.waitForTimeout(1000);
@@ -25,7 +26,7 @@ const MOTION_TESTS = [
   },
   {
     name: 'Modal Animation',
-    url: 'http://localhost:4173/dashboard',
+    url: `${BASE_URL}/dashboard`,
     action: async (page) => {
       const modalButton = page.locator('button:has-text("Open")').first();
       if (await modalButton.count() > 0) {
@@ -36,7 +37,7 @@ const MOTION_TESTS = [
   },
   {
     name: 'Scroll Performance',
-    url: 'http://localhost:4173/dashboard',
+    url: `${BASE_URL}/dashboard`,
     action: async (page) => {
       await page.evaluate(() => {
         window.scrollTo({ top: 1000, behavior: 'smooth' });

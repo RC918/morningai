@@ -189,13 +189,10 @@ jobs:
           
           echo "Preview server started on port ${{ matrix.port }}"
       
-      - name: Update motion test port
-        working-directory: handoff/20250928/40_App/${{ matrix.app }}
-        run: |
-          sed -i 's/localhost:4173/localhost:${{ matrix.port }}/g' scripts/test-motion.js
-      
       - name: Run motion performance tests
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        env:
+          BASE_URL: http://localhost:${{ matrix.port }}
         run: pnpm run test:motion
         continue-on-error: true
       
