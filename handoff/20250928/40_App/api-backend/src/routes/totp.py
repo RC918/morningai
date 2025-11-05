@@ -525,7 +525,10 @@ def check_2fa_required(user_id: str, user_role: str = None) -> bool:
     """
     Check if 2FA is required for a user.
     
-    Owner role ALWAYS requires 2FA (enforced policy).
+    Owner role must enable 2FA (enforced policy), but 2FA is only required
+    at login if the user has already enabled it. This allows owners to log in
+    and set up 2FA on first login.
+    
     Other roles require 2FA only if they have explicitly enabled it.
     
     Args:
@@ -533,7 +536,7 @@ def check_2fa_required(user_id: str, user_role: str = None) -> bool:
         user_role: User role (optional, will fetch if not provided)
         
     Returns:
-        True if 2FA is enabled/required for user, False otherwise
+        True if 2FA is enabled for user, False otherwise
     """
     if not is_2fa_feature_enabled():
         return False
@@ -544,16 +547,15 @@ def check_2fa_required(user_id: str, user_role: str = None) -> bool:
             if user:
                 user_role = user.get('role')
         
-        if user_role == 'owner':
-            logger.info(f"2FA required for Owner role user {user_id}")
-            return True
-        
         supabase_url = os.environ.get('SUPABASE_URL')
         supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('enabled').eq('user_id', user_id).execute()
         
-        return bool(user_2fa.data and user_2fa.data[0].get('enabled'))
+        is_enabled = bool(user_2fa.data and user_2fa.data[0].get('enabled'))
+        
+        logger.info(f"2FA check for user {user_id} (role: {user_role}): enabled={is_enabled}")
+        return is_enabled
         
     except Exception as e:
         logger.error(f"Error checking 2FA requirement: {str(e)}", exc_info=True)
