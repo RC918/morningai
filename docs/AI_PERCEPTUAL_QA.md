@@ -168,8 +168,10 @@ ai-perceptual-qa:
 
 **Environment Variables:**
 - `OPENAI_API_KEY`: Required for AI scoring
+- `QA_TEST_EMAIL`: Test account email (for authenticated pages)
+- `QA_TEST_PASSWORD`: Test account password (for authenticated pages)
 - `UX_AI_MODEL`: Model to use (default: gpt-4o-mini)
-- `UX_AI_MAX_PAGES`: Max pages per app (default: 3)
+- `UX_AI_MAX_PAGES`: Max pages per app (default: 4)
 - `UX_HARMONY_MIN`: Harmony threshold (default: 70)
 - `UX_DELIGHT_MIN`: Delight threshold (default: 75)
 
@@ -202,9 +204,85 @@ ux-qa-results/
 └── frontend-dashboard-ux-report.html
 ```
 
+## Authentication Support (Phase 2 v2)
+
+AI Perceptual QA now supports capturing screenshots of authenticated pages (Dashboard, Settings, etc.) in addition to public pages.
+
+### Setup
+
+**1. Create Test Account**
+
+Create a dedicated test account in your authentication system (Supabase, Auth0, etc.) with known credentials. This account should have access to all pages you want to test.
+
+**2. Store Credentials Securely**
+
+**Local Testing:**
+```bash
+export QA_TEST_EMAIL="test@example.com"
+export QA_TEST_PASSWORD="test-password-123"
+```
+
+**CI/CD (GitHub Actions):**
+```bash
+# Settings > Secrets and variables > Actions > New repository secret
+# Name: QA_TEST_EMAIL
+# Value: test@example.com
+
+# Name: QA_TEST_PASSWORD
+# Value: test-password-123
+```
+
+**3. Configure Pages**
+
+Edit `scripts/ux/config.js` to mark pages that require authentication:
+
+```javascript
+PAGES: {
+  'frontend-dashboard': [
+    {
+      name: 'Landing Page',
+      path: '/',
+      requiresAuth: false,  // Public page
+    },
+    {
+      name: 'Dashboard',
+      path: '/dashboard',
+      requiresAuth: true,   // Requires authentication
+    },
+  ],
+}
+```
+
+### How It Works
+
+1. **Authentication Flow:**
+   - Script checks if any pages require authentication
+   - If credentials provided, navigates to `/login`
+   - Fills username/password and submits form
+   - Waits for redirect to authenticated area
+   - Verifies authentication by checking for sidebar
+
+2. **Session Persistence:**
+   - Saves authentication state to `ux-qa-results/auth-storage.json`
+   - Reuses saved state in subsequent runs (faster)
+   - State includes cookies, localStorage, sessionStorage
+
+3. **Graceful Degradation:**
+   - If credentials not provided, skips authenticated pages
+   - Logs warning and continues with public pages only
+   - Marks skipped pages in manifest with error message
+
+### Security Considerations
+
+- Test credentials are stored in GitHub Secrets (encrypted at rest)
+- Auth storage file is gitignored (never committed)
+- Use dedicated test account (not production user)
+- Rotate test credentials periodically
+- Test account should have minimal permissions
+
 ## Usage Examples
 
-### Local Testing
+### Local Testing (Public Pages Only)
 
 ```bash
 # 1. Start preview server
@@ -217,6 +295,27 @@ cd /path/to/morningai
 BASE_URL=http://localhost:4173 \
 APP_NAME=frontend-dashboard \
 OPENAI_API_KEY=sk-... \
+pnpm run ux:qa
+
+# 3. View results
+open ux-qa-results/frontend-dashboard-ux-report.html
+```
+
+### Local Testing (With Authentication)
+
+```bash
+# 1. Start preview server
+cd handoff/20250928/40_App/frontend-dashboard
+pnpm run build
+pnpm run preview --port 4173
+
+# 2. Run UX QA with test credentials (in another terminal)
+cd /path/to/morningai
+BASE_URL=http://localhost:4173 \
+APP_NAME=frontend-dashboard \
+OPENAI_API_KEY=sk-... \
+QA_TEST_EMAIL="admin" \
+QA_TEST_PASSWORD="admin123" \
 pnpm run ux:qa
 
 # 3. View results
@@ -330,6 +429,29 @@ UX_AI_MODEL=gpt-4o pnpm run ux:qa
 **Solution:** Start preview server first:
 ```bash
 pnpm run build && pnpm run preview --port 4173
+```
+
+### Authentication Failed
+
+```
+❌ Authentication failed - no authenticated elements found
+```
+
+**Solution:** 
+1. Verify test credentials are correct
+2. Check if login form selectors changed
+3. Ensure Supabase/auth service is configured
+4. Try logging in manually to verify credentials work
+
+### Authenticated Pages Skipped
+
+```
+⏭️  Skipping: Dashboard (requires authentication)
+```
+
+**Solution:** Provide test credentials:
+```bash
+QA_TEST_EMAIL="admin" QA_TEST_PASSWORD="admin123" pnpm run ux:qa
 ```
 
 ### JSON Parse Error
