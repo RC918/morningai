@@ -21,7 +21,7 @@ module.exports = {
       mode: 'tags-split',
       override: {
         mutator: {
-          path: 'src/lib/lib/api-client.ts',
+          path: 'src/lib/api-client.ts',
           name: 'apiClient'
         }
       }
