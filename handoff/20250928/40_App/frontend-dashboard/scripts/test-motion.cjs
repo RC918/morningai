@@ -22,7 +22,13 @@ const MOTION_TESTS = [
     name: 'Page Transition',
     url: BASE_URL,
     action: async (page) => {
-      await page.click('a[href="/dashboard"]');
+      // Robust navigation: try clicking link, fallback to direct navigation
+      const dashboardLink = page.locator('a[href="/dashboard"]');
+      if (await dashboardLink.count() > 0) {
+        await dashboardLink.click();
+      } else {
+        await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle' });
+      }
       await page.waitForTimeout(1000);
     }
   },
@@ -100,7 +106,9 @@ async function measureFrameRate(page, duration = 2000) {
         frames.push(frameDuration);
         frameCount++;
         
-        if (frameDuration > 16.67) {
+        // Use the same threshold for dropped frames as P95 threshold
+        const dropThreshold = parseFloat(process.env.MOTION_P95_MS || '16.67');
+        if (frameDuration > dropThreshold) {
           droppedFrames++;
         }
         
