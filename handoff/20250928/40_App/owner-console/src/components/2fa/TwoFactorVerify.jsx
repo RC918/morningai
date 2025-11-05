@@ -103,9 +103,14 @@ export function TwoFactorVerify({
     setBackupCode('');
   };
 
+  console.debug('[2FA] rendering', { open, useBackup, totpLen: totpCode.length, attemptsRemaining });
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      console.debug('[2FA] onOpenChange', { nextOpen });
+      if (!nextOpen) onClose();
+    }}>
+      <DialogContent className="sm:max-w-md z-[10000]">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
