@@ -67,12 +67,44 @@ def _parse_bearer_token(auth_header):
             'message': 'Authorization header must be in format: Bearer <token>'
         }), 401)
 
+def _extract_jwt_from_request():
+    """
+    Extract JWT token from request (Authorization header or access_token cookie).
+    
+    Priority:
+    1. Authorization header (for API clients and backward compatibility)
+    2. access_token cookie (for browser-based authentication)
+    
+    Returns:
+        tuple: (token, error_response) where error_response is None if successful
+    """
+    auth_header = request.headers.get('Authorization')
+    if auth_header:
+        token, error = _parse_bearer_token(auth_header)
+        if not error:
+            return token, None
+        # This prevents confusion when both are present
+        return None, error
+    
+    cookie_token = request.cookies.get('access_token')
+    if cookie_token:
+        return cookie_token, None
+    
+    return None, (jsonify({
+        'error': 'Authentication required',
+        'message': 'Please provide a valid JWT token via Authorization header or access_token cookie.'
+    }), 401)
+
 def jwt_required(f):
-    """JWT authentication decorator for protecting endpoints (supports both Supabase and custom JWT)"""
+    """
+    JWT authentication decorator for protecting endpoints.
+    
+    Supports both Authorization header and access_token cookie for authentication.
+    Priority: Authorization header > access_token cookie
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
-        token, error = _parse_bearer_token(auth_header)
+        token, error = _extract_jwt_from_request()
         if error:
             return error
         
@@ -118,11 +150,14 @@ def jwt_required(f):
     return decorated_function
 
 def admin_required(f):
-    """Decorator for endpoints requiring admin role"""
+    """
+    Decorator for endpoints requiring admin role.
+    
+    Supports both Authorization header and access_token cookie for authentication.
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
-        token, error = _parse_bearer_token(auth_header)
+        token, error = _extract_jwt_from_request()
         if error:
             return error
         
@@ -167,11 +202,14 @@ def admin_required(f):
     return decorated_function
 
 def analyst_required(f):
-    """Decorator for endpoints requiring analyst role or higher"""
+    """
+    Decorator for endpoints requiring analyst role or higher.
+    
+    Supports both Authorization header and access_token cookie for authentication.
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
-        token, error = _parse_bearer_token(auth_header)
+        token, error = _extract_jwt_from_request()
         if error:
             return error
         
@@ -297,12 +335,15 @@ def create_user_token():
     return generate_jwt_token(user_data)
 
 def roles_required(*allowed_roles):
-    """Decorator for endpoints requiring specific roles"""
+    """
+    Decorator for endpoints requiring specific roles.
+    
+    Supports both Authorization header and access_token cookie for authentication.
+    """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            auth_header = request.headers.get('Authorization')
-            token, error = _parse_bearer_token(auth_header)
+            token, error = _extract_jwt_from_request()
             if error:
                 return error
             
