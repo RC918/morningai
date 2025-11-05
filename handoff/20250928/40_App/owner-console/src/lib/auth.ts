@@ -511,22 +511,6 @@ async function authenticatedFetch(
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   await ensureCsrfToken();
   
-  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
-    const mockTokens = {
-      expiresAt: Date.now() + 60 * 60 * 1000,
-    };
-    return {
-      user: {
-        id: 'mock-user-id',
-        email: credentials.email,
-        role: 'owner',
-        tenantId: 'mock-tenant-id',
-        name: 'Mock User',
-      },
-      tokens: mockTokens,
-    };
-  }
-  
   const response = await fetch(`${API_BASE_URL}/api/auth/v2/login`, {
     method: 'POST',
     headers: {
@@ -554,25 +538,23 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
  * Backend will blacklist the refresh token and clear cookies
  */
 export async function logout(): Promise<void> {
-  if (isFeatureEnabled('OWNER_CONSOLE_API')) {
-    try {
-      const csrfToken = getCsrfToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (csrfToken) {
-        headers['X-CSRF-Token'] = csrfToken;
-      }
-      
-      await fetch(`${API_BASE_URL}/api/auth/v2/logout`, {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-      });
-    } catch (error) {
-      console.error('Logout API call failed:', error);
+  try {
+    const csrfToken = getCsrfToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
     }
+    
+    await fetch(`${API_BASE_URL}/api/auth/v2/logout`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+    });
+  } catch (error) {
+    console.error('Logout API call failed:', error);
   }
   
   clearTokens();
@@ -584,14 +566,6 @@ export async function logout(): Promise<void> {
  * Backend handles token rotation automatically
  */
 export async function refreshAccessToken(): Promise<AuthTokens> {
-  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
-    const newTokens: AuthTokens = {
-      expiresAt: Date.now() + 60 * 60 * 1000,
-    };
-    storeTokenExpiry(newTokens.expiresAt);
-    return newTokens;
-  }
-  
   const response = await fetch(`${API_BASE_URL}/api/auth/v2/refresh`, {
     method: 'POST',
     headers: {
@@ -623,10 +597,6 @@ export async function getCurrentUser(): Promise<User> {
   const storedUser = getStoredUser();
   if (storedUser) {
     return storedUser;
-  }
-  
-  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
-    throw new Error('Not authenticated');
   }
   
   const response = await authenticatedFetch(`${API_BASE_URL}/api/auth/v2/me`);
