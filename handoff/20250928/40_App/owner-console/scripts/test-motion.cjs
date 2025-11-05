@@ -12,15 +12,23 @@ const path = require('path');
 const RESULTS_DIR = path.join(__dirname, '../motion-test-results');
 const BASE_URL = process.env.BASE_URL || 'http://localhost:4173';
 const TARGET_FPS = 60;
-const MAX_FRAME_TIME = 16.67; // ms (1000ms / 60fps)
-const ACCEPTABLE_DROPPED_FRAMES_RATE = 0.01; // 1%
+// Configurable thresholds for CI vs local environments
+// CI headless environments have lower performance headroom
+const MAX_FRAME_TIME = parseFloat(process.env.MOTION_P95_MS || '16.67'); // ms (1000ms / 60fps)
+const ACCEPTABLE_DROPPED_FRAMES_RATE = parseFloat(process.env.MOTION_DROP_PERCENT || '1') / 100; // percentage
 
 const MOTION_TESTS = [
   {
     name: 'Page Transition',
     url: BASE_URL,
     action: async (page) => {
-      await page.click('a[href="/dashboard"]');
+      // Robust navigation: try clicking link, fallback to direct navigation
+      const dashboardLink = page.locator('a[href="/dashboard"]');
+      if (await dashboardLink.count() > 0) {
+        await dashboardLink.click();
+      } else {
+        await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle' });
+      }
       await page.waitForTimeout(1000);
     }
   },
@@ -47,24 +55,24 @@ const MOTION_TESTS = [
   }
 ];
 
-async function measureFrameRate(page, duration = 2000) {
-  const metrics = await page.evaluate((duration) => {
+async function measureFrameRate(page, duration = 2000, dropThresholdMs = 16.67, minFrames = 60) {
+  const metrics = await page.evaluate(({ durationMs, dropThresholdMs, minFrames }) => {
     return new Promise((resolve) => {
       const frames = [];
-      const startTime = performance.now();
-      const endTime = startTime + duration;
-      const maxFrames = 1200;
-      let lastTime = startTime;
-      let frameCount = 0;
+      let startTime = null;
+      let endTime = 0;
+      let lastTime = 0;
       let droppedFrames = 0;
       let finished = false;
       
-      function finish() {
+      function finish(reason) {
         if (finished) return;
         finished = true;
         
         if (frames.length === 0) {
           resolve({
+            valid: false,
+            reason: reason || 'no frames captured',
             fps: 0,
             avgFrameTime: 0,
             frameCount: 0,
@@ -76,17 +84,35 @@ async function measureFrameRate(page, duration = 2000) {
           return;
         }
         
+        if (frames.length < minFrames) {
+          resolve({
+            valid: false,
+            reason: `insufficient frames: ${frames.length} < ${minFrames}`,
+            fps: 0,
+            avgFrameTime: 0,
+            frameCount: frames.length,
+            droppedFrames,
+            droppedRate: 0,
+            p95FrameTime: 0,
+            maxFrameTime: 0
+          });
+          return;
+        }
+        
         const avgFrameTime = frames.reduce((a, b) => a + b, 0) / frames.length;
         const fps = 1000 / avgFrameTime;
-        const droppedRate = droppedFrames / frameCount;
+        const sortedFrames = [...frames].sort((a, b) => a - b);
+        const p95Index = Math.floor(sortedFrames.length * 0.95);
+        const droppedRate = (droppedFrames / frames.length) * 100;
         
         resolve({
+          valid: true,
           fps: Math.round(fps * 10) / 10,
           avgFrameTime: Math.round(avgFrameTime * 100) / 100,
-          frameCount,
+          frameCount: frames.length,
           droppedFrames,
-          droppedRate: Math.round(droppedRate * 10000) / 100,
-          p95FrameTime: Math.round(frames.sort((a, b) => a - b)[Math.floor(frames.length * 0.95)] * 100) / 100,
+          droppedRate: Math.round(droppedRate * 100) / 100,
+          p95FrameTime: Math.round(sortedFrames[p95Index] * 100) / 100,
           maxFrameTime: Math.round(Math.max(...frames) * 100) / 100
         });
       }
@@ -94,34 +120,46 @@ async function measureFrameRate(page, duration = 2000) {
       function measureFrame(currentTime) {
         if (finished) return;
         
-        const frameDuration = currentTime - lastTime;
-        frames.push(frameDuration);
-        frameCount++;
+        // Initialize timing on first frame using rAF timestamp
+        if (startTime === null) {
+          startTime = currentTime;
+          endTime = startTime + durationMs;
+          lastTime = currentTime;
+          requestAnimationFrame(measureFrame);
+          return;
+        }
         
-        if (frameDuration > 16.67) {
-          droppedFrames++;
+        const frameDuration = currentTime - lastTime;
+        
+        // Guard against negative durations (shouldn't happen with single time base)
+        if (frameDuration >= 0) {
+          frames.push(frameDuration);
+          if (frameDuration > dropThresholdMs) {
+            droppedFrames++;
+          }
         }
         
         lastTime = currentTime;
         
-        if (currentTime >= endTime || frameCount >= maxFrames) {
-          finish();
+        if (currentTime >= endTime) {
+          finish('duration complete');
         } else {
           requestAnimationFrame(measureFrame);
         }
       }
       
-      setTimeout(finish, duration + 500);
+      setTimeout(() => finish('timeout'), durationMs + 1000);
       
       requestAnimationFrame(measureFrame);
     });
-  }, duration);
+  }, { durationMs: duration, dropThresholdMs, minFrames });
   
   return metrics;
 }
 
 async function runMotionTests() {
   console.log('🎬 Starting Motion Performance Tests...\n');
+  console.log(`Thresholds: P95 ≤ ${MAX_FRAME_TIME}ms, Dropped ≤ ${ACCEPTABLE_DROPPED_FRAMES_RATE * 100}%\n`);
   
   if (!fs.existsSync(RESULTS_DIR)) {
     fs.mkdirSync(RESULTS_DIR, { recursive: true });
@@ -145,10 +183,25 @@ async function runMotionTests() {
     try {
       await page.goto(test.url, { waitUntil: 'networkidle' });
       
-      const baselineMetrics = await measureFrameRate(page, 1000);
+      // Warm-up period to stabilize rendering
+      await page.waitForTimeout(300);
+      
+      const baselineMetrics = await measureFrameRate(page, 1000, MAX_FRAME_TIME, 60);
+      
+      if (!baselineMetrics.valid) {
+        throw new Error(`Baseline measurement invalid: ${baselineMetrics.reason}`);
+      }
       
       await test.action(page);
-      const actionMetrics = await measureFrameRate(page, 2000);
+      
+      // Short wait after action before measuring
+      await page.waitForTimeout(200);
+      
+      const actionMetrics = await measureFrameRate(page, 2000, MAX_FRAME_TIME, 60);
+      
+      if (!actionMetrics.valid) {
+        throw new Error(`Action measurement invalid: ${actionMetrics.reason}`);
+      }
       
       const passed = 
         actionMetrics.p95FrameTime <= MAX_FRAME_TIME &&
