@@ -436,6 +436,7 @@ jobs:
           name: calibration-csv-${{ matrix.app }}
           path: calibration.csv
           retention-days: 30
+          if-no-files-found: ignore
       
       - name: Check thresholds
         if: always()

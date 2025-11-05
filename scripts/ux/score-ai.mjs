@@ -74,7 +74,7 @@ function buildPrompt(pageInfo, tokens) {
     .replace('{schema}', JSON.stringify(HARMONY_SCHEMA, null, 2));
 }
 
-async function scoreScreenshot(pageInfo, screenshotPath, tokens) {
+async function scoreScreenshot(pageInfo, screenshotPath, tokens, attempt = 1) {
   console.log(`  Analyzing: ${pageInfo.name}...`);
 
   try {
@@ -128,11 +128,11 @@ async function scoreScreenshot(pageInfo, screenshotPath, tokens) {
   } catch (error) {
     console.error(`    ❌ Error: ${error.message}`);
 
-    // Retry once on parse error
-    if (error.message.includes('JSON')) {
-      console.log(`    🔄 Retrying...`);
+    // Retry once on parse error (max 2 attempts total)
+    if (error.message.includes('JSON') && attempt < 2) {
+      console.log(`    🔄 Retrying (attempt ${attempt + 1}/2)...`);
       await new Promise(resolve => setTimeout(resolve, 1000));
-      return scoreScreenshot(pageInfo, screenshotPath, tokens);
+      return scoreScreenshot(pageInfo, screenshotPath, tokens, attempt + 1);
     }
 
     return {
