@@ -45,7 +45,9 @@ const LoginPage = ({ onLogin, onAuthenticated }) => {
         return
       }
       
-      console.log('[LoginPage] Login successful without 2FA')
+      console.log('[LoginPage] Login successful without 2FA, calling onAuthenticated')
+      await onAuthenticated()
+      console.log('[LoginPage] User authenticated successfully')
     } catch (error) {
       console.error('Login error:', error)
       setError(error.message || t('auth.login.loginError'))
