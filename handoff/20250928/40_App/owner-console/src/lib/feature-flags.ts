@@ -79,11 +79,25 @@ function getLocalStorageFlag(key: string): boolean | undefined {
 }
 
 /**
+ * Static map of environment flags for Vite build-time inlining
+ * Vite can only inline env vars that are accessed via direct dot notation,
+ * not dynamic bracket access. This static map ensures all flags are included.
+ */
+const ENV_FLAGS = {
+  OWNER_CONSOLE_API: import.meta.env.VITE_FEATURE_OWNER_CONSOLE_API,
+  OWNER_CONSOLE_GOVERNANCE: import.meta.env.VITE_FEATURE_OWNER_CONSOLE_GOVERNANCE,
+  OWNER_CONSOLE_TENANTS: import.meta.env.VITE_FEATURE_OWNER_CONSOLE_TENANTS,
+  OWNER_CONSOLE_MONITORING: import.meta.env.VITE_FEATURE_OWNER_CONSOLE_MONITORING,
+  OWNER_CONSOLE_SETTINGS: import.meta.env.VITE_FEATURE_OWNER_CONSOLE_SETTINGS,
+  OWNER_CONSOLE_SECURITY: import.meta.env.VITE_FEATURE_OWNER_CONSOLE_SECURITY,
+  OWNER_CONSOLE_PWA: import.meta.env.VITE_FEATURE_OWNER_CONSOLE_PWA,
+} as const;
+
+/**
  * Get feature flag value from environment variables
  */
 function getEnvFlag(key: string): boolean | undefined {
-  const envKey = `VITE_FEATURE_${key}`;
-  const envValue = (import.meta.env as any)[envKey] as string | undefined;
+  const envValue = (ENV_FLAGS as any)[key] as string | undefined;
   
   if (envValue === undefined) return undefined;
   
