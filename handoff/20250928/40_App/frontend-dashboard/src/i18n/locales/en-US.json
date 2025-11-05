@@ -646,6 +646,10 @@
       "label": "Cost Analysis",
       "description": "AI service costs"
     },
+    "governance": {
+      "label": "Agent Governance",
+      "description": "Monitor agent reputation and compliance"
+    },
     "settings": {
       "label": "System Settings",
       "description": "Configuration management"

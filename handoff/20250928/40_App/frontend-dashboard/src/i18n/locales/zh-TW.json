@@ -646,6 +646,10 @@
       "label": "成本分析",
       "description": "AI服務成本"
     },
+    "governance": {
+      "label": "Agent 治理",
+      "description": "監控 agent 信譽與合規性"
+    },
     "settings": {
       "label": "系統設置",
       "description": "配置管理"

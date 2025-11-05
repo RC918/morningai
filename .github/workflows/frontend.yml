@@ -144,3 +144,113 @@ jobs:
             See [Issue #935](https://github.com/RC918/morningai/issues/935) for details.
             
             📎 [View full report artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+  
+  changed-files-strict-i18n:
+    name: Changed Files Strict i18n Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+      
+      - name: Strict i18n Check on Changed Files
+        run: |
+          set -o pipefail
+          
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.sha }}"
+          
+          echo "Checking changed files between $BASE and $HEAD"
+          
+          # Get all changed JS/JSX/TS/TSX files
+          CHANGED=$(git diff --name-only "$BASE"..."$HEAD" | grep -E '\.(js|jsx|ts|tsx)$' || true)
+          
+          if [ -z "$CHANGED" ]; then
+            echo "No JS/TS files changed in this PR"
+            exit 0
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGED"
+          
+          # Split by workspace
+          OC_FILES=$(echo "$CHANGED" | grep 'handoff/.*/40_App/owner-console/src/' || true)
+          FD_FILES=$(echo "$CHANGED" | grep 'handoff/.*/40_App/frontend-dashboard/src/' || true)
+          
+          EXIT_CODE=0
+          
+          # Check owner-console files
+          if [ -n "$OC_FILES" ]; then
+            echo ""
+            echo "=== Checking owner-console files ==="
+            # Strip workspace prefix from paths (convert to workspace-relative)
+            OC_FILES_RELATIVE=$(echo "$OC_FILES" | sed 's|^handoff/.*/40_App/owner-console/||')
+            echo "Relative paths: $OC_FILES_RELATIVE"
+            echo "$OC_FILES_RELATIVE" | xargs -r pnpm -F owner-console exec eslint --max-warnings=0 --rule 'i18next/no-literal-string: ["error", {"markupOnly": false, "ignoreCallee": ["t","Trans","clsx","cn","tw","cva"]}]' || EXIT_CODE=1
+          fi
+          
+          # Check frontend-dashboard files
+          if [ -n "$FD_FILES" ]; then
+            echo ""
+            echo "=== Checking frontend-dashboard files ==="
+            # Strip workspace prefix from paths (convert to workspace-relative)
+            FD_FILES_RELATIVE=$(echo "$FD_FILES" | sed 's|^handoff/.*/40_App/frontend-dashboard/||')
+            echo "Relative paths: $FD_FILES_RELATIVE"
+            echo "$FD_FILES_RELATIVE" | xargs -r pnpm -F frontend-dashboard exec eslint --max-warnings=0 --rule 'i18next/no-literal-string: ["error", {"markupOnly": false, "ignoreCallee": ["t","Trans","clsx","cn","tw","cva"]}]' || EXIT_CODE=1
+          fi
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "❌ i18n violations found in changed files!"
+            echo "All user-visible strings must use t() or <Trans> for internationalization."
+            echo "Note: This strict check enforces i18n on ALL user-visible strings, including object properties."
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All changed files pass strict i18n check!"
+  
+  typescript-strict-check:
+    name: TypeScript Strict Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+      
+      - name: TypeScript Check - Frontend Dashboard
+        run: pnpm -F frontend-dashboard exec tsc --noEmit
+      
+      - name: TypeScript Check - Owner Console
+        run: pnpm -F owner-console exec tsc --noEmit
