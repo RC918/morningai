@@ -27,6 +27,8 @@ export function TwoFactorVerify({
   onClose,
   onVerify,
 }) {
+  console.info('[2FA] TwoFactorVerify render', { open, build: '86765b16-debug' });
+  
   const { t } = useTranslation();
   const [totpCode, setTotpCode] = useState('');
   const [backupCode, setBackupCode] = useState('');
@@ -37,6 +39,7 @@ export function TwoFactorVerify({
   const [attemptsRemaining, setAttemptsRemaining] = useState(5);
 
   useEffect(() => {
+    console.info('[2FA] useEffect open changed', { open });
     if (open) {
       setTotpCode('');
       setBackupCode('');
@@ -104,7 +107,7 @@ export function TwoFactorVerify({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+    <Dialog open={open} onOpenChange={(isOpen) => { console.info('[2FA] onOpenChange', { isOpen }); if (!isOpen) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">

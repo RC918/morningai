@@ -20,6 +20,10 @@ const LoginPage = ({ onLogin, onAuthenticated }) => {
   const [show2FADialog, setShow2FADialog] = useState(false)
 
   useEffect(() => {
+    console.info('[LoginPage] show2FADialog changed', { show2FADialog });
+  }, [show2FADialog])
+
+  useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
     
@@ -236,6 +240,26 @@ const LoginPage = ({ onLogin, onAuthenticated }) => {
           <p className="mt-1">{t('app.motto')}</p>
         </motion.div>
       </motion.div>
+
+      {show2FADialog && (
+        <div 
+          id="debug-2fa-overlay" 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(255, 0, 0, 0.3)',
+            color: '#fff',
+            display: 'grid',
+            placeItems: 'center',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            pointerEvents: 'none'
+          }}
+        >
+          {`DEBUG: 2FA Dialog State = TRUE`}
+        </div>
+      )}
 
       <TwoFactorVerify
         open={show2FADialog}
