@@ -7,6 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 import OpenAI from 'openai';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +18,7 @@ const config = await import('./config.js').then(m => m.default);
 const APP_NAME = process.env.APP_NAME || 'frontend-dashboard';
 const OUTPUT_DIR = path.join(__dirname, '../../ux-qa-results');
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const PROMPT_VERSION = process.env.PROMPT_VERSION || 'v0.1';
 
 if (!OPENAI_API_KEY) {
   console.log('⏭️  Skipping AI Perceptual QA: OPENAI_API_KEY not set');
@@ -25,76 +27,51 @@ if (!OPENAI_API_KEY) {
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-// JSON schema for AI response
-const HARMONY_SCHEMA = {
-  type: 'object',
-  properties: {
-    overall: { type: 'number', minimum: 0, maximum: 100 },
-    color: { type: 'number', minimum: 0, maximum: 100 },
-    spacing: { type: 'number', minimum: 0, maximum: 100 },
-    typography: { type: 'number', minimum: 0, maximum: 100 },
-    alignment: { type: 'number', minimum: 0, maximum: 100 },
-    contrast: { type: 'number', minimum: 0, maximum: 100 },
-    findings: {
-      type: 'array',
-      items: { type: 'string' },
-      maxItems: 5,
-    },
-  },
-  required: ['overall', 'color', 'spacing', 'typography', 'alignment', 'contrast', 'findings'],
-};
+// Load prompt configuration
+const promptPath = path.join(__dirname, `../../prompts/ux_vision_${PROMPT_VERSION}.json`);
+let promptConfig;
+try {
+  promptConfig = JSON.parse(fs.readFileSync(promptPath, 'utf-8'));
+  console.log(`📝 Using prompt version: ${promptConfig.version}`);
+} catch (error) {
+  console.error(`❌ Error loading prompt: ${promptPath}`);
+  console.error(`   ${error.message}`);
+  process.exit(1);
+}
+
+// Extract schema from prompt config
+const HARMONY_SCHEMA = promptConfig.schema;
+
+// Get git metadata for calibration tracking
+function getGitMetadata() {
+  try {
+    const commitSha = process.env.GITHUB_SHA || execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+    
+    let prNumber = null;
+    if (process.env.GITHUB_EVENT_NAME === 'pull_request' && process.env.GITHUB_EVENT_PATH) {
+      try {
+        const eventData = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf-8'));
+        prNumber = eventData.pull_request?.number || null;
+      } catch (e) {
+        // Event file not readable, skip PR number
+      }
+    }
+    
+    return { commitSha, prNumber };
+  } catch (error) {
+    return { commitSha: 'unknown', prNumber: null };
+  }
+}
+
+const gitMetadata = getGitMetadata();
 
 function buildPrompt(pageInfo, tokens) {
-  return `You are a UI design QA assistant. Analyze this screenshot for visual harmony based on the design system tokens provided.
-
-**Design System Tokens:**
-${JSON.stringify(tokens, null, 2)}
-
-**Page Context:**
-- Name: ${pageInfo.name}
-- Description: ${pageInfo.description}
-
-**Evaluation Rubric (0-100 scale):**
-
-1. **Color Harmony (0-100):**
-   - Are colors from the token palette?
-   - Is contrast sufficient (WCAG AA minimum)?
-   - Is brand color usage consistent?
-   - Penalize: non-token colors, poor contrast, inconsistent brand usage
-
-2. **Spacing Consistency (0-100):**
-   - Do margins/padding follow the spacing scale?
-   - Is vertical rhythm consistent?
-   - Are elements properly spaced?
-   - Penalize: arbitrary spacing, inconsistent rhythm, cramped/loose layouts
-
-3. **Typography Consistency (0-100):**
-   - Do font sizes match the typography scale?
-   - Are font weights appropriate?
-   - Is line-height comfortable?
-   - Penalize: off-scale sizes, inconsistent weights, poor readability
-
-4. **Alignment & Grid (0-100):**
-   - Are elements properly aligned?
-   - Is the grid system consistent?
-   - Are cards/components aligned?
-   - Penalize: misaligned elements, ragged grids, inconsistent columns
-
-5. **Contrast Quality (0-100):**
-   - Is text readable against backgrounds?
-   - Are interactive elements distinguishable?
-   - Is visual hierarchy clear?
-   - Penalize: low contrast, unclear hierarchy, hard-to-read text
-
-**Output Requirements:**
-- Provide scores for each dimension (0-100)
-- Calculate overall score as weighted average: (color*0.25 + spacing*0.20 + typography*0.20 + alignment*0.20 + contrast*0.15)
-- List 3-5 actionable findings (specific issues or improvements)
-- Be objective and consistent
-- Output ONLY valid JSON matching the schema
-
-**JSON Schema:**
-${JSON.stringify(HARMONY_SCHEMA, null, 2)}`;
+  // Render prompt template with actual values
+  return promptConfig.user_template
+    .replace('{tokens}', JSON.stringify(tokens, null, 2))
+    .replace('{page_name}', pageInfo.name)
+    .replace('{page_description}', pageInfo.description)
+    .replace('{schema}', JSON.stringify(HARMONY_SCHEMA, null, 2));
 }
 
 async function scoreScreenshot(pageInfo, screenshotPath, tokens) {
@@ -114,7 +91,7 @@ async function scoreScreenshot(pageInfo, screenshotPath, tokens) {
       messages: [
         {
           role: 'system',
-          content: 'You are a UI design QA assistant. Output strict JSON only.',
+          content: promptConfig.system_message,
         },
         {
           role: 'user',
@@ -226,6 +203,9 @@ async function scoreAllPages() {
     app: APP_NAME,
     timestamp: new Date().toISOString(),
     model: config.AI_CONFIG.model,
+    prompt_version: promptConfig.version,
+    commit_sha: gitMetadata.commitSha,
+    pr_number: gitMetadata.prNumber,
     pages: pageResults,
     harmony_overall: harmonyOverall,
     thresholds: config.THRESHOLDS.harmony,

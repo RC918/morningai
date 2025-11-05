@@ -142,6 +142,9 @@ async function aggregateMetrics() {
   const report = {
     app: APP_NAME,
     timestamp: new Date().toISOString(),
+    prompt_version: harmonyReport?.prompt_version || 'unknown',
+    commit_sha: harmonyReport?.commit_sha || 'unknown',
+    pr_number: harmonyReport?.pr_number || null,
     harmony: {
       overall: harmonyScore,
       pages: harmonyReport?.pages || [],

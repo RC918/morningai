@@ -26,7 +26,8 @@
     "ux:capture": "node scripts/ux/capture.mjs",
     "ux:score": "node scripts/ux/score-ai.mjs",
     "ux:aggregate": "node scripts/ux/aggregate.mjs",
-    "ux:smoke": "node scripts/ux/test-smoke.mjs"
+    "ux:smoke": "node scripts/ux/test-smoke.mjs",
+    "ux:analyze": "node scripts/ux/analyze.mjs"
   },
   "engines": {
     "node": ">=20.0.0",
