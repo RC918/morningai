@@ -45,7 +45,7 @@ export interface LoginCredentials {
 
 export interface LoginResponse {
   user: User;
-  tokens: AuthTokens;
+  tokens?: AuthTokens;
   requires_2fa?: boolean;
 }
 
@@ -509,8 +509,19 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   
   const data: LoginResponse = await response.json();
   
-  storeTokenExpiry(data.tokens.expiresAt);
   storeUser(data.user);
+  
+  if (data.requires_2fa) {
+    console.debug('[auth.ts] 2FA required, returning without storing tokens');
+    return { user: data.user, requires_2fa: true };
+  }
+  
+  if (data.tokens && typeof data.tokens.expiresAt === 'number') {
+    storeTokenExpiry(data.tokens.expiresAt);
+    console.debug('[auth.ts] Tokens stored, expiresAt:', data.tokens.expiresAt);
+  } else {
+    console.warn('[auth.ts] Missing tokens in login response when 2FA not required');
+  }
   
   return data;
 }
