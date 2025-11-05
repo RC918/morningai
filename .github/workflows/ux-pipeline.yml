@@ -162,9 +162,11 @@ jobs:
         with:
           version: 9
       
-      - name: Install dependencies
-        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+      - name: Workspace install
         run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui
+        run: pnpm --filter @morningai/shared-ui run build
       
       - name: Build application
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
@@ -238,9 +240,11 @@ jobs:
         with:
           version: 9
       
-      - name: Install dependencies
-        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+      - name: Workspace install
         run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui
+        run: pnpm --filter @morningai/shared-ui run build
       
       - name: Run ESLint jsx-a11y checks
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
