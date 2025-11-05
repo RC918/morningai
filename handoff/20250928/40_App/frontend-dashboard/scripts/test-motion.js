@@ -50,11 +50,49 @@ async function measureFrameRate(page, duration = 2000) {
   const metrics = await page.evaluate((duration) => {
     return new Promise((resolve) => {
       const frames = [];
-      let lastTime = performance.now();
+      const startTime = performance.now();
+      const endTime = startTime + duration;
+      const maxFrames = 1200;
+      let lastTime = startTime;
       let frameCount = 0;
       let droppedFrames = 0;
+      let finished = false;
+      
+      function finish() {
+        if (finished) return;
+        finished = true;
+        
+        if (frames.length === 0) {
+          resolve({
+            fps: 0,
+            avgFrameTime: 0,
+            frameCount: 0,
+            droppedFrames: 0,
+            droppedRate: 0,
+            p95FrameTime: 0,
+            maxFrameTime: 0
+          });
+          return;
+        }
+        
+        const avgFrameTime = frames.reduce((a, b) => a + b, 0) / frames.length;
+        const fps = 1000 / avgFrameTime;
+        const droppedRate = droppedFrames / frameCount;
+        
+        resolve({
+          fps: Math.round(fps * 10) / 10,
+          avgFrameTime: Math.round(avgFrameTime * 100) / 100,
+          frameCount,
+          droppedFrames,
+          droppedRate: Math.round(droppedRate * 10000) / 100,
+          p95FrameTime: Math.round(frames.sort((a, b) => a - b)[Math.floor(frames.length * 0.95)] * 100) / 100,
+          maxFrameTime: Math.round(Math.max(...frames) * 100) / 100
+        });
+      }
       
       function measureFrame(currentTime) {
+        if (finished) return;
+        
         const frameDuration = currentTime - lastTime;
         frames.push(frameDuration);
         frameCount++;
@@ -65,24 +103,14 @@ async function measureFrameRate(page, duration = 2000) {
         
         lastTime = currentTime;
         
-        if (currentTime < performance.now() + duration) {
-          requestAnimationFrame(measureFrame);
+        if (currentTime >= endTime || frameCount >= maxFrames) {
+          finish();
         } else {
-          const avgFrameTime = frames.reduce((a, b) => a + b, 0) / frames.length;
-          const fps = 1000 / avgFrameTime;
-          const droppedRate = droppedFrames / frameCount;
-          
-          resolve({
-            fps: Math.round(fps * 10) / 10,
-            avgFrameTime: Math.round(avgFrameTime * 100) / 100,
-            frameCount,
-            droppedFrames,
-            droppedRate: Math.round(droppedRate * 10000) / 100,
-            p95FrameTime: Math.round(frames.sort((a, b) => a - b)[Math.floor(frames.length * 0.95)] * 100) / 100,
-            maxFrameTime: Math.round(Math.max(...frames) * 100) / 100
-          });
+          requestAnimationFrame(measureFrame);
         }
       }
+      
+      setTimeout(finish, duration + 500);
       
       requestAnimationFrame(measureFrame);
     });
@@ -103,6 +131,9 @@ async function runMotionTests() {
     viewport: { width: 1920, height: 1080 }
   });
   const page = await context.newPage();
+  
+  page.setDefaultTimeout(10000);
+  page.setDefaultNavigationTimeout(10000);
   
   const results = [];
   let allTestsPassed = true;
