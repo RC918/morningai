@@ -422,6 +422,20 @@ config/
 - `/api/agent/tasks/{task_id}`: Task status polling
 - `/api/billing/plans`: Payment tier management
 - `/api/security/reviews/pending`: JWT-protected security reviews
+- `/api/phase7/monitoring/dashboard`: Real-time monitoring dashboard (public, no auth)
+- `/api/dashboard/data`: Legacy dashboard endpoint (⚠️ deprecated)
+
+**Monitoring API Surface**:
+- **Primary Handler**: `src/main.py:574` (`get_monitoring_dashboard`) - Public endpoint registration
+- **Core Logic**: `src/routes/dashboard.py:35` (`get_dashboard_data`) - Metrics collection with degradation
+- **Test Seam**: `src/routes/dashboard.py:17` (`check_db_health`) - Mockable DB health check
+- **Degradation Semantics**: 
+  - Redis failure → 200 with fallback metrics (`available: false`, `source: 'fallback'`)
+  - DB failure → 200 with degraded status + critical alert
+  - Both failures → 503 ServiceUnavailableError
+- **Integration Tests**: `tests/test_dashboard_503_integration.py` - Dual failure and degradation scenarios
+- **OpenAPI Contract**: `owner-console/src/lib/openapi.yaml` (canonical API schema)
+- **Generated Types**: `owner-console/src/lib/generated/owner-console-api.ts` (auto-generated via orval)
 
 ### 3. Orchestrator System
 
