@@ -29,6 +29,7 @@ from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.auth import auth_bp
 from src.routes.auth_enhanced import auth_enhanced_bp
+from src.routes.auth_2fa import auth_2fa_bp
 from src.routes.dashboard import dashboard_bp
 from src.routes.totp import totp_bp
 from src.middleware.auth_middleware import jwt_required, admin_required, analyst_required
@@ -178,6 +179,7 @@ if SECURITY_AVAILABLE:
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(auth_enhanced_bp, url_prefix='/api/auth/v2')
+app.register_blueprint(auth_2fa_bp)
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 app.register_blueprint(totp_bp, url_prefix='/api/auth/v2/totp')
 app.register_blueprint(billing_bp)
