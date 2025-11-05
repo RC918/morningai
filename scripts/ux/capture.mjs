@@ -42,18 +42,18 @@ async function setupAuth(page) {
     // Navigate to login page
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
     
-    // Fill in credentials
-    await page.fill('#username', QA_TEST_EMAIL);
-    await page.fill('#password', QA_TEST_PASSWORD);
+    // Wait for form to be visible
+    await page.waitForSelector('input[name="username"]', { state: 'visible', timeout: 10000 });
     
-    // Submit form
-    await page.click('button[type="submit"]');
+    // Fill in credentials using attribute-based selectors
+    await page.fill('input[name="username"]', QA_TEST_EMAIL);
+    await page.fill('input[name="password"]', QA_TEST_PASSWORD);
     
-    // Wait for navigation to authenticated area (dashboard or home redirect)
-    await page.waitForURL('**/dashboard', { timeout: 10000 }).catch(() => {
-      // If not redirected to dashboard, check if we're on home and authenticated
-      return page.waitForURL('**/', { timeout: 5000 });
-    });
+    // Submit form by pressing Enter on password field (more reliable than clicking button)
+    await page.press('input[name="password"]', 'Enter');
+    
+    // Wait for navigation to dashboard after successful login
+    await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 15000 });
     
     // Verify authentication by checking for authenticated-only elements
     // The sidebar is only visible when authenticated
