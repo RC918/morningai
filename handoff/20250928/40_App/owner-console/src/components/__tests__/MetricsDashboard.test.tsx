@@ -104,19 +104,18 @@ describe('MetricsDashboard Component (P1)', () => {
   describe('Data Fetching', () => {
     it('should call apiClientWithMeta with correct endpoint', async () => {
       const mockData = {
+        timestamp: '2025-11-05T00:00:00Z',
         system_health: {
           overall_status: 'healthy',
           error_rate: 0.01,
           avg_latency: 0.1,
           open_circuit_breakers: 0,
         },
-        metrics: {
-          api_request_rate: { current: 1000, unit: 'req/min', trend: 'up' },
-          agent_task_success_rate: { current: 0.95, unit: '%', trend: 'stable' },
-          queue_depth: { current: 10, unit: 'tasks', trend: 'down' },
-          active_agents: { current: 5, unit: 'agents', trend: 'stable' },
-        },
-        agents: [],
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: { active_sagas: 5 },
+        storage: {},
+        trends: {},
         alerts: [],
       };
 
@@ -142,14 +141,13 @@ describe('MetricsDashboard Component (P1)', () => {
       mockApiClientWithMeta.mockResolvedValueOnce({
         status: 200,
         data: {
+          timestamp: '2025-11-05T00:00:00Z',
           system_health: { overall_status: 'healthy', error_rate: 0, avg_latency: 0, open_circuit_breakers: 0 },
-          metrics: {
-            api_request_rate: { current: 1000, unit: 'req/min' },
-            agent_task_success_rate: { current: 0.95, unit: '%' },
-            queue_depth: { current: 10, unit: 'tasks' },
-            active_agents: { current: 5, unit: 'agents' },
-          },
-          agents: [],
+          circuit_breakers: {},
+          bulkheads: {},
+          saga_orchestrator: { active_sagas: 5 },
+          storage: {},
+          trends: {},
           alerts: [],
         },
         headers: new Headers(),
@@ -200,32 +198,24 @@ describe('MetricsDashboard Component (P1)', () => {
 
   describe('Dashboard Display', () => {
     const mockData = {
+      timestamp: '2025-11-05T00:00:00Z',
       system_health: {
         overall_status: 'healthy',
         error_rate: 0.02,
         avg_latency: 0.15,
         open_circuit_breakers: 0,
       },
-      metrics: {
-        api_request_rate: { current: 1250, unit: 'req/min', trend: 'up' },
-        agent_task_success_rate: { current: 0.96, unit: '%', trend: 'stable' },
-        queue_depth: { current: 12, unit: 'tasks', trend: 'down' },
-        active_agents: { current: 5, unit: 'agents', trend: 'stable' },
+      circuit_breakers: {},
+      bulkheads: {},
+      saga_orchestrator: {
+        active_sagas: 5,
+        completed_sagas: 100,
       },
-      agents: [
-        {
-          agent_id: 'agent-123',
-          agent_type: 'dev_agent',
-          status: 'active',
-          reputation_score: 750,
-          task_success_rate: 0.95,
-          active_tasks: 3,
-        },
-      ],
+      storage: {},
+      trends: {},
       alerts: [
         {
-          id: '1',
-          severity: 'warning',
+          level: 'warning',
           message: 'Test alert message',
           timestamp: new Date().toISOString(),
         },
@@ -287,8 +277,8 @@ describe('MetricsDashboard Component (P1)', () => {
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/1250\.00 req\/min/)).toBeInTheDocument();
-        expect(screen.getByText(/96\.00 %/)).toBeInTheDocument();
+        expect(screen.getByText(/98\.00 %/)).toBeInTheDocument();
+        expect(screen.getByText(/5\.00 agents/)).toBeInTheDocument();
       });
     });
 
@@ -307,7 +297,7 @@ describe('MetricsDashboard Component (P1)', () => {
       });
     });
 
-    it('should display agent information', async () => {
+    it('should display empty agent state when no agents', async () => {
       mockApiClientWithMeta.mockResolvedValueOnce({
         status: 200,
         data: mockData,
@@ -317,8 +307,7 @@ describe('MetricsDashboard Component (P1)', () => {
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText('DEV AGENT')).toBeInTheDocument();
-        expect(screen.getByText('active')).toBeInTheDocument();
+        expect(screen.getByText(/No agent data available/i)).toBeInTheDocument();
       });
     });
   });
@@ -326,14 +315,13 @@ describe('MetricsDashboard Component (P1)', () => {
   describe('Auto-refresh', () => {
     it('should set up auto-refresh interval', async () => {
       const mockData = {
+        timestamp: '2025-11-05T00:00:00Z',
         system_health: { overall_status: 'healthy', error_rate: 0, avg_latency: 0, open_circuit_breakers: 0 },
-        metrics: {
-          api_request_rate: { current: 1000, unit: 'req/min' },
-          agent_task_success_rate: { current: 0.95, unit: '%' },
-          queue_depth: { current: 10, unit: 'tasks' },
-          active_agents: { current: 5, unit: 'agents' },
-        },
-        agents: [],
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: { active_sagas: 5 },
+        storage: {},
+        trends: {},
         alerts: [],
       };
 
@@ -347,6 +335,179 @@ describe('MetricsDashboard Component (P1)', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Auto-refresh: ON')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Backend Response Normalization (P0 Fix)', () => {
+    it('should handle backend response with object system_health', async () => {
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: {
+          overall_status: 'healthy',
+          error_rate: 0.02,
+          avg_latency: 150,
+          open_circuit_breakers: 0,
+          rejected_requests: 5,
+          active_sagas: 3,
+        },
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: {
+          active_sagas: 3,
+          completed_sagas: 100,
+        },
+        storage: {},
+        trends: {},
+        alerts: [
+          {
+            level: 'warning',
+            message: 'High error rate detected',
+            timestamp: '2025-11-05T00:00:00Z',
+          },
+        ],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('HEALTHY')).toBeInTheDocument();
+        expect(screen.getByText(/98\.00 %/)).toBeInTheDocument();
+        expect(screen.getByText('High error rate detected')).toBeInTheDocument();
+      });
+    });
+
+    it('should handle backend response with string system_health (no metrics history)', async () => {
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: 'healthy',
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: {
+          active_sagas: 0,
+          completed_sagas: 0,
+        },
+        storage: { total_tables: 5 },
+        trends: {},
+        alerts: [],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('HEALTHY')).toBeInTheDocument();
+        expect(screen.getByText(/100\.00 %/)).toBeInTheDocument();
+      });
+    });
+
+    it('should map backend alert level to frontend severity', async () => {
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: 'healthy',
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: { active_sagas: 0 },
+        storage: {},
+        trends: {},
+        alerts: [
+          {
+            level: 'critical',
+            message: 'Critical system error',
+            timestamp: '2025-11-05T00:00:00Z',
+          },
+          {
+            level: 'warning',
+            message: 'Warning message',
+            timestamp: '2025-11-05T00:01:00Z',
+          },
+        ],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('CRITICAL')).toBeInTheDocument();
+        expect(screen.getByText('WARNING')).toBeInTheDocument();
+        expect(screen.getByText('Critical system error')).toBeInTheDocument();
+        expect(screen.getByText('Warning message')).toBeInTheDocument();
+      });
+    });
+
+    it('should synthesize metrics from backend data', async () => {
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: {
+          overall_status: 'degraded',
+          error_rate: 0.15,
+          avg_latency: 500,
+          open_circuit_breakers: 2,
+        },
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: {
+          active_sagas: 7,
+          completed_sagas: 50,
+        },
+        storage: {},
+        trends: {},
+        alerts: [],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('DEGRADED')).toBeInTheDocument();
+        expect(screen.getByText(/85\.00 %/)).toBeInTheDocument();
+        expect(screen.getByText(/7\.00 agents/)).toBeInTheDocument();
+      });
+    });
+
+    it('should handle empty agents array and show empty state', async () => {
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: 'healthy',
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: { active_sagas: 0 },
+        storage: {},
+        trends: {},
+        alerts: [],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No agent data available/i)).toBeInTheDocument();
       });
     });
   });

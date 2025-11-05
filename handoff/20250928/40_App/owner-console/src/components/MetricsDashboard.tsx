@@ -62,6 +62,94 @@ interface DashboardData {
   alerts: AlertItem[];
 }
 
+interface BackendDashboardResponse {
+  timestamp: string;
+  system_health: string | {
+    overall_status: 'healthy' | 'degraded' | 'unhealthy';
+    error_rate: number;
+    avg_latency: number;
+    open_circuit_breakers: number;
+    rejected_requests?: number;
+    active_sagas?: number;
+  };
+  circuit_breakers: Record<string, unknown>;
+  bulkheads: Record<string, unknown>;
+  saga_orchestrator?: {
+    active_sagas?: number;
+    completed_sagas?: number;
+  };
+  storage?: Record<string, unknown>;
+  trends?: Record<string, unknown>;
+  alerts: Array<{
+    level: 'critical' | 'warning' | 'info';
+    message: string;
+    timestamp: string;
+  }>;
+}
+
+/**
+ * Normalize backend response to frontend DashboardData structure
+ * Handles both cases: with metrics history (system_health is object) and without (system_health is string)
+ */
+function normalizeDashboardData(backendData: BackendDashboardResponse): DashboardData {
+  const systemHealth = typeof backendData.system_health === 'string'
+    ? {
+        overall_status: backendData.system_health as 'healthy' | 'degraded' | 'unhealthy',
+        error_rate: 0,
+        avg_latency: 0,
+        open_circuit_breakers: 0,
+      }
+    : {
+        overall_status: backendData.system_health.overall_status,
+        error_rate: backendData.system_health.error_rate,
+        avg_latency: backendData.system_health.avg_latency,
+        open_circuit_breakers: backendData.system_health.open_circuit_breakers,
+      };
+
+  const alerts: AlertItem[] = backendData.alerts.map((alert, index) => ({
+    id: `${alert.timestamp}-${index}`,
+    severity: alert.level,
+    message: alert.message,
+    timestamp: alert.timestamp,
+  }));
+
+  const errorRate = systemHealth.error_rate;
+  const successRate = Math.max(0, Math.min(1, 1 - errorRate)); // Clamp to [0, 1]
+  const activeSagas = backendData.saga_orchestrator?.active_sagas ?? 0;
+
+  const metrics = {
+    api_request_rate: {
+      current: 0,
+      unit: 'req/min',
+      trend: 'stable' as const,
+    },
+    agent_task_success_rate: {
+      current: successRate,
+      unit: '%',
+      trend: 'stable' as const,
+    },
+    queue_depth: {
+      current: 0,
+      unit: 'tasks',
+      trend: 'stable' as const,
+    },
+    active_agents: {
+      current: activeSagas,
+      unit: 'agents',
+      trend: 'stable' as const,
+    },
+  };
+
+  const agents: AgentMetrics[] = [];
+
+  return {
+    system_health: systemHealth,
+    metrics,
+    agents,
+    alerts,
+  };
+}
+
 const MetricCard: React.FC<{
   title: string;
   value: number;
@@ -207,12 +295,13 @@ export const MetricsDashboard: React.FC = () => {
         const isProduction = import.meta.env.MODE === 'production';
         
         try {
-          const result = await apiClientWithMeta<DashboardData>('/phase7/monitoring/dashboard', {
+          const result = await apiClientWithMeta<BackendDashboardResponse>('/phase7/monitoring/dashboard', {
             method: 'GET'
           });
 
           if (result.status === 200 && result.data) {
-            setDashboardData(result.data);
+            const normalizedData = normalizeDashboardData(result.data);
+            setDashboardData(normalizedData);
             setUsingMockData(false);
             setLoading(false);
             return;
@@ -434,11 +523,21 @@ export const MetricsDashboard: React.FC = () => {
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {dashboardData.agents.map((agent) => (
-              <AgentStatusCard key={agent.agent_id} agent={agent} />
-            ))}
-          </div>
+          {dashboardData.agents.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {dashboardData.agents.map((agent) => (
+                <AgentStatusCard key={agent.agent_id} agent={agent} />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground text-center">
+                  {t('metricsDashboard.agents.noData')}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="system" className="space-y-4">

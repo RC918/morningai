@@ -145,6 +145,9 @@
       "successRate": "成功率",
       "activeTasks": "活躍任務"
     },
+    "agents": {
+      "noData": "目前沒有 agent 資料。一旦監控系統收集到資料，agent 指標將顯示在此處。"
+    },
     "systemHealth": {
       "errorRate": "錯誤率",
       "avgLatency": "平均延遲",

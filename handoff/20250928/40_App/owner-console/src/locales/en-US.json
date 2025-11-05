@@ -145,6 +145,9 @@
       "successRate": "Success Rate",
       "activeTasks": "Active Tasks"
     },
+    "agents": {
+      "noData": "No agent data available. Agent metrics will be displayed here once the monitoring system collects data."
+    },
     "systemHealth": {
       "errorRate": "Error Rate",
       "avgLatency": "Avg Latency",
