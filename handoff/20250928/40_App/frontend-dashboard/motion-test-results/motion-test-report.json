@@ -1,26 +1,28 @@
 {
-  "timestamp": "2025-11-05T09:24:47.690Z",
+  "timestamp": "2025-11-05T09:39:59.093Z",
   "passed": true,
   "results": [
     {
       "name": "Page Transition",
       "baseline": {
-        "fps": -73.5,
-        "avgFrameTime": -13.6,
-        "frameCount": 1,
+        "valid": true,
+        "fps": 60,
+        "avgFrameTime": 16.67,
+        "frameCount": 60,
         "droppedFrames": 0,
         "droppedRate": 0,
-        "p95FrameTime": -13.6,
-        "maxFrameTime": -13.6
+        "p95FrameTime": 16.7,
+        "maxFrameTime": 16.8
       },
       "action": {
-        "fps": -113.6,
-        "avgFrameTime": -8.8,
-        "frameCount": 1,
+        "valid": true,
+        "fps": 60.5,
+        "avgFrameTime": 16.53,
+        "frameCount": 122,
         "droppedFrames": 0,
         "droppedRate": 0,
-        "p95FrameTime": -8.8,
-        "maxFrameTime": -8.8
+        "p95FrameTime": 16.7,
+        "maxFrameTime": 16.8
       },
       "passed": true,
       "thresholds": {
@@ -32,22 +34,24 @@
     {
       "name": "Modal Animation",
       "baseline": {
-        "fps": -74.2,
-        "avgFrameTime": -13.49,
-        "frameCount": 1,
+        "valid": true,
+        "fps": 60,
+        "avgFrameTime": 16.67,
+        "frameCount": 61,
         "droppedFrames": 0,
         "droppedRate": 0,
-        "p95FrameTime": -13.49,
-        "maxFrameTime": -13.49
+        "p95FrameTime": 16.7,
+        "maxFrameTime": 16.8
       },
       "action": {
-        "fps": 303,
-        "avgFrameTime": 3.3,
-        "frameCount": 1,
+        "valid": true,
+        "fps": 60,
+        "avgFrameTime": 16.67,
+        "frameCount": 121,
         "droppedFrames": 0,
         "droppedRate": 0,
-        "p95FrameTime": 3.3,
-        "maxFrameTime": 3.3
+        "p95FrameTime": 16.7,
+        "maxFrameTime": 16.8
       },
       "passed": true,
       "thresholds": {
@@ -59,22 +63,24 @@
     {
       "name": "Scroll Performance",
       "baseline": {
-        "fps": -3333.3,
-        "avgFrameTime": -0.3,
-        "frameCount": 1,
+        "valid": true,
+        "fps": 60,
+        "avgFrameTime": 16.67,
+        "frameCount": 61,
         "droppedFrames": 0,
         "droppedRate": 0,
-        "p95FrameTime": -0.3,
-        "maxFrameTime": -0.3
+        "p95FrameTime": 16.8,
+        "maxFrameTime": 16.8
       },
       "action": {
-        "fps": -116.3,
-        "avgFrameTime": -8.6,
-        "frameCount": 1,
+        "valid": true,
+        "fps": 60,
+        "avgFrameTime": 16.67,
+        "frameCount": 120,
         "droppedFrames": 0,
         "droppedRate": 0,
-        "p95FrameTime": -8.6,
-        "maxFrameTime": -8.6
+        "p95FrameTime": 16.7,
+        "maxFrameTime": 16.8
       },
       "passed": true,
       "thresholds": {
