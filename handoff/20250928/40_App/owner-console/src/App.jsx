@@ -15,7 +15,7 @@ const PlatformSettings = lazy(() => import('@/pages/PlatformSettings'))
 const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 
 function AppContent() {
-  const { isAuthenticated, isLoading, user, login, logout } = useAuth()
+  const { isAuthenticated, isLoading, user, login, logout, refreshUser } = useAuth()
 
   if (isLoading) {
     return (
@@ -26,7 +26,7 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage onLogin={login} />
+    return <LoginPage onLogin={login} onAuthenticated={refreshUser} />
   }
 
   return (

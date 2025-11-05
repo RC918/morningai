@@ -19,14 +19,22 @@ import os
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
 from werkzeug.security import check_password_hash
 from supabase import create_client
 
-from ..services.auth_service import get_user_by_id
+from ..services.auth_service import (
+    get_user_by_id,
+    authenticate_user,
+    FEATURE_2FA_PREAUTH,
+    COOKIE_SECURE,
+    COOKIE_SAMESITE
+)
 from ..utils.totp_utils import TOTPManager, BackupCodeManager, generate_device_fingerprint, calculate_device_expiry
+from ..utils.preauth_token import validate_and_consume_preauth_token
 from ..middleware.auth_middleware import jwt_required
 from ..middleware.rate_limit import rate_limit
+from ..middleware.csrf import csrf_protect
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +120,8 @@ def setup_totp():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('hashed_password', ''), password):
+        # Supabase users don't have hashed_password in the user object, so we use authenticate_user
+        if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -273,7 +282,8 @@ def disable_totp():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('hashed_password', ''), password):
+        # Supabase users don't have hashed_password in the user object, so we use authenticate_user
+        if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -343,7 +353,8 @@ def regenerate_backup_codes():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        if not check_password_hash(user.get('hashed_password', ''), password):
+        # Supabase users don't have hashed_password in the user object, so we use authenticate_user
+        if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
         supabase_url = os.environ.get('SUPABASE_URL')
@@ -551,6 +562,7 @@ def check_2fa_required(user_id: str, user_role: str = None) -> bool:
 
 @totp_bp.route('/verify-login', methods=['POST'])
 @rate_limit  # 5 attempts per 5 minutes
+@csrf_protect
 def verify_totp_login():
     """
     Verify TOTP code during login and complete authentication.
@@ -581,23 +593,53 @@ def verify_totp_login():
     
     try:
         data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
         totp_code = data.get('totp_code', '').strip()
         backup_code = data.get('backup_code', '').strip()
         remember_device = data.get('remember_device', False)
         
-        if not email or not password:
-            return jsonify({'error': 'Email and password are required'}), 400
-        
         if not totp_code and not backup_code:
             return jsonify({'error': 'Either TOTP code or backup code is required'}), 400
         
-        from ..services.auth_service import authenticate_user, generate_access_token, generate_refresh_token, set_auth_cookies
+        user = None
+        pre_auth_token = request.cookies.get('pre_auth_token')
         
-        user = authenticate_user(email, password)
+        if FEATURE_2FA_PREAUTH and pre_auth_token:
+            user_data = validate_and_consume_preauth_token(pre_auth_token)
+            if user_data:
+                user = get_user_by_id(user_data['id'])
+                if user:
+                    logger.info(f"Using pre-auth token for user {user['id']}", extra={
+                        'event': 'preauth_token_used',
+                        'user_id': user['id']
+                    })
+                else:
+                    logger.warning(f"Pre-auth token valid but user {user_data['id']} not found", extra={
+                        'event': 'preauth_user_not_found',
+                        'user_id': user_data['id']
+                    })
+            else:
+                logger.warning("Invalid or expired pre-auth token, falling back to password", extra={
+                    'event': 'password_fallback_used',
+                    'reason': 'invalid_preauth_token'
+                })
+        
         if not user:
-            return jsonify({'error': 'Invalid email or password'}), 401
+            email = data.get('email')
+            password = data.get('password')
+            
+            if not email or not password:
+                return jsonify({'error': 'Pre-auth token or email/password required'}), 400
+            
+            from ..services.auth_service import authenticate_user
+            user = authenticate_user(email, password)
+            if not user:
+                return jsonify({'error': 'Invalid email or password'}), 401
+            
+            logger.info(f"Using password fallback for user {user['id']}", extra={
+                'event': 'password_fallback_used',
+                'user_id': user['id'],
+                'reason': 'no_preauth_token'
+            })
         
         user_id = user['id']
         
@@ -642,6 +684,8 @@ def verify_totp_login():
             except Exception as e:
                 logger.warning(f"Failed to trust device: {str(e)}")
         
+        from ..services.auth_service import generate_access_token, generate_refresh_token, set_auth_cookies
+        
         access_token, access_expiry_ms = generate_access_token(
             user_id, user['email'], user['role']
         )
@@ -671,6 +715,16 @@ def verify_totp_login():
         
         response = make_response(jsonify(response_data), 200)
         set_auth_cookies(response, access_token, refresh_token, access_expiry_ms)
+        
+        response.set_cookie(
+            'pre_auth_token',
+            '',
+            max_age=0,
+            httponly=True,
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
+            path='/api/auth/v2/totp'
+        )
         
         logger.info(f"2FA login completed successfully for user {user_id}")
         return response
