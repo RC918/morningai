@@ -342,6 +342,8 @@
     "user": {
       "defaultName": "Owner",
       "defaultRole": "平台擁有者"
-    }
+    },
+    "expand": "展開側邊欄",
+    "collapse": "收起側邊欄"
   }
 }
