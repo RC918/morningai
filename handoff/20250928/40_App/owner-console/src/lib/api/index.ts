@@ -16,7 +16,7 @@
  */
 
 import { authenticatedFetch } from '../auth';
-import { isFeatureEnabled } from '../feature-flags';
+import { isFeatureEnabled } from '../feature-flags.ts';
 import { apiClient as apiClientFunction } from '../api-client';
 
 

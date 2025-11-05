@@ -22,7 +22,7 @@
  * @see docs/TASK_1_ENHANCED_TOKEN_SECURITY.md
  */
 
-import { isFeatureEnabled } from './feature-flags';
+import { isFeatureEnabled } from './feature-flags.ts';
 
 
 export interface AuthTokens {
