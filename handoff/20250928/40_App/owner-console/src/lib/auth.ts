@@ -471,7 +471,16 @@ async function authenticatedFetch(
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   await ensureCsrfToken();
   
-  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
+  const flagEnabled = isFeatureEnabled('OWNER_CONSOLE_API');
+  console.log('[DEBUG auth.ts login()] Feature flag check:', {
+    flagEnabled,
+    urlParam: new URLSearchParams(location.search).get('feature_OWNER_CONSOLE_API'),
+    localStorage: localStorage.getItem('feature_flag_OWNER_CONSOLE_API'),
+    env: (import.meta as any).env?.VITE_FEATURE_OWNER_CONSOLE_API,
+  });
+  
+  if (!flagEnabled) {
+    console.log('[DEBUG auth.ts login()] Returning MOCK USER because flag is disabled');
     const mockTokens = {
       expiresAt: Date.now() + 60 * 60 * 1000,
     };
@@ -486,6 +495,8 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
       tokens: mockTokens,
     };
   }
+  
+  console.log('[DEBUG auth.ts login()] Feature flag ENABLED, making real API call to:', `${API_BASE_URL}/api/auth/v2/login`);
   
   const response = await fetch(`${API_BASE_URL}/api/auth/v2/login`, {
     method: 'POST',
