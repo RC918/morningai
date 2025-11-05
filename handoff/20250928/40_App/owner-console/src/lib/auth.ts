@@ -3,7 +3,9 @@
  * 
  * Issue #767: API Connection
  * Squad: Owner Console Squad
- * Feature Flag: OWNER_CONSOLE_API
+ * 
+ * Week 0 P0-4: Feature flag OWNER_CONSOLE_API removed - Owner Console now always uses real API.
+ * Mock data has been removed. Real backend configuration is required.
  * 
  * Task 1: Enhanced Token Security (v2 API)
  * - HttpOnly cookies for access and refresh tokens
@@ -21,8 +23,6 @@
  * @see docs/PARALLEL_DEVELOPMENT_STRATEGY.md
  * @see docs/TASK_1_ENHANCED_TOKEN_SECURITY.md
  */
-
-import { isFeatureEnabled } from './feature-flags';
 
 
 export interface AuthTokens {
@@ -511,26 +511,33 @@ async function authenticatedFetch(
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   await ensureCsrfToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/auth/v2/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify(credentials),
-  });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Login failed' }));
-    throw new Error(error.message || 'Login failed');
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/v2/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(credentials),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Login failed' }));
+      throw new Error(error.message || 'Login failed');
+    }
+    
+    const data: LoginResponse = await response.json();
+    
+    storeTokenExpiry(data.tokens.expiresAt);
+    storeUser(data.user);
+    
+    return data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.toLowerCase().includes('fetch')) {
+      throw new Error('無法連接到後端服務，請檢查網絡連接或聯繫管理員');
+    }
+    throw error;
   }
-  
-  const data: LoginResponse = await response.json();
-  
-  storeTokenExpiry(data.tokens.expiresAt);
-  storeUser(data.user);
-  
-  return data;
 }
 
 /**

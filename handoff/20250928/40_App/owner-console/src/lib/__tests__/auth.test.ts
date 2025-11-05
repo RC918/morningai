@@ -497,10 +497,6 @@ describe('Auth Module', () => {
   });
 
   describe('401 Refresh-and-Retry (P0)', () => {
-    beforeEach(() => {
-      localStorage.setItem('feature_flag_OWNER_CONSOLE_API', 'true');
-    });
-
     it('should retry request after refreshing token on 401', async () => {
       const testUrl = 'https://api.example.com/test';
       

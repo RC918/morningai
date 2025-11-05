@@ -3,7 +3,9 @@
  * 
  * Issue #767: API Connection
  * Squad: Owner Console Squad
- * Feature Flag: OWNER_CONSOLE_API
+ * 
+ * Week 0 P0-4: Feature flag OWNER_CONSOLE_API removed - Owner Console now always uses real API.
+ * Mock data has been removed. Real backend configuration is required.
  * 
  * This module provides typed API clients for all Owner Console endpoints:
  * - Agents API (Issue #769)
@@ -16,7 +18,6 @@
  */
 
 import { authenticatedFetch } from '../auth';
-import { isFeatureEnabled } from '../feature-flags';
 import { apiClient as apiClientFunction } from '../api-client';
 
 
@@ -90,10 +91,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * Make authenticated GET request
  */
 async function get<T>(path: string, params?: Record<string, any>): Promise<T> {
-  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
-    throw new Error('Owner Console API is not enabled. Set OWNER_CONSOLE_API feature flag.');
-  }
-  
   const url = buildUrl(path, params);
   const response = await authenticatedFetch(url, {
     method: 'GET',
@@ -106,10 +103,6 @@ async function get<T>(path: string, params?: Record<string, any>): Promise<T> {
  * Make authenticated POST request
  */
 async function post<T>(path: string, data?: any): Promise<T> {
-  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
-    throw new Error('Owner Console API is not enabled. Set OWNER_CONSOLE_API feature flag.');
-  }
-  
   const url = buildUrl(path);
   const response = await authenticatedFetch(url, {
     method: 'POST',
@@ -126,10 +119,6 @@ async function post<T>(path: string, data?: any): Promise<T> {
  * Make authenticated PATCH request
  */
 async function patch<T>(path: string, data?: any): Promise<T> {
-  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
-    throw new Error('Owner Console API is not enabled. Set OWNER_CONSOLE_API feature flag.');
-  }
-  
   const url = buildUrl(path);
   const response = await authenticatedFetch(url, {
     method: 'PATCH',
@@ -146,10 +135,6 @@ async function patch<T>(path: string, data?: any): Promise<T> {
  * Make authenticated DELETE request
  */
 async function del<T>(path: string): Promise<T> {
-  if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
-    throw new Error('Owner Console API is not enabled. Set OWNER_CONSOLE_API feature flag.');
-  }
-  
   const url = buildUrl(path);
   const response = await authenticatedFetch(url, {
     method: 'DELETE',
