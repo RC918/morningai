@@ -145,14 +145,55 @@ Delight = (Harmony × 0.5) + (Motion × 0.5)
 - Target: 90
 - Minimum: 75
 
+## Smoke Tests
+
+Fast validation tests that catch configuration errors before expensive operations.
+
+**Location:** `scripts/ux/test-smoke.mjs`
+
+**What it validates:**
+- Config file structure and values
+- Design tokens consistency
+- Script files existence and permissions
+- Delight Index calculation logic
+- Manifest and report structures
+
+**Execution time:** <5 seconds (typically ~0.4s)
+
+**Usage:**
+```bash
+pnpm run ux:smoke
+```
+
+**CI Integration:**
+- Runs as first step in UX Pipeline
+- Fast-fail mechanism (blocks all other jobs if failed)
+- Catches common configuration errors early
+- Saves CI time by preventing expensive operations with bad config
+
+**Tests included:**
+1. Config file validation (PAGES, AI_CONFIG, THRESHOLDS, BUDGET)
+2. Design tokens structure validation
+3. Script files existence and executability
+4. Delight Index calculation correctness
+5. Screenshot manifest structure validation
+6. Harmony report structure validation
+7. Environment variables documentation check
+
 ## CI Integration
 
 Added to `.github/workflows/ux-pipeline.yml`:
 
 ```yaml
+smoke-tests:
+  name: UX QA Smoke Tests
+  runs-on: ubuntu-latest
+  # Runs first, blocks all other jobs if failed
+
 ai-perceptual-qa:
   name: AI Perceptual QA
   runs-on: ubuntu-latest
+  needs: [smoke-tests]
   if: github.event_name == 'pull_request'
   strategy:
     matrix:
@@ -160,7 +201,8 @@ ai-perceptual-qa:
 ```
 
 **Features:**
-- Runs on PRs only (cost control)
+- Smoke tests run first (fast-fail)
+- AI QA runs on PRs only (cost control)
 - Optional (skips if OPENAI_API_KEY not set)
 - Non-blocking (informational only)
 - Uploads artifacts (screenshots, reports)
@@ -539,6 +581,26 @@ UX_AI_MODEL=gpt-4o pnpm run ux:qa
 ```
 
 ## Troubleshooting
+
+### Smoke Tests Failed
+
+```
+❌ Config PAGES structure is valid: frontend-dashboard pages not defined
+```
+
+**Solution:** Check `scripts/ux/config.js` for missing or malformed page configurations.
+
+```
+❌ Design tokens structure is valid: color not defined in tokens
+```
+
+**Solution:** Verify `packages/shared-ui/src/tokens.json` has required structure (color, space, font, radius, shadow, animation).
+
+```
+❌ Delight Index calculation is correct: Mixed scores should yield 70, got 65
+```
+
+**Solution:** Check `DELIGHT_WEIGHTS` in config.js - weights must sum to 1.0.
 
 ### AI Scoring Skipped
 
