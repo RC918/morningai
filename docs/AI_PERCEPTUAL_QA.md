@@ -620,7 +620,6 @@ UX_AI_MODEL=gpt-4o pnpm run ux:qa
 
 ## Troubleshooting
 
-<<<<<<< HEAD
 ### AI Perceptual QA Job Not Running
 
 **Symptom:** The `ai-perceptual-qa` job doesn't appear in CI checks at all.
@@ -629,8 +628,6 @@ UX_AI_MODEL=gpt-4o pnpm run ux:qa
 1. Go to Settings > Secrets and variables > Actions > Variables tab
 2. Add variable: `UX_AI_ENABLE` = `true`
 
-||||||| bd83c3ba
-=======
 ### Smoke Tests Failed
 
 ```
@@ -651,7 +648,6 @@ UX_AI_MODEL=gpt-4o pnpm run ux:qa
 
 **Solution:** Check `DELIGHT_WEIGHTS` in config.js - weights must sum to 1.0.
 
->>>>>>> origin/main
 ### AI Scoring Skipped
 
 ```
