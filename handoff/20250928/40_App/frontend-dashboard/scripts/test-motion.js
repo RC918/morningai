@@ -205,7 +205,7 @@ async function runMotionTests() {
 
 async function checkServer() {
   try {
-    const response = await fetch('http://localhost:4173');
+    const response = await fetch(BASE_URL);
     return response.ok;
   } catch {
     return false;
@@ -216,7 +216,7 @@ async function checkServer() {
   const serverRunning = await checkServer();
   
   if (!serverRunning) {
-    console.error('❌ Error: Development server not running on http://localhost:4173');
+    console.error(`❌ Error: Development server not running on ${BASE_URL}`);
     console.error('Please start the server with: pnpm run preview');
     process.exit(1);
   }

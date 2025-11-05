@@ -6,7 +6,7 @@
  */
 
 const { chromium } = require('@playwright/test');
-const { injectAxe } = require('axe-playwright');
+const { injectAxe } = require('@axe-core/playwright');
 const fs = require('fs');
 const path = require('path');
 

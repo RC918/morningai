@@ -141,6 +141,7 @@ jobs:
     name: Motion Performance Testing
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         app: [frontend-dashboard, owner-console]
         include:
@@ -216,6 +217,7 @@ jobs:
     name: Accessibility Audit
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         app: [frontend-dashboard, owner-console]
         include:
@@ -274,7 +276,9 @@ jobs:
       
       - name: Run axe-core runtime tests
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
-        run: BASE_URL=http://localhost:${{ matrix.port }} pnpm run test:a11y
+        env:
+          BASE_URL: http://localhost:${{ matrix.port }}
+        run: pnpm run test:a11y
         continue-on-error: true
       
       - name: Stop preview server
