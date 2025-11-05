@@ -1,0 +1,210 @@
+name: UX Ops Pipeline
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
+      - 'handoff/20250928/40_App/owner-console/**'
+      - 'packages/shared-ui/**'
+      - 'tools/frontend-lab/**'
+  push:
+    branches: [main, master]
+    paths:
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
+      - 'handoff/20250928/40_App/owner-console/**'
+      - 'packages/shared-ui/**'
+
+jobs:
+  tokens-drift-check:
+    name: Design Tokens Drift Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      
+      - name: Check tokens consistency
+        run: |
+          echo "🔍 Checking design tokens consistency..."
+          
+          CANONICAL_TOKENS="packages/shared-ui/src/tokens.json"
+          CANONICAL_HASH=$(md5sum "$CANONICAL_TOKENS" | awk '{print $1}')
+          
+          echo "Canonical tokens hash: $CANONICAL_HASH"
+          echo "Canonical source: $CANONICAL_TOKENS"
+          
+          # Check if any other tokens.json files exist and differ
+          DRIFT_FOUND=0
+          
+          for tokens_file in $(find . -name "tokens.json" -type f | grep -v node_modules | grep -v ".git" | grep -v "$CANONICAL_TOKENS"); do
+            FILE_HASH=$(md5sum "$tokens_file" | awk '{print $1}')
+            
+            if [ "$FILE_HASH" != "$CANONICAL_HASH" ]; then
+              echo "⚠️  DRIFT DETECTED: $tokens_file"
+              echo "   Expected hash: $CANONICAL_HASH"
+              echo "   Actual hash:   $FILE_HASH"
+              DRIFT_FOUND=1
+            else
+              echo "✓ $tokens_file matches canonical"
+            fi
+          done
+          
+          if [ $DRIFT_FOUND -eq 1 ]; then
+            echo ""
+            echo "❌ Design tokens drift detected!"
+            echo "All tokens.json files must match the canonical source: $CANONICAL_TOKENS"
+            echo ""
+            echo "To fix:"
+            echo "1. Copy the canonical tokens: cp $CANONICAL_TOKENS <drifted-file>"
+            echo "2. Or update the canonical source and propagate changes"
+            exit 1
+          fi
+          
+          echo "✅ All tokens.json files are consistent!"
+
+  visual-regression-test:
+    name: Visual Regression Testing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [frontend-dashboard, owner-console]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      
+      - name: Install dependencies
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm exec playwright install --with-deps chromium
+      
+      - name: Run VRT tests
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm run test:vrt
+        continue-on-error: true
+      
+      - name: Upload VRT results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vrt-results-${{ matrix.app }}
+          path: handoff/20250928/40_App/${{ matrix.app }}/test-results/
+          retention-days: 7
+
+  motion-performance-test:
+    name: Motion Performance Testing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [frontend-dashboard, owner-console]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      
+      - name: Install dependencies
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm exec playwright install --with-deps chromium
+      
+      - name: Run motion performance tests
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm run test:motion
+        continue-on-error: true
+      
+      - name: Upload motion test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-results-${{ matrix.app }}
+          path: handoff/20250928/40_App/${{ matrix.app }}/motion-test-results/
+          retention-days: 7
+
+  accessibility-audit:
+    name: Accessibility Audit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [frontend-dashboard, owner-console]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      
+      - name: Install dependencies
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run accessibility tests
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: |
+          pnpm run lint 2>&1 | tee lint-output.txt || true
+          
+          # Check for jsx-a11y violations
+          if grep -q "jsx-a11y" lint-output.txt; then
+            echo "⚠️  Accessibility violations found"
+            grep "jsx-a11y" lint-output.txt
+          else
+            echo "✅ No accessibility violations"
+          fi
+
+  ux-quality-gate:
+    name: UX Quality Gate
+    runs-on: ubuntu-latest
+    needs: [tokens-drift-check, visual-regression-test, motion-performance-test, accessibility-audit]
+    if: always()
+    steps:
+      - name: Check UX quality results
+        run: |
+          echo "🎨 UX Ops Pipeline Results:"
+          echo "- Tokens Drift Check: ${{ needs.tokens-drift-check.result }}"
+          echo "- Visual Regression: ${{ needs.visual-regression-test.result }}"
+          echo "- Motion Performance: ${{ needs.motion-performance-test.result }}"
+          echo "- Accessibility Audit: ${{ needs.accessibility-audit.result }}"
+          
+          # Fail if tokens drift check failed (critical)
+          if [ "${{ needs.tokens-drift-check.result }}" != "success" ]; then
+            echo "❌ UX Quality Gate FAILED: Design tokens drift detected"
+            exit 1
+          fi
+          
+          echo "✅ UX Quality Gate PASSED"
