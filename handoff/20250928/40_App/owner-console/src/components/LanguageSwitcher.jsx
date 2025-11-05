@@ -10,7 +10,7 @@ const languages = [
 ]
 
 export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
 
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0]
