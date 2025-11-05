@@ -110,7 +110,7 @@ export function TwoFactorVerify({
       console.debug('[2FA] onOpenChange', { nextOpen });
       if (!nextOpen) onClose();
     }}>
-      <DialogContent className="sm:max-w-md z-[10000]">
+      <DialogContent className="sm:max-w-md z-[10000]" style={{ opacity: 1, visibility: 'visible', transform: 'translate(-50%, -50%)' }}>
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
