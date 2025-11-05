@@ -5,7 +5,8 @@
     "tenants": "Tenant Management",
     "monitoring": "System Monitoring",
     "settings": "Platform Settings",
-    "logout": "Logout"
+    "logout": "Logout",
+    "mainNavigation": "Main navigation"
   },
   "dashboard": {
     "title": "Platform Overview",
@@ -288,7 +289,8 @@
     "export": "Export",
     "refresh": "Refresh",
     "usage": "Usage",
-    "idShort": "ID: {{id}}"
+    "idShort": "ID: {{id}}",
+    "changeLanguage": "Change language"
   },
   "auth": {
     "login": {
@@ -341,6 +343,8 @@
     "user": {
       "defaultName": "Owner",
       "defaultRole": "Platform Owner"
-    }
+    },
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar"
   }
 }

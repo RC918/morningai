@@ -21,7 +21,7 @@
     "test:e2e": "playwright test",
     "test:vrt": "playwright test -g @vrt",
     "test:motion": "node scripts/test-motion.cjs",
-    "test:a11y": "node scripts/test-a11y.js",
+    "test:a11y": "node scripts/test-a11y.cjs",
     "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",

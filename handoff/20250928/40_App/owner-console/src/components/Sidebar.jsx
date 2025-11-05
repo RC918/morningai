@@ -80,7 +80,7 @@ const Sidebar = ({ user, onLogout }) => {
               />
               <div>
                 <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t('app.tagline')}</h1>
-                <p className="text-xs text-gray-600 dark:text-gray-600">{t('tenants.subtitle')}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{t('tenants.subtitle')}</p>
               </div>
             </Link>
           )}
@@ -90,7 +90,7 @@ const Sidebar = ({ user, onLogout }) => {
             size="sm"
             onClick={() => setCollapsed(!collapsed)}
             className="p-1"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
             aria-expanded={!collapsed}
           >
             {collapsed ? (
@@ -124,7 +124,7 @@ const Sidebar = ({ user, onLogout }) => {
         </div>
       </div>
 
-      <nav className="flex-1 p-4" aria-label="Main navigation">
+      <nav className="flex-1 p-4" aria-label={t('nav.mainNavigation')}>
         <ul className="space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon
@@ -148,7 +148,7 @@ const Sidebar = ({ user, onLogout }) => {
                       <div className="flex items-center justify-between">
                         <span>{t(item.labelKey)}</span>
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-600 mt-1">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         {t(item.descriptionKey)}
                       </p>
                     </div>

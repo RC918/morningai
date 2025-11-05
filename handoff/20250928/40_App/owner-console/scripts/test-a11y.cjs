@@ -6,7 +6,7 @@
  */
 
 const { chromium } = require('@playwright/test');
-const { injectAxe } = require('@axe-core/playwright');
+const AxeBuilder = require('@axe-core/playwright').default;
 const fs = require('fs');
 const path = require('path');
 
@@ -37,9 +37,16 @@ async function runA11yTests() {
   
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
-    viewport: { width: 1920, height: 1080 }
+    viewport: { width: 1920, height: 1080 },
+    colorScheme: 'light',
+    reducedMotion: 'reduce'
   });
   const page = await context.newPage();
+  
+  // Force light theme to avoid dark mode contrast issues
+  await page.addInitScript(() => {
+    localStorage.setItem('theme', 'light');
+  });
   
   page.setDefaultTimeout(10000);
   page.setDefaultNavigationTimeout(10000);
@@ -57,13 +64,25 @@ async function runA11yTests() {
         timeout: 10000 
       });
       
-      await injectAxe(page);
+      // Wait for page to settle and animations to complete
+      await page.waitForLoadState('networkidle');
       
-      const violations = await page.evaluate(async () => {
-        const axe = window.axe;
-        const results = await axe.run();
-        return results.violations;
+      // Ensure dark mode is not active
+      await page.evaluate(() => {
+        document.documentElement.classList.remove('dark');
       });
+      
+      // Wait for main heading to be visible and fully opaque
+      const heading = page.locator('h1').first();
+      if (await heading.count() > 0) {
+        await heading.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+      }
+      
+      // Small delay to ensure all animations have completed
+      await page.waitForTimeout(500);
+      
+      const accessibilityScanResults = await new AxeBuilder({ page }).analyze();
+      const violations = accessibilityScanResults.violations;
       
       const criticalViolations = violations.filter(v => 
         v.impact === 'critical' || v.impact === 'serious'
@@ -108,7 +127,14 @@ async function runA11yTests() {
         criticalViolations.forEach(v => {
           console.log(`    - ${v.id}: ${v.description}`);
           console.log(`      Impact: ${v.impact}, Nodes: ${v.nodes.length}`);
-          console.log(`      Help: ${v.helpUrl}\n`);
+          console.log(`      Help: ${v.helpUrl}`);
+          v.nodes.forEach((node, idx) => {
+            console.log(`      Node ${idx + 1}: ${node.target.join(' > ')}`);
+            if (node.html) {
+              console.log(`      HTML: ${node.html.substring(0, 150)}...`);
+            }
+          });
+          console.log('');
         });
       }
       
