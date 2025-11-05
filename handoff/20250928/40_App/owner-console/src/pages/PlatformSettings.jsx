@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '@morningai/shared-ui'
-import { Settings, Save } from 'lucide-react'
+import { Settings, Save, Shield } from 'lucide-react'
 
 const PlatformSettings = () => {
   const { t } = useTranslation()
@@ -68,6 +69,20 @@ const PlatformSettings = () => {
               <option>{t('settings.security.1hour')}</option>
               <option>{t('settings.security.4hours')}</option>
             </select>
+          </div>
+          <div className="pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">{t('settings.security.twoFactorAuth')}</p>
+                <p className="text-sm text-gray-600">{t('settings.security.twoFactorAuthDesc')}</p>
+              </div>
+              <Link to="/settings/2fa">
+                <Button variant="outline">
+                  <Shield className="w-4 h-4 mr-2" />
+                  {t('settings.security.manage2FA')}
+                </Button>
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>

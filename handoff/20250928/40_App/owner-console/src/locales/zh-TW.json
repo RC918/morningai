@@ -122,7 +122,10 @@
       "sessionTimeoutDesc": "閒置後自動登出",
       "30minutes": "30 分鐘",
       "1hour": "1 小時",
-      "4hours": "4 小時"
+      "4hours": "4 小時",
+      "twoFactorAuth": "雙重驗證",
+      "twoFactorAuthDesc": "管理您的帳戶雙重驗證設定",
+      "manage2FA": "管理 2FA"
     },
     "2fa": {
       "title": "雙重驗證",

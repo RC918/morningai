@@ -122,7 +122,10 @@
       "sessionTimeoutDesc": "Auto-logout after inactivity",
       "30minutes": "30 minutes",
       "1hour": "1 hour",
-      "4hours": "4 hours"
+      "4hours": "4 hours",
+      "twoFactorAuth": "Two-Factor Authentication",
+      "twoFactorAuthDesc": "Manage your account's two-factor authentication settings",
+      "manage2FA": "Manage 2FA"
     },
     "2fa": {
       "title": "Two-Factor Authentication",
