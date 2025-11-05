@@ -46,6 +46,7 @@ export interface LoginCredentials {
 export interface LoginResponse {
   user: User;
   tokens: AuthTokens;
+  requires_2fa?: boolean;
 }
 
 export interface RefreshTokenResponse {

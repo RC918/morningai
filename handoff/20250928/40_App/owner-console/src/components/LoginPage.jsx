@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, Alert
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { TwoFactorVerify } from './2fa/TwoFactorVerify'
 
-const LoginPage = ({ onLogin }) => {
+const LoginPage = ({ onLogin, onAuthenticated }) => {
   const { t } = useTranslation()
   const [credentials, setCredentials] = useState({
     email: '',
@@ -36,12 +36,16 @@ const LoginPage = ({ onLogin }) => {
 
     try {
       const result = await onLogin(credentials)
+      console.log('[LoginPage] Login result:', result)
       
       if (result && result.requires_2fa) {
+        console.log('[LoginPage] 2FA required, showing dialog')
         setShow2FADialog(true)
         setLoading(false)
         return
       }
+      
+      console.log('[LoginPage] Login successful without 2FA')
     } catch (error) {
       console.error('Login error:', error)
       setError(error.message || t('auth.login.loginError'))
@@ -52,22 +56,22 @@ const LoginPage = ({ onLogin }) => {
 
   const handle2FAVerify = async (params) => {
     const { verifyTwoFALogin } = await import('@/lib/2fa-api')
-    const { getCurrentUser } = await import('@/lib/auth')
-    
-    await verifyTwoFALogin({
-      email: credentials.email,
-      password: credentials.password,
-      totp_code: params.isBackup ? undefined : params.code,
-      backup_code: params.isBackup ? params.code : undefined,
-      remember_device: params.rememberDevice,
-    })
-
-    setShow2FADialog(false)
     
     try {
-      const user = await getCurrentUser()
-      onLogin(user)
+      await verifyTwoFALogin({
+        email: credentials.email,
+        password: credentials.password,
+        totp_code: params.isBackup ? undefined : params.code,
+        backup_code: params.isBackup ? params.code : undefined,
+        remember_device: params.rememberDevice,
+      })
+
+      setShow2FADialog(false)
+      
+      await onAuthenticated()
+      console.log('[LoginPage] 2FA verification successful, user authenticated')
     } catch (error) {
+      console.error('[LoginPage] 2FA verification error:', error)
       setError(error.message || t('auth.login.loginError'))
     }
   }

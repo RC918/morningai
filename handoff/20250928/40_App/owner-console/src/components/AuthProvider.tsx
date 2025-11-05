@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<LoginResponse>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -60,11 +60,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
     try {
       const response = await authLogin(credentials);
+      
+      if (response.requires_2fa) {
+        return response;
+      }
+      
       setUser(response.user);
       setIsAuthenticated(true);
+      return response;
     } catch (error) {
       setUser(null);
       setIsAuthenticated(false);
