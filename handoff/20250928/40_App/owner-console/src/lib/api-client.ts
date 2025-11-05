@@ -1,7 +1,4 @@
-const API_BASE_URL =
-  (typeof window !== 'undefined' && (window as any).__VITE_API_BASE_URL__) ||
-  (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') ||
-  '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 /**
  * CSRF token cache for cross-origin scenarios
