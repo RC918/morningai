@@ -48,4 +48,7 @@ audit-design-system-report.md
 
 # Motion test results (should not be committed)
 **/motion-test-results/
+
+# A11y test results (should not be committed)
+**/a11y-test-results/
 **/a11y-test-results/

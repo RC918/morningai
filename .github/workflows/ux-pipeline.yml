@@ -281,7 +281,6 @@ jobs:
         env:
           BASE_URL: http://localhost:${{ matrix.port }}
         run: pnpm run test:a11y
-        continue-on-error: true
       
       - name: Stop preview server
         if: always()
