@@ -503,7 +503,7 @@ const Dashboard = (): React.ReactElement => {
         {!isEditMode && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Performance Trend Chart */}
-            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+            <Card className="shadow-sm hover:shadow-md transition-none">
               <CardHeader className="pb-4">
                 <CardTitle>{t('metrics.performanceTrend')}</CardTitle>
                 <CardDescription>{t('metrics.performanceDescription')}</CardDescription>
@@ -535,7 +535,7 @@ const Dashboard = (): React.ReactElement => {
             </Card>
 
             {/* Response Time Chart */}
-            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+            <Card className="shadow-sm hover:shadow-md transition-none">
               <CardHeader className="pb-4">
                 <CardTitle>{t('metrics.responseTimeTrend')}</CardTitle>
                 <CardDescription>{t('metrics.responseTimeDescription')}</CardDescription>
@@ -563,7 +563,7 @@ const Dashboard = (): React.ReactElement => {
 
         {/* Recent Decisions - Always visible when not in edit mode */}
         {!isEditMode && (
-          <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+          <Card className="shadow-sm hover:shadow-md transition-none">
             <CardHeader className="pb-4">
               <CardTitle>{t('decisions.title')}</CardTitle>
               <CardDescription>{t('decisions.description')}</CardDescription>
