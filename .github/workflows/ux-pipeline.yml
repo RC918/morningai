@@ -445,7 +445,7 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
       
-      - name: Check thresholds
+      - name: Check thresholds and hybrid metrics
         if: always()
         run: |
           if [ -f "ux-qa-results/${{ matrix.app }}-ux-report.json" ]; then
@@ -459,7 +459,42 @@ jobs:
             echo "🎬 Motion Performance: $MOTION/100"
             echo "🎯 Delight Index: $DELIGHT/100"
             echo ""
+            
+            # === Week 3: Hybrid Metrics (WARNING MODE - Non-blocking) ===
+            echo "📋 Hybrid Metrics Analysis (Warning Mode):"
+            echo ""
+            
+            # Check sub-score deltas (Delta Requirements)
+            echo "🔍 Sub-score Delta Analysis:"
+            BASELINE_HARMONY=75.3
+            
+            # Extract Dashboard sub-scores
+            DASHBOARD_HARMONY=$(jq -r '.harmony.pages[] | select(.name == "Dashboard") | .harmony.overall' ux-qa-results/${{ matrix.app }}-ux-report.json)
+            SPACING=$(jq -r '.harmony.pages[] | select(.name == "Dashboard") | .harmony.spacing' ux-qa-results/${{ matrix.app }}-ux-report.json)
+            COLOR=$(jq -r '.harmony.pages[] | select(.name == "Dashboard") | .harmony.color' ux-qa-results/${{ matrix.app }}-ux-report.json)
+            CONTRAST=$(jq -r '.harmony.pages[] | select(.name == "Dashboard") | .harmony.contrast' ux-qa-results/${{ matrix.app }}-ux-report.json)
+            ALIGNMENT=$(jq -r '.harmony.pages[] | select(.name == "Dashboard") | .harmony.alignment' ux-qa-results/${{ matrix.app }}-ux-report.json)
+            TYPOGRAPHY=$(jq -r '.harmony.pages[] | select(.name == "Dashboard") | .harmony.typography' ux-qa-results/${{ matrix.app }}-ux-report.json)
+            
+            echo "  Dashboard Harmony: $DASHBOARD_HARMONY (baseline: $BASELINE_HARMONY)"
+            echo "  Sub-scores: Spacing=$SPACING, Color=$COLOR, Contrast=$CONTRAST, Alignment=$ALIGNMENT, Typography=$TYPOGRAPHY"
+            
+            echo ""
+            echo "⚠️  Delta Requirements (Warning Mode):"
+            echo "  - Target: ≥2 sub-scores improve by ≥5 points"
+            echo "  - Target: No sub-score regresses"
+            echo "  - Target: Overall Harmony > $BASELINE_HARMONY"
+            echo "  - Status: MONITORING (not blocking)"
+            
+            echo ""
+            echo "⚠️  Accessibility Metrics (Warning Mode):"
+            echo "  - a11y violations comparison: Not yet implemented"
+            echo "  - WCAG AA compliance: Not yet implemented"
+            echo "  - Status: MONITORING (not blocking)"
+            
+            echo ""
             echo "ℹ️  AI Perceptual QA is informational only (non-blocking)"
+            echo "ℹ️  Hybrid metrics are in WARNING MODE for data collection (Week 3)"
           else
             echo "⚠️  UX report not generated (check previous steps for errors)"
           fi
