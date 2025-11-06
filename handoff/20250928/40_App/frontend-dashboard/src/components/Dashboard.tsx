@@ -98,7 +98,7 @@ const DraggableWidget = ({ widget, index, moveWidget, onRemove, isEditMode, t }:
       ref={(node) => {
         drag(drop(node))
       }}
-      className={`relative transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-lg'} ${isEditMode ? 'cursor-move' : ''}`}
+      className={`relative h-full flex flex-col transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-lg'} ${isEditMode ? 'cursor-move' : ''}`}
     >
       {isEditMode && (
         <AppleButton
@@ -473,7 +473,7 @@ const Dashboard = (): React.ReactElement => {
         <DashboardToolbar />
 
         {/* Customizable Dashboard Widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
           {dashboardLayout.map((widget: Widget, index: number) => {
             const WidgetComponent = getWidgetComponent(widget.id)
             const widgetWithComponent = {
@@ -503,12 +503,12 @@ const Dashboard = (): React.ReactElement => {
         {!isEditMode && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Performance Trend Chart */}
-            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col h-full">
               <CardHeader className="pb-4">
                 <CardTitle>{t('metrics.performanceTrend')}</CardTitle>
                 <CardDescription>{t('metrics.performanceDescription')}</CardDescription>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 flex-1">
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={performanceData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -535,12 +535,12 @@ const Dashboard = (): React.ReactElement => {
             </Card>
 
             {/* Response Time Chart */}
-            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col h-full">
               <CardHeader className="pb-4">
                 <CardTitle>{t('metrics.responseTimeTrend')}</CardTitle>
                 <CardDescription>{t('metrics.responseTimeDescription')}</CardDescription>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 flex-1">
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={performanceData}>
                     <CartesianGrid strokeDasharray="3 3" />
