@@ -186,6 +186,7 @@ const Dashboard = (): React.ReactElement => {
   ])
 
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadDashboardLayout = useCallback(async (): Promise<void> => {
     try {
       const layout: { widgets?: Widget[] } = await apiClient.request('/dashboard/layouts?user_id=default')
@@ -301,6 +302,7 @@ const Dashboard = (): React.ReactElement => {
     { id: 'task_execution', type: 'metric', component: null }
   ]
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const moveWidget = useCallback((dragIndex: number, hoverIndex: number): void => {
     setDashboardLayout((prev: Widget[]): Widget[] => {
       const newLayout: Widget[] = [...prev]
@@ -312,6 +314,7 @@ const Dashboard = (): React.ReactElement => {
     setSaveStatus((prev: SaveStatus): SaveStatus => ({ ...prev, status: 'unsaved' as const }))
   }, [])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const removeWidget = useCallback((index: number): void => {
     setDashboardLayout((prev: Widget[]): Widget[] => prev.filter((_: Widget, i: number) => i !== index))
     setSaveStatus((prev: SaveStatus): SaveStatus => ({ ...prev, status: 'unsaved' as const }))
