@@ -61,23 +61,38 @@ async function setupAuth(page) {
       // Submit form by pressing Enter on password field (more reliable than clicking button)
       await page.press('input[name="password"]', 'Enter');
       
-      // Wait a moment for state changes
-      await page.waitForTimeout(2000);
+      console.log('   Waiting for authenticated shell (Sidebar) to appear...');
       
-      // Explicitly navigate to dashboard (the app uses state-based routing, not URL redirects)
-      console.log('   Navigating to /dashboard...');
-      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: 15000 });
-      
-      // Verify authentication by checking for authenticated-only elements
-      // The sidebar is only visible when authenticated
+      // Wait for the Sidebar to appear (proves authentication succeeded and React state updated)
+      // The sidebar is ONLY rendered when isAuthenticated === true
       // Check for either role="navigation" OR aria-label containing "navigation"
-      const isAuthenticated = await page.locator('nav[role="navigation"], nav[aria-label*="navigation"]').first().isVisible().catch(() => false);
+      const sidebarLocator = page.locator('nav[role="navigation"], nav[aria-label*="navigation"]').first();
       
-      if (isAuthenticated) {
+      try {
+        await sidebarLocator.waitFor({ state: 'visible', timeout: 12000 });
+        console.log('   ✓ Sidebar appeared - authentication successful!');
+      } catch (timeoutError) {
+        console.log(`   Authentication check failed with ${creds.label} - sidebar did not appear`);
+        continue; // Try next credential set
+      }
+      
+      // Now navigate to dashboard using SPA client-side routing (preserves React state)
+      // Click the dashboard link in the sidebar instead of using page.goto()
+      console.log('   Navigating to /dashboard via SPA link...');
+      const dashboardLink = page.locator('a[href="/dashboard"]').first();
+      await dashboardLink.click();
+      
+      // Wait for dashboard route to load
+      await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 5000 });
+      
+      // Verify we're still authenticated (sidebar should still be visible)
+      const stillAuthenticated = await sidebarLocator.isVisible().catch(() => false);
+      
+      if (stillAuthenticated) {
         console.log(`✅ Authentication successful with ${creds.label}\n`);
         return true;
       } else {
-        console.log(`   Authentication check failed with ${creds.label} - sidebar not found`);
+        console.log(`   Authentication lost after navigation with ${creds.label}`);
       }
     } catch (error) {
       console.log(`   Authentication attempt failed with ${creds.label}: ${error.message}`);
