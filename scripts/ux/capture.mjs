@@ -49,15 +49,25 @@ async function setupAuth(page) {
     await page.fill('input[name="username"]', QA_TEST_EMAIL);
     await page.fill('input[name="password"]', QA_TEST_PASSWORD);
     
-    // Submit form by pressing Enter on password field (more reliable than clicking button)
-    await page.press('input[name="password"]', 'Enter');
+    // Submit form by clicking the submit button
+    await page.click('button[type="submit"]');
     
-    // Wait for navigation to dashboard after successful login
-    await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 15000 });
+    // Wait for either URL change to dashboard OR authenticated UI to appear
+    // Use Promise.race to handle both SPA and traditional navigation
+    try {
+      await Promise.race([
+        page.waitForURL(/\/dashboard(\/|$)/, { timeout: 25000 }),
+        page.waitForSelector('nav[aria-label*="navigation"]', { state: 'visible', timeout: 25000 })
+      ]);
+    } catch (waitError) {
+      // If neither condition is met, try direct navigation as fallback
+      console.log('⚠️  Navigation timeout, attempting direct navigation to dashboard...');
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: 10000 });
+    }
     
     // Verify authentication by checking for authenticated-only elements
-    // The sidebar is only visible when authenticated
-    const isAuthenticated = await page.locator('nav[role="navigation"]').isVisible().catch(() => false);
+    // The sidebar nav is only visible when authenticated
+    const isAuthenticated = await page.locator('nav[aria-label*="navigation"]').isVisible().catch(() => false);
     
     if (isAuthenticated) {
       console.log('✅ Authentication successful\n');
