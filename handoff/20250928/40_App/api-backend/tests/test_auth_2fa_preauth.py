@@ -13,13 +13,28 @@ Tests the new pre-authentication flow for 2FA enrollment and challenge:
 import pytest
 import json
 from unittest.mock import patch, MagicMock
-from src.main import app
 from src.utils.pre_auth_token import get_pre_auth_manager
 
 
 @pytest.fixture
-def client():
-    """Create test client"""
+def mock_get_user():
+    """Mock get_user_by_id to return a valid user"""
+    with patch("src.routes.auth_2fa.get_user_by_id") as mock:
+        mock.return_value = {
+            "id": "user-001",
+            "email": "test@example.com",
+            "name": "Test User",
+            "role": "owner",
+            "tenant_id": "tenant-001",
+        }
+        yield mock
+
+
+@pytest.fixture
+def client(mock_redis, mock_supabase, mock_totp, mock_get_user):
+    """Create test client with all mocks active before app import"""
+    from src.main import app
+    
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
@@ -30,16 +45,18 @@ def mock_redis():
     """Mock Redis client using fakeredis for stateful behavior"""
     from fakeredis import FakeRedis
     import src.utils.pre_auth_token
-
+    
+    src.utils.pre_auth_token._pre_auth_manager = None
+    
     redis_client = FakeRedis(decode_responses=True)
     with patch("src.utils.redis_client.get_redis_client") as mock1, patch(
         "src.utils.pre_auth_token.get_redis_client"
     ) as mock2:
         mock1.return_value = redis_client
         mock2.return_value = redis_client
-
+        
         yield redis_client
-
+        
         src.utils.pre_auth_token._pre_auth_manager = None
         redis_client.flushall()
 
@@ -47,7 +64,9 @@ def mock_redis():
 @pytest.fixture
 def mock_supabase():
     """Mock Supabase client"""
-    with patch("supabase.create_client") as mock_create:
+    with patch("supabase.create_client") as mock_create, patch(
+        "src.routes.auth_2fa.create_client"
+    ) as mock_create_2fa:
         supabase_mock = MagicMock()
 
         user_2fa_mock = MagicMock()
@@ -57,6 +76,7 @@ def mock_supabase():
         )
 
         mock_create.return_value = supabase_mock
+        mock_create_2fa.return_value = supabase_mock
 
         yield supabase_mock
 
@@ -476,15 +496,18 @@ class TestChallengeEndpoint:
             "user-001", "test@example.com", "challenge"
         )
 
-        user_2fa_data = [
+        user_2fa_mock = MagicMock()
+        user_2fa_mock.data = [
             {
                 "user_id": "user-001",
                 "enabled": True,
+                "verified_at": "2024-01-01T00:00:00Z",
                 "totp_secret": "encrypted_secret",
             }
         ]
 
-        backup_codes_data = [
+        backup_codes_first_call = MagicMock()
+        backup_codes_first_call.data = [
             {
                 "id": "code-001",
                 "user_id": "user-001",
@@ -493,27 +516,34 @@ class TestChallengeEndpoint:
             }
         ]
 
-        remaining_codes_data = [{"id": "code-002"}, {"id": "code-003"}]
+        backup_codes_second_call = MagicMock()
+        backup_codes_second_call.data = [
+            {"id": "code-002", "used": False},
+            {"id": "code-003", "used": False},
+        ]
 
-        def mock_table_select(*args, **kwargs):
-            mock_result = MagicMock()
-            if args[0] == "user_2fa":
-                mock_result.data = user_2fa_data
-            elif args[0] == "totp_backup_codes":
-                if not hasattr(mock_table_select, "call_count"):
-                    mock_table_select.call_count = 0
-                mock_table_select.call_count += 1
+        backup_codes_call_count = {"count": 0}
 
-                if mock_table_select.call_count == 1:
-                    mock_result.data = backup_codes_data
-                else:
-                    mock_result.data = remaining_codes_data
+        def mock_table(table_name):
+            table_mock = MagicMock()
+            if table_name == "user_2fa":
+                table_mock.select.return_value.eq.return_value.execute.return_value = (
+                    user_2fa_mock
+                )
+            elif table_name == "totp_backup_codes":
+                def mock_execute():
+                    backup_codes_call_count["count"] += 1
+                    if backup_codes_call_count["count"] == 1:
+                        return backup_codes_first_call
+                    else:
+                        return backup_codes_second_call
+                
+                table_mock.select.return_value.eq.return_value.eq.return_value.execute = mock_execute
+                table_mock.select.return_value.eq.return_value.execute.return_value = backup_codes_second_call
+            return table_mock
 
-            return mock_result
-
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.side_effect = (
-            mock_table_select
-        )
+        mock_supabase.table.side_effect = mock_table
+        mock_backup_codes.hash_code.return_value = "hashed_code"
 
         response = client.post(
             "/api/auth/v2/2fa/challenge",
@@ -553,25 +583,34 @@ class TestPreAuthSecurity:
     def test_token_single_use(
         self, client, mock_redis, mock_supabase, mock_totp
     ):
-        """Test that pre-auth token can only be used once"""
+        """Test that pre-auth token can only be used once on verify-enroll"""
         manager = get_pre_auth_manager()
         token = manager.generate_token(
             "user-001", "test@example.com", "enroll"
         )
 
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = (
-            []
-        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
+            {
+                "user_id": "user-001",
+                "totp_secret": "encrypted_secret",
+                "enabled": False,
+                "verified_at": None,
+            }
+        ]
+
+        mock_totp.verify_code.return_value = True
 
         response1 = client.post(
-            "/api/auth/v2/2fa/enroll",
+            "/api/auth/v2/2fa/verify-enroll",
             headers={"Authorization": f"Bearer {token}"},
+            json={"code": "123456"},
         )
         assert response1.status_code == 200
 
         response2 = client.post(
-            "/api/auth/v2/2fa/enroll",
+            "/api/auth/v2/2fa/verify-enroll",
             headers={"Authorization": f"Bearer {token}"},
+            json={"code": "123456"},
         )
         assert response2.status_code == 401
 
@@ -713,7 +752,10 @@ class TestPreAuthErrorBranches:
             algorithms=["HS256"],
             options={"verify_exp": False},
         )
-        _ = payload["jti"]
+        jti = payload["jti"]
+
+        for _ in range(MAX_ATTEMPTS_PER_TOKEN):
+            mgr.increment_attempts(jti)
 
         headers = {"Authorization": f"Bearer {token}"}
         response = client.post("/api/auth/v2/2fa/enroll", headers=headers)
