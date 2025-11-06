@@ -18,6 +18,7 @@ import logging
 from datetime import datetime, timedelta, UTC
 from typing import Optional, Dict, Any, Literal
 import jwt
+import redis.exceptions
 
 from .redis_client import get_redis_client
 
@@ -36,6 +37,14 @@ class PreAuthTokenManager:
         self.jwt_secret = os.environ.get(
             "JWT_SECRET_KEY", "test-secret-key-for-testing"
         )
+
+        env = os.environ.get("ENVIRONMENT", "").lower()
+        if env == "production":
+            if not self.jwt_secret or self.jwt_secret == "test-secret-key-for-testing":
+                raise RuntimeError(
+                    "JWT_SECRET_KEY must be set to a secure value in production environment. "
+                    "The default test key is not allowed."
+                )
 
     def generate_token(
         self, user_id: str, email: str, scope: Literal["enroll", "challenge"]
@@ -159,6 +168,9 @@ class PreAuthTokenManager:
         """
         Mark a token as consumed (single-use enforcement).
 
+        DEPRECATED: Use consume_token_atomic() for production code.
+        This method is kept for backward compatibility but is not atomic.
+
         Args:
             jti: Token JTI
 
@@ -177,12 +189,70 @@ class PreAuthTokenManager:
             return False
 
         self.redis_client.hset(redis_key, "consumed", "True")
-        self.redis_client.hset(
-            redis_key, "consumed_at", datetime.now(UTC).isoformat()
-        )
+        self.redis_client.hset(redis_key, "consumed_at", datetime.now(UTC).isoformat())
 
         logger.info(f"Token jti {jti} consumed successfully")
         return True
+
+    def consume_token_atomic(self, jti: str, max_retries: int = 3) -> bool:
+        """
+        Atomically mark a token as consumed using Redis WATCH/MULTI transaction.
+
+        This method provides race-condition-free single-use enforcement by using
+        optimistic locking. If two concurrent requests try to consume the same token,
+        only one will succeed.
+
+        Args:
+            jti: Token JTI
+            max_retries: Maximum number of retry attempts on contention (default: 3)
+
+        Returns:
+            True if successfully consumed (first use), False if already consumed or not found
+        """
+        redis_key = f"{REDIS_KEY_PREFIX}:pre_auth:jti:{jti}"
+        now_iso = datetime.now(UTC).isoformat()
+
+        for attempt in range(max_retries):
+            pipeline = self.redis_client.pipeline()
+            try:
+                pipeline.watch(redis_key)
+
+                token_data = pipeline.hgetall(redis_key)
+                if not token_data:
+                    pipeline.unwatch()
+                    logger.warning(f"Cannot consume token jti {jti}: not found")
+                    return False
+
+                consumed = token_data.get("consumed")
+                if str(consumed) in ("True", "1"):
+                    pipeline.unwatch()
+                    logger.warning(f"Token jti {jti} already consumed")
+                    return False
+
+                pipeline.multi()
+                pipeline.hset(
+                    redis_key, mapping={"consumed": "True", "consumed_at": now_iso}
+                )
+                pipeline.execute()
+
+                logger.info(f"Token jti {jti} consumed successfully (atomic)")
+                return True
+
+            except redis.exceptions.WatchError:
+                logger.debug(
+                    f"Contention consuming token jti {jti}, attempt {attempt + 1}/{max_retries}"
+                )
+                continue
+            finally:
+                try:
+                    pipeline.reset()
+                except Exception:
+                    pass
+
+        logger.warning(
+            f"Failed to consume token jti {jti} after {max_retries} attempts due to contention"
+        )
+        return False
 
     def get_token_info(self, jti: str) -> Optional[Dict[str, Any]]:
         """

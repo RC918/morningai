@@ -113,9 +113,7 @@ def pre_auth_required(f):
         request.pre_auth_scope = scope
         request.pre_auth_jti = jti
 
-        logger.debug(
-            f"Pre-auth request: user_id={user_id}, scope={scope}, jti={jti}"
-        )
+        logger.debug(f"Pre-auth request: user_id={user_id}, scope={scope}, jti={jti}")
 
         return f(*args, **kwargs)
 
@@ -149,7 +147,7 @@ def pre_auth_scope_required(required_scope: str):
                             "message": "Pre-authentication scope not found. Use @pre_auth_required first.",
                         }
                     ),
-                    500,
+                    401,
                 )
 
             if scope != required_scope:

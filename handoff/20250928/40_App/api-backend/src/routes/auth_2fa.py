@@ -99,10 +99,7 @@ def enroll_2fa():
         supabase = create_client(supabase_url, supabase_key)
 
         existing_2fa = (
-            supabase.table("user_2fa")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
+            supabase.table("user_2fa").select("*").eq("user_id", user_id).execute()
         )
 
         if (
@@ -195,9 +192,7 @@ def verify_enroll_2fa():
 
         if len(code) != 6 or not code.isdigit():
             return (
-                jsonify(
-                    {"error": "Invalid TOTP code format (must be 6 digits)"}
-                ),
+                jsonify({"error": "Invalid TOTP code format (must be 6 digits)"}),
                 400,
             )
 
@@ -210,30 +205,19 @@ def verify_enroll_2fa():
         supabase = create_client(supabase_url, supabase_key)
 
         user_2fa = (
-            supabase.table("user_2fa")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
+            supabase.table("user_2fa").select("*").eq("user_id", user_id).execute()
         )
 
         if not user_2fa.data:
             return (
-                jsonify(
-                    {
-                        "error": "2FA enrollment not started. Call /enroll first."
-                    }
-                ),
+                jsonify({"error": "2FA enrollment not started. Call /enroll first."}),
                 400,
             )
 
         encrypted_secret = user_2fa.data[0].get("totp_secret")
         if not encrypted_secret:
             return (
-                jsonify(
-                    {
-                        "error": "2FA enrollment not started. Call /enroll first."
-                    }
-                ),
+                jsonify({"error": "2FA enrollment not started. Call /enroll first."}),
                 400,
             )
 
@@ -265,7 +249,16 @@ def verify_enroll_2fa():
             ).execute()
 
         pre_auth_manager = get_pre_auth_manager()
-        pre_auth_manager.consume_token(jti)
+        if not pre_auth_manager.consume_token_atomic(jti):
+            return (
+                jsonify(
+                    {
+                        "error": "TMP_TOKEN_CONSUMED",
+                        "message": "This token has already been used.",
+                    }
+                ),
+                401,
+            )
 
         access_token, access_expiry_ms = generate_access_token(
             user_id, email, user["role"]
@@ -287,19 +280,13 @@ def verify_enroll_2fa():
         }
 
         response = make_response(jsonify(response_data), 200)
-        set_auth_cookies(
-            response, access_token, refresh_token, access_expiry_ms
-        )
+        set_auth_cookies(response, access_token, refresh_token, access_expiry_ms)
 
-        logger.info(
-            f"2FA enrollment completed successfully for user {user_id}"
-        )
+        logger.info(f"2FA enrollment completed successfully for user {user_id}")
         return response
 
     except Exception as e:
-        logger.error(
-            f"Error in 2FA enrollment verification: {str(e)}", exc_info=True
-        )
+        logger.error(f"Error in 2FA enrollment verification: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -351,9 +338,7 @@ def challenge_2fa():
 
         if not code and not backup_code:
             return (
-                jsonify(
-                    {"error": "Either TOTP code or backup code is required"}
-                ),
+                jsonify({"error": "Either TOTP code or backup code is required"}),
                 400,
             )
 
@@ -366,10 +351,7 @@ def challenge_2fa():
         supabase = create_client(supabase_url, supabase_key)
 
         user_2fa = (
-            supabase.table("user_2fa")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
+            supabase.table("user_2fa").select("*").eq("user_id", user_id).execute()
         )
 
         if not user_2fa.data or not user_2fa.data[0].get("enabled"):
@@ -438,11 +420,7 @@ def challenge_2fa():
         elif code:
             if len(code) != 6 or not code.isdigit():
                 return (
-                    jsonify(
-                        {
-                            "error": "Invalid TOTP code format (must be 6 digits)"
-                        }
-                    ),
+                    jsonify({"error": "Invalid TOTP code format (must be 6 digits)"}),
                     400,
                 )
 
@@ -488,7 +466,16 @@ def challenge_2fa():
                 logger.warning(f"Failed to trust device: {str(e)}")
 
         pre_auth_manager = get_pre_auth_manager()
-        pre_auth_manager.consume_token(jti)
+        if not pre_auth_manager.consume_token_atomic(jti):
+            return (
+                jsonify(
+                    {
+                        "error": "TMP_TOKEN_CONSUMED",
+                        "message": "This token has already been used.",
+                    }
+                ),
+                401,
+            )
 
         access_token, access_expiry_ms = generate_access_token(
             user_id, email, user["role"]
@@ -515,9 +502,7 @@ def challenge_2fa():
             response_data["device_trusted"] = True
 
         response = make_response(jsonify(response_data), 200)
-        set_auth_cookies(
-            response, access_token, refresh_token, access_expiry_ms
-        )
+        set_auth_cookies(response, access_token, refresh_token, access_expiry_ms)
 
         logger.info(f"2FA login completed successfully for user {user_id}")
         return response

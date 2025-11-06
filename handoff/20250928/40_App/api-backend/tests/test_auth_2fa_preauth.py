@@ -34,7 +34,7 @@ def mock_get_user():
 def client(mock_redis, mock_supabase, mock_totp, mock_get_user):
     """Create test client with all mocks active before app import"""
     from src.main import app
-    
+
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
@@ -45,18 +45,18 @@ def mock_redis():
     """Mock Redis client using fakeredis for stateful behavior"""
     from fakeredis import FakeRedis
     import src.utils.pre_auth_token
-    
+
     src.utils.pre_auth_token._pre_auth_manager = None
-    
+
     redis_client = FakeRedis(decode_responses=True)
     with patch("src.utils.redis_client.get_redis_client") as mock1, patch(
         "src.utils.pre_auth_token.get_redis_client"
     ) as mock2:
         mock1.return_value = redis_client
         mock2.return_value = redis_client
-        
+
         yield redis_client
-        
+
         src.utils.pre_auth_token._pre_auth_manager = None
         redis_client.flushall()
 
@@ -89,9 +89,7 @@ def mock_totp():
         totp_mock.generate_secret.return_value = "BASE32SECRET123"
         totp_mock.encrypt_secret.return_value = "encrypted_secret"
         totp_mock.decrypt_secret.return_value = "BASE32SECRET123"
-        totp_mock.generate_qr_code.return_value = (
-            "data:image/png;base64,QRCODE"
-        )
+        totp_mock.generate_qr_code.return_value = "data:image/png;base64,QRCODE"
         totp_mock.verify_totp.return_value = True
         mock.return_value = totp_mock
         yield totp_mock
@@ -116,9 +114,7 @@ def mock_backup_codes():
 class TestLoginWithPreAuth:
     """Test login endpoint with pre-auth flow"""
 
-    def test_login_no_2fa_returns_session(
-        self, client, mock_redis, mock_supabase
-    ):
+    def test_login_no_2fa_returns_session(self, client, mock_redis, mock_supabase):
         """Test login without 2FA requirement returns session directly"""
         with patch("src.routes.totp.check_2fa_required", return_value=False):
             response = client.post(
@@ -194,9 +190,7 @@ class TestPreAuthTokenManager:
         import jwt
 
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         assert token is not None
         assert isinstance(token, str)
@@ -217,9 +211,7 @@ class TestPreAuthTokenManager:
     def test_verify_token_valid(self, mock_redis):
         """Test verifying valid pre-auth token"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         payload = manager.verify_token(token)
 
@@ -234,13 +226,9 @@ class TestPreAuthTokenManager:
         import jwt
 
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
-        payload_decoded = jwt.decode(
-            token, manager.jwt_secret, algorithms=["HS256"]
-        )
+        payload_decoded = jwt.decode(token, manager.jwt_secret, algorithms=["HS256"])
         jti = payload_decoded["jti"]
         manager.consume_token(jti)
 
@@ -253,13 +241,9 @@ class TestPreAuthTokenManager:
         import jwt
 
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
-        payload_decoded = jwt.decode(
-            token, manager.jwt_secret, algorithms=["HS256"]
-        )
+        payload_decoded = jwt.decode(token, manager.jwt_secret, algorithms=["HS256"])
         jti = payload_decoded["jti"]
         for _ in range(5):
             manager.increment_attempts(jti)
@@ -273,9 +257,7 @@ class TestPreAuthTokenManager:
         import jwt
 
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         payload = jwt.decode(token, manager.jwt_secret, algorithms=["HS256"])
         jti = payload["jti"]
@@ -312,14 +294,10 @@ class TestEnrollEndpoint:
         data = json.loads(response.data)
         assert "error" in data
 
-    def test_enroll_success(
-        self, client, mock_redis, mock_supabase, mock_totp
-    ):
+    def test_enroll_success(self, client, mock_redis, mock_supabase, mock_totp):
         """Test successful 2FA enrollment"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = (
             []
@@ -356,9 +334,7 @@ class TestVerifyEnrollEndpoint:
     def test_verify_enroll_missing_code(self, client, mock_redis):
         """Test verify-enroll without code returns 400"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         response = client.post(
             "/api/auth/v2/2fa/verify-enroll",
@@ -373,9 +349,7 @@ class TestVerifyEnrollEndpoint:
     def test_verify_enroll_invalid_code_format(self, client, mock_redis):
         """Test verify-enroll with invalid code format returns 400"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         response = client.post(
             "/api/auth/v2/2fa/verify-enroll",
@@ -392,9 +366,7 @@ class TestVerifyEnrollEndpoint:
     ):
         """Test successful 2FA enrollment verification"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
             {"user_id": "user-001", "totp_secret": "encrypted_secret"}
@@ -426,9 +398,7 @@ class TestChallengeEndpoint:
 
     def test_challenge_without_token(self, client):
         """Test challenge without pre-auth token returns 401"""
-        response = client.post(
-            "/api/auth/v2/2fa/challenge", json={"code": "123456"}
-        )
+        response = client.post("/api/auth/v2/2fa/challenge", json={"code": "123456"})
 
         assert response.status_code == 401
         data = json.loads(response.data)
@@ -437,9 +407,7 @@ class TestChallengeEndpoint:
     def test_challenge_missing_code_and_backup(self, client, mock_redis):
         """Test challenge without code or backup_code returns 400"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "challenge"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "challenge")
 
         response = client.post(
             "/api/auth/v2/2fa/challenge",
@@ -456,9 +424,7 @@ class TestChallengeEndpoint:
     ):
         """Test successful 2FA challenge with TOTP code"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "challenge"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "challenge")
 
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
             {
@@ -492,9 +458,7 @@ class TestChallengeEndpoint:
     ):
         """Test successful 2FA challenge with backup code"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "challenge"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "challenge")
 
         user_2fa_mock = MagicMock()
         user_2fa_mock.data = [
@@ -531,15 +495,20 @@ class TestChallengeEndpoint:
                     user_2fa_mock
                 )
             elif table_name == "totp_backup_codes":
+
                 def mock_execute():
                     backup_codes_call_count["count"] += 1
                     if backup_codes_call_count["count"] == 1:
                         return backup_codes_first_call
                     else:
                         return backup_codes_second_call
-                
-                table_mock.select.return_value.eq.return_value.eq.return_value.execute = mock_execute
-                table_mock.select.return_value.eq.return_value.execute.return_value = backup_codes_second_call
+
+                table_mock.select.return_value.eq.return_value.eq.return_value.execute = (
+                    mock_execute
+                )
+                table_mock.select.return_value.eq.return_value.execute.return_value = (
+                    backup_codes_second_call
+                )
             return table_mock
 
         mock_supabase.table.side_effect = mock_table
@@ -565,9 +534,7 @@ class TestPreAuthSecurity:
     def test_scope_enforcement(self, client, mock_redis):
         """Test that enroll scope can't be used for challenge endpoint"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         response = client.post(
             "/api/auth/v2/2fa/challenge",
@@ -580,14 +547,10 @@ class TestPreAuthSecurity:
         assert "error" in data
         assert data["error"] == "SCOPE_MISMATCH"
 
-    def test_token_single_use(
-        self, client, mock_redis, mock_supabase, mock_totp
-    ):
+    def test_token_single_use(self, client, mock_redis, mock_supabase, mock_totp):
         """Test that pre-auth token can only be used once on verify-enroll"""
         manager = get_pre_auth_manager()
-        token = manager.generate_token(
-            "user-001", "test@example.com", "enroll"
-        )
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
             {
@@ -664,9 +627,7 @@ class TestPreAuthTokenManagerInfoAndRevoke:
 class TestLoginNextStepSession:
     """Test /login returns next_step: session when 2FA not required"""
 
-    def test_login_next_step_session_no_2fa(
-        self, client, mock_supabase, mock_redis
-    ):
+    def test_login_next_step_session_no_2fa(self, client, mock_supabase, mock_redis):
         """Test login returns session when 2FA not required"""
         import src.routes.totp as totp_mod
         import src.routes.auth_enhanced as auth_mod
@@ -707,9 +668,7 @@ class TestLoginNextStepSession:
 class TestPreAuthErrorBranches:
     """Test error branches: expired token, attempts exceeded"""
 
-    def test_expired_token_returns_401(
-        self, client, mock_redis, mock_supabase
-    ):
+    def test_expired_token_returns_401(self, client, mock_redis, mock_supabase):
         """Test expired token returns 401"""
         import jwt
         from datetime import datetime, timezone, timedelta
@@ -764,9 +723,7 @@ class TestPreAuthErrorBranches:
         assert response.status_code == 401
         assert data.get("error") == "TMP_TOKEN_INVALID"
 
-    def test_token_missing_scope_claim(
-        self, client, mock_redis, mock_supabase
-    ):
+    def test_token_missing_scope_claim(self, client, mock_redis, mock_supabase):
         """Test token missing scope claim returns 401"""
         import jwt
         from src.utils.pre_auth_token import get_pre_auth_manager
@@ -790,6 +747,130 @@ class TestPreAuthErrorBranches:
         assert response.status_code == 401
         assert data.get("error") == "TMP_TOKEN_INVALID"
         assert "malformed" in data.get("message", "").lower()
+
+
+class TestAtomicTokenConsumption:
+    """Test atomic token consumption with concurrency"""
+
+    def test_concurrent_token_consumption(self, mock_redis):
+        """Test that only one of two concurrent consume attempts succeeds"""
+        import threading
+        from src.utils.pre_auth_token import get_pre_auth_manager
+
+        mgr = get_pre_auth_manager()
+        token = mgr.generate_token("user-001", "test@example.com", "enroll")
+
+        import jwt
+
+        payload = jwt.decode(
+            token,
+            mgr.jwt_secret,
+            algorithms=["HS256"],
+            options={"verify_exp": False},
+        )
+        jti = payload["jti"]
+
+        results = []
+        barrier = threading.Barrier(2)
+
+        def consume_attempt():
+            barrier.wait()
+            result = mgr.consume_token_atomic(jti)
+            results.append(result)
+
+        thread1 = threading.Thread(target=consume_attempt)
+        thread2 = threading.Thread(target=consume_attempt)
+
+        thread1.start()
+        thread2.start()
+        thread1.join()
+        thread2.join()
+
+        assert len(results) == 2
+        assert results.count(True) == 1
+        assert results.count(False) == 1
+
+
+class TestProductionJWTSecretValidation:
+    """Test production JWT secret validation"""
+
+    def test_production_rejects_default_secret(self, monkeypatch, mock_redis):
+        """Test that production environment rejects default test secret"""
+        import src.utils.pre_auth_token
+
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-key-for-testing")
+
+        src.utils.pre_auth_token._pre_auth_manager = None
+
+        with pytest.raises(RuntimeError) as exc_info:
+            from src.utils.pre_auth_token import get_pre_auth_manager
+
+            get_pre_auth_manager()
+
+        assert "JWT_SECRET_KEY must be set" in str(exc_info.value)
+        assert "production" in str(exc_info.value).lower()
+
+        src.utils.pre_auth_token._pre_auth_manager = None
+
+    def test_production_rejects_empty_secret(self, monkeypatch, mock_redis):
+        """Test that production environment rejects empty secret"""
+        import src.utils.pre_auth_token
+
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("JWT_SECRET_KEY", "")
+
+        src.utils.pre_auth_token._pre_auth_manager = None
+
+        with pytest.raises(RuntimeError) as exc_info:
+            from src.utils.pre_auth_token import get_pre_auth_manager
+
+            get_pre_auth_manager()
+
+        assert "JWT_SECRET_KEY must be set" in str(exc_info.value)
+
+        src.utils.pre_auth_token._pre_auth_manager = None
+
+    def test_non_production_allows_default_secret(self, monkeypatch, mock_redis):
+        """Test that non-production environment allows default secret"""
+        import src.utils.pre_auth_token
+
+        monkeypatch.setenv("ENVIRONMENT", "test")
+        monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-key-for-testing")
+
+        src.utils.pre_auth_token._pre_auth_manager = None
+
+        from src.utils.pre_auth_token import get_pre_auth_manager
+
+        mgr = get_pre_auth_manager()
+
+        assert mgr is not None
+        assert mgr.jwt_secret == "test-secret-key-for-testing"
+
+        src.utils.pre_auth_token._pre_auth_manager = None
+
+
+class TestScopeMissingError:
+    """Test SCOPE_MISSING returns 401"""
+
+    def test_scope_missing_returns_401(self, mock_redis):
+        """Test that missing scope returns 401 instead of 500"""
+        from src.middleware.pre_auth import pre_auth_scope_required
+        from flask import Flask, request, jsonify
+
+        test_app = Flask(__name__)
+
+        @test_app.route("/test", methods=["POST"])
+        @pre_auth_scope_required("enroll")
+        def test_route():
+            return jsonify({"ok": True})
+
+        with test_app.test_client() as client:
+            response = client.post("/test")
+
+            assert response.status_code == 401
+            data = response.get_json()
+            assert data.get("error") == "SCOPE_MISSING"
 
 
 if __name__ == "__main__":
