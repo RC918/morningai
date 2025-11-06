@@ -303,6 +303,7 @@ def get_health_payload():
                 )
             ),
             "version": str(os.environ.get("APP_VERSION", "8.0.0")),
+            "git_commit": str(os.environ.get("GIT_COMMIT", "unknown")),
             "timestamp": datetime.datetime.now().isoformat(),
             "services": {
                 "phase4_apis": (
