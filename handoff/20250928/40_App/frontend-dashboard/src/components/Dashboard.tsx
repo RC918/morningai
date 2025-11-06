@@ -459,7 +459,7 @@ const Dashboard = (): React.ReactElement => {
   if (showReportCenter) {
     return (
       <DndProvider backend={HTML5Backend}>
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-8">
           <DashboardToolbar />
           <ReportCenter />
         </div>
@@ -469,11 +469,11 @@ const Dashboard = (): React.ReactElement => {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-8">
         <DashboardToolbar />
 
         {/* Customizable Dashboard Widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {dashboardLayout.map((widget: Widget, index: number) => {
             const WidgetComponent = getWidgetComponent(widget.id)
             const widgetWithComponent = {
@@ -501,7 +501,7 @@ const Dashboard = (): React.ReactElement => {
 
         {/* Performance Charts - Always visible */}
         {!isEditMode && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Performance Trend Chart */}
             <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
               <CardHeader className="pb-4">
@@ -569,7 +569,7 @@ const Dashboard = (): React.ReactElement => {
               <CardDescription>{t('decisions.description')}</CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {recentDecisions.map((decision) => (
                   <div key={decision.id} className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors duration-200 shadow-sm">
                     <div className="flex items-center space-x-4">
