@@ -473,7 +473,11 @@ const Dashboard = (): React.ReactElement => {
         <DashboardToolbar />
 
         {/* Customizable Dashboard Widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <section 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          aria-label={t('dashboard.widgetsSection')}
+          role="region"
+        >
           {dashboardLayout.map((widget: Widget, index: number) => {
             const WidgetComponent = getWidgetComponent(widget.id)
             const widgetWithComponent = {
@@ -497,11 +501,15 @@ const Dashboard = (): React.ReactElement => {
           {isEditMode && (
             <WidgetAddDialog />
           )}
-        </div>
+        </section>
 
         {/* Performance Charts - Always visible */}
         {!isEditMode && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section 
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            aria-label={t('dashboard.performanceChartsSection')}
+            role="region"
+          >
             {/* Performance Trend Chart */}
             <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
               <CardHeader className="pb-4">
@@ -509,28 +517,30 @@ const Dashboard = (): React.ReactElement => {
                 <CardDescription>{t('metrics.performanceDescription')}</CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={performanceData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line 
-                      type="monotone" 
-                      dataKey="cpu" 
-                      stroke="var(--color-primary, #007AFF)" 
-                      strokeWidth={2}
-                      name="CPU (%)"
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="memory" 
-                      stroke="var(--color-success, #10b981)" 
-                      strokeWidth={2}
-                      name={t('metrics.memoryUsage')}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div role="img" aria-label={t('metrics.performanceTrendChartLabel')}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={performanceData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="time" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line 
+                        type="monotone" 
+                        dataKey="cpu" 
+                        stroke="var(--color-primary, #007AFF)" 
+                        strokeWidth={2}
+                        name="CPU (%)"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="memory" 
+                        stroke="var(--color-success, #10b981)" 
+                        strokeWidth={2}
+                        name={t('metrics.memoryUsage')}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
@@ -541,24 +551,26 @@ const Dashboard = (): React.ReactElement => {
                 <CardDescription>{t('metrics.responseTimeDescription')}</CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={performanceData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis />
-                    <Tooltip />
-                    <Area 
-                      type="monotone" 
-                      dataKey="response_time" 
-                      stroke="var(--color-warning, #f59e0b)" 
-                      fill="var(--color-warning-light, #fef3c7)"
-                      name={t('metrics.responseTime')}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div role="img" aria-label={t('metrics.responseTimeChartLabel')}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={performanceData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="time" />
+                      <YAxis />
+                      <Tooltip />
+                      <Area 
+                        type="monotone" 
+                        dataKey="response_time" 
+                        stroke="var(--color-warning, #f59e0b)" 
+                        fill="var(--color-warning-light, #fef3c7)"
+                        name={t('metrics.responseTime')}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
-          </div>
+          </section>
         )}
 
         {/* Recent Decisions - Always visible when not in edit mode */}
@@ -569,19 +581,31 @@ const Dashboard = (): React.ReactElement => {
               <CardDescription>{t('decisions.description')}</CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="space-y-3">
+              <ul className="space-y-3" role="list" aria-label={t('decisions.recentDecisionsList')}>
                 {recentDecisions.map((decision) => (
-                  <div key={decision.id} className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors duration-200 shadow-sm">
+                  <li 
+                    key={decision.id} 
+                    className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors duration-200 shadow-sm"
+                    role="article"
+                    aria-label={`${t('decisions.decision')}: ${decision.strategy}`}
+                  >
                     <div className="flex items-center space-x-4">
-                      <div className={`p-2 rounded-full ${getStatusColor(decision.status)}`}>
+                      <div 
+                        className={`p-2 rounded-full ${getStatusColor(decision.status)}`}
+                        role="img"
+                        aria-label={`${t('decisions.status.label')}: ${decision.status}`}
+                      >
                         {getStatusIcon(decision.status)}
                       </div>
                       <div>
                         <h4 className="font-medium dark:text-white">{decision.strategy}</h4>
                         <p className="text-sm text-gray-600 dark:text-gray-600">{decision.impact}</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-600">
+                        <time 
+                          className="text-xs text-gray-600 dark:text-gray-600"
+                          dateTime={decision.timestamp}
+                        >
                           {new Date(decision.timestamp).toLocaleString()}
-                        </p>
+                        </time>
                       </div>
                     </div>
                     <div className="text-right">
@@ -593,9 +617,9 @@ const Dashboard = (): React.ReactElement => {
                         {t('decisions.confidence')}: {(decision.confidence * 100).toFixed(0)}%
                       </p>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </CardContent>
           </Card>
         )}

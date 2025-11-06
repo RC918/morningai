@@ -148,6 +148,8 @@
     "removeWidget": "Remove Widget",
     "undo": "Undo",
     "redo": "Redo",
+    "widgetsSection": "Dashboard Widgets",
+    "performanceChartsSection": "Performance Charts",
     "saveStatus": {
       "saved": "Saved",
       "savedWithTime": "Saved · {{time}}",
@@ -221,8 +223,10 @@
     "costSaved": "Cost Saved",
     "performanceTrend": "Performance Trend",
     "performanceDescription": "System performance metrics for the past 6 hours",
+    "performanceTrendChartLabel": "Line chart showing CPU and memory usage trends over time",
     "responseTimeTrend": "Response Time Trend",
     "responseTimeDescription": "System response time changes",
+    "responseTimeChartLabel": "Area chart showing response time trends over time",
     "analysis": {
       "title": "Metrics Analysis",
       "description": "Performance and UX metrics analysis",
@@ -311,7 +315,10 @@
   "decisions": {
     "title": "Recent Decisions",
     "description": "Recent decisions and strategies executed by the AI system",
+    "decision": "Decision",
+    "recentDecisionsList": "List of recent AI decisions and strategies",
     "status": {
+      "label": "Status",
       "executed": "Executed",
       "pending": "Pending",
       "failed": "Failed"

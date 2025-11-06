@@ -148,6 +148,8 @@
     "removeWidget": "移除小工具",
     "undo": "撤銷",
     "redo": "重做",
+    "widgetsSection": "儀表板組件",
+    "performanceChartsSection": "性能圖表",
     "saveStatus": {
       "saved": "已保存",
       "savedWithTime": "已保存 · {{time}}",
@@ -221,8 +223,10 @@
     "costSaved": "節省成本",
     "performanceTrend": "性能趨勢",
     "performanceDescription": "過去6小時的系統性能指標",
+    "performanceTrendChartLabel": "顯示 CPU 和內存使用率隨時間變化的折線圖",
     "responseTimeTrend": "響應時間趨勢",
     "responseTimeDescription": "系統響應時間變化",
+    "responseTimeChartLabel": "顯示響應時間隨時間變化的面積圖",
     "analysis": {
       "title": "指標分析",
       "description": "效能與使用者體驗指標分析",
@@ -311,7 +315,10 @@
   "decisions": {
     "title": "最近決策",
     "description": "AI系統最近執行的決策和策略",
+    "decision": "決策",
+    "recentDecisionsList": "最近的 AI 決策和策略列表",
     "status": {
+      "label": "狀態",
       "executed": "已執行",
       "pending": "待審批",
       "failed": "失敗"
