@@ -294,18 +294,15 @@ def main():
         
         enrollment_data = test.start_enrollment(tmp_token)
         
-        log_warning(
-            "\nNOTE: In a real test, you would scan the QR code with an authenticator app."
-        )
-        log_warning(
-            "For this test, you need to provide a valid TOTP code manually."
-        )
-        
-        totp_code = input(f"\n{Colors.YELLOW}Enter TOTP code from authenticator app: {Colors.RESET}")
-        
-        if not totp_code or len(totp_code) != 6 or not totp_code.isdigit():
-            log_error("Invalid TOTP code format (must be 6 digits)")
+        import pyotp
+        secret = enrollment_data.get("secret")
+        if not secret:
+            log_error("No TOTP secret returned from enrollment endpoint")
             sys.exit(1)
+        
+        totp = pyotp.TOTP(secret)
+        totp_code = totp.now()
+        log_success(f"Auto-generated TOTP code: {totp_code}")
         
         results = test.verify_enrollment_concurrent(tmp_token, totp_code, num_threads=5)
         
