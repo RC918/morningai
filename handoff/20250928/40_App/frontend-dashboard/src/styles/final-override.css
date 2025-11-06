@@ -10,3 +10,108 @@ section[aria-label*="Hero"] h2 {
   white-space: normal !important;
   overflow-wrap: normal !important;
 }
+
+/* Good Case #3: Unified Global Color Palette */
+/* Apply consistent brand colors across all interactive elements */
+/* This ensures visual harmony and brand consistency */
+
+/* Primary brand color for all CTAs and primary actions */
+button[type="submit"],
+button:not([type="button"]):not([aria-label*="toggle"]):not([aria-label*="collapse"]):not([aria-label*="expand"]),
+a[href*="/checkout"],
+a[href*="/get-started"],
+.bg-blue-600,
+.bg-blue-500 {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+button[type="submit"]:hover,
+button:not([type="button"]):not([aria-label*="toggle"]):not([aria-label*="collapse"]):not([aria-label*="expand"]):hover,
+a[href*="/checkout"]:hover,
+a[href*="/get-started"]:hover {
+  background-color: #1d4ed8 !important;
+}
+
+/* Consistent link colors across all pages */
+a:not([class*="bg-"]):not([class*="button"]) {
+  color: #2563eb !important;
+}
+
+a:not([class*="bg-"]):not([class*="button"]):hover {
+  color: #1d4ed8 !important;
+}
+
+/* Unified surface colors for cards and containers */
+.bg-white {
+  background-color: #ffffff !important;
+}
+
+.bg-gray-50 {
+  background-color: #f9fafb !important;
+}
+
+.bg-gray-100 {
+  background-color: #f3f4f6 !important;
+}
+
+/* Consistent text colors for better readability */
+.text-gray-900 {
+  color: #111827 !important;
+}
+
+.text-gray-600 {
+  color: #4b5563 !important;
+}
+
+.text-gray-500 {
+  color: #6b7280 !important;
+}
+
+/* Success state colors */
+.bg-green-50,
+.bg-emerald-50 {
+  background-color: #ecfdf5 !important;
+}
+
+.text-green-700,
+.text-emerald-700 {
+  color: #047857 !important;
+}
+
+/* Warning state colors */
+.bg-yellow-50,
+.bg-amber-50 {
+  background-color: #fffbeb !important;
+}
+
+.text-yellow-700,
+.text-amber-700 {
+  color: #b45309 !important;
+}
+
+/* Error state colors */
+.bg-red-50 {
+  background-color: #fef2f2 !important;
+}
+
+.text-red-700 {
+  color: #b91c1c !important;
+}
+
+/* Dark mode overrides for consistent appearance */
+.dark .bg-gray-900 {
+  background-color: #111827 !important;
+}
+
+.dark .bg-gray-800 {
+  background-color: #1f2937 !important;
+}
+
+.dark .text-white {
+  color: #ffffff !important;
+}
+
+.dark .text-gray-300 {
+  color: #d1d5db !important;
+}
