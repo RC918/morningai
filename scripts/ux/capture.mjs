@@ -38,38 +38,69 @@ async function setupAuth(page) {
 
   console.log('🔐 Setting up authentication...');
   
-  try {
-    // Navigate to login page
-    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
-    
-    // Wait for form to be visible
-    await page.waitForSelector('input[name="username"]', { state: 'visible', timeout: 10000 });
-    
-    // Fill in credentials using attribute-based selectors
-    await page.fill('input[name="username"]', QA_TEST_EMAIL);
-    await page.fill('input[name="password"]', QA_TEST_PASSWORD);
-    
-    // Submit form by pressing Enter on password field (more reliable than clicking button)
-    await page.press('input[name="password"]', 'Enter');
-    
-    // Wait for navigation to dashboard after successful login
-    await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 15000 });
-    
-    // Verify authentication by checking for authenticated-only elements
-    // The sidebar is only visible when authenticated
-    const isAuthenticated = await page.locator('nav[role="navigation"]').isVisible().catch(() => false);
-    
-    if (isAuthenticated) {
-      console.log('✅ Authentication successful\n');
-      return true;
-    } else {
-      console.log('❌ Authentication failed - no authenticated elements found\n');
-      return false;
+  // Try primary credentials first, then fallback to mock credentials
+  const credentialSets = [
+    { username: QA_TEST_EMAIL, password: QA_TEST_PASSWORD, label: 'Primary credentials' },
+    { username: 'admin', password: 'admin123', label: 'Mock credentials (admin/admin123)' }
+  ];
+  
+  for (const creds of credentialSets) {
+    try {
+      console.log(`   Attempting login with ${creds.label}...`);
+      
+      // Navigate to login page
+      await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
+      
+      // Wait for form to be visible
+      await page.waitForSelector('input[name="username"]', { state: 'visible', timeout: 10000 });
+      
+      // Fill in credentials using attribute-based selectors
+      await page.fill('input[name="username"]', creds.username);
+      await page.fill('input[name="password"]', creds.password);
+      
+      // Submit form by pressing Enter on password field (more reliable than clicking button)
+      await page.press('input[name="password"]', 'Enter');
+      
+      console.log('   Waiting for authenticated shell (Sidebar) to appear...');
+      
+      // Wait for the Sidebar to appear (proves authentication succeeded and React state updated)
+      // The sidebar is ONLY rendered when isAuthenticated === true
+      // Check for either role="navigation" OR aria-label containing "navigation"
+      const sidebarLocator = page.locator('nav[role="navigation"], nav[aria-label*="navigation"]').first();
+      
+      try {
+        await sidebarLocator.waitFor({ state: 'visible', timeout: 12000 });
+        console.log('   ✓ Sidebar appeared - authentication successful!');
+      } catch (timeoutError) {
+        console.log(`   Authentication check failed with ${creds.label} - sidebar did not appear`);
+        continue; // Try next credential set
+      }
+      
+      // Now navigate to dashboard using SPA client-side routing (preserves React state)
+      // Click the dashboard link in the sidebar instead of using page.goto()
+      console.log('   Navigating to /dashboard via SPA link...');
+      const dashboardLink = page.locator('a[href="/dashboard"]').first();
+      await dashboardLink.click();
+      
+      // Wait for dashboard route to load
+      await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 5000 });
+      
+      // Verify we're still authenticated (sidebar should still be visible)
+      const stillAuthenticated = await sidebarLocator.isVisible().catch(() => false);
+      
+      if (stillAuthenticated) {
+        console.log(`✅ Authentication successful with ${creds.label}\n`);
+        return true;
+      } else {
+        console.log(`   Authentication lost after navigation with ${creds.label}`);
+      }
+    } catch (error) {
+      console.log(`   Authentication attempt failed with ${creds.label}: ${error.message}`);
     }
-  } catch (error) {
-    console.error(`❌ Authentication error: ${error.message}\n`);
-    return false;
   }
+  
+  console.error('❌ All authentication attempts failed\n');
+  return false;
 }
 
 async function captureScreenshots() {
