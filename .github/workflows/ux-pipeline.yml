@@ -399,10 +399,12 @@ jobs:
           BASE_URL: http://localhost:${{ matrix.port }}
           APP_NAME: ${{ matrix.app }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          QA_TEST_EMAIL: ${{ secrets.QA_TEST_EMAIL }}
+          QA_TEST_PASSWORD: ${{ secrets.QA_TEST_PASSWORD }}
           UX_AI_MODEL: gpt-4o-mini
           UX_AI_MAX_PAGES: 3
-          UX_HARMONY_MIN: 70
-          UX_DELIGHT_MIN: 75
+          UX_HARMONY_MIN: 83
+          UX_DELIGHT_MIN: 94
         run: pnpm run ux:qa
         continue-on-error: true
       
