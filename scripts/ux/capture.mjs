@@ -38,39 +38,54 @@ async function setupAuth(page) {
 
   console.log('🔐 Setting up authentication...');
   
-  try {
-    // Navigate to login page
-    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
-    
-    // Wait for form to be visible
-    await page.waitForSelector('input[name="username"]', { state: 'visible', timeout: 10000 });
-    
-    // Fill in credentials using attribute-based selectors
-    await page.fill('input[name="username"]', QA_TEST_EMAIL);
-    await page.fill('input[name="password"]', QA_TEST_PASSWORD);
-    
-    // Submit form by pressing Enter on password field (more reliable than clicking button)
-    await page.press('input[name="password"]', 'Enter');
-    
-    // Wait for navigation to dashboard after successful login
-    await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 15000 });
-    
-    // Verify authentication by checking for authenticated-only elements
-    // The sidebar is only visible when authenticated
-    // Check for either role="navigation" OR aria-label containing "navigation"
-    const isAuthenticated = await page.locator('nav[role="navigation"], nav[aria-label*="navigation"]').first().isVisible().catch(() => false);
-    
-    if (isAuthenticated) {
-      console.log('✅ Authentication successful\n');
-      return true;
-    } else {
-      console.log('❌ Authentication failed - no authenticated elements found\n');
-      return false;
+  // Try primary credentials first, then fallback to mock credentials
+  const credentialSets = [
+    { username: QA_TEST_EMAIL, password: QA_TEST_PASSWORD, label: 'Primary credentials' },
+    { username: 'admin', password: 'admin123', label: 'Mock credentials (admin/admin123)' }
+  ];
+  
+  for (const creds of credentialSets) {
+    try {
+      console.log(`   Attempting login with ${creds.label}...`);
+      
+      // Navigate to login page
+      await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
+      
+      // Wait for form to be visible
+      await page.waitForSelector('input[name="username"]', { state: 'visible', timeout: 10000 });
+      
+      // Fill in credentials using attribute-based selectors
+      await page.fill('input[name="username"]', creds.username);
+      await page.fill('input[name="password"]', creds.password);
+      
+      // Submit form by pressing Enter on password field (more reliable than clicking button)
+      await page.press('input[name="password"]', 'Enter');
+      
+      // Wait a moment for state changes
+      await page.waitForTimeout(2000);
+      
+      // Explicitly navigate to dashboard (the app uses state-based routing, not URL redirects)
+      console.log('   Navigating to /dashboard...');
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: 15000 });
+      
+      // Verify authentication by checking for authenticated-only elements
+      // The sidebar is only visible when authenticated
+      // Check for either role="navigation" OR aria-label containing "navigation"
+      const isAuthenticated = await page.locator('nav[role="navigation"], nav[aria-label*="navigation"]').first().isVisible().catch(() => false);
+      
+      if (isAuthenticated) {
+        console.log(`✅ Authentication successful with ${creds.label}\n`);
+        return true;
+      } else {
+        console.log(`   Authentication check failed with ${creds.label} - sidebar not found`);
+      }
+    } catch (error) {
+      console.log(`   Authentication attempt failed with ${creds.label}: ${error.message}`);
     }
-  } catch (error) {
-    console.error(`❌ Authentication error: ${error.message}\n`);
-    return false;
   }
+  
+  console.error('❌ All authentication attempts failed\n');
+  return false;
 }
 
 async function captureScreenshots() {
