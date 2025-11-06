@@ -399,6 +399,9 @@ jobs:
           BASE_URL: http://localhost:${{ matrix.port }}
           APP_NAME: ${{ matrix.app }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          QA_TEST_EMAIL: ${{ secrets.QA_TEST_EMAIL }}
+          QA_TEST_PASSWORD: ${{ secrets.QA_TEST_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UX_AI_MODEL: gpt-4o-mini
           UX_AI_MAX_PAGES: 3
           UX_HARMONY_MIN: 70
