@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TolgeeProvider } from '@tolgee/react'
@@ -55,6 +55,7 @@ const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 function AppContent() {
   const { t } = useTranslation()
   const location = useLocation()
+  const navigate = useNavigate()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const { user, setUser, addToast } = useAppStore()
@@ -153,6 +154,7 @@ function AppContent() {
       description: t('auth.login.welcomeBack', { name: userData.name }),
       variant: "default"
     })
+    navigate('/dashboard')
   }
 
   const handleLogout = async () => {
