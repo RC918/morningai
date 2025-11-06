@@ -120,7 +120,7 @@ def enroll_2fa():
         if existing_2fa.data:
             supabase.table("user_2fa").update(
                 {
-                    "totp_secret": encrypted_secret,
+                    "secret_encrypted": encrypted_secret,
                     "enabled": False,
                     "verified_at": None,
                 }
@@ -129,7 +129,7 @@ def enroll_2fa():
             supabase.table("user_2fa").insert(
                 {
                     "user_id": user_id,
-                    "totp_secret": encrypted_secret,
+                    "secret_encrypted": encrypted_secret,
                     "enabled": False,
                     "verified_at": None,
                 }
@@ -214,7 +214,7 @@ def verify_enroll_2fa():
                 400,
             )
 
-        encrypted_secret = user_2fa.data[0].get("totp_secret")
+        encrypted_secret = user_2fa.data[0].get("secret_encrypted")
         if not encrypted_secret:
             return (
                 jsonify({"error": "2FA enrollment not started. Call /enroll first."}),
@@ -424,7 +424,7 @@ def challenge_2fa():
                     400,
                 )
 
-            encrypted_secret = user_2fa.data[0].get("totp_secret")
+            encrypted_secret = user_2fa.data[0].get("secret_encrypted")
             if not encrypted_secret:
                 return jsonify({"error": "2FA secret not found"}), 500
 
