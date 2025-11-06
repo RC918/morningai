@@ -505,8 +505,8 @@ const Dashboard = (): React.ReactElement => {
             {/* Performance Trend Chart */}
             <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
               <CardHeader className="pb-4">
-                <CardTitle>{t('metrics.performanceTrend')}</CardTitle>
                 <CardDescription>{t('metrics.performanceDescription')}</CardDescription>
+                <CardTitle>{t('metrics.performanceTrend')}</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 <ResponsiveContainer width="100%" height={300}>
