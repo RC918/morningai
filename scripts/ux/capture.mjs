@@ -38,38 +38,69 @@ async function setupAuth(page) {
 
   console.log('🔐 Setting up authentication...');
   
-  try {
-    // Navigate to login page
-    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
-    
-    // Wait for form to be visible
-    await page.waitForSelector('input[name="username"]', { state: 'visible', timeout: 10000 });
-    
-    // Fill in credentials using attribute-based selectors
-    await page.fill('input[name="username"]', QA_TEST_EMAIL);
-    await page.fill('input[name="password"]', QA_TEST_PASSWORD);
-    
-    // Submit form by pressing Enter on password field (more reliable than clicking button)
-    await page.press('input[name="password"]', 'Enter');
-    
-    // Wait for navigation to dashboard after successful login
-    await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 15000 });
-    
-    // Verify authentication by checking for authenticated-only elements
-    // The sidebar is only visible when authenticated
-    const isAuthenticated = await page.locator('nav[role="navigation"]').isVisible().catch(() => false);
-    
-    if (isAuthenticated) {
-      console.log('✅ Authentication successful\n');
-      return true;
-    } else {
-      console.log('❌ Authentication failed - no authenticated elements found\n');
-      return false;
+  // Try primary credentials first, then fallback to mock credentials
+  const credentialSets = [
+    { username: QA_TEST_EMAIL, password: QA_TEST_PASSWORD, label: 'Primary credentials' },
+    { username: 'admin', password: 'admin123', label: 'Mock credentials (admin/admin123)' }
+  ];
+  
+  for (const creds of credentialSets) {
+    try {
+      console.log(`   Attempting login with ${creds.label}...`);
+      
+      // Navigate to login page
+      await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
+      
+      // Wait for form to be visible
+      await page.waitForSelector('input[name="username"]', { state: 'visible', timeout: 10000 });
+      
+      // Fill in credentials using attribute-based selectors
+      await page.fill('input[name="username"]', creds.username);
+      await page.fill('input[name="password"]', creds.password);
+      
+      // Submit form by pressing Enter on password field (more reliable than clicking button)
+      await page.press('input[name="password"]', 'Enter');
+      
+      console.log('   Waiting for authenticated shell (Sidebar) to appear...');
+      
+      // Wait for the Sidebar to appear (proves authentication succeeded and React state updated)
+      // The sidebar is ONLY rendered when isAuthenticated === true
+      // Check for either role="navigation" OR aria-label containing "navigation"
+      const sidebarLocator = page.locator('nav[role="navigation"], nav[aria-label*="navigation"]').first();
+      
+      try {
+        await sidebarLocator.waitFor({ state: 'visible', timeout: 12000 });
+        console.log('   ✓ Sidebar appeared - authentication successful!');
+      } catch (timeoutError) {
+        console.log(`   Authentication check failed with ${creds.label} - sidebar did not appear`);
+        continue; // Try next credential set
+      }
+      
+      // Now navigate to dashboard using SPA client-side routing (preserves React state)
+      // Click the dashboard link in the sidebar instead of using page.goto()
+      console.log('   Navigating to /dashboard via SPA link...');
+      const dashboardLink = page.locator('a[href="/dashboard"]').first();
+      await dashboardLink.click();
+      
+      // Wait for dashboard route to load
+      await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 5000 });
+      
+      // Verify we're still authenticated (sidebar should still be visible)
+      const stillAuthenticated = await sidebarLocator.isVisible().catch(() => false);
+      
+      if (stillAuthenticated) {
+        console.log(`✅ Authentication successful with ${creds.label}\n`);
+        return true;
+      } else {
+        console.log(`   Authentication lost after navigation with ${creds.label}`);
+      }
+    } catch (error) {
+      console.log(`   Authentication attempt failed with ${creds.label}: ${error.message}`);
     }
-  } catch (error) {
-    console.error(`❌ Authentication error: ${error.message}\n`);
-    return false;
   }
+  
+  console.error('❌ All authentication attempts failed\n');
+  return false;
 }
 
 async function captureScreenshots() {
@@ -110,37 +141,13 @@ async function captureScreenshots() {
   const pages = config.PAGES[APP_NAME] || [];
   const capturedPages = [];
   
-  // Determine if we need authentication
-  const requiresAuth = pages.some(p => p.requiresAuth);
-  let isAuthenticated = false;
+  // Split pages into public and authenticated
+  const publicPages = pages.filter(p => !p.requiresAuth);
+  const authenticatedPages = pages.filter(p => p.requiresAuth);
   
-  if (requiresAuth) {
-    // Attempt authentication
-    isAuthenticated = await setupAuth(page);
-    
-    // Save auth state for future runs
-    if (isAuthenticated) {
-      try {
-        await context.storageState({ path: AUTH_STORAGE_PATH });
-        console.log(`💾 Saved authentication state to ${AUTH_STORAGE_PATH}\n`);
-      } catch (error) {
-        console.log(`⚠️  Could not save auth state: ${error.message}\n`);
-      }
-    }
-  }
-
-  for (const pageConfig of pages.slice(0, config.BUDGET.maxPagesPerApp)) {
-    // Skip authenticated pages if not authenticated
-    if (pageConfig.requiresAuth && !isAuthenticated) {
-      console.log(`⏭️  Skipping: ${pageConfig.name} (requires authentication)`);
-      capturedPages.push({
-        name: pageConfig.name,
-        path: pageConfig.path,
-        error: 'Requires authentication (credentials not provided)',
-        skipped: true,
-      });
-      continue;
-    }
+  // PHASE 1: Capture public pages using page.goto()
+  console.log('📸 Phase 1: Capturing public pages...\n');
+  for (const pageConfig of publicPages.slice(0, config.BUDGET.maxPagesPerApp)) {
     console.log(`Capturing: ${pageConfig.name} (${pageConfig.path})`);
 
     try {
@@ -196,6 +203,119 @@ async function captureScreenshots() {
         path: pageConfig.path,
         error: error.message,
       });
+    }
+  }
+  
+  // PHASE 2: Setup authentication if needed
+  let isAuthenticated = false;
+  if (authenticatedPages.length > 0) {
+    console.log('\n🔐 Phase 2: Setting up authentication...\n');
+    isAuthenticated = await setupAuth(page);
+    
+    // Save auth state for future runs
+    if (isAuthenticated) {
+      try {
+        await context.storageState({ path: AUTH_STORAGE_PATH });
+        console.log(`💾 Saved authentication state to ${AUTH_STORAGE_PATH}\n`);
+      } catch (error) {
+        console.log(`⚠️  Could not save auth state: ${error.message}\n`);
+      }
+    }
+  }
+  
+  // PHASE 3: Capture authenticated pages using SPA navigation (NO page.goto!)
+  if (authenticatedPages.length > 0) {
+    console.log('📸 Phase 3: Capturing authenticated pages...\n');
+    
+    if (!isAuthenticated) {
+      console.log('⏭️  Skipping authenticated pages (authentication failed)\n');
+      for (const pageConfig of authenticatedPages) {
+        capturedPages.push({
+          name: pageConfig.name,
+          path: pageConfig.path,
+          error: 'Requires authentication (credentials not provided)',
+          skipped: true,
+        });
+      }
+    } else {
+      // We're already on /dashboard after setupAuth(), capture it first
+      const sidebarLocator = page.locator('nav[role="navigation"], nav[aria-label*="navigation"]').first();
+      
+      for (const pageConfig of authenticatedPages.slice(0, config.BUDGET.maxPagesPerApp - publicPages.length)) {
+        console.log(`Capturing: ${pageConfig.name} (${pageConfig.path})`);
+
+        try {
+          const url = `${BASE_URL}${pageConfig.path}`;
+          
+          // If not already on this page, navigate via SPA (click sidebar link)
+          const currentUrl = page.url();
+          if (!currentUrl.includes(pageConfig.path)) {
+            console.log(`   Navigating to ${pageConfig.path} via SPA link...`);
+            const navLink = page.locator(`a[href="${pageConfig.path}"]`).first();
+            await navLink.click();
+            await page.waitForURL(new RegExp(pageConfig.path.replace('/', '\\/')), { timeout: 5000 });
+          }
+          
+          // Verify we're still authenticated
+          const stillAuthenticated = await sidebarLocator.isVisible().catch(() => false);
+          if (!stillAuthenticated) {
+            throw new Error('Authentication lost during navigation');
+          }
+          
+          // Scroll to top to ensure above-the-fold content is captured
+          await page.evaluate(() => window.scrollTo(0, 0));
+          
+          // Wait for page to stabilize
+          await page.waitForTimeout(500);
+          
+          // Record actual URL after navigation (to detect redirects)
+          const actualUrl = page.url();
+
+          // Hide dynamic elements that could cause variance
+          await page.addStyleTag({
+            content: `
+              [data-testid="timestamp"],
+              .timestamp,
+              .live-indicator,
+              .pulse-animation {
+                visibility: hidden !important;
+              }
+            `,
+          });
+
+          // Take screenshot
+          const screenshotPath = path.join(
+            SCREENSHOTS_DIR,
+            `${pageConfig.name.toLowerCase().replace(/\s+/g, '-')}.jpg`
+          );
+
+          await page.screenshot({
+            path: screenshotPath,
+            type: 'jpeg',
+            quality: Math.round(config.BUDGET.imageQuality * 100),
+            fullPage: false, // Only capture viewport
+          });
+
+          console.log(`  ✅ Saved: ${path.basename(screenshotPath)}`);
+
+          capturedPages.push({
+            name: pageConfig.name,
+            path: pageConfig.path,
+            description: pageConfig.description,
+            screenshotPath,
+            url,
+            actualUrl, // Record actual URL to detect redirects
+            requiresAuth: pageConfig.requiresAuth || false,
+          });
+        } catch (error) {
+          console.error(`  ❌ Error capturing ${pageConfig.name}: ${error.message}`);
+          capturedPages.push({
+            name: pageConfig.name,
+            path: pageConfig.path,
+            error: error.message,
+          });
+        }
+      }
     }
   }
 
