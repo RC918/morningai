@@ -351,7 +351,7 @@ const Dashboard = (): React.ReactElement => {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           {showReportCenter ? t('reportCenter.title') : t('dashboard.title')}
         </h1>
-        <p className="text-gray-600 dark:text-gray-600 mt-2">
+        <p className="text-gray-300 dark:text-gray-300 mt-2">
           {showReportCenter ? t('reportCenter.description') : t('dashboard.description')}
         </p>
         {isEditMode && (
