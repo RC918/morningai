@@ -73,8 +73,8 @@ class PreAuthTokenManager:
             "email": email,
             "scope": scope,
             "issued_at": now.isoformat(),
-            "attempts": 0,
-            "consumed": False,
+            "attempts": "0",
+            "consumed": "False",
         }
 
         self.redis_client.hset(redis_key, mapping=token_data)

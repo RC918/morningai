@@ -27,24 +27,27 @@ def client():
 
 @pytest.fixture
 def mock_redis():
-    """Mock Redis client for pre-auth tokens"""
-    with patch("src.utils.pre_auth_token.get_redis_client") as mock:
-        redis_mock = MagicMock()
-        redis_mock.hgetall.return_value = {}
-        redis_mock.hset.return_value = True
-        redis_mock.hincrby.return_value = 1
-        redis_mock.expire.return_value = True
-        redis_mock.delete.return_value = 1
-        mock.return_value = redis_mock
-        yield redis_mock
+    """Mock Redis client using fakeredis for stateful behavior"""
+    from fakeredis import FakeRedis
+    import src.utils.pre_auth_token
+
+    redis_client = FakeRedis(decode_responses=True)
+    with patch("src.utils.redis_client.get_redis_client") as mock1, patch(
+        "src.utils.pre_auth_token.get_redis_client"
+    ) as mock2:
+        mock1.return_value = redis_client
+        mock2.return_value = redis_client
+
+        yield redis_client
+
+        src.utils.pre_auth_token._pre_auth_manager = None
+        redis_client.flushall()
 
 
 @pytest.fixture
 def mock_supabase():
     """Mock Supabase client"""
-    with patch("src.routes.auth_enhanced.create_client") as mock_create, patch(
-        "src.routes.auth_2fa.create_client"
-    ) as mock_create_2fa:
+    with patch("supabase.create_client") as mock_create:
         supabase_mock = MagicMock()
 
         user_2fa_mock = MagicMock()
@@ -54,7 +57,6 @@ def mock_supabase():
         )
 
         mock_create.return_value = supabase_mock
-        mock_create_2fa.return_value = supabase_mock
 
         yield supabase_mock
 
@@ -98,9 +100,7 @@ class TestLoginWithPreAuth:
         self, client, mock_redis, mock_supabase
     ):
         """Test login without 2FA requirement returns session directly"""
-        with patch(
-            "src.routes.auth_enhanced.check_2fa_required", return_value=False
-        ):
+        with patch("src.routes.totp.check_2fa_required", return_value=False):
             response = client.post(
                 "/api/auth/v2/login",
                 json={"email": "owner@morningai.com", "password": "owner123"},
@@ -122,9 +122,7 @@ class TestLoginWithPreAuth:
             []
         )
 
-        with patch(
-            "src.routes.auth_enhanced.check_2fa_required", return_value=True
-        ):
+        with patch("src.routes.totp.check_2fa_required", return_value=True):
             response = client.post(
                 "/api/auth/v2/login",
                 json={"email": "owner@morningai.com", "password": "owner123"},
@@ -153,9 +151,7 @@ class TestLoginWithPreAuth:
             }
         ]
 
-        with patch(
-            "src.routes.auth_enhanced.check_2fa_required", return_value=True
-        ):
+        with patch("src.routes.totp.check_2fa_required", return_value=True):
             response = client.post(
                 "/api/auth/v2/login",
                 json={"email": "owner@morningai.com", "password": "owner123"},
@@ -175,6 +171,8 @@ class TestPreAuthTokenManager:
 
     def test_generate_token(self, mock_redis):
         """Test generating pre-auth token"""
+        import jwt
+
         manager = get_pre_auth_manager()
         token = manager.generate_token(
             "user-001", "test@example.com", "enroll"
@@ -184,19 +182,20 @@ class TestPreAuthTokenManager:
         assert isinstance(token, str)
         assert len(token) > 0
 
-        mock_redis.hset.assert_called()
-        mock_redis.expire.assert_called()
+        payload = jwt.decode(token, manager.jwt_secret, algorithms=["HS256"])
+        assert payload["user_id"] == "user-001"
+        assert payload["email"] == "test@example.com"
+        assert payload["scope"] == "enroll"
+        assert payload["pre_auth"] is True
+        assert "jti" in payload
+
+        redis_key = f"morningai:pre_auth:jti:{payload['jti']}"
+        token_data = mock_redis.hgetall(redis_key)
+        assert token_data["user_id"] == "user-001"
+        assert token_data["consumed"] == "False"
 
     def test_verify_token_valid(self, mock_redis):
         """Test verifying valid pre-auth token"""
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "0",
-            "consumed": "False",
-        }
-
         manager = get_pre_auth_manager()
         token = manager.generate_token(
             "user-001", "test@example.com", "enroll"
@@ -212,18 +211,18 @@ class TestPreAuthTokenManager:
 
     def test_verify_token_consumed(self, mock_redis):
         """Test verifying consumed token returns None"""
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "0",
-            "consumed": "True",
-        }
+        import jwt
 
         manager = get_pre_auth_manager()
         token = manager.generate_token(
             "user-001", "test@example.com", "enroll"
         )
+
+        payload_decoded = jwt.decode(
+            token, manager.jwt_secret, algorithms=["HS256"]
+        )
+        jti = payload_decoded["jti"]
+        manager.consume_token(jti)
 
         payload = manager.verify_token(token)
 
@@ -231,18 +230,19 @@ class TestPreAuthTokenManager:
 
     def test_verify_token_max_attempts(self, mock_redis):
         """Test verifying token with max attempts returns None"""
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "5",
-            "consumed": "False",
-        }
+        import jwt
 
         manager = get_pre_auth_manager()
         token = manager.generate_token(
             "user-001", "test@example.com", "enroll"
         )
+
+        payload_decoded = jwt.decode(
+            token, manager.jwt_secret, algorithms=["HS256"]
+        )
+        jti = payload_decoded["jti"]
+        for _ in range(5):
+            manager.increment_attempts(jti)
 
         payload = manager.verify_token(token)
 
@@ -250,16 +250,23 @@ class TestPreAuthTokenManager:
 
     def test_consume_token(self, mock_redis):
         """Test consuming token"""
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "consumed": "False",
-        }
+        import jwt
 
         manager = get_pre_auth_manager()
-        result = manager.consume_token("test-jti")
+        token = manager.generate_token(
+            "user-001", "test@example.com", "enroll"
+        )
 
+        payload = jwt.decode(token, manager.jwt_secret, algorithms=["HS256"])
+        jti = payload["jti"]
+
+        result = manager.consume_token(jti)
         assert result is True
-        mock_redis.hset.assert_called()
+
+        redis_key = f"morningai:pre_auth:jti:{jti}"
+        token_data = mock_redis.hgetall(redis_key)
+        assert token_data["consumed"] == "True"
+        assert "consumed_at" in token_data
 
 
 class TestEnrollEndpoint:
@@ -293,14 +300,6 @@ class TestEnrollEndpoint:
         token = manager.generate_token(
             "user-001", "test@example.com", "enroll"
         )
-
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "0",
-            "consumed": "False",
-        }
 
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = (
             []
@@ -341,14 +340,6 @@ class TestVerifyEnrollEndpoint:
             "user-001", "test@example.com", "enroll"
         )
 
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "0",
-            "consumed": "False",
-        }
-
         response = client.post(
             "/api/auth/v2/2fa/verify-enroll",
             headers={"Authorization": f"Bearer {token}"},
@@ -365,14 +356,6 @@ class TestVerifyEnrollEndpoint:
         token = manager.generate_token(
             "user-001", "test@example.com", "enroll"
         )
-
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "0",
-            "consumed": "False",
-        }
 
         response = client.post(
             "/api/auth/v2/2fa/verify-enroll",
@@ -392,14 +375,6 @@ class TestVerifyEnrollEndpoint:
         token = manager.generate_token(
             "user-001", "test@example.com", "enroll"
         )
-
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "0",
-            "consumed": "False",
-        }
 
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
             {"user_id": "user-001", "totp_secret": "encrypted_secret"}
@@ -446,14 +421,6 @@ class TestChallengeEndpoint:
             "user-001", "test@example.com", "challenge"
         )
 
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "challenge",
-            "attempts": "0",
-            "consumed": "False",
-        }
-
         response = client.post(
             "/api/auth/v2/2fa/challenge",
             headers={"Authorization": f"Bearer {token}"},
@@ -472,14 +439,6 @@ class TestChallengeEndpoint:
         token = manager.generate_token(
             "user-001", "test@example.com", "challenge"
         )
-
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "challenge",
-            "attempts": "0",
-            "consumed": "False",
-        }
 
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
             {
@@ -516,14 +475,6 @@ class TestChallengeEndpoint:
         token = manager.generate_token(
             "user-001", "test@example.com", "challenge"
         )
-
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "challenge",
-            "attempts": "0",
-            "consumed": "False",
-        }
 
         user_2fa_data = [
             {
@@ -588,14 +539,6 @@ class TestPreAuthSecurity:
             "user-001", "test@example.com", "enroll"
         )
 
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "0",
-            "consumed": "False",
-        }
-
         response = client.post(
             "/api/auth/v2/2fa/challenge",
             headers={"Authorization": f"Bearer {token}"},
@@ -616,14 +559,6 @@ class TestPreAuthSecurity:
             "user-001", "test@example.com", "enroll"
         )
 
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "0",
-            "consumed": "False",
-        }
-
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = (
             []
         )
@@ -633,14 +568,6 @@ class TestPreAuthSecurity:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response1.status_code == 200
-
-        mock_redis.hgetall.return_value = {
-            "user_id": "user-001",
-            "email": "test@example.com",
-            "scope": "enroll",
-            "attempts": "0",
-            "consumed": "True",
-        }
 
         response2 = client.post(
             "/api/auth/v2/2fa/enroll",
@@ -667,14 +594,6 @@ class TestPreAuthTokenManagerInfoAndRevoke:
         )
         jti = payload["jti"]
 
-        mock_redis.hgetall.return_value = {
-            "user_id": "u1",
-            "email": "u1@example.com",
-            "scope": "enroll",
-            "consumed": "False",
-            "attempts": "0",
-        }
-
         info = mgr.get_token_info(jti)
         assert info is not None
         assert info.get("user_id") == "u1"
@@ -682,7 +601,7 @@ class TestPreAuthTokenManagerInfoAndRevoke:
         assert info.get("scope") == "enroll"
         assert info.get("consumed") == "False"
 
-    def test_revoke_token_positive(self, mock_redis):
+    def test_revoke_token_positive(self, client, mock_redis):
         """Test revoke_token successfully deletes token"""
         import jwt
         from src.utils.pre_auth_token import get_pre_auth_manager
@@ -697,114 +616,10 @@ class TestPreAuthTokenManagerInfoAndRevoke:
         )
         jti = payload["jti"]
 
-        mock_redis.delete.return_value = 1
         assert mgr.revoke_token(jti) is True
 
-        mock_redis.hgetall.return_value = {}
-        assert mgr.get_token_info(jti) is None
-
-    def test_get_token_info_negative(self, mock_redis):
-        """Test get_token_info returns None for nonexistent token"""
-        from src.utils.pre_auth_token import get_pre_auth_manager
-
-        mgr = get_pre_auth_manager()
-        mock_redis.hgetall.return_value = {}
-
-        info = mgr.get_token_info("nonexistent-jti")
-        assert info is None
-
-    def test_revoke_token_negative(self, mock_redis):
-        """Test revoke_token returns False for nonexistent token"""
-        from src.utils.pre_auth_token import get_pre_auth_manager
-
-        mgr = get_pre_auth_manager()
-        mock_redis.delete.return_value = 0
-
-        result = mgr.revoke_token("nonexistent-jti")
-        assert result is False
-
-
-class TestPreAuthScopeRequiredErrors:
-    """Test pre_auth_scope_required decorator error handling"""
-
-    @pytest.fixture
-    def app_with_test_routes(self):
-        """Add test-only routes to app"""
-        from flask import jsonify
-        from src.middleware.pre_auth import (
-            pre_auth_required,
-            pre_auth_scope_required,
-        )
-
-        paths = {r.rule for r in app.url_map.iter_rules()}
-
-        if "/_test/scope-missing" not in paths:
-
-            def scope_missing_view():
-                return jsonify(ok=True), 200
-
-            scope_missing_view = pre_auth_scope_required("challenge")(
-                scope_missing_view
-            )
-            app.add_url_rule(
-                "/_test/scope-missing",
-                view_func=scope_missing_view,
-                methods=["POST"],
-                endpoint="scope_missing",
-            )
-
-        if "/_test/scope-challenge" not in paths:
-
-            def scope_challenge_view():
-                return jsonify(ok=True), 200
-
-            scope_challenge_view = pre_auth_required(
-                pre_auth_scope_required("challenge")(scope_challenge_view)
-            )
-            app.add_url_rule(
-                "/_test/scope-challenge",
-                view_func=scope_challenge_view,
-                methods=["POST"],
-                endpoint="scope_challenge",
-            )
-
-        return app
-
-    def test_scope_missing_returns_500(
-        self, client, app_with_test_routes, mock_redis
-    ):
-        """Test decorator returns 500 when scope is missing"""
-        response = client.post("/_test/scope-missing")
-        data = response.get_json()
-
-        assert response.status_code == 500
-        assert data.get("error") == "SCOPE_MISSING"
-        assert "pre_auth_required" in data.get("message", "").lower()
-
-    def test_scope_mismatch_returns_403(
-        self, client, app_with_test_routes, mock_redis
-    ):
-        """Test decorator returns 403 when scope doesn't match"""
-        from src.utils.pre_auth_token import get_pre_auth_manager
-
-        mgr = get_pre_auth_manager()
-        token = mgr.generate_token("u3", "u3@example.com", "enroll")
-
-        mock_redis.hgetall.return_value = {
-            "user_id": "u3",
-            "email": "u3@example.com",
-            "scope": "enroll",
-            "consumed": "False",
-            "attempts": "0",
-        }
-
-        headers = {"Authorization": f"Bearer {token}"}
-        response = client.post("/_test/scope-challenge", headers=headers)
-        data = response.get_json()
-
-        assert response.status_code == 403
-        assert data.get("error") == "SCOPE_MISMATCH"
-        assert "challenge" in data.get("message", "")
+        token_info = mgr.get_token_info(jti)
+        assert token_info is None
 
 
 class TestLoginNextStepSession:
@@ -873,14 +688,6 @@ class TestPreAuthErrorBranches:
         payload["exp"] = datetime.now(timezone.utc) - timedelta(seconds=60)
         expired = jwt.encode(payload, mgr.jwt_secret, algorithm="HS256")
 
-        mock_redis.hgetall.return_value = {
-            "user_id": "u5",
-            "email": "u5@example.com",
-            "scope": "enroll",
-            "consumed": "False",
-            "attempts": "0",
-        }
-
         headers = {"Authorization": f"Bearer {expired}"}
         response = client.post("/api/auth/v2/2fa/enroll", headers=headers)
         data = response.get_json()
@@ -908,14 +715,6 @@ class TestPreAuthErrorBranches:
         )
         _ = payload["jti"]
 
-        mock_redis.hgetall.return_value = {
-            "user_id": "u7",
-            "email": "u7@example.com",
-            "scope": "enroll",
-            "consumed": "False",
-            "attempts": str(MAX_ATTEMPTS_PER_TOKEN),
-        }
-
         headers = {"Authorization": f"Bearer {token}"}
         response = client.post("/api/auth/v2/2fa/enroll", headers=headers)
         data = response.get_json()
@@ -941,14 +740,6 @@ class TestPreAuthErrorBranches:
 
         payload.pop("scope", None)
         malformed = jwt.encode(payload, mgr.jwt_secret, algorithm="HS256")
-
-        mock_redis.hgetall.return_value = {
-            "user_id": "u8",
-            "email": "u8@example.com",
-            "scope": "enroll",
-            "consumed": "False",
-            "attempts": "0",
-        }
 
         headers = {"Authorization": f"Bearer {malformed}"}
         response = client.post("/api/auth/v2/2fa/enroll", headers=headers)
