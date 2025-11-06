@@ -57,7 +57,8 @@ async function setupAuth(page) {
     
     // Verify authentication by checking for authenticated-only elements
     // The sidebar is only visible when authenticated
-    const isAuthenticated = await page.locator('nav[role="navigation"]').isVisible().catch(() => false);
+    // Check for either role="navigation" OR aria-label containing "navigation"
+    const isAuthenticated = await page.locator('nav[role="navigation"], nav[aria-label*="navigation"]').first().isVisible().catch(() => false);
     
     if (isAuthenticated) {
       console.log('✅ Authentication successful\n');
