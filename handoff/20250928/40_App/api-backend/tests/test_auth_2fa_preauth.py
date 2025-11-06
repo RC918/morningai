@@ -163,7 +163,7 @@ class TestLoginWithPreAuth:
                 "user_id": "user-001",
                 "enabled": True,
                 "verified_at": "2024-01-01T00:00:00Z",
-                "totp_secret": "encrypted_secret",
+                "secret_encrypted": "encrypted_secret",
             }
         ]
 
@@ -369,7 +369,7 @@ class TestVerifyEnrollEndpoint:
         token = manager.generate_token("user-001", "test@example.com", "enroll")
 
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
-            {"user_id": "user-001", "totp_secret": "encrypted_secret"}
+            {"user_id": "user-001", "secret_encrypted": "encrypted_secret"}
         ]
 
         response = client.post(
@@ -430,7 +430,7 @@ class TestChallengeEndpoint:
             {
                 "user_id": "user-001",
                 "enabled": True,
-                "totp_secret": "encrypted_secret",
+                "secret_encrypted": "encrypted_secret",
             }
         ]
 
@@ -466,7 +466,7 @@ class TestChallengeEndpoint:
                 "user_id": "user-001",
                 "enabled": True,
                 "verified_at": "2024-01-01T00:00:00Z",
-                "totp_secret": "encrypted_secret",
+                "secret_encrypted": "encrypted_secret",
             }
         ]
 
@@ -555,7 +555,7 @@ class TestPreAuthSecurity:
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
             {
                 "user_id": "user-001",
-                "totp_secret": "encrypted_secret",
+                "secret_encrypted": "encrypted_secret",
                 "enabled": False,
                 "verified_at": None,
             }
