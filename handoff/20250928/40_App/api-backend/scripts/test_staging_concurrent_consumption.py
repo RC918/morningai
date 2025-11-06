@@ -81,14 +81,47 @@ class StagingConcurrentTest:
         
         data = response.json()
         
-        if data.get("next_step") != "enroll_2fa":
-            log_error(f"Expected next_step=enroll_2fa, got: {data.get('next_step')}")
-            log_warning("Make sure test user has 2FA not yet enrolled")
+        next_step = data.get("next_step")
+        
+        if next_step == "challenge_2fa":
+            log_error("User already has 2FA enabled (next_step=challenge_2fa)")
+            log_warning("This test requires a user who hasn't enrolled 2FA yet")
+            log_info("Options:")
+            log_info("  1. Use a different test account")
+            log_info("  2. Disable 2FA for this account in staging")
+            log_info("  3. Modify this script to test challenge flow instead")
             sys.exit(1)
         
-        tmp_token = data.get("tmp_login_token")
+        elif next_step == "session":
+            log_error("2FA not required for this user (next_step=session)")
+            log_warning("Possible causes:")
+            log_info("  1. FEATURE_2FA_ENABLED=false in staging")
+            log_info("  2. User doesn't have 2FA enabled in user_2fa table")
+            log_info("  3. check_2fa_required() returns False")
+            log_info("\nRun diagnostic script:")
+            log_info("  python scripts/diagnose_staging_2fa.py")
+            sys.exit(1)
+        
+        elif next_step is None:
+            log_error("Unexpected response: next_step=null")
+            log_warning("This suggests staging might be running old code or has different config")
+            log_info("Full response:")
+            import json
+            print(json.dumps(data, indent=2))
+            log_info("\nRun diagnostic script:")
+            log_info("  python scripts/diagnose_staging_2fa.py")
+            sys.exit(1)
+        
+        elif next_step != "enroll_2fa":
+            log_error(f"Unexpected next_step value: {next_step}")
+            sys.exit(1)
+        
+        tmp_token = data.get("token") or data.get("tmp_login_token")
         if not tmp_token:
-            log_error("No tmp_login_token in response")
+            log_error("No token found in response (tried 'token' and 'tmp_login_token')")
+            log_info("Full response:")
+            import json
+            print(json.dumps(data, indent=2))
             sys.exit(1)
         
         log_success(f"Got temporary token: {tmp_token[:20]}...")
