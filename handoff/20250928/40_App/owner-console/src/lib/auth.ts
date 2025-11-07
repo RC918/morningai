@@ -165,7 +165,8 @@ export function isAuthenticated(): boolean {
 }
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (import.meta.env.MODE === 'development' ? 'http://localhost:5000' : '');
 
 /**
  * CSRF token storage
@@ -253,9 +254,21 @@ function clearCsrfToken(): void {
  * 
  * P1 Enhancement: Single-flight promise pattern
  * Prevents concurrent requests from fetching the same token multiple times
+ * 
+ * Preview Mode: Skip for /ux-metrics in preview when VITE_PREVIEW_PUBLIC_METRICS is enabled
  */
 async function ensureCsrfToken(): Promise<void> {
   if (typeof window === 'undefined') return;
+  
+  if (import.meta.env.VITE_PREVIEW_PUBLIC_METRICS === 'true' &&
+      window.location.pathname.startsWith('/ux-metrics')) {
+    return;
+  }
+  
+  if (!API_BASE_URL) {
+    console.warn('CSRF token fetch skipped: VITE_API_BASE_URL not configured');
+    return;
+  }
   
   const cookieToken = typeof document !== 'undefined' ? getCookie('csrf_token') : null;
   let sessionToken = null;
@@ -281,10 +294,19 @@ async function ensureCsrfToken(): Promise<void> {
   
   csrfTokenPromise = (async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
+      const url = `${API_BASE_URL}/api/auth/v2/csrf`;
+      const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
       });
+      
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('CSRF fetch failed: Expected JSON but got', contentType, 'from', url);
+        console.error('Response preview:', text.substring(0, 200));
+        return;
+      }
       
       if (response.ok) {
         const data = await response.json();
