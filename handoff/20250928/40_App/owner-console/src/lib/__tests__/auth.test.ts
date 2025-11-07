@@ -22,6 +22,8 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe('Auth Module', () => {
+  const originalEnv = import.meta.env;
+
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
@@ -35,11 +37,23 @@ describe('Auth Module', () => {
     
     delete (window as any).location;
     (window as any).location = { href: '' };
+
+    Object.defineProperty(import.meta, 'env', {
+      value: { ...originalEnv, VITE_API_BASE_URL: 'http://test.local' },
+      writable: true,
+      configurable: true,
+    });
   });
   
   afterEach(() => {
     vi.clearAllTimers();
     stopTokenRefresh();
+
+    Object.defineProperty(import.meta, 'env', {
+      value: originalEnv,
+      writable: true,
+      configurable: true,
+    });
   });
 
   describe('Token Expiry Management', () => {
@@ -172,6 +186,7 @@ describe('Auth Module', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: { get: () => 'application/json' },
         json: async () => mockResponse,
       });
 
@@ -196,7 +211,9 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
+        headers: { get: () => 'application/json' },
         json: async () => ({ message: 'Invalid credentials' }),
+        text: async () => 'Invalid credentials',
       });
 
       await expect(
@@ -216,6 +233,7 @@ describe('Auth Module', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: { get: () => 'application/json' },
         json: async () => ({
           user: { id: '1', email: 'test@example.com', role: 'owner', tenantId: 't1' },
           tokens: { expiresAt: Date.now() + 3600000 },
@@ -242,6 +260,7 @@ describe('Auth Module', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        headers: { get: () => 'application/json' },
         json: async () => ({
           user: { id: '1', email: credentials.email, role: 'owner', tenantId: 't1' },
           tokens: { expiresAt: Date.now() + 3600000 },

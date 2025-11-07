@@ -165,7 +165,7 @@ export function isAuthenticated(): boolean {
 }
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || 
   (import.meta.env.MODE === 'development' ? 'http://localhost:5000' : '');
 
 /**

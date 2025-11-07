@@ -5,16 +5,30 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe('apiClient', () => {
+  const originalEnv = import.meta.env;
+
   beforeEach(() => {
     mockFetch.mockClear();
     Object.defineProperty(document, 'cookie', {
       writable: true,
       value: '',
     });
+
+    Object.defineProperty(import.meta, 'env', {
+      value: { ...originalEnv, VITE_API_BASE_URL: 'http://test.local' },
+      writable: true,
+      configurable: true,
+    });
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+
+    Object.defineProperty(import.meta, 'env', {
+      value: originalEnv,
+      writable: true,
+      configurable: true,
+    });
   });
 
   describe('Credentials Handling (P0)', () => {
@@ -418,6 +432,7 @@ describe('bootstrapCsrf', () => {
     mockFetch.mockClear();
     vi.spyOn(console, 'debug').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -468,15 +483,15 @@ describe('bootstrapCsrf', () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
-      headers: { get: () => null },
+      headers: { get: () => 'application/json' },
       text: async () => 'Server error',
     });
 
     await bootstrapCsrf();
 
-    expect(console.warn).toHaveBeenCalledWith(
-      'Failed to bootstrap CSRF token:',
-      expect.any(Error)
+    expect(console.error).toHaveBeenCalledWith(
+      'CSRF bootstrap failed with status:',
+      500
     );
   });
 
@@ -489,7 +504,10 @@ describe('bootstrapCsrf', () => {
 
     await bootstrapCsrf();
 
-    expect(console.debug).not.toHaveBeenCalled();
+    expect(console.debug).toHaveBeenCalledWith(
+      'Bootstrapping CSRF token from:',
+      'http://test.local/api/auth/v2/csrf'
+    );
   });
 });
 
