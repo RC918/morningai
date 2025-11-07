@@ -316,6 +316,7 @@ jobs:
         env:
           BASE_URL: http://localhost:${{ matrix.port }}
         run: pnpm run test:a11y
+        continue-on-error: true
       
       - name: Stop preview server
         if: always()
@@ -331,6 +332,44 @@ jobs:
         with:
           name: a11y-results-${{ matrix.app }}
           path: handoff/20250928/40_App/${{ matrix.app }}/a11y-test-results/
+          retention-days: 7
+
+  i18n-coverage:
+    name: i18n Coverage Check
+    runs-on: ubuntu-latest
+    needs: [smoke-tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [frontend-dashboard, owner-console]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      
+      - name: Install dependencies
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run i18n coverage tests
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm run test:i18n
+        continue-on-error: true
+      
+      - name: Upload i18n test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-results-${{ matrix.app }}
+          path: handoff/20250928/40_App/${{ matrix.app }}/i18n-test-results/
           retention-days: 7
 
   ai-perceptual-qa:
@@ -502,7 +541,7 @@ jobs:
   ux-quality-gate:
     name: UX Quality Gate
     runs-on: ubuntu-latest
-    needs: [smoke-tests, tokens-drift-check, visual-regression-test, motion-performance-test, accessibility-audit]
+    needs: [smoke-tests, tokens-drift-check, visual-regression-test, motion-performance-test, accessibility-audit, i18n-coverage]
     if: always()
     steps:
       - name: Check UX quality results
@@ -513,6 +552,7 @@ jobs:
           echo "- Visual Regression: ${{ needs.visual-regression-test.result }}"
           echo "- Motion Performance: ${{ needs.motion-performance-test.result }}"
           echo "- Accessibility Audit: ${{ needs.accessibility-audit.result }}"
+          echo "- i18n Coverage: ${{ needs.i18n-coverage.result }}"
           
           # Fail if smoke tests failed (critical - fast fail)
           if [ "${{ needs.smoke-tests.result }}" != "success" ]; then
@@ -526,4 +566,17 @@ jobs:
             exit 1
           fi
           
+          echo ""
+          echo "📋 Phase 3 Warning Mode Summary (Week 3):"
+          echo "All UX checks are currently in WARNING MODE (non-blocking)"
+          echo ""
+          echo "Objective Metrics (Informational):"
+          echo "  - Motion Performance: ${{ needs.motion-performance-test.result }}"
+          echo "  - VRT: ${{ needs.visual-regression-test.result }}"
+          echo "  - A11y: ${{ needs.accessibility-audit.result }}"
+          echo "  - i18n: ${{ needs.i18n-coverage.result }}"
+          echo ""
+          echo "ℹ️  These checks collect data for 1-2 weeks before enabling blocking"
+          echo "ℹ️  Review artifacts for detailed metrics and recommendations"
+          echo ""
           echo "✅ UX Quality Gate PASSED"
