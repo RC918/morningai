@@ -90,6 +90,37 @@ npm run dev
 npm run build
 ```
 
+### TypeScript 类型生成
+
+Owner Console 使用 [Orval](https://orval.dev/) 从 OpenAPI schema 自动生成 TypeScript 类型：
+
+```bash
+# 从 OpenAPI schema 生成类型
+npm run generate:api
+
+# 配置文件: orval.config.cjs
+# OpenAPI schema: src/lib/openapi.yaml
+# 生成的类型: src/lib/generated/owner-console-api.ts
+```
+
+**重要提示**: 
+- 生成的类型文件包含 `@deprecated` 标记（手动添加）
+- 如果重新生成类型，需要手动恢复 deprecated 标记
+- Legacy endpoint (`/api/dashboard/data`) 已标记为 deprecated，建议使用 `/api/phase7/monitoring/dashboard`
+
+**Post-Generation 步骤**:
+1. 运行 `npm run generate:api`
+2. 检查生成的 `src/lib/generated/owner-console-api.ts`
+3. 手动添加 `@deprecated` JSDoc 到 legacy endpoint 的类型和函数
+4. 示例:
+   ```typescript
+   /**
+    * @deprecated Use getPhase7MonitoringDashboard instead for real-time metrics with degradation markers
+    * @summary Get dashboard data (legacy)
+    */
+   export const getDashboardData = async ...
+   ```
+
 ### 环境变量
 
 创建 `.env` 文件：

@@ -84,6 +84,13 @@ def setup_totp():
     """
     Setup TOTP for the authenticated user.
     
+    **DEPRECATED**: This endpoint requires JWT authentication, which breaks forced 2FA flows.
+    Use the new pre-authentication endpoints instead:
+    - POST /api/auth/v2/2fa/enroll (requires pre_auth_token, no JWT)
+    - POST /api/auth/v2/2fa/verify-enroll (requires pre_auth_token, no JWT)
+    
+    This endpoint will be removed in a future version.
+    
     Request:
         {
             "password": "user_password_for_confirmation"
@@ -96,6 +103,8 @@ def setup_totp():
             "backup_codes": ["XXXX-XXXX-XXXX-XXXX", ...]
         }
     """
+    logger.warning("DEPRECATED: /totp/setup endpoint called. Use /api/auth/v2/2fa/enroll instead.")
+    
     if not is_2fa_feature_enabled():
         return jsonify({'error': '2FA feature is not enabled'}), 403
     

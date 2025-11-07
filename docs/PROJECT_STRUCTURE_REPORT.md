@@ -6,8 +6,8 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.1.0  
-**Last Updated**: 2025-11-03  
+**Document Version**: 1.2.0  
+**Last Updated**: 2025-11-04  
 **Project Phase**: Phase 8 (v8.0.0)
 
 ---
@@ -422,6 +422,20 @@ config/
 - `/api/agent/tasks/{task_id}`: Task status polling
 - `/api/billing/plans`: Payment tier management
 - `/api/security/reviews/pending`: JWT-protected security reviews
+- `/api/phase7/monitoring/dashboard`: Real-time monitoring dashboard (public, no auth)
+- `/api/dashboard/data`: Legacy dashboard endpoint (⚠️ deprecated)
+
+**Monitoring API Surface**:
+- **Primary Handler**: `src/main.py:574` (`get_monitoring_dashboard`) - Public endpoint registration
+- **Core Logic**: `src/routes/dashboard.py:35` (`get_dashboard_data`) - Metrics collection with degradation
+- **Test Seam**: `src/routes/dashboard.py:17` (`check_db_health`) - Mockable DB health check
+- **Degradation Semantics**: 
+  - Redis failure → 200 with fallback metrics (`available: false`, `source: 'fallback'`)
+  - DB failure → 200 with degraded status + critical alert
+  - Both failures → 503 ServiceUnavailableError
+- **Integration Tests**: `tests/test_dashboard_503_integration.py` - Dual failure and degradation scenarios
+- **OpenAPI Contract**: `owner-console/src/lib/openapi.yaml` (canonical API schema)
+- **Generated Types**: `owner-console/src/lib/generated/owner-console-api.ts` (auto-generated via orval)
 
 ### 3. Orchestrator System
 
@@ -429,11 +443,27 @@ config/
 
 **Current State**: Two orchestrator implementations in use:
 
-#### 3.1 New Orchestrator (Production API)
+| Component | Role | Maturity | Service | Path | Documentation |
+|-----------|------|----------|---------|------|---------------|
+| **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` | [README](../orchestrator/README.md) |
+| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` | [README](../handoff/20250928/40_App/orchestrator/README.md) |
+
+**Architecture**: Producer-consumer pattern. API Orchestrator receives HTTP requests and enqueues tasks to Redis. Worker Orchestrator polls Redis and executes tasks using LangGraph workflows.
+
+**Key Documentation**:
+- [ADR-001: Dual Orchestrator Architecture](./adr/001-dual-orchestrator-architecture.md) - Rationale and migration plan
+- [ADR-002: Producer-Consumer Architecture](./adr/002-producer-consumer-architecture.md) - Technical architecture details
+- [render.yaml](../render.yaml) - Deployment configuration (lines 55-94, 111-150)
+
+**Consolidation Plan**: 2026 Q1 (tracked in [Issue #1105](https://github.com/RC918/morningai/issues/1105))
+
+#### 3.1 API Orchestrator (Production API Layer)
 
 **Location**: `orchestrator/` (root directory)
 
-**Architecture**: Graph-based task management (FastAPI)
+**Role**: API Layer (FastAPI) - Receives HTTP task submissions and enqueues to Redis
+
+**Maturity**: Beta
 
 **Key Components**:
 - **API** (`orchestrator/api/main.py`): FastAPI application
@@ -449,11 +479,13 @@ config/
 - Port: 8000
 - Environment: `USE_LANGGRAPH=false`
 
-#### 3.2 Legacy Orchestrator (RQ Workers)
+#### 3.2 Worker Orchestrator (Task Execution Layer)
 
 **Location**: `handoff/20250928/40_App/orchestrator/`
 
-**Architecture**: LangGraph-based workflow engine
+**Role**: Task Execution (RQ + LangGraph) - Polls Redis and executes tasks
+
+**Maturity**: Production
 
 **Key Components**:
 - **LangGraph Orchestrator** (`langgraph_orchestrator.py`): Stateful workflows
@@ -462,11 +494,9 @@ config/
 **Dependencies**: Includes LangGraph and related dependencies
 
 **Deployment**:
-- Render service: Worker instances
+- Render service: `morningai-agent-worker`
 - Used by: RQ workers for background job processing
 - Path: `handoff/20250928/40_App/orchestrator`
-
-**Future Plan**: Consolidate to single orchestrator architecture by 2026 Q1 (tracked in ADR-001)
 
 ### 4. Frontend System
 
@@ -621,6 +651,8 @@ SENTRY_ENVIRONMENT=production
 **Services**:
 - Backend: https://morningai-backend-v2-stg.onrender.com
 - Orchestrator: https://morningai-orchestrator-api-stg.onrender.com
+- Frontend (Dashboard): https://staging.morningai.me
+- Frontend (Owner Console): https://staging-owner.morningai.me
 
 **Infrastructure**:
 - Database: Supabase PostgreSQL (staging: dckisglnlemvpvmyvnut)
@@ -629,7 +661,7 @@ SENTRY_ENVIRONMENT=production
 
 **Branch**: `develop`
 
-**Status**: ✅ Fully Operational (as of 2025-10-28)
+**Status**: ✅ Fully Operational (as of 2025-11-04)
 
 **Environment Variables**:
 ```bash
@@ -677,8 +709,12 @@ TESTING=false
 - **Cost**: $7/month per service (Starter plan)
 
 **Vercel** (Frontend):
-- **Production**: `morningai.vercel.app`
-- **Preview**: Auto-deploy for all branches
+- **Production**: `app.gm365.me` (dashboard), `admin.gm365.me` (owner console)
+- **Staging**: `staging.morningai.me` (dashboard), `staging-owner.morningai.me` (owner console)
+- **Preview**: Auto-deploy for `feature/*`, `fix/*`, `devin/*` branches
+- **Branch Policy**: `develop` → staging, `main` → production
+- **Ignore Script**: `scripts/vercel-ignore.sh` (skips docs-only changes)
+- **Documentation**: [docs/deployment/VERCEL_DEPLOYMENT_STRATEGY.md](deployment/VERCEL_DEPLOYMENT_STRATEGY.md)
 - **Cost**: $0/month (Free tier)
 
 **Fly.io** (Agent Sandboxes):
