@@ -75,10 +75,38 @@ export const breakpoints = tokens.breakpoint
 export const accessibility = tokens.accessibility
 
 /**
+ * Recursively flatten a nested object into CSS variable format
+ * 
+ * @param obj - Object to flatten
+ * @param prefix - CSS variable prefix (e.g., 'color-primary')
+ * @returns Record of CSS variable names to values
+ * 
+ * @internal
+ */
+const flattenTokens = (obj: any, prefix: string): Record<string, string> => {
+  const result: Record<string, string> = {}
+  
+  for (const [key, value] of Object.entries(obj)) {
+    const cssVarName = `--${prefix}-${key}`
+    
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      const nested = flattenTokens(value, `${prefix}-${key}`)
+      Object.assign(result, nested)
+    } else {
+      result[cssVarName] = String(value)
+    }
+  }
+  
+  return result
+}
+
+/**
  * Generate CSS custom properties from design tokens
  * 
  * This function creates a flat object of CSS variables that can be
- * applied to the DOM for runtime theming.
+ * applied to the DOM for runtime theming. It uses recursive traversal
+ * to automatically handle all token categories, including dynamically
+ * added accent colors or other nested structures.
  * 
  * @returns Record of CSS variable names to values
  * 
@@ -88,6 +116,8 @@ export const accessibility = tokens.accessibility
  * // {
  * //   '--color-primary-500': '#0ea5e9',
  * //   '--spacing-md': '16px',
+ * //   '--color-accent-purple-500': '#8b5cf6',
+ * //   '--color-accent-orange-500': '#f59e0b',
  * //   ...
  * // }
  * ```
@@ -95,92 +125,42 @@ export const accessibility = tokens.accessibility
 export const getCSSVariables = (): Record<string, string> => {
   const cssVars: Record<string, string> = {}
   
-  Object.entries(colors.primary).forEach(([key, value]) => {
-    cssVars[`--color-primary-${key}`] = value as string
-  })
+  Object.assign(cssVars, flattenTokens(colors.primary, 'color-primary'))
   
-  Object.entries(colors.accent.purple).forEach(([key, value]) => {
-    cssVars[`--color-accent-purple-${key}`] = value as string
-  })
+  for (const [accentName, accentShades] of Object.entries(colors.accent)) {
+    Object.assign(cssVars, flattenTokens(accentShades, `color-accent-${accentName}`))
+  }
   
-  Object.entries(colors.accent.orange).forEach(([key, value]) => {
-    cssVars[`--color-accent-orange-${key}`] = value as string
-  })
+  for (const [semanticName, semanticShades] of Object.entries(colors.semantic)) {
+    Object.assign(cssVars, flattenTokens(semanticShades, `color-${semanticName}`))
+  }
   
-  Object.entries(colors.semantic.success).forEach(([key, value]) => {
-    cssVars[`--color-success-${key}`] = value as string
-  })
+  Object.assign(cssVars, flattenTokens(colors.neutral, 'color-neutral'))
+  Object.assign(cssVars, flattenTokens(colors.background, 'color-background'))
   
-  Object.entries(colors.semantic.error).forEach(([key, value]) => {
-    cssVars[`--color-error-${key}`] = value as string
-  })
+  Object.assign(cssVars, flattenTokens(spacing, 'spacing'))
   
-  Object.entries(colors.semantic.warning).forEach(([key, value]) => {
-    cssVars[`--color-warning-${key}`] = value as string
-  })
+  // Process radius tokens
+  Object.assign(cssVars, flattenTokens(radius, 'radius'))
   
-  Object.entries(colors.semantic.info).forEach(([key, value]) => {
-    cssVars[`--color-info-${key}`] = value as string
-  })
+  Object.assign(cssVars, flattenTokens(shadows, 'shadow'))
   
-  Object.entries(colors.neutral).forEach(([key, value]) => {
-    cssVars[`--color-neutral-${key}`] = value as string
-  })
+  Object.assign(cssVars, flattenTokens(typography.family, 'font-family'))
+  Object.assign(cssVars, flattenTokens(typography.size, 'font-size'))
+  Object.assign(cssVars, flattenTokens(typography.weight, 'font-weight'))
+  Object.assign(cssVars, flattenTokens(typography.lineHeight, 'line-height'))
   
-  Object.entries(colors.background).forEach(([key, value]) => {
-    cssVars[`--color-background-${key}`] = value as string
-  })
+  Object.assign(cssVars, flattenTokens(animations.duration, 'animation-duration'))
+  Object.assign(cssVars, flattenTokens(animations.easing, 'animation-easing'))
   
-  Object.entries(spacing).forEach(([key, value]) => {
-    cssVars[`--spacing-${key}`] = value as string
-  })
-  
-  Object.entries(radius).forEach(([key, value]) => {
-    cssVars[`--radius-${key}`] = value as string
-  })
-  
-  Object.entries(shadows).forEach(([key, value]) => {
-    cssVars[`--shadow-${key}`] = value as string
-  })
-  
-  Object.entries(typography.family).forEach(([key, value]) => {
-    cssVars[`--font-family-${key}`] = value as string
-  })
-  
-  Object.entries(typography.size).forEach(([key, value]) => {
-    cssVars[`--font-size-${key}`] = value as string
-  })
-  
-  Object.entries(typography.weight).forEach(([key, value]) => {
-    cssVars[`--font-weight-${key}`] = value as string
-  })
-  
-  Object.entries(typography.lineHeight).forEach(([key, value]) => {
-    cssVars[`--line-height-${key}`] = value as string
-  })
-  
-  Object.entries(animations.duration).forEach(([key, value]) => {
-    cssVars[`--animation-duration-${key}`] = value as string
-  })
-  
-  Object.entries(animations.easing).forEach(([key, value]) => {
-    cssVars[`--animation-easing-${key}`] = value as string
-  })
-  
-  Object.entries(breakpoints).forEach(([key, value]) => {
-    cssVars[`--breakpoint-${key}`] = value as string
-  })
+  Object.assign(cssVars, flattenTokens(breakpoints, 'breakpoint'))
   
   if (accessibility['wcag-aaa']?.colors) {
-    Object.entries(accessibility['wcag-aaa'].colors).forEach(([key, value]) => {
-      cssVars[`--a11y-color-${key}`] = value as string
-    })
+    Object.assign(cssVars, flattenTokens(accessibility['wcag-aaa'].colors, 'a11y-color'))
   }
   
   if (accessibility.focus) {
-    Object.entries(accessibility.focus).forEach(([key, value]) => {
-      cssVars[`--a11y-focus-${key}`] = value as string
-    })
+    Object.assign(cssVars, flattenTokens(accessibility.focus, 'a11y-focus'))
   }
   
   return cssVars
