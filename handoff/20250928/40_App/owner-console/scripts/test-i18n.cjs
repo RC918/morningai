@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 
 const RESULTS_DIR = path.join(__dirname, '../i18n-test-results');
-const LOCALES_DIR = path.join(__dirname, '../src/i18n/locales');
+const LOCALES_DIR = path.join(__dirname, '../src/locales');
 
 // Primary locale is the source of truth
 const PRIMARY_LOCALE = 'en-US';
