@@ -63,8 +63,13 @@ def mock_redis():
 
 @pytest.fixture
 def mock_supabase():
-    """Mock Supabase client"""
-    with patch("supabase.create_client") as mock_create, \
+    """Mock Supabase client with environment variables set"""
+    import os
+    with patch.dict(os.environ, {
+        "SUPABASE_URL": "http://test.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "test-service-role-key"
+    }, clear=False), \
+         patch("supabase.create_client") as mock_create, \
          patch("src.routes.auth_2fa.create_client") as mock_create_2fa:
         supabase_mock = MagicMock()
 
