@@ -1,12 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-if (!API_BASE_URL && import.meta.env.MODE === 'production') {
-  console.error(
-    '⚠️ VITE_API_BASE_URL is not set! API requests will fail. ' +
-    'Please set VITE_API_BASE_URL in Vercel environment variables.'
-  );
-}
-
 /**
  * CSRF token cache for cross-origin scenarios
  * In cross-origin requests, document.cookie cannot read cookies set by different domain
@@ -66,11 +59,12 @@ export async function apiClient<T>(
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
+    const text = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
+    const statusText = res.statusText || '';
+    throw new Error(`HTTP ${res.status} ${statusText} - ${text}`);
   }
-  const ct = res.headers.get('content-type') || '';
-  const data = ct.includes('application/json') ? await res.json() : await res.text();
+  const ct = res.headers && typeof res.headers.get === 'function' ? res.headers.get('content-type') || '' : '';
+  const data = ct.includes('application/json') ? await res.json() : (typeof res.text === 'function' ? await res.text() : '');
   
   return {
     data,
@@ -87,14 +81,6 @@ export async function apiClient<T>(
  * Backend returns { csrf_token: "..." } in response body which we can read cross-origin
  */
 export async function bootstrapCsrf(): Promise<void> {
-  if (!API_BASE_URL) {
-    console.error(
-      'Cannot bootstrap CSRF token: VITE_API_BASE_URL is not set. ' +
-      'Please configure VITE_API_BASE_URL in Vercel environment variables.'
-    );
-    return;
-  }
-  
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
       credentials: 'include',
