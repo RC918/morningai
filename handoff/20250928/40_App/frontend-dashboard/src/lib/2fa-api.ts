@@ -18,6 +18,11 @@ import type {
   TwoFAStatusResponse,
   TwoFALoginRequest,
   TwoFALoginResponse,
+  TwoFAChallengeRequest,
+  TwoFAChallengeResponse,
+  TwoFAEnrollResponse,
+  TwoFAVerifyEnrollRequest,
+  TwoFAVerifyEnrollResponse,
 } from '../types/2fa';
 
 /**
@@ -84,14 +89,63 @@ export async function regenerateBackupCodes(
 }
 
 /**
- * Verify 2FA code during login
- * This function will be used once the backend implements the verify-login endpoint
+ * Verify 2FA code during login (LEGACY - uses password re-transmission)
+ * @deprecated Use challengeTwoFA instead with pre_auth_token
  */
 export async function verifyTwoFALogin(
   request: TwoFALoginRequest
 ): Promise<TwoFALoginResponse> {
   return apiClient<TwoFALoginResponse>('/api/auth/v2/totp/verify-login', {
     method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+/**
+ * Challenge 2FA code during login using pre-auth token
+ * This is the recommended approach that doesn't require password re-transmission
+ */
+export async function challengeTwoFA(
+  request: TwoFAChallengeRequest,
+  preAuthToken: string
+): Promise<TwoFAChallengeResponse> {
+  return apiClient<TwoFAChallengeResponse>('/api/auth/v2/2fa/challenge', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${preAuthToken}`,
+    },
+    body: JSON.stringify(request),
+  });
+}
+
+/**
+ * Start 2FA enrollment using pre-auth token
+ * Returns QR code and secret for the user to scan
+ */
+export async function enrollTwoFA(
+  preAuthToken: string
+): Promise<TwoFAEnrollResponse> {
+  return apiClient<TwoFAEnrollResponse>('/api/auth/v2/2fa/enroll', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${preAuthToken}`,
+    },
+  });
+}
+
+/**
+ * Complete 2FA enrollment by verifying the TOTP code
+ * Returns backup codes and session tokens
+ */
+export async function verifyEnrollTwoFA(
+  request: TwoFAVerifyEnrollRequest,
+  preAuthToken: string
+): Promise<TwoFAVerifyEnrollResponse> {
+  return apiClient<TwoFAVerifyEnrollResponse>('/api/auth/v2/2fa/verify-enroll', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${preAuthToken}`,
+    },
     body: JSON.stringify(request),
   });
 }
