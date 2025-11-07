@@ -36,6 +36,12 @@ export async function apiClient<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
+  let finalUrl = url;
+  
+  if (!url.startsWith('/api/') && (url.startsWith('/admin') || url.startsWith('/tenant') || url.startsWith('/governance'))) {
+    finalUrl = '/api' + url;
+  }
+  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
@@ -49,7 +55,7 @@ export async function apiClient<T>(
     }
   }
   
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const res = await fetch(`${API_BASE_URL}${finalUrl}`, {
     ...options,
     credentials: 'include',  // P0-3: Always include credentials for HttpOnly cookies
     headers,
@@ -198,3 +204,134 @@ const governanceApi = {
 (apiClient as any).getGovernanceEvents = governanceApi.getGovernanceEvents;
 (apiClient as any).getGovernanceViolations = governanceApi.getGovernanceViolations;
 (apiClient as any).getGovernanceStatistics = governanceApi.getGovernanceStatistics;
+
+/**
+ * Custom error types for better error handling
+ */
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public data?: unknown
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export class TimeoutError extends Error {
+  constructor(message: string = 'Request timeout') {
+    super(message);
+    this.name = 'TimeoutError';
+  }
+}
+
+/**
+ * API client with metadata (status, headers) for endpoints that need response metadata
+ * Used by components that need to check response status or headers
+ * 
+ * Features:
+ * - Returns response metadata (status, headers) in addition to data
+ * - Automatic CSRF token handling for unsafe methods (POST, PUT, PATCH, DELETE)
+ * - Configurable timeout with AbortController
+ * - Typed error handling (ApiError, TimeoutError)
+ * 
+ * @param url - API endpoint URL (e.g., '/phase7/monitoring/dashboard')
+ * @param options - Fetch options with optional timeout
+ * @returns Promise with data, status, and headers
+ * 
+ * @example
+ * ```typescript
+ * // GET request (no CSRF token)
+ * const result = await apiClientWithMeta<DashboardData>('/phase7/monitoring/dashboard', {
+ *   method: 'GET'
+ * });
+ * 
+ * // POST request (with CSRF token)
+ * const result = await apiClientWithMeta<CreateResponse>('/admin/agents', {
+ *   method: 'POST',
+ *   body: JSON.stringify({ name: 'agent-1' })
+ * });
+ * 
+ * // With custom timeout
+ * const result = await apiClientWithMeta<Data>('/api/endpoint', {
+ *   method: 'GET',
+ *   timeout: 5000 // 5 seconds
+ * });
+ * ```
+ */
+export async function apiClientWithMeta<T>(
+  url: string,
+  options: RequestInit & { timeout?: number } = {}
+): Promise<{ data: T; status: number; headers: Headers }> {
+  const { timeout = 10000, ...fetchOptions } = options;
+  
+  let finalUrl = url;
+  
+  if (!url.startsWith('/api/') && (url.startsWith('/admin') || url.startsWith('/tenant') || url.startsWith('/governance') || url.startsWith('/phase7'))) {
+    finalUrl = '/api' + url;
+  }
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((fetchOptions.headers as Record<string, string>) || {}),
+  };
+
+  const method = (fetchOptions.method || 'GET').toUpperCase();
+  const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  
+  if (unsafeMethods.includes(method)) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(API_BASE_URL + finalUrl, {
+      ...fetchOptions,
+      headers,
+      credentials: 'include',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.headers.get('X-CSRF-Token')) {
+      csrfTokenCache = response.headers.get('X-CSRF-Token');
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new ApiError(
+        response.status,
+        errorData.message || `HTTP ${response.status}`,
+        errorData
+      );
+    }
+
+    const data = await response.json();
+    return {
+      data,
+      status: response.status,
+      headers: response.headers
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new TimeoutError(`Request timeout after ${timeout}ms`);
+    }
+    
+    throw error;
+  }
+}
+
+export default apiClient;

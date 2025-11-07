@@ -1,7 +1,7 @@
 {
   "name": "frontend-dashboard",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "packageManager": "pnpm@9.15.1",
   "engines": {
@@ -20,6 +20,9 @@
     "test:smoke": "node scripts/smoke-tests.js",
     "test:e2e": "playwright test",
     "test:vrt": "playwright test -g @vrt",
+    "test:motion": "node scripts/test-motion.cjs",
+    "test:a11y": "node scripts/test-a11y.cjs",
+    "test:i18n": "node scripts/test-i18n.cjs",
     "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
@@ -94,6 +97,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@axe-core/react": "^4.11.0",
     "@eslint/js": "^9.25.0",
     "@playwright/test": "^1.56.1",

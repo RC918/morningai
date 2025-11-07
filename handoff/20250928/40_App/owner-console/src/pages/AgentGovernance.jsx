@@ -10,7 +10,8 @@ import {
   DollarSign,
   Activity
 } from 'lucide-react'
-import { apiClient } from '@/lib/api'
+import { getAdminAgents } from '@/lib/generated/admin/admin'
+import { getGovernanceEvents, getGovernanceViolations, getGovernanceStatistics } from '@/lib/generated/governance/governance'
 
 const AgentGovernance = () => {
   const { t } = useTranslation()
@@ -31,17 +32,28 @@ const AgentGovernance = () => {
       setLoading(true)
       setError(null)
       
-      const [agentsData, eventsData, violationsData, statsData] = await Promise.all([
-        apiClient.getAgents({ status: 'all', limit: 100 }),
-        apiClient.getGovernanceEvents({ limit: 50 }),
-        apiClient.getGovernanceViolations({ limit: 50 }),
-        apiClient.getGovernanceStatistics()
+      const [agentsResponse, eventsResponse, violationsResponse, statsResponse] = await Promise.all([
+        getAdminAgents({ status: 'all', limit: 100 }),
+        getGovernanceEvents({ limit: 50 }),
+        getGovernanceViolations({ limit: 50 }),
+        getGovernanceStatistics()
       ])
 
-      setAgents(agentsData.agents || [])
-      setEvents(eventsData.events || [])
-      setViolations(violationsData.violations || [])
-      setStatistics(statsData)
+      if (agentsResponse.status === 200) {
+        setAgents(agentsResponse.data.agents || [])
+      }
+
+      if (eventsResponse.status === 200) {
+        setEvents(eventsResponse.data.events || [])
+      }
+
+      if (violationsResponse.status === 200) {
+        setViolations(violationsResponse.data.violations || [])
+      }
+
+      if (statsResponse.status === 200) {
+        setStatistics(statsResponse.data)
+      }
     } catch (error) {
       console.error('Failed to load governance data:', error)
       setError(error.message || 'Failed to load governance data')
@@ -230,7 +242,7 @@ const AgentGovernance = () => {
                         <div className="text-2xl font-bold text-gray-400">#{index + 1}</div>
                         <div>
                           <p className="font-semibold text-gray-900">{agent.name}</p>
-                          <p className="text-sm text-gray-600">ID: {agent.id?.substring(0, 8)}...</p>
+                          <p className="text-sm text-gray-600">{t('common.idShort', { id: agent.id?.substring(0, 8) + '...' })}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">

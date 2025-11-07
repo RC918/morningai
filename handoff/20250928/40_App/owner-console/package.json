@@ -14,6 +14,9 @@
     "test:smoke": "node scripts/smoke-tests.js",
     "test:e2e": "playwright test",
     "test:vrt": "playwright test -g @vrt",
+    "test:motion": "node scripts/test-motion.cjs",
+    "test:a11y": "node scripts/test-a11y.cjs",
+    "test:i18n": "node scripts/test-i18n.cjs",
     "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit"
   },
@@ -82,6 +85,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@eslint/js": "^9.25.0",
     "@playwright/test": "^1.56.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -93,6 +97,7 @@
     "@typescript-eslint/parser": "^8.46.2",
     "@vitejs/plugin-react": "^4.4.1",
     "@vitest/coverage-v8": "^4.0.3",
+    "axe-core": "^4.11.0",
     "eslint": "^9.25.0",
     "eslint-plugin-i18next": "^6.1.3",
     "eslint-plugin-jsx-a11y": "^6.10.2",

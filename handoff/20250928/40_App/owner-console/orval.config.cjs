@@ -18,6 +18,7 @@ module.exports = {
     output: {
       target: 'src/lib/generated/owner-console-api.ts',
       client: 'fetch',
+      mode: 'tags-split',
       override: {
         mutator: {
           path: 'src/lib/api-client.ts',

@@ -389,5 +389,207 @@ class TestErrorHandling:
         assert response.status_code >= 400
 
 
+class Test2FAIntegration:
+    """Test 2FA integration with login flow"""
+    
+    def test_is_2fa_feature_enabled_in_test_mode(self, client):
+        """Test that 2FA is disabled when Flask TESTING=True"""
+        from src.routes.totp import is_2fa_feature_enabled
+        
+        with client.application.app_context():
+            client.application.config['TESTING'] = True
+            result = is_2fa_feature_enabled()
+            assert result is False
+    
+    def test_is_2fa_feature_enabled_production_mode(self):
+        """Test that 2FA respects env var when TESTING=False"""
+        from src.routes.totp import is_2fa_feature_enabled
+        import os
+        
+        with patch.dict(os.environ, {'FEATURE_2FA_ENABLED': 'true'}):
+            result = is_2fa_feature_enabled()
+            assert result is True
+        
+        with patch.dict(os.environ, {'FEATURE_2FA_ENABLED': 'false'}):
+            result = is_2fa_feature_enabled()
+            assert result is False
+    
+    def test_check_2fa_required_owner_role(self):
+        """Test that Owner role always requires 2FA"""
+        from src.routes.totp import check_2fa_required
+        
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_enabled:
+            mock_enabled.return_value = True
+            
+            with patch('src.routes.totp.get_user_by_id') as mock_get_user:
+                mock_get_user.return_value = {'id': 'user-001', 'role': 'owner'}
+                
+                result = check_2fa_required('user-001')
+                assert result is True
+    
+    def test_check_2fa_required_non_owner_enabled(self):
+        """Test that non-owner with 2FA enabled requires 2FA"""
+        from src.routes.totp import check_2fa_required
+        
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_enabled:
+            mock_enabled.return_value = True
+            
+            with patch('src.routes.totp.get_user_by_id') as mock_get_user:
+                mock_get_user.return_value = {'id': 'user-002', 'role': 'user'}
+                
+                with patch('src.routes.totp.create_client') as mock_supabase:
+                    mock_client = MagicMock()
+                    mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
+                        {'enabled': True}
+                    ]
+                    mock_supabase.return_value = mock_client
+                    
+                    result = check_2fa_required('user-002')
+                    assert result is True
+    
+    def test_check_2fa_required_non_owner_disabled(self):
+        """Test that non-owner without 2FA enabled does not require 2FA"""
+        from src.routes.totp import check_2fa_required
+        
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_enabled:
+            mock_enabled.return_value = True
+            
+            with patch('src.routes.totp.get_user_by_id') as mock_get_user:
+                mock_get_user.return_value = {'id': 'user-003', 'role': 'user'}
+                
+                with patch('src.routes.totp.create_client') as mock_supabase:
+                    mock_client = MagicMock()
+                    mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+                    mock_supabase.return_value = mock_client
+                    
+                    result = check_2fa_required('user-003')
+                    assert result is False
+    
+    def test_login_requires_2fa_response(self, client, mock_redis):
+        """Test that login returns requires_2fa when 2FA is needed"""
+        with patch('src.routes.auth_enhanced.authenticate_user') as mock_auth:
+            mock_auth.return_value = {
+                'id': 'user-001',
+                'email': 'owner@example.com',
+                'role': 'owner',
+                'name': 'Owner User',
+                'tenant_id': 'tenant-001'
+            }
+            
+            with patch('src.routes.totp.check_2fa_required') as mock_2fa:
+                mock_2fa.return_value = True
+                
+                response = client.post('/api/auth/v2/login',
+                    json={
+                        'email': 'owner@example.com',
+                        'password': 'test_password'
+                    }
+                )
+                
+                assert response.status_code == 200
+                data = json.loads(response.data)
+                assert data.get('requires_2fa') is True
+                assert 'user' in data
+                assert data['user']['id'] == 'user-001'
+                assert data['user']['email'] == 'owner@example.com'
+                
+                set_cookie_header = response.headers.get('Set-Cookie', '')
+                assert 'access_token' not in set_cookie_header
+                assert 'refresh_token' not in set_cookie_header
+    
+    def test_verify_login_missing_totp_and_backup_code(self, client, mock_redis):
+        """Test that verify-login returns 400 when both totp_code and backup_code are missing"""
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+            mock_feature.return_value = True
+            
+            response = client.post('/api/auth/v2/totp/verify-login',
+                json={
+                    'email': 'owner@example.com',
+                    'password': 'test_password'
+                }
+            )
+            
+            assert response.status_code == 400
+            data = json.loads(response.data)
+            assert 'error' in data
+    
+    def test_verify_login_missing_credentials(self, client, mock_redis):
+        """Test that verify-login returns 400 when email or password is missing"""
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+            mock_feature.return_value = True
+            
+            response = client.post('/api/auth/v2/totp/verify-login',
+                json={
+                    'totp_code': '123456'
+                }
+            )
+            
+            assert response.status_code == 400
+            data = json.loads(response.data)
+            assert 'error' in data
+    
+    def test_check_2fa_required_exception_handling(self, client, mock_redis):
+        """Test that check_2fa_required returns False on exception"""
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+            mock_feature.return_value = True
+            
+            with patch('src.routes.totp.create_client') as mock_client:
+                mock_client.side_effect = Exception('Database error')
+                
+                from src.routes.totp import check_2fa_required
+                result = check_2fa_required('user-123')
+                
+                assert result is False
+    
+    def test_verify_login_feature_disabled(self, client, mock_redis):
+        """Test that verify-login returns 403 when 2FA feature is disabled"""
+        response = client.post('/api/auth/v2/totp/verify-login',
+            json={
+                'email': 'owner@example.com',
+                'password': 'test_password',
+                'totp_code': '123456'
+            }
+        )
+        
+        assert response.status_code == 403
+        data = json.loads(response.data)
+        assert 'error' in data
+    
+    def test_verify_login_invalid_totp_format(self, client, mock_redis):
+        """Test that verify-login returns 400 for invalid TOTP format"""
+        with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+            mock_feature.return_value = True
+            
+            with patch('src.services.auth_service.authenticate_user') as mock_auth:
+                mock_auth.return_value = {
+                    'id': 'user-001',
+                    'email': 'owner@example.com',
+                    'role': 'owner'
+                }
+                
+                with patch('src.routes.totp.check_2fa_required') as mock_2fa:
+                    mock_2fa.return_value = True
+                    
+                    response = client.post('/api/auth/v2/totp/verify-login',
+                        json={
+                            'email': 'owner@example.com',
+                            'password': 'test_password',
+                            'totp_code': 'abc123'
+                        }
+                    )
+                    
+                    assert response.status_code == 400
+                    data = json.loads(response.data)
+                    assert 'error' in data
+    
+    def test_check_2fa_required_feature_disabled(self, client, mock_redis):
+        """Test that check_2fa_required returns False when feature is disabled"""
+        from src.routes.totp import check_2fa_required
+        
+        result = check_2fa_required('user-123')
+        
+        assert result is False
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

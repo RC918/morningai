@@ -10,7 +10,7 @@ const languages = [
 ]
 
 export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
 
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0]
@@ -29,6 +29,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
             size="sm" 
             className={`${className} bg-white hover:bg-gray-50 shadow-md flex items-center justify-center`}
             style={{ width: '40px', height: '40px', padding: '0' }}
+            aria-label={t('common.changeLanguage')}
           >
             <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
           </Button>
