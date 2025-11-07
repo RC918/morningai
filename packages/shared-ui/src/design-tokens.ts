@@ -12,15 +12,96 @@
 import tokens from './tokens.json'
 
 /**
+ * Color shade values (50-900 scale)
+ */
+type ColorShade = '50' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | 'text-aaa'
+
+/**
+ * Accent color names
+ */
+type AccentColor = 'purple' | 'orange'
+
+/**
+ * Semantic color names
+ */
+type SemanticColor = 'success' | 'error' | 'warning' | 'info'
+
+/**
+ * Spacing scale values
+ */
+type SpacingScale = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl'
+
+/**
+ * Font size values
+ */
+type FontSize = 'caption' | 'small' | 'body' | 'heading3' | 'heading2' | 'heading1' | 'display'
+
+/**
+ * Font weight values
+ */
+type FontWeight = 'regular' | 'medium' | 'semibold' | 'bold'
+
+/**
+ * Border radius values
+ */
+type RadiusSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
+
+/**
+ * Shadow size values
+ */
+type ShadowSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl'
+
+/**
+ * Type-safe token paths for common design tokens
+ * Provides autocomplete and type checking for token access
+ */
+export type TokenPath =
+  | `color.primary.${ColorShade}`
+  | `color.accent.${AccentColor}.${ColorShade}`
+  | `color.semantic.${SemanticColor}.${ColorShade}`
+  | `color.neutral.${ColorShade}`
+  | `color.background.${'base' | 'surface' | 'overlay'}`
+  | `space.${SpacingScale}`
+  | `font.family.${'primary' | 'secondary' | 'mono'}`
+  | `font.size.${FontSize}`
+  | `font.weight.${FontWeight}`
+  | `font.lineHeight.${FontSize}`
+  | `radius.${RadiusSize}`
+  | `shadow.${ShadowSize}`
+  | `animation.duration.${'instant' | 'fast' | 'normal' | 'slow'}`
+  | `animation.easing.${'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'spring'}`
+  | `breakpoint.${'mobile' | 'tablet' | 'desktop'}`
+  | `accessibility.wcag-aaa.contrast.${'normal-text' | 'large-text' | 'ui-components'}`
+  | `accessibility.wcag-aaa.colors.${'primary-text' | 'success-text' | 'error-text' | 'warning-text' | 'info-text'}`
+  | `accessibility.focus.${'outline-width' | 'outline-offset' | 'outline-color'}`
+  | `accessibility.touch-target.min-size`
+  | `accessibility.animation.reduced-motion-duration`
+  | string
+
+/**
  * Type-safe token access using dot notation
+ * 
+ * Provides IDE autocomplete for common token paths while maintaining
+ * flexibility for dynamic or less common paths.
+ * 
+ * @param path - Dot-notation path to token (e.g., 'color.primary.500')
+ * @returns Token value (string for colors, spacing, etc.)
+ * 
  * @example
  * ```ts
+ * // Autocomplete available for common paths
  * const primaryColor = getToken('color.primary.500')
  * const spacing = getToken('space.md')
+ * const fontBold = getToken('font.weight.bold')
+ * 
+ * // Dynamic paths still work
+ * const dynamicPath = `color.${colorType}.${shade}` as TokenPath
+ * const color = getToken(dynamicPath)
  * ```
  */
-export const getToken = (path: string): any => {
-  return path.split('.').reduce((obj: any, key: string) => obj?.[key], tokens)
+export const getToken = (path: TokenPath): string | undefined => {
+  const value = path.split('.').reduce((obj: any, key: string) => obj?.[key], tokens)
+  return value !== undefined ? String(value) : undefined
 }
 
 /**
