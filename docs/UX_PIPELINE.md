@@ -175,7 +175,7 @@ All checks use `continue-on-error: true` in the workflow:
 
 ### Exit Strategy
 
-**Tracking Issue**: [Phase 3 Warning Mode 退出機制追蹤](https://github.com/RC918/morningai/issues/XXXX)
+**Tracking Issue**: [Phase 3 Warning Mode Exit Strategy - Decision: 2025-11-21](https://github.com/RC918/morningai/issues/1172)
 
 **Decision Timeline**:
 - **Start**: 2025-11-07
@@ -375,7 +375,7 @@ cat handoff/20250928/40_App/frontend-dashboard/motion-test-results/motion.json
 - **PR #1171**: Phase 3 UX Pipeline Warning Mode
 - **PR #1170**: Week 2/3 AI QA Threshold Adjustment
 - **PR #1168**: Week 2 Calibration Report
-- **Issue #XXXX**: Phase 3 Warning Mode Exit Strategy
+- **Issue #1172**: Phase 3 Warning Mode Exit Strategy
 
 ---
 
