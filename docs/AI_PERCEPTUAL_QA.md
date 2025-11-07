@@ -121,7 +121,7 @@ Weighted average of 5 dimensions:
 
 **Thresholds:**
 - Target: 85
-- Minimum: 83 (updated Nov 6, 2025 based on Week 1 calibration)
+- Minimum: 76 (updated Nov 7, 2025 based on Week 2 calibration - see below)
 
 ### Motion Performance Score (0-100)
 
@@ -143,7 +143,7 @@ Delight = (Harmony × 0.5) + (Motion × 0.5)
 
 **Thresholds:**
 - Target: 90
-- Minimum: 94 (updated Nov 6, 2025 based on Week 1 calibration)
+- Minimum: 90 (updated Nov 7, 2025 based on Week 2 calibration - see below)
 
 ## Smoke Tests
 
@@ -216,8 +216,8 @@ ai-perceptual-qa:
 - `QA_TEST_PASSWORD`: Test account password (for authenticated pages)
 - `UX_AI_MODEL`: Model to use (default: gpt-4o-mini)
 - `UX_AI_MAX_PAGES`: Max pages per app (default: 4)
-- `UX_HARMONY_MIN`: Harmony threshold (default: 83, updated Nov 6, 2025)
-- `UX_DELIGHT_MIN`: Delight threshold (default: 94, updated Nov 6, 2025)
+- `UX_HARMONY_MIN`: Harmony threshold (default: 76, updated Nov 7, 2025)
+- `UX_DELIGHT_MIN`: Delight threshold (default: 90, updated Nov 7, 2025)
 
 ### Enabling AI Perceptual QA in CI
 
@@ -978,3 +978,179 @@ Completed Week 1 bad case calibration with 10 PRs containing intentional design 
 - Week 1 Calibration Report: [Full Analysis](https://app.devin.ai/attachments/c956af2b-4cea-45d9-8418-55b74a5fbc3a/WEEK1_CALIBRATION_REPORT.md)
 - Threshold Update PR: [#1160](https://github.com/RC918/morningai/pull/1160)
 - Bad Case PRs: [#1150](https://github.com/RC918/morningai/pull/1150) - [#1159](https://github.com/RC918/morningai/pull/1159)
+
+## Week 2 Calibration Results (November 7, 2025)
+
+### Overview
+
+Week 2 tested 6 good case PRs with real design system improvements to validate whether the Week 1 thresholds (Harmony≥83, Delight≥94) were achievable. Results definitively proved these thresholds were **unattainable** with the current AI evaluation methodology.
+
+### Good Case PRs
+
+| PR # | Improvement Type | Harmony | Delight | Decision (Week 1) | Notes |
+|------|------------------|---------|---------|-------------------|-------|
+| #1162 | A11y (ARIA labels) | 75 | 88 | FAIL ❌ | Control case - no visual changes |
+| #1163 | Color Tokens | 75 | 88 | FAIL ❌ | Replaced hardcoded colors with tokens |
+| #1165 | Spacing | 72.5 | 88 | FAIL ❌ | **Worse than baseline!** Reduced gaps |
+| #1166 | Contrast | 75 | 88 | FAIL ❌ | Improved text contrast (4.5:1+) |
+| #1167 | Alignment | 75 | 88 | FAIL ❌ | Fixed grid alignment issues |
+| #1169 | **Maximal Compliance** | **72.5** | **88** | FAIL ❌ | **7:1+ contrast, all dark: removed** |
+
+### Statistical Analysis
+
+**Good Case Scores (Dashboard Page):**
+- Mean Harmony: 74.2 (σ=1.3)
+- Mean Delight: 88.0 (σ=0)
+- **All good cases scored LOWER than bad case baseline (75.3)**
+
+**Comparison with Week 1 Bad Cases:**
+- Bad case mean: Harmony=75.3, Delight=88.2
+- Good case mean: Harmony=74.2, Delight=88.0
+- **Good cases scored 1.1 points LOWER on average**
+
+### Critical Findings
+
+#### 1. **Thresholds Unattainable**
+
+Even PR #1169 (maximal compliance) with comprehensive WCAG AA+ improvements achieved only Harmony=72.5:
+- 7:1+ contrast ratios for ALL above-the-fold text
+- All `dark:` classes removed (pipeline forces light mode)
+- All targeted elements improved
+- **Still scored below baseline (75.3)**
+
+**Conclusion:** Current AI evaluation methodology has a sensitivity ceiling around Harmony=75. Thresholds of ≥83 are 8.6 standard deviations above baseline and completely unachievable.
+
+#### 2. **5-Point Bucket Quantization**
+
+AI scores are quantized in 5-point buckets (70, 75, 80, 85, 90, 95, 100):
+- Small improvements (4.5:1 → 5:1 contrast) don't cross bucket boundaries
+- Incremental changes are invisible to AI scoring
+- Need "decisive" changes (e.g., 7:1+ contrast) to move scores
+- **Implication:** Sub-5-point improvements are wasted effort for AI QA
+
+#### 3. **Dark Mode Ineffective**
+
+Pipeline forces light mode (`colorScheme: 'light'`) for consistency:
+- All `dark:` CSS classes have **zero impact** on scores
+- Screenshots never capture dark mode
+- PR #1169 removed all dark: classes with no effect
+- **Implication:** Don't waste effort on dark mode for AI QA calibration
+
+#### 4. **Misaligned Evaluation Targets**
+
+AI evaluates different elements than expected:
+- **Contrast sub-score:** Driven by timestamps, badges, tinted backgrounds (not main text)
+- **Spacing sub-score:** Reducing gaps improved Spacing (+5) but harmed overall Harmony (-2.8)
+- **Above-the-fold only:** AI only sees first screen (1366x900 viewport)
+- **Implication:** Need to identify which elements actually drive scores
+
+#### 5. **Sub-score Tradeoffs**
+
+Optimizing one sub-score can harm overall harmony:
+- PR #1165: Reduced spacing gaps → Spacing+5, Harmony-2.8
+- Tighter layouts reduce "visual breathing room"
+- **Implication:** Need holistic approach, not sub-score optimization
+
+### Threshold Adjustments (November 7, 2025)
+
+**Previous Thresholds (Week 1 - Unattainable):**
+- Harmony: ≥83 (8.6σ above baseline)
+- Delight: ≥94 (14.5σ above baseline)
+- **Result:** 100% of good cases failed (false positive rate = 100%)
+
+**Updated Thresholds (Week 2 - Evidence-Based):**
+- Harmony: ≥76 (baseline 75.3 + 1 bucket)
+- Delight: ≥90 (baseline 88.2 + 2 buckets)
+- **Rationale:** Achievable while maintaining quality standards
+
+**Additional Requirements (Warning Mode - Week 3):**
+
+Delta Requirements:
+- At least 2 sub-scores must improve by ≥5 points
+- No sub-score may regress
+- Overall Harmony must exceed baseline (75.3)
+
+Hybrid Metrics (to be implemented):
+- a11y violations: Cannot introduce new violations, must fix ≥5 existing
+- WCAG AA compliance: ≥95% compliant
+
+### Known Limitations
+
+#### AI Evaluation Constraints
+
+1. **Score Quantization:** 5-point buckets make incremental improvements invisible
+2. **Light Mode Only:** Dark mode changes have zero impact on scores
+3. **Above-the-fold Only:** AI only evaluates first screen (1366x900)
+4. **Sensitivity Ceiling:** Current methodology caps around Harmony=75
+5. **Opaque Targets:** Unclear which elements drive which sub-scores
+
+#### Recommended Workarounds
+
+1. **Make Decisive Changes:** Aim for 7:1+ contrast (not just 4.5:1) to cross bucket boundaries
+2. **Skip Dark Mode:** Don't waste effort on `dark:` classes for AI QA calibration
+3. **Focus Above-the-fold:** Only changes in first screen matter
+4. **Use Hybrid Metrics:** Combine AI scores with objective measurements (a11y violations, WCAG compliance)
+5. **Require Deltas:** Ensure ≥2 sub-scores improve by ≥5 points (not just overall score)
+
+### Week 3 Implementation: Warning Mode
+
+**Status:** Deployed in PR #1170 (November 7, 2025)
+
+**Purpose:** Collect real-world data to validate new thresholds before enabling blocking mode.
+
+**Features:**
+
+1. **Sub-score Delta Analysis (Non-blocking):**
+   - Extracts all Dashboard sub-scores (Spacing, Color, Contrast, Alignment, Typography)
+   - Compares against baseline (Harmony=75.3)
+   - Reports improvements/regressions
+   - **Target:** ≥2 sub-scores improve by ≥5 points, no regressions
+   - **Status:** MONITORING (not blocking)
+
+2. **Accessibility Metrics (Placeholder):**
+   - a11y violations comparison (to be implemented)
+   - WCAG AA compliance check (to be implemented)
+   - **Target:** No new violations, ≥95% compliance
+   - **Status:** MONITORING (not blocking)
+
+**Timeline:**
+- **Week 3-4:** Monitor 1-2 weeks of real PRs under new thresholds
+- **Collect data:** False positive/negative rates, override usage
+- **Week 5:** Decide whether to enable blocking based on data
+
+### Recommendations for Developers
+
+When making UI changes that will be evaluated by AI Perceptual QA:
+
+#### DO:
+- ✅ Make **decisive** contrast improvements (7:1+ ratios, not just 4.5:1)
+- ✅ Focus on **above-the-fold** elements (first screen only)
+- ✅ Aim for **≥2 sub-scores** improving by **≥5 points**
+- ✅ Use design system **tokens** consistently
+- ✅ Fix **a11y violations** (objective, measurable)
+- ✅ Test changes in **light mode** (what AI sees)
+
+#### DON'T:
+- ❌ Waste effort on `dark:` classes (AI never sees them)
+- ❌ Make incremental changes <5 points (invisible due to quantization)
+- ❌ Optimize single sub-score at expense of overall harmony
+- ❌ Change elements below the fold (AI doesn't evaluate them)
+- ❌ Expect AI to detect subtle improvements (sensitivity ceiling ~75)
+
+### Future Improvements
+
+Potential enhancements to address current limitations:
+
+1. **Relative Scoring:** Compare PR against baseline (delta-based) instead of absolute thresholds
+2. **Multi-theme Evaluation:** Capture both light and dark mode screenshots
+3. **Full-page Analysis:** Evaluate entire page, not just above-the-fold
+4. **Continuous Scoring:** Use 0-100 scale instead of 5-point buckets
+5. **Element-specific Prompts:** Target specific elements (e.g., "evaluate timestamp contrast")
+6. **Hybrid Metrics:** Weight AI scores with objective measurements (50/50 split)
+
+### Related Documentation
+
+- Week 2 Calibration Report: PR [#1168](https://github.com/RC918/morningai/pull/1168)
+- Threshold Adjustment: PR [#1170](https://github.com/RC918/morningai/pull/1170)
+- Good Case PRs: [#1162](https://github.com/RC918/morningai/pull/1162), [#1163](https://github.com/RC918/morningai/pull/1163), [#1165](https://github.com/RC918/morningai/pull/1165), [#1166](https://github.com/RC918/morningai/pull/1166), [#1167](https://github.com/RC918/morningai/pull/1167), [#1169](https://github.com/RC918/morningai/pull/1169)
+- Maximal Compliance Test: PR [#1169](https://github.com/RC918/morningai/pull/1169)
