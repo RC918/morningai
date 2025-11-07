@@ -22,7 +22,7 @@ import { NotificationProvider, useNotification } from '@/contexts/NotificationCo
 import { PageLoader } from '@/components/feedback/PageLoader'
 import { OfflineIndicator } from '@/components/feedback/OfflineIndicator'
 import { SkipToContent } from '@/components/SkipToContent'
-import { applyDesignTokens } from '@/lib/design-tokens'
+import { applyDesignTokens } from '@morningai/shared-ui'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { reportWebVitals } from '@/lib/performance'
 import useAppStore from '@/stores/appStore'

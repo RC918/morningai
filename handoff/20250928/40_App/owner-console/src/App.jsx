@@ -4,7 +4,7 @@ import { ThemeProvider } from 'next-themes'
 import { AuthProvider, useAuth } from '@/components/AuthProvider'
 import Sidebar from '@/components/Sidebar'
 import LoginPage from '@/components/LoginPage'
-import { applyDesignTokens } from '@/lib/design-tokens'
+import { applyDesignTokens } from '@morningai/shared-ui'
 import './App.css'
 
 const OwnerDashboard = lazy(() => import('@/pages/OwnerDashboard'))
