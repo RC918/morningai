@@ -47,6 +47,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const initialize = async () => {
+      if (typeof window !== 'undefined' &&
+          import.meta.env.VITE_PREVIEW_PUBLIC_METRICS === 'true' &&
+          window.location.pathname.startsWith('/ux-metrics')) {
+        setIsAuthenticated(true);
+        setUser({
+          id: 'preview-user',
+          email: 'preview@morningai.com',
+          role: 'owner',
+          tenantId: 'preview-tenant',
+          name: 'Preview User',
+        } as User);
+        setIsLoading(false);
+        return;
+      }
+
       const { isAuthenticated: authenticated, user: storedUser } = await initAuth();
       setIsAuthenticated(authenticated);
       setUser(storedUser);
