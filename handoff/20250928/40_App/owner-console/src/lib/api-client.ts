@@ -1,7 +1,11 @@
-const API_BASE_URL =
-  (typeof window !== 'undefined' && (window as any).__VITE_API_BASE_URL__) ||
-  (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') ||
-  '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+if (!API_BASE_URL && import.meta.env.MODE === 'production') {
+  console.error(
+    '⚠️ VITE_API_BASE_URL is not set! API requests will fail. ' +
+    'Please set VITE_API_BASE_URL in Vercel environment variables.'
+  );
+}
 
 /**
  * CSRF token cache for cross-origin scenarios
@@ -83,6 +87,14 @@ export async function apiClient<T>(
  * Backend returns { csrf_token: "..." } in response body which we can read cross-origin
  */
 export async function bootstrapCsrf(): Promise<void> {
+  if (!API_BASE_URL) {
+    console.error(
+      'Cannot bootstrap CSRF token: VITE_API_BASE_URL is not set. ' +
+      'Please configure VITE_API_BASE_URL in Vercel environment variables.'
+    );
+    return;
+  }
+  
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
       credentials: 'include',
