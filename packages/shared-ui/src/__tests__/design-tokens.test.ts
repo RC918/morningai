@@ -164,6 +164,13 @@ describe('Design Tokens', () => {
       
       expect(cssVars1).toEqual(cssVars2)
     })
+
+    it('should generate exactly 148 CSS variables (backward compatibility)', () => {
+      const cssVars = getCSSVariables()
+      
+      // This assertion ensures we maintain the exact same number of CSS variables
+      expect(Object.keys(cssVars).length).toBe(148)
+    })
   })
 
   describe('applyDesignTokens', () => {
