@@ -65,6 +65,17 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - **Orchestrator API**: https://morningai-orchestrator-api.onrender.com
 - **Frontend**: https://morningai.vercel.app
 
+⚠️ **Orchestrator Architecture (Dual System)**
+
+MorningAI uses a producer-consumer architecture with two orchestrator implementations:
+
+| Component | Role | Maturity | Service | Path |
+|-----------|------|----------|---------|------|
+| **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` |
+| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+
+**See**: [ADR-001](adr/001-dual-orchestrator-architecture.md), [ADR-002](adr/002-producer-consumer-architecture.md) • **Consolidation**: 2026 Q1
+
 **Infrastructure**:
 - **Database**: Supabase PostgreSQL (production)
 - **Redis**: Upstash (TLS enabled)
@@ -76,6 +87,8 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 **Services**:
 - **Backend API**: https://morningai-backend-v2-stg.onrender.com
 - **Orchestrator API**: https://morningai-orchestrator-api-stg.onrender.com
+- **Frontend (Dashboard)**: https://staging.morningai.me
+- **Frontend (Owner Console)**: https://staging-owner.morningai.me
 
 **Infrastructure**:
 - **Database**: Supabase PostgreSQL (staging: dckisglnlemvpvmyvnut)
@@ -83,6 +96,11 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - **Branch**: `develop`
 - **Auto-Deploy**: Yes
 - **Status**: ✅ Fully Operational
+
+**Frontend Deployment** (Vercel):
+- **Branch Policy**: `develop` → staging, `main` → production, `feature/*|fix/*|devin/*` → preview
+- **Ignore Script**: Skips deployment for docs-only changes
+- **Documentation**: [docs/deployment/VERCEL_DEPLOYMENT_STRATEGY.md](../deployment/VERCEL_DEPLOYMENT_STRATEGY.md)
 
 **Purpose**:
 - Pre-production testing
@@ -546,6 +564,173 @@ pnpm test:coverage
 ### Testing
 - **[Testing Guide](TESTING.md)** - Comprehensive testing documentation
 - **[Phase 3 Testing](PHASE3_TESTING_GUIDE.md)** - Phase 3 testing guide
+
+---
+
+## Observability & Monitoring
+
+### Monitoring Dashboard v2
+
+MorningAI provides a real-time monitoring dashboard with intelligent degradation handling and graceful fallback behavior. The dashboard displays system health, metrics, and alerts with explicit markers when services are unavailable.
+
+**Key Features**:
+- Real-time metrics from Redis and Database
+- Graceful degradation with explicit fallback markers
+- 503 Service Unavailable when both Redis and DB fail
+- Public endpoint (no authentication required)
+
+### API Endpoints
+
+#### Primary Endpoint (Recommended)
+- **Path**: `/api/phase7/monitoring/dashboard`
+- **Method**: GET
+- **Auth**: Public (no JWT required)
+- **Status**: ✅ Production Ready
+- **Documentation**: [OpenAPI Schema](../handoff/20250928/40_App/owner-console/src/lib/openapi.yaml)
+
+#### Legacy Endpoint (Deprecated)
+- **Path**: `/api/dashboard/data`
+- **Method**: GET
+- **Auth**: Public (no JWT required)
+- **Status**: ⚠️ **DEPRECATED** - Use `/api/phase7/monitoring/dashboard` instead
+- **Migration**: Update API calls to use new endpoint for real-time metrics with degradation markers
+
+### Degradation Behavior
+
+The monitoring dashboard implements intelligent degradation semantics:
+
+| Scenario | HTTP Status | Response Behavior |
+|----------|-------------|-------------------|
+| **All services healthy** | 200 OK | Full metrics with real data from Redis and DB |
+| **Redis unavailable** | 200 OK | Fallback metrics with `available: false`, `source: 'fallback'`, `error: 'Redis unavailable'` |
+| **Database unavailable** | 200 OK | `overall_status: 'degraded'` with critical alert |
+| **Both Redis + DB unavailable** | 503 Service Unavailable | `ServiceUnavailableError` response |
+
+**Example Response (Normal)**:
+```json
+{
+  "system_health": {
+    "overall_status": "healthy",
+    "error_rate": 0.01,
+    "avg_latency": 0.15,
+    "open_circuit_breakers": 0
+  },
+  "metrics": {
+    "queue_depth": {
+      "current": 5,
+      "unit": "tasks",
+      "trend": "stable"
+    }
+  },
+  "agents": [],
+  "alerts": []
+}
+```
+
+**Example Response (Redis Degraded)**:
+```json
+{
+  "system_health": {
+    "overall_status": "healthy"
+  },
+  "metrics": {
+    "queue_depth": {
+      "current": 0,
+      "unit": "tasks",
+      "trend": "unknown",
+      "available": false,
+      "source": "fallback",
+      "error": "Redis unavailable"
+    }
+  },
+  "alerts": [
+    {
+      "id": "redis_error",
+      "severity": "warning",
+      "message": "Redis connection unavailable",
+      "timestamp": "2025-11-04T16:45:58.648953"
+    }
+  ]
+}
+```
+
+**Example Response (503 Dual Failure)**:
+```json
+{
+  "error": "Core services unavailable",
+  "message": "Both Redis and Database connections failed",
+  "status": "service_unavailable",
+  "request_id": "optional-trace-id"
+}
+```
+
+### Error Schema
+
+**ServiceUnavailableError** (503 responses):
+```typescript
+{
+  error: string;        // Error message
+  message?: string;     // Detailed message
+  status: 'service_unavailable';
+  request_id?: string;  // Optional trace ID for observability
+}
+```
+
+See [OpenAPI Schema](../handoff/20250928/40_App/owner-console/src/lib/openapi.yaml) for complete API contract.
+
+### Code Locations
+
+**Backend Implementation**:
+- **Main Route**: `handoff/20250928/40_App/api-backend/src/main.py:574` (`get_monitoring_dashboard`)
+- **Core Logic**: `handoff/20250928/40_App/api-backend/src/routes/dashboard.py:35` (`get_dashboard_data`)
+- **DB Health Check**: `handoff/20250928/40_App/api-backend/src/routes/dashboard.py:17` (`check_db_health`)
+
+**Frontend & Types**:
+- **OpenAPI Schema**: `handoff/20250928/40_App/owner-console/src/lib/openapi.yaml`
+- **Generated Types**: `handoff/20250928/40_App/owner-console/src/lib/generated/owner-console-api.ts`
+- **Type Generation**: `npm run generate:api` (uses orval)
+
+**Tests**:
+- **Integration Tests**: `handoff/20250928/40_App/api-backend/tests/test_dashboard_503_integration.py`
+- **Test Seam**: `check_db_health()` function enables mocking DB failures without Flask app context issues
+
+### Developer Workflows
+
+**Regenerating TypeScript Types**:
+```bash
+cd handoff/20250928/40_App/owner-console
+npm run generate:api
+```
+
+**Note**: The generated types include `@deprecated` markers for the legacy endpoint. These are manually added post-generation. If you regenerate types, ensure deprecated markers are preserved.
+
+**Running Integration Tests**:
+```bash
+cd handoff/20250928/40_App/api-backend
+pytest tests/test_dashboard_503_integration.py -v
+```
+
+### Environment Variables
+
+The monitoring dashboard requires:
+- `REDIS_URL`: Redis connection string (for queue metrics)
+- `DATABASE_URL`: PostgreSQL connection string (for health checks)
+- `BACKEND_SERVICES_AVAILABLE`: Gate flag (set by `src/main.py`)
+
+See [Environment Variables Schema](../config/env.schema.yaml) for complete list.
+
+### Troubleshooting
+
+For monitoring-specific troubleshooting, see:
+- **[Monitoring Troubleshooting Guide](deployment/troubleshooting-monitoring.md)** - 503 error diagnosis and recovery
+
+**Quick Checks**:
+```bash
+# Test monitoring endpoint
+curl https://morningai-backend-v2-stg.onrender.com/api/phase7/monitoring/dashboard
+
+# Expected: 200 OK with metrics or 503 if both services down
+```
 
 ---
 

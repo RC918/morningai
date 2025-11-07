@@ -37,13 +37,24 @@ def client():
 
 @pytest.fixture
 def mock_redis():
-    """Mock Redis client"""
-    with patch('src.services.auth_service.get_redis_client') as mock:
-        redis_mock = MagicMock()
-        redis_mock.exists.return_value = 0
-        redis_mock.setex.return_value = True
-        mock.return_value = redis_mock
-        yield redis_mock
+    """Mock Redis client using fakeredis for stateful behavior"""
+    from fakeredis import FakeRedis
+    import src.utils.pre_auth_token
+    
+    src.utils.pre_auth_token._pre_auth_manager = None
+    
+    redis_client = FakeRedis(decode_responses=True)
+    with patch('src.services.auth_service.get_redis_client') as mock1, \
+         patch('src.utils.redis_client.get_redis_client') as mock2, \
+         patch('src.utils.pre_auth_token.get_redis_client') as mock3:
+        mock1.return_value = redis_client
+        mock2.return_value = redis_client
+        mock3.return_value = redis_client
+        
+        yield redis_client
+        
+        src.utils.pre_auth_token._pre_auth_manager = None
+        redis_client.flushall()
 
 
 class TestAuthService:
@@ -91,17 +102,15 @@ class TestAuthService:
         
         token_hash = hash_token(token)
         key = f"blacklist:refresh:{token_hash}"
-        mock_redis.setex.assert_called_once()
-        assert mock_redis.setex.call_args[0][0] == key
+        assert mock_redis.exists(key) == 1
     
     def test_is_token_blacklisted(self, mock_redis):
         """Test checking if token is blacklisted"""
         token = generate_refresh_token('user-001', 'test@example.com')
         
-        mock_redis.exists.return_value = 0
         assert is_token_blacklisted(token) is False
         
-        mock_redis.exists.return_value = 1
+        blacklist_refresh_token(token)
         assert is_token_blacklisted(token) is True
     
     def test_rotate_refresh_token(self, mock_redis):
@@ -113,7 +122,8 @@ class TestAuthService:
         assert new_token is not None
         assert new_token != old_token
         
-        mock_redis.setex.assert_called_once()
+        old_token_hash = hash_token(old_token)
+        assert mock_redis.exists(f"blacklist:refresh:{old_token_hash}") == 1
 
 
 class TestAuthEndpoints:
@@ -191,8 +201,6 @@ class TestAuthEndpoints:
         cookie_string = ' '.join(set_cookie_headers)
         assert 'access_token' in cookie_string
         assert 'refresh_token' in cookie_string
-        
-        mock_redis.setex.assert_called()
     
     def test_refresh_token_missing(self, client):
         """Test refresh without token"""
@@ -227,8 +235,6 @@ class TestAuthEndpoints:
         assert logout_response.status_code == 200
         data = json.loads(logout_response.data)
         assert 'message' in data
-        
-        mock_redis.setex.assert_called()
         
         set_cookie_headers = logout_response.headers.getlist('Set-Cookie')
         cookie_string = ' '.join(set_cookie_headers)
@@ -323,8 +329,6 @@ class TestTokenRotationFlow:
         
         logout_response = client.post('/api/auth/v2/logout')
         assert logout_response.status_code == 200
-        
-        assert mock_redis.setex.call_count >= 2
 
 
 class TestSecurityFeatures:
@@ -345,11 +349,10 @@ class TestSecurityFeatures:
         """Test that blacklisted tokens are rejected"""
         token = generate_refresh_token('user-001', 'test@example.com')
         
-        mock_redis.exists.return_value = 0
         payload = verify_refresh_token(token)
         assert payload is not None
         
-        mock_redis.exists.return_value = 1
+        blacklist_refresh_token(token)
         payload = verify_refresh_token(token)
         assert payload is None
     

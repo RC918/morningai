@@ -31,12 +31,14 @@ This dual architecture emerged during the transition from Phase 4-7 implementati
 
 We accept the dual orchestrator architecture as an **interim solution** with the following constraints:
 
-### Current State (2025-11-03)
+### Current State (2025-11-04)
 
-**New Orchestrator (Production API)**:
-- **Purpose**: HTTP API endpoints for orchestration
+**API Orchestrator (Production API Layer)**:
+- **Component**: API Orchestrator
+- **Role**: API Layer (FastAPI)
+- **Maturity**: Beta
 - **Technology**: FastAPI, Redis Queue, Docker
-- **Deployment**: `orchestrator/Dockerfile`, port 8000
+- **Deployment**: `orchestrator/Dockerfile`, port 8000, service: `morningai-orchestrator-api`
 - **Environment**: `USE_LANGGRAPH=false`
 - **Responsibilities**:
   - Task queue management
@@ -44,10 +46,12 @@ We accept the dual orchestrator architecture as an **interim solution** with the
   - Management Control Plane (MCP)
   - API authentication (JWT)
 
-**Legacy Orchestrator (RQ Workers)**:
-- **Purpose**: Background job processing
+**Worker Orchestrator (Task Execution Layer)**:
+- **Component**: Worker Orchestrator
+- **Role**: Task Execution (RQ + LangGraph)
+- **Maturity**: Production
 - **Technology**: LangGraph, RQ workers, Python
-- **Deployment**: `handoff/20250928/40_App/orchestrator/`, worker instances
+- **Deployment**: `handoff/20250928/40_App/orchestrator/`, service: `morningai-agent-worker`
 - **Responsibilities**:
   - Stateful workflow execution
   - LangGraph-based agent coordination

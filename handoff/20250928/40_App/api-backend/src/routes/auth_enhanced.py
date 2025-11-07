@@ -9,6 +9,7 @@ Endpoints:
 - GET /api/auth/me - Get current user info
 """
 
+import os
 from flask import Blueprint, request, jsonify, make_response
 from src.services.auth_service import (
     authenticate_user,
@@ -82,8 +83,10 @@ def login():
     """
     Login with email and password
     
-    If 2FA is enabled for the user, returns requires_2fa flag without setting cookies.
-    Otherwise, sets HttpOnly cookies for access and refresh tokens.
+    Returns next_step to indicate the next action required:
+    - "enroll_2fa": User needs to set up 2FA (first time)
+    - "challenge_2fa": User needs to verify 2FA code
+    - "session": Login complete, session issued
     
     Request body:
         {
@@ -91,17 +94,31 @@ def login():
             "password": "password123"
         }
     
-    Response (2FA required):
+    Response (2FA enrollment required):
         {
             "requires_2fa": true,
+            "next_step": "enroll_2fa",
+            "token": "tmp_login_token...",
             "user": {
                 "id": "user-001",
                 "email": "user@example.com"
             }
         }
     
-    Response (2FA not required):
+    Response (2FA challenge required):
         {
+            "requires_2fa": true,
+            "next_step": "challenge_2fa",
+            "token": "tmp_login_token...",
+            "user": {
+                "id": "user-001",
+                "email": "user@example.com"
+            }
+        }
+    
+    Response (session issued):
+        {
+            "next_step": "session",
             "user": {
                 "id": "user-001",
                 "email": "user@example.com",
@@ -126,16 +143,46 @@ def login():
         if not user:
             return jsonify({'message': 'Invalid email or password'}), 401
         
-        from .totp import check_2fa_required
+        from .totp import check_2fa_required, is_2fa_feature_enabled
+        from ..utils.pre_auth_token import get_pre_auth_manager
+        from supabase import create_client
+        
         if check_2fa_required(user['id']):
+            next_step = 'enroll_2fa'
+            scope = 'enroll'
+            
+            supabase_url = os.environ.get('SUPABASE_URL')
+            supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+            
+            if supabase_url and supabase_key:
+                try:
+                    supabase = create_client(supabase_url, supabase_key)
+                    user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user['id']).execute()
+                    
+                    if user_2fa.data and user_2fa.data[0].get('enabled') and user_2fa.data[0].get('verified_at'):
+                        next_step = 'challenge_2fa'
+                        scope = 'challenge'
+                except Exception as supabase_error:
+                    logger.warning(f"Supabase query failed for user {user['email']}, defaulting to enroll_2fa: {supabase_error}")
+            
+            pre_auth_manager = get_pre_auth_manager()
+            tmp_token = pre_auth_manager.generate_token(
+                user_id=user['id'],
+                email=user['email'],
+                scope=scope
+            )
+            
             response_data = {
                 'requires_2fa': True,
+                'next_step': next_step,
+                'token': tmp_token,
                 'user': {
                     'id': user['id'],
                     'email': user['email']
                 }
             }
-            logger.info(f"User {user['email']} (role: {user['role']}) requires 2FA verification")
+            
+            logger.info(f"User {user['email']} (role: {user['role']}) requires 2FA: {next_step}")
             return jsonify(response_data), 200
         
         access_token, access_expiry_ms = generate_access_token(
@@ -144,6 +191,7 @@ def login():
         refresh_token = generate_refresh_token(user['id'], user['email'])
         
         response_data = {
+            'next_step': 'session',
             'user': {
                 'id': user['id'],
                 'email': user['email'],

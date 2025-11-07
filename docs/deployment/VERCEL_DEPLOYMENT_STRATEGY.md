@@ -258,6 +258,52 @@ The deployment is fully automated:
 - **Staging**: Automatic on push to `develop` branch
 - **Production**: Automatic on push to `main` branch
 
+## Post-Deployment Smoke Tests
+
+After each deployment, run these smoke tests to verify functionality:
+
+### Backend API Health Check
+```bash
+# Production
+curl https://morningai-backend-v2.onrender.com/healthz
+
+# Staging
+curl https://morningai-backend-v2-stg.onrender.com/healthz
+
+# Expected: {"status": "healthy", "phase": "Phase 8", ...}
+```
+
+### Monitoring Dashboard Endpoint
+```bash
+# Production
+curl https://morningai-backend-v2.onrender.com/api/phase7/monitoring/dashboard
+
+# Staging
+curl https://morningai-backend-v2-stg.onrender.com/api/phase7/monitoring/dashboard
+
+# Expected: 200 OK with metrics or 503 if both Redis+DB down
+```
+
+### Frontend Accessibility
+- **Production**: Visit https://morningai.vercel.app
+- **Staging**: Visit https://staging.morningai.me
+- **Owner Console Staging**: Visit https://staging-owner.morningai.me
+
+### Degradation Testing (Staging Only)
+
+**Note**: These tests require backend access and should only be run in staging/test environments.
+
+1. **Simulate Redis Failure** (see [Monitoring Troubleshooting Guide](./troubleshooting-monitoring.md)):
+   - Expected: 200 OK with fallback metrics (`available: false`, `source: 'fallback'`)
+
+2. **Simulate DB Failure** (see integration tests):
+   - Expected: 200 OK with degraded status + critical alert
+
+3. **Simulate Dual Failure** (see integration tests):
+   - Expected: 503 Service Unavailable with `ServiceUnavailableError`
+
+**Reference**: See `api-backend/tests/test_dashboard_503_integration.py` for test patterns.
+
 ## Monitoring and Observability
 
 ### Vercel Dashboard

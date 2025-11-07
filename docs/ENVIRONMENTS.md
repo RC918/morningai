@@ -38,6 +38,21 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - **Auto-Deploy**: Yes (on push to `main`)
 - **Health Check**: `GET /health`
 
+⚠️ **Orchestrator Architecture (Dual System)**
+
+MorningAI uses a producer-consumer architecture with two orchestrator implementations:
+
+| Component | Role | Maturity | Service | Path |
+|-----------|------|----------|---------|------|
+| **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` |
+| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+
+**Architecture**: Producer (API) receives HTTP requests and enqueues tasks to Redis. Consumer (Worker) polls Redis and executes tasks using LangGraph workflows.
+
+**Documentation**: [ADR-001: Dual Orchestrator Architecture](adr/001-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](adr/002-producer-consumer-architecture.md)
+
+**Consolidation Plan**: 2026 Q1 (tracked in [Issue #1105](https://github.com/RC918/morningai/issues/1105))
+
 #### Frontend Dashboard
 - **URL**: https://morningai.vercel.app
 - **Platform**: Vercel
@@ -159,10 +174,26 @@ RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (expo
 }
 ```
 
-#### Frontend Staging
-- **Status**: Not deployed (optional)
-- **Alternative**: Use local frontend with staging backend
-- **Configuration**: Set `VITE_API_URL=https://morningai-backend-v2-stg.onrender.com`
+#### Frontend Dashboard Staging
+- **URL**: https://staging.morningai.me
+- **Platform**: Vercel
+- **Framework**: Vite + React
+- **Branch**: `develop`
+- **Auto-Deploy**: Yes (on push to `develop`)
+- **Status**: ✅ Healthy
+
+#### Owner Console Staging
+- **URL**: https://staging-owner.morningai.me
+- **Platform**: Vercel
+- **Framework**: Vite + React
+- **Branch**: `develop`
+- **Auto-Deploy**: Yes (on push to `develop`)
+- **Status**: ✅ Healthy
+
+**Deployment Strategy**:
+- **Branch Policy**: `develop` → staging, `main` → production, `feature/*|fix/*|devin/*` → preview
+- **Ignore Script**: `scripts/vercel-ignore.sh` (skips docs-only changes)
+- **Documentation**: See [docs/deployment/VERCEL_DEPLOYMENT_STRATEGY.md](deployment/VERCEL_DEPLOYMENT_STRATEGY.md) for complete setup and troubleshooting
 
 ### Infrastructure
 
@@ -417,6 +448,9 @@ curl https://morningai-backend-v2.onrender.com/healthz
 
 # Orchestrator
 curl https://morningai-orchestrator-api.onrender.com/health
+
+# Monitoring Dashboard
+curl https://morningai-backend-v2.onrender.com/api/phase7/monitoring/dashboard
 ```
 
 **Staging**:
@@ -426,6 +460,9 @@ curl https://morningai-backend-v2-stg.onrender.com/healthz
 
 # Orchestrator
 curl https://morningai-orchestrator-api-stg.onrender.com/health
+
+# Monitoring Dashboard
+curl https://morningai-backend-v2-stg.onrender.com/api/phase7/monitoring/dashboard
 ```
 
 **Local**:
@@ -435,7 +472,41 @@ curl http://localhost:8000/healthz
 
 # Orchestrator
 curl http://localhost:8001/health
+
+# Monitoring Dashboard
+curl http://localhost:8000/api/phase7/monitoring/dashboard
 ```
+
+### Monitoring Dashboard Endpoints
+
+**Primary Endpoint** (Recommended):
+- **Path**: `/api/phase7/monitoring/dashboard`
+- **Method**: GET
+- **Auth**: Public (no JWT required)
+- **Status**: ✅ Production Ready
+
+**Legacy Endpoint** (Deprecated):
+- **Path**: `/api/dashboard/data`
+- **Method**: GET
+- **Auth**: Public (no JWT required)
+- **Status**: ⚠️ **DEPRECATED** - Use `/api/phase7/monitoring/dashboard` instead
+- **Deprecation Timeline**: TBD (tracked in future release notes)
+
+**Degradation Behavior**:
+
+| Scenario | HTTP Status | Response Behavior |
+|----------|-------------|-------------------|
+| All services healthy | 200 OK | Full metrics with real data |
+| Redis unavailable | 200 OK | Fallback metrics with `available: false`, `source: 'fallback'`, `error: 'Redis unavailable'` |
+| Database unavailable | 200 OK | `overall_status: 'degraded'` with critical alert |
+| Both Redis + DB unavailable | 503 Service Unavailable | `ServiceUnavailableError` response |
+
+**Environment Variables**:
+- `REDIS_URL`: Required for queue metrics
+- `DATABASE_URL`: Required for health checks
+- `BACKEND_SERVICES_AVAILABLE`: Gate flag (auto-set by backend)
+
+**Documentation**: See [Monitoring Troubleshooting Guide](deployment/troubleshooting-monitoring.md) for 503 error diagnosis
 
 ### Expected Responses
 
