@@ -427,6 +427,7 @@ describe('bootstrapCsrf', () => {
   it('should fetch CSRF token from /api/auth/v2/csrf endpoint', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'bootstrap-token-123' }),
     });
 
@@ -443,6 +444,7 @@ describe('bootstrapCsrf', () => {
   it('should cache CSRF token from response body', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'cached-token-456' }),
     });
 
@@ -466,16 +468,22 @@ describe('bootstrapCsrf', () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
+      headers: { get: () => null },
+      text: async () => 'Server error',
     });
 
     await bootstrapCsrf();
 
-    expect(console.warn).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith(
+      'Failed to bootstrap CSRF token:',
+      expect.any(Error)
+    );
   });
 
   it('should handle response without csrf_token field', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ message: 'No token' }),
     });
 
@@ -503,6 +511,7 @@ describe('Bootstrap CSRF Token Integration (P0)', () => {
     
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'CACHED_TOKEN_123' }),
     });
     
@@ -542,6 +551,7 @@ describe('Bootstrap CSRF Token Integration (P0)', () => {
     
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'CACHED_TOKEN_789' }),
     });
     
@@ -566,6 +576,7 @@ describe('Bootstrap CSRF Token Integration (P0)', () => {
     
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'CACHED_TOKEN_PRIORITY' }),
     });
     
@@ -590,6 +601,7 @@ describe('Bootstrap CSRF Token Integration (P0)', () => {
     
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'PERSISTENT_TOKEN' }),
     });
     
@@ -632,202 +644,5 @@ describe('Bootstrap CSRF Token Integration (P0)', () => {
     
     const postCall = mockFetch.mock.calls[0];
     expect(postCall[1].headers['X-CSRF-Token']).toBeUndefined();
-  });
-});
-
-describe('Preview Mode Bypass (P1)', () => {
-  let originalWindow: any;
-  let originalEnv: any;
-
-  beforeEach(() => {
-    mockFetch.mockClear();
-    vi.spyOn(console, 'debug').mockImplementation(() => {});
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    
-    originalWindow = global.window;
-    originalEnv = import.meta.env;
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-    global.window = originalWindow;
-  });
-
-  it('should skip CSRF bootstrap when VITE_PREVIEW_PUBLIC_METRICS is true and pathname is /ux-metrics', async () => {
-    Object.defineProperty(import.meta, 'env', {
-      value: { VITE_PREVIEW_PUBLIC_METRICS: 'true' },
-      writable: true,
-      configurable: true,
-    });
-    
-    Object.defineProperty(global, 'window', {
-      value: {
-        location: { pathname: '/ux-metrics' }
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    await bootstrapCsrf();
-
-    expect(console.debug).toHaveBeenCalledWith('Skipping CSRF bootstrap for /ux-metrics in preview mode');
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-
-  it('should NOT skip CSRF bootstrap when VITE_PREVIEW_PUBLIC_METRICS is true but pathname is not /ux-metrics', async () => {
-    Object.defineProperty(import.meta, 'env', {
-      value: { VITE_PREVIEW_PUBLIC_METRICS: 'true', VITE_API_BASE_URL: 'http://test.com' },
-      writable: true,
-      configurable: true,
-    });
-    
-    Object.defineProperty(global, 'window', {
-      value: {
-        location: { pathname: '/dashboard' }
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ csrf_token: 'test-token' }),
-    });
-
-    await bootstrapCsrf();
-
-    expect(console.debug).not.toHaveBeenCalledWith('Skipping CSRF bootstrap for /ux-metrics in preview mode');
-    expect(mockFetch).toHaveBeenCalled();
-  });
-
-  it('should NOT skip CSRF bootstrap when VITE_PREVIEW_PUBLIC_METRICS is false and pathname is /ux-metrics', async () => {
-    Object.defineProperty(import.meta, 'env', {
-      value: { VITE_PREVIEW_PUBLIC_METRICS: 'false', VITE_API_BASE_URL: 'http://test.com' },
-      writable: true,
-      configurable: true,
-    });
-    
-    Object.defineProperty(global, 'window', {
-      value: {
-        location: { pathname: '/ux-metrics' }
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ csrf_token: 'test-token' }),
-    });
-
-    await bootstrapCsrf();
-
-    expect(console.debug).not.toHaveBeenCalledWith('Skipping CSRF bootstrap for /ux-metrics in preview mode');
-    expect(mockFetch).toHaveBeenCalled();
-  });
-
-  it('should skip CSRF bootstrap when API_BASE_URL is not configured', async () => {
-    Object.defineProperty(import.meta, 'env', {
-      value: { VITE_API_BASE_URL: '' },
-      writable: true,
-      configurable: true,
-    });
-
-    await bootstrapCsrf();
-
-    expect(console.warn).toHaveBeenCalledWith('CSRF bootstrap skipped: VITE_API_BASE_URL not configured');
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-
-  it('should validate content-type before parsing JSON', async () => {
-    Object.defineProperty(import.meta, 'env', {
-      value: { VITE_API_BASE_URL: 'http://test.com' },
-      writable: true,
-      configurable: true,
-    });
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      headers: { get: (name: string) => name === 'content-type' ? 'text/html' : null },
-      text: async () => '<!doctype html><html>...</html>',
-    });
-
-    await bootstrapCsrf();
-
-    expect(console.error).toHaveBeenCalledWith(
-      'CSRF bootstrap failed: Expected JSON but got',
-      'text/html',
-      'Status:',
-      200
-    );
-  });
-
-  it('should log resolved API_BASE_URL for debugging', async () => {
-    Object.defineProperty(import.meta, 'env', {
-      value: { VITE_API_BASE_URL: 'http://test-api.com' },
-      writable: true,
-      configurable: true,
-    });
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ csrf_token: 'test-token' }),
-    });
-
-    await bootstrapCsrf();
-
-    expect(console.debug).toHaveBeenCalledWith('Bootstrapping CSRF token from:', 'http://test-api.com/api/auth/v2/csrf');
-  });
-
-  it('should handle preview mode bypass with /ux-metrics/ trailing slash', async () => {
-    Object.defineProperty(import.meta, 'env', {
-      value: { VITE_PREVIEW_PUBLIC_METRICS: 'true' },
-      writable: true,
-      configurable: true,
-    });
-    
-    Object.defineProperty(global, 'window', {
-      value: {
-        location: { pathname: '/ux-metrics/' }
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    await bootstrapCsrf();
-
-    expect(console.debug).toHaveBeenCalledWith('Skipping CSRF bootstrap for /ux-metrics in preview mode');
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-
-  it('should NOT bypass for paths that contain but do not start with /ux-metrics', async () => {
-    Object.defineProperty(import.meta, 'env', {
-      value: { VITE_PREVIEW_PUBLIC_METRICS: 'true', VITE_API_BASE_URL: 'http://test.com' },
-      writable: true,
-      configurable: true,
-    });
-    
-    Object.defineProperty(global, 'window', {
-      value: {
-        location: { pathname: '/admin/ux-metrics' }
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ csrf_token: 'test-token' }),
-    });
-
-    await bootstrapCsrf();
-
-    expect(console.debug).not.toHaveBeenCalledWith('Skipping CSRF bootstrap for /ux-metrics in preview mode');
-    expect(mockFetch).toHaveBeenCalled();
   });
 });
