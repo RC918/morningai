@@ -33,6 +33,10 @@
   "scripts": {
     "build": "npm run compile:tokens && tsup src/index.ts --format cjs,esm --dts --tsconfig tsconfig.build.json",
     "dev": "tsup src/index.ts --format cjs,esm --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "type-check": "tsc --noEmit",
     "compile:tokens": "node scripts/compile-tokens.js"
@@ -93,9 +97,14 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@vitest/ui": "^4.0.3",
+    "happy-dom": "^20.0.8",
     "tsup": "^8.0.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^4.0.3"
   }
 }
