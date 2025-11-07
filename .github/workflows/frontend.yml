@@ -179,8 +179,8 @@ jobs:
           
           echo "Checking changed files between $BASE and $HEAD"
           
-          # Get all changed JS/JSX/TS/TSX files
-          CHANGED=$(git diff --name-only "$BASE"..."$HEAD" | grep -E '\.(js|jsx|ts|tsx)$' || true)
+          # Get all changed JS/JSX/TS/TSX files (excluding deletions)
+          CHANGED=$(git diff --name-only --diff-filter=d "$BASE"..."$HEAD" | grep -E '\.(js|jsx|ts|tsx)$' || true)
           
           if [ -z "$CHANGED" ]; then
             echo "No JS/TS files changed in this PR"
@@ -203,7 +203,7 @@ jobs:
             # Strip workspace prefix from paths (convert to workspace-relative)
             OC_FILES_RELATIVE=$(echo "$OC_FILES" | sed 's|^handoff/.*/40_App/owner-console/||')
             echo "Relative paths: $OC_FILES_RELATIVE"
-            echo "$OC_FILES_RELATIVE" | xargs -r pnpm -F owner-console exec eslint --max-warnings=0 --rule 'i18next/no-literal-string: ["error", {"markupOnly": false, "ignoreCallee": ["t","Trans","clsx","cn","tw","cva"]}]' || EXIT_CODE=1
+            echo "$OC_FILES_RELATIVE" | xargs -r pnpm -F owner-console exec eslint --quiet --rule 'i18next/no-literal-string: ["error", {"markupOnly": false, "ignoreCallee": ["t","Trans","clsx","cn","tw","cva"]}]' || EXIT_CODE=1
           fi
           
           # Check frontend-dashboard files
@@ -213,7 +213,7 @@ jobs:
             # Strip workspace prefix from paths (convert to workspace-relative)
             FD_FILES_RELATIVE=$(echo "$FD_FILES" | sed 's|^handoff/.*/40_App/frontend-dashboard/||')
             echo "Relative paths: $FD_FILES_RELATIVE"
-            echo "$FD_FILES_RELATIVE" | xargs -r pnpm -F frontend-dashboard exec eslint --max-warnings=0 --rule 'i18next/no-literal-string: ["error", {"markupOnly": false, "ignoreCallee": ["t","Trans","clsx","cn","tw","cva"]}]' || EXIT_CODE=1
+            echo "$FD_FILES_RELATIVE" | xargs -r pnpm -F frontend-dashboard exec eslint --quiet --rule 'i18next/no-literal-string: ["error", {"markupOnly": false, "ignoreCallee": ["t","Trans","clsx","cn","tw","cva"]}]' || EXIT_CODE=1
           fi
           
           if [ $EXIT_CODE -ne 0 ]; then

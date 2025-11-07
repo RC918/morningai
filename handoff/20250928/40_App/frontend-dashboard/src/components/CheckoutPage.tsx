@@ -19,7 +19,7 @@ import {
   DollarSign,
   Settings
 } from 'lucide-react'
-import { colors, spacing, typography } from '@/lib/design-tokens'
+import { colors, spacing, typography } from '@morningai/shared-ui'
 import apiClient from '@/lib/api'
 
 interface BillingPlan {
