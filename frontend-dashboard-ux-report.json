@@ -1,0 +1,136 @@
+{
+  "app": "frontend-dashboard",
+  "timestamp": "2025-11-06T18:17:05.933Z",
+  "prompt_version": "v0.1",
+  "commit_sha": "cee079afd2d8ae4fb8c56af57c1e38f68163a983",
+  "pr_number": 1165,
+  "harmony": {
+    "overall": 74,
+    "pages": [
+      {
+        "name": "Landing Page",
+        "path": "/",
+        "url": "http://localhost:4173/",
+        "harmony": {
+          "overall": 75,
+          "color": 80,
+          "spacing": 70,
+          "typography": 75,
+          "alignment": 80,
+          "contrast": 70,
+          "findings": [
+            "Ensure all colors used are from the design token palette to maintain brand consistency.",
+            "Review spacing between elements to ensure it follows the established spacing scale.",
+            "Check font sizes against the typography scale for consistency.",
+            "Align all components to the grid system to avoid misalignment.",
+            "Improve contrast for text against backgrounds to enhance readability."
+          ]
+        }
+      },
+      {
+        "name": "Login Page",
+        "path": "/login",
+        "url": "http://localhost:4173/login",
+        "harmony": {
+          "overall": 75,
+          "color": 70,
+          "spacing": 80,
+          "typography": 75,
+          "alignment": 85,
+          "contrast": 70,
+          "findings": [
+            "Ensure all colors used are from the design token palette to maintain brand consistency.",
+            "Check contrast ratios for text against backgrounds to meet WCAG AA standards.",
+            "Verify that all font sizes and weights align with the typography scale for consistency.",
+            "Maintain consistent spacing between elements to enhance visual rhythm.",
+            "Ensure all interactive elements are clearly distinguishable from non-interactive elements."
+          ]
+        }
+      },
+      {
+        "name": "Dashboard",
+        "path": "/dashboard",
+        "url": "http://localhost:4173/dashboard",
+        "harmony": {
+          "overall": 72.5,
+          "color": 70,
+          "spacing": 75,
+          "typography": 70,
+          "alignment": 80,
+          "contrast": 70,
+          "findings": [
+            "Ensure all colors used are from the design token palette to maintain brand consistency.",
+            "Improve contrast between text and background for better readability, especially for smaller text.",
+            "Check for consistent spacing between elements to avoid a cramped appearance.",
+            "Ensure font sizes adhere to the typography scale for uniformity.",
+            "Align all components to the grid system to enhance visual structure."
+          ]
+        }
+      }
+    ],
+    "threshold": {
+      "min": 83,
+      "target": 85
+    },
+    "model": "gpt-4o-mini",
+    "usage": {
+      "prompt_tokens": 112576,
+      "completion_tokens": 385,
+      "total_tokens": 112961
+    }
+  },
+  "motion": {
+    "overall": 100,
+    "tests": [
+      {
+        "name": "Page Transition",
+        "score": 100,
+        "fps": 60,
+        "p95FrameTime": 16.8,
+        "droppedRate": 0,
+        "fpsScore": 100,
+        "p95Score": 99,
+        "droppedScore": 100
+      },
+      {
+        "name": "Modal Animation",
+        "score": 100,
+        "fps": 60,
+        "p95FrameTime": 16.7,
+        "droppedRate": 0,
+        "fpsScore": 100,
+        "p95Score": 100,
+        "droppedScore": 100
+      },
+      {
+        "name": "Scroll Performance",
+        "score": 100,
+        "fps": 60,
+        "p95FrameTime": 16.8,
+        "droppedRate": 0,
+        "fpsScore": 100,
+        "p95Score": 99,
+        "droppedScore": 100
+      }
+    ],
+    "timestamp": "2025-11-06T18:16:41.740Z"
+  },
+  "delight": {
+    "index": 87,
+    "harmony_score": 74,
+    "motion_score": 100,
+    "weights": {
+      "harmony": 0.5,
+      "motion": 0.5
+    },
+    "threshold": {
+      "min": 94,
+      "target": 90
+    }
+  },
+  "passed": {
+    "harmony": false,
+    "motion": true,
+    "delight": false
+  }
+}

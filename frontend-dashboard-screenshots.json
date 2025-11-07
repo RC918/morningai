@@ -1,0 +1,34 @@
+{
+  "app": "frontend-dashboard",
+  "baseUrl": "http://localhost:4173",
+  "timestamp": "2025-11-06T18:16:46.646Z",
+  "pages": [
+    {
+      "name": "Landing Page",
+      "path": "/",
+      "description": "Public landing page",
+      "screenshotPath": "/home/runner/work/morningai/morningai/ux-qa-results/screenshots/frontend-dashboard/landing-page.jpg",
+      "url": "http://localhost:4173/",
+      "actualUrl": "http://localhost:4173/",
+      "requiresAuth": false
+    },
+    {
+      "name": "Login Page",
+      "path": "/login",
+      "description": "User authentication page",
+      "screenshotPath": "/home/runner/work/morningai/morningai/ux-qa-results/screenshots/frontend-dashboard/login-page.jpg",
+      "url": "http://localhost:4173/login",
+      "actualUrl": "http://localhost:4173/login",
+      "requiresAuth": false
+    },
+    {
+      "name": "Dashboard",
+      "path": "/dashboard",
+      "description": "Main dashboard with key metrics",
+      "screenshotPath": "/home/runner/work/morningai/morningai/ux-qa-results/screenshots/frontend-dashboard/dashboard.jpg",
+      "url": "http://localhost:4173/dashboard",
+      "actualUrl": "http://localhost:4173/dashboard",
+      "requiresAuth": true
+    }
+  ]
+}

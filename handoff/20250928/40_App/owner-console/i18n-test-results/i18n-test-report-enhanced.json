@@ -1,0 +1,232 @@
+{
+  "timestamp": "2025-11-07T19:26:25.209Z",
+  "passed": true,
+  "results": {
+    "primary": {
+      "locale": "en-US",
+      "totalKeys": 303,
+      "relevantKeys": 303,
+      "ignoredKeys": 0,
+      "namespaces": 12,
+      "icuKeys": 0,
+      "pluralKeys": 0
+    },
+    "secondary": [
+      {
+        "locale": "zh-TW",
+        "totalKeys": 303,
+        "relevantKeys": 303,
+        "coverage": 100,
+        "covered": 303,
+        "missing": 0,
+        "extra": 0,
+        "passed": true,
+        "missingKeys": [],
+        "extraKeys": [],
+        "namespaces": {
+          "nav": {
+            "totalKeys": 8,
+            "relevantKeys": 8,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 8,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "dashboard": {
+            "totalKeys": 22,
+            "relevantKeys": 22,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 22,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "governance": {
+            "totalKeys": 28,
+            "relevantKeys": 28,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 28,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "tenants": {
+            "totalKeys": 9,
+            "relevantKeys": 9,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 9,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "monitoring": {
+            "totalKeys": 19,
+            "relevantKeys": 19,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 19,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "uxMetrics": {
+            "totalKeys": 31,
+            "relevantKeys": 31,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 31,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "metricsDashboard": {
+            "totalKeys": 35,
+            "relevantKeys": 35,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 35,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "settings": {
+            "totalKeys": 88,
+            "relevantKeys": 88,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 88,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "common": {
+            "totalKeys": 20,
+            "relevantKeys": 20,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 20,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 100,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "auth": {
+            "totalKeys": 35,
+            "relevantKeys": 35,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 35,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 100,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "app": {
+            "totalKeys": 4,
+            "relevantKeys": 4,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 4,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          },
+          "sidebar": {
+            "totalKeys": 4,
+            "relevantKeys": 4,
+            "ignoredKeys": 0,
+            "coverage": 100,
+            "covered": 4,
+            "missing": 0,
+            "extra": 0,
+            "threshold": 95,
+            "passed": true,
+            "missingKeys": [],
+            "extraKeys": [],
+            "icuKeys": 0,
+            "pluralKeys": 0
+          }
+        },
+        "icuKeys": 0,
+        "pluralKeys": 0
+      }
+    ],
+    "config": {
+      "thresholds": {
+        "global": 95,
+        "perNamespace": {
+          "common": 100,
+          "errors": 98,
+          "auth": 100
+        }
+      },
+      "ignorePatterns": [
+        "debug.*",
+        "test.*",
+        "dev.*"
+      ],
+      "ignoreKeys": [
+        "common.appName",
+        "common.version"
+      ]
+    }
+  }
+}

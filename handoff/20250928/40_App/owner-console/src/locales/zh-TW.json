@@ -144,7 +144,15 @@
     "a11yTests": "A11y 測試",
     "motionTests": "Motion 測試",
     "vrtTests": "VRT 測試",
-    "prCount": "{{available}}/{{total}} 個 PR"
+    "prCount": "{{available}}/{{total}} 個 PR",
+    "i18nTrend": "i18n 覆蓋率趨勢",
+    "lighthouseTrend": "Lighthouse 效能趨勢",
+    "bundleSizeTrend": "Bundle 大小變化趨勢",
+    "avgBundleSize": "平均 Bundle 大小",
+    "avgChange": "平均變化",
+    "totalChange": "總變化",
+    "critical": "嚴重",
+    "serious": "重要"
   },
   "metricsDashboard": {
     "title": "指標儀表板",

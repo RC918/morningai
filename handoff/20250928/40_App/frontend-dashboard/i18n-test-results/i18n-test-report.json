@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-11-07T07:46:42.247Z",
+  "passed": true,
+  "results": {
+    "primary": {
+      "locale": "en-US",
+      "totalKeys": 828
+    },
+    "secondary": [
+      {
+        "locale": "zh-TW",
+        "totalKeys": 828,
+        "coverage": 100,
+        "missing": 0,
+        "extra": 0,
+        "passed": true,
+        "missingKeys": [],
+        "extraKeys": []
+      }
+    ]
+  }
+}

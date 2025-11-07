@@ -76,7 +76,8 @@ class MetricsAggregator {
       author: pr.user.login,
       url: pr.html_url,
       sha: pr.merge_commit_sha,
-      apps: {}
+      apps: {},
+      bundleSize: null
     };
 
     // Fetch check runs for this PR
@@ -96,6 +97,9 @@ class MetricsAggregator {
       // Extract Lighthouse metrics from PR comments
       metrics.lighthouse = await this.extractLighthouseMetrics(pr);
 
+      // Extract bundle size from PR comments
+      metrics.bundleSize = await this.extractBundleSizeMetrics(pr);
+
     } catch (error) {
       console.error(`Error fetching metrics for PR #${pr.number}:`, error.message);
     }
@@ -111,22 +115,30 @@ class MetricsAggregator {
       vrt: null
     };
 
-    // Try to find and download artifacts for each metric type
+    // Try to find and parse artifacts for each metric type
     const metricTypes = ['i18n', 'a11y', 'motion', 'vrt'];
     
     for (const metricType of metricTypes) {
       try {
         // Find the check run for this metric
-        const checkName = `${metricType.charAt(0).toUpperCase() + metricType.slice(1)} Coverage Check (${appName})`;
-        const checkRun = checkRuns.find(run => run.name.includes(metricType) && run.name.includes(appName));
+        const checkRun = checkRuns.find(run => 
+          run.name.toLowerCase().includes(metricType) && 
+          run.name.includes(appName)
+        );
         
-        if (checkRun && checkRun.conclusion === 'success') {
-          // For now, we'll mark as available but not download artifacts
-          // In a full implementation, we would download and parse artifacts here
-          metrics[metricType] = {
-            status: 'available',
-            check_run_id: checkRun.id
-          };
+        if (checkRun) {
+          // Try to download and parse the artifact
+          const parsedMetric = await this.downloadAndParseArtifact(checkRun, metricType, appName, pr);
+          
+          if (parsedMetric) {
+            metrics[metricType] = parsedMetric;
+          } else if (checkRun.conclusion === 'success') {
+            // Fallback: mark as available if we can't parse but check passed
+            metrics[metricType] = {
+              status: 'available',
+              check_run_id: checkRun.id
+            };
+          }
         }
       } catch (error) {
         console.error(`Error extracting ${metricType} for ${appName}:`, error.message);
@@ -134,6 +146,124 @@ class MetricsAggregator {
     }
 
     return metrics;
+  }
+
+  async downloadAndParseArtifact(checkRun, metricType, appName, pr) {
+    try {
+      // List artifacts for this workflow run
+      const { data: artifacts } = await this.octokit.actions.listWorkflowRunArtifacts({
+        owner: REPO_OWNER,
+        repo: REPO_NAME,
+        run_id: checkRun.check_suite.id
+      });
+
+      // Find the artifact for this metric and app
+      const artifactName = `${metricType}-test-results-${appName}`;
+      const artifact = artifacts.artifacts.find(a => 
+        a.name.includes(metricType) && a.name.includes(appName)
+      );
+
+      if (!artifact) {
+        return null;
+      }
+
+      // Download the artifact
+      const { data: download } = await this.octokit.actions.downloadArtifact({
+        owner: REPO_OWNER,
+        repo: REPO_NAME,
+        artifact_id: artifact.id,
+        archive_format: 'zip'
+      });
+
+      // Parse the artifact based on metric type
+      // Note: In production, we would extract the ZIP and parse JSON files
+      // For now, we'll use a simplified approach based on check run output
+      return await this.parseMetricFromCheckRun(checkRun, metricType);
+
+    } catch (error) {
+      // Artifact download might fail due to permissions or expiration
+      // Fall back to parsing from check run output
+      return await this.parseMetricFromCheckRun(checkRun, metricType);
+    }
+  }
+
+  async parseMetricFromCheckRun(checkRun, metricType) {
+    try {
+      // Get check run details including output
+      const { data: checkRunDetails } = await this.octokit.checks.get({
+        owner: REPO_OWNER,
+        repo: REPO_NAME,
+        check_run_id: checkRun.id
+      });
+
+      const output = checkRunDetails.output?.text || checkRunDetails.output?.summary || '';
+      
+      if (metricType === 'i18n') {
+        // Parse i18n coverage percentage
+        // Look for patterns like "Coverage: 100%" or "coverage: 95.5%"
+        const coverageMatch = output.match(/coverage[:\s]+(\d+(?:\.\d+)?)\s*%/i);
+        if (coverageMatch) {
+          const coverage = parseFloat(coverageMatch[1]);
+          return {
+            status: 'parsed',
+            value: coverage,
+            unit: '%',
+            passed: coverage >= THRESHOLDS.i18n.target,
+            check_run_id: checkRun.id
+          };
+        }
+      } else if (metricType === 'a11y') {
+        // Parse a11y violations
+        // Look for patterns like "Critical: 0, Serious: 1"
+        const criticalMatch = output.match(/critical[:\s]+(\d+)/i);
+        const seriousMatch = output.match(/serious[:\s]+(\d+)/i);
+        
+        if (criticalMatch || seriousMatch) {
+          const critical = criticalMatch ? parseInt(criticalMatch[1]) : 0;
+          const serious = seriousMatch ? parseInt(seriousMatch[1]) : 0;
+          
+          return {
+            status: 'parsed',
+            critical,
+            serious,
+            passed: critical <= THRESHOLDS.a11y.critical && serious <= THRESHOLDS.a11y.serious,
+            check_run_id: checkRun.id
+          };
+        }
+      } else if (metricType === 'motion') {
+        // Parse motion P95 frame time
+        // Look for patterns like "P95: 16.7ms" or "p95FrameTime: 16.67"
+        const p95Match = output.match(/p95[:\s]+(\d+(?:\.\d+)?)\s*(?:ms)?/i);
+        if (p95Match) {
+          const p95 = parseFloat(p95Match[1]);
+          return {
+            status: 'parsed',
+            value: p95,
+            unit: 'ms',
+            passed: p95 <= THRESHOLDS.motion.p95,
+            check_run_id: checkRun.id
+          };
+        }
+      } else if (metricType === 'vrt') {
+        // Parse VRT mismatch percentage
+        const mismatchMatch = output.match(/mismatch[:\s]+(\d+(?:\.\d+)?)\s*%/i);
+        if (mismatchMatch) {
+          const mismatch = parseFloat(mismatchMatch[1]);
+          return {
+            status: 'parsed',
+            value: mismatch,
+            unit: '%',
+            passed: mismatch <= THRESHOLDS.vrt.mismatch,
+            check_run_id: checkRun.id
+          };
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error(`Error parsing ${metricType} from check run:`, error.message);
+      return null;
+    }
   }
 
   async extractLighthouseMetrics(pr) {
@@ -164,6 +294,87 @@ class MetricsAggregator {
       }
     } catch (error) {
       console.error(`Error extracting Lighthouse metrics for PR #${pr.number}:`, error.message);
+    }
+
+    return null;
+  }
+
+  async extractBundleSizeMetrics(pr) {
+    try {
+      // Fetch PR comments to find bundle size reports
+      const { data: comments } = await this.octokit.issues.listComments({
+        owner: REPO_OWNER,
+        repo: REPO_NAME,
+        issue_number: pr.number,
+        per_page: 100
+      });
+
+      // Look for bundle size comment (from bundlewatch, size-limit, or similar tools)
+      const bundleSizeComment = comments.find(comment => 
+        comment.body && (
+          comment.body.includes('Bundle Size') ||
+          comment.body.includes('bundle size') ||
+          comment.body.includes('Size Change') ||
+          comment.body.includes('size-limit')
+        )
+      );
+
+      if (bundleSizeComment) {
+        const body = bundleSizeComment.body;
+        
+        // Try to parse bundle size in KB or MB
+        // Patterns: "123.45 KB", "1.23 MB", "Total: 456 KB"
+        const kbMatch = body.match(/(?:total|size)[:\s]+(\d+(?:\.\d+)?)\s*KB/i);
+        const mbMatch = body.match(/(?:total|size)[:\s]+(\d+(?:\.\d+)?)\s*MB/i);
+        
+        let totalSize = null;
+        if (kbMatch) {
+          totalSize = parseFloat(kbMatch[1]); // in KB
+        } else if (mbMatch) {
+          totalSize = parseFloat(mbMatch[1]) * 1024; // Convert MB to KB
+        }
+
+        // Try to parse change/delta
+        const changeMatch = body.match(/([+-]?\d+(?:\.\d+)?)\s*KB/);
+        const changePercent = body.match(/([+-]?\d+(?:\.\d+)?)\s*%/);
+
+        return {
+          total_kb: totalSize,
+          change_kb: changeMatch ? parseFloat(changeMatch[1]) : null,
+          change_percent: changePercent ? parseFloat(changePercent[1]) : null,
+          comment_url: bundleSizeComment.html_url
+        };
+      }
+
+      // Fallback: Try to extract from check runs
+      const { data: checkRuns } = await this.octokit.checks.listForRef({
+        owner: REPO_OWNER,
+        repo: REPO_NAME,
+        ref: pr.merge_commit_sha,
+        per_page: 100
+      });
+
+      const bundleCheckRun = checkRuns.check_runs.find(run => 
+        run.name.toLowerCase().includes('bundle') || 
+        run.name.toLowerCase().includes('size')
+      );
+
+      if (bundleCheckRun) {
+        const output = bundleCheckRun.output?.text || bundleCheckRun.output?.summary || '';
+        const kbMatch = output.match(/(\d+(?:\.\d+)?)\s*KB/i);
+        
+        if (kbMatch) {
+          return {
+            total_kb: parseFloat(kbMatch[1]),
+            change_kb: null,
+            change_percent: null,
+            check_run_id: bundleCheckRun.id
+          };
+        }
+      }
+
+    } catch (error) {
+      console.error(`Error extracting bundle size for PR #${pr.number}:`, error.message);
     }
 
     return null;
@@ -207,7 +418,8 @@ class MetricsAggregator {
 
   generateSummary() {
     const summary = {
-      apps: {}
+      apps: {},
+      trends: {}
     };
 
     // Calculate summary statistics for each app
@@ -216,12 +428,83 @@ class MetricsAggregator {
         .map(m => m.apps[app])
         .filter(Boolean);
 
+      // Count available and parsed metrics
+      const i18nParsed = appMetrics.filter(m => m.i18n?.status === 'parsed');
+      const a11yParsed = appMetrics.filter(m => m.a11y?.status === 'parsed');
+      const motionParsed = appMetrics.filter(m => m.motion?.status === 'parsed');
+      const vrtParsed = appMetrics.filter(m => m.vrt?.status === 'parsed');
+
       summary.apps[app] = {
         total_prs: appMetrics.length,
-        i18n_available: appMetrics.filter(m => m.i18n?.status === 'available').length,
-        a11y_available: appMetrics.filter(m => m.a11y?.status === 'available').length,
-        motion_available: appMetrics.filter(m => m.motion?.status === 'available').length,
-        vrt_available: appMetrics.filter(m => m.vrt?.status === 'available').length
+        i18n: {
+          available: appMetrics.filter(m => m.i18n).length,
+          parsed: i18nParsed.length,
+          avg_coverage: i18nParsed.length > 0 
+            ? i18nParsed.reduce((sum, m) => sum + m.i18n.value, 0) / i18nParsed.length 
+            : null,
+          pass_rate: i18nParsed.length > 0
+            ? (i18nParsed.filter(m => m.i18n.passed).length / i18nParsed.length) * 100
+            : null
+        },
+        a11y: {
+          available: appMetrics.filter(m => m.a11y).length,
+          parsed: a11yParsed.length,
+          avg_critical: a11yParsed.length > 0
+            ? a11yParsed.reduce((sum, m) => sum + m.a11y.critical, 0) / a11yParsed.length
+            : null,
+          avg_serious: a11yParsed.length > 0
+            ? a11yParsed.reduce((sum, m) => sum + m.a11y.serious, 0) / a11yParsed.length
+            : null,
+          pass_rate: a11yParsed.length > 0
+            ? (a11yParsed.filter(m => m.a11y.passed).length / a11yParsed.length) * 100
+            : null
+        },
+        motion: {
+          available: appMetrics.filter(m => m.motion).length,
+          parsed: motionParsed.length,
+          avg_p95: motionParsed.length > 0
+            ? motionParsed.reduce((sum, m) => sum + m.motion.value, 0) / motionParsed.length
+            : null,
+          pass_rate: motionParsed.length > 0
+            ? (motionParsed.filter(m => m.motion.passed).length / motionParsed.length) * 100
+            : null
+        },
+        vrt: {
+          available: appMetrics.filter(m => m.vrt).length,
+          parsed: vrtParsed.length,
+          avg_mismatch: vrtParsed.length > 0
+            ? vrtParsed.reduce((sum, m) => sum + m.vrt.value, 0) / vrtParsed.length
+            : null,
+          pass_rate: vrtParsed.length > 0
+            ? (vrtParsed.filter(m => m.vrt.passed).length / vrtParsed.length) * 100
+            : null
+        }
+      };
+
+      // Generate trend data (last 10 PRs)
+      const recentMetrics = this.metrics.slice(0, 10).reverse();
+      summary.trends[app] = {
+        i18n: recentMetrics.map(m => ({
+          pr: m.pr,
+          value: m.apps[app]?.i18n?.value || null,
+          passed: m.apps[app]?.i18n?.passed || null
+        })),
+        a11y: recentMetrics.map(m => ({
+          pr: m.pr,
+          critical: m.apps[app]?.a11y?.critical || null,
+          serious: m.apps[app]?.a11y?.serious || null,
+          passed: m.apps[app]?.a11y?.passed || null
+        })),
+        motion: recentMetrics.map(m => ({
+          pr: m.pr,
+          value: m.apps[app]?.motion?.value || null,
+          passed: m.apps[app]?.motion?.passed || null
+        })),
+        vrt: recentMetrics.map(m => ({
+          pr: m.pr,
+          value: m.apps[app]?.vrt?.value || null,
+          passed: m.apps[app]?.vrt?.passed || null
+        }))
       };
     }
 
@@ -237,8 +520,54 @@ class MetricsAggregator {
       summary.lighthouse = {
         total_prs: lighthouseMetrics.length,
         fcp_avg: fcpValues.length > 0 ? fcpValues.reduce((a, b) => a + b, 0) / fcpValues.length : null,
-        lcp_avg: lcpValues.length > 0 ? lcpValues.reduce((a, b) => a + b, 0) / lcpValues.length : null
+        lcp_avg: lcpValues.length > 0 ? lcpValues.reduce((a, b) => a + b, 0) / lcpValues.length : null,
+        fcp_pass_rate: fcpValues.length > 0
+          ? (fcpValues.filter(v => v <= THRESHOLDS.lighthouse.fcp).length / fcpValues.length) * 100
+          : null,
+        lcp_pass_rate: lcpValues.length > 0
+          ? (lcpValues.filter(v => v <= THRESHOLDS.lighthouse.lcp).length / lcpValues.length) * 100
+          : null
       };
+
+      // Lighthouse trend data
+      const recentLighthouse = this.metrics.slice(0, 10).reverse();
+      summary.trends.lighthouse = recentLighthouse.map(m => ({
+        pr: m.pr,
+        fcp: m.lighthouse?.fcp || null,
+        lcp: m.lighthouse?.lcp || null
+      }));
+    }
+
+    // Calculate bundle size summary
+    const bundleSizeMetrics = this.metrics
+      .map(m => m.bundleSize)
+      .filter(Boolean);
+
+    if (bundleSizeMetrics.length > 0) {
+      const totalSizes = bundleSizeMetrics.map(m => m.total_kb).filter(Boolean);
+      const changes = bundleSizeMetrics.map(m => m.change_kb).filter(Boolean);
+
+      summary.bundleSize = {
+        total_prs: bundleSizeMetrics.length,
+        avg_size_kb: totalSizes.length > 0
+          ? totalSizes.reduce((a, b) => a + b, 0) / totalSizes.length
+          : null,
+        avg_change_kb: changes.length > 0
+          ? changes.reduce((a, b) => a + b, 0) / changes.length
+          : null,
+        total_change_kb: changes.length > 0
+          ? changes.reduce((a, b) => a + b, 0)
+          : null
+      };
+
+      // Bundle size trend data
+      const recentBundleSize = this.metrics.slice(0, 10).reverse();
+      summary.trends.bundleSize = recentBundleSize.map(m => ({
+        pr: m.pr,
+        total_kb: m.bundleSize?.total_kb || null,
+        change_kb: m.bundleSize?.change_kb || null,
+        change_percent: m.bundleSize?.change_percent || null
+      }));
     }
 
     return summary;
