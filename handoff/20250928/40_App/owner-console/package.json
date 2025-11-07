@@ -16,6 +16,7 @@
     "test:vrt": "playwright test -g @vrt",
     "test:motion": "node scripts/test-motion.cjs",
     "test:a11y": "node scripts/test-a11y.cjs",
+    "test:i18n": "node scripts/test-i18n.cjs",
     "generate:api": "orval --config orval.config.cjs",
     "typecheck": "tsc --noEmit"
   },
