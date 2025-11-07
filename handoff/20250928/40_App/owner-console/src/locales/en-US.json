@@ -4,6 +4,7 @@
     "governance": "Agent Governance",
     "tenants": "Tenant Management",
     "monitoring": "System Monitoring",
+    "uxMetrics": "UX Metrics",
     "settings": "Platform Settings",
     "logout": "Logout",
     "mainNavigation": "Main navigation"
@@ -111,6 +112,39 @@
     "disk": "Disk",
     "usedTotal": "Used/Total",
     "gbFormat": "{{used}}GB / {{total}}GB"
+  },
+  "uxMetrics": {
+    "title": "UX Metrics Dashboard",
+    "subtitle": "Monitor UX quality metrics across recent PRs",
+    "errorLoading": "Error Loading Metrics",
+    "noData": "No metrics data available",
+    "lastUpdated": "Last updated: {{date}}",
+    "totalPRs": "Total PRs",
+    "avgFCP": "Avg FCP",
+    "avgLCP": "Avg LCP",
+    "target": "Target: ≤{{value}}{{unit}}",
+    "i18nCoverage": "i18n Coverage",
+    "prsWithData": "PRs with i18n data",
+    "qualityThresholds": "Quality Thresholds",
+    "i18n": "i18n",
+    "a11yCritical": "A11y Critical",
+    "motionP95": "Motion P95",
+    "vrtMismatch": "VRT Mismatch",
+    "lighthouseFCP": "Lighthouse FCP",
+    "recentPRs": "Recent PRs",
+    "pr": "PR",
+    "prTitle": "Title",
+    "author": "Author",
+    "merged": "Merged",
+    "i18nFD": "i18n (FD)",
+    "i18nOC": "i18n (OC)",
+    "available": "✓ Available",
+    "frontendDashboard": "Frontend Dashboard",
+    "ownerConsole": "Owner Console",
+    "a11yTests": "A11y Tests",
+    "motionTests": "Motion Tests",
+    "vrtTests": "VRT Tests",
+    "prCount": "{{available}}/{{total}} PRs"
   },
   "metricsDashboard": {
     "title": "Metrics Dashboard",
@@ -288,9 +322,14 @@
     "filter": "Filter",
     "export": "Export",
     "refresh": "Refresh",
+    "retry": "Retry",
     "usage": "Usage",
     "idShort": "ID: {{id}}",
-    "changeLanguage": "Change language"
+    "changeLanguage": "Change language",
+    "na": "N/A",
+    "pass": "✓ Pass",
+    "fail": "✗ Fail",
+    "ms": "ms"
   },
   "auth": {
     "login": {

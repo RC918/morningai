@@ -7,6 +7,7 @@ import {
   Shield,
   Users,
   Activity,
+  BarChart3,
   LogOut,
   ChevronLeft,
   ChevronRight
@@ -44,6 +45,12 @@ const Sidebar = ({ user, onLogout }) => {
       icon: Activity,
       labelKey: 'nav.monitoring',
       descriptionKey: 'monitoring.subtitle'
+    },
+    {
+      path: '/ux-metrics',
+      icon: BarChart3,
+      labelKey: 'nav.uxMetrics',
+      descriptionKey: 'uxMetrics.subtitle'
     },
     {
       path: '/settings',

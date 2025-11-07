@@ -4,6 +4,7 @@
     "governance": "Agent 治理",
     "tenants": "租戶管理",
     "monitoring": "系統監控",
+    "uxMetrics": "UX 指標",
     "settings": "平台設定",
     "logout": "登出",
     "mainNavigation": "主導覽"
@@ -111,6 +112,39 @@
     "disk": "磁碟",
     "usedTotal": "已用/總量",
     "gbFormat": "{{used}}GB / {{total}}GB"
+  },
+  "uxMetrics": {
+    "title": "UX 指標儀表板",
+    "subtitle": "監控最近 PR 的 UX 品質指標",
+    "errorLoading": "載入指標時發生錯誤",
+    "noData": "沒有可用的指標資料",
+    "lastUpdated": "最後更新：{{date}}",
+    "totalPRs": "總 PR 數",
+    "avgFCP": "平均 FCP",
+    "avgLCP": "平均 LCP",
+    "target": "目標：≤{{value}}{{unit}}",
+    "i18nCoverage": "i18n 覆蓋率",
+    "prsWithData": "包含 i18n 資料的 PR",
+    "qualityThresholds": "品質閾值",
+    "i18n": "i18n",
+    "a11yCritical": "A11y 嚴重",
+    "motionP95": "Motion P95",
+    "vrtMismatch": "VRT 不匹配",
+    "lighthouseFCP": "Lighthouse FCP",
+    "recentPRs": "最近的 PR",
+    "pr": "PR",
+    "prTitle": "標題",
+    "author": "作者",
+    "merged": "已合併",
+    "i18nFD": "i18n (FD)",
+    "i18nOC": "i18n (OC)",
+    "available": "✓ 可用",
+    "frontendDashboard": "Frontend Dashboard",
+    "ownerConsole": "Owner Console",
+    "a11yTests": "A11y 測試",
+    "motionTests": "Motion 測試",
+    "vrtTests": "VRT 測試",
+    "prCount": "{{available}}/{{total}} 個 PR"
   },
   "metricsDashboard": {
     "title": "指標儀表板",
@@ -288,9 +322,14 @@
     "filter": "篩選",
     "export": "匯出",
     "refresh": "重新整理",
+    "retry": "重試",
     "usage": "使用量",
     "idShort": "ID：{{id}}",
-    "changeLanguage": "切換語言"
+    "changeLanguage": "切換語言",
+    "na": "不適用",
+    "pass": "✓ 通過",
+    "fail": "✗ 失敗",
+    "ms": "毫秒"
   },
   "auth": {
     "login": {

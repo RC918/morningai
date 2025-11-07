@@ -1,0 +1,208 @@
+{
+  "generated_at": "2025-11-07T15:00:49.724Z",
+  "repo": "RC918/morningai",
+  "total_prs": 5,
+  "thresholds": {
+    "i18n": {
+      "target": 95,
+      "unit": "%"
+    },
+    "a11y": {
+      "critical": 0,
+      "serious": 2
+    },
+    "motion": {
+      "p95": 16.67,
+      "unit": "ms"
+    },
+    "vrt": {
+      "mismatch": 0.1,
+      "unit": "%"
+    },
+    "lighthouse": {
+      "fcp": 1000,
+      "lcp": 2500,
+      "unit": "ms"
+    }
+  },
+  "metrics": [
+    {
+      "pr": 1191,
+      "title": "feat(shared-ui): Add Template Literal Types for type-safe token access",
+      "merged_at": "2025-11-07T14:44:10Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1191",
+      "sha": "31c223a7e9e517dfa1f2d1f2c2f3910a7a6761a0",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": {
+            "status": "available",
+            "check_run_id": 54806037517
+          },
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": {
+            "status": "available",
+            "check_run_id": 54806037543
+          },
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "lighthouse": {
+        "fcp": 700,
+        "lcp": 1570,
+        "comment_url": "https://github.com/RC918/morningai/pull/1191#issuecomment-3502540332"
+      }
+    },
+    {
+      "pr": 1190,
+      "title": "refactor(shared-ui): Refactor getCSSVariables to use recursive token traversal",
+      "merged_at": "2025-11-07T14:02:53Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1190",
+      "sha": "633d651f91a376ee9976d9b2e7ec54d805c15265",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": {
+            "status": "available",
+            "check_run_id": 54802249645
+          },
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": {
+            "status": "available",
+            "check_run_id": 54802249636
+          },
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "lighthouse": {
+        "fcp": 690,
+        "lcp": 1570,
+        "comment_url": "https://github.com/RC918/morningai/pull/1190#issuecomment-3502490921"
+      }
+    },
+    {
+      "pr": 1188,
+      "title": "test(shared-ui): Add comprehensive unit tests and documentation for design tokens",
+      "merged_at": "2025-11-07T12:24:38Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1188",
+      "sha": "f4ab99148039c67dfa6a060d2ba5f518623ef625",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": {
+            "status": "available",
+            "check_run_id": 54794220474
+          },
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": {
+            "status": "available",
+            "check_run_id": 54794220508
+          },
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "lighthouse": {
+        "fcp": 700,
+        "lcp": 1570,
+        "comment_url": "https://github.com/RC918/morningai/pull/1188#issuecomment-3502189852"
+      }
+    },
+    {
+      "pr": 1180,
+      "title": "docs(auth): Deprecate legacy /totp/setup endpoint and add migration guide",
+      "merged_at": "2025-11-07T12:19:00Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1180",
+      "sha": "30b0a472006986b21509867647effb9408d1aebd",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": {
+            "status": "available",
+            "check_run_id": 54793801113
+          },
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": {
+            "status": "available",
+            "check_run_id": 54793801094
+          },
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "lighthouse": {
+        "fcp": 700,
+        "lcp": 1570,
+        "comment_url": "https://github.com/RC918/morningai/pull/1180#issuecomment-3501548510"
+      }
+    },
+    {
+      "pr": 1189,
+      "title": "docs: Update FAQ (trace-id: b45dd6db)",
+      "merged_at": "2025-11-07T12:05:25Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1189",
+      "sha": "4631eb4bd35bd7ea1b56c9165e961587e3945092",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "lighthouse": null
+    }
+  ],
+  "summary": {
+    "apps": {
+      "frontend-dashboard": {
+        "total_prs": 5,
+        "i18n_available": 4,
+        "a11y_available": 0,
+        "motion_available": 0,
+        "vrt_available": 0
+      },
+      "owner-console": {
+        "total_prs": 5,
+        "i18n_available": 4,
+        "a11y_available": 0,
+        "motion_available": 0,
+        "vrt_available": 0
+      }
+    },
+    "lighthouse": {
+      "total_prs": 4,
+      "fcp_avg": 697.5,
+      "lcp_avg": 1570
+    }
+  }
+}
