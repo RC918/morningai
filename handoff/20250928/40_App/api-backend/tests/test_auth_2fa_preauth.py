@@ -64,9 +64,8 @@ def mock_redis():
 @pytest.fixture
 def mock_supabase():
     """Mock Supabase client"""
-    with patch("supabase.create_client") as mock_create, patch(
-        "src.routes.auth_2fa.create_client"
-    ) as mock_create_2fa:
+    with patch("supabase.create_client") as mock_create, \
+         patch("src.routes.auth_2fa.create_client") as mock_create_2fa:
         supabase_mock = MagicMock()
 
         user_2fa_mock = MagicMock()
