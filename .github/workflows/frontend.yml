@@ -179,8 +179,8 @@ jobs:
           
           echo "Checking changed files between $BASE and $HEAD"
           
-          # Get all changed JS/JSX/TS/TSX files
-          CHANGED=$(git diff --name-only "$BASE"..."$HEAD" | grep -E '\.(js|jsx|ts|tsx)$' || true)
+          # Get all changed JS/JSX/TS/TSX files (excluding deletions)
+          CHANGED=$(git diff --name-only --diff-filter=d "$BASE"..."$HEAD" | grep -E '\.(js|jsx|ts|tsx)$' || true)
           
           if [ -z "$CHANGED" ]; then
             echo "No JS/TS files changed in this PR"
