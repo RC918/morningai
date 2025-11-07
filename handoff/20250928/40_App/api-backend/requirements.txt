@@ -35,6 +35,9 @@ pyotp==2.9.0
 qrcode[pil]==7.4.2
 argon2-cffi==23.1.0
 
+# Testing dependencies
+fakeredis==2.24.1
+
 # System monitoring dependencies
 psutil==6.1.0
 
