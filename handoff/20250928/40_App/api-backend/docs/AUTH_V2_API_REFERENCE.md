@@ -178,6 +178,15 @@ The temporary token is malformed, expired, or invalid.
 
 **Resolution:** Request a new temporary token by logging in again.
 
+### Post-Consumption Error Semantics
+
+When a temporary token is consumed, concurrent requests may receive:
+
+- TMP_TOKEN_CONSUMED (401): Token exists but consumed
+- TMP_TOKEN_INVALID (401): Token key no longer exists
+
+Both indicate the token cannot be used. Clients should handle them identically.
+
 #### TMP_TOKEN_ATTEMPTS_EXCEEDED (401)
 Too many failed verification attempts with this temporary token.
 
