@@ -669,4 +669,158 @@ describe('Auth Module', () => {
       expect(getStoredTokenExpiry()).toBe(newExpiry);
     });
   });
+
+  describe('Preview Mode Bypass (P1)', () => {
+    let originalWindow: any;
+    let originalEnv: any;
+
+    beforeEach(() => {
+      mockFetch.mockClear();
+      vi.spyOn(console, 'debug').mockImplementation(() => {});
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      
+      originalWindow = global.window;
+      originalEnv = import.meta.env;
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      global.window = originalWindow;
+    });
+
+    it('should skip CSRF token check when VITE_PREVIEW_PUBLIC_METRICS is true and pathname is /ux-metrics', async () => {
+      Object.defineProperty(import.meta, 'env', {
+        value: { VITE_PREVIEW_PUBLIC_METRICS: 'true' },
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(global, 'window', {
+        value: {
+          location: { pathname: '/ux-metrics' }
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      const result = await initAuth();
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should NOT skip CSRF token check when VITE_PREVIEW_PUBLIC_METRICS is true but pathname is not /ux-metrics', async () => {
+      Object.defineProperty(import.meta, 'env', {
+        value: { VITE_PREVIEW_PUBLIC_METRICS: 'true', VITE_API_BASE_URL: 'http://test.com' },
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(global, 'window', {
+        value: {
+          location: { pathname: '/dashboard' }
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ csrf_token: 'test-token' }),
+      });
+
+      await initAuth();
+
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('should NOT skip CSRF token check when VITE_PREVIEW_PUBLIC_METRICS is false and pathname is /ux-metrics', async () => {
+      Object.defineProperty(import.meta, 'env', {
+        value: { VITE_PREVIEW_PUBLIC_METRICS: 'false', VITE_API_BASE_URL: 'http://test.com' },
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(global, 'window', {
+        value: {
+          location: { pathname: '/ux-metrics' }
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ csrf_token: 'test-token' }),
+      });
+
+      await initAuth();
+
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('should handle preview mode bypass with /ux-metrics/ trailing slash', async () => {
+      Object.defineProperty(import.meta, 'env', {
+        value: { VITE_PREVIEW_PUBLIC_METRICS: 'true' },
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(global, 'window', {
+        value: {
+          location: { pathname: '/ux-metrics/' }
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      const result = await initAuth();
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should NOT bypass for paths that contain but do not start with /ux-metrics', async () => {
+      Object.defineProperty(import.meta, 'env', {
+        value: { VITE_PREVIEW_PUBLIC_METRICS: 'true', VITE_API_BASE_URL: 'http://test.com' },
+        writable: true,
+        configurable: true,
+      });
+      
+      Object.defineProperty(global, 'window', {
+        value: {
+          location: { pathname: '/admin/ux-metrics' }
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ csrf_token: 'test-token' }),
+      });
+
+      await initAuth();
+
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('should handle preview mode in server-side rendering (no window)', async () => {
+      Object.defineProperty(import.meta, 'env', {
+        value: { VITE_PREVIEW_PUBLIC_METRICS: 'true' },
+        writable: true,
+        configurable: true,
+      });
+      
+      const originalWindow = global.window;
+      delete (global as any).window;
+
+      const result = await initAuth();
+
+      expect(result.isAuthenticated).toBe(false);
+
+      (global as any).window = originalWindow;
+    });
+  });
 });
