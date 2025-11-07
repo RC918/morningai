@@ -29,7 +29,7 @@ import type {
  * Get 2FA status for the authenticated user
  */
 export async function getTwoFAStatus(): Promise<TwoFAStatusResponse> {
-  return apiClient<TwoFAStatusResponse>('/auth/v2/totp/status', {
+  return apiClient<TwoFAStatusResponse>('/api/auth/v2/totp/status', {
     method: 'GET',
   });
 }
@@ -41,7 +41,7 @@ export async function getTwoFAStatus(): Promise<TwoFAStatusResponse> {
 export async function setupTwoFA(
   request: TwoFASetupRequest
 ): Promise<TwoFASetupResponse> {
-  return apiClient<TwoFASetupResponse>('/auth/v2/totp/setup', {
+  return apiClient<TwoFASetupResponse>('/api/auth/v2/totp/setup', {
     method: 'POST',
     body: JSON.stringify(request),
   });
@@ -53,7 +53,7 @@ export async function setupTwoFA(
 export async function verifyTwoFASetup(
   request: TwoFAVerifySetupRequest
 ): Promise<TwoFAVerifySetupResponse> {
-  return apiClient<TwoFAVerifySetupResponse>('/auth/v2/totp/verify-setup', {
+  return apiClient<TwoFAVerifySetupResponse>('/api/auth/v2/totp/verify-setup', {
     method: 'POST',
     body: JSON.stringify(request),
   });
@@ -66,7 +66,7 @@ export async function verifyTwoFASetup(
 export async function disableTwoFA(
   request: TwoFADisableRequest
 ): Promise<TwoFADisableResponse> {
-  return apiClient<TwoFADisableResponse>('/auth/v2/totp/disable', {
+  return apiClient<TwoFADisableResponse>('/api/auth/v2/totp/disable', {
     method: 'POST',
     body: JSON.stringify(request),
   });
@@ -80,7 +80,7 @@ export async function regenerateBackupCodes(
   request: TwoFARegenerateBackupCodesRequest
 ): Promise<TwoFARegenerateBackupCodesResponse> {
   return apiClient<TwoFARegenerateBackupCodesResponse>(
-    '/auth/v2/totp/backup-codes/regenerate',
+    '/api/auth/v2/totp/backup-codes/regenerate',
     {
       method: 'POST',
       body: JSON.stringify(request),
@@ -95,7 +95,7 @@ export async function regenerateBackupCodes(
 export async function verifyTwoFALogin(
   request: TwoFALoginRequest
 ): Promise<TwoFALoginResponse> {
-  return apiClient<TwoFALoginResponse>('/auth/v2/totp/verify-login', {
+  return apiClient<TwoFALoginResponse>('/api/auth/v2/totp/verify-login', {
     method: 'POST',
     body: JSON.stringify(request),
   });
@@ -109,7 +109,7 @@ export async function challengeTwoFA(
   request: TwoFAChallengeRequest,
   preAuthToken: string
 ): Promise<TwoFAChallengeResponse> {
-  return apiClient<TwoFAChallengeResponse>('/auth/v2/2fa/challenge', {
+  return apiClient<TwoFAChallengeResponse>('/api/auth/v2/2fa/challenge', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${preAuthToken}`,
@@ -125,7 +125,7 @@ export async function challengeTwoFA(
 export async function enrollTwoFA(
   preAuthToken: string
 ): Promise<TwoFAEnrollResponse> {
-  return apiClient<TwoFAEnrollResponse>('/auth/v2/2fa/enroll', {
+  return apiClient<TwoFAEnrollResponse>('/api/auth/v2/2fa/enroll', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${preAuthToken}`,
@@ -141,7 +141,7 @@ export async function verifyEnrollTwoFA(
   request: TwoFAVerifyEnrollRequest,
   preAuthToken: string
 ): Promise<TwoFAVerifyEnrollResponse> {
-  return apiClient<TwoFAVerifyEnrollResponse>('/auth/v2/2fa/verify-enroll', {
+  return apiClient<TwoFAVerifyEnrollResponse>('/api/auth/v2/2fa/verify-enroll', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${preAuthToken}`,
