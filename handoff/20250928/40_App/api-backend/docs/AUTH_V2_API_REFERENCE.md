@@ -6,6 +6,34 @@
 
 The 2FA pre-authentication flow uses temporary JWT tokens to manage the multi-step authentication process. These tokens are single-use and have a short TTL (5 minutes).
 
+### Migration from Legacy Endpoints
+
+**IMPORTANT**: The legacy `/api/auth/v2/totp/setup` endpoint is deprecated and will be removed in a future version.
+
+**Why the change?**
+- Legacy endpoint requires JWT authentication (`@jwt_required`)
+- This breaks forced 2FA flows where users must enroll before getting a JWT
+- New pre-auth endpoints use temporary tokens instead, enabling forced enrollment
+
+**Migration Guide:**
+
+| Legacy Endpoint | New Endpoint | Key Difference |
+|----------------|--------------|----------------|
+| `POST /api/auth/v2/totp/setup` | `POST /api/auth/v2/2fa/enroll` | Uses `pre_auth_token` instead of JWT |
+| `POST /api/auth/v2/totp/verify-setup` | `POST /api/auth/v2/2fa/verify-enroll` | Uses `pre_auth_token` instead of JWT |
+| N/A | `POST /api/auth/v2/2fa/challenge` | New endpoint for login verification |
+
+**New Flow:**
+1. User logs in → receives `tmp_login_token` with `next_step` indicator
+2. If `next_step: "enroll_2fa"` → call `/2fa/enroll` with `tmp_login_token`
+3. User scans QR code → call `/2fa/verify-enroll` with TOTP code
+4. Receive backup codes + full session tokens
+
+**Legacy Flow (deprecated):**
+1. User logs in → receives full JWT session
+2. Call `/totp/setup` with JWT + password
+3. Receive QR code + backup codes immediately (security issue)
+
 ### Endpoints
 
 #### POST /api/auth/v2/login
