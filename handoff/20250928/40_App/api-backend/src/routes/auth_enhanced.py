@@ -150,36 +150,58 @@ def login():
         if check_2fa_required(user['id']):
             supabase_url = os.environ.get('SUPABASE_URL')
             supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
-            supabase = create_client(supabase_url, supabase_key)
             
-            user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user['id']).execute()
-            
-            if user_2fa.data and user_2fa.data[0].get('enabled') and user_2fa.data[0].get('verified_at'):
-                next_step = 'challenge_2fa'
-                scope = 'challenge'
-            else:
-                next_step = 'enroll_2fa'
-                scope = 'enroll'
-            
-            pre_auth_manager = get_pre_auth_manager()
-            tmp_token = pre_auth_manager.generate_token(
-                user_id=user['id'],
-                email=user['email'],
-                scope=scope
-            )
-            
-            response_data = {
-                'requires_2fa': True,
-                'next_step': next_step,
-                'token': tmp_token,
-                'user': {
-                    'id': user['id'],
-                    'email': user['email']
+            if not supabase_url or not supabase_key:
+                logger.warning(f"Supabase env vars not configured, returning legacy 2FA response for user {user['email']}")
+                response_data = {
+                    'requires_2fa': True,
+                    'user': {
+                        'id': user['id'],
+                        'email': user['email']
+                    }
                 }
-            }
+                return jsonify(response_data), 200
             
-            logger.info(f"User {user['email']} (role: {user['role']}) requires 2FA: {next_step}")
-            return jsonify(response_data), 200
+            try:
+                supabase = create_client(supabase_url, supabase_key)
+                user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user['id']).execute()
+                
+                if user_2fa.data and user_2fa.data[0].get('enabled') and user_2fa.data[0].get('verified_at'):
+                    next_step = 'challenge_2fa'
+                    scope = 'challenge'
+                else:
+                    next_step = 'enroll_2fa'
+                    scope = 'enroll'
+                
+                pre_auth_manager = get_pre_auth_manager()
+                tmp_token = pre_auth_manager.generate_token(
+                    user_id=user['id'],
+                    email=user['email'],
+                    scope=scope
+                )
+                
+                response_data = {
+                    'requires_2fa': True,
+                    'next_step': next_step,
+                    'token': tmp_token,
+                    'user': {
+                        'id': user['id'],
+                        'email': user['email']
+                    }
+                }
+                
+                logger.info(f"User {user['email']} (role: {user['role']}) requires 2FA: {next_step}")
+                return jsonify(response_data), 200
+            except Exception as supabase_error:
+                logger.warning(f"Supabase query failed for user {user['email']}, returning legacy 2FA response: {supabase_error}")
+                response_data = {
+                    'requires_2fa': True,
+                    'user': {
+                        'id': user['id'],
+                        'email': user['email']
+                    }
+                }
+                return jsonify(response_data), 200
         
         access_token, access_expiry_ms = generate_access_token(
             user['id'], user['email'], user['role']

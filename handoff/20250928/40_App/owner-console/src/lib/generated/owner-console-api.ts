@@ -83,85 +83,6 @@ export interface DashboardData {
   alerts?: DashboardDataAlertsItem[];
 }
 
-export type MonitoringDashboardDataSystemHealthOverallStatus = typeof MonitoringDashboardDataSystemHealthOverallStatus[keyof typeof MonitoringDashboardDataSystemHealthOverallStatus];
-
-
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export const MonitoringDashboardDataSystemHealthOverallStatus = {
-  healthy: 'healthy',
-  degraded: 'degraded',
-  unhealthy: 'unhealthy',
-} as const;
-
-export type MonitoringDashboardDataSystemHealth = {
-  overall_status?: MonitoringDashboardDataSystemHealthOverallStatus;
-  error_rate?: number;
-  avg_latency?: number;
-  open_circuit_breakers?: number;
-};
-
-export type MonitoringDashboardDataMetrics = {
-  api_request_rate?: MetricValue;
-  agent_task_success_rate?: MetricValue;
-  queue_depth?: MetricValue;
-  active_agents?: MetricValue;
-};
-
-export interface MonitoringDashboardData {
-  system_health?: MonitoringDashboardDataSystemHealth;
-  metrics?: MonitoringDashboardDataMetrics;
-  agents?: AgentMetrics[];
-  alerts?: AlertItem[];
-}
-
-export type MetricValueTrend = typeof MetricValueTrend[keyof typeof MetricValueTrend];
-
-
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export const MetricValueTrend = {
-  up: 'up',
-  down: 'down',
-  stable: 'stable',
-  unknown: 'unknown',
-} as const;
-
-export interface MetricValue {
-  current: number;
-  previous?: number;
-  unit: string;
-  trend?: MetricValueTrend;
-  available?: boolean;
-  source?: string;
-  error?: string;
-}
-
-export interface AgentMetrics {
-  agent_id: string;
-  agent_type: string;
-  status: string;
-  reputation_score: number;
-  task_success_rate: number;
-  active_tasks: number;
-  computed?: boolean;
-}
-
-export type AlertItemSeverity = typeof AlertItemSeverity[keyof typeof AlertItemSeverity];
-
-
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export const AlertItemSeverity = {
-  critical: 'critical',
-  warning: 'warning',
-  info: 'info',
-} as const;
-
-export interface AlertItem {
-  id: string;
-  severity: AlertItemSeverity;
-  message: string;
-  timestamp: string;
-}
-
 export type ErrorError = {
   code?: string;
   message?: string;
@@ -170,28 +91,6 @@ export type ErrorError = {
 
 export interface Error {
   error?: ErrorError;
-}
-
-/**
- * Service status indicator
- */
-export type ServiceUnavailableErrorStatus = typeof ServiceUnavailableErrorStatus[keyof typeof ServiceUnavailableErrorStatus];
-
-
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export const ServiceUnavailableErrorStatus = {
-  service_unavailable: 'service_unavailable',
-} as const;
-
-export interface ServiceUnavailableError {
-  /** Error message describing the unavailable service */
-  error: string;
-  /** Detailed error message */
-  message?: string;
-  /** Service status indicator */
-  status: ServiceUnavailableErrorStatus;
-  /** Optional request ID for tracing and observability */
-  request_id?: string;
 }
 
 export interface SuccessResponse {
@@ -438,28 +337,7 @@ export const postSettings = async (userSettings: UserSettings, options?: Request
 
 
 /**
- * **DEPRECATED**: Use `/phase7/monitoring/dashboard` instead for real-time metrics with degradation markers.
-
-This legacy endpoint returns comprehensive dashboard data including system health, metrics, circuit breakers, and saga orchestrator status.
-
-**Example Response**:
-```json
-{
-  "timestamp": "2025-11-04T16:53:22.509781",
-  "system_health": "healthy",
-  "system_metrics": {...},
-  "circuit_breakers": {...},
-  "bulkheads": {...},
-  "saga_orchestrator": {...},
-  "storage_stats": {...},
-  "task_execution": {...},
-  "trends": {...},
-  "alerts": []
-}
-```
-
- * @deprecated
- * @summary Get dashboard data (legacy)
+ * @summary Get dashboard data
  */
 export type getDashboardDataResponse200 = {
   data: DashboardData
@@ -482,121 +360,8 @@ export const getGetDashboardDataUrl = () => {
 }
 
 export const getDashboardData = async ( options?: RequestInit): Promise<getDashboardDataResponse> => {
-/**
- * @deprecated Use getPhase7MonitoringDashboard instead for real-time metrics with degradation markers
- */
   
   return apiClient<getDashboardDataResponse>(getGetDashboardDataUrl(),
-  {      
-    ...options,
-    method: 'GET'
-    
-    
-  }
-);}
-
-
-
-/**
- * Returns real-time monitoring dashboard data with intelligent degradation handling.
-
-**Degradation Behavior**:
-- When Redis is unavailable: Returns fallback data with `available: false`, `source: 'fallback'`, `error: 'Redis unavailable'`
-- When Database is unavailable: Returns degraded status with alerts
-- When both are unavailable: Returns HTTP 503 Service Unavailable
-
-**Example Response (Normal)**:
-```json
-{
-  "system_health": {
-    "overall_status": "healthy",
-    "error_rate": 0.01,
-    "avg_latency": 0.15,
-    "open_circuit_breakers": 0
-  },
-  "metrics": {
-    "queue_depth": {
-      "current": 5,
-      "unit": "tasks",
-      "trend": "stable"
-    },
-    "active_agents": {
-      "current": 3,
-      "unit": "agents",
-      "trend": "up"
-    }
-  },
-  "agents": [],
-  "alerts": []
-}
-```
-
-**Example Response (Redis Degraded)**:
-```json
-{
-  "system_health": {
-    "overall_status": "healthy",
-    ...
-  },
-  "metrics": {
-    "queue_depth": {
-      "current": 0,
-      "unit": "tasks",
-      "trend": "unknown",
-      "available": false,
-      "source": "fallback",
-      "error": "Redis unavailable"
-    }
-  },
-  "agents": [],
-  "alerts": [
-    {
-      "id": "redis_error",
-      "severity": "warning",
-      "message": "Redis connection unavailable",
-      "timestamp": "2025-11-04T16:45:58.648953"
-    }
-  ]
-}
-```
-
- * @summary Get monitoring dashboard with real metrics
- */
-export type getPhase7MonitoringDashboardResponse200 = {
-  data: MonitoringDashboardData
-  status: 200
-}
-
-export type getPhase7MonitoringDashboardResponse500 = {
-  data: Error
-  status: 500
-}
-
-export type getPhase7MonitoringDashboardResponse503 = {
-  data: ServiceUnavailableError
-  status: 503
-}
-    
-export type getPhase7MonitoringDashboardResponseSuccess = (getPhase7MonitoringDashboardResponse200) & {
-  headers: Headers;
-};
-export type getPhase7MonitoringDashboardResponseError = (getPhase7MonitoringDashboardResponse500 | getPhase7MonitoringDashboardResponse503) & {
-  headers: Headers;
-};
-
-export type getPhase7MonitoringDashboardResponse = (getPhase7MonitoringDashboardResponseSuccess | getPhase7MonitoringDashboardResponseError)
-
-export const getGetPhase7MonitoringDashboardUrl = () => {
-
-
-  
-
-  return `/phase7/monitoring/dashboard`
-}
-
-export const getPhase7MonitoringDashboard = async ( options?: RequestInit): Promise<getPhase7MonitoringDashboardResponse> => {
-  
-  return apiClient<getPhase7MonitoringDashboardResponse>(getGetPhase7MonitoringDashboardUrl(),
   {      
     ...options,
     method: 'GET'
