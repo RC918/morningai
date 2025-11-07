@@ -116,7 +116,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     if (tmpLoginToken) {
       const { challengeTwoFA } = await import('@/lib/2fa-api')
       
-      const response = await challengeTwoFA({
+      await challengeTwoFA({
         code: params.isBackup ? undefined : params.code,
         backup_code: params.isBackup ? params.code : undefined,
         remember_device: params.rememberDevice,
@@ -125,8 +125,11 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
       setShow2FADialog(false)
       setTmpLoginToken('')
       
-      if (response.user) {
-        onLogin(response.user)
+      try {
+        const user = await apiClient.getCurrentUser()
+        onLogin(user)
+      } catch (error) {
+        setError(t('auth.login.loginError'))
       }
     } else {
       const { verifyTwoFALogin } = await import('@/lib/2fa-api')
@@ -413,8 +416,8 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
               <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                 <h2 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
                 <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin</code></p>
-                  <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin123</code></p>
+                  <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
+                  <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
                 </div>
               </div>
             </CardContent>
