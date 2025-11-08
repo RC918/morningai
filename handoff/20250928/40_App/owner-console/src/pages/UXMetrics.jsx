@@ -1,5 +1,27 @@
+/**
+ * UX Metrics Dashboard
+ * 
+ * Displays UX quality metrics across recent PRs with comprehensive error handling.
+ * 
+ * Long-term improvements implemented:
+ * 1. Data validation with validateMetricsData() to prevent undefined access
+ * 2. Data sanitization with sanitizeMetricsData() to ensure safe structure
+ * 3. Enhanced Sentry context for better debugging
+ * 4. Type definitions in src/types/metrics.js for IDE support
+ * 5. Defensive null checks throughout with optional chaining
+ * 
+ * @see src/types/metrics.js for type definitions
+ * @see src/utils/metricsValidation.js for validation utilities
+ */
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import * as Sentry from '@sentry/react'
+import { validateMetricsData, sanitizeMetricsData, safeGet, isValidMetricValue } from '../utils/metricsValidation'
+
+/**
+ * @typedef {import('../types/metrics').MetricsData} MetricsData
+ */
 
 export default function UXMetrics() {
   const { t } = useTranslation()
@@ -19,9 +41,51 @@ export default function UXMetrics() {
         throw new Error('Failed to fetch metrics')
       }
       const data = await response.json()
-      setMetrics(data)
+      
+      const isValid = validateMetricsData(data)
+      const sanitizedData = sanitizeMetricsData(data)
+      
+      Sentry.setContext('metrics', {
+        isValid,
+        hasSummary: !!data?.summary,
+        hasApps: !!data?.summary?.apps,
+        appKeys: Object.keys(data?.summary?.apps || {}),
+        totalPRs: data?.total_prs || 0,
+        metricsCount: data?.metrics?.length || 0,
+        generatedAt: data?.generated_at
+      })
+      
+      if (!isValid) {
+        Sentry.captureMessage('Metrics data validation failed', {
+          level: 'warning',
+          tags: {
+            component: 'UXMetrics',
+            action: 'fetchMetrics'
+          },
+          extra: {
+            dataStructure: {
+              hasSummary: !!data?.summary,
+              hasApps: !!data?.summary?.apps,
+              hasMetrics: !!data?.metrics,
+              hasThresholds: !!data?.thresholds
+            }
+          }
+        })
+      }
+      
+      setMetrics(sanitizedData)
     } catch (err) {
       setError(err.message)
+      
+      Sentry.captureException(err, {
+        tags: {
+          component: 'UXMetrics',
+          action: 'fetchMetrics'
+        },
+        extra: {
+          errorMessage: err.message
+        }
+      })
     } finally {
       setLoading(false)
     }
@@ -240,9 +304,18 @@ export default function UXMetrics() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {pr.apps['frontend-dashboard']?.i18n ? (
-                      <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">
-                        {t('uxMetrics.available')}
-                      </span>
+                      pr.apps['frontend-dashboard'].i18n.status === 'parsed' ? (
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium ${getStatusColor(pr.apps['frontend-dashboard'].i18n.value, metrics.thresholds.i18n.target, 'gte')}`}>
+                            {formatValue(pr.apps['frontend-dashboard'].i18n.value, '%')}
+                          </span>
+                          {getStatusBadge(pr.apps['frontend-dashboard'].i18n.value, metrics.thresholds.i18n.target, 'gte')}
+                        </div>
+                      ) : (
+                        <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">
+                          {t('uxMetrics.available')}
+                        </span>
+                      )
                     ) : (
                       <span className="px-2 py-1 text-xs rounded bg-gray-200 text-gray-600">
                         {t('common.na')}
@@ -251,9 +324,18 @@ export default function UXMetrics() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {pr.apps['owner-console']?.i18n ? (
-                      <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">
-                        {t('uxMetrics.available')}
-                      </span>
+                      pr.apps['owner-console'].i18n.status === 'parsed' ? (
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium ${getStatusColor(pr.apps['owner-console'].i18n.value, metrics.thresholds.i18n.target, 'gte')}`}>
+                            {formatValue(pr.apps['owner-console'].i18n.value, '%')}
+                          </span>
+                          {getStatusBadge(pr.apps['owner-console'].i18n.value, metrics.thresholds.i18n.target, 'gte')}
+                        </div>
+                      ) : (
+                        <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">
+                          {t('uxMetrics.available')}
+                        </span>
+                      )
                     ) : (
                       <span className="px-2 py-1 text-xs rounded bg-gray-200 text-gray-600">
                         {t('common.na')}
@@ -267,7 +349,7 @@ export default function UXMetrics() {
         </div>
       </div>
 
-      {/* App-Specific Metrics */}
+      {/* App-Specific Metrics with Pass Rates */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
         {['frontend-dashboard', 'owner-console'].map((app) => (
           <div key={app} className="bg-white rounded-lg shadow p-6">
@@ -278,32 +360,147 @@ export default function UXMetrics() {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{t('uxMetrics.i18nCoverage')}</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {t('uxMetrics.prCount', { available: metrics.summary.apps[app].i18n_available, total: metrics.summary.apps[app].total_prs })}
-                </span>
+                <div className="flex items-center gap-2">
+                  {metrics.summary?.apps?.[app]?.i18n?.avg_coverage !== null && metrics.summary?.apps?.[app]?.i18n?.avg_coverage !== undefined && (
+                    <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].i18n.avg_coverage, metrics.thresholds.i18n.target, 'gte')}`}>
+                      {formatValue(metrics.summary.apps[app].i18n.avg_coverage, '%')}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-500">
+                    ({metrics.summary?.apps?.[app]?.i18n?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
+                  </span>
+                  {metrics.summary?.apps?.[app]?.i18n?.pass_rate !== null && metrics.summary?.apps?.[app]?.i18n?.pass_rate !== undefined && (
+                    <span className="text-xs text-green-600">
+                      {formatValue(metrics.summary.apps[app].i18n.pass_rate, '% pass')}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{t('uxMetrics.a11yTests')}</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {t('uxMetrics.prCount', { available: metrics.summary.apps[app].a11y_available, total: metrics.summary.apps[app].total_prs })}
-                </span>
+                <div className="flex items-center gap-2">
+                  {metrics.summary?.apps?.[app]?.a11y?.avg_critical !== null && metrics.summary?.apps?.[app]?.a11y?.avg_critical !== undefined && (
+                    <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].a11y.avg_critical, metrics.thresholds.a11y.critical)}`}>
+                      {t('uxMetrics.critical')}:{formatValue(metrics.summary.apps[app].a11y.avg_critical)}
+                    </span>
+                  )}
+                  {metrics.summary?.apps?.[app]?.a11y?.avg_serious !== null && metrics.summary?.apps?.[app]?.a11y?.avg_serious !== undefined && (
+                    <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].a11y.avg_serious, metrics.thresholds.a11y.serious)}`}>
+                      {t('uxMetrics.serious')}:{formatValue(metrics.summary.apps[app].a11y.avg_serious)}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-500">
+                    ({metrics.summary?.apps?.[app]?.a11y?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
+                  </span>
+                </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{t('uxMetrics.motionTests')}</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {t('uxMetrics.prCount', { available: metrics.summary.apps[app].motion_available, total: metrics.summary.apps[app].total_prs })}
-                </span>
+                <div className="flex items-center gap-2">
+                  {metrics.summary?.apps?.[app]?.motion?.avg_p95 !== null && metrics.summary?.apps?.[app]?.motion?.avg_p95 !== undefined && (
+                    <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].motion.avg_p95, metrics.thresholds.motion.p95)}`}>
+                      {formatValue(metrics.summary.apps[app].motion.avg_p95, 'ms')}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-500">
+                    ({metrics.summary?.apps?.[app]?.motion?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
+                  </span>
+                </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{t('uxMetrics.vrtTests')}</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {t('uxMetrics.prCount', { available: metrics.summary.apps[app].vrt_available, total: metrics.summary.apps[app].total_prs })}
-                </span>
+                <div className="flex items-center gap-2">
+                  {metrics.summary?.apps?.[app]?.vrt?.avg_mismatch !== null && metrics.summary?.apps?.[app]?.vrt?.avg_mismatch !== undefined && (
+                    <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].vrt.avg_mismatch, metrics.thresholds.vrt.mismatch)}`}>
+                      {formatValue(metrics.summary.apps[app].vrt.avg_mismatch, '%')}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-500">
+                    ({metrics.summary?.apps?.[app]?.vrt?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Trend Charts */}
+      {metrics.summary.trends && (
+        <div className="mt-8 space-y-8">
+          {/* i18n Coverage Trend */}
+          {metrics.summary.trends['frontend-dashboard']?.i18n && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('uxMetrics.i18nTrend')}</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={metrics.summary.trends['frontend-dashboard'].i18n.filter(d => d.value !== null)}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="pr" label={{ value: 'PR #', position: 'insideBottom', offset: -5 }} />
+                  <YAxis label={{ value: 'Coverage (%)', angle: -90, position: 'insideLeft' }} domain={[0, 100]} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="value" stroke="#8b5cf6" name="Frontend Dashboard" strokeWidth={2} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Lighthouse Performance Trend */}
+          {metrics.summary.trends.lighthouse && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('uxMetrics.lighthouseTrend')}</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={metrics.summary.trends.lighthouse.filter(d => d.fcp !== null || d.lcp !== null)}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="pr" label={{ value: 'PR #', position: 'insideBottom', offset: -5 }} />
+                  <YAxis label={{ value: 'Time (ms)', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="fcp" stroke="#10b981" name="FCP" strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="lcp" stroke="#f59e0b" name="LCP" strokeWidth={2} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Bundle Size Trend */}
+          {metrics.summary.trends.bundleSize && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('uxMetrics.bundleSizeTrend')}</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={metrics.summary.trends.bundleSize.filter(d => d.change_kb !== null)}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="pr" label={{ value: 'PR #', position: 'insideBottom', offset: -5 }} />
+                  <YAxis label={{ value: 'Change (KB)', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="change_kb" fill="#8b5cf6" name="Bundle Size Change" />
+                </BarChart>
+              </ResponsiveContainer>
+              {metrics.summary.bundleSize && (
+                <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">{t('uxMetrics.avgBundleSize')}:</span>
+                    <span className="ml-2 font-medium">{formatValue(metrics.summary.bundleSize.avg_size_kb, ' KB')}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">{t('uxMetrics.avgChange')}:</span>
+                    <span className={`ml-2 font-medium ${metrics.summary.bundleSize.avg_change_kb > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {metrics.summary.bundleSize.avg_change_kb > 0 ? '+' : ''}{formatValue(metrics.summary.bundleSize.avg_change_kb, ' KB')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">{t('uxMetrics.totalChange')}:</span>
+                    <span className={`ml-2 font-medium ${metrics.summary.bundleSize.total_change_kb > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {metrics.summary.bundleSize.total_change_kb > 0 ? '+' : ''}{formatValue(metrics.summary.bundleSize.total_change_kb, ' KB')}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -144,7 +144,15 @@
     "a11yTests": "A11y Tests",
     "motionTests": "Motion Tests",
     "vrtTests": "VRT Tests",
-    "prCount": "{{available}}/{{total}} PRs"
+    "prCount": "{{available}}/{{total}} PRs",
+    "i18nTrend": "i18n Coverage Trend",
+    "lighthouseTrend": "Lighthouse Performance Trend",
+    "bundleSizeTrend": "Bundle Size Change Trend",
+    "avgBundleSize": "Avg Bundle Size",
+    "avgChange": "Avg Change",
+    "totalChange": "Total Change",
+    "critical": "C",
+    "serious": "S"
   },
   "metricsDashboard": {
     "title": "Metrics Dashboard",
