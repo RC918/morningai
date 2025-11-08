@@ -11,6 +11,7 @@ from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 from src.middleware.auth_middleware import jwt_required
 from src.utils.i18n import i18n, translate
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ _DB_POOL = None
 def _get_db_pool():
     global _DB_POOL
     if _DB_POOL is None:
-        database_url = os.getenv("DATABASE_URL")
+        database_url = settings.database_url
         if not database_url:
             raise ValueError("DATABASE_URL environment variable not set")
         _DB_POOL = ThreadedConnectionPool(minconn=1, maxconn=int(os.getenv("DB_POOL_MAX", "10")), dsn=database_url)
