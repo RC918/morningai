@@ -29,10 +29,29 @@ from src.services.auth_service import (
     PREAUTH_TOKEN_TTL
 )
 from src.middleware.csrf import csrf_protect, should_enforce_csrf
-from src.utils.preauth_token import generate_preauth_token
+from src.utils.pre_auth_token import get_pre_auth_manager
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def generate_preauth_token(user_id: str, email: str, ttl: int = None) -> str:
+    """
+    Generate a pre-authentication token (JWT-based).
+    
+    This is a compatibility wrapper for the new JWT-based pre-auth system.
+    The ttl parameter is ignored as the token expiry is managed by PreAuthTokenManager.
+    
+    Args:
+        user_id: User ID
+        email: User email
+        ttl: Token TTL in seconds (ignored, kept for compatibility)
+    
+    Returns:
+        JWT token string
+    """
+    pre_auth_manager = get_pre_auth_manager()
+    return pre_auth_manager.generate_token(user_id, email, scope='challenge')
 
 auth_enhanced_bp = Blueprint('auth_enhanced', __name__)
 
