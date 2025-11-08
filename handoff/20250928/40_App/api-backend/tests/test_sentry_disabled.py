@@ -14,9 +14,9 @@ def test_sentry_dsn_is_removed():
 
 def test_sentry_enabled_is_false():
     """Verify SENTRY_ENABLED is set to false"""
-    assert settings.sentry_enabled == "false", "SENTRY_ENABLED should be 'false' during tests"
+    assert settings.sentry_enabled is False, "SENTRY_ENABLED should be False during tests"
 
 
 def test_testing_flag_is_true():
     """Verify TESTING environment variable is set"""
-    assert settings.testing == "true", "TESTING should be 'true' during tests"
+    assert settings.testing is True, "TESTING should be True during tests"

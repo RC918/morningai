@@ -11,7 +11,7 @@ import datetime
 from unittest.mock import patch, MagicMock
 from dataclasses import dataclass, asdict
 
-from common.config.settings import settings
+from common.config.settings import settings, getenv
 
 
 class TestRedisConfiguration:
@@ -62,7 +62,7 @@ class TestOrchestratorPath:
         
         # Test the logic directly without reloading main module
         with patch.dict(os.environ, {'ORCHESTRATOR_PATH': test_path}):
-            orchestrator_path = settings.orchestrator_path
+            orchestrator_path = getenv('ORCHESTRATOR_PATH')
             assert orchestrator_path == test_path
             
             with patch('os.path.exists', return_value=True):
@@ -73,7 +73,7 @@ class TestOrchestratorPath:
         """Test that relative path is used as fallback"""
         # Test the fallback logic without importing main module
         with patch.dict(os.environ, {}, clear=True):
-            orchestrator_path = settings.orchestrator_path
+            orchestrator_path = getenv('ORCHESTRATOR_PATH')
             assert orchestrator_path is None
             
             assert True

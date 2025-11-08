@@ -350,6 +350,7 @@ class Settings(BaseSettings):
     
     sentry_enabled: bool = Field(
         default=True,
+        alias="SENTRY_ENABLED",
         description="Enable Sentry error tracking"
     )
     
@@ -772,6 +773,7 @@ class Settings(BaseSettings):
     
     testing: bool = Field(
         default=False,
+        alias="TESTING",
         description="Enable testing mode"
     )
     
