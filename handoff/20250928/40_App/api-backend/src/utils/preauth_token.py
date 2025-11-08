@@ -1,13 +1,25 @@
 """
 Pre-Auth Token utilities for 2FA authentication flow.
 
-This module provides functions to generate, validate, and consume pre-auth tokens
-that are used to eliminate password re-transmission during 2FA verification.
+**DEPRECATED**: This module is deprecated in favor of pre_auth_token.py which uses
+JWT-based tokens with better security features including:
+- TTL preservation on token consumption
+- Scope-based access control (enroll vs challenge)
+- Atomic token consumption with race condition protection
+
+This module is kept for backward compatibility but will be removed in a future version.
+
+Migration Guide:
+- Replace generate_preauth_token() with PreAuthTokenManager.generate_token()
+- Replace validate_and_consume_preauth_token() with PreAuthTokenManager.verify_token()
+  followed by PreAuthTokenManager.consume_token_atomic()
+- Replace revoke_preauth_tokens_for_user() with PreAuthTokenManager.revoke_token()
 """
 
 import secrets
 import json
 import logging
+import warnings
 from typing import Optional, Dict
 from datetime import datetime
 
@@ -20,6 +32,8 @@ def generate_preauth_token(user_id: str, email: str, ttl: int = 300) -> str:
     """
     Generate a pre-auth token and store it in Redis.
     
+    **DEPRECATED**: Use PreAuthTokenManager.generate_token() from pre_auth_token.py instead.
+    
     Uses O(1) Redis lookup by storing token as key: preauth:{token}
     
     Args:
@@ -30,6 +44,13 @@ def generate_preauth_token(user_id: str, email: str, ttl: int = 300) -> str:
     Returns:
         Token string (opaque, 256-bit entropy)
     """
+    warnings.warn(
+        "generate_preauth_token() is deprecated. Use PreAuthTokenManager.generate_token() "
+        "from pre_auth_token.py instead for JWT-based tokens with better security.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     # Generate cryptographically secure random token
     token = secrets.token_urlsafe(32)  # 256-bit entropy
     
@@ -63,6 +84,9 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
     """
     Validate and consume pre-auth token (one-time-use).
     
+    **DEPRECATED**: Use PreAuthTokenManager.verify_token() followed by
+    PreAuthTokenManager.consume_token_atomic() from pre_auth_token.py instead.
+    
     Uses O(1) Redis GET lookup instead of SCAN for performance.
     
     Args:
@@ -71,6 +95,13 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
     Returns:
         User dict with id, email if valid, None otherwise
     """
+    warnings.warn(
+        "validate_and_consume_preauth_token() is deprecated. Use PreAuthTokenManager.verify_token() "
+        "followed by PreAuthTokenManager.consume_token_atomic() from pre_auth_token.py instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     if not token:
         return None
     
@@ -127,6 +158,8 @@ def revoke_preauth_tokens_for_user(user_id: str) -> int:
     """
     Revoke all pre-auth tokens for a user.
     
+    **DEPRECATED**: Use PreAuthTokenManager.revoke_token() from pre_auth_token.py instead.
+    
     Note: With token-as-key design, we need to scan all preauth:* keys
     and check user_id in the value. This is acceptable for revocation
     (rare operation) but not for validation (frequent operation).
@@ -137,6 +170,13 @@ def revoke_preauth_tokens_for_user(user_id: str) -> int:
     Returns:
         Number of tokens revoked
     """
+    warnings.warn(
+        "revoke_preauth_tokens_for_user() is deprecated. Use PreAuthTokenManager.revoke_token() "
+        "from pre_auth_token.py instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     redis_client = get_redis_client()
     pattern = "preauth:*"
     

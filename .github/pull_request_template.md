@@ -42,3 +42,5 @@
 - [ ] 不修改 OpenAPI/資料欄位（若要改，先提 RFC）
 - [ ] 設計 PR 僅含 UI/文案/樣式；工程 PR 僅含 API/邏輯
 - [ ] 避免使用已廢棄的目錄（如 `tools/frontend-lab`）
+- [ ] 不在 src/** 中導入已廢棄的模組（如 `utils.preauth_token`，請使用 `utils.pre_auth_token`）
+- [ ] 所有環境變數已在 `config/env.schema.yaml` 中定義
