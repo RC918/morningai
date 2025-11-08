@@ -134,6 +134,17 @@ if os.environ.get("ENVIRONMENT", "").lower() == "production":
         logger.error(f"❌ Failed to initialize pre-auth token manager: {e}")
         raise
 
+# NOTE: Module-level get_settings() calls for Flask app initialization
+# These calls happen during Flask app setup, which occurs AFTER all imports are complete.
+# This is acceptable because:
+# 1. Flask app initialization is part of the application startup sequence
+# 2. Tests that need to mock settings should import main.py AFTER setting environment variables
+# 3. The settings module uses test-aware caching, so tests will get fresh instances
+# Import order for tests:
+# 1. Set environment variables (os.environ['KEY'] = 'value')
+# 2. Import main.py (triggers Flask app initialization with test env vars)
+# 3. Run test assertions
+# See docs/config/settings.md for more details on settings lifecycle and testing.
 flask_secret = get_settings().flask_secret_key
 if not flask_secret:
     legacy_secret = get_settings().secret_key

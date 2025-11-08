@@ -8,6 +8,11 @@ from typing import Dict, Any, List
 from openai import AsyncOpenAI
 from common.config.settings import get_settings, reload_settings
 
+# TODO: Remove this sys.modules hack after fixing conftest patch targets (important-comment)
+# This hack ensures conftest patches work regardless of import path. (important-comment)
+# Tests import as 'tools.embedding_tool' but conftest patches 'agents.faq_agent.tools.embedding_tool'.
+# Proper fix: Update conftest to patch the actual import path used by tests. (important-comment)
+# See PR #1204 for context on why this was added. (important-comment)
 if 'pytest' in sys.modules:
     sys.modules.setdefault('agents.faq_agent.tools.embedding_tool', sys.modules[__name__])
 
