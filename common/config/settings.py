@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     
     jwt_secret_key: Optional[str] = Field(
         None,
+        alias="JWT_SECRET_KEY",
         min_length=32,
         description="JWT token signing key for authentication"
     )
@@ -100,11 +101,13 @@ class Settings(BaseSettings):
     
     database_url: Optional[str] = Field(
         default=None,
+        alias="DATABASE_URL",
         description="PostgreSQL database connection URL"
     )
     
     redis_url: Optional[str] = Field(
         default=None,
+        alias="REDIS_URL",
         description="Redis connection URL for queue and caching"
     )
     
@@ -131,16 +134,19 @@ class Settings(BaseSettings):
     
     supabase_url: Optional[str] = Field(
         None,
+        alias="SUPABASE_URL",
         description="Supabase project URL"
     )
     
     supabase_anon_key: Optional[str] = Field(
         None,
+        alias="SUPABASE_ANON_KEY",
         description="Supabase anonymous/public key"
     )
     
     supabase_service_role_key: Optional[str] = Field(
         None,
+        alias="SUPABASE_SERVICE_ROLE_KEY",
         description="Supabase service role key (admin access)"
     )
     
@@ -196,11 +202,13 @@ class Settings(BaseSettings):
     
     upstash_redis_rest_url: Optional[str] = Field(
         None,
+        alias="UPSTASH_REDIS_REST_URL",
         description="Upstash Redis REST API URL"
     )
     
     upstash_redis_rest_token: Optional[str] = Field(
         None,
+        alias="UPSTASH_REDIS_REST_TOKEN",
         description="Upstash Redis REST API token"
     )
     
@@ -268,6 +276,7 @@ class Settings(BaseSettings):
     
     github_token: Optional[str] = Field(
         None,
+        alias="GITHUB_TOKEN",
         description="GitHub API token for repository operations"
     )
     
@@ -283,6 +292,7 @@ class Settings(BaseSettings):
     
     openai_api_key: Optional[str] = Field(
         None,
+        alias="OPENAI_API_KEY",
         description="OpenAI API key for embeddings and LLM operations"
     )
     
