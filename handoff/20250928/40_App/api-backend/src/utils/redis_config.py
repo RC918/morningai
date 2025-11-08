@@ -5,6 +5,7 @@ Provides secure Redis URL configuration with TLS enforcement.
 """
 import os
 import logging
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def get_secure_redis_url(allow_local: bool = False) -> str:
         
         redis_url = get_secure_redis_url(allow_local=True)
     """
-    redis_url = os.getenv("REDIS_URL")
+    redis_url = settings.redis_url
     if redis_url:
         if redis_url.startswith("rediss://"):
             logger.info("✅ Using Redis with TLS (rediss://)")
@@ -63,11 +64,11 @@ def is_redis_tls_enabled() -> bool:
     Returns:
         bool: True if using Upstash (HTTPS) or rediss:// (TLS)
     """
-    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
+    upstash_url = settings.upstash_redis_rest_url
     if upstash_url:
         return True
     
-    redis_url = os.getenv("REDIS_URL")
+    redis_url = settings.redis_url
     if redis_url and redis_url.startswith("rediss://"):
         return True
     
@@ -81,8 +82,8 @@ def get_redis_connection_info() -> dict:
     Returns:
         dict: Connection information including type, protocol, and TLS status
     """
-    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
-    redis_url = os.getenv("REDIS_URL")
+    upstash_url = settings.upstash_redis_rest_url
+    redis_url = settings.redis_url
     
     if upstash_url:
         return {
