@@ -229,13 +229,19 @@ class PreAuthTokenManager:
                     logger.warning(f"Token jti {jti} already consumed")
                     return False
 
+                ttl = pipeline.ttl(redis_key)
+                
                 pipeline.multi()
                 pipeline.hset(
                     redis_key, mapping={"consumed": "True", "consumed_at": now_iso}
                 )
+                
+                if ttl > 0:
+                    pipeline.expire(redis_key, ttl)
+                
                 pipeline.execute()
 
-                logger.info(f"Token jti {jti} consumed successfully (atomic)")
+                logger.info(f"Token jti {jti} consumed successfully (atomic), TTL preserved: {ttl}s")
                 return True
 
             except redis.exceptions.WatchError:
