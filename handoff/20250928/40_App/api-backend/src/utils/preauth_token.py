@@ -63,7 +63,8 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
     """
     Validate and consume pre-auth token (one-time-use).
     
-    Uses O(1) Redis GET lookup instead of SCAN for performance.
+    Uses atomic Lua script to prevent race conditions where multiple concurrent
+    requests could consume the same token.
     
     Args:
         token: Pre-auth token from cookie
@@ -78,7 +79,16 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
     redis_key = f"preauth:{token}"
     
     try:
-        stored_data = redis_client.get(redis_key)
+        lua_script = """
+        local value = redis.call('GET', KEYS[1])
+        if not value then
+            return nil
+        end
+        redis.call('DEL', KEYS[1])
+        return value
+        """
+        
+        stored_data = redis_client.eval(lua_script, 1, redis_key)
         
         if not stored_data:
             logger.warning("Pre-auth token not found or expired", extra={
@@ -86,6 +96,9 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
                 'token_prefix': token[:8] if token else None
             })
             return None
+        
+        if isinstance(stored_data, bytes):
+            stored_data = stored_data.decode('utf-8')
         
         # Parse stored data
         data = json.loads(stored_data)
@@ -95,9 +108,6 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
         if not user_id or not email:
             logger.error(f"Invalid pre-auth token data structure")
             return None
-        
-        # Delete token (one-time-use)
-        redis_client.delete(redis_key)
         
         logger.info(f"Pre-auth token consumed for user {user_id}", extra={
             'event': 'preauth_token_consumed',

@@ -18,15 +18,13 @@ from datetime import datetime
 class TestPreAuthTokenE2E:
     """End-to-end tests for pre-auth token authentication flow"""
     
-    @patch('src.routes.totp.check_2fa_required')
     @patch('src.services.auth_service.authenticate_user')
     @patch('src.routes.auth_enhanced.generate_preauth_token')
     @patch('src.services.auth_service.FEATURE_2FA_PREAUTH', True)
     def test_complete_flow_login_to_verify(
         self, 
         mock_generate_token,
-        mock_authenticate,
-        mock_check_2fa
+        mock_authenticate
     ):
         """Test complete flow: login → receive token → verify with token"""
         user_id = "test-user-123"
@@ -40,7 +38,6 @@ class TestPreAuthTokenE2E:
             'role': 'owner',
             'tenant_id': 'tenant-123'
         }
-        mock_check_2fa.return_value = True
         mock_generate_token.return_value = test_token
         
         assert True
@@ -62,16 +59,16 @@ class TestPreAuthTokenE2E:
             "attempts": 0
         }
         
-        mock_redis_instance.get.return_value = json.dumps(stored_data)
+        mock_redis_instance.eval.return_value = json.dumps(stored_data).encode('utf-8')
         
         from src.utils.preauth_token import validate_and_consume_preauth_token
         
         result1 = validate_and_consume_preauth_token(token)
         assert result1 is not None
         assert result1['id'] == user_id
-        assert mock_redis_instance.delete.called
+        assert mock_redis_instance.eval.called
         
-        mock_redis_instance.get.return_value = None
+        mock_redis_instance.eval.return_value = None
         result2 = validate_and_consume_preauth_token(token)
         assert result2 is None
     
@@ -81,7 +78,7 @@ class TestPreAuthTokenE2E:
         mock_redis_instance = MagicMock()
         mock_redis.return_value = mock_redis_instance
         
-        mock_redis_instance.get.return_value = None
+        mock_redis_instance.eval.return_value = None
         
         from src.utils.preauth_token import validate_and_consume_preauth_token
         
@@ -105,7 +102,7 @@ class TestPreAuthTokenE2E:
         
         assert True
     
-    @patch('src.routes.totp.validate_and_consume_preauth_token')
+    @patch('src.utils.preauth_token.validate_and_consume_preauth_token')
     @patch('src.services.auth_service.authenticate_user')
     @patch('src.services.auth_service.FEATURE_2FA_PREAUTH', True)
     def test_password_fallback_when_token_invalid(
@@ -187,7 +184,7 @@ class TestPreAuthTokenMonitoring:
             "issued_at": datetime.utcnow().isoformat(),
             "attempts": 0
         }
-        mock_redis_instance.get.return_value = json.dumps(stored_data)
+        mock_redis_instance.eval.return_value = json.dumps(stored_data).encode('utf-8')
         
         from src.utils.preauth_token import validate_and_consume_preauth_token
         
@@ -205,7 +202,7 @@ class TestPreAuthTokenMonitoring:
         mock_redis_instance = MagicMock()
         mock_redis.return_value = mock_redis_instance
         
-        mock_redis_instance.get.return_value = None
+        mock_redis_instance.eval.return_value = None
         
         from src.utils.preauth_token import validate_and_consume_preauth_token
         
@@ -223,7 +220,7 @@ class TestPreAuthTokenMonitoring:
         mock_redis_instance = MagicMock()
         mock_redis.return_value = mock_redis_instance
         
-        mock_redis_instance.get.return_value = "invalid-json"
+        mock_redis_instance.eval.return_value = b"invalid-json"
         
         from src.utils.preauth_token import validate_and_consume_preauth_token
         
