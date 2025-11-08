@@ -5,7 +5,7 @@ Embedding Tool - Generate embeddings for FAQ questions
 import os
 from typing import Dict, Any, List
 from openai import AsyncOpenAI
-from common.config.settings import settings
+from common.config.settings import get_settings, reload_settings
 
 
 class EmbeddingTool:
@@ -19,7 +19,15 @@ class EmbeddingTool:
             api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
             model: Embedding model to use
         """
-        self.api_key = api_key or settings.openai_api_key
+        self.api_key = api_key or get_settings().openai_api_key
+        
+        if not self.api_key:
+            reload_settings()
+            self.api_key = get_settings().openai_api_key
+        
+        if not self.api_key:
+            self.api_key = os.getenv("OPENAI_API_KEY")
+        
         self.model = model
         
         if not self.api_key:
