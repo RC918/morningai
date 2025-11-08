@@ -1,6 +1,27 @@
+/**
+ * UX Metrics Dashboard
+ * 
+ * Displays UX quality metrics across recent PRs with comprehensive error handling.
+ * 
+ * Long-term improvements implemented:
+ * 1. Data validation with validateMetricsData() to prevent undefined access
+ * 2. Data sanitization with sanitizeMetricsData() to ensure safe structure
+ * 3. Enhanced Sentry context for better debugging
+ * 4. Type definitions in src/types/metrics.js for IDE support
+ * 5. Defensive null checks throughout with optional chaining
+ * 
+ * @see src/types/metrics.js for type definitions
+ * @see src/utils/metricsValidation.js for validation utilities
+ */
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import * as Sentry from '@sentry/react'
+import { validateMetricsData, sanitizeMetricsData, safeGet, isValidMetricValue } from '../utils/metricsValidation'
+
+/**
+ * @typedef {import('../types/metrics').MetricsData} MetricsData
+ */
 
 export default function UXMetrics() {
   const { t } = useTranslation()
@@ -20,9 +41,51 @@ export default function UXMetrics() {
         throw new Error('Failed to fetch metrics')
       }
       const data = await response.json()
-      setMetrics(data)
+      
+      const isValid = validateMetricsData(data)
+      const sanitizedData = sanitizeMetricsData(data)
+      
+      Sentry.setContext('metrics', {
+        isValid,
+        hasSummary: !!data?.summary,
+        hasApps: !!data?.summary?.apps,
+        appKeys: Object.keys(data?.summary?.apps || {}),
+        totalPRs: data?.total_prs || 0,
+        metricsCount: data?.metrics?.length || 0,
+        generatedAt: data?.generated_at
+      })
+      
+      if (!isValid) {
+        Sentry.captureMessage('Metrics data validation failed', {
+          level: 'warning',
+          tags: {
+            component: 'UXMetrics',
+            action: 'fetchMetrics'
+          },
+          extra: {
+            dataStructure: {
+              hasSummary: !!data?.summary,
+              hasApps: !!data?.summary?.apps,
+              hasMetrics: !!data?.metrics,
+              hasThresholds: !!data?.thresholds
+            }
+          }
+        })
+      }
+      
+      setMetrics(sanitizedData)
     } catch (err) {
       setError(err.message)
+      
+      Sentry.captureException(err, {
+        tags: {
+          component: 'UXMetrics',
+          action: 'fetchMetrics'
+        },
+        extra: {
+          errorMessage: err.message
+        }
+      })
     } finally {
       setLoading(false)
     }
