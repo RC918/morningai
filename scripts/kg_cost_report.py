@@ -7,7 +7,9 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from repo_root_utils import get_repo_root
+
+sys.path.insert(0, str(get_repo_root()))
 
 from agents.dev_agent.knowledge_graph import get_embeddings_cache  # noqa: E402
 
