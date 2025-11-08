@@ -3,9 +3,13 @@ Embedding Tool - Generate embeddings for FAQ questions
 """
 
 import os
+import sys
 from typing import Dict, Any, List
 from openai import AsyncOpenAI
 from common.config.settings import get_settings, reload_settings
+
+if 'pytest' in sys.modules:
+    sys.modules.setdefault('agents.faq_agent.tools.embedding_tool', sys.modules[__name__])
 
 
 class EmbeddingTool:
