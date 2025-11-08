@@ -18,15 +18,13 @@ from datetime import datetime
 class TestPreAuthTokenE2E:
     """End-to-end tests for pre-auth token authentication flow"""
     
-    @patch('src.routes.totp.check_2fa_required')
     @patch('src.services.auth_service.authenticate_user')
-    @patch('src.routes.auth_enhanced.generate_preauth_token')
+    @patch('src.utils.pre_auth_token.PreAuthTokenManager.generate_token')
     @patch('src.services.auth_service.FEATURE_2FA_PREAUTH', True)
     def test_complete_flow_login_to_verify(
         self, 
         mock_generate_token,
-        mock_authenticate,
-        mock_check_2fa
+        mock_authenticate
     ):
         """Test complete flow: login → receive token → verify with token"""
         user_id = "test-user-123"
@@ -40,7 +38,6 @@ class TestPreAuthTokenE2E:
             'role': 'owner',
             'tenant_id': 'tenant-123'
         }
-        mock_check_2fa.return_value = True
         mock_generate_token.return_value = test_token
         
         assert True
@@ -105,7 +102,7 @@ class TestPreAuthTokenE2E:
         
         assert True
     
-    @patch('src.routes.totp.validate_and_consume_preauth_token')
+    @patch('src.utils.pre_auth_token.PreAuthTokenManager.verify_token')
     @patch('src.services.auth_service.authenticate_user')
     @patch('src.services.auth_service.FEATURE_2FA_PREAUTH', True)
     def test_password_fallback_when_token_invalid(

@@ -167,7 +167,6 @@ def login():
             return jsonify({'message': 'Invalid email or password'}), 401
         
         from .totp import check_2fa_required, is_2fa_feature_enabled
-        from ..utils.pre_auth_token import get_pre_auth_manager
         from supabase import create_client
         
         if check_2fa_required(user['id']):
@@ -188,11 +187,10 @@ def login():
                 except Exception as supabase_error:
                     logger.warning(f"Supabase query failed for user {user['email']}, defaulting to enroll_2fa: {supabase_error}")
             
-            pre_auth_manager = get_pre_auth_manager()
-            tmp_token = pre_auth_manager.generate_token(
+            tmp_token = generate_preauth_token(
                 user_id=user['id'],
                 email=user['email'],
-                scope=scope
+                ttl=PREAUTH_TOKEN_TTL
             )
             
             response_data = {
@@ -211,15 +209,9 @@ def login():
             
             if FEATURE_2FA_PREAUTH:
                 try:
-                    token = generate_preauth_token(
-                        user['id'],
-                        user['email'],
-                        ttl=PREAUTH_TOKEN_TTL
-                    )
-                    
                     response.set_cookie(
                         'pre_auth_token',
-                        token,
+                        tmp_token,
                         max_age=PREAUTH_TOKEN_TTL,
                         httponly=True,
                         secure=COOKIE_SECURE,
@@ -229,7 +221,7 @@ def login():
                     
                     logger.info(f"Pre-auth token set for user {user['id']}")
                 except Exception as e:
-                    logger.error(f"Failed to generate pre-auth token: {e}")
+                    logger.error(f"Failed to set pre-auth token cookie: {e}")
             
             return response
         
