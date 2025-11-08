@@ -20,7 +20,10 @@ This document proposes a Pre-Auth Token (Challenge Token) mechanism to eliminate
 
 ## Problem Statement
 
-### Current Flow (Insecure)
+### Current Flow (Deprecated - Insecure)
+
+**⚠️ DEPRECATED**: The `/api/auth/v2/totp/verify-login` endpoint is deprecated as of November 2025.
+
 ```
 1. User → POST /api/auth/v2/login {email, password}
    ← Response: {requires_2fa: true, user: {...}}
@@ -34,6 +37,8 @@ This document proposes a Pre-Auth Token (Challenge Token) mechanism to eliminate
 - Increased attack surface for password interception
 - Password stored in browser memory longer
 - Violates principle of least privilege (password not needed after initial auth)
+
+**Status**: This endpoint is kept for backward compatibility but will be removed in Q2 2026. All new integrations should use the JWT-based pre-auth token flow (`/api/auth/v2/2fa/challenge`).
 
 ### Proposed Flow (Secure)
 ```

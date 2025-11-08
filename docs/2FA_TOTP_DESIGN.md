@@ -138,9 +138,22 @@ This document outlines the design for implementing Two-Factor Authentication (2F
 
 ### 3. Login with TOTP
 
-**Endpoint**: `POST /api/auth/v2/login`
+**⚠️ DEPRECATED ENDPOINT**: `POST /api/auth/v2/totp/verify-login`
 
-**Request** (when 2FA enabled):
+This endpoint is deprecated in favor of the new JWT-based pre-auth token flow using `/api/auth/v2/2fa/challenge`. The old endpoint required password re-transmission during 2FA verification, creating unnecessary security risk.
+
+**Migration Path**: Use the new 2FA flow documented in `docs/2fa-owner-launch/02-pre-auth-token-design.md`
+
+**New Flow (Recommended)**:
+1. `POST /api/auth/v2/login` with email + password
+2. If 2FA enabled, response includes `requires_2fa: true` and `tmp_login_token`
+3. `POST /api/auth/v2/2fa/challenge` with `Authorization: Bearer {tmp_login_token}` and `totp_code`
+4. Backend verifies TOTP and issues session tokens
+
+**Old Flow (Deprecated)**:
+**Endpoint**: `POST /api/auth/v2/totp/verify-login`
+
+**Request** (deprecated):
 ```json
 {
   "email": "user@example.com",
@@ -159,12 +172,12 @@ This document outlines the design for implementing Two-Factor Authentication (2F
 }
 ```
 
-**Flow**:
-1. User submits email + password
-2. If 2FA enabled, return `requires_2fa: true`
-3. Frontend prompts for TOTP code
-4. User submits TOTP code
-5. Backend verifies and issues session
+**Why Deprecated**:
+- Password transmitted twice (login + 2FA verification)
+- Increased attack surface for password interception
+- Violates principle of least privilege
+
+**Removal Timeline**: This endpoint will be removed in Q2 2026
 
 ---
 

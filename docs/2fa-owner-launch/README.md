@@ -32,11 +32,11 @@ This launch pack contains all documentation required for deploying 2FA enforceme
 
 ### 2. Pre-Auth Token Design Document
 **File**: [`02-pre-auth-token-design.md`](./02-pre-auth-token-design.md)  
-**Status**: 📋 Awaiting CTO Approval  
+**Status**: ✅ IMPLEMENTED (November 2025)  
 **Priority**: P0 (Security Enhancement)  
-**Target Delivery**: Week 1 (November 11, 2025)
+**Delivery**: Completed November 2025
 
-**Summary**: Proposes a Pre-Auth Token (Challenge Token) mechanism to eliminate password re-transmission during 2FA verification. Currently, the `/api/auth/v2/totp/verify-login` endpoint requires users to send their password again along with the TOTP code, creating unnecessary security risk.
+**Summary**: Implements JWT-based Pre-Auth Token mechanism to eliminate password re-transmission during 2FA verification. The old `/api/auth/v2/totp/verify-login` endpoint (now **DEPRECATED**) required users to send their password again along with the TOTP code, creating unnecessary security risk. The new `/api/auth/v2/2fa/challenge` endpoint uses JWT-based pre-auth tokens transmitted via Authorization header.
 
 **Key Features**:
 - Opaque random token (256-bit entropy)
