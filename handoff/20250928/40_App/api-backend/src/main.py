@@ -360,7 +360,7 @@ def health_check():
 db_dir = os.path.join(os.path.dirname(__file__), "database")
 os.makedirs(db_dir, exist_ok=True)
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = settings.database_url
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
 
 if ENVIRONMENT == "production":
