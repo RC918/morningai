@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import Dict, Any
 import subprocess
 import threading
+from common.config.settings import settings
 
 # 配置日誌
 logging.basicConfig(
@@ -82,7 +83,7 @@ class Phase6SystemManager:
             
             security_config = {
                 'master_key': os.environ.get('MASTER_KEY', 'default-master-key'),
-                'secret_key': os.environ.get('SECRET_KEY', 'default-secret-key'),
+                'secret_key': settings.secret_key or 'default-secret-key',
                 'audit_log_file': 'security_audit.log'
             }
             

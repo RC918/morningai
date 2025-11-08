@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 
 from orchestrator.schemas.task_schema import UnifiedTask, TaskStatus, TaskPriority
 from orchestrator.schemas.event_schema import AgentEvent, EventType
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,8 @@ class RedisQueue:
         Security: Uses redis-py library which requires redis:// or rediss:// URLs
         """
         # Priority: REDIS_URL (TLS) > provided redis_url > UPSTASH_REDIS_REST_URL
-        env_redis_url = os.getenv("REDIS_URL")
-        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
+        env_redis_url = settings.redis_url
+        upstash_url = settings.upstash_redis_rest_url
         
         if env_redis_url:
             if env_redis_url.startswith("rediss://"):

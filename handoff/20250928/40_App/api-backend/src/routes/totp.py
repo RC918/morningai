@@ -31,14 +31,57 @@ from ..services.auth_service import (
     COOKIE_SAMESITE
 )
 from ..utils.totp_utils import TOTPManager, BackupCodeManager, generate_device_fingerprint, calculate_device_expiry
-from ..utils.preauth_token import validate_and_consume_preauth_token
+from ..utils.pre_auth_token import get_pre_auth_manager
 from ..middleware.auth_middleware import jwt_required
 from ..middleware.rate_limit import rate_limit
 from ..middleware.csrf import csrf_protect
+from common.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
 totp_bp = Blueprint('totp', __name__, url_prefix='/api/auth/v2/totp')
+
+
+def validate_and_consume_preauth_token(token: str):
+    """
+    Validate and consume a pre-authentication token (JWT-based).
+    
+    This is a compatibility wrapper for the new JWT-based pre-auth system.
+    
+    Args:
+        token: JWT token string
+    
+    Returns:
+        Dict with 'id' and 'email' if valid and consumed, None otherwise
+    """
+    try:
+        pre_auth_manager = get_pre_auth_manager()
+        
+        payload = pre_auth_manager.verify_token(token)
+        if not payload:
+            return None
+        
+        if payload.get('scope') != 'challenge':
+            logger.warning(f"Token has wrong scope: {payload.get('scope')}, expected 'challenge'")
+            return None
+        
+        jti = payload.get('jti')
+        if not jti:
+            logger.warning("Token missing jti claim")
+            return None
+        
+        consumed = pre_auth_manager.consume_token_atomic(jti)
+        if not consumed:
+            logger.warning(f"Failed to consume token jti {jti}")
+            return None
+        
+        return {
+            'id': payload.get('user_id'),
+            'email': payload.get('email')
+        }
+    except Exception as e:
+        logger.error(f"Error validating/consuming pre-auth token: {e}", exc_info=True)
+        return None
 
 _totp_manager = None
 _backup_manager = None
@@ -133,8 +176,8 @@ def setup_totp():
         if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         
         existing_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
@@ -219,8 +262,8 @@ def verify_totp_setup():
         
         user_id = request.user_id
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
@@ -295,8 +338,8 @@ def disable_totp():
         if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
@@ -366,8 +409,8 @@ def regenerate_backup_codes():
         if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
@@ -423,8 +466,8 @@ def get_totp_status():
     try:
         user_id = request.user_id
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
@@ -463,8 +506,8 @@ def verify_totp_for_login(user_id: str, totp_code: str) -> bool:
         True if code is valid, False otherwise
     """
     try:
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).eq('enabled', True).execute()
         
@@ -500,8 +543,8 @@ def verify_backup_code_for_login(user_id: str, backup_code: str) -> tuple[bool, 
         Tuple of (is_valid, remaining_codes)
     """
     try:
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         
         backup_codes = supabase.table('totp_backup_codes').select('*').eq('user_id', user_id).eq('used', False).execute()
@@ -557,8 +600,8 @@ def check_2fa_required(user_id: str, user_role: str = None) -> bool:
             logger.info(f"2FA required for Owner role user {user_id}")
             return True
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('enabled').eq('user_id', user_id).execute()
         
@@ -575,6 +618,12 @@ def check_2fa_required(user_id: str, user_role: str = None) -> bool:
 def verify_totp_login():
     """
     Verify TOTP code during login and complete authentication.
+    
+    **DEPRECATED**: This endpoint is deprecated in favor of /api/auth/v2/2fa/challenge
+    which uses JWT-based pre-auth tokens. This endpoint is kept for backward compatibility
+    but will be removed in a future version.
+    
+    Migration: Use /api/auth/v2/2fa/challenge with the tmp_login_token from login response.
     
     This endpoint is called after initial login credentials are verified
     and 2FA is required. It verifies the TOTP/backup code and issues
@@ -597,6 +646,8 @@ def verify_totp_login():
             "device_trusted": false  # If remember_device was true
         }
     """
+    logger.warning("DEPRECATED: /totp/verify-login endpoint called. Use /api/auth/v2/2fa/challenge instead.")
+    
     if not is_2fa_feature_enabled():
         return jsonify({'error': '2FA feature is not enabled'}), 403
     
@@ -610,26 +661,30 @@ def verify_totp_login():
             return jsonify({'error': 'Either TOTP code or backup code is required'}), 400
         
         user = None
-        pre_auth_token = request.cookies.get('pre_auth_token')
         
-        if FEATURE_2FA_PREAUTH and pre_auth_token:
-            user_data = validate_and_consume_preauth_token(pre_auth_token)
-            if user_data:
-                user = get_user_by_id(user_data['id'])
-                if user:
-                    logger.info(f"Using pre-auth token for user {user['id']}", extra={
-                        'event': 'preauth_token_used',
-                        'user_id': user['id']
-                    })
-                else:
-                    logger.warning(f"Pre-auth token valid but user {user_data['id']} not found", extra={
-                        'event': 'preauth_user_not_found',
-                        'user_id': user_data['id']
-                    })
-            else:
-                logger.warning("Invalid or expired pre-auth token, falling back to password", extra={
-                    'event': 'password_fallback_used',
-                    'reason': 'invalid_preauth_token'
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+            try:
+                pre_auth_manager = get_pre_auth_manager()
+                payload = pre_auth_manager.verify_token(jwt_token)
+                if payload:
+                    user_id = payload.get('user_id')
+                    user = get_user_by_id(user_id)
+                    if user:
+                        logger.info(f"Using JWT pre-auth token for user {user['id']}", extra={
+                            'event': 'jwt_preauth_token_used',
+                            'user_id': user['id']
+                        })
+                    else:
+                        logger.warning(f"JWT pre-auth token valid but user {user_id} not found", extra={
+                            'event': 'jwt_preauth_user_not_found',
+                            'user_id': user_id
+                        })
+            except Exception as e:
+                logger.warning(f"Failed to verify JWT pre-auth token: {e}", extra={
+                    'event': 'jwt_preauth_verification_failed',
+                    'error': str(e)
                 })
         
         if not user:
@@ -637,7 +692,7 @@ def verify_totp_login():
             password = data.get('password')
             
             if not email or not password:
-                return jsonify({'error': 'Pre-auth token or email/password required'}), 400
+                return jsonify({'error': 'Authorization header with JWT token or email/password required'}), 400
             
             from ..services.auth_service import authenticate_user
             user = authenticate_user(email, password)
@@ -647,7 +702,7 @@ def verify_totp_login():
             logger.info(f"Using password fallback for user {user['id']}", extra={
                 'event': 'password_fallback_used',
                 'user_id': user['id'],
-                'reason': 'no_preauth_token'
+                'reason': 'no_jwt_preauth_token'
             })
         
         user_id = user['id']
@@ -678,8 +733,8 @@ def verify_totp_login():
                 device_fingerprint = generate_device_fingerprint(request)
                 device_expiry = calculate_device_expiry(30)
                 
-                supabase_url = os.environ.get('SUPABASE_URL')
-                supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+                supabase_url = get_settings().supabase_url
+                supabase_key = get_settings().supabase_service_role_key
                 supabase = create_client(supabase_url, supabase_key)
                 
                 supabase.table('trusted_devices').insert({

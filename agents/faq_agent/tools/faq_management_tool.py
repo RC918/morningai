@@ -3,10 +3,14 @@ FAQ Management Tool - Create, update, and delete FAQs
 """
 
 import os
+import sys
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from supabase import create_client, Client
 from .embedding_tool import EmbeddingTool
+
+if 'pytest' in sys.modules:
+    sys.modules.setdefault('agents.faq_agent.tools.faq_management_tool', sys.modules[__name__])
 
 
 class FAQManagementTool:
