@@ -47,6 +47,8 @@ services:
         value: orchestrator
       - key: USE_LANGGRAPH
         value: false
+      - key: ENABLE_MOCK_USERS
+        value: false
       - key: APP_VERSION
         value: "8.0.0"
       - key: CORS_ORIGINS
@@ -90,6 +92,8 @@ services:
       - key: SANDBOX_ENABLED
         value: false
       - key: ORCHESTRATOR_TEST_MODE
+        value: false
+      - key: ENABLE_MOCK_USERS
         value: false
 
   - type: web

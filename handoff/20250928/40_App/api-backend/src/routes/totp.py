@@ -31,7 +31,7 @@ from ..services.auth_service import (
     COOKIE_SAMESITE
 )
 from ..utils.totp_utils import TOTPManager, BackupCodeManager, generate_device_fingerprint, calculate_device_expiry
-from ..utils.preauth_token import validate_and_consume_preauth_token
+from ..utils.pre_auth_token import get_pre_auth_manager
 from ..middleware.auth_middleware import jwt_required
 from ..middleware.rate_limit import rate_limit
 from ..middleware.csrf import csrf_protect
@@ -39,6 +39,48 @@ from ..middleware.csrf import csrf_protect
 logger = logging.getLogger(__name__)
 
 totp_bp = Blueprint('totp', __name__, url_prefix='/api/auth/v2/totp')
+
+
+def validate_and_consume_preauth_token(token: str):
+    """
+    Validate and consume a pre-authentication token (JWT-based).
+    
+    This is a compatibility wrapper for the new JWT-based pre-auth system.
+    
+    Args:
+        token: JWT token string
+    
+    Returns:
+        Dict with 'id' and 'email' if valid and consumed, None otherwise
+    """
+    try:
+        pre_auth_manager = get_pre_auth_manager()
+        
+        payload = pre_auth_manager.verify_token(token)
+        if not payload:
+            return None
+        
+        if payload.get('scope') != 'challenge':
+            logger.warning(f"Token has wrong scope: {payload.get('scope')}, expected 'challenge'")
+            return None
+        
+        jti = payload.get('jti')
+        if not jti:
+            logger.warning("Token missing jti claim")
+            return None
+        
+        consumed = pre_auth_manager.consume_token_atomic(jti)
+        if not consumed:
+            logger.warning(f"Failed to consume token jti {jti}")
+            return None
+        
+        return {
+            'id': payload.get('user_id'),
+            'email': payload.get('email')
+        }
+    except Exception as e:
+        logger.error(f"Error validating/consuming pre-auth token: {e}", exc_info=True)
+        return None
 
 _totp_manager = None
 _backup_manager = None
@@ -576,6 +618,12 @@ def verify_totp_login():
     """
     Verify TOTP code during login and complete authentication.
     
+    **DEPRECATED**: This endpoint is deprecated in favor of /api/auth/v2/2fa/challenge
+    which uses JWT-based pre-auth tokens. This endpoint is kept for backward compatibility
+    but will be removed in a future version.
+    
+    Migration: Use /api/auth/v2/2fa/challenge with the tmp_login_token from login response.
+    
     This endpoint is called after initial login credentials are verified
     and 2FA is required. It verifies the TOTP/backup code and issues
     authentication tokens.
@@ -597,6 +645,8 @@ def verify_totp_login():
             "device_trusted": false  # If remember_device was true
         }
     """
+    logger.warning("DEPRECATED: /totp/verify-login endpoint called. Use /api/auth/v2/2fa/challenge instead.")
+    
     if not is_2fa_feature_enabled():
         return jsonify({'error': '2FA feature is not enabled'}), 403
     
@@ -610,26 +660,30 @@ def verify_totp_login():
             return jsonify({'error': 'Either TOTP code or backup code is required'}), 400
         
         user = None
-        pre_auth_token = request.cookies.get('pre_auth_token')
         
-        if FEATURE_2FA_PREAUTH and pre_auth_token:
-            user_data = validate_and_consume_preauth_token(pre_auth_token)
-            if user_data:
-                user = get_user_by_id(user_data['id'])
-                if user:
-                    logger.info(f"Using pre-auth token for user {user['id']}", extra={
-                        'event': 'preauth_token_used',
-                        'user_id': user['id']
-                    })
-                else:
-                    logger.warning(f"Pre-auth token valid but user {user_data['id']} not found", extra={
-                        'event': 'preauth_user_not_found',
-                        'user_id': user_data['id']
-                    })
-            else:
-                logger.warning("Invalid or expired pre-auth token, falling back to password", extra={
-                    'event': 'password_fallback_used',
-                    'reason': 'invalid_preauth_token'
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+            try:
+                pre_auth_manager = get_pre_auth_manager()
+                payload = pre_auth_manager.verify_token(jwt_token)
+                if payload:
+                    user_id = payload.get('user_id')
+                    user = get_user_by_id(user_id)
+                    if user:
+                        logger.info(f"Using JWT pre-auth token for user {user['id']}", extra={
+                            'event': 'jwt_preauth_token_used',
+                            'user_id': user['id']
+                        })
+                    else:
+                        logger.warning(f"JWT pre-auth token valid but user {user_id} not found", extra={
+                            'event': 'jwt_preauth_user_not_found',
+                            'user_id': user_id
+                        })
+            except Exception as e:
+                logger.warning(f"Failed to verify JWT pre-auth token: {e}", extra={
+                    'event': 'jwt_preauth_verification_failed',
+                    'error': str(e)
                 })
         
         if not user:
@@ -637,7 +691,7 @@ def verify_totp_login():
             password = data.get('password')
             
             if not email or not password:
-                return jsonify({'error': 'Pre-auth token or email/password required'}), 400
+                return jsonify({'error': 'Authorization header with JWT token or email/password required'}), 400
             
             from ..services.auth_service import authenticate_user
             user = authenticate_user(email, password)
@@ -647,7 +701,7 @@ def verify_totp_login():
             logger.info(f"Using password fallback for user {user['id']}", extra={
                 'event': 'password_fallback_used',
                 'user_id': user['id'],
-                'reason': 'no_preauth_token'
+                'reason': 'no_jwt_preauth_token'
             })
         
         user_id = user['id']
