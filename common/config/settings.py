@@ -21,6 +21,7 @@ Features:
 """
 
 import os
+import sys
 import warnings
 from typing import Optional, Literal
 from pydantic import Field, field_validator, ConfigDict
@@ -713,12 +714,15 @@ def get_settings() -> Settings:
     """
     Get or create the global settings instance.
     
-    In test mode (TESTING=true), always creates a fresh instance to pick up
-    environment variables set by tests at runtime.
+    In test mode, always creates a fresh instance to pick up environment
+    variables set by tests at runtime. Test mode is detected via pytest
+    in sys.modules or TESTING environment variable.
     """
     global _settings_instance
     
-    is_testing = os.getenv('TESTING', '').lower() in ('1', 'true', 'yes')
+    is_pytest = 'pytest' in sys.modules
+    is_testing_env = os.getenv('TESTING', '').lower() in ('1', 'true', 'yes')
+    is_testing = is_pytest or is_testing_env
     
     if is_testing or _settings_instance is None:
         _settings_instance = Settings()

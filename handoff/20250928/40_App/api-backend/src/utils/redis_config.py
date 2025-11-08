@@ -92,10 +92,9 @@ def get_redis_connection_info() -> dict:
     elif redis_url:
         is_tls = redis_url.startswith("rediss://")
         is_local = redis_url.startswith("redis://localhost")
-        protocol = "rediss" if is_tls else "redis"
         return {
-            "type": protocol,
-            "protocol": protocol,
+            "type": "redis",
+            "protocol": "rediss" if is_tls else "redis",
             "tls_enabled": is_tls,
             "url": redis_url.split("@")[-1] if "@" in redis_url else "***",
             "secure": is_tls,
