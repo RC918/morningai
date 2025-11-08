@@ -1,9 +1,8 @@
 /**
  * Unit tests for enhanced i18n coverage script
  * Tests ICU detection, pluralization detection, ignore lists, and namespace statistics
+ * @vitest-environment node
  */
-
-const { describe, it, expect, beforeEach } = require('@jest/globals');
 
 // Mock functions extracted from test-i18n-enhanced.cjs for testing
 function detectICUFormat(value) {
