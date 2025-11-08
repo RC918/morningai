@@ -33,28 +33,24 @@ def get_secure_redis_url(allow_local: bool = False) -> str:
         redis_url = get_secure_redis_url(allow_local=True)
     """
     redis_url = settings.redis_url
-    if redis_url:
-        if redis_url.startswith("rediss://"):
-            logger.info("✅ Using Redis with TLS (rediss://)")
-            return redis_url
-        
-        if redis_url.startswith("redis://localhost") and allow_local:
-            logger.warning("⚠️ Using local Redis without TLS (development only)")
-            return redis_url
-        
-        if not redis_url.startswith("rediss://"):
-            raise ValueError(
-                "❌ REDIS_URL must use TLS (rediss://) for production. "
-                "Current URL does not use TLS. "
-                "For local development, use get_secure_redis_url(allow_local=True). "
-                f"Got: {redis_url[:20]}..."
-            )
+    if not redis_url:
+        raise ValueError("No REDIS_URL environment variable found")
     
-    raise ValueError(
-        "❌ No REDIS_URL environment variable found. "
-        "Set REDIS_URL with rediss:// (TLS) for production. "
-        "For local development, use redis://localhost:6379 with allow_local=True."
-    )
+    if redis_url.startswith("rediss://"):
+        logger.info("✅ Using Redis with TLS (rediss://)")
+        return redis_url
+    
+    if redis_url.startswith("redis://localhost") and allow_local:
+        logger.warning("⚠️ Using local Redis without TLS (development only)")
+        return redis_url
+    
+    if not redis_url.startswith("rediss://"):
+        raise ValueError(
+            "❌ REDIS_URL must use TLS (rediss://) for production. "
+            "Current URL does not use TLS. "
+            "For local development, use get_secure_redis_url(allow_local=True). "
+            f"Got: {redis_url[:20]}..."
+        )
 
 
 def is_redis_tls_enabled() -> bool:
@@ -96,9 +92,10 @@ def get_redis_connection_info() -> dict:
     elif redis_url:
         is_tls = redis_url.startswith("rediss://")
         is_local = redis_url.startswith("redis://localhost")
+        protocol = "rediss" if is_tls else "redis"
         return {
-            "type": "redis",
-            "protocol": "rediss" if is_tls else "redis",
+            "type": protocol,
+            "protocol": protocol,
             "tls_enabled": is_tls,
             "url": redis_url.split("@")[-1] if "@" in redis_url else "***",
             "secure": is_tls,

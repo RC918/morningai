@@ -102,8 +102,8 @@ class Settings(BaseSettings):
         description="PostgreSQL database connection URL"
     )
     
-    redis_url: str = Field(
-        default="redis://localhost:6379/0",
+    redis_url: Optional[str] = Field(
+        default=None,
         description="Redis connection URL for queue and caching"
     )
     
@@ -710,11 +710,21 @@ class Settings(BaseSettings):
 _settings_instance = None
 
 def get_settings() -> Settings:
-    """Get or create the global settings instance"""
+    """
+    Get or create the global settings instance.
+    
+    In test mode (TESTING=true), always creates a fresh instance to pick up
+    environment variables set by tests at runtime.
+    """
     global _settings_instance
-    if _settings_instance is None:
+    
+    is_testing = os.getenv('TESTING', '').lower() in ('1', 'true', 'yes')
+    
+    if is_testing or _settings_instance is None:
         _settings_instance = Settings()
-        _settings_instance.log_deprecation_warnings()
+        if not is_testing:
+            _settings_instance.log_deprecation_warnings()
+    
     return _settings_instance
 
 def reload_settings() -> Settings:
