@@ -45,9 +45,18 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 | Component | Role | Maturity | Service | Path |
 |-----------|------|----------|---------|------|
 | **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` |
-| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+| **Worker Orchestrator** | Task Execution (RQ) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
 
-**Architecture**: Producer (API) receives HTTP requests and enqueues tasks to Redis. Consumer (Worker) polls Redis and executes tasks using LangGraph workflows.
+**Dual Execution Modes**:
+- **Simple Mode** (Production): `handoff/20250928/40_App/orchestrator/graph.py` - Fast, stateless execution
+  - Currently enabled via `USE_LANGGRAPH=false` in `render.yaml:48-49`
+  - Direct sequential execution without state machine overhead
+- **LangGraph Mode** (Optional): `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py:1-422` - Full state machine
+  - Complete implementation with retry logic, CI monitoring, and state persistence
+  - Can be enabled via `USE_LANGGRAPH=true` environment variable
+  - Runtime selection at `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:303-307`
+
+**Architecture**: Producer (API) receives HTTP requests and enqueues tasks to Redis. Consumer (Worker) polls Redis and executes tasks using either simple mode or LangGraph workflows based on configuration.
 
 **Documentation**: [ADR-001: Dual Orchestrator Architecture](adr/001-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](adr/002-producer-consumer-architecture.md)
 
@@ -81,6 +90,12 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 
 ### Environment Variables
 
+**Schema Definition**: `config/env.schema.yaml` (Single Source of Truth)
+- **Total Defined**: 56 variables (19 required, 37 optional)
+- **Actual Usage**: 83 unique variables across codebase (563 `os.getenv` calls)
+- **Schema Drift**: 27 variables used in code but not defined in schema
+- **Notable Missing**: `TOTP_ENCRYPTION_KEY` (critical for 2FA functionality)
+
 **Critical Variables**:
 ```bash
 ENVIRONMENT=production
@@ -89,6 +104,8 @@ REDIS_URL=rediss://...
 JWT_SECRET_KEY=<production-secret>
 SECRET_KEY=<production-secret>
 MASTER_ENCRYPTION_KEY=<production-secret>
+ENCRYPTION_MASTER_KEY=<production-secret>  # Alias for MASTER_ENCRYPTION_KEY
+TOTP_ENCRYPTION_KEY=<production-secret>     # ⚠️ Missing from schema but required for 2FA
 ORCHESTRATOR_JWT_SECRET=<production-secret>
 ```
 
@@ -96,6 +113,12 @@ ORCHESTRATOR_JWT_SECRET=<production-secret>
 ```bash
 SENTRY_DSN=<production-dsn>
 SENTRY_ENVIRONMENT=production
+```
+
+**Orchestrator Configuration**:
+```bash
+USE_LANGGRAPH=false  # Production uses simple mode (set in render.yaml:48-49)
+# Set to 'true' to enable LangGraph mode with full state machine
 ```
 
 **Rate Limiting**:

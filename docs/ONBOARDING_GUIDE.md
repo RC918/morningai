@@ -72,7 +72,12 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 | Component | Role | Maturity | Service | Path |
 |-----------|------|----------|---------|------|
 | **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` |
-| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+| **Worker Orchestrator** | Task Execution (RQ) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+
+**Dual Execution Modes**:
+- **Simple Mode** (Production): `handoff/20250928/40_App/orchestrator/graph.py` - Fast, stateless execution (currently enabled via `USE_LANGGRAPH=false` in `render.yaml:48-49`)
+- **LangGraph Mode** (Optional): `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py:1-422` - Full state machine with retry logic, CI monitoring (can be enabled via `USE_LANGGRAPH=true`)
+- **Runtime Selection**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:303-307` conditionally imports orchestrator based on environment flag
 
 **See**: [ADR-001](adr/001-dual-orchestrator-architecture.md), [ADR-002](adr/002-producer-consumer-architecture.md) • **Consolidation**: 2026 Q1
 
@@ -484,15 +489,27 @@ morningai/
 
 ### Phase API Modules (Root Directory)
 
-The following production backend modules are located in the root directory and imported by `handoff/20250928/40_App/api-backend/src/main.py`:
+**Status**: ✅ **Intentional Cross-Cutting Architecture**
 
-- **`phase4_meta_agent_api.py`**: Meta-agent coordination (OODA loop, LangGraph workflows, AI governance)
-- **`phase5_data_intelligence_api.py`**: Data intelligence (QuickSight, growth marketing, BI dashboards)
-- **`phase6_security_governance_api.py`**: Security & governance (Zero Trust, SecurityReviewer Agent, HITL analysis)
-- **`phase6_startup.py`**: Phase 6 initialization (monitoring, security, Meta-Agent hub)
-- **`phase7_startup.py`**: Phase 7 initialization (Ops_Agent, Growth_Strategist, PM_Agent, HITL system)
+The following 18 production backend modules are located in the root directory as cross-cutting concerns:
 
-**Note**: These files are in the root directory for historical reasons. They are production code imported by the backend. Future refactoring may move them to `handoff/20250928/40_App/api-backend/src/phases/`.
+**Core Managers**:
+- **`persistent_state_manager.py`** (495 lines): State management across services
+- **`security_manager.py`** (364 lines): Security operations and governance
+- **`knowledge_graph_manager.py`** (1,018 lines): Knowledge graph operations
+
+**Phase API Modules**:
+- **`phase4_meta_agent_api.py`** (16,874 bytes): Meta-agent coordination (OODA loop, AI governance)
+- **`phase5_data_intelligence_api.py`** (21,472 bytes): Data intelligence (QuickSight, growth marketing, BI dashboards)
+- **`phase6_security_governance_api.py`** (18,234 bytes): Security & governance (Zero Trust, SecurityReviewer Agent, HITL analysis)
+- **`phase6_startup.py`**, **`phase7_startup.py`**: Phase initialization
+
+**Import Evidence**: These modules are actively imported in:
+- `handoff/20250928/40_App/api-backend/src/main.py` (main application)
+- `handoff/20250928/40_App/api-backend/tests/` (16+ test files)
+- `handoff/20250928/40_App/orchestrator/` (orchestrator services)
+
+**Architecture Rationale**: Root-level placement enables shared access across multiple services (api-backend, orchestrator, agents) without circular dependencies. This is an intentional design pattern for cross-cutting concerns, not a code organization issue.
 
 ---
 
