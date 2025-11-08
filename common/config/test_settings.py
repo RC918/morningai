@@ -217,5 +217,112 @@ class TestEdgeCases:
                 assert any('TLS' in str(warning.message) or 'rediss' in str(warning.message) for warning in w)
 
 
+class TestSecretStrMasking:
+    """Test that secret fields are properly masked using pydantic SecretStr"""
+    
+    def test_secrets_masked_in_repr(self):
+        """Secret fields should be masked in repr() output"""
+        sentinel_secrets = {
+            'OPENAI_API_KEY': 'sk-SENTINEL-openai-12345',
+            'UPSTASH_REDIS_REST_TOKEN': 'SENTINEL-upstash-token-67890',
+            'JWT_SECRET_KEY': 'SENTINEL-jwt-secret-abcde',
+            'ADMIN_PASSWORD': 'SENTINEL-admin-pass-fghij',
+            'SECRET_KEY': 'SENTINEL-flask-secret-klmno',
+            'MASTER_KEY': 'SENTINEL-master-key-pqrst',
+            'TOTP_ENCRYPTION_KEY': 'SENTINEL-totp-key-uvwxy-12345678901234567890',
+            'SUPABASE_DB_PASSWORD': 'SENTINEL-supabase-db-pass-zzz',
+            'SUPABASE_ANON_KEY': 'SENTINEL-supabase-anon-key-aaa',
+            'SUPABASE_SERVICE_ROLE_KEY': 'SENTINEL-supabase-service-key-bbb',
+            'CLOUDFLARE_API_TOKEN': 'SENTINEL-cloudflare-token-ccc',
+            'VERCEL_TOKEN': 'SENTINEL-vercel-token-ddd',
+            'VERCEL_TOKEN_NEW': 'SENTINEL-vercel-new-token-eee',
+            'VERCEL_TOKEN_2': 'SENTINEL-vercel-token-2-fff',
+            'RENDER_API_KEY': 'SENTINEL-render-key-ggg',
+            'FLY_API_TOKEN': 'SENTINEL-fly-token-iii',
+            'SENTRY_AUTH_TOKEN': 'SENTINEL-sentry-token-jjj',
+            'MONITOR_AUTH_TOKEN': 'SENTINEL-monitor-token-kkk',
+            'GITHUB_TOKEN': 'SENTINEL-github-token-lll',
+            'AGENT_GITHUB_TOKEN': 'SENTINEL-agent-github-token-mmm',
+            'TELEGRAM_BOT_TOKEN': 'SENTINEL-telegram-token-nnn',
+            'Mailtrap_API_TOKEN': 'SENTINEL-mailtrap-token-ooo',
+            'ORCHESTRATOR_JWT_SECRET': 'SENTINEL-orchestrator-jwt-ppp-12345678901234567890',
+            'STRIPE_SECRET_KEY': 'SENTINEL-stripe-secret-qqq',
+            'STRIPE_WEBHOOK_SECRET': 'SENTINEL-stripe-webhook-rrr',
+            'TEST_ADMIN_JWT': 'SENTINEL-test-admin-jwt-sss',
+            'STAGING_TEST_PASSWORD': 'SENTINEL-staging-pass-ttt',
+            'DASHBOARD_API_KEY': 'SENTINEL-dashboard-key-uuu',
+        }
+        
+        with patch.dict(os.environ, sentinel_secrets, clear=False):
+            instance = Settings()
+            
+            repr_output = repr(instance)
+            str_output = str(instance)
+            
+            for env_var, sentinel_value in sentinel_secrets.items():
+                assert sentinel_value not in repr_output, \
+                    f"Secret {env_var} leaked in repr(): found '{sentinel_value}'"
+                assert sentinel_value not in str_output, \
+                    f"Secret {env_var} leaked in str(): found '{sentinel_value}'"
+    
+    def test_secret_properties_return_unwrapped_strings(self):
+        """Secret properties should return unwrapped string values for downstream code"""
+        test_secrets = {
+            'OPENAI_API_KEY': 'sk-test-openai-key',
+            'GITHUB_TOKEN': 'ghp_test_github_token',
+            'JWT_SECRET_KEY': 'test-jwt-secret-key',
+        }
+        
+        with patch.dict(os.environ, test_secrets, clear=False):
+            instance = Settings()
+            
+            assert instance.openai_api_key == 'sk-test-openai-key'
+            assert isinstance(instance.openai_api_key, str)
+            
+            assert instance.github_token == 'ghp_test_github_token'
+            assert isinstance(instance.github_token, str)
+            
+            assert instance.jwt_secret_key == 'test-jwt-secret-key'
+            assert isinstance(instance.jwt_secret_key, str)
+    
+    def test_secret_properties_return_none_when_not_set(self):
+        """Secret properties should return None when environment variable not set"""
+        env_without_secrets = {k: v for k, v in os.environ.items() 
+                               if not any(secret in k for secret in [
+                                   'SECRET', 'KEY', 'TOKEN', 'PASSWORD', 'JWT'
+                               ])}
+        
+        with patch.dict(os.environ, env_without_secrets, clear=True):
+            instance = Settings()
+            
+            assert instance.openai_api_key is None
+            assert instance.github_token is None
+            assert instance.jwt_secret_key is None
+            assert instance.admin_password is None
+    
+    def test_totp_validator_works_with_secretstr(self):
+        """TOTP encryption key validator should work with SecretStr"""
+        with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': 'short'}):
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                instance = Settings()
+                
+                assert len(w) > 0, "Should emit warning for short TOTP key"
+                assert any('TOTP_ENCRYPTION_KEY' in str(warning.message) for warning in w)
+                
+                assert instance.totp_encryption_key == 'short'
+        
+        valid_key = 'a' * 32
+        with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': valid_key}):
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                instance = Settings()
+                
+                totp_warnings = [warning for warning in w if 'TOTP_ENCRYPTION_KEY' in str(warning.message)]
+                assert len(totp_warnings) == 0, "Should not emit warning for valid TOTP key"
+                
+                assert instance.totp_encryption_key == valid_key
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
