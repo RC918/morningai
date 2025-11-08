@@ -29,9 +29,29 @@ from src.services.auth_service import (
     PREAUTH_TOKEN_TTL
 )
 from src.middleware.csrf import csrf_protect, should_enforce_csrf
+from src.utils.pre_auth_token import get_pre_auth_manager
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def generate_preauth_token(user_id: str, email: str, ttl: int = None) -> str:
+    """
+    Generate a pre-authentication token (JWT-based).
+    
+    This is a compatibility wrapper for the new JWT-based pre-auth system.
+    The ttl parameter is ignored as the token expiry is managed by PreAuthTokenManager.
+    
+    Args:
+        user_id: User ID
+        email: User email
+        ttl: Token TTL in seconds (ignored, kept for compatibility)
+    
+    Returns:
+        JWT token string
+    """
+    pre_auth_manager = get_pre_auth_manager()
+    return pre_auth_manager.generate_token(user_id, email, scope='challenge')
 
 auth_enhanced_bp = Blueprint('auth_enhanced', __name__)
 
@@ -147,7 +167,6 @@ def login():
             return jsonify({'message': 'Invalid email or password'}), 401
         
         from .totp import check_2fa_required, is_2fa_feature_enabled
-        from ..utils.pre_auth_token import get_pre_auth_manager
         from supabase import create_client
         
         if check_2fa_required(user['id']):
@@ -168,11 +187,10 @@ def login():
                 except Exception as supabase_error:
                     logger.warning(f"Supabase query failed for user {user['email']}, defaulting to enroll_2fa: {supabase_error}")
             
-            pre_auth_manager = get_pre_auth_manager()
-            tmp_token = pre_auth_manager.generate_token(
+            tmp_token = generate_preauth_token(
                 user_id=user['id'],
                 email=user['email'],
-                scope=scope
+                ttl=PREAUTH_TOKEN_TTL
             )
             
             response_data = {
@@ -187,7 +205,25 @@ def login():
             
             logger.info(f"User {user['email']} (role: {user['role']}) requires 2FA: {next_step}")
             
-            return jsonify(response_data), 200
+            response = make_response(jsonify(response_data), 200)
+            
+            if FEATURE_2FA_PREAUTH:
+                try:
+                    response.set_cookie(
+                        'pre_auth_token',
+                        tmp_token,
+                        max_age=PREAUTH_TOKEN_TTL,
+                        httponly=True,
+                        secure=COOKIE_SECURE,
+                        samesite=COOKIE_SAMESITE,
+                        path='/api/auth/v2/totp'
+                    )
+                    
+                    logger.info(f"Pre-auth token set for user {user['id']}")
+                except Exception as e:
+                    logger.error(f"Failed to set pre-auth token cookie: {e}")
+            
+            return response
         
         access_token, access_expiry_ms = generate_access_token(
             user['id'], user['email'], user['role']

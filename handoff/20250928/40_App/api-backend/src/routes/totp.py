@@ -40,6 +40,48 @@ logger = logging.getLogger(__name__)
 
 totp_bp = Blueprint('totp', __name__, url_prefix='/api/auth/v2/totp')
 
+
+def validate_and_consume_preauth_token(token: str):
+    """
+    Validate and consume a pre-authentication token (JWT-based).
+    
+    This is a compatibility wrapper for the new JWT-based pre-auth system.
+    
+    Args:
+        token: JWT token string
+    
+    Returns:
+        Dict with 'id' and 'email' if valid and consumed, None otherwise
+    """
+    try:
+        pre_auth_manager = get_pre_auth_manager()
+        
+        payload = pre_auth_manager.verify_token(token)
+        if not payload:
+            return None
+        
+        if payload.get('scope') != 'challenge':
+            logger.warning(f"Token has wrong scope: {payload.get('scope')}, expected 'challenge'")
+            return None
+        
+        jti = payload.get('jti')
+        if not jti:
+            logger.warning("Token missing jti claim")
+            return None
+        
+        consumed = pre_auth_manager.consume_token_atomic(jti)
+        if not consumed:
+            logger.warning(f"Failed to consume token jti {jti}")
+            return None
+        
+        return {
+            'id': payload.get('user_id'),
+            'email': payload.get('email')
+        }
+    except Exception as e:
+        logger.error(f"Error validating/consuming pre-auth token: {e}", exc_info=True)
+        return None
+
 _totp_manager = None
 _backup_manager = None
 
