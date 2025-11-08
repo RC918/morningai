@@ -51,8 +51,13 @@
 
 - [ ] 閱讀 [UI/UX 快速上手指南](docs/UI_UX_QUICKSTART.md) - 5 分鐘快速入門
 - [ ] 查看 [UI/UX 速查表](docs/UI_UX_CHEATSHEET.md) - 常用資源速查
-- [ ] 瀏覽 [Design Tokens](docs/UX/tokens.json) - 色彩、字體、間距系統
+- [ ] 瀏覽 [Design Tokens](packages/shared-ui/src/tokens.json) - 色彩、字體、間距系統（單一真實來源）
 - [ ] 閱讀 [設計系統指南](DESIGN_SYSTEM_GUIDELINES.md) - 設計規範與最佳實踐
+
+**設計系統架構**：
+- **設計令牌**: `packages/shared-ui/src/tokens.json` (單一真實來源)
+- **共享組件庫**: `packages/shared-ui/src/components/ui/` (52 個組件)
+- **應用層組件**: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
 
 ### 第二步：查看已完成工作 (20 分鐘)
 
@@ -63,9 +68,17 @@
 ### 第三步：熟悉工具與流程 (30 分鐘)
 
 - [ ] 啟動 Storybook: `cd handoff/20250928/40_App/frontend-dashboard && pnpm install && pnpm storybook`
-- [ ] 瀏覽組件庫: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
+- [ ] 瀏覽 Storybook 中的 26 個組件故事（Apple 風格組件、設計系統展示）
+- [ ] 查看共享組件庫: `packages/shared-ui/src/components/ui/` (52 個組件)
+- [ ] 查看應用層組件: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
 - [ ] 查看 Vercel 預覽環境（在 PR 中查看）
 - [ ] 了解如何提交 Design PR
+
+**Storybook 架構說明**：
+- **位置**: `handoff/20250928/40_App/frontend-dashboard/.storybook/`
+- **配置**: `handoff/20250928/40_App/frontend-dashboard/.storybook/main.ts`
+- **故事數量**: 26 個 stories（包含 Apple 風格組件和設計系統展示）
+- **注意**: `packages/shared-ui` 本身沒有獨立的 Storybook，組件通過應用層 Storybook 記錄
 
 ### 第四步：開始第一個任務 (可選)
 
@@ -75,10 +88,11 @@
 - [ ] 提交 PR 並等待審查
 
 **設計師常用資源**：
-- Design Tokens: `docs/UX/tokens.json`
+- Design Tokens (SSOT): `packages/shared-ui/src/tokens.json`
 - 設計系統指南: `DESIGN_SYSTEM_GUIDELINES.md`
 - UI/UX 速查表: `docs/UI_UX_CHEATSHEET.md`
-- Storybook: `pnpm storybook` (在 frontend-dashboard 目錄)
+- Storybook: `pnpm storybook` (在 frontend-dashboard 目錄，26 個 stories)
+- 共享組件: `packages/shared-ui/src/components/ui/` (52 個)
 
 ---
 
@@ -93,13 +107,14 @@
 - [ ] 了解前端目錄結構:
   - Owner Console: `handoff/20250928/40_App/owner-console/`
   - Tenant Dashboard: `handoff/20250928/40_App/frontend-dashboard/`
-- [ ] 查看組件庫: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
+  - 共享組件庫: `packages/shared-ui/src/components/ui/` (52 個組件)
+- [ ] 查看應用層組件: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
 
 ### 第二步：設置本地開發環境 (30 分鐘)
 
 - [ ] 安裝依賴: `cd handoff/20250928/40_App/frontend-dashboard && pnpm install`
 - [ ] 啟動開發伺服器: `pnpm dev`
-- [ ] 啟動 Storybook: `pnpm storybook`
+- [ ] 啟動 Storybook: `pnpm storybook` (查看 26 個組件故事)
 - [ ] 運行 E2E 測試: `pnpm test:e2e`
 - [ ] 運行 Lint: `pnpm lint`
 - [ ] 運行 TypeScript 檢查: `pnpm typecheck`
@@ -107,8 +122,8 @@
 ### 第三步：了解核心功能 (45 分鐘)
 
 - [ ] 查看 [Week 7-8 完成報告](docs/UX/WEEK_7_8_COMPLETION_REPORT.md) - 最新功能實作
-- [ ] 了解 Design Tokens 使用方式（查看 `docs/UX/tokens.json`）
-- [ ] 查看 Storybook 中的組件範例
+- [ ] 了解 Design Tokens 使用方式（查看 `packages/shared-ui/src/tokens.json`）
+- [ ] 查看 Storybook 中的組件範例（26 個 stories）
 - [ ] 搜尋專案中的組件使用範例: `rg "import.*Button" --type tsx`
 
 ### 第四步：了解測試與 CI/CD (30 分鐘)
@@ -128,8 +143,9 @@
 
 **前端工程師常用資源**：
 - UI/UX 速查表: `docs/UI_UX_CHEATSHEET.md`
-- 組件庫: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
-- Storybook: `pnpm storybook` (在 frontend-dashboard 目錄)
+- 共享組件庫: `packages/shared-ui/src/components/ui/` (52 個組件)
+- 應用層組件: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
+- Storybook: `pnpm storybook` (在 frontend-dashboard 目錄，26 個 stories)
 - 測試命令: `pnpm test:e2e`, `pnpm lint`, `pnpm typecheck`
 - Monorepo 根目錄命令: `pnpm dev`, `pnpm build`, `pnpm test`
 
@@ -145,23 +161,56 @@
 - [ ] 查看 [Agent Governance Framework](docs/GOVERNANCE_FRAMEWORK.md) - 多代理系統治理框架
 - [ ] 了解後端目錄結構: `handoff/20250928/40_App/api-backend/`
 - [ ] 查看 OpenAPI 規範: `handoff/20250928/40_App/30_API/openapi/`
+- [ ] 了解根級模塊架構（跨切面關注點）
+
+**編排器架構（雙模式系統）**：
+- **簡單模式** (生產環境): `handoff/20250928/40_App/orchestrator/graph.py`
+  - 快速、無狀態執行
+  - 當前生產環境使用 (`USE_LANGGRAPH=false`)
+- **LangGraph 模式** (可選): `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`
+  - 完整狀態機、重試邏輯、CI 監控
+  - 422 行完整實現，可通過 `USE_LANGGRAPH=true` 啟用
+- **運行時選擇**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:303`
+
+**根級模塊（跨切面架構）**：
+- `persistent_state_manager.py` - 狀態管理 (495 行)
+- `security_manager.py` - 安全管理 (364 行)
+- `phase4_meta_agent_api.py` - Meta-agent 協調
+- `phase5_data_intelligence_api.py` - 數據智能
+- `phase6_security_governance_api.py` - 安全治理
+- `phase6_startup.py`, `phase7_startup.py` - Phase 初始化
+- 這些模塊被 `main.py` 和多個測試文件導入，屬於有意的架構設計
 
 ### 第二步：設置本地開發環境 (30 分鐘)
 
 - [ ] 安裝依賴: `cd handoff/20250928/40_App/api-backend && pip install -r requirements.txt`
-- [ ] 設置環境變數（參考 [環境變數 Schema](docs/config/env_schema.md)）
-  - 最低限度：5 個必需變數（JWT_SECRET_KEY, ADMIN_PASSWORD, SECRET_KEY, DATABASE_URL, REDIS_URL）
+- [ ] 設置環境變數（參考 [環境變數 Schema](config/env.schema.yaml)）
+  - **必需變數** (19 個): JWT_SECRET_KEY, DATABASE_URL, REDIS_URL 等
+  - **可選變數** (37 個): 功能標誌、監控、集成等
+  - **總計**: 56 個環境變數（詳見 `config/env.schema.yaml`）
+  - **注意**: 代碼中實際使用 83 個變數，存在 27 個變數的 schema 漂移
 - [ ] 啟動 Redis: `docker run -d -p 6379:6379 redis:7-alpine`
 - [ ] 啟動 API 伺服器: `cd src && python main.py`
 - [ ] 運行測試: `pytest`
 - [ ] 檢查測試覆蓋率: `pytest --cov=src`
 
+**環境變數管理**：
+- **Schema 定義**: `config/env.schema.yaml` (56 個變數)
+- **實際使用**: 代碼中 563 處 `os.getenv` 調用，83 個唯一變數
+- **Schema 漂移**: 27 個變數未在 schema 中定義（如 `TOTP_ENCRYPTION_KEY`）
+- **建議**: 使用 Pydantic BaseSettings 統一配置加載和驗證
+
 ### 第三步：了解核心功能 (45 分鐘)
 
 - [ ] 查看 [Database Schema Analysis](DATABASE_SCHEMA_ANALYSIS.md) - 資料庫結構
-- [ ] 了解 JWT 認證流程（查看 `src/auth/`）
+- [ ] 了解 JWT 認證流程（查看 `handoff/20250928/40_App/api-backend/src/routes/totp.py`）
 - [ ] 了解 RLS (Row Level Security) 實作
 - [ ] 查看 Agent Sandbox 架構（[Agent Sandbox Architecture](docs/agent-sandbox-architecture.md)）
+- [ ] 了解雙編排器架構（簡單模式 vs LangGraph 模式）
+
+**代理遷移執行**：
+- **dev_agent**: 有 Python 運行器 (`agents/dev_agent/migrations/run_migration.py`)
+- **faq_agent**: 使用 Shell 腳本 (`agents/faq_agent/deploy.sh:32` 執行 `psql -f migrations/001_create_faq_tables.sql`)
 
 ### 第四步：了解測試與部署 (30 分鐘)
 
@@ -183,10 +232,11 @@
 - ARCHITECTURE.md: `docs/ARCHITECTURE.md`
 - Agent Governance Framework: `docs/GOVERNANCE_FRAMEWORK.md`
 - Database Schema: `DATABASE_SCHEMA_ANALYSIS.md`
-- 環境變數 Schema: `docs/config/env_schema.md`
+- 環境變數 Schema: `config/env.schema.yaml` (56 個定義，83 個實際使用)
 - 本地開發設定: `docs/setup_local.md`
 - 測試命令: `pytest`, `pytest --cov=src`
-- 健康檢查: `curl http://localhost:5001/health`
+- 健康檢查: `curl http://localhost:8000/healthz`
+- LangGraph 實現: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py` (422 行)
 
 ---
 
