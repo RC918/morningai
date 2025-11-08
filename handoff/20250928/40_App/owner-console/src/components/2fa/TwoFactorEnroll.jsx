@@ -37,7 +37,9 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }) {
       setEnrollData(data);
       setStep('qr');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start 2FA enrollment');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to start 2FA enrollment';
+      const normalizedError = errorMessage.replace(/TMP_TOKEN_CONSUMED/g, 'TMP_TOKEN_INVALID');
+      setError(normalizedError);
     } finally {
       setLoading(false);
     }
@@ -54,7 +56,9 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }) {
       setBackupCodes(response.backup_codes);
       setStep('backup');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid verification code');
+      const errorMessage = err instanceof Error ? err.message : 'Invalid verification code';
+      const normalizedError = errorMessage.replace(/TMP_TOKEN_CONSUMED/g, 'TMP_TOKEN_INVALID');
+      setError(normalizedError);
     } finally {
       setLoading(false);
     }
