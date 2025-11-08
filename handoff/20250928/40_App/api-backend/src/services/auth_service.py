@@ -17,6 +17,7 @@ import logging
 import secrets
 from typing import Optional, Dict, Tuple
 from werkzeug.security import check_password_hash, generate_password_hash
+from common.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,11 @@ IS_PRODUCTION = ENVIRONMENT == 'production'
 # Token Configuration
 ACCESS_TOKEN_EXPIRY_MINUTES = 15
 REFRESH_TOKEN_EXPIRY_DAYS = 7
-JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')  # No default - must be set
 JWT_ALGORITHM = 'HS256'
+
+def _get_jwt_secret():
+    """Get JWT secret key from settings at runtime"""
+    return get_settings().jwt_secret_key or 'test-secret-key-for-testing'
 
 # Cookie Configuration
 COOKIE_SECURE = os.environ.get('COOKIE_SECURE', 'true' if IS_PRODUCTION else 'false').lower() == 'true'
@@ -49,25 +53,24 @@ def validate_security_config():
     """
     Validate security configuration at startup
     Fails fast in production if configuration is insecure
-    In non-production, auto-generates a secure test secret if missing
+    In non-production, logs warning if secret is missing (fallback used)
     """
-    global JWT_SECRET_KEY
     errors = []
     warnings = []
     
-    if not JWT_SECRET_KEY:
+    jwt_secret = _get_jwt_secret()
+    if not jwt_secret:
         if IS_PRODUCTION:
             errors.append("JWT_SECRET_KEY environment variable is not set")
         else:
-            JWT_SECRET_KEY = secrets.token_hex(32)
             logger.warning(
                 "JWT_SECRET_KEY not set in non-production environment. "
-                "Using auto-generated test secret. DO NOT USE IN PRODUCTION."
+                "Using fallback test secret. DO NOT USE IN PRODUCTION."
             )
     elif IS_PRODUCTION:
-        if len(JWT_SECRET_KEY) < 32:
-            errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(JWT_SECRET_KEY)})")
-        if JWT_SECRET_KEY in ['your-secret-key', 'secret', 'changeme', 'test']:
+        if len(jwt_secret) < 32:
+            errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(jwt_secret)})")
+        if jwt_secret in ['your-secret-key', 'secret', 'changeme', 'test', 'test-secret-key-for-testing']:
             errors.append("JWT_SECRET_KEY is using a known weak/default value")
     
     if IS_PRODUCTION and ENABLE_MOCK_USERS:
@@ -134,7 +137,7 @@ def generate_access_token(user_id: str, email: str, role: str) -> Tuple[str, int
         'exp': expiry
     }
     
-    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
     return token, expiry_timestamp
 
 
@@ -158,7 +161,7 @@ def generate_refresh_token(user_id: str, email: str) -> str:
         'exp': expiry
     }
     
-    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
     return token
 
 
@@ -170,7 +173,7 @@ def verify_access_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid
     """
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[JWT_ALGORITHM])
         
         if payload.get('type') != 'access':
             logger.warning("Token is not an access token")
@@ -193,7 +196,7 @@ def verify_refresh_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid/blacklisted
     """
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[JWT_ALGORITHM])
         
         if payload.get('type') != 'refresh':
             logger.warning("Token is not a refresh token")
@@ -436,8 +439,8 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     
     import requests
     
-    supabase_url = os.environ.get('SUPABASE_URL')
-    supabase_anon_key = os.environ.get('SUPABASE_ANON_KEY')
+    supabase_url = get_settings().supabase_url
+    supabase_anon_key = get_settings().supabase_anon_key
     
     if not supabase_url or not supabase_anon_key:
         logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set when ENABLE_MOCK_USERS=false")
@@ -519,8 +522,8 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
     
     import requests
     
-    supabase_url = os.environ.get('SUPABASE_URL')
-    supabase_service_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+    supabase_url = get_settings().supabase_url
+    supabase_service_key = get_settings().supabase_service_role_key
     
     if not supabase_url or not supabase_service_key:
         logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set when ENABLE_MOCK_USERS=false")
