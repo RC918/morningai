@@ -10,6 +10,8 @@ from typing import Dict, Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+from common.config.settings import settings
+
 
 def print_header(text: str):
     """Print formatted header"""
@@ -31,9 +33,9 @@ def check_environment_variables() -> Dict[str, Any]:
     print_header("Environment Variables Check")
     
     results = {
-        "upstash_url": os.getenv("UPSTASH_REDIS_REST_URL"),
-        "upstash_token": os.getenv("UPSTASH_REDIS_REST_TOKEN"),
-        "redis_url": os.getenv("REDIS_URL"),
+        "upstash_url": settings.upstash_redis_rest_url,
+        "upstash_token": settings.upstash_redis_rest_token,
+        "redis_url": settings.redis_url,
         "has_secure_config": False,
         "config_type": None
     }
@@ -110,7 +112,7 @@ def test_redis_tls_connection() -> bool:
         import redis
         import ssl
         
-        redis_url = os.getenv("REDIS_URL")
+        redis_url = settings.redis_url
         if not redis_url:
             print_result("Configuration", "SKIP", "REDIS_URL not set")
             return False

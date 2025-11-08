@@ -17,6 +17,8 @@ import requests
 import json
 from typing import Dict, Any
 
+from common.config.settings import settings
+
 
 class Colors:
     GREEN = '\033[92m'
@@ -90,9 +92,9 @@ def test_endpoint(api_url: str, email: str, password: str, endpoint: str) -> Dic
 def main():
     print(f"\n{Colors.BOLD}Staging 2FA Configuration Diagnostic{Colors.RESET}\n")
     
-    api_url = os.getenv("STAGING_API_URL")
-    email = os.getenv("STAGING_TEST_EMAIL")
-    password = os.getenv("STAGING_TEST_PASSWORD")
+    api_url = settings.staging_api_url
+    email = settings.staging_test_email
+    password = settings.staging_test_password
     
     if not all([api_url, email, password]):
         log_error("Missing required environment variables:")

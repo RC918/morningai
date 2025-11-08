@@ -15,6 +15,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, project_root)
 
 from orchestrator.task_queue.redis_queue import create_redis_queue
+from common.config.settings import settings
 
 
 class WorkerOptimizationAnalyzer:
@@ -193,7 +194,7 @@ class WorkerOptimizationAnalyzer:
         issues = []
         recommendations = []
         
-        redis_url = os.getenv("REDIS_URL", "")
+        redis_url = settings.redis_url or ""
         if "localhost" in redis_url or "127.0.0.1" in redis_url:
             issues.append("Redis URL points to localhost (not production-ready)")
             recommendations.append("Use managed Redis service (e.g., Redis Cloud, AWS ElastiCache)")
@@ -202,12 +203,12 @@ class WorkerOptimizationAnalyzer:
             issues.append("Redis connection not using TLS")
             recommendations.append("Enable TLS for Redis connections")
         
-        vercel_token = os.getenv("VERCEL_TOKEN", "")
+        vercel_token = settings.vercel_token or ""
         if not vercel_token:
             issues.append("VERCEL_TOKEN not set")
             recommendations.append("Configure VERCEL_TOKEN in environment variables")
         
-        jwt_secret = os.getenv("ORCHESTRATOR_JWT_SECRET", "")
+        jwt_secret = settings.orchestrator_jwt_secret or ""
         if not jwt_secret or len(jwt_secret) < 32:
             issues.append("JWT secret too short or missing")
             recommendations.append("Use strong JWT secret (>= 32 characters)")
@@ -299,7 +300,7 @@ class WorkerOptimizationAnalyzer:
 
 async def main():
     """Main entry point"""
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    redis_url = settings.redis_url or "redis://localhost:6379"
     
     analyzer = WorkerOptimizationAnalyzer(redis_url)
     

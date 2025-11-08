@@ -17,6 +17,8 @@ import sys
 import logging
 from pathlib import Path
 
+from common.config.settings import settings
+
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class DeploymentVerifier:
     
     def check_redis_url(self):
         """Verify REDIS_URL is set"""
-        redis_url = os.getenv('REDIS_URL')
+        redis_url = settings.redis_url
         if not redis_url:
             self.errors.append("REDIS_URL environment variable is not set")
             logger.error("❌ REDIS_URL not set - backend will fail to start")
@@ -46,7 +48,7 @@ class DeploymentVerifier:
     
     def check_orchestrator_path(self):
         """Verify orchestrator path exists"""
-        orchestrator_path = os.getenv('ORCHESTRATOR_PATH')
+        orchestrator_path = settings.orchestrator_path
         
         if not orchestrator_path:
             script_dir = Path(__file__).parent.parent
@@ -63,7 +65,7 @@ class DeploymentVerifier:
     
     def check_database_url(self):
         """Verify DATABASE_URL is set"""
-        database_url = os.getenv('DATABASE_URL')
+        database_url = settings.database_url
         if not database_url:
             self.errors.append("DATABASE_URL environment variable is not set")
             logger.error("❌ DATABASE_URL not set")
@@ -74,7 +76,7 @@ class DeploymentVerifier:
     
     def check_sentry_dsn(self):
         """Verify SENTRY_DSN is set (optional but recommended)"""
-        sentry_dsn = os.getenv('SENTRY_DSN')
+        sentry_dsn = settings.sentry_dsn
         if not sentry_dsn:
             self.warnings.append("SENTRY_DSN not set - error tracking will be disabled")
             logger.warning("⚠️  SENTRY_DSN not set - error tracking disabled")
@@ -85,7 +87,7 @@ class DeploymentVerifier:
     
     def check_jwt_secret(self):
         """Verify JWT_SECRET_KEY is set"""
-        jwt_secret = os.getenv('JWT_SECRET_KEY')
+        jwt_secret = settings.jwt_secret_key
         if not jwt_secret:
             self.errors.append("JWT_SECRET_KEY environment variable is not set")
             logger.error("❌ JWT_SECRET_KEY not set")

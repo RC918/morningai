@@ -16,6 +16,7 @@ except ImportError:
     sys.exit(2)
 
 import psycopg2
+from common.config.settings import settings
 
 def read_sql_file(filepath):
     """Read SQL file content"""
@@ -55,7 +56,7 @@ def execute_sql_file(conn, filepath, description):
         return False
 
 def main():
-    database_url = os.getenv('DATABASE_URL')
+    database_url = settings.database_url
     
     if not database_url:
         print("❌ Error: DATABASE_URL must be set")

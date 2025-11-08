@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import logging
 
+from common.config.settings import settings
+
 logging.basicConfig(
     level=logging.INFO,
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s"}'
@@ -34,7 +36,7 @@ except ImportError:
     logger.error("psycopg2 not installed. Run: pip install psycopg2-binary")
     sys.exit(1)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
+SENTRY_DSN = settings.sentry_dsn
 if SENTRY_DSN:
     try:
         import sentry_sdk
@@ -50,7 +52,7 @@ class RLSMonitor:
     """RLS Monitoring System"""
     
     def __init__(self):
-        self.database_url = os.getenv("DATABASE_URL")
+        self.database_url = settings.database_url
         
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable required")
