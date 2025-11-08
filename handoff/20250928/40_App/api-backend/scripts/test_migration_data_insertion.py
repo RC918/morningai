@@ -9,6 +9,7 @@ from datetime import datetime
 import uuid
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 from src.models.user import db
 from src.models.agent_registry_db import (
