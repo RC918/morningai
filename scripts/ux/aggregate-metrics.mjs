@@ -115,10 +115,24 @@ class MetricsAggregator {
       vrt: null
     };
 
-    // Try to find and parse artifacts for each metric type
+    // Try to parse metrics from PR comments first (preferred method)
+    const commentMetrics = await this.extractMetricsFromPRComments(pr, appName);
+    
+    // Merge comment metrics
+    for (const [metricType, value] of Object.entries(commentMetrics)) {
+      if (value) {
+        metrics[metricType] = value;
+      }
+    }
+
+    // Fallback: Try to find check runs for metrics not found in comments
     const metricTypes = ['i18n', 'a11y', 'motion', 'vrt'];
     
     for (const metricType of metricTypes) {
+      if (metrics[metricType]) {
+        continue; // Already found in comments
+      }
+      
       try {
         // Find the check run for this metric
         const checkRun = checkRuns.find(run => 
@@ -126,23 +140,114 @@ class MetricsAggregator {
           run.name.includes(appName)
         );
         
-        if (checkRun) {
-          // Try to download and parse the artifact
-          const parsedMetric = await this.downloadAndParseArtifact(checkRun, metricType, appName, pr);
-          
-          if (parsedMetric) {
-            metrics[metricType] = parsedMetric;
-          } else if (checkRun.conclusion === 'success') {
-            // Fallback: mark as available if we can't parse but check passed
-            metrics[metricType] = {
-              status: 'available',
-              check_run_id: checkRun.id
-            };
-          }
+        if (checkRun && checkRun.conclusion === 'success') {
+          // Mark as available if check passed but no parsed value
+          metrics[metricType] = {
+            status: 'available',
+            check_run_id: checkRun.id
+          };
         }
       } catch (error) {
         console.error(`Error extracting ${metricType} for ${appName}:`, error.message);
       }
+    }
+
+    return metrics;
+  }
+
+  async extractMetricsFromPRComments(pr, appName) {
+    const metrics = {
+      i18n: null,
+      a11y: null,
+      motion: null,
+      vrt: null
+    };
+
+    try {
+      // Fetch all comments for this PR
+      const { data: comments } = await this.octokit.issues.listComments({
+        owner: REPO_OWNER,
+        repo: REPO_NAME,
+        issue_number: pr.number,
+        per_page: 100
+      });
+
+      // Parse [UX METRIC] comments
+      // Format: [UX METRIC] app=<app> type=<type> <key>=<value>
+      for (const comment of comments) {
+        const body = comment.body || '';
+        
+        // Match [UX METRIC] lines
+        const metricLines = body.match(/\[UX METRIC\][^\n]+/g);
+        if (!metricLines) continue;
+
+        for (const line of metricLines) {
+          // Parse app name
+          const appMatch = line.match(/app=([^\s]+)/);
+          if (!appMatch || appMatch[1] !== appName) continue;
+
+          // Parse metric type
+          const typeMatch = line.match(/type=([^\s]+)/);
+          if (!typeMatch) continue;
+
+          const metricType = typeMatch[1];
+
+          // Parse metric values based on type
+          if (metricType === 'i18n') {
+            const coverageMatch = line.match(/coverage=(\d+(?:\.\d+)?)%/);
+            if (coverageMatch) {
+              const coverage = parseFloat(coverageMatch[1]);
+              metrics.i18n = {
+                status: 'parsed',
+                value: coverage,
+                unit: '%',
+                passed: coverage >= THRESHOLDS.i18n.target,
+                comment_id: comment.id
+              };
+            }
+          } else if (metricType === 'a11y') {
+            const criticalMatch = line.match(/critical=(\d+)/);
+            const seriousMatch = line.match(/serious=(\d+)/);
+            if (criticalMatch && seriousMatch) {
+              const critical = parseInt(criticalMatch[1]);
+              const serious = parseInt(seriousMatch[1]);
+              metrics.a11y = {
+                status: 'parsed',
+                critical,
+                serious,
+                passed: critical <= THRESHOLDS.a11y.critical && serious <= THRESHOLDS.a11y.serious,
+                comment_id: comment.id
+              };
+            }
+          } else if (metricType === 'motion') {
+            const p95Match = line.match(/p95=(\d+(?:\.\d+)?)ms/);
+            if (p95Match) {
+              const p95 = parseFloat(p95Match[1]);
+              metrics.motion = {
+                status: 'parsed',
+                value: p95,
+                unit: 'ms',
+                passed: p95 <= THRESHOLDS.motion.p95,
+                comment_id: comment.id
+              };
+            }
+          } else if (metricType === 'vrt') {
+            const mismatchMatch = line.match(/mismatch=(\d+(?:\.\d+)?)%/);
+            if (mismatchMatch) {
+              const mismatch = parseFloat(mismatchMatch[1]);
+              metrics.vrt = {
+                status: 'parsed',
+                value: mismatch,
+                unit: '%',
+                passed: mismatch <= THRESHOLDS.vrt.mismatch,
+                comment_id: comment.id
+              };
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error extracting metrics from PR comments:`, error.message);
     }
 
     return metrics;
