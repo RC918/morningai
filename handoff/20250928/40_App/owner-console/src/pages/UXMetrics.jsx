@@ -298,15 +298,15 @@ export default function UXMetrics() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{t('uxMetrics.i18nCoverage')}</span>
                 <div className="flex items-center gap-2">
-                  {metrics.summary.apps[app].i18n?.avg_coverage !== null && (
+                  {metrics.summary?.apps?.[app]?.i18n?.avg_coverage !== null && metrics.summary?.apps?.[app]?.i18n?.avg_coverage !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].i18n.avg_coverage, metrics.thresholds.i18n.target, 'gte')}`}>
                       {formatValue(metrics.summary.apps[app].i18n.avg_coverage, '%')}
                     </span>
                   )}
                   <span className="text-xs text-gray-500">
-                    ({metrics.summary.apps[app].i18n?.parsed || 0}/{metrics.summary.apps[app].total_prs})
+                    ({metrics.summary?.apps?.[app]?.i18n?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
                   </span>
-                  {metrics.summary.apps[app].i18n?.pass_rate !== null && (
+                  {metrics.summary?.apps?.[app]?.i18n?.pass_rate !== null && metrics.summary?.apps?.[app]?.i18n?.pass_rate !== undefined && (
                     <span className="text-xs text-green-600">
                       {formatValue(metrics.summary.apps[app].i18n.pass_rate, '% pass')}
                     </span>
@@ -316,44 +316,44 @@ export default function UXMetrics() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{t('uxMetrics.a11yTests')}</span>
                 <div className="flex items-center gap-2">
-                  {metrics.summary.apps[app].a11y?.avg_critical !== null && (
+                  {metrics.summary?.apps?.[app]?.a11y?.avg_critical !== null && metrics.summary?.apps?.[app]?.a11y?.avg_critical !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].a11y.avg_critical, metrics.thresholds.a11y.critical)}`}>
                       {t('uxMetrics.critical')}:{formatValue(metrics.summary.apps[app].a11y.avg_critical)}
                     </span>
                   )}
-                  {metrics.summary.apps[app].a11y?.avg_serious !== null && (
+                  {metrics.summary?.apps?.[app]?.a11y?.avg_serious !== null && metrics.summary?.apps?.[app]?.a11y?.avg_serious !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].a11y.avg_serious, metrics.thresholds.a11y.serious)}`}>
                       {t('uxMetrics.serious')}:{formatValue(metrics.summary.apps[app].a11y.avg_serious)}
                     </span>
                   )}
                   <span className="text-xs text-gray-500">
-                    ({metrics.summary.apps[app].a11y?.parsed || 0}/{metrics.summary.apps[app].total_prs})
+                    ({metrics.summary?.apps?.[app]?.a11y?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
                   </span>
                 </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{t('uxMetrics.motionTests')}</span>
                 <div className="flex items-center gap-2">
-                  {metrics.summary.apps[app].motion?.avg_p95 !== null && (
+                  {metrics.summary?.apps?.[app]?.motion?.avg_p95 !== null && metrics.summary?.apps?.[app]?.motion?.avg_p95 !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].motion.avg_p95, metrics.thresholds.motion.p95)}`}>
                       {formatValue(metrics.summary.apps[app].motion.avg_p95, 'ms')}
                     </span>
                   )}
                   <span className="text-xs text-gray-500">
-                    ({metrics.summary.apps[app].motion?.parsed || 0}/{metrics.summary.apps[app].total_prs})
+                    ({metrics.summary?.apps?.[app]?.motion?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
                   </span>
                 </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{t('uxMetrics.vrtTests')}</span>
                 <div className="flex items-center gap-2">
-                  {metrics.summary.apps[app].vrt?.avg_mismatch !== null && (
+                  {metrics.summary?.apps?.[app]?.vrt?.avg_mismatch !== null && metrics.summary?.apps?.[app]?.vrt?.avg_mismatch !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].vrt.avg_mismatch, metrics.thresholds.vrt.mismatch)}`}>
                       {formatValue(metrics.summary.apps[app].vrt.avg_mismatch, '%')}
                     </span>
                   )}
                   <span className="text-xs text-gray-500">
-                    ({metrics.summary.apps[app].vrt?.parsed || 0}/{metrics.summary.apps[app].total_prs})
+                    ({metrics.summary?.apps?.[app]?.vrt?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
                   </span>
                 </div>
               </div>
