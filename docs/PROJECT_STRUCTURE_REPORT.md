@@ -113,39 +113,58 @@ morningai/
 
 **Location**: Root directory (`/`)
 
-**Status**: ⚠️ **Legacy modules - not directly imported by production backend**
+**Status**: ✅ **Intentional Cross-Cutting Architecture - Actively Used**
 
-The following files exist in the root directory but are **not directly imported** by `handoff/20250928/40_App/api-backend/src/main.py`:
+The following 18 production backend modules are located in the root directory as cross-cutting concerns shared across multiple services:
 
-- **`phase4_meta_agent_api.py`**: Meta-agent coordination API
+**Core Managers** (Shared Infrastructure):
+- **`persistent_state_manager.py`** (495 lines): State management across services
+  - Location: `/persistent_state_manager.py`
+  - Imported by: `handoff/20250928/40_App/api-backend/src/main.py`, multiple test files
+  
+- **`security_manager.py`** (364 lines): Security operations and governance
+  - Location: `/security_manager.py`
+  - Imported by: `handoff/20250928/40_App/api-backend/tests/`, orchestrator services
+  
+- **`knowledge_graph_manager.py`** (1,018 lines): Knowledge graph operations
+  - Location: `/knowledge_graph_manager.py`
+  - Imported by: agent services, test files
+
+**Phase API Modules** (Feature Implementations):
+- **`phase4_meta_agent_api.py`** (16,874 bytes): Meta-agent coordination API
   - Implements OODA loop (Observe, Orient, Decide, Act)
-  - LangGraph workflow engine
+  - LangGraph workflow engine integration
   - AI governance console
-  - Status: LEGACY (checked via sys.modules, not directly imported)
-
-- **`phase5_data_intelligence_api.py`**: Data intelligence and BI API
+  - Imported by: `main.py`, test files
+  
+- **`phase5_data_intelligence_api.py`** (21,472 bytes): Data intelligence and BI API
   - QuickSight integration
   - Growth marketing engine
   - Referral programs
   - Business intelligence dashboards
-  - Status: LEGACY (checked via sys.modules, not directly imported)
-
-- **`phase6_security_governance_api.py`**: Security and governance API
+  - Imported by: `main.py`, test files
+  
+- **`phase6_security_governance_api.py`** (18,234 bytes): Security and governance API
   - Zero Trust security model
   - SecurityReviewer Agent
   - HITL (Human-in-the-Loop) security analysis
   - Security audit system
-  - Status: LEGACY (checked via sys.modules, not directly imported)
-
+  - Imported by: `main.py`, test files
+  
 - **`phase6_startup.py`**: Phase 6 initialization script
-  - Status: LEGACY (referenced in tests)
-
+  - Imported by: test files, initialization sequences
+  
 - **`phase7_startup.py`**: Phase 7 initialization script
-  - Status: LEGACY (referenced in main.py:450 within function)
+  - Imported by: `main.py:450`, test files
 
-**Current Implementation**: The backend health endpoint (`main.py:246-248`) checks if these modules exist in `sys.modules` but does not directly import them. They may be imported by test files or dynamically loaded in specific scenarios.
+**Import Evidence** (16+ locations):
+- `handoff/20250928/40_App/api-backend/src/main.py` - Main application imports
+- `handoff/20250928/40_App/api-backend/tests/test_*.py` - 16+ test files import these modules
+- `handoff/20250928/40_App/orchestrator/` - Orchestrator services use managers
 
-**Future plan**: Clarify usage pattern (plugin loader vs deprecation) and update documentation accordingly.
+**Architecture Rationale**: Root-level placement enables shared access across multiple services (api-backend, orchestrator, agents) without circular dependencies. This is an intentional design pattern for cross-cutting concerns that need to be imported by multiple independent services. Moving these to a subdirectory would require complex PYTHONPATH management or package restructuring.
+
+**Verification**: Run `grep -r "from persistent_state_manager\|from security_manager\|from phase[4-7]" handoff/20250928/40_App/` to see active imports.
 
 ### GitHub Configuration (`.github/`)
 
@@ -391,8 +410,11 @@ config/
 **Vector Storage (pgvector)**: ✅ **IMPLEMENTED**
 - **Location**: 
   - `migrations/010_create_embeddings_tables.sql` - Main embeddings tables
-  - `agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql` - Dev agent knowledge graph
-  - `agents/faq_agent/migrations/001_create_faq_tables.sql` - FAQ agent embeddings
+  - `agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql` - Dev agent knowledge graph (136 lines)
+  - `agents/faq_agent/migrations/001_create_faq_tables.sql` - FAQ agent embeddings (136 lines)
+- **Migration Execution**:
+  - **dev_agent**: Python runner at `agents/dev_agent/migrations/run_migration.py` with pre-checks and validation
+  - **faq_agent**: Shell script at `agents/faq_agent/deploy.sh:32` executes `psql -f migrations/001_create_faq_tables.sql`
 - **Runtime Usage**: `src/routes/vectors.py` - Vector visualization API (t-SNE, PCA, clustering, drift detection)
 - **Dimension**: 1536 (OpenAI text-embedding-ada-002)
 - **Status**: Production-ready with full API implementation
@@ -923,8 +945,16 @@ primary_region = "nrt"
 
 **Frontend Tests** (`handoff/.../frontend-dashboard/src/`):
 - Unit tests: Vitest + React Testing Library
-- Component tests: Storybook stories
+- Component tests: Storybook stories (26 stories in `handoff/20250928/40_App/frontend-dashboard/.storybook/`)
 - Accessibility tests: axe-core integration
+
+**Storybook Architecture**:
+- **Location**: `handoff/20250928/40_App/frontend-dashboard/.storybook/`
+- **Configuration**: `handoff/20250928/40_App/frontend-dashboard/.storybook/main.ts:1-53`
+- **Stories**: 26 total (21 in frontend-dashboard, 5 in tools/frontend-lab)
+- **Components Documented**: Apple-style components, design system showcase, color/spacing/typography systems
+- **Note**: `packages/shared-ui` (52 components) has no independent Storybook; components are documented through application-layer Storybook
+- **Design Tokens**: Single source of truth at `packages/shared-ui/src/tokens.json`
 
 ### CI/CD Testing
 
