@@ -176,6 +176,227 @@ JWT secret validation is performed in `auth_service.py:validate_security_config(
   - Logs warning if JWT_SECRET_KEY not set
   - Uses fallback: `'test-secret-key-for-testing'`
 
+## Secret Handling
+
+### Overview
+
+The Settings module uses **Pydantic SecretStr** to protect sensitive configuration values from accidental exposure in logs, exception tracebacks, repr() output, and developer terminals. All 31 secret fields are automatically masked when the Settings object is printed or logged.
+
+### Secret Fields
+
+The following fields are protected using SecretStr:
+
+**Authentication & Encryption** (7 fields):
+- `jwt_secret_key` - JWT token signing key
+- `admin_password` - Admin user password
+- `flask_secret_key` - Flask session secret
+- `secret_key` - Deprecated Flask secret
+- `encryption_master_key` - Master encryption key
+- `master_key` - Deprecated master key
+- `totp_encryption_key` - TOTP secret encryption key
+
+**Database** (3 fields):
+- `supabase_db_password` - Supabase database password
+- `supabase_anon_key` - Supabase anonymous key
+- `supabase_service_role_key` - Supabase service role key
+
+**Cloud Providers** (7 fields):
+- `cloudflare_api_token` - Cloudflare API token
+- `vercel_token` - Vercel deployment token
+- `vercel_token_new` - New Vercel token
+- `vercel_token_2` - Secondary Vercel token
+- `render_api_key` - Render API key
+- `upstash_redis_rest_token` - Upstash Redis token
+- `fly_api_token` - Fly.io API token
+
+**Monitoring & Auth** (2 fields):
+- `sentry_auth_token` - Sentry authentication token
+- `monitor_auth_token` - Monitoring system token
+
+**API Keys** (6 fields):
+- `github_token` - GitHub API token
+- `agent_github_token` - Agent GitHub token
+- `openai_api_key` - OpenAI API key
+- `telegram_bot_token` - Telegram bot token
+- `mailtrap_api_token` - Mailtrap API token
+- `dashboard_api_key` - Dashboard API key
+
+**Orchestrator & Payments** (4 fields):
+- `orchestrator_jwt_secret` - Orchestrator JWT secret
+- `stripe_secret_key` - Stripe secret key
+- `stripe_webhook_secret_key` - Stripe webhook secret
+- `stripe_webhook_secret` - Deprecated Stripe webhook secret
+
+**Testing** (2 fields):
+- `test_admin_jwt` - Test admin JWT token
+- `staging_test_password` - Staging test password
+
+### How SecretStr Works
+
+#### Dual-Field + Property Pattern
+
+Each secret field uses a dual-field pattern:
+1. **Internal SecretStr field**: `{name}_secret` (e.g., `jwt_secret_key_secret`)
+2. **Public property**: `{name}` (e.g., `jwt_secret_key`)
+
+```python
+# Internal field (masked in repr/logs)
+jwt_secret_key_secret: Optional[SecretStr] = Field(
+    None,
+    alias="JWT_SECRET_KEY",
+    repr=False  # Prevents display in repr()
+)
+
+# Public property (returns unwrapped string)
+@property
+def jwt_secret_key(self) -> Optional[str]:
+    """JWT secret key (unwrapped from SecretStr)"""
+    return self.jwt_secret_key_secret.get_secret_value() if self.jwt_secret_key_secret else None
+```
+
+#### Masking Behavior
+
+**Masked in repr/str/logs**:
+```python
+settings = get_settings()
+print(settings)  # Secrets show as '**********' or SecretStr('**********')
+repr(settings)   # Secrets are masked
+str(settings)    # Secrets are masked
+```
+
+**Accessible via properties**:
+```python
+settings = get_settings()
+api_key = settings.openai_api_key  # Returns actual string value
+jwt_secret = settings.jwt_secret_key  # Returns actual string value
+```
+
+### Security Best Practices
+
+#### ✅ DO
+
+**Access secrets via properties**:
+```python
+from common.config.settings import get_settings
+
+settings = get_settings()
+api_key = settings.openai_api_key  # Safe: returns string
+```
+
+**Use secrets in API calls**:
+```python
+import openai
+from common.config.settings import get_settings
+
+settings = get_settings()
+openai.api_key = settings.openai_api_key  # Safe: string value
+```
+
+**Log non-secret fields**:
+```python
+logger.info(f"Environment: {settings.environment}")
+logger.info(f"Redis URL: {settings.redis_url}")  # OK if not sensitive
+```
+
+#### ❌ DON'T
+
+**Never log the entire Settings object**:
+```python
+# BAD: May expose secrets in some contexts
+logger.info(f"Settings: {settings}")
+logger.debug(f"Config: {repr(settings)}")
+```
+
+**Never log secret properties directly**:
+```python
+# BAD: Exposes secret in logs
+logger.info(f"API Key: {settings.openai_api_key}")
+logger.debug(f"JWT Secret: {settings.jwt_secret_key}")
+```
+
+**Never use model_dump() on Settings**:
+```python
+# BAD: May expose secrets
+config_dict = settings.model_dump()
+logger.info(config_dict)
+```
+
+**Never print secrets for debugging**:
+```python
+# BAD: Exposes secret in terminal/logs
+print(f"Debug API Key: {settings.openai_api_key}")
+```
+
+### Advanced Usage
+
+#### Accessing SecretStr Directly
+
+For advanced use cases, you can access the SecretStr object directly:
+
+```python
+settings = get_settings()
+
+# Access SecretStr object (rarely needed)
+secret_str_obj = settings.jwt_secret_key_secret
+
+# Check if secret is set
+if secret_str_obj:
+    # Get unwrapped value
+    raw_value = secret_str_obj.get_secret_value()
+```
+
+#### Testing with Secrets
+
+```python
+import os
+from common.config.settings import reload_settings
+
+def test_with_secret():
+    # Set secret via environment variable
+    os.environ['OPENAI_API_KEY'] = 'sk-test-key-123'
+    
+    # Reload settings
+    settings = reload_settings()
+    
+    # Access secret (returns string)
+    assert settings.openai_api_key == 'sk-test-key-123'
+    
+    # Verify masking in repr
+    assert 'sk-test-key-123' not in repr(settings)
+```
+
+### Validator Updates
+
+Validators that target secret fields must use the `*_secret` field name and unwrap SecretStr values:
+
+```python
+@field_validator("totp_encryption_key_secret", mode="after")
+@classmethod
+def validate_totp_key(cls, v: Optional[SecretStr]) -> Optional[SecretStr]:
+    """Validate TOTP encryption key format"""
+    if v:
+        raw = v.get_secret_value()  # Unwrap to validate
+        if raw and len(raw) < 32:
+            warnings.warn("TOTP_ENCRYPTION_KEY should be at least 32 characters")
+    return v
+```
+
+### Migration Notes
+
+**No code changes required** for existing code that accesses secret fields via properties:
+
+```python
+# Before SecretStr (still works)
+settings = get_settings()
+api_key = settings.openai_api_key  # Returns str
+
+# After SecretStr (same behavior)
+settings = get_settings()
+api_key = settings.openai_api_key  # Still returns str
+```
+
+The dual-field + property pattern ensures backward compatibility while adding security.
+
 ## Migration Guide
 
 ### Step 1: Import the Settings Module

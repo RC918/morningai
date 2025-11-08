@@ -24,7 +24,7 @@ import os
 import sys
 import warnings
 from typing import Optional, Literal
-from pydantic import Field, field_validator, ConfigDict
+from pydantic import Field, field_validator, ConfigDict, SecretStr
 from pydantic_settings import BaseSettings
 
 
@@ -45,46 +45,89 @@ class Settings(BaseSettings):
     )
     
     
-    jwt_secret_key: Optional[str] = Field(
+    jwt_secret_key_secret: Optional[SecretStr] = Field(
         None,
         alias="JWT_SECRET_KEY",
-        description="JWT token signing key for authentication"
+        description="JWT token signing key for authentication",
+        repr=False
     )
     
-    admin_password: Optional[str] = Field(
+    @property
+    def jwt_secret_key(self) -> Optional[str]:
+        """JWT secret key (unwrapped from SecretStr)"""
+        return self.jwt_secret_key_secret.get_secret_value() if self.jwt_secret_key_secret else None
+    
+    admin_password_secret: Optional[SecretStr] = Field(
         None,
-        description="Admin user password for system access"
+        alias="ADMIN_PASSWORD",
+        description="Admin user password for system access",
+        repr=False
     )
     
-    flask_secret_key: Optional[str] = Field(
+    @property
+    def admin_password(self) -> Optional[str]:
+        """Admin password (unwrapped from SecretStr)"""
+        return self.admin_password_secret.get_secret_value() if self.admin_password_secret else None
+    
+    flask_secret_key_secret: Optional[SecretStr] = Field(
         None,
         alias="SECRET_KEY",
-        description="Flask application secret key for sessions"
+        description="Flask application secret key for sessions",
+        repr=False
     )
     
-    secret_key: Optional[str] = Field(
+    @property
+    def flask_secret_key(self) -> Optional[str]:
+        """Flask secret key (unwrapped from SecretStr)"""
+        return self.flask_secret_key_secret.get_secret_value() if self.flask_secret_key_secret else None
+    
+    secret_key_secret: Optional[SecretStr] = Field(
         None,
-        min_length=32,
-        description="DEPRECATED: Use flask_secret_key instead"
+        alias="SECRET_KEY",
+        description="DEPRECATED: Use flask_secret_key instead",
+        repr=False
     )
     
-    encryption_master_key: Optional[str] = Field(
+    @property
+    def secret_key(self) -> Optional[str]:
+        """Secret key (unwrapped from SecretStr) - DEPRECATED"""
+        return self.secret_key_secret.get_secret_value() if self.secret_key_secret else None
+    
+    encryption_master_key_secret: Optional[SecretStr] = Field(
         None,
-        alias="MASTER_KEY",  # Support deprecated MASTER_KEY
-        min_length=32,
-        description="Master encryption key for sensitive data"
+        alias="MASTER_KEY",
+        description="Master encryption key for sensitive data",
+        repr=False
     )
     
-    master_key: Optional[str] = Field(
+    @property
+    def encryption_master_key(self) -> Optional[str]:
+        """Encryption master key (unwrapped from SecretStr)"""
+        return self.encryption_master_key_secret.get_secret_value() if self.encryption_master_key_secret else None
+    
+    master_key_secret: Optional[SecretStr] = Field(
         None,
-        description="DEPRECATED: Use encryption_master_key instead"
+        alias="MASTER_KEY",
+        description="DEPRECATED: Use encryption_master_key instead",
+        repr=False
     )
     
-    totp_encryption_key: Optional[str] = Field(
+    @property
+    def master_key(self) -> Optional[str]:
+        """Master key (unwrapped from SecretStr) - DEPRECATED"""
+        return self.master_key_secret.get_secret_value() if self.master_key_secret else None
+    
+    totp_encryption_key_secret: Optional[SecretStr] = Field(
         default=None,
-        min_length=32,
-        description="Fernet encryption key for TOTP secrets"
+        alias="TOTP_ENCRYPTION_KEY",
+        description="Fernet encryption key for TOTP secrets",
+        repr=False
     )
+    
+    @property
+    def totp_encryption_key(self) -> Optional[str]:
+        """TOTP encryption key (unwrapped from SecretStr)"""
+        return self.totp_encryption_key_secret.get_secret_value() if self.totp_encryption_key_secret else None
     
     cookie_secure: bool = Field(
         default=True,
@@ -114,10 +157,17 @@ class Settings(BaseSettings):
         description="Supabase memory table name for vector storage"
     )
     
-    supabase_db_password: Optional[str] = Field(
+    supabase_db_password_secret: Optional[SecretStr] = Field(
         None,
-        description="Supabase PostgreSQL database password"
+        alias="SUPABASE_DB_PASSWORD",
+        description="Supabase PostgreSQL database password",
+        repr=False
     )
+    
+    @property
+    def supabase_db_password(self) -> Optional[str]:
+        """Supabase DB password (unwrapped from SecretStr)"""
+        return self.supabase_db_password_secret.get_secret_value() if self.supabase_db_password_secret else None
     
     redis_key_prefix: str = Field(
         default="morningai",
@@ -136,32 +186,58 @@ class Settings(BaseSettings):
         description="Supabase project URL"
     )
     
-    supabase_anon_key: Optional[str] = Field(
+    supabase_anon_key_secret: Optional[SecretStr] = Field(
         None,
         alias="SUPABASE_ANON_KEY",
-        description="Supabase anonymous/public key"
+        description="Supabase anonymous/public key",
+        repr=False
     )
     
-    supabase_service_role_key: Optional[str] = Field(
+    @property
+    def supabase_anon_key(self) -> Optional[str]:
+        """Supabase anon key (unwrapped from SecretStr)"""
+        return self.supabase_anon_key_secret.get_secret_value() if self.supabase_anon_key_secret else None
+    
+    supabase_service_role_key_secret: Optional[SecretStr] = Field(
         None,
         alias="SUPABASE_SERVICE_ROLE_KEY",
-        description="Supabase service role key (admin access)"
+        description="Supabase service role key (admin access)",
+        repr=False
     )
     
-    cloudflare_api_token: Optional[str] = Field(
+    @property
+    def supabase_service_role_key(self) -> Optional[str]:
+        """Supabase service role key (unwrapped from SecretStr)"""
+        return self.supabase_service_role_key_secret.get_secret_value() if self.supabase_service_role_key_secret else None
+    
+    cloudflare_api_token_secret: Optional[SecretStr] = Field(
         None,
-        description="Cloudflare API token for DNS/CDN management"
+        alias="CLOUDFLARE_API_TOKEN",
+        description="Cloudflare API token for DNS/CDN management",
+        repr=False
     )
+    
+    @property
+    def cloudflare_api_token(self) -> Optional[str]:
+        """Cloudflare API token (unwrapped from SecretStr)"""
+        return self.cloudflare_api_token_secret.get_secret_value() if self.cloudflare_api_token_secret else None
     
     cloudflare_zone_id: Optional[str] = Field(
         None,
         description="Cloudflare zone ID for domain"
     )
     
-    vercel_token: Optional[str] = Field(
+    vercel_token_secret: Optional[SecretStr] = Field(
         None,
-        description="Vercel deployment token"
+        alias="VERCEL_TOKEN",
+        description="Vercel deployment token",
+        repr=False
     )
+    
+    @property
+    def vercel_token(self) -> Optional[str]:
+        """Vercel token (unwrapped from SecretStr)"""
+        return self.vercel_token_secret.get_secret_value() if self.vercel_token_secret else None
     
     vercel_org_id: Optional[str] = Field(
         None,
@@ -178,20 +254,41 @@ class Settings(BaseSettings):
         description="Vercel team ID (alternative to vercel_org_id)"
     )
     
-    vercel_token_new: Optional[str] = Field(
+    vercel_token_new_secret: Optional[SecretStr] = Field(
         None,
-        description="New Vercel token for migration"
+        alias="VERCEL_TOKEN_NEW",
+        description="New Vercel token for migration",
+        repr=False
     )
     
-    vercel_token_2: Optional[str] = Field(
+    @property
+    def vercel_token_new(self) -> Optional[str]:
+        """New Vercel token (unwrapped from SecretStr)"""
+        return self.vercel_token_new_secret.get_secret_value() if self.vercel_token_new_secret else None
+    
+    vercel_token_2_secret: Optional[SecretStr] = Field(
         None,
-        description="Secondary Vercel token for testing"
+        alias="VERCEL_TOKEN_2",
+        description="Secondary Vercel token for testing",
+        repr=False
     )
     
-    render_api_key: Optional[str] = Field(
+    @property
+    def vercel_token_2(self) -> Optional[str]:
+        """Secondary Vercel token (unwrapped from SecretStr)"""
+        return self.vercel_token_2_secret.get_secret_value() if self.vercel_token_2_secret else None
+    
+    render_api_key_secret: Optional[SecretStr] = Field(
         None,
-        description="Render API key for deployments"
+        alias="RENDER_API_KEY",
+        description="Render API key for deployments",
+        repr=False
     )
+    
+    @property
+    def render_api_key(self) -> Optional[str]:
+        """Render API key (unwrapped from SecretStr)"""
+        return self.render_api_key_secret.get_secret_value() if self.render_api_key_secret else None
     
     render_instance_id: Optional[str] = Field(
         None,
@@ -204,16 +301,29 @@ class Settings(BaseSettings):
         description="Upstash Redis REST API URL"
     )
     
-    upstash_redis_rest_token: Optional[str] = Field(
+    upstash_redis_rest_token_secret: Optional[SecretStr] = Field(
         None,
         alias="UPSTASH_REDIS_REST_TOKEN",
-        description="Upstash Redis REST API token"
+        description="Upstash Redis REST API token",
+        repr=False
     )
     
-    fly_api_token: Optional[str] = Field(
+    @property
+    def upstash_redis_rest_token(self) -> Optional[str]:
+        """Upstash Redis REST token (unwrapped from SecretStr)"""
+        return self.upstash_redis_rest_token_secret.get_secret_value() if self.upstash_redis_rest_token_secret else None
+    
+    fly_api_token_secret: Optional[SecretStr] = Field(
         None,
-        description="Fly.io API token for sandbox deployments"
+        alias="FLY_API_TOKEN",
+        description="Fly.io API token for sandbox deployments",
+        repr=False
     )
+    
+    @property
+    def fly_api_token(self) -> Optional[str]:
+        """Fly.io API token (unwrapped from SecretStr)"""
+        return self.fly_api_token_secret.get_secret_value() if self.fly_api_token_secret else None
     
     
     sentry_dsn: Optional[str] = Field(
@@ -221,10 +331,17 @@ class Settings(BaseSettings):
         description="Sentry DSN for error tracking"
     )
     
-    sentry_auth_token: Optional[str] = Field(
+    sentry_auth_token_secret: Optional[SecretStr] = Field(
         None,
-        description="Sentry authentication token for API access"
+        alias="SENTRY_AUTH_TOKEN",
+        description="Sentry authentication token for API access",
+        repr=False
     )
+    
+    @property
+    def sentry_auth_token(self) -> Optional[str]:
+        """Sentry auth token (unwrapped from SecretStr)"""
+        return self.sentry_auth_token_secret.get_secret_value() if self.sentry_auth_token_secret else None
     
     sentry_environment: str = Field(
         default="production",
@@ -256,10 +373,17 @@ class Settings(BaseSettings):
         description="Monitoring system base URL"
     )
     
-    monitor_auth_token: Optional[str] = Field(
+    monitor_auth_token_secret: Optional[SecretStr] = Field(
         None,
-        description="Monitoring system authentication token"
+        alias="MONITOR_AUTH_TOKEN",
+        description="Monitoring system authentication token",
+        repr=False
     )
+    
+    @property
+    def monitor_auth_token(self) -> Optional[str]:
+        """Monitor auth token (unwrapped from SecretStr)"""
+        return self.monitor_auth_token_secret.get_secret_value() if self.monitor_auth_token_secret else None
     
     cost_alert_threshold: float = Field(
         default=50.0,
@@ -272,27 +396,46 @@ class Settings(BaseSettings):
     )
     
     
-    github_token: Optional[str] = Field(
+    github_token_secret: Optional[SecretStr] = Field(
         None,
         alias="GITHUB_TOKEN",
-        description="GitHub API token for repository operations"
+        description="GitHub API token for repository operations",
+        repr=False
     )
+    
+    @property
+    def github_token(self) -> Optional[str]:
+        """GitHub token (unwrapped from SecretStr)"""
+        return self.github_token_secret.get_secret_value() if self.github_token_secret else None
     
     github_repo: str = Field(
         default="RC918/morningai",
         description="GitHub repository in owner/repo format"
     )
     
-    agent_github_token: Optional[str] = Field(
+    agent_github_token_secret: Optional[SecretStr] = Field(
         None,
-        description="GitHub token for agent operations"
+        alias="AGENT_GITHUB_TOKEN",
+        description="GitHub token for agent operations",
+        repr=False
     )
     
-    openai_api_key: Optional[str] = Field(
+    @property
+    def agent_github_token(self) -> Optional[str]:
+        """Agent GitHub token (unwrapped from SecretStr)"""
+        return self.agent_github_token_secret.get_secret_value() if self.agent_github_token_secret else None
+    
+    openai_api_key_secret: Optional[SecretStr] = Field(
         None,
         alias="OPENAI_API_KEY",
-        description="OpenAI API key for embeddings and LLM operations"
+        description="OpenAI API key for embeddings and LLM operations",
+        repr=False
     )
+    
+    @property
+    def openai_api_key(self) -> Optional[str]:
+        """OpenAI API key (unwrapped from SecretStr)"""
+        return self.openai_api_key_secret.get_secret_value() if self.openai_api_key_secret else None
     
     openai_max_daily_cost: float = Field(
         default=100.0,
@@ -314,10 +457,17 @@ class Settings(BaseSettings):
         description="Slack webhook URL for notifications"
     )
     
-    telegram_bot_token: Optional[str] = Field(
+    telegram_bot_token_secret: Optional[SecretStr] = Field(
         None,
-        description="Telegram bot token for HITL approvals"
+        alias="TELEGRAM_BOT_TOKEN",
+        description="Telegram bot token for HITL approvals",
+        repr=False
     )
+    
+    @property
+    def telegram_bot_token(self) -> Optional[str]:
+        """Telegram bot token (unwrapped from SecretStr)"""
+        return self.telegram_bot_token_secret.get_secret_value() if self.telegram_bot_token_secret else None
     
     telegram_admin_chat_id: Optional[str] = Field(
         None,
@@ -334,11 +484,17 @@ class Settings(BaseSettings):
         description="Agent identifier for MCP operations"
     )
     
-    mailtrap_api_token: Optional[str] = Field(
+    mailtrap_api_token_secret: Optional[SecretStr] = Field(
         None,
-        alias="Mailtrap_API_TOKEN",  # Support legacy naming
-        description="Mailtrap API token for email testing"
+        alias="Mailtrap_API_TOKEN",
+        description="Mailtrap API token for email testing",
+        repr=False
     )
+    
+    @property
+    def mailtrap_api_token(self) -> Optional[str]:
+        """Mailtrap API token (unwrapped from SecretStr)"""
+        return self.mailtrap_api_token_secret.get_secret_value() if self.mailtrap_api_token_secret else None
     
     
     rq_queue_name: str = Field(
@@ -392,11 +548,17 @@ class Settings(BaseSettings):
         description="Path to orchestrator module"
     )
     
-    orchestrator_jwt_secret: Optional[str] = Field(
+    orchestrator_jwt_secret_secret: Optional[SecretStr] = Field(
         None,
-        min_length=32,
-        description="JWT secret for orchestrator API authentication"
+        alias="ORCHESTRATOR_JWT_SECRET",
+        description="JWT secret for orchestrator API authentication",
+        repr=False
     )
+    
+    @property
+    def orchestrator_jwt_secret(self) -> Optional[str]:
+        """Orchestrator JWT secret (unwrapped from SecretStr)"""
+        return self.orchestrator_jwt_secret_secret.get_secret_value() if self.orchestrator_jwt_secret_secret else None
     
     orchestrator_cors_origins: str = Field(
         default="http://localhost:5173",
@@ -559,27 +721,54 @@ class Settings(BaseSettings):
     )
     
     
-    stripe_secret_key: Optional[str] = Field(
+    stripe_secret_key_secret: Optional[SecretStr] = Field(
         None,
-        description="Stripe secret key (planned for Phase 10)"
+        alias="STRIPE_SECRET_KEY",
+        description="Stripe secret key (planned for Phase 10)",
+        repr=False
     )
     
-    stripe_webhook_secret_key: Optional[str] = Field(
+    @property
+    def stripe_secret_key(self) -> Optional[str]:
+        """Stripe secret key (unwrapped from SecretStr)"""
+        return self.stripe_secret_key_secret.get_secret_value() if self.stripe_secret_key_secret else None
+    
+    stripe_webhook_secret_key_secret: Optional[SecretStr] = Field(
         None,
-        alias="STRIPE_WEBHOOK_SECRET",  # Support deprecated name
-        description="Stripe webhook secret key"
+        alias="STRIPE_WEBHOOK_SECRET",
+        description="Stripe webhook secret key",
+        repr=False
     )
     
-    stripe_webhook_secret: Optional[str] = Field(
+    @property
+    def stripe_webhook_secret_key(self) -> Optional[str]:
+        """Stripe webhook secret key (unwrapped from SecretStr)"""
+        return self.stripe_webhook_secret_key_secret.get_secret_value() if self.stripe_webhook_secret_key_secret else None
+    
+    stripe_webhook_secret_secret: Optional[SecretStr] = Field(
         None,
-        description="DEPRECATED: Use stripe_webhook_secret_key instead"
+        alias="STRIPE_WEBHOOK_SECRET",
+        description="DEPRECATED: Use stripe_webhook_secret_key instead",
+        repr=False
     )
     
+    @property
+    def stripe_webhook_secret(self) -> Optional[str]:
+        """Stripe webhook secret (unwrapped from SecretStr) - DEPRECATED"""
+        return self.stripe_webhook_secret_secret.get_secret_value() if self.stripe_webhook_secret_secret else None
     
-    test_admin_jwt: Optional[str] = Field(
+    
+    test_admin_jwt_secret: Optional[SecretStr] = Field(
         None,
-        description="JWT token for E2E tests"
+        alias="TEST_ADMIN_JWT",
+        description="JWT token for E2E tests",
+        repr=False
     )
+    
+    @property
+    def test_admin_jwt(self) -> Optional[str]:
+        """Test admin JWT (unwrapped from SecretStr)"""
+        return self.test_admin_jwt_secret.get_secret_value() if self.test_admin_jwt_secret else None
     
     testing: bool = Field(
         default=False,
@@ -596,10 +785,17 @@ class Settings(BaseSettings):
         description="Test user email for staging environment"
     )
     
-    staging_test_password: Optional[str] = Field(
+    staging_test_password_secret: Optional[SecretStr] = Field(
         None,
-        description="Test user password for staging environment"
+        alias="STAGING_TEST_PASSWORD",
+        description="Test user password for staging environment",
+        repr=False
     )
+    
+    @property
+    def staging_test_password(self) -> Optional[str]:
+        """Staging test password (unwrapped from SecretStr)"""
+        return self.staging_test_password_secret.get_secret_value() if self.staging_test_password_secret else None
     
     
     gunicorn_workers: int = Field(
@@ -622,10 +818,17 @@ class Settings(BaseSettings):
         description="Ops agent dashboard port"
     )
     
-    dashboard_api_key: Optional[str] = Field(
+    dashboard_api_key_secret: Optional[SecretStr] = Field(
         None,
-        description="Ops agent dashboard API key"
+        alias="DASHBOARD_API_KEY",
+        description="Ops agent dashboard API key",
+        repr=False
     )
+    
+    @property
+    def dashboard_api_key(self) -> Optional[str]:
+        """Dashboard API key (unwrapped from SecretStr)"""
+        return self.dashboard_api_key_secret.get_secret_value() if self.dashboard_api_key_secret else None
     
     allowed_origins: str = Field(
         default="http://localhost:8050",
@@ -671,16 +874,18 @@ class Settings(BaseSettings):
             )
         return v
     
-    @field_validator("totp_encryption_key")
+    @field_validator("totp_encryption_key_secret", mode="after")
     @classmethod
-    def validate_totp_key(cls, v: Optional[str]) -> Optional[str]:
+    def validate_totp_key(cls, v: Optional[SecretStr]) -> Optional[SecretStr]:
         """Validate TOTP encryption key format"""
-        if v and len(v) < 32:
-            warnings.warn(
-                "TOTP_ENCRYPTION_KEY should be at least 32 characters. "
-                "Generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'",
-                UserWarning
-            )
+        if v:
+            raw = v.get_secret_value()
+            if raw and len(raw) < 32:
+                warnings.warn(
+                    "TOTP_ENCRYPTION_KEY should be at least 32 characters. "
+                    "Generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'",
+                    UserWarning
+                )
         return v
     
     @field_validator("redis_url")
