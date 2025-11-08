@@ -87,7 +87,7 @@ class TestPreAuthTokenValidation:
         email = "test@example.com"
         token = "test-token-abc123"
         
-        # Mock Redis get (O(1) lookup)
+        # Mock Redis eval for Lua script (atomic GET-and-DELETE)
         redis_key = f"preauth:{token}"
         
         stored_data = {
@@ -96,7 +96,7 @@ class TestPreAuthTokenValidation:
             "issued_at": "2025-11-04T10:00:00",
             "attempts": 0
         }
-        mock_redis_instance.get.return_value = json.dumps(stored_data)
+        mock_redis_instance.eval.return_value = json.dumps(stored_data).encode('utf-8')
         
         # Validate and consume token
         result = validate_and_consume_preauth_token(token)
@@ -106,8 +106,7 @@ class TestPreAuthTokenValidation:
         assert result['id'] == user_id
         assert result['email'] == email
         
-        # Assert token was deleted (one-time-use)
-        mock_redis_instance.delete.assert_called_once_with(redis_key)
+        assert mock_redis_instance.eval.called
     
     @patch('src.utils.preauth_token.get_redis_client')
     def test_validate_invalid_token(self, mock_redis):
@@ -115,16 +114,13 @@ class TestPreAuthTokenValidation:
         mock_redis_instance = MagicMock()
         mock_redis.return_value = mock_redis_instance
         
-        # Mock Redis get returns None (token not found)
-        mock_redis_instance.get.return_value = None
+        # Mock Redis eval returns None (token not found)
+        mock_redis_instance.eval.return_value = None
         
         result = validate_and_consume_preauth_token("invalid-token")
         
         # Assert failure
         assert result is None
-        
-        # Assert no deletion occurred
-        mock_redis_instance.delete.assert_not_called()
     
     @patch('src.utils.preauth_token.get_redis_client')
     def test_validate_empty_token(self, mock_redis):
@@ -141,8 +137,8 @@ class TestPreAuthTokenValidation:
         mock_redis_instance = MagicMock()
         mock_redis.return_value = mock_redis_instance
         
-        # Mock Redis get returns None (expired/not found)
-        mock_redis_instance.get.return_value = None
+        # Mock Redis eval returns None (expired/not found)
+        mock_redis_instance.eval.return_value = None
         
         result = validate_and_consume_preauth_token("test-token")
         
@@ -171,16 +167,16 @@ class TestPreAuthTokenReplayPrevention:
             "attempts": 0
         }
         
-        # First attempt: token exists
-        mock_redis_instance.get.return_value = json.dumps(stored_data)
+        # First attempt: token exists (eval returns bytes)
+        mock_redis_instance.eval.return_value = json.dumps(stored_data).encode('utf-8')
         
         # First use: success
         result1 = validate_and_consume_preauth_token(token)
         assert result1 is not None
-        assert mock_redis_instance.delete.called
+        assert mock_redis_instance.eval.called
         
-        # Second attempt: token deleted, get returns None
-        mock_redis_instance.get.return_value = None
+        # Second attempt: token deleted, eval returns None
+        mock_redis_instance.eval.return_value = None
         
         # Second use: failure
         result2 = validate_and_consume_preauth_token(token)
