@@ -59,19 +59,29 @@ def mock_redis():
     """Mock Redis client using fakeredis for stateful behavior"""
     from fakeredis import FakeRedis
     import src.utils.pre_auth_token
+    import src.middleware.rate_limit
     
     src.utils.pre_auth_token._pre_auth_manager = None
+    src.middleware.rate_limit.redis_client = None
     
     redis_client = FakeRedis(decode_responses=True)
     with patch("src.utils.redis_client.get_redis_client") as mock1, patch(
         "src.utils.pre_auth_token.get_redis_client"
-    ) as mock2:
+    ) as mock2, patch(
+        "src.middleware.rate_limit.get_rate_limit_redis"
+    ) as mock3:
         mock1.return_value = redis_client
         mock2.return_value = redis_client
+        mock3.return_value = redis_client
         
         yield redis_client
         
         src.utils.pre_auth_token._pre_auth_manager = None
+        
+        src.middleware.rate_limit.redis_client = None
+        src.middleware.rate_limit.retry_attempts = 0
+        src.middleware.rate_limit.next_retry_deadline = 0.0
+        
         redis_client.flushall()
 
 
