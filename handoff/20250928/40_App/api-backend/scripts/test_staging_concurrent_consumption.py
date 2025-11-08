@@ -25,6 +25,8 @@ import requests
 from typing import List, Dict, Any
 from datetime import datetime
 
+from common.config.settings import settings
+
 
 class Colors:
     """ANSI color codes for terminal output"""
@@ -273,9 +275,9 @@ def main():
     """Main test execution"""
     print(f"\n{Colors.BOLD}Staging Concurrent Token Consumption Test{Colors.RESET}\n")
     
-    api_url = os.getenv("STAGING_API_URL")
-    email = os.getenv("STAGING_TEST_EMAIL")
-    password = os.getenv("STAGING_TEST_PASSWORD")
+    api_url = settings.staging_api_url
+    email = settings.staging_test_email
+    password = settings.staging_test_password
     
     if not all([api_url, email, password]):
         log_error("Missing required environment variables:")

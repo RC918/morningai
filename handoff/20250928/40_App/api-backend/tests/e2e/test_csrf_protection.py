@@ -15,8 +15,10 @@ import pytest
 from playwright.sync_api import Page, expect
 import json
 
+from common.config.settings import settings
+
 pytestmark = pytest.mark.skipif(
-    not os.getenv("RUN_PY_BROWSER_E2E"),
+    not settings.run_py_browser_e2e,
     reason="Playwright E2E tests disabled in CI by default (requires staging credentials)"
 )
 

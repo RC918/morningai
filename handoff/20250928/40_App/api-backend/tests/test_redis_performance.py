@@ -4,10 +4,12 @@ from redis import Redis
 from redis.exceptions import ConnectionError
 import os
 
+from common.config.settings import settings
+
 @pytest.fixture
 def redis_client():
     """Create Redis client for testing"""
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    redis_url = settings.redis_url or "redis://localhost:6379/0"
     client = Redis.from_url(redis_url, decode_responses=True)
     
     try:

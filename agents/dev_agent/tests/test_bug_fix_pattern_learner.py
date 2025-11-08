@@ -7,6 +7,7 @@ import pytest
 import os
 from unittest.mock import Mock, MagicMock
 
+from common.config.settings import settings
 from knowledge_graph.bug_fix_pattern_learner import (
     BugFixPatternLearner
 )
@@ -16,7 +17,7 @@ from knowledge_graph.knowledge_graph_manager import (
 
 
 @pytest.mark.skipif(
-    not os.getenv('SUPABASE_URL') or not os.getenv('SUPABASE_DB_PASSWORD'),
+    not settings.supabase_url or not settings.supabase_db_password,
     reason="Requires SUPABASE_URL and SUPABASE_DB_PASSWORD"
 )
 def test_learn_bug_pattern_real():
@@ -38,7 +39,7 @@ def test_learn_bug_pattern_real():
 
 
 @pytest.mark.skipif(
-    not os.getenv('SUPABASE_URL') or not os.getenv('SUPABASE_DB_PASSWORD'),
+    not settings.supabase_url or not settings.supabase_db_password,
     reason="Requires SUPABASE_URL and SUPABASE_DB_PASSWORD"
 )
 def test_learn_fix_pattern_real():

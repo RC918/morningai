@@ -9,12 +9,14 @@ import sys
 import requests
 from datetime import datetime
 
+from common.config.settings import settings
+
 def test_supabase_connection():
     """Test Supabase connection using environment variables"""
     print("🔍 Testing Supabase connection...")
     
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    supabase_url = settings.supabase_url
+    supabase_key = settings.supabase_service_role_key
     
     if not supabase_url or not supabase_key:
         print("❌ Supabase: Environment variables not set")
@@ -43,9 +45,9 @@ def test_upstash_redis():
     """Test Upstash Redis connection"""
     print("🔍 Testing Upstash Redis connection...")
     
-    redis_url = os.getenv("REDIS_URL")
-    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
-    upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
+    redis_url = settings.redis_url
+    upstash_url = settings.upstash_redis_rest_url
+    upstash_token = settings.upstash_redis_rest_token
     
     if upstash_url and upstash_token:
         try:
@@ -72,7 +74,7 @@ def test_sentry_integration():
     """Test Sentry integration"""
     print("🔍 Testing Sentry integration...")
     
-    sentry_dsn = os.getenv("SENTRY_DSN")
+    sentry_dsn = settings.sentry_dsn
     
     if not sentry_dsn:
         print("❌ Sentry: SENTRY_DSN environment variable not set")
@@ -93,8 +95,8 @@ def test_cloudflare_integration():
     """Test Cloudflare integration"""
     print("🔍 Testing Cloudflare integration...")
     
-    cf_token = os.getenv("CLOUDFLARE_API_TOKEN")
-    cf_zone = os.getenv("CLOUDFLARE_ZONE_ID")
+    cf_token = settings.cloudflare_api_token
+    cf_zone = settings.cloudflare_zone_id
     
     if not cf_token or not cf_zone:
         print("❌ Cloudflare: Environment variables not set")
@@ -123,9 +125,9 @@ def test_vercel_integration():
     """Test Vercel integration"""
     print("🔍 Testing Vercel integration...")
     
-    vercel_token = os.getenv("VERCEL_TOKEN")
-    vercel_org = os.getenv("VERCEL_ORG_ID")
-    vercel_project = os.getenv("VERCEL_PROJECT_ID")
+    vercel_token = settings.vercel_token
+    vercel_org = settings.vercel_org_id
+    vercel_project = settings.vercel_project_id
     
     if not vercel_token:
         print("❌ Vercel: VERCEL_TOKEN environment variable not set")
@@ -153,7 +155,7 @@ def test_render_integration():
     """Test Render integration"""
     print("🔍 Testing Render integration...")
     
-    render_key = os.getenv("RENDER_API_KEY")
+    render_key = settings.render_api_key
     
     if not render_key:
         print("❌ Render: RENDER_API_KEY environment variable not set")
