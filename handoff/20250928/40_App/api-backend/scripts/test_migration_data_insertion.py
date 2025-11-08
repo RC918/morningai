@@ -9,7 +9,6 @@ from datetime import datetime
 import uuid
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 from src.models.user import db
 from src.models.agent_registry_db import (
@@ -17,13 +16,12 @@ from src.models.agent_registry_db import (
     AgentTypeDB, AgentStatusDB, PermissionLevelDB, TaskStatusDB
 )
 from flask import Flask
-from common.config.settings import settings
 
 def test_data_insertion():
     """Test that we can insert data using the model enums after migration"""
     
     app = Flask(__name__)
-    database_url = settings.database_url or 'sqlite:///test_insertion.db'
+    database_url = os.environ.get('DATABASE_URL', 'sqlite:///test_insertion.db')
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
