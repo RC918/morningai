@@ -12,11 +12,14 @@ Usage:
     config_path = repo_root / 'config' / 'env.schema.yaml'
 """
 
+import logging
 import os
 import subprocess
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 REPO_SENTINELS = [
@@ -33,9 +36,13 @@ def get_repo_root(start_path: Optional[Path] = None) -> Path:
     Find the repository root directory using multiple strategies.
     
     Resolution order:
-    1. REPO_ROOT_PATH environment variable (if set and exists)
+    1. REPO_ROOT_PATH environment variable (if set and exists) - TESTING/CI ONLY
     2. git rev-parse --show-toplevel (if in a git repository)
     3. Ascend from start_path to find sentinel files
+    
+    WARNING: REPO_ROOT_PATH should only be set in testing/CI environments.
+    Do not set this in production as it can override auto-detection and cause
+    incorrect path resolution
     
     Args:
         start_path: Starting path for search. Defaults to this file's directory.
@@ -56,6 +63,11 @@ def get_repo_root(start_path: Optional[Path] = None) -> Path:
         env_path = Path(env_root).resolve()
         if env_path.exists() and env_path.is_dir():
             return env_path
+        else:
+            logger.debug(
+                "REPO_ROOT_PATH=%r is not a valid directory; ignoring and falling back to git/sentinels",
+                env_root
+            )
     
     try:
         result = subprocess.run(
@@ -69,8 +81,10 @@ def get_repo_root(start_path: Optional[Path] = None) -> Path:
             git_root = Path(result.stdout.strip()).resolve()
             if git_root.exists():
                 return git_root
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
+        else:
+            logger.debug("git rev-parse returned non-zero exit code %d; falling back to sentinel search", result.returncode)
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        logger.debug("git rev-parse failed (%s); falling back to sentinel search", e)
     
     if start_path is None:
         start_path = Path(__file__).resolve().parent
@@ -91,6 +105,10 @@ def get_repo_root(start_path: Optional[Path] = None) -> Path:
             break
         current = parent
     
+    logger.debug(
+        "Could not determine repository root from %s using env/git/sentinels",
+        start_path
+    )
     raise RuntimeError(
         f"Could not determine repository root. Tried:\n"
         f"  1. REPO_ROOT_PATH env var: {env_root or '(not set)'}\n"
