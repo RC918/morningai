@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@morningai/shared-ui'
 import { Separator } from '@morningai/shared-ui'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { TwoFactorVerify } from './2fa/TwoFactorVerify'
+import { TwoFactorEnroll } from './2fa/TwoFactorEnroll'
 import apiClient from '@/lib/api'
 import { signInWithOAuth } from '@/lib/supabaseClient'
 import type { LoginResponse } from '@/types/2fa'
@@ -41,6 +42,8 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
   const [error, setError] = useState<string>('')
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false)
   const [show2FADialog, setShow2FADialog] = useState<boolean>(false)
+  const [show2FAEnrollDialog, setShow2FAEnrollDialog] = useState<boolean>(false)
+  const [tmpLoginToken, setTmpLoginToken] = useState<string>('')
 
   useEffect(() => {
     const mediaQuery: MediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -59,6 +62,22 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
 
     try {
       const result: LoginResponse = await apiClient.login(credentials)
+      
+      if (result.next_step) {
+        if (result.tmp_login_token) {
+          setTmpLoginToken(result.tmp_login_token)
+        }
+        
+        if (result.next_step === 'enroll_2fa') {
+          setShow2FAEnrollDialog(true)
+          setLoading(false)
+          return
+        } else if (result.next_step === 'challenge_2fa') {
+          setShow2FADialog(true)
+          setLoading(false)
+          return
+        }
+      }
       
       if (result.requires_2fa) {
         setShow2FADialog(true)
@@ -94,17 +113,59 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     isBackup: boolean;
     rememberDevice: boolean;
   }) => {
-    const { verifyTwoFALogin } = await import('@/lib/2fa-api')
-    
-    await verifyTwoFALogin({
-      email: credentials.username,
-      password: credentials.password,
-      totp_code: params.isBackup ? undefined : params.code,
-      backup_code: params.isBackup ? params.code : undefined,
-      remember_device: params.rememberDevice,
-    })
+    if (tmpLoginToken) {
+      const { challengeTwoFA } = await import('@/lib/2fa-api')
+      
+      await challengeTwoFA({
+        code: params.isBackup ? undefined : params.code,
+        backup_code: params.isBackup ? params.code : undefined,
+        remember_device: params.rememberDevice,
+      }, tmpLoginToken)
 
+      setShow2FADialog(false)
+      setTmpLoginToken('')
+      
+      try {
+        const user = await apiClient.getCurrentUser()
+        onLogin(user)
+      } catch (error) {
+        setError(t('auth.login.loginError'))
+      }
+    } else {
+      const { verifyTwoFALogin } = await import('@/lib/2fa-api')
+      
+      await verifyTwoFALogin({
+        email: credentials.username,
+        password: credentials.password,
+        totp_code: params.isBackup ? undefined : params.code,
+        backup_code: params.isBackup ? params.code : undefined,
+        remember_device: params.rememberDevice,
+      })
+
+      setShow2FADialog(false)
+      
+      try {
+        const user = await apiClient.getCurrentUser()
+        onLogin(user)
+      } catch (error) {
+        setError(t('auth.login.loginError'))
+      }
+    }
+  }
+
+  const handle2FACancel = () => {
     setShow2FADialog(false)
+    setShow2FAEnrollDialog(false)
+    setTmpLoginToken('')
+    setError('')
+  }
+
+  const handle2FAEnroll = async (params: {
+    code: string;
+    backupCodes: string[];
+  }) => {
+    setShow2FAEnrollDialog(false)
+    setTmpLoginToken('')
     
     try {
       const user = await apiClient.getCurrentUser()
@@ -112,11 +173,6 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     } catch (error) {
       setError(t('auth.login.loginError'))
     }
-  }
-
-  const handle2FACancel = () => {
-    setShow2FADialog(false)
-    setError('')
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -360,8 +416,8 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
               <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                 <h2 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
                 <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin</code></p>
-                  <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">admin123</code></p>
+                  <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
+                  <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
                 </div>
               </div>
             </CardContent>
@@ -381,6 +437,13 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
         open={show2FADialog}
         onClose={handle2FACancel}
         onVerify={handle2FAVerify}
+      />
+
+      <TwoFactorEnroll
+        open={show2FAEnrollDialog}
+        onClose={handle2FACancel}
+        onComplete={handle2FAEnroll}
+        tmpLoginToken={tmpLoginToken}
       />
     </div>
   )

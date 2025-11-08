@@ -59,11 +59,12 @@ export async function apiClient<T>(
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
+    const text = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
+    const statusText = res.statusText || '';
+    throw new Error(`HTTP ${res.status} ${statusText} - ${text}`);
   }
-  const ct = res.headers.get('content-type') || '';
-  const data = ct.includes('application/json') ? await res.json() : await res.text();
+  const ct = res.headers && typeof res.headers.get === 'function' ? res.headers.get('content-type') || '' : '';
+  const data = ct.includes('application/json') ? await res.json() : (typeof res.text === 'function' ? await res.text() : '');
   
   return {
     data,

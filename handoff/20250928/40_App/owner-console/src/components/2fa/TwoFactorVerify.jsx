@@ -66,17 +66,24 @@ export function TwoFactorVerify({
       });
 
     } catch (err) {
+      const errorMessage = err?.message || '';
+      const normalizedError = errorMessage.replace(/TMP_TOKEN_CONSUMED/g, 'TMP_TOKEN_INVALID');
+      
       const newAttempts = Math.max(0, attemptsRemaining - 1);
       setAttemptsRemaining(newAttempts);
       
       if (newAttempts <= 0) {
         setError(t('auth.2fa.tooManyAttempts'));
       } else {
-        setError(
-          useBackup
-            ? t('auth.2fa.invalidBackupCode', { attempts: newAttempts })
-            : t('auth.2fa.invalidCode', { attempts: newAttempts })
-        );
+        if (normalizedError && normalizedError !== errorMessage) {
+          setError(normalizedError);
+        } else {
+          setError(
+            useBackup
+              ? t('auth.2fa.invalidBackupCode', { attempts: newAttempts })
+              : t('auth.2fa.invalidCode', { attempts: newAttempts })
+          );
+        }
       }
       
       if (useBackup) {

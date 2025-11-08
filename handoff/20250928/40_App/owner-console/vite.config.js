@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => {
     : null
 
   return {
+    base: '/',
     plugins: [
       react(),
       tailwindcss(),
@@ -129,6 +130,9 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
       rollupOptions: {
         output: {
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash][extname]',
           manualChunks: {
             'react-vendor': ['react', 'react-dom', 'react-router-dom'],
             'ui-vendor': ['lucide-react', 'recharts', 'framer-motion'],

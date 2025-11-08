@@ -44,8 +44,12 @@ export interface LoginCredentials {
 }
 
 export interface LoginResponse {
-  user: User;
-  tokens: AuthTokens;
+  user?: User;
+  tokens?: AuthTokens;
+  next_step?: 'enroll_2fa' | 'challenge_2fa' | 'session';
+  tmp_login_token?: string;
+  requires_2fa?: boolean;
+  message?: string;
 }
 
 export interface RefreshTokenResponse {
@@ -565,8 +569,10 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   
   const data: LoginResponse = await response.json();
   
-  storeTokenExpiry(data.tokens.expiresAt);
-  storeUser(data.user);
+  if (data.tokens && data.user) {
+    storeTokenExpiry(data.tokens.expiresAt);
+    storeUser(data.user);
+  }
   
   return data;
 }

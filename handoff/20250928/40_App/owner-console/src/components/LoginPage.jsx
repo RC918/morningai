@@ -7,6 +7,7 @@ import { AppleInput } from '@/components/apple/apple-input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@morningai/shared-ui'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { TwoFactorVerify } from './2fa/TwoFactorVerify'
+import { TwoFactorEnroll } from './2fa/TwoFactorEnroll'
 
 const LoginPage = ({ onLogin }) => {
   const { t } = useTranslation()
@@ -18,6 +19,8 @@ const LoginPage = ({ onLogin }) => {
   const [error, setError] = useState('')
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const [show2FADialog, setShow2FADialog] = useState(false)
+  const [show2FAEnrollDialog, setShow2FAEnrollDialog] = useState(false)
+  const [tmpLoginToken, setTmpLoginToken] = useState('')
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -37,6 +40,22 @@ const LoginPage = ({ onLogin }) => {
     try {
       const result = await onLogin(credentials)
       
+      if (result && result.next_step) {
+        if (result.tmp_login_token) {
+          setTmpLoginToken(result.tmp_login_token)
+        }
+        
+        if (result.next_step === 'enroll_2fa') {
+          setShow2FAEnrollDialog(true)
+          setLoading(false)
+          return
+        } else if (result.next_step === 'challenge_2fa') {
+          setShow2FADialog(true)
+          setLoading(false)
+          return
+        }
+      }
+      
       if (result && result.requires_2fa) {
         setShow2FADialog(true)
         setLoading(false)
@@ -51,30 +70,66 @@ const LoginPage = ({ onLogin }) => {
   }
 
   const handle2FAVerify = async (params) => {
-    const { verifyTwoFALogin } = await import('@/lib/2fa-api')
-    const { getCurrentUser } = await import('@/lib/auth')
-    
-    await verifyTwoFALogin({
-      email: credentials.email,
-      password: credentials.password,
-      totp_code: params.isBackup ? undefined : params.code,
-      backup_code: params.isBackup ? params.code : undefined,
-      remember_device: params.rememberDevice,
-    })
+    if (tmpLoginToken) {
+      const { challengeTwoFA } = await import('@/lib/2fa-api')
+      const { getCurrentUser } = await import('@/lib/auth')
+      
+      await challengeTwoFA({
+        code: params.isBackup ? undefined : params.code,
+        backup_code: params.isBackup ? params.code : undefined,
+        remember_device: params.rememberDevice,
+      }, tmpLoginToken)
 
-    setShow2FADialog(false)
-    
-    try {
-      const user = await getCurrentUser()
-      onLogin(user)
-    } catch (error) {
-      setError(error.message || t('auth.login.loginError'))
+      setShow2FADialog(false)
+      setTmpLoginToken('')
+      
+      try {
+        const user = await getCurrentUser()
+        onLogin(user)
+      } catch (error) {
+        setError(error.message || t('auth.login.loginError'))
+      }
+    } else {
+      const { verifyTwoFALogin } = await import('@/lib/2fa-api')
+      const { getCurrentUser } = await import('@/lib/auth')
+      
+      await verifyTwoFALogin({
+        email: credentials.email,
+        password: credentials.password,
+        totp_code: params.isBackup ? undefined : params.code,
+        backup_code: params.isBackup ? params.code : undefined,
+        remember_device: params.rememberDevice,
+      })
+
+      setShow2FADialog(false)
+      
+      try {
+        const user = await getCurrentUser()
+        onLogin(user)
+      } catch (error) {
+        setError(error.message || t('auth.login.loginError'))
+      }
     }
   }
 
   const handle2FACancel = () => {
     setShow2FADialog(false)
+    setShow2FAEnrollDialog(false)
+    setTmpLoginToken('')
     setError('')
+  }
+
+  const handle2FAEnroll = async (params) => {
+    setShow2FAEnrollDialog(false)
+    setTmpLoginToken('')
+    
+    try {
+      const { getCurrentUser } = await import('@/lib/auth')
+      const user = await getCurrentUser()
+      onLogin(user)
+    } catch (error) {
+      setError(error.message || t('auth.login.loginError'))
+    }
   }
 
   const handleChange = (e) => {
@@ -237,6 +292,13 @@ const LoginPage = ({ onLogin }) => {
         open={show2FADialog}
         onClose={handle2FACancel}
         onVerify={handle2FAVerify}
+      />
+
+      <TwoFactorEnroll
+        open={show2FAEnrollDialog}
+        onClose={handle2FACancel}
+        onComplete={handle2FAEnroll}
+        tmpLoginToken={tmpLoginToken}
       />
     </div>
   )

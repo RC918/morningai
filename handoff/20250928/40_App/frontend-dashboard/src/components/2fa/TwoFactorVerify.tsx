@@ -79,18 +79,25 @@ export function TwoFactorVerify({
       });
 
     } catch (err) {
+      const errorMessage = (err as Error)?.message || '';
+      const normalizedError = errorMessage.replace(/TMP_TOKEN_CONSUMED/g, 'TMP_TOKEN_INVALID');
+      
       const newAttempts = attemptsRemaining - 1;
       setAttemptsRemaining(newAttempts);
       
       if (newAttempts <= 0) {
         setError(t('auth.2fa.tooManyAttempts'));
       } else {
-        setError(
-          t('auth.2fa.invalidCode', {
-            attempts: newAttempts,
-            defaultValue: `Invalid code. ${newAttempts} attempts remaining.`,
-          })
-        );
+        if (normalizedError && normalizedError !== errorMessage) {
+          setError(normalizedError);
+        } else {
+          setError(
+            t('auth.2fa.invalidCode', {
+              attempts: newAttempts,
+              defaultValue: `Invalid code. ${newAttempts} attempts remaining.`,
+            })
+          );
+        }
       }
       setTotpCode('');
     } finally {
@@ -113,18 +120,25 @@ export function TwoFactorVerify({
       });
 
     } catch (err) {
+      const errorMessage = (err as Error)?.message || '';
+      const normalizedError = errorMessage.replace(/TMP_TOKEN_CONSUMED/g, 'TMP_TOKEN_INVALID');
+      
       const newAttempts = attemptsRemaining - 1;
       setAttemptsRemaining(newAttempts);
       
       if (newAttempts <= 0) {
         setError(t('auth.2fa.tooManyAttempts'));
       } else {
-        setError(
-          t('auth.2fa.invalidBackupCode', {
-            attempts: newAttempts,
-            defaultValue: `Invalid backup code. ${newAttempts} attempts remaining.`,
-          })
-        );
+        if (normalizedError && normalizedError !== errorMessage) {
+          setError(normalizedError);
+        } else {
+          setError(
+            t('auth.2fa.invalidBackupCode', {
+              attempts: newAttempts,
+              defaultValue: `Invalid backup code. ${newAttempts} attempts remaining.`,
+            })
+          );
+        }
       }
       setBackupCode('');
     } finally {

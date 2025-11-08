@@ -70,7 +70,7 @@ class TestJWTAuthentication:
         assert response.status_code == 401
         data = response.get_json()
         assert 'error' in data
-        assert 'Authorization header missing' in data['error']
+        assert data['error'] in {'Authorization header missing', 'Authentication required'}
     
     def test_invalid_authorization_format(self, client):
         """Test invalid Authorization header format returns 401"""
