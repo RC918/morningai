@@ -10,9 +10,15 @@ Why Playwright instead of Python requests?
 - Playwright uses real browser engines (Chromium, Firefox, WebKit)
 """
 
+import os
 import pytest
 from playwright.sync_api import Page, expect
 import json
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv("RUN_PY_BROWSER_E2E"),
+    reason="Playwright E2E tests disabled in CI by default (requires staging credentials)"
+)
 
 STAGING_API = "https://morningai-backend-v2-stg.onrender.com"
 TEST_EMAIL = "ryan2939x@gmail.com"
