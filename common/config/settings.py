@@ -717,6 +717,28 @@ def get_settings() -> Settings:
         _settings_instance.log_deprecation_warnings()
     return _settings_instance
 
+def reload_settings() -> Settings:
+    """
+    Reload settings from environment variables.
+    
+    This is primarily useful for tests that modify os.environ at runtime.
+    After changing environment variables, call this function to force
+    the settings instance to reload.
+    
+    Example:
+        import os
+        from common.config.settings import reload_settings
+        
+        os.environ['JWT_SECRET_KEY'] = 'new-test-key'
+        reload_settings()  # Settings will now use the new value
+    
+    Returns:
+        The newly created Settings instance
+    """
+    global _settings_instance
+    _settings_instance = None
+    return get_settings()
+
 class _SettingsProxy:
     """Proxy object that lazily instantiates Settings on first access"""
     def __getattr__(self, name):
