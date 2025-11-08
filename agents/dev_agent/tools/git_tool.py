@@ -7,6 +7,7 @@ import os
 import logging
 from typing import Dict, Any, Optional, List
 import requests
+from common.config.settings import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ class GitTool:
     
     def __init__(self, sandbox_endpoint: str, github_token: Optional[str] = None):
         self.sandbox_endpoint = sandbox_endpoint
-        self.github_token = github_token or os.getenv('GITHUB_TOKEN')
+        self.github_token = github_token or settings.github_token
         
     async def clone(self, repo_url: str, destination: Optional[str] = None) -> Dict[str, Any]:
         """
