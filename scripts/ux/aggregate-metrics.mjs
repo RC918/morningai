@@ -23,6 +23,13 @@ import { Octokit } from '@octokit/rest';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {
+  parseI18nCoverage,
+  parseA11yViolations,
+  parseMotionP95,
+  parseVrtMismatch,
+  evaluateThreshold
+} from './parsers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -199,61 +206,47 @@ class MetricsAggregator {
       const output = checkRunDetails.output?.text || checkRunDetails.output?.summary || '';
       
       if (metricType === 'i18n') {
-        // Parse i18n coverage percentage
-        // Look for patterns like "Coverage: 100%" or "coverage: 95.5%"
-        const coverageMatch = output.match(/coverage[:\s]+(\d+(?:\.\d+)?)\s*%/i);
-        if (coverageMatch) {
-          const coverage = parseFloat(coverageMatch[1]);
+        const coverage = parseI18nCoverage(output);
+        if (coverage !== null) {
           return {
             status: 'parsed',
             value: coverage,
             unit: '%',
-            passed: coverage >= THRESHOLDS.i18n.target,
+            passed: evaluateThreshold(coverage, THRESHOLDS.i18n.target, 'gte'),
             check_run_id: checkRun.id
           };
         }
       } else if (metricType === 'a11y') {
-        // Parse a11y violations
-        // Look for patterns like "Critical: 0, Serious: 1"
-        const criticalMatch = output.match(/critical[:\s]+(\d+)/i);
-        const seriousMatch = output.match(/serious[:\s]+(\d+)/i);
-        
-        if (criticalMatch || seriousMatch) {
-          const critical = criticalMatch ? parseInt(criticalMatch[1]) : 0;
-          const serious = seriousMatch ? parseInt(seriousMatch[1]) : 0;
-          
+        const violations = parseA11yViolations(output);
+        if (violations) {
           return {
             status: 'parsed',
-            critical,
-            serious,
-            passed: critical <= THRESHOLDS.a11y.critical && serious <= THRESHOLDS.a11y.serious,
+            critical: violations.critical,
+            serious: violations.serious,
+            passed: evaluateThreshold(violations.critical, THRESHOLDS.a11y.critical, 'lte') &&
+                    evaluateThreshold(violations.serious, THRESHOLDS.a11y.serious, 'lte'),
             check_run_id: checkRun.id
           };
         }
       } else if (metricType === 'motion') {
-        // Parse motion P95 frame time
-        // Look for patterns like "P95: 16.7ms" or "p95FrameTime: 16.67"
-        const p95Match = output.match(/p95[:\s]+(\d+(?:\.\d+)?)\s*(?:ms)?/i);
-        if (p95Match) {
-          const p95 = parseFloat(p95Match[1]);
+        const p95 = parseMotionP95(output);
+        if (p95 !== null) {
           return {
             status: 'parsed',
             value: p95,
             unit: 'ms',
-            passed: p95 <= THRESHOLDS.motion.p95,
+            passed: evaluateThreshold(p95, THRESHOLDS.motion.p95, 'lte'),
             check_run_id: checkRun.id
           };
         }
       } else if (metricType === 'vrt') {
-        // Parse VRT mismatch percentage
-        const mismatchMatch = output.match(/mismatch[:\s]+(\d+(?:\.\d+)?)\s*%/i);
-        if (mismatchMatch) {
-          const mismatch = parseFloat(mismatchMatch[1]);
+        const mismatch = parseVrtMismatch(output);
+        if (mismatch !== null) {
           return {
             status: 'parsed',
             value: mismatch,
             unit: '%',
-            passed: mismatch <= THRESHOLDS.vrt.mismatch,
+            passed: evaluateThreshold(mismatch, THRESHOLDS.vrt.mismatch, 'lte'),
             check_run_id: checkRun.id
           };
         }
