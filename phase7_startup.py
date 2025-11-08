@@ -25,6 +25,7 @@ from ops_agent import OpsAgent
 from growth_strategist import GrowthStrategist
 from pm_agent import PMAgent
 from hitl_approval_system import HITLApprovalSystem
+from common.config.settings import settings
 
 try:
     from meta_agent_decision_hub import MetaAgentDecisionHub
@@ -141,7 +142,7 @@ class Phase7System:
             try:
                 security_config = {
                     'master_key': os.environ.get('MASTER_KEY', 'default-master-key'),
-                    'secret_key': os.environ.get('SECRET_KEY', 'default-secret-key'),
+                    'secret_key': settings.secret_key or 'default-secret-key',
                     'audit_log_file': 'phase7_security_audit.log'
                 }
                 self.security_manager = SecurityManager(security_config)
