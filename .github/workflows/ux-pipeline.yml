@@ -159,8 +159,38 @@ jobs:
       
       - name: Run VRT tests
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
-        run: pnpm run test:vrt
+        id: vrt_test
+        run: |
+          pnpm run test:vrt 2>&1 | tee vrt-output.txt
+          
+          # Extract mismatch percentage from output
+          MISMATCH=$(grep -oP 'mismatch:\s+\K\d+(?:\.\d+)?(?=%)' vrt-output.txt | head -1 || echo "")
+          
+          if [ -n "$MISMATCH" ]; then
+            echo "mismatch=$MISMATCH" >> $GITHUB_OUTPUT
+            echo "✅ VRT mismatch: $MISMATCH%"
+          else
+            echo "⚠️  Could not extract mismatch percentage"
+            echo "mismatch=" >> $GITHUB_OUTPUT
+          fi
         continue-on-error: true
+      
+      - name: Post VRT metrics comment
+        if: always() && github.event_name == 'pull_request' && steps.vrt_test.outputs.mismatch != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const mismatch = '${{ steps.vrt_test.outputs.mismatch }}';
+            const app = '${{ matrix.app }}';
+            
+            const body = `[UX METRIC] app=${app} type=vrt mismatch=${mismatch}%`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
       
       - name: Upload VRT results
         if: always()
@@ -225,11 +255,41 @@ jobs:
       
       - name: Run motion performance tests
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        id: motion_test
         env:
           BASE_URL: http://localhost:${{ matrix.port }}
           MOTION_P95_MS: 20
           MOTION_DROP_PERCENT: 2
-        run: pnpm run test:motion
+        run: |
+          pnpm run test:motion 2>&1 | tee motion-output.txt
+          
+          # Extract P95 frame time from output
+          P95=$(grep -oP 'P95:\s+\K\d+(?:\.\d+)?(?=\s*ms)' motion-output.txt | head -1 || echo "")
+          
+          if [ -n "$P95" ]; then
+            echo "p95=$P95" >> $GITHUB_OUTPUT
+            echo "✅ Motion P95: ${P95}ms"
+          else
+            echo "⚠️  Could not extract P95 frame time"
+            echo "p95=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Post motion metrics comment
+        if: always() && github.event_name == 'pull_request' && steps.motion_test.outputs.p95 != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const p95 = '${{ steps.motion_test.outputs.p95 }}';
+            const app = '${{ matrix.app }}';
+            
+            const body = `[UX METRIC] app=${app} type=motion p95=${p95}ms`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
       
       - name: Stop preview server
         if: always()
@@ -313,10 +373,44 @@ jobs:
       
       - name: Run axe-core runtime tests
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        id: a11y_test
         env:
           BASE_URL: http://localhost:${{ matrix.port }}
-        run: pnpm run test:a11y
+        run: |
+          pnpm run test:a11y 2>&1 | tee a11y-output.txt
+          
+          # Extract violation counts from output
+          CRITICAL=$(grep -oP 'Critical:\s+\K\d+' a11y-output.txt | head -1 || echo "")
+          SERIOUS=$(grep -oP 'Serious:\s+\K\d+' a11y-output.txt | head -1 || echo "")
+          
+          if [ -n "$CRITICAL" ] && [ -n "$SERIOUS" ]; then
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "serious=$SERIOUS" >> $GITHUB_OUTPUT
+            echo "✅ a11y violations - Critical: $CRITICAL, Serious: $SERIOUS"
+          else
+            echo "⚠️  Could not extract a11y violation counts"
+            echo "critical=" >> $GITHUB_OUTPUT
+            echo "serious=" >> $GITHUB_OUTPUT
+          fi
         continue-on-error: true
+      
+      - name: Post a11y metrics comment
+        if: always() && github.event_name == 'pull_request' && steps.a11y_test.outputs.critical != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const critical = '${{ steps.a11y_test.outputs.critical }}';
+            const serious = '${{ steps.a11y_test.outputs.serious }}';
+            const app = '${{ matrix.app }}';
+            
+            const body = `[UX METRIC] app=${app} type=a11y critical=${critical} serious=${serious}`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
       
       - name: Stop preview server
         if: always()
@@ -361,8 +455,39 @@ jobs:
       
       - name: Run i18n coverage tests
         working-directory: handoff/20250928/40_App/${{ matrix.app }}
-        run: pnpm run test:i18n
+        id: i18n_test
+        run: |
+          pnpm run test:i18n 2>&1 | tee i18n-output.txt
+          
+          # Extract coverage percentage from output
+          COVERAGE=$(grep -oP 'Coverage:\s+\K\d+(?:\.\d+)?(?=%)' i18n-output.txt | head -1 || echo "")
+          
+          if [ -n "$COVERAGE" ]; then
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "✅ i18n coverage: $COVERAGE%"
+          else
+            echo "⚠️  Could not extract coverage percentage"
+            echo "coverage=" >> $GITHUB_OUTPUT
+          fi
         continue-on-error: true
+      
+      - name: Post i18n metrics comment
+        if: always() && github.event_name == 'pull_request' && steps.i18n_test.outputs.coverage != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const coverage = '${{ steps.i18n_test.outputs.coverage }}';
+            const app = '${{ matrix.app }}';
+            const threshold = 95;
+            
+            const body = `[UX METRIC] app=${app} type=i18n coverage=${coverage}% threshold=${threshold}%`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
       
       - name: Upload i18n test results
         if: always()
