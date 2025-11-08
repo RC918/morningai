@@ -18,13 +18,16 @@ Coverage:
 
 import pytest
 import json
-import os
 from unittest.mock import patch, MagicMock
 
-os.environ['TOTP_ENCRYPTION_KEY'] = 'test-key-for-totp-encryption-32bytes=='
-os.environ['TESTING'] = 'true'
-
 from src.utils.pre_auth_token import get_pre_auth_manager
+
+
+@pytest.fixture(autouse=True)
+def setup_test_environment(monkeypatch):
+    """Set up test environment variables for all tests in this module"""
+    monkeypatch.setenv('TOTP_ENCRYPTION_KEY', 'test-key-for-totp-encryption-32bytes==')
+    monkeypatch.setenv('TESTING', 'true')
 
 
 @pytest.fixture
@@ -496,7 +499,3 @@ class TestAuthorizationHeaderErrorMessages:
         assert response.status_code == 401
         data = json.loads(response.data)
         assert "invalid" in data["message"].lower() or "expired" in data["message"].lower()
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
