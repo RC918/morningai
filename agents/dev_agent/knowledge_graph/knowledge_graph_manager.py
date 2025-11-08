@@ -15,6 +15,7 @@ from openai import OpenAI
 from agents.dev_agent.knowledge_graph.db_schema import QUERIES
 from agents.dev_agent.knowledge_graph.embeddings_cache import EmbeddingsCache
 from agents.dev_agent.error_handler import ErrorCode, create_error, create_success
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class KnowledgeGraphManager:
         self.supabase_url = supabase_url or os.getenv('SUPABASE_URL')
         self.supabase_password = supabase_password or os.getenv(
             'SUPABASE_DB_PASSWORD')
-        self.openai_api_key = openai_api_key or os.getenv('OPENAI_API_KEY')
+        self.openai_api_key = openai_api_key or settings.openai_api_key
 
         self.max_daily_cost = max_daily_cost or (
             float(os.getenv('OPENAI_MAX_DAILY_COST', '0')) or None
