@@ -42,7 +42,7 @@ from src.middleware.auth_middleware import (
     analyst_required,
 )
 from flask_cors import CORS
-from common.config.settings import settings
+from common.config.settings import get_settings
 import sys
 import os
 import logging
@@ -134,9 +134,9 @@ if os.environ.get("ENVIRONMENT", "").lower() == "production":
         logger.error(f"❌ Failed to initialize pre-auth token manager: {e}")
         raise
 
-flask_secret = settings.flask_secret_key
+flask_secret = get_settings().flask_secret_key
 if not flask_secret:
-    legacy_secret = settings.secret_key
+    legacy_secret = get_settings().secret_key
     if legacy_secret:
         logger.warning(
             "DEPRECATION: SECRET_KEY is deprecated. Please use FLASK_SECRET_KEY instead. "
@@ -360,7 +360,7 @@ def health_check():
 db_dir = os.path.join(os.path.dirname(__file__), "database")
 os.makedirs(db_dir, exist_ok=True)
 
-DATABASE_URL = settings.database_url
+DATABASE_URL = get_settings().database_url
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
 
 if ENVIRONMENT == "production":

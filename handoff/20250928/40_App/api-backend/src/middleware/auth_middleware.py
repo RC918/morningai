@@ -2,7 +2,7 @@ import jwt
 import os
 from functools import wraps
 from flask import request, jsonify, current_app
-from common.config.settings import settings
+from common.config.settings import get_settings
 
 def verify_jwt_library():
     """
@@ -110,7 +110,7 @@ def jwt_required(f):
             return error
         
         try:
-            jwt_secret = settings.jwt_secret_key or 'test-secret-key-for-testing'
+            jwt_secret = get_settings().jwt_secret_key or 'test-secret-key-for-testing'
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
             user_id = payload.get('sub') or payload.get('user_id')
@@ -163,7 +163,7 @@ def admin_required(f):
             return error
         
         try:
-            jwt_secret = settings.jwt_secret_key or 'test-secret-key-for-testing'
+            jwt_secret = get_settings().jwt_secret_key or 'test-secret-key-for-testing'
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
             raw_role = payload.get('role', 'user')
@@ -215,7 +215,7 @@ def analyst_required(f):
             return error
         
         try:
-            jwt_secret = settings.jwt_secret_key or 'test-secret-key-for-testing'
+            jwt_secret = get_settings().jwt_secret_key or 'test-secret-key-for-testing'
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             
             raw_role = payload.get('role', 'user')
@@ -293,7 +293,7 @@ def generate_jwt_token(user_data, expires_hours=24):
     """
     import datetime
     
-    jwt_secret = settings.jwt_secret_key or 'test-secret-key-for-testing'
+    jwt_secret = get_settings().jwt_secret_key or 'test-secret-key-for-testing'
     
     original_role = user_data.get('role')
     normalized_role = normalize_role(original_role)
@@ -349,7 +349,7 @@ def roles_required(*allowed_roles):
                 return error
             
             try:
-                jwt_secret = settings.jwt_secret_key or 'test-secret-key-for-testing'
+                jwt_secret = get_settings().jwt_secret_key or 'test-secret-key-for-testing'
                 payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
                 
                 raw_role = payload.get('role', 'user')

@@ -2,7 +2,7 @@ import os
 import logging
 import ssl
 from typing import Optional, Dict, Any
-from common.config.settings import settings
+from common.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +15,13 @@ def create_redis_client():
     3. Local Redis (non-TLS fallback)
     """
     
-    upstash_url = settings.upstash_redis_rest_url
+    upstash_url = get_settings().upstash_redis_rest_url
     if upstash_url:
         try:
             from upstash_redis import Redis
             client = Redis(
                 url=upstash_url,
-                token=settings.upstash_redis_rest_token
+                token=get_settings().upstash_redis_rest_token
             )
             client.ping()
             logger.info("✅ Connected to Upstash Redis (HTTPS)")
@@ -32,7 +32,7 @@ def create_redis_client():
             logger.error(f"❌ Upstash Redis connection failed: {e}")
             raise
     
-    redis_url = settings.redis_url
+    redis_url = get_settings().redis_url
     if redis_url:
         try:
             import redis
@@ -72,8 +72,8 @@ def get_redis_client():
 
 def get_redis_connection_info():
     """Get Redis connection information for health checks"""
-    upstash_url = settings.upstash_redis_rest_url
-    redis_url = settings.redis_url
+    upstash_url = get_settings().upstash_redis_rest_url
+    redis_url = get_settings().redis_url
     
     if upstash_url:
         return {
@@ -108,7 +108,7 @@ def check_redis_security() -> Dict[str, Any]:
     try:
         client = get_redis_client()
         
-        upstash_url = settings.upstash_redis_rest_url
+        upstash_url = get_settings().upstash_redis_rest_url
         if upstash_url:
             return {
                 "status": "secure",
@@ -118,7 +118,7 @@ def check_redis_security() -> Dict[str, Any]:
                 "recommendations": []
             }
         
-        redis_url = settings.redis_url
+        redis_url = get_settings().redis_url
         if redis_url:
             info = client.info("server")
             redis_version = info.get("redis_version", "unknown")

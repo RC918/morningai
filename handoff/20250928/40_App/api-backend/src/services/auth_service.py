@@ -17,7 +17,7 @@ import logging
 import secrets
 from typing import Optional, Dict, Tuple
 from werkzeug.security import check_password_hash, generate_password_hash
-from common.config.settings import settings
+from common.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ IS_PRODUCTION = ENVIRONMENT == 'production'
 # Token Configuration
 ACCESS_TOKEN_EXPIRY_MINUTES = 15
 REFRESH_TOKEN_EXPIRY_DAYS = 7
-JWT_SECRET_KEY = settings.jwt_secret_key  # Loaded from settings
+JWT_SECRET_KEY = get_settings().jwt_secret_key  # Loaded from settings
 JWT_ALGORITHM = 'HS256'
 
 # Cookie Configuration
@@ -437,8 +437,8 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     
     import requests
     
-    supabase_url = settings.supabase_url
-    supabase_anon_key = settings.supabase_anon_key
+    supabase_url = get_settings().supabase_url
+    supabase_anon_key = get_settings().supabase_anon_key
     
     if not supabase_url or not supabase_anon_key:
         logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set when ENABLE_MOCK_USERS=false")
@@ -520,8 +520,8 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
     
     import requests
     
-    supabase_url = settings.supabase_url
-    supabase_service_key = settings.supabase_service_role_key
+    supabase_url = get_settings().supabase_url
+    supabase_service_key = get_settings().supabase_service_role_key
     
     if not supabase_url or not supabase_service_key:
         logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set when ENABLE_MOCK_USERS=false")

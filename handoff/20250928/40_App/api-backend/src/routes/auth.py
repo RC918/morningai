@@ -5,7 +5,7 @@ import datetime
 import secrets
 import os
 from src.models.user import db, User
-from common.config.settings import settings
+from common.config.settings import get_settings
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -59,7 +59,7 @@ def login():
             return jsonify({'message': '用戶名或密碼錯誤'}), 401
         
         # 生成JWT token
-        jwt_secret = settings.jwt_secret_key or 'your-secret-key'
+        jwt_secret = get_settings().jwt_secret_key or 'your-secret-key'
         token = jwt.encode({
             'user_id': user_data['id'],
             'username': username,
@@ -141,7 +141,7 @@ def verify_token():
         
         # 驗證token
         try:
-            jwt_secret = settings.jwt_secret_key or 'your-secret-key'
+            jwt_secret = get_settings().jwt_secret_key or 'your-secret-key'
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             username = payload['username']
             

@@ -36,7 +36,7 @@ from ..services.auth_service import (
     set_auth_cookies,
     get_user_by_id,
 )
-from common.config.settings import settings
+from common.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +95,8 @@ def enroll_2fa():
 
         totp_manager = get_totp_manager()
 
-        supabase_url = settings.supabase_url
-        supabase_key = settings.supabase_service_role_key
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
 
         existing_2fa = (
@@ -201,8 +201,8 @@ def verify_enroll_2fa():
         if not user:
             return jsonify({"error": "User not found"}), 404
 
-        supabase_url = settings.supabase_url
-        supabase_key = settings.supabase_service_role_key
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
 
         user_2fa = (
@@ -347,8 +347,8 @@ def challenge_2fa():
         if not user:
             return jsonify({"error": "User not found"}), 404
 
-        supabase_url = settings.supabase_url
-        supabase_key = settings.supabase_service_role_key
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
 
         user_2fa = (
