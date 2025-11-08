@@ -36,6 +36,13 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       
+      - name: Install Playwright OS dependencies
+        uses: microsoft/playwright-github-action@v1
+      
+      - name: Install Playwright browsers (Python)
+        working-directory: handoff/20250928/40_App/api-backend
+        run: python -m playwright install chromium
+      
       - name: Run API Backend tests
         working-directory: handoff/20250928/40_App/api-backend
         run: |
