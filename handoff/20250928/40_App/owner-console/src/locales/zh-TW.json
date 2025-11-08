@@ -330,7 +330,21 @@
       "cancel": "取消",
       "invalidCode": "代碼無效。剩餘 {{attempts}} 次嘗試。",
       "invalidBackupCode": "備用代碼無效。剩餘 {{attempts}} 次嘗試。",
-      "tooManyAttempts": "嘗試次數過多。請稍後再試。"
+      "tooManyAttempts": "嘗試次數過多。請稍後再試。",
+      "enroll": {
+        "title": "設定雙重驗證",
+        "description": "使用雙重驗證保護您的帳戶",
+        "qrInstructions1": "使用您的驗證器應用程式（Google Authenticator、Authy 等）掃描此 QR 碼",
+        "qrInstructions2": "或手動輸入下方顯示的密鑰。",
+        "qrScanned": "我已掃描 QR 碼",
+        "verifyPrompt": "輸入驗證器應用程式中的 6 位數代碼以驗證設定",
+        "verificationCodeLabel": "驗證碼",
+        "back": "返回",
+        "verify": "驗證",
+        "verifying": "驗證中...",
+        "backupCodesWarning": "請儲存這些備用代碼！",
+        "backupCodesDescription": "如果您遺失驗證器裝置，可以使用這些代碼存取您的帳戶。請將它們儲存在安全的地方。"
+      }
     }
   },
   "app": {

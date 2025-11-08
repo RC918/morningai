@@ -330,7 +330,21 @@
       "cancel": "Cancel",
       "invalidCode": "Invalid code. {{attempts}} attempts remaining.",
       "invalidBackupCode": "Invalid backup code. {{attempts}} attempts remaining.",
-      "tooManyAttempts": "Too many failed attempts. Please try again later."
+      "tooManyAttempts": "Too many failed attempts. Please try again later.",
+      "enroll": {
+        "title": "Set Up Two-Factor Authentication",
+        "description": "Secure your account with two-factor authentication",
+        "qrInstructions1": "Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)",
+        "qrInstructions2": "Or manually enter the secret key shown below.",
+        "qrScanned": "I've Scanned the QR Code",
+        "verifyPrompt": "Enter the 6-digit code from your authenticator app to verify setup",
+        "verificationCodeLabel": "Verification Code",
+        "back": "Back",
+        "verify": "Verify",
+        "verifying": "Verifying...",
+        "backupCodesWarning": "Save these backup codes!",
+        "backupCodesDescription": "These codes can be used to access your account if you lose your authenticator device. Store them in a safe place."
+      }
     }
   },
   "app": {
