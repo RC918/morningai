@@ -20,6 +20,9 @@ jobs:
         with:
           python-version: '3.12'
       
+      - name: Install PyYAML
+        run: pip install pyyaml
+      
       - name: Check for new os.getenv calls (AST-based)
         run: |
           echo "Running AST-based checker for os.getenv() calls..."
