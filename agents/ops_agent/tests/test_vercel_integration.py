@@ -11,11 +11,12 @@ import asyncio
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from common.config.settings import settings
 from tools.deployment_tool import DeploymentTool
 
 
 @pytest.mark.skipif(
-    not os.getenv('VERCEL_TOKEN'),
+    not settings.vercel_token,
     reason="VERCEL_TOKEN not set - skipping integration tests"
 )
 class TestVercelIntegration:
@@ -25,14 +26,14 @@ class TestVercelIntegration:
     def deployment_tool(self):
         """Create deployment tool with real credentials"""
         return DeploymentTool(
-            token=os.getenv('VERCEL_TOKEN'),
-            team_id=os.getenv('VERCEL_ORG_ID')
+            token=settings.vercel_token,
+            team_id=settings.vercel_org_id
         )
     
     @pytest.mark.asyncio
     async def test_list_deployments_real(self, deployment_tool):
         """Test listing real deployments"""
-        project_id = os.getenv('VERCEL_PROJECT_ID', 'morningai')
+        project_id = settings.vercel_project_id or 'morningai'
         
         result = await deployment_tool.list_deployments(
             project=project_id,
@@ -55,7 +56,7 @@ class TestVercelIntegration:
     @pytest.mark.asyncio
     async def test_get_deployment_real(self, deployment_tool):
         """Test getting a real deployment's details"""
-        project_id = os.getenv('VERCEL_PROJECT_ID', 'morningai')
+        project_id = settings.vercel_project_id or 'morningai'
         
         list_result = await deployment_tool.list_deployments(
             project=project_id,

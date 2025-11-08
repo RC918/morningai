@@ -7,13 +7,14 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
+from common.config.settings import settings
 from agents.dev_agent.knowledge_graph.knowledge_graph_manager import KnowledgeGraphManager
 
 def test_openai_only():
     """Test OpenAI embedding generation without database"""
     print("\n=== Testing OpenAI Embedding Generation ===\n")
     
-    openai_key = os.getenv('OPENAI_API_KEY')
+    openai_key = settings.openai_api_key
     if not openai_key:
         print("❌ OPENAI_API_KEY not configured")
         print("   Please set OPENAI_API_KEY in your .env file")

@@ -9,6 +9,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
+from common.config.settings import settings
 from knowledge_graph import (
     get_knowledge_graph_manager,
     create_code_indexer,
@@ -92,7 +93,7 @@ class TestIndexSearchWorkflowE2E:
     """E2E test for complete indexing and search workflow"""
 
     @pytest.mark.skipif(
-        not os.getenv('OPENAI_API_KEY'),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY not configured"
     )
     def test_complete_workflow_with_api(self, temp_codebase):

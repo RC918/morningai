@@ -3,13 +3,14 @@
 import asyncio
 import os
 import sys
+from common.config.settings import settings
 from tools.deployment_tool import DeploymentTool
 
 async def main():
     # Use VERCEL_TOKEN_2
-    token = os.getenv('VERCEL_TOKEN_2')
-    team_id = os.getenv('VERCEL_ORG_ID')
-    project_id = os.getenv('VERCEL_PROJECT_ID')
+    token = settings.vercel_token_2
+    team_id = settings.vercel_org_id
+    project_id = settings.vercel_project_id
     
     print(f"Testing with token: {token[:20]}...")
     print(f"Team ID: {team_id}")

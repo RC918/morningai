@@ -12,6 +12,8 @@ from unittest.mock import patch, MagicMock
 from redis import Redis
 from rq import Queue
 
+from common.config.settings import settings
+
 def test_worker_module_imports():
     """Test that worker module can be imported"""
     try:
@@ -29,7 +31,7 @@ def test_task_queuing():
         redis_client = Redis.from_url("redis://localhost:6379/0", decode_responses=True)
         redis_client.ping()
         
-        RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
+        RQ_QUEUE_NAME = settings.rq_queue_name or "orchestrator"
         q = Queue(RQ_QUEUE_NAME, connection=redis_client)
         
         task_id = str(uuid.uuid4())

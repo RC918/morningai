@@ -350,6 +350,7 @@ class Settings(BaseSettings):
     
     sentry_enabled: bool = Field(
         default=True,
+        alias="SENTRY_ENABLED",
         description="Enable Sentry error tracking"
     )
     
@@ -772,7 +773,14 @@ class Settings(BaseSettings):
     
     testing: bool = Field(
         default=False,
+        alias="TESTING",
         description="Enable testing mode"
+    )
+    
+    run_py_browser_e2e: bool = Field(
+        default=False,
+        alias="RUN_PY_BROWSER_E2E",
+        description="Enable Playwright browser E2E tests (requires staging credentials)"
     )
     
     staging_api_url: Optional[str] = Field(
