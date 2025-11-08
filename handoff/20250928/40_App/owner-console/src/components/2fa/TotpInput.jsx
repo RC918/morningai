@@ -30,7 +30,7 @@ export function TotpInput({
   const [digits, setDigits] = useState(Array(6).fill(''));
 
   useEffect(() => {
-    const newDigits = value.padEnd(6, '').split('').slice(0, 6);
+    const newDigits = Array.from({ length: 6 }, (_, i) => value?.[i] ?? '');
     setDigits(newDigits);
   }, [value]);
 

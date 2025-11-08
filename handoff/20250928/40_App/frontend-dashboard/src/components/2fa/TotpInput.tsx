@@ -40,7 +40,7 @@ export function TotpInput({
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const springConfig = getSpringConfig('smooth');
 
-  const digits = value.padEnd(6, ' ').split('').slice(0, 6);
+  const digits = Array.from({ length: 6 }, (_, i) => value?.[i] ?? ' ');
 
   useEffect(() => {
     if (autoFocus && inputRefs.current[0]) {
