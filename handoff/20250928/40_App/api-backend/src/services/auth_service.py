@@ -17,6 +17,7 @@ import logging
 import secrets
 from typing import Optional, Dict, Tuple
 from werkzeug.security import check_password_hash, generate_password_hash
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ IS_PRODUCTION = ENVIRONMENT == 'production'
 # Token Configuration
 ACCESS_TOKEN_EXPIRY_MINUTES = 15
 REFRESH_TOKEN_EXPIRY_DAYS = 7
-JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')  # No default - must be set
+JWT_SECRET_KEY = settings.jwt_secret_key  # Loaded from settings
 JWT_ALGORITHM = 'HS256'
 
 # Cookie Configuration
