@@ -48,7 +48,6 @@ class Settings(BaseSettings):
     jwt_secret_key: Optional[str] = Field(
         None,
         alias="JWT_SECRET_KEY",
-        min_length=32,
         description="JWT token signing key for authentication"
     )
     
@@ -59,8 +58,7 @@ class Settings(BaseSettings):
     
     flask_secret_key: Optional[str] = Field(
         None,
-        alias="SECRET_KEY",  # Support deprecated SECRET_KEY
-        min_length=32,
+        alias="SECRET_KEY",
         description="Flask application secret key for sessions"
     )
     
