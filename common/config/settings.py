@@ -775,6 +775,12 @@ class Settings(BaseSettings):
         description="Enable testing mode"
     )
     
+    run_py_browser_e2e: bool = Field(
+        default=False,
+        alias="RUN_PY_BROWSER_E2E",
+        description="Enable Playwright browser E2E tests (requires staging credentials)"
+    )
+    
     staging_api_url: Optional[str] = Field(
         None,
         description="Staging environment API URL"
