@@ -5,16 +5,30 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe('apiClient', () => {
+  const originalEnv = import.meta.env;
+
   beforeEach(() => {
     mockFetch.mockClear();
     Object.defineProperty(document, 'cookie', {
       writable: true,
       value: '',
     });
+
+    Object.defineProperty(import.meta, 'env', {
+      value: { ...originalEnv, VITE_API_BASE_URL: 'http://test.local' },
+      writable: true,
+      configurable: true,
+    });
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+
+    Object.defineProperty(import.meta, 'env', {
+      value: originalEnv,
+      writable: true,
+      configurable: true,
+    });
   });
 
   describe('Credentials Handling (P0)', () => {
@@ -418,6 +432,7 @@ describe('bootstrapCsrf', () => {
     mockFetch.mockClear();
     vi.spyOn(console, 'debug').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -427,6 +442,7 @@ describe('bootstrapCsrf', () => {
   it('should fetch CSRF token from /api/auth/v2/csrf endpoint', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'bootstrap-token-123' }),
     });
 
@@ -443,6 +459,7 @@ describe('bootstrapCsrf', () => {
   it('should cache CSRF token from response body', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'cached-token-456' }),
     });
 
@@ -466,22 +483,31 @@ describe('bootstrapCsrf', () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
+      headers: { get: () => 'application/json' },
+      text: async () => 'Server error',
     });
 
     await bootstrapCsrf();
 
-    expect(console.warn).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(
+      'CSRF bootstrap failed with status:',
+      500
+    );
   });
 
   it('should handle response without csrf_token field', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ message: 'No token' }),
     });
 
     await bootstrapCsrf();
 
-    expect(console.debug).not.toHaveBeenCalled();
+    expect(console.debug).toHaveBeenCalledWith(
+      'Bootstrapping CSRF token from:',
+      'http://test.local/api/auth/v2/csrf'
+    );
   });
 });
 
@@ -503,6 +529,7 @@ describe('Bootstrap CSRF Token Integration (P0)', () => {
     
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'CACHED_TOKEN_123' }),
     });
     
@@ -542,6 +569,7 @@ describe('Bootstrap CSRF Token Integration (P0)', () => {
     
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'CACHED_TOKEN_789' }),
     });
     
@@ -566,6 +594,7 @@ describe('Bootstrap CSRF Token Integration (P0)', () => {
     
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'CACHED_TOKEN_PRIORITY' }),
     });
     
@@ -590,6 +619,7 @@ describe('Bootstrap CSRF Token Integration (P0)', () => {
     
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: () => 'application/json' },
       json: async () => ({ csrf_token: 'PERSISTENT_TOKEN' }),
     });
     

@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || '';
 
 /**
  * CSRF token cache for cross-origin scenarios
@@ -79,12 +79,38 @@ export async function apiClient<T>(
  * 
  * P0 Fix: Cache CSRF token from response body for cross-origin scenarios
  * Backend returns { csrf_token: "..." } in response body which we can read cross-origin
+ * 
+ * Preview Mode: Skip CSRF bootstrap for /ux-metrics route in preview environments
+ * when VITE_PREVIEW_PUBLIC_METRICS is enabled (static metrics JSON doesn't need auth)
  */
 export async function bootstrapCsrf(): Promise<void> {
+  if (typeof window !== 'undefined' && 
+      import.meta.env.VITE_PREVIEW_PUBLIC_METRICS === 'true' &&
+      window.location.pathname.startsWith('/ux-metrics')) {
+    console.debug('Skipping CSRF bootstrap for /ux-metrics in preview mode');
+    return;
+  }
+
+  if (!API_BASE_URL) {
+    console.warn('CSRF bootstrap skipped: VITE_API_BASE_URL not configured');
+    return;
+  }
+
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
+    const url = `${API_BASE_URL}/api/auth/v2/csrf`;
+    console.debug('Bootstrapping CSRF token from:', url);
+    
+    const response = await fetch(url, {
       credentials: 'include',
     });
+    
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('CSRF bootstrap failed: Expected JSON but got', contentType, 'Status:', response.status);
+      console.error('Response preview:', text.substring(0, 200));
+      return;
+    }
     
     if (response.ok) {
       const data = await response.json();
@@ -92,6 +118,8 @@ export async function bootstrapCsrf(): Promise<void> {
         csrfTokenCache = data.csrf_token;
         console.debug('CSRF token cached from response body');
       }
+    } else {
+      console.error('CSRF bootstrap failed with status:', response.status);
     }
   } catch (error) {
     console.warn('Failed to bootstrap CSRF token:', error);

@@ -1,0 +1,23 @@
+{
+  "primaryLocale": "en-US",
+  "secondaryLocales": ["zh-TW"],
+  "thresholds": {
+    "global": 95,
+    "perNamespace": {
+      "common": 100,
+      "errors": 98,
+      "auth": 100
+    }
+  },
+  "ignorePatterns": [
+    "debug.*",
+    "test.*",
+    "dev.*"
+  ],
+  "ignoreKeys": [
+    "common.appName",
+    "common.version"
+  ],
+  "detectPluralization": true,
+  "detectICU": true
+}
