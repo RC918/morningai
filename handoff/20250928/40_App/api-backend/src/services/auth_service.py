@@ -53,26 +53,25 @@ def validate_security_config():
     """
     Validate security configuration at startup
     Fails fast in production if configuration is insecure
-    In non-production, auto-generates a secure test secret if missing
+    In non-production, logs warning if secret is missing (fallback used)
     """
-    global _get_jwt_secret()
     errors = []
     warnings = []
     
-    if not _get_jwt_secret():
+    jwt_secret = _get_jwt_secret()
+    if not jwt_secret:
         if IS_PRODUCTION:
-            errors.append("_get_jwt_secret() environment variable is not set")
+            errors.append("JWT_SECRET_KEY environment variable is not set")
         else:
-            _get_jwt_secret() = secrets.token_hex(32)
             logger.warning(
-                "_get_jwt_secret() not set in non-production environment. "
-                "Using auto-generated test secret. DO NOT USE IN PRODUCTION."
+                "JWT_SECRET_KEY not set in non-production environment. "
+                "Using fallback test secret. DO NOT USE IN PRODUCTION."
             )
     elif IS_PRODUCTION:
-        if len(_get_jwt_secret()) < 32:
-            errors.append(f"_get_jwt_secret() must be at least 32 characters in production (current: {len(_get_jwt_secret())})")
-        if _get_jwt_secret() in ['your-secret-key', 'secret', 'changeme', 'test']:
-            errors.append("_get_jwt_secret() is using a known weak/default value")
+        if len(jwt_secret) < 32:
+            errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(jwt_secret)})")
+        if jwt_secret in ['your-secret-key', 'secret', 'changeme', 'test', 'test-secret-key-for-testing']:
+            errors.append("JWT_SECRET_KEY is using a known weak/default value")
     
     if IS_PRODUCTION and ENABLE_MOCK_USERS:
         errors.append("ENABLE_MOCK_USERS must be false in production (current: true)")
