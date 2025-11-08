@@ -92,7 +92,7 @@ def _extract_jwt_from_request():
         return cookie_token, None
     
     return None, (jsonify({
-        'error': 'Authentication required - missing Authorization header',
+        'error': 'Authorization header missing',
         'message': 'Please provide a valid JWT token via Authorization header or access_token cookie.'
     }), 401)
 
