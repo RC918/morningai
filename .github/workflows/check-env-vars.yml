@@ -8,46 +8,28 @@ on:
 
 jobs:
   check-env-usage:
-    name: Check for direct os.getenv usage
+    name: Check for direct os.getenv usage (AST-based)
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Check for new os.getenv calls
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install PyYAML
+        run: pip install pyyaml
+      
+      - name: Check for new os.getenv calls (AST-based)
         run: |
-          echo "Checking for direct os.getenv() calls outside of settings module..."
+          echo "Running AST-based checker for os.getenv() calls..."
+          python3 .github/scripts/check_os_getenv.py
           
-          # Find all Python files with os.getenv calls (excluding settings.py and allowed files)
-          VIOLATIONS=$(grep -r "os\.getenv\|os\.environ\.get" \
-            --include="*.py" \
-            --exclude-dir=".venv" \
-            --exclude-dir=".git" \
-            --exclude-dir="node_modules" \
-            --exclude-dir="__pycache__" \
-            --exclude="settings.py" \
-            . || true)
-          
-          if [ -n "$VIOLATIONS" ]; then
-            echo "❌ ERROR: Found direct os.getenv() or os.environ.get() calls:"
-            echo ""
-            echo "$VIOLATIONS"
-            echo ""
-            echo "Please use 'from common.config.settings import settings' instead."
-            echo "Example: settings.database_url instead of os.getenv('DATABASE_URL')"
-            echo ""
-            echo "If you need to add a new environment variable:"
-            echo "1. Add it to config/env.schema.yaml"
-            echo "2. Add it to common/config/settings.py"
-            echo "3. Use settings.variable_name in your code"
-            echo ""
-            echo "Note: This check will be enforced after PR 1b/1c migration is complete."
-            echo "For now, this is a WARNING only."
-            exit 0  # Exit 0 for now (warning), will change to exit 1 after migration
-          else
-            echo "✅ No direct os.getenv() calls found (excluding settings.py)"
-          fi
+          # Note: Script exits with 0 in warning mode (current)
+          # After PR 1c is merged, change to: python3 .github/scripts/check_os_getenv.py --strict
       
       - name: Verify settings module exists
         run: |

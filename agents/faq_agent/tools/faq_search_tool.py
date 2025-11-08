@@ -8,6 +8,11 @@ from typing import Dict, Any, List, Optional
 from supabase import create_client, Client
 from .embedding_tool import EmbeddingTool
 
+# TODO: Remove this sys.modules hack after fixing conftest patch targets
+# This hack ensures conftest patches work regardless of import path.
+# Tests import as 'tools.faq_search_tool' but conftest patches 'agents.faq_agent.tools.faq_search_tool'.
+# Proper fix: Update conftest to patch the actual import path used by tests.
+# See PR #1204 for context on why this was added.
 if 'pytest' in sys.modules:
     sys.modules.setdefault('agents.faq_agent.tools.faq_search_tool', sys.modules[__name__])
 
