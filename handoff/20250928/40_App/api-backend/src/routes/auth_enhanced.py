@@ -28,6 +28,7 @@ from src.services.auth_service import (
     FEATURE_2FA_PREAUTH,
     PREAUTH_TOKEN_TTL
 )
+from common.config.settings import get_settings
 from src.middleware.csrf import csrf_protect, should_enforce_csrf
 from src.utils.pre_auth_token import get_pre_auth_manager
 import logging
@@ -173,8 +174,8 @@ def login():
             next_step = 'enroll_2fa'
             scope = 'enroll'
             
-            supabase_url = os.environ.get('SUPABASE_URL')
-            supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+            supabase_url = get_settings().supabase_url
+            supabase_key = get_settings().supabase_service_role_key
             
             if supabase_url and supabase_key:
                 try:

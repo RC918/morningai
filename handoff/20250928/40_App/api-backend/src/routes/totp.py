@@ -35,6 +35,7 @@ from ..utils.pre_auth_token import get_pre_auth_manager
 from ..middleware.auth_middleware import jwt_required
 from ..middleware.rate_limit import rate_limit
 from ..middleware.csrf import csrf_protect
+from common.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -175,8 +176,8 @@ def setup_totp():
         if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         
         existing_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
@@ -261,8 +262,8 @@ def verify_totp_setup():
         
         user_id = request.user_id
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
@@ -337,8 +338,8 @@ def disable_totp():
         if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
@@ -408,8 +409,8 @@ def regenerate_backup_codes():
         if not authenticate_user(user.get('email'), password):
             return jsonify({'error': 'Invalid password'}), 401
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
         
@@ -465,8 +466,8 @@ def get_totp_status():
     try:
         user_id = request.user_id
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).execute()
@@ -505,8 +506,8 @@ def verify_totp_for_login(user_id: str, totp_code: str) -> bool:
         True if code is valid, False otherwise
     """
     try:
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('*').eq('user_id', user_id).eq('enabled', True).execute()
         
@@ -542,8 +543,8 @@ def verify_backup_code_for_login(user_id: str, backup_code: str) -> tuple[bool, 
         Tuple of (is_valid, remaining_codes)
     """
     try:
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         
         backup_codes = supabase.table('totp_backup_codes').select('*').eq('user_id', user_id).eq('used', False).execute()
@@ -599,8 +600,8 @@ def check_2fa_required(user_id: str, user_role: str = None) -> bool:
             logger.info(f"2FA required for Owner role user {user_id}")
             return True
         
-        supabase_url = os.environ.get('SUPABASE_URL')
-        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = get_settings().supabase_url
+        supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         user_2fa = supabase.table('user_2fa').select('enabled').eq('user_id', user_id).execute()
         
@@ -732,8 +733,8 @@ def verify_totp_login():
                 device_fingerprint = generate_device_fingerprint(request)
                 device_expiry = calculate_device_expiry(30)
                 
-                supabase_url = os.environ.get('SUPABASE_URL')
-                supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+                supabase_url = get_settings().supabase_url
+                supabase_key = get_settings().supabase_service_role_key
                 supabase = create_client(supabase_url, supabase_key)
                 
                 supabase.table('trusted_devices').insert({

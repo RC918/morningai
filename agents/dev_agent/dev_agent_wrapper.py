@@ -14,6 +14,7 @@ from knowledge_graph.knowledge_graph_manager import (
 from knowledge_graph.bug_fix_pattern_learner import (
     BugFixPatternLearner
 )
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +296,7 @@ class DevAgent:
             admin_chat_id=admin_id
         )
 
-        openai_key = openai_api_key or os.getenv('OPENAI_API_KEY')
+        openai_key = openai_api_key or settings.openai_api_key
         self.llm = SimpleLLM(openai_key) if openai_key else None
 
         if not self.llm:

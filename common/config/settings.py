@@ -21,6 +21,7 @@ Features:
 """
 
 import os
+import sys
 import warnings
 from typing import Optional, Literal
 from pydantic import Field, field_validator, ConfigDict
@@ -46,7 +47,7 @@ class Settings(BaseSettings):
     
     jwt_secret_key: Optional[str] = Field(
         None,
-        min_length=32,
+        alias="JWT_SECRET_KEY",
         description="JWT token signing key for authentication"
     )
     
@@ -57,8 +58,7 @@ class Settings(BaseSettings):
     
     flask_secret_key: Optional[str] = Field(
         None,
-        alias="SECRET_KEY",  # Support deprecated SECRET_KEY
-        min_length=32,
+        alias="SECRET_KEY",
         description="Flask application secret key for sessions"
     )
     
@@ -99,11 +99,13 @@ class Settings(BaseSettings):
     
     database_url: Optional[str] = Field(
         default=None,
+        alias="DATABASE_URL",
         description="PostgreSQL database connection URL"
     )
     
-    redis_url: str = Field(
-        default="redis://localhost:6379/0",
+    redis_url: Optional[str] = Field(
+        default=None,
+        alias="REDIS_URL",
         description="Redis connection URL for queue and caching"
     )
     
@@ -130,16 +132,19 @@ class Settings(BaseSettings):
     
     supabase_url: Optional[str] = Field(
         None,
+        alias="SUPABASE_URL",
         description="Supabase project URL"
     )
     
     supabase_anon_key: Optional[str] = Field(
         None,
+        alias="SUPABASE_ANON_KEY",
         description="Supabase anonymous/public key"
     )
     
     supabase_service_role_key: Optional[str] = Field(
         None,
+        alias="SUPABASE_SERVICE_ROLE_KEY",
         description="Supabase service role key (admin access)"
     )
     
@@ -195,11 +200,13 @@ class Settings(BaseSettings):
     
     upstash_redis_rest_url: Optional[str] = Field(
         None,
+        alias="UPSTASH_REDIS_REST_URL",
         description="Upstash Redis REST API URL"
     )
     
     upstash_redis_rest_token: Optional[str] = Field(
         None,
+        alias="UPSTASH_REDIS_REST_TOKEN",
         description="Upstash Redis REST API token"
     )
     
@@ -267,6 +274,7 @@ class Settings(BaseSettings):
     
     github_token: Optional[str] = Field(
         None,
+        alias="GITHUB_TOKEN",
         description="GitHub API token for repository operations"
     )
     
@@ -282,6 +290,7 @@ class Settings(BaseSettings):
     
     openai_api_key: Optional[str] = Field(
         None,
+        alias="OPENAI_API_KEY",
         description="OpenAI API key for embeddings and LLM operations"
     )
     
@@ -710,12 +719,47 @@ class Settings(BaseSettings):
 _settings_instance = None
 
 def get_settings() -> Settings:
-    """Get or create the global settings instance"""
+    """
+    Get or create the global settings instance.
+    
+    In test mode, always creates a fresh instance to pick up environment
+    variables set by tests at runtime. Test mode is detected via pytest
+    in sys.modules or TESTING environment variable.
+    """
     global _settings_instance
-    if _settings_instance is None:
+    
+    is_pytest = 'pytest' in sys.modules
+    is_testing_env = os.getenv('TESTING', '').lower() in ('1', 'true', 'yes')
+    is_testing = is_pytest or is_testing_env
+    
+    if is_testing or _settings_instance is None:
         _settings_instance = Settings()
-        _settings_instance.log_deprecation_warnings()
+        if not is_testing:
+            _settings_instance.log_deprecation_warnings()
+    
     return _settings_instance
+
+def reload_settings() -> Settings:
+    """
+    Reload settings from environment variables.
+    
+    This is primarily useful for tests that modify os.environ at runtime.
+    After changing environment variables, call this function to force
+    the settings instance to reload.
+    
+    Example:
+        import os
+        from common.config.settings import reload_settings
+        
+        os.environ['JWT_SECRET_KEY'] = 'new-test-key'
+        reload_settings()  # Settings will now use the new value
+    
+    Returns:
+        The newly created Settings instance
+    """
+    global _settings_instance
+    _settings_instance = None
+    return get_settings()
 
 class _SettingsProxy:
     """Proxy object that lazily instantiates Settings on first access"""

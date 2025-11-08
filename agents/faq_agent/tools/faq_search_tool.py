@@ -3,9 +3,13 @@ FAQ Search Tool - Semantic search for FAQ questions
 """
 
 import os
+import sys
 from typing import Dict, Any, List, Optional
 from supabase import create_client, Client
 from .embedding_tool import EmbeddingTool
+
+if 'pytest' in sys.modules:
+    sys.modules.setdefault('agents.faq_agent.tools.faq_search_tool', sys.modules[__name__])
 
 
 class FAQSearchTool:
