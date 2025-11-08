@@ -29,7 +29,6 @@ from src.services.auth_service import (
     PREAUTH_TOKEN_TTL
 )
 from src.middleware.csrf import csrf_protect, should_enforce_csrf
-from src.utils.preauth_token import generate_preauth_token
 import logging
 
 logger = logging.getLogger(__name__)
@@ -188,31 +187,7 @@ def login():
             
             logger.info(f"User {user['email']} (role: {user['role']}) requires 2FA: {next_step}")
             
-            response = make_response(jsonify(response_data), 200)
-            
-            if FEATURE_2FA_PREAUTH:
-                try:
-                    token = generate_preauth_token(
-                        user['id'],
-                        user['email'],
-                        ttl=PREAUTH_TOKEN_TTL
-                    )
-                    
-                    response.set_cookie(
-                        'pre_auth_token',
-                        token,
-                        max_age=PREAUTH_TOKEN_TTL,
-                        httponly=True,
-                        secure=COOKIE_SECURE,
-                        samesite=COOKIE_SAMESITE,
-                        path='/api/auth/v2/totp'
-                    )
-                    
-                    logger.info(f"Pre-auth token set for user {user['id']}")
-                except Exception as e:
-                    logger.error(f"Failed to generate pre-auth token: {e}")
-            
-            return response
+            return jsonify(response_data), 200
         
         access_token, access_expiry_ms = generate_access_token(
             user['id'], user['email'], user['role']
