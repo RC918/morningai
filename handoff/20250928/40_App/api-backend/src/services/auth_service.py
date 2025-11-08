@@ -437,8 +437,8 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     
     import requests
     
-    supabase_url = os.environ.get('SUPABASE_URL')
-    supabase_anon_key = os.environ.get('SUPABASE_ANON_KEY')
+    supabase_url = settings.supabase_url
+    supabase_anon_key = settings.supabase_anon_key
     
     if not supabase_url or not supabase_anon_key:
         logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set when ENABLE_MOCK_USERS=false")
@@ -520,8 +520,8 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
     
     import requests
     
-    supabase_url = os.environ.get('SUPABASE_URL')
-    supabase_service_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+    supabase_url = settings.supabase_url
+    supabase_service_key = settings.supabase_service_role_key
     
     if not supabase_url or not supabase_service_key:
         logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set when ENABLE_MOCK_USERS=false")
