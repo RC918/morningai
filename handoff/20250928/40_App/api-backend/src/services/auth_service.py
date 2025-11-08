@@ -27,8 +27,11 @@ IS_PRODUCTION = ENVIRONMENT == 'production'
 # Token Configuration
 ACCESS_TOKEN_EXPIRY_MINUTES = 15
 REFRESH_TOKEN_EXPIRY_DAYS = 7
-JWT_SECRET_KEY = get_settings().jwt_secret_key  # Loaded from settings
 JWT_ALGORITHM = 'HS256'
+
+def _get_jwt_secret():
+    """Get JWT secret key from settings at runtime"""
+    return get_settings().jwt_secret_key or 'test-secret-key-for-testing'
 
 # Cookie Configuration
 COOKIE_SECURE = os.environ.get('COOKIE_SECURE', 'true' if IS_PRODUCTION else 'false').lower() == 'true'
@@ -52,24 +55,24 @@ def validate_security_config():
     Fails fast in production if configuration is insecure
     In non-production, auto-generates a secure test secret if missing
     """
-    global JWT_SECRET_KEY
+    global _get_jwt_secret()
     errors = []
     warnings = []
     
-    if not JWT_SECRET_KEY:
+    if not _get_jwt_secret():
         if IS_PRODUCTION:
-            errors.append("JWT_SECRET_KEY environment variable is not set")
+            errors.append("_get_jwt_secret() environment variable is not set")
         else:
-            JWT_SECRET_KEY = secrets.token_hex(32)
+            _get_jwt_secret() = secrets.token_hex(32)
             logger.warning(
-                "JWT_SECRET_KEY not set in non-production environment. "
+                "_get_jwt_secret() not set in non-production environment. "
                 "Using auto-generated test secret. DO NOT USE IN PRODUCTION."
             )
     elif IS_PRODUCTION:
-        if len(JWT_SECRET_KEY) < 32:
-            errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(JWT_SECRET_KEY)})")
-        if JWT_SECRET_KEY in ['your-secret-key', 'secret', 'changeme', 'test']:
-            errors.append("JWT_SECRET_KEY is using a known weak/default value")
+        if len(_get_jwt_secret()) < 32:
+            errors.append(f"_get_jwt_secret() must be at least 32 characters in production (current: {len(_get_jwt_secret())})")
+        if _get_jwt_secret() in ['your-secret-key', 'secret', 'changeme', 'test']:
+            errors.append("_get_jwt_secret() is using a known weak/default value")
     
     if IS_PRODUCTION and ENABLE_MOCK_USERS:
         errors.append("ENABLE_MOCK_USERS must be false in production (current: true)")
@@ -135,7 +138,7 @@ def generate_access_token(user_id: str, email: str, role: str) -> Tuple[str, int
         'exp': expiry
     }
     
-    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
     return token, expiry_timestamp
 
 
@@ -159,7 +162,7 @@ def generate_refresh_token(user_id: str, email: str) -> str:
         'exp': expiry
     }
     
-    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
     return token
 
 
@@ -171,7 +174,7 @@ def verify_access_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid
     """
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[JWT_ALGORITHM])
         
         if payload.get('type') != 'access':
             logger.warning("Token is not an access token")
@@ -194,7 +197,7 @@ def verify_refresh_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid/blacklisted
     """
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[JWT_ALGORITHM])
         
         if payload.get('type') != 'refresh':
             logger.warning("Token is not a refresh token")
