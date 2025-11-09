@@ -6,6 +6,7 @@ import yaml
 from datetime import date, datetime
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
+from common.config.settings import settings
 
 try:
     _api_backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../api-backend/src'))
@@ -14,7 +15,7 @@ try:
     from utils.redis_config import get_secure_redis_url
 except ImportError:
     def get_secure_redis_url(allow_local: bool = False) -> str:
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        redis_url = settings.redis_url or "redis://localhost:6379/0"
         return redis_url
 
 
@@ -38,7 +39,7 @@ class CostTracker:
         if redis_url:
             self.redis_url = redis_url
         else:
-            self.redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+            self.redis_url = get_secure_redis_url(allow_local=settings.testing)
         
         try:
             self.redis = redis.from_url(self.redis_url, decode_responses=True)

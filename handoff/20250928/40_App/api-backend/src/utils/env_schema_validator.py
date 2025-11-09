@@ -3,6 +3,7 @@
 
 import os
 from typing import Dict, Any, Optional
+from common.config.settings import settings
 
 REQUIRED_ENV_VARS = {
     'DATABASE_URL': str,

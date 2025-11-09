@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../handoff/20250928/40_App/api-backend/src'))
 from utils.redis_config import get_secure_redis_url
+from common.config.settings import settings
 
 from orchestrator import RedisQueue, UnifiedTask, TaskType, create_task
 from orchestrator.schemas.event_schema import EventType
@@ -117,9 +118,8 @@ class OpsAgentClient:
     async def _handle_deploy_task(self, task: UnifiedTask):
         """Handle deployment task"""
         from agents.ops_agent.tools.deployment_tool import create_deployment_tool
-        import os
         
-        vercel_token = os.getenv("VERCEL_TOKEN")
+        vercel_token = settings.vercel_token
         if not vercel_token:
             raise ValueError("VERCEL_TOKEN not set")
         
@@ -197,17 +197,16 @@ class OpsAgentClient:
         """Handle alert task"""
         from agents.ops_agent.tools.alert_management_tool import create_alert_management_tool
         from agents.ops_agent.tools.notification_service import NotificationService
-        import os
         
         notification_service = NotificationService(
-            mailtrap_api_token=os.getenv("MAILTRAP_API_TOKEN"),
-            slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL")
+            mailtrap_api_token=settings.mailtrap_api_token,
+            slack_webhook_url=settings.slack_webhook_url
         )
         
         alert_tool = create_alert_management_tool(
             notification_service=notification_service,
-            default_email_recipient=os.getenv("ALERT_EMAIL"),
-            default_slack_channel=os.getenv("ALERT_SLACK_CHANNEL")
+            default_email_recipient=settings.alert_email,
+            default_slack_channel=settings.alert_slack_channel
         )
         
         severity = task.payload.get("severity", "medium")
@@ -264,7 +263,7 @@ async def start_ops_agent_client(redis_url: Optional[str] = None):
     from orchestrator import create_redis_queue
     
     if not redis_url:
-        redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+        redis_url = get_secure_redis_url(allow_local=settings.testing)
     
     queue = await create_redis_queue(redis_url)
     client = OpsAgentClient(queue)

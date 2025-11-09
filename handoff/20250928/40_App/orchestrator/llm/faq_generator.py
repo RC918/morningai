@@ -8,12 +8,13 @@ import os
 import logging
 from typing import Optional
 from openai import OpenAI
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 def _get_openai_client():
     """Get or create OpenAI client lazily"""
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = settings.openai_api_key
     if not api_key:
         raise ValueError("OPENAI_API_KEY environment variable not set")
     return OpenAI(api_key=api_key)

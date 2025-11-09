@@ -10,6 +10,7 @@ from typing import Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from common.config.settings import settings
 
 class SandboxStatus(Enum):
     CREATING = "creating"
@@ -55,7 +56,7 @@ class AgentSandboxManager:
         async with self._lock:
             sandbox_id = str(uuid.uuid4())
             
-            sandbox_enabled = os.getenv('SANDBOX_ENABLED', 'false').lower() == 'true'
+            sandbox_enabled = settings.sandbox_enabled or False
             
             self.logger.info(f"Creating sandbox {sandbox_id} for agent {config.agent_id} (SANDBOX_ENABLED={sandbox_enabled})")
             
@@ -103,7 +104,7 @@ class AgentSandboxManager:
                 return False
             
             sandbox = self.sandboxes[sandbox_id]
-            sandbox_enabled = os.getenv('SANDBOX_ENABLED', 'false').lower() == 'true'
+            sandbox_enabled = settings.sandbox_enabled or False
             
             try:
                 if not sandbox_enabled or not sandbox.container_id:

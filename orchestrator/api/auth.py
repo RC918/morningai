@@ -12,6 +12,7 @@ from enum import Enum
 from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 import jwt
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class Role(Enum):
 
 class AuthConfig:
     """Authentication configuration"""
-    JWT_SECRET_KEY = os.getenv("ORCHESTRATOR_JWT_SECRET")
+    JWT_SECRET_KEY = settings.orchestrator_jwt_secret
     JWT_ALGORITHM = "HS256"
     JWT_EXPIRATION_HOURS = 24
     

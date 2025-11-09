@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from common.config.settings import settings
 
 from orchestrator.task_queue.redis_queue import RedisQueue, create_redis_queue
 from orchestrator.schemas.task_schema import (
@@ -74,7 +75,7 @@ async def lifespan(app: FastAPI):
     
     try:
         # Wait for in-flight requests to complete (with configurable timeout)
-        shutdown_timeout = int(os.getenv("ORCHESTRATOR_SHUTDOWN_TIMEOUT", "5"))
+        shutdown_timeout = settings.orchestrator_shutdown_timeout or 5
         logger.info(f"Waiting {shutdown_timeout}s for in-flight requests to complete...")
         await asyncio.sleep(shutdown_timeout)
         
@@ -96,7 +97,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-allowed_origins = os.getenv("ORCHESTRATOR_CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+allowed_origins = (settings.orchestrator_cors_origins or "http://localhost:3000,http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -193,7 +194,7 @@ async def health_check(queue: RedisQueue = Depends(get_redis_queue)):
             "status": "healthy",
             "redis": "connected",
             "queue_stats": stats,
-            "environment": os.getenv("ENVIRONMENT", "development")
+            "environment": settings.environment or "development"
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}", exc_info=True)

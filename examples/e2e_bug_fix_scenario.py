@@ -17,6 +17,7 @@ import asyncio
 import os
 import sys
 from datetime import datetime, timezone
+from common.config.settings import settings
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -32,7 +33,7 @@ async def simulate_bug_fix_scenario():
     print()
     
     print("📡 Step 1: Connecting to Orchestrator...")
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    redis_url = settings.redis_url or "redis://localhost:6379"
     queue = await create_redis_queue(redis_url=redis_url)
     print(f"✅ Connected to Redis at {redis_url}")
     print()

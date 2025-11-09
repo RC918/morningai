@@ -3,6 +3,7 @@ import os
 import sys
 from flask import Blueprint, jsonify, request
 from datetime import datetime
+from common.config.settings import settings
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
 if project_root not in sys.path:
@@ -24,7 +25,7 @@ except ImportError as e:
     print(f"Warning: Governance modules not available: {e}")
     GOVERNANCE_AVAILABLE = False
 
-ALLOW_GOVERNANCE_MOCK = os.getenv('ALLOW_GOVERNANCE_MOCK', 'true').lower() == 'true'
+ALLOW_GOVERNANCE_MOCK = settings.allow_governance_mock or False
 
 from src.middleware.auth_middleware import jwt_required, admin_required
 import logging

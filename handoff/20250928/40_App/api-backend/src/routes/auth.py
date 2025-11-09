@@ -11,11 +11,13 @@ auth_bp = Blueprint('auth', __name__)
 
 
 # 模擬用戶數據（實際應用中應該從數據庫讀取）
+from common.config.settings import settings
+
 MOCK_USERS = {
     'admin': {
         'id': 1,
         'username': 'admin',
-        'password_hash': generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'admin123')),
+        'password_hash': generate_password_hash(settings.admin_password or 'admin123'),
         'name': '系統管理員',
         'role': 'admin',
         'avatar': None
@@ -75,7 +77,7 @@ def login():
             'avatar': user_data['avatar']
         }
         
-        use_cookie_auth = os.environ.get('FEATURE_COOKIE_AUTH', 'false').lower() == 'true'
+        use_cookie_auth = settings.feature_cookie_auth or False
         
         if use_cookie_auth:
             csrf_token = secrets.token_urlsafe(32)
@@ -85,7 +87,7 @@ def login():
                 'token': token
             }))
             
-            is_production = os.environ.get('ENVIRONMENT') == 'production'
+            is_production = settings.is_production
             secure = is_production
             samesite = 'None' if is_production else 'Lax'
             
@@ -125,7 +127,7 @@ def verify_token():
     try:
         token = None
         
-        use_cookie_auth = os.environ.get('FEATURE_COOKIE_AUTH', 'false').lower() == 'true'
+        use_cookie_auth = settings.feature_cookie_auth or False
         if use_cookie_auth:
             token = request.cookies.get('access_token')
         
@@ -169,12 +171,12 @@ def verify_token():
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
     """用戶登出"""
-    use_cookie_auth = os.environ.get('FEATURE_COOKIE_AUTH', 'false').lower() == 'true'
+    use_cookie_auth = settings.feature_cookie_auth or False
     
     if use_cookie_auth:
         response = make_response(jsonify({'message': '登出成功'}))
         
-        is_production = os.environ.get('ENVIRONMENT') == 'production'
+        is_production = settings.is_production
         secure = is_production
         samesite = 'None' if is_production else 'Lax'
         

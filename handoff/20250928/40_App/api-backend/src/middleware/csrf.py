@@ -76,6 +76,6 @@ def should_enforce_csrf() -> bool:
     Returns:
         True if CSRF should be enforced
     """
-    import os
-    cookie_samesite = os.environ.get('COOKIE_SAMESITE', 'Strict')
+    from common.config.settings import settings
+    cookie_samesite = settings.cookie_samesite or 'Strict'
     return cookie_samesite == 'None'
