@@ -36,6 +36,12 @@ def check_file_for_deprecated_imports(file_path: Path) -> List[Tuple[int, str, s
     """
     Check a Python file for deprecated module imports.
     
+    Detects both direct and aliased imports:
+    - import utils.preauth_token
+    - import utils.preauth_token as preauth  (aliased)
+    - from utils.preauth_token import generate_preauth_token
+    - from utils.preauth_token import generate_preauth_token as gen_token  (aliased)
+    
     Returns:
         List of (line_number, import_statement, deprecated_module) tuples
     """
@@ -50,9 +56,12 @@ def check_file_for_deprecated_imports(file_path: Path) -> List[Tuple[int, str, s
                 for alias in node.names:
                     for deprecated in DEPRECATED_MODULES:
                         if alias.name == deprecated or alias.name.endswith(f".{deprecated}"):
+                            import_stmt = f"import {alias.name}"
+                            if alias.asname:
+                                import_stmt += f" as {alias.asname}"
                             violations.append((
                                 node.lineno,
-                                f"import {alias.name}",
+                                import_stmt,
                                 deprecated
                             ))
             
@@ -60,17 +69,27 @@ def check_file_for_deprecated_imports(file_path: Path) -> List[Tuple[int, str, s
                 if node.module:
                     for deprecated in DEPRECATED_MODULES:
                         if node.module == deprecated or node.module.endswith(f".{deprecated}"):
+                            names_list = []
+                            for alias in node.names:
+                                if alias.asname:
+                                    names_list.append(f"{alias.name} as {alias.asname}")
+                                else:
+                                    names_list.append(alias.name)
+                            import_stmt = f"from {node.module} import {', '.join(names_list)}"
                             violations.append((
                                 node.lineno,
-                                f"from {node.module} import ...",
+                                import_stmt,
                                 deprecated
                             ))
                         elif deprecated.endswith(f".{node.module}"):
                             for alias in node.names:
                                 if alias.name == deprecated.split('.')[-1]:
+                                    import_stmt = f"from {node.module} import {alias.name}"
+                                    if alias.asname:
+                                        import_stmt += f" as {alias.asname}"
                                     violations.append((
                                         node.lineno,
-                                        f"from {node.module} import {alias.name}",
+                                        import_stmt,
                                         deprecated
                                     ))
     
@@ -136,3 +155,48 @@ def test_no_deprecated_imports_in_src():
 if __name__ == "__main__":
     test_no_deprecated_imports_in_src()
     print("✅ No deprecated imports found in src/**")
+
+
+def test_aliased_import_detection():
+    """
+    Test that aliased imports of deprecated modules are detected.
+    
+    This verifies Task 7: Extend lint checks to cover aliased imports.
+    """
+    import tempfile
+    
+    test_cases = [
+        # (code, should_detect, description)
+        ("import utils.preauth_token", True, "Direct module import"),
+        ("import utils.preauth_token as preauth", True, "Module import with alias"),
+        ("from utils.preauth_token import generate_preauth_token", True, "Direct function import"),
+        ("from utils.preauth_token import generate_preauth_token as gen_token", True, "Function import with alias"),
+        ("from utils.preauth_token import generate_preauth_token as gen, validate_and_consume_preauth_token as validate", True, "Multiple imports with aliases"),
+        ("from utils.preauth_token import generate_preauth_token, validate_and_consume_preauth_token as validate", True, "Mixed imports (some aliased)"),
+        ("from utils.pre_auth_token import PreAuthTokenManager", False, "Valid import (not deprecated)"),
+        ("import utils.pre_auth_token", False, "Valid module import (not deprecated)"),
+        ("from utils.pre_auth_token import PreAuthTokenManager as Manager", False, "Valid aliased import (not deprecated)"),
+    ]
+    
+    for code, should_detect, description in test_cases:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(code + "\n")
+            f.flush()
+            
+            violations = check_file_for_deprecated_imports(Path(f.name))
+            
+            if should_detect:
+                assert len(violations) > 0, f"Failed to detect: {description}\n  Code: {code}"
+                line_no, import_stmt, deprecated = violations[0]
+                assert deprecated in DEPRECATED_MODULES, f"Wrong deprecated module for: {description}"
+            else:
+                assert len(violations) == 0, f"False positive for: {description}\n  Code: {code}\n  Violations: {violations}"
+            
+            Path(f.name).unlink()
+
+
+if __name__ == "__main__":
+    test_no_deprecated_imports_in_src()
+    print("✅ No deprecated imports found in src/**")
+    test_aliased_import_detection()
+    print("✅ Aliased import detection working correctly")
