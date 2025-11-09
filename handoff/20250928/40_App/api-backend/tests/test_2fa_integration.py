@@ -117,15 +117,26 @@ def mock_supabase():
         
         def select(*args, **kwargs):
             sel = MagicMock(name="backup_codes.select")
+            filters = {}
             
             def eq(col, val):
+                filters[col] = val
                 filt = MagicMock(name="backup_codes.eq")
                 
                 def execute():
-                    codes = state["backup_codes"].get(val, [])
+                    user_id = filters.get("user_id")
+                    if not user_id:
+                        return Result([])
+                    
+                    codes = state["backup_codes"].get(user_id, [])
+                    
+                    if "used" in filters:
+                        codes = [c for c in codes if c.get("used") == filters["used"]]
+                    
                     return Result(codes)
                 
                 filt.execute.side_effect = execute
+                filt.eq.side_effect = eq  # Support chaining
                 return filt
             
             sel.eq.side_effect = eq
