@@ -29,9 +29,11 @@ LATENCY_ALERT_THRESHOLD=500.0      # Alert when latency exceeds this (ms)
 
 #### Build the Docker image
 
+**IMPORTANT**: Build from the repository root (not from monitoring/) to include the common module:
+
 ```bash
-cd monitoring
-docker build -t braintrust-processor:latest .
+# Build from repository root
+docker build -f monitoring/Dockerfile -t braintrust-processor:latest .
 ```
 
 #### Run the container
