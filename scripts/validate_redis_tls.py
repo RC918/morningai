@@ -21,6 +21,7 @@ import os
 import sys
 import logging
 from typing import Dict, List, Tuple
+from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../handoff/20250928/40_App/api-backend/src'))
 
@@ -108,7 +109,9 @@ class RedisSecurityValidator:
             
             try:
                 redis_url = get_secure_redis_url(allow_local=settings.testing)
-                logger.info(f"✅ Helper function returned: {redis_url[:30]}...")
+                parsed = urlparse(redis_url or "")
+                safe_url = f"{parsed.scheme}://{parsed.hostname}:{parsed.port or 'default'}"
+                logger.info(f"✅ Helper function returned: {safe_url}")
                 self.passed_checks.append("✅ Helper function works correctly")
             except ValueError as e:
                 self.errors.append(f"❌ Helper function failed: {e}")
