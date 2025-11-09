@@ -91,10 +91,27 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 ### Environment Variables
 
 **Schema Definition**: `config/env.schema.yaml` (Single Source of Truth)
-- **Total Defined**: 56 variables (19 required, 37 optional)
-- **Actual Usage**: 83 unique variables across codebase (563 `os.getenv` calls)
-- **Schema Drift**: 27 variables used in code but not defined in schema
-- **Notable Missing**: `TOTP_ENCRYPTION_KEY` (critical for 2FA functionality)
+- **Total Defined**: 121 variables (20 required, 101 optional)
+- **Schema Version**: 1.1 (Phase 11 + Missing Variables)
+- **Auto-Generated**: `.env.example` is generated from schema via `scripts/generate-env-examples.py`
+- **CI Validation**: `tests/lint/test_env_vars_defined.py` validates all `os.getenv()` calls against schema
+- **Deprecation**: Root `env_schema.yaml` is deprecated; use `config/env.schema.yaml` only
+
+**Phase 11 New Variables** (Added 2025-11):
+- **2FA/Authentication**: `FEATURE_2FA_PREAUTH`, `PREAUTH_TOKEN_TTL`, `TOTP_ENCRYPTION_KEY`
+- **Rate Limiting**: `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_BY_USER`, `RATE_LIMIT_FAIL_FAST`, `RATE_LIMIT_REDIS_MAX_RETRIES`, `RATE_LIMIT_REDIS_RETRY_DELAY`
+- **Testing**: `TESTING`, `FORCE_ENABLE_2FA_IN_TESTS`
+- **Database**: `DB_POOL_MAX`, `DB_POOL_SIZE`, `DB_POOL_RECYCLE`, `DB_POOL_PRE_PING`
+- **Redis**: `REDIS_KEY_PREFIX`, `RQ_QUEUE_NAME`
+- **Security**: `COOKIE_DOMAIN`, `COOKIE_PATH`, `FEATURE_COOKIE_AUTH`
+- **Operations**: `DEBUG`, `FAQ_CACHE_TTL`, `ORCHESTRATOR_PATH`, `OPENAI_MAX_DAILY_COST`
+- **Deployment**: `GIT_COMMIT`, `RENDER_GIT_COMMIT`, `SENTRY_ENVIRONMENT`
+- **Governance**: `ALLOW_GOVERNANCE_MOCK`, `ENABLE_MOCK_USERS`
+
+**Redis Requirements**:
+- **Minimum Version**: Redis 2.6+ (required for Lua EVAL support used in atomic pre-auth token consumption)
+- **Recommended**: Upstash Redis or self-hosted Redis 8.2.2+ with TLS (`rediss://`)
+- **Security**: CVE-2025-49844 protection requires TLS-enabled connections
 
 **Critical Variables**:
 ```bash
@@ -778,6 +795,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 - **Contributing**: [docs/CONTRIBUTING.md](CONTRIBUTING.md)
 - **CI/CD**: [docs/ci_matrix.md](ci_matrix.md)
 - **Architecture**: [docs/ARCHITECTURE.md](ARCHITECTURE.md)
+- **Authentication API**: [docs/openapi.auth.yaml](openapi.auth.yaml) - 2FA/TOTP endpoints (OpenAPI 3.0.3)
 
 ---
 

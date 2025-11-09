@@ -1,0 +1,318 @@
+openapi: 3.0.3
+info:
+  title: MorningAI Authentication API
+  description: |
+    Authentication and 2FA endpoints for the MorningAI platform.
+    
+    This specification documents the Auth v2 endpoints including JWT-based authentication
+    and Two-Factor Authentication (2FA) with TOTP and pre-authentication tokens.
+    
+    **Security Model**:
+    - First-factor authentication (email/password) returns a temporary pre-auth token
+    - Pre-auth token is used for 2FA enrollment and challenge flows
+    - Successful 2FA verification returns full session tokens (access + refresh)
+    - All 2FA endpoints use single-use pre-auth tokens with atomic consumption
+    
+    **Related Documentation**:
+    - [2FA Design Document](2FA_TOTP_DESIGN.md)
+    - [Environment Variables](ENVIRONMENTS.md)
+    - [Deprecated Modules](DEPRECATED_MODULES.md)
+  version: 2.0.0
+  contact:
+    name: MorningAI Platform Team
+    url: https://github.com/RC918/morningai
+
+servers:
+  - url: https://morningai-backend-v2.onrender.com
+    description: Production
+  - url: https://morningai-backend-v2-stg.onrender.com
+    description: Staging
+  - url: http://localhost:8000
+    description: Local Development
+
+tags:
+  - name: Authentication
+    description: Login, logout, token refresh
+  - name: 2FA Enrollment
+    description: Two-factor authentication setup
+  - name: 2FA Challenge
+    description: Two-factor authentication verification during login
+
+paths:
+  /api/auth/v2/2fa/enroll:
+    post:
+      tags:
+        - 2FA Enrollment
+      summary: Start 2FA enrollment
+      description: |
+        Generates a new TOTP secret and QR code for the user to scan with their authenticator app.
+        The secret is stored in the database but NOT enabled until `/verify-enroll` is called.
+        
+        **Requirements**:
+        - Valid pre-auth token with `enroll` scope
+        - User must not already have 2FA enabled
+        
+        **Security**:
+        - TOTP secret is encrypted at rest using `TOTP_ENCRYPTION_KEY`
+        - Pre-auth token is NOT consumed by this endpoint (allows retry)
+      security:
+        - PreAuthToken: []
+      responses:
+        '200':
+          description: TOTP secret and QR code generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                    description: Base32-encoded TOTP secret (for manual entry)
+                    example: "JBSWY3DPEHPK3PXP"
+                  qr_code:
+                    type: string
+                    description: Data URI of QR code image (PNG, base64-encoded)
+                    example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+        '400':
+          description: 2FA already enabled or invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid or expired pre-auth token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/v2/2fa/verify-enroll:
+    post:
+      tags:
+        - 2FA Enrollment
+      summary: Complete 2FA enrollment
+      description: |
+        Verifies the TOTP code, enables 2FA, generates backup codes, and issues a full session.
+        
+        **This is the ONLY time backup codes are returned.** The user must save them securely.
+        
+        **Requirements**:
+        - Valid pre-auth token with `enroll` scope
+        - Valid 6-digit TOTP code from authenticator app
+        
+        **Security**:
+        - Pre-auth token is consumed atomically (single-use)
+        - Backup codes are hashed before storage (bcrypt)
+        - Failed attempts are tracked and rate-limited
+      security:
+        - PreAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  description: 6-digit TOTP code
+                  pattern: '^\d{6}$'
+                  example: "123456"
+      responses:
+        '200':
+          description: 2FA enrollment completed successfully
+          headers:
+            Set-Cookie:
+              description: Session cookies (access_token, refresh_token)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  backup_codes:
+                    type: array
+                    description: Single-use backup codes (SAVE THESE!)
+                    items:
+                      type: string
+                      example: "ABCD-EFGH-IJKL-MNOP"
+                    minItems: 8
+                    maxItems: 8
+                  user:
+                    $ref: '#/components/schemas/User'
+                  tokens:
+                    type: object
+                    properties:
+                      expiresAt:
+                        type: integer
+                        description: Access token expiry (Unix timestamp in milliseconds)
+                        example: 1699564800000
+        '400':
+          description: Invalid TOTP code format or 2FA not started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid TOTP code or token already consumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/v2/2fa/challenge:
+    post:
+      tags:
+        - 2FA Challenge
+      summary: Verify 2FA code during login
+      description: |
+        Verifies the TOTP code or backup code and issues a full session.
+        Optionally supports "remember device" functionality to skip 2FA for 30 days.
+        
+        **Requirements**:
+        - Valid pre-auth token with `challenge` scope (from `/api/auth/v2/login`)
+        - Either TOTP code OR backup code (not both)
+        
+        **Security**:
+        - Pre-auth token is consumed atomically (single-use)
+        - Failed attempts are tracked and rate-limited
+        - Backup codes are single-use and marked as used
+        - Device fingerprints use SHA-256 hash of User-Agent + IP
+      security:
+        - PreAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: 6-digit TOTP code (use this OR backup_code)
+                  pattern: '^\d{6}$'
+                  example: "123456"
+                backup_code:
+                  type: string
+                  description: Backup code (use this OR code)
+                  pattern: '^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$'
+                  example: "ABCD-EFGH-IJKL-MNOP"
+                remember_device:
+                  type: boolean
+                  description: Trust this device for 30 days (skip 2FA)
+                  default: false
+      responses:
+        '200':
+          description: 2FA verification successful
+          headers:
+            Set-Cookie:
+              description: Session cookies (access_token, refresh_token)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: '#/components/schemas/User'
+                  tokens:
+                    type: object
+                    properties:
+                      expiresAt:
+                        type: integer
+                        description: Access token expiry (Unix timestamp in milliseconds)
+                        example: 1699564800000
+                  backup_codes_remaining:
+                    type: integer
+                    description: Number of unused backup codes (only if backup code was used)
+                    example: 7
+                  device_trusted:
+                    type: boolean
+                    description: Whether device was successfully trusted (only if remember_device=true)
+                    example: true
+        '400':
+          description: Invalid request (missing code, 2FA not enabled, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid code or token already consumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    PreAuthToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Temporary JWT token issued after successful first-factor authentication.
+        
+        **Token Scopes**:
+        - `enroll`: For 2FA enrollment endpoints
+        - `challenge`: For 2FA login challenge endpoints
+        
+        **Token Lifetime**: Configurable via `PREAUTH_TOKEN_TTL` (default: 300 seconds)
+        
+        **Single-Use**: Tokens are consumed atomically using Redis Lua scripts to prevent race conditions.
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User UUID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        name:
+          type: string
+          example: "John Doe"
+        role:
+          type: string
+          enum: [owner, user]
+          example: "owner"
+        tenantId:
+          type: string
+          description: Organization UUID
+          example: "660e8400-e29b-41d4-a716-446655440000"
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://example.com/avatar.jpg"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code or message
+          example: "Invalid TOTP code"
+        message:
+          type: string
+          description: Detailed error message (optional)
+          example: "This token has already been used."

@@ -165,7 +165,7 @@ exclude-globs:
    API_KEY = os.getenv("API_KEY")
    ```
 5. **Update `.env.example`** with placeholder values
-6. **Document** the required environment variable in `env_schema.yaml`
+6. **Document** the required environment variable in `config/env.schema.yaml`
 
 ### If Secret Was Already Pushed
 

@@ -47,8 +47,12 @@ class EnvSchemaValidator:
     """Validates environment variables against defined schema"""
     
     def __init__(self, schema_file: str = "config/env.schema.yaml"):
-        if not os.path.exists(schema_file) and os.path.exists("env_schema.yaml"):
-            schema_file = "env_schema.yaml"
+        if not os.path.exists(schema_file):
+            raise FileNotFoundError(
+                f"Canonical schema file not found: {schema_file}\n"
+                f"Note: The root env_schema.yaml is deprecated. "
+                f"Please use config/env.schema.yaml as the single source of truth."
+            )
         self.schema_file = schema_file
         self.logger = logging.getLogger(__name__)
         self.schema = self._load_schema()
