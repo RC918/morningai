@@ -52,8 +52,6 @@ def is_production():
     try:
         from flask import current_app
         if current_app:
-            if _as_bool(current_app.config.get("TESTING")):
-                return False
             env = (current_app.config.get("ENV") or current_app.config.get("FLASK_ENV") or "").lower()
             if env:
                 return env == "production"
@@ -164,7 +162,7 @@ def validate_security_config():
     logger.info(f"Environment: {env_name}")
     logger.info(f"Cookie SameSite: {COOKIE_SAMESITE}")
     logger.info(f"Cookie Secure: {COOKIE_SECURE}")
-    logger.info(f"Mock Users Enabled: {ENABLE_MOCK_USERS}")
+    logger.info(f"Mock Users Enabled: {is_mock_users_enabled()}")
 
 
 def get_redis_client():
@@ -442,7 +440,7 @@ def _get_mock_users() -> Dict:
     WARNING: Only available when ENABLE_MOCK_USERS=true
     In production, this returns empty dict
     """
-    if not ENABLE_MOCK_USERS:
+    if not is_mock_users_enabled():
         return {}
     
     return {
