@@ -69,6 +69,18 @@ class Settings(BaseSettings):
         """Admin password (unwrapped from SecretStr)"""
         return self.admin_password_secret.get_secret_value() if self.admin_password_secret else None
     
+    owner_password_secret: Optional[SecretStr] = Field(
+        None,
+        alias="OWNER_PASSWORD",
+        description="Owner user password for system access",
+        repr=False
+    )
+    
+    @property
+    def owner_password(self) -> Optional[str]:
+        """Owner password (unwrapped from SecretStr)"""
+        return self.owner_password_secret.get_secret_value() if self.owner_password_secret else None
+    
     flask_secret_key_secret: Optional[SecretStr] = Field(
         None,
         alias="SECRET_KEY",
@@ -137,6 +149,18 @@ class Settings(BaseSettings):
     cookie_samesite: Literal["Strict", "Lax", "None"] = Field(
         default="Lax",
         description="SameSite attribute for authentication cookies"
+    )
+    
+    cookie_domain: Optional[str] = Field(
+        default=None,
+        alias="COOKIE_DOMAIN",
+        description="Optional domain restriction for authentication cookies"
+    )
+    
+    cookie_path: str = Field(
+        default="/",
+        alias="COOKIE_PATH",
+        description="Path restriction for authentication cookies"
     )
     
     
