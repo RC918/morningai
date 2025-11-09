@@ -102,19 +102,6 @@ def is_2fa_feature_enabled() -> bool:
     import os
     from common.config.settings import settings
     
-<<<<<<< HEAD
-    if os.getenv('FORCE_ENABLE_2FA_IN_TESTS', '').lower() == 'true':
-        return True
-    
-    if settings.force_enable_2fa_in_tests if hasattr(settings, 'force_enable_2fa_in_tests') else False:
-        return settings.feature_2fa_enabled or True
-    
-||||||| 41a2068b
-    if settings.force_enable_2fa_in_tests if hasattr(settings, 'force_enable_2fa_in_tests') else False:
-        return settings.feature_2fa_enabled or True
-    
-=======
->>>>>>> origin/main
     try:
         from flask import current_app
         if current_app and current_app.config.get('TESTING'):
