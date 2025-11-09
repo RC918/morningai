@@ -8,6 +8,7 @@ import os
 import time
 import statistics
 
+from common.config.settings import settings
 from knowledge_graph import get_knowledge_graph_manager
 
 pytestmark = pytest.mark.benchmark
@@ -23,7 +24,7 @@ class TestEmbeddingSpeedBenchmark:
     """Benchmark tests for embedding generation speed"""
 
     @pytest.mark.skipif(
-        not os.getenv('OPENAI_API_KEY'),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY required for benchmark"
     )
     def test_embedding_generation_speed(self, kg_manager):
@@ -115,7 +116,7 @@ class TestEmbeddingSpeedBenchmark:
         print(f"   ✓ Statistics calculation works (P50={p50}ms, P95={p95}ms)")
 
     @pytest.mark.skipif(
-        not os.getenv('OPENAI_API_KEY'),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY required"
     )
     def test_cache_performance_improvement(self, kg_manager):

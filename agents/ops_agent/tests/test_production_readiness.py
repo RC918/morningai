@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.insert(0, project_root)
 
+from common.config.settings import settings
 from orchestrator.schemas.task_schema import UnifiedTask, TaskType, TaskPriority, TaskStatus, SLAConfig
 from orchestrator.task_queue.redis_queue import create_redis_queue
 
@@ -22,7 +23,7 @@ from orchestrator.task_queue.redis_queue import create_redis_queue
 @pytest_asyncio.fixture
 async def clean_redis():
     """Clean Redis before each test"""
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    redis_url = settings.redis_url or "redis://localhost:6379"
     queue = await create_redis_queue(redis_url=redis_url)
     
     if queue.redis_client:
@@ -38,7 +39,7 @@ class TestProductionReadiness:
     @pytest.mark.asyncio
     async def test_redis_connection_resilience(self):
         """Test Redis connection resilience and reconnection"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         
         queue = await create_redis_queue(redis_url=redis_url)
         assert queue is not None
@@ -51,7 +52,7 @@ class TestProductionReadiness:
     @pytest.mark.asyncio
     async def test_high_load_task_processing(self):
         """Test Worker performance under high load"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         num_tasks = 100
@@ -84,7 +85,7 @@ class TestProductionReadiness:
     @pytest.mark.asyncio
     async def test_task_priority_ordering(self, clean_redis):
         """Test that tasks are processed in priority order"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         p3_task = UnifiedTask(
@@ -124,7 +125,7 @@ class TestProductionReadiness:
     @pytest.mark.asyncio
     async def test_task_timeout_handling(self, clean_redis):
         """Test task timeout and cleanup"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         sla_deadline = (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat()
@@ -152,7 +153,7 @@ class TestProductionReadiness:
     @pytest.mark.asyncio
     async def test_concurrent_task_processing(self):
         """Test concurrent task processing"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         async def process_task(task_id):
@@ -177,7 +178,7 @@ class TestProductionReadiness:
     @pytest.mark.asyncio
     async def test_error_recovery(self):
         """Test error recovery and task retry"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         task = UnifiedTask(
@@ -201,7 +202,7 @@ class TestProductionReadiness:
     @pytest.mark.asyncio
     async def test_memory_leak_prevention(self):
         """Test for memory leaks during extended operation"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         import psutil
@@ -228,7 +229,7 @@ class TestProductionReadiness:
     @pytest.mark.asyncio
     async def test_event_publishing_reliability(self):
         """Test event publishing reliability"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         
         publisher_queue = await create_redis_queue(redis_url=redis_url)
         subscriber_queue = await create_redis_queue(redis_url=redis_url)
@@ -279,7 +280,7 @@ class TestProductionReadiness:
     @pytest.mark.asyncio
     async def test_graceful_shutdown(self):
         """Test graceful shutdown handling"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         task = UnifiedTask(
@@ -307,7 +308,7 @@ class TestPerformanceBenchmarks:
     @pytest.mark.asyncio
     async def test_task_enqueue_throughput(self):
         """Benchmark task enqueue throughput"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         num_tasks = 1000
@@ -331,7 +332,7 @@ class TestPerformanceBenchmarks:
     @pytest.mark.asyncio
     async def test_task_dequeue_throughput(self):
         """Benchmark task dequeue throughput"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         num_tasks = 1000
@@ -359,7 +360,7 @@ class TestPerformanceBenchmarks:
     @pytest.mark.asyncio
     async def test_queue_stats_latency(self):
         """Benchmark queue stats retrieval latency"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         num_iterations = 100
@@ -385,7 +386,7 @@ class TestSecurityValidation:
     @pytest.mark.asyncio
     async def test_task_payload_sanitization(self):
         """Test task payload sanitization"""
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = settings.redis_url or "redis://localhost:6379"
         queue = await create_redis_queue(redis_url=redis_url)
         
         malicious_payload = {
@@ -410,10 +411,13 @@ class TestSecurityValidation:
     @pytest.mark.asyncio
     async def test_environment_variable_isolation(self):
         """Test environment variable isolation"""
-        sensitive_vars = ["VERCEL_TOKEN", "REDIS_URL", "JWT_SECRET"]
+        sensitive_vars = {
+            "VERCEL_TOKEN": settings.vercel_token,
+            "REDIS_URL": settings.redis_url,
+            "JWT_SECRET": settings.jwt_secret_key
+        }
         
-        for var in sensitive_vars:
-            value = os.getenv(var)
+        for var_name, value in sensitive_vars.items():
             if value:
                 assert len(value) > 0
                 assert value != "test"

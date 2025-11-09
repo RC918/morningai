@@ -7,6 +7,7 @@ import pytest
 import os
 import time
 
+from common.config.settings import settings
 from knowledge_graph import get_knowledge_graph_manager
 
 pytestmark = pytest.mark.e2e
@@ -22,7 +23,7 @@ class TestOpenAIRealEmbeddingE2E:
     """E2E tests for real OpenAI API calls"""
 
     @pytest.mark.skipif(
-        not os.getenv('OPENAI_API_KEY'),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY not configured - skipping real API test"
     )
     def test_generate_embedding_real_api(self, kg_manager):
@@ -73,7 +74,7 @@ def hello_world():
         print(f"  - Cached: {data['cached']}")
 
     @pytest.mark.skipif(
-        not os.getenv('OPENAI_API_KEY'),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY not configured"
     )
     def test_caching_works(self, kg_manager):
@@ -104,7 +105,7 @@ def hello_world():
         print(f"  - Cache hit: ✓")
 
     @pytest.mark.skipif(
-        not os.getenv('OPENAI_API_KEY'),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY not configured"
     )
     def test_rate_limiting_works(self, kg_manager):
@@ -129,7 +130,7 @@ def hello_world():
         print(f"  - No rate limit errors encountered")
 
     @pytest.mark.skipif(
-        not os.getenv('OPENAI_API_KEY'),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY not configured"
     )
     def test_error_handling_retry(self, kg_manager):
@@ -151,7 +152,7 @@ def hello_world():
             assert 'error' in result, "Failed request should have error message"
 
     @pytest.mark.skipif(
-        not os.getenv('OPENAI_API_KEY'),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY not configured"
     )
     def test_cost_tracking(self, kg_manager):
