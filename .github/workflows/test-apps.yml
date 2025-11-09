@@ -41,7 +41,7 @@ jobs:
         run: |
           pytest tests/ -v --tb=short --disable-warnings
         env:
-          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/common:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0
           FLASK_ENV: testing
           TESTING: true
@@ -76,7 +76,7 @@ jobs:
         run: |
           pytest tests/ -v --tb=short --disable-warnings
         env:
-          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/common:${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
   

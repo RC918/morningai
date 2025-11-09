@@ -3,12 +3,13 @@ Test to ensure deprecated modules are not imported in production code.
 
 This test scans src/** for imports of deprecated modules and fails CI if found.
 Tests are excluded to allow backward compatibility testing.
+
+Note: This test requires PYTHONPATH to include the repo's 'common' directory.
+In CI, this is set automatically. For local development, run:
+    export PYTHONPATH=/path/to/morningai/common:$PYTHONPATH
 """
 
-import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent.parent))
 
 from common.tests.lint_helpers import (
     check_file_for_deprecated_imports,
