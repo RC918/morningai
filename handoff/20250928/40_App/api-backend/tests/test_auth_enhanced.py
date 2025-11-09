@@ -650,7 +650,7 @@ class Test2FAIntegration:
                 with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
                     mock_feature.return_value = True
                     
-                    with patch('supabase.create_client') as mock_supabase:
+                    with patch('src.routes.auth_enhanced.create_client') as mock_supabase:
                         mock_client = MagicMock()
                         mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
                             {
