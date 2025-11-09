@@ -131,7 +131,27 @@ def mock_supabase():
             sel.eq.side_effect = eq
             return sel
         
+        def update(payload):
+            upd = MagicMock(name="backup_codes.update")
+            
+            def eq(col, val):
+                upd_eq = MagicMock(name="backup_codes.update.eq")
+                
+                def execute():
+                    user_codes = state["backup_codes"].get(state.get("_last_user_id", "user-001"), [])
+                    for code in user_codes:
+                        if code.get("id") == val:
+                            code.update(payload)
+                    return Result([])
+                
+                upd_eq.execute.side_effect = execute
+                return upd_eq
+            
+            upd.eq.side_effect = eq
+            return upd
+        
         table.select.side_effect = select
+        table.update.side_effect = update
         return table
     
     supabase = MagicMock(name="supabase")
