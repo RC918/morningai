@@ -379,7 +379,7 @@ os.makedirs(db_dir, exist_ok=True)
 DATABASE_URL = get_settings().database_url
 ENVIRONMENT = settings.environment or "development"
 
-if ENVIRONMENT == "production":
+if ENVIRONMENT == "production" and not settings.testing:
     if not DATABASE_URL:
         logger.critical(
             "❌ FATAL: Production environment requires DATABASE_URL to be set"
