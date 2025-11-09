@@ -176,7 +176,7 @@ def mock_backup_codes():
     """Mock backup code manager"""
     with patch("src.routes.auth_2fa.get_backup_manager") as mock:
         backup_mock = MagicMock()
-        backup_mock.generate_codes.return_value = [
+        backup_mock.generate_backup_codes.return_value = [
             "ABCD-EFGH-IJKL-MNOP",
             "QRST-UVWX-YZ12-3456",
             "7890-ABCD-EFGH-IJKL",
@@ -186,7 +186,8 @@ def mock_backup_codes():
             "YZ12-3456-7890-ABCD",
             "EFGH-IJKL-MNOP-QRST"
         ]
-        backup_mock.verify_code.return_value = True
+        backup_mock.hash_backup_code.return_value = "hashed_code"
+        backup_mock.verify_backup_code.return_value = True
         mock.return_value = backup_mock
         yield backup_mock
 
