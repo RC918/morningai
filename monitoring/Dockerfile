@@ -23,6 +23,11 @@ COPY common /app/common
 # Copy application code
 COPY monitoring/braintrust_processor.py .
 
+# Set environment variables as fallbacks for sys.path bootstrap
+# Priority: REPO_ROOT > PYTHONPATH > marker files
+ENV REPO_ROOT=/app
+ENV PYTHONPATH=/app
+
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
