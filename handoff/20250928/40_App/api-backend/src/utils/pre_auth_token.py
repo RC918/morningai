@@ -34,7 +34,7 @@ class PreAuthTokenManager:
     """Manages pre-authentication tokens for 2FA flows"""
 
     def __init__(self):
-        self.redis_client = get_redis_client()
+        self._redis_client = None  # Lazy initialization
         self.jwt_secret = settings.jwt_secret_key or "test-secret-key-for-testing"
 
         if settings.is_production:
@@ -43,6 +43,13 @@ class PreAuthTokenManager:
                     "JWT_SECRET_KEY must be set to a secure value in production environment. "
                     "The default test key is not allowed."
                 )
+    
+    @property
+    def redis_client(self):
+        """Lazy initialization of Redis client"""
+        if self._redis_client is None:
+            self._redis_client = get_redis_client()
+        return self._redis_client
 
     def generate_token(
         self, user_id: str, email: str, scope: Literal["enroll", "challenge"]
