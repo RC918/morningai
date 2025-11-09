@@ -190,12 +190,18 @@ cors_origins = [origin.strip() for origin in cors_origins]
 
 def is_vercel_preview(origin):
     """
-    Check if origin is a Vercel preview URL
-    Only allows Vercel previews in non-production environments for security
+    Check if origin is a Vercel preview URL.
+    Allows Vercel preview origins in staging and development environments.
+    Blocks them in production for security.
     """
-    if app_settings.is_production:
+    if not origin:
         return False
-    return origin and re.match(r"https://.*\.vercel\.app$", origin)
+    
+    env = (app_settings.environment or "").lower()
+    if env == "production":
+        return False
+    
+    return bool(re.match(r"^https://.*\.vercel\.app$", origin))
 
 
 @app.after_request
