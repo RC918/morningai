@@ -1,6 +1,18 @@
 """
 Gunicorn configuration file for MorningAI API Backend
 """
+# Fix deployment import path: Add repo root to sys.path before importing common
+# This is required because gunicorn may run from api-backend/ directory where common/ is not visible
+from pathlib import Path
+import sys
+
+config_file_path = Path(__file__).resolve()
+for parent in [config_file_path] + list(config_file_path.parents):
+    if (parent / 'pyproject.toml').exists() or (parent / '.git').exists() or (parent / 'env.schema.yaml').exists():
+        if str(parent) not in sys.path:
+            sys.path.insert(0, str(parent))
+        break
+
 import multiprocessing
 import os
 from common.config.settings import settings
