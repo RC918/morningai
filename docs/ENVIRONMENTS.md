@@ -437,6 +437,79 @@ For complete local development setup instructions, see:
 
 ---
 
+## 🔧 Import Path Configuration
+
+Services that import the `common` module use a multi-tier fallback mechanism to ensure imports work across all environments.
+
+### Priority Order
+
+| Priority | Mechanism | Use Case | Example |
+|----------|-----------|----------|---------|
+| 1 | REPO_ROOT | Explicit control | `REPO_ROOT=/app` |
+| 2 | PYTHONPATH | Standard Python | `PYTHONPATH=/app:/other` |
+| 3 | Marker files | Auto-discovery | `.git`, `pyproject.toml`, `env.schema.yaml` or `env_schema.yaml` |
+
+### Configuration by Environment
+
+**Docker Containers**:
+```dockerfile
+ENV REPO_ROOT=/app
+ENV PYTHONPATH=/app
+```
+
+**Render Services**:
+```yaml
+envVars:
+  - key: REPO_ROOT
+    value: /app
+  - key: PYTHONPATH
+    value: /app
+  - key: DEBUG_IMPORTS
+    value: "false"  # Set to "true" for troubleshooting
+```
+
+**Local Development**:
+```bash
+export REPO_ROOT=/path/to/morningai
+export DEBUG_IMPORTS=true
+```
+
+### Debugging Import Issues
+
+**Enable import debugging**:
+```bash
+DEBUG_IMPORTS=true python monitoring/braintrust_processor.py
+```
+
+**Expected output**:
+```
+✅ sys.path bootstrap: REPO_ROOT=/app
+Final sys.path (first 3): ['', '/app', '/usr/local/lib/python311.zip']
+```
+
+**Verify configuration in Docker**:
+```bash
+# Check environment variables
+docker exec <container> env | grep -E 'REPO_ROOT|PYTHONPATH'
+
+# Check sys.path
+docker exec <container> python -c "import sys; print(sys.path[:5])"
+
+# Test import
+docker exec <container> python -c "from common.config.settings import settings; print('✅ Import successful')"
+```
+
+### Affected Services
+
+- **Braintrust Processor** (`monitoring/braintrust_processor.py`)
+- **API Backend** (`handoff/20250928/40_App/api-backend/gunicorn.conf.py`)
+
+### Troubleshooting
+
+See [monitoring/DEPLOYMENT.md](../monitoring/DEPLOYMENT.md#troubleshooting) for detailed troubleshooting steps.
+
+---
+
 ## 🔄 Deployment Workflow
 
 ### Development Flow
