@@ -646,7 +646,7 @@ class Settings(BaseSettings):
     
     
     rate_limit_requests: int = Field(
-        default=100,
+        default=60,
         description="Maximum requests per window"
     )
     
