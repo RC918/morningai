@@ -1508,8 +1508,8 @@ def get_phase7_resilience_metrics():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/settings", methods=["GET", "POST"])
-def settings():
+@app.route("/api/settings", methods=["GET", "POST"], endpoint="settings")
+def settings_route():
     if request.method == "GET":
         return jsonify(
             {
