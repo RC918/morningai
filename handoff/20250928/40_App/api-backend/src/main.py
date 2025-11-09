@@ -187,6 +187,10 @@ if rate_limit_env:
 cors_origins = (app_settings.cors_origins or "http://localhost:5173,http://localhost:5174").split(",")
 cors_origins = [origin.strip() for origin in cors_origins]
 
+logging.info(f"[CORS DEBUG] Startup: ENVIRONMENT={repr(os.getenv('ENVIRONMENT'))}, CORS_ORIGINS={repr(os.getenv('CORS_ORIGINS'))}")
+logging.info(f"[CORS DEBUG] Startup: app_settings.environment={repr(app_settings.environment)}, app_settings.cors_origins={repr(app_settings.cors_origins)}")
+logging.info(f"[CORS DEBUG] Startup: Parsed cors_origins list={cors_origins}")
+
 
 def is_vercel_preview(origin):
     """
@@ -215,7 +219,7 @@ def add_cors_headers(response):
     """Add CORS headers for allowed origins including Vercel preview URLs"""
     origin = request.headers.get("Origin")
     
-    logging.info(f"[CORS DEBUG] add_cors_headers: origin={repr(origin)}")
+    logging.info(f"[CORS DEBUG] add_cors_headers: method={request.method}, path={request.path}, origin={repr(origin)}")
     logging.info(f"[CORS DEBUG] add_cors_headers: cors_origins={cors_origins}")
     
     in_allowlist = origin in cors_origins
