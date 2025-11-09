@@ -126,11 +126,12 @@ app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "sta
 
 from src.services.auth_service import validate_security_config
 
-try:
-    validate_security_config()
-except SystemExit as e:
-    logger.error(f"Security configuration validation failed: {e}")
-    raise
+if settings.is_production and not settings.testing:
+    try:
+        validate_security_config()
+    except SystemExit as e:
+        logger.error(f"Security configuration validation failed: {e}")
+        raise
 
 if settings.is_production:
     from src.utils.pre_auth_token import get_pre_auth_manager

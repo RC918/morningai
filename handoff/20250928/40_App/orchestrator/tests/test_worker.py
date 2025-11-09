@@ -124,6 +124,7 @@ class TestRunOrchestratorTask:
         assert mock_redis.hset.call_count >= 2  # running + done
         assert mock_redis.expire.call_count >= 2
     
+    @pytest.mark.skipif(not os.environ.get("GITHUB_TOKEN"), reason="GITHUB_TOKEN not set in CI environment")
     @patch('redis_queue.worker.redis')
     @patch('langgraph_orchestrator.run_orchestrator')
     @patch.dict(os.environ, {"USE_LANGGRAPH": "true"})
