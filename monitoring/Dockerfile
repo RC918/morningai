@@ -1,4 +1,6 @@
 # Dockerfile for Braintrust Trace Processor Service
+# NOTE: This Dockerfile must be built from the repository root:
+#   docker build -f monitoring/Dockerfile -t braintrust-processor:latest .
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -14,6 +16,9 @@ COPY monitoring/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy common module (required for common.config.settings)
+COPY common /app/common
 
 # Copy application code
 COPY monitoring/braintrust_processor.py .
