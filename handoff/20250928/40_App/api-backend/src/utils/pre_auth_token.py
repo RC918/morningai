@@ -48,7 +48,14 @@ class PreAuthTokenManager:
                 )
     
     def _resolve_jwt_secret(self) -> Optional[str]:
-        """Resolve JWT secret with proper precedence for test compatibility"""
+        """Resolve JWT secret with proper precedence for test compatibility
+        
+        Precedence: os.environ → app.config → settings
+        This ensures pytest's monkeypatch.setenv() takes effect even when Flask app context exists.
+        """
+        if "JWT_SECRET_KEY" in os.environ:
+            return os.environ["JWT_SECRET_KEY"]
+        
         try:
             from flask import current_app
             if current_app:
@@ -57,9 +64,6 @@ class PreAuthTokenManager:
                     return secret
         except Exception:
             pass
-        
-        if "JWT_SECRET_KEY" in os.environ:
-            return os.environ["JWT_SECRET_KEY"]
         
         return settings.jwt_secret_key
     
