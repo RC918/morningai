@@ -1,5 +1,15 @@
 # MorningAI Environment Architecture
 
+---
+
+⚠️ **SECURITY NOTICE**: This document contains references to sensitive environment variables.
+- 🔒 Variables marked with lock icon are **SECRETS** - never log, commit, or share
+- All example values are placeholders - generate unique secrets for each environment
+- Rotate secrets immediately if exposed
+- Use `python -c "import secrets; print(secrets.token_urlsafe(64))"` to generate secure secrets
+
+---
+
 ## Overview
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
@@ -98,9 +108,17 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 - **Deprecation**: Root `env_schema.yaml` is deprecated; use `config/env.schema.yaml` only
 
 **Phase 11 New Variables** (Added 2025-11):
-- **2FA/Authentication**: `FEATURE_2FA_PREAUTH`, `PREAUTH_TOKEN_TTL`, `TOTP_ENCRYPTION_KEY`
+- **2FA/Authentication**: 
+  - `FEATURE_2FA_PREAUTH` (boolean, safe to log)
+  - `PREAUTH_TOKEN_TTL` (integer seconds, safe to log)
+  - 🔒 `TOTP_ENCRYPTION_KEY` (**SECRET** - DO NOT LOG/COMMIT - 32 bytes base64 encoded)
 - **Rate Limiting**: `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_BY_USER`, `RATE_LIMIT_FAIL_FAST`, `RATE_LIMIT_REDIS_MAX_RETRIES`, `RATE_LIMIT_REDIS_RETRY_DELAY`
-- **Testing**: `TESTING`, `FORCE_ENABLE_2FA_IN_TESTS`
+- **Testing** (⚠️ **TEST ENVIRONMENTS ONLY** - NEVER SET IN PRODUCTION):
+  - `TESTING` (boolean) - Enables test mode behaviors
+  - 🚫 `FORCE_ENABLE_2FA_IN_TESTS` (boolean) - **DANGEROUS** - Can bypass security controls
+    - ⚠️ **CRITICAL**: This flag MUST ONLY be set in test environments
+    - ⚠️ Setting in production/staging can disable 2FA enforcement
+    - ⚠️ CI should fail if this is set in production/staging environments
 - **Database**: `DB_POOL_MAX`, `DB_POOL_SIZE`, `DB_POOL_RECYCLE`, `DB_POOL_PRE_PING`
 - **Redis**: `REDIS_KEY_PREFIX`, `RQ_QUEUE_NAME`
 - **Security**: `COOKIE_DOMAIN`, `COOKIE_PATH`, `FEATURE_COOKIE_AUTH`
@@ -115,15 +133,20 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 
 **Critical Variables**:
 ```bash
+# ⚠️ EXAMPLE CONFIGURATION - NEVER USE THESE PLACEHOLDER VALUES IN PRODUCTION
+# Generate secure secrets: python -c "import secrets; print(secrets.token_urlsafe(64))"
+
 ENVIRONMENT=production
 DATABASE_URL=postgresql://...
 REDIS_URL=rediss://...
-JWT_SECRET_KEY=<production-secret>
-SECRET_KEY=<production-secret>
-MASTER_ENCRYPTION_KEY=<production-secret>
-ENCRYPTION_MASTER_KEY=<production-secret>  # Alias for MASTER_ENCRYPTION_KEY
-TOTP_ENCRYPTION_KEY=<production-secret>     # ⚠️ Missing from schema but required for 2FA
-ORCHESTRATOR_JWT_SECRET=<production-secret>
+
+# 🔒 SECRETS - Minimum 64 characters, cryptographically random
+JWT_SECRET_KEY=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING           # 🔒 SECRET - DO NOT LOG
+SECRET_KEY=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING               # 🔒 SECRET - DO NOT LOG
+MASTER_ENCRYPTION_KEY=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING    # 🔒 SECRET - DO NOT LOG
+ENCRYPTION_MASTER_KEY=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING    # 🔒 SECRET - Alias for MASTER_ENCRYPTION_KEY
+TOTP_ENCRYPTION_KEY=CHANGEME_GENERATE_RANDOM_32_BYTES_BASE64     # 🔒 SECRET - 32 bytes base64 - Required for 2FA
+ORCHESTRATOR_JWT_SECRET=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING  # 🔒 SECRET - DO NOT LOG
 ```
 
 **Monitoring**:
