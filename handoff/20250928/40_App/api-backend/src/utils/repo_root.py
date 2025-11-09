@@ -1,124 +1,33 @@
 """
-Utility for reliably discovering the repository root directory.
+API Backend utilities for repository root discovery.
 
-This module provides a robust way to find the repository root that works across
-different execution contexts (pytest, scripts, CI, containers, etc.) without
-relying on fragile .parent.parent... chains.
+This module re-exports get_repo_root from the common module and provides
+api-backend specific helpers like get_api_backend_root.
 
 Usage:
-    from src.utils.repo_root import get_repo_root
+    from src.utils.repo_root import get_repo_root, get_api_backend_root
     
     repo_root = get_repo_root()
-    config_path = repo_root / 'config' / 'env.schema.yaml'
+    backend_root = get_api_backend_root()
 """
 
-import logging
-import os
-import subprocess
-from functools import lru_cache
+import sys
 from pathlib import Path
 from typing import Optional
-from common.config.settings import settings
 
-logger = logging.getLogger(__name__)
+_repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
+if not (_repo_root / 'common' / 'utils' / 'repo_root.py').exists():
+    import subprocess
+    result = subprocess.run(['git', 'rev-parse', '--show-toplevel'], 
+                          capture_output=True, text=True, check=False)
+    if result.returncode == 0:
+        _repo_root = Path(result.stdout.strip())
 
+sys.path.insert(0, str(_repo_root))
 
-REPO_SENTINELS = [
-    '.git',
-    'config/env.schema.yaml',
-    'pyproject.toml',
-    'package.json',
-]
+from common.utils.repo_root import get_repo_root  # noqa: E402
 
-
-@lru_cache(maxsize=1)
-def get_repo_root(start_path: Optional[Path] = None) -> Path:
-    """
-    Find the repository root directory using multiple strategies.
-    
-    Resolution order:
-    1. REPO_ROOT_PATH environment variable (if set and exists) - TESTING/CI ONLY
-    2. git rev-parse --show-toplevel (if in a git repository)
-    3. Ascend from start_path to find sentinel files
-    
-    WARNING: REPO_ROOT_PATH should only be set in testing/CI environments.
-    Do not set this in production as it can override auto-detection and cause
-    incorrect path resolution
-    
-    Args:
-        start_path: Starting path for search. Defaults to this file's directory.
-    
-    Returns:
-        Path to repository root
-    
-    Raises:
-        RuntimeError: If repository root cannot be determined
-    
-    Examples:
-        >>> repo_root = get_repo_root()
-        >>> config_path = repo_root / 'config' / 'env.schema.yaml'
-        >>> assert config_path.exists()
-    """
-    env_root = settings.repo_root_path if hasattr(settings, 'repo_root_path') else None
-    if env_root:
-        env_path = Path(env_root).resolve()
-        if env_path.exists() and env_path.is_dir():
-            return env_path
-        else:
-            logger.debug(
-                "REPO_ROOT_PATH=%r is not a valid directory; ignoring and falling back to git/sentinels",
-                env_root
-            )
-    
-    try:
-        result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
-            capture_output=True,
-            text=True,
-            timeout=2,
-            check=False
-        )
-        if result.returncode == 0:
-            git_root = Path(result.stdout.strip()).resolve()
-            if git_root.exists():
-                return git_root
-        else:
-            logger.debug("git rev-parse returned non-zero exit code %d; falling back to sentinel search", result.returncode)
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        logger.debug("git rev-parse failed (%s); falling back to sentinel search", e)
-    
-    if start_path is None:
-        start_path = Path(__file__).resolve().parent
-    else:
-        start_path = Path(start_path).resolve()
-    
-    current = start_path
-    max_ascent = 10  # Prevent infinite loops
-    
-    for _ in range(max_ascent):
-        for sentinel in REPO_SENTINELS:
-            sentinel_path = current / sentinel
-            if sentinel_path.exists():
-                return current
-        
-        parent = current.parent
-        if parent == current:
-            break
-        current = parent
-    
-    logger.debug(
-        "Could not determine repository root from %s using env/git/sentinels",
-        start_path
-    )
-    raise RuntimeError(
-        f"Could not determine repository root. Tried:\n"
-        f"  1. REPO_ROOT_PATH env var: {env_root or '(not set)'}\n"
-        f"  2. git rev-parse: (failed or not in git repo)\n"
-        f"  3. Sentinel search from: {start_path}\n"
-        f"     Looking for: {', '.join(REPO_SENTINELS)}\n"
-        f"\n"
-        f"To fix: Set REPO_ROOT_PATH environment variable or run from within git repo."
-    )
+__all__ = ['get_repo_root', 'get_api_backend_root']
 
 
 def get_api_backend_root(start_path: Optional[Path] = None) -> Path:
