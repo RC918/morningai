@@ -25,6 +25,7 @@ from src.main import app
 def client():
     """Create test client"""
     app.config['TESTING'] = True
+    app.config['PROPAGATE_EXCEPTIONS'] = True
     with app.test_client() as client:
         yield client
 
@@ -51,23 +52,25 @@ def mock_redis():
         redis_client.flushall()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_supabase():
-    """Mock Supabase client"""
+    """Mock Supabase client for all 2FA routes"""
     import os
+    
+    supabase_mock = MagicMock()
+    
+    user_2fa_mock = MagicMock()
+    user_2fa_mock.data = []
+    supabase_mock.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
+    supabase_mock.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value.data = {}
+    supabase_mock.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [{}]
+    
     with patch.dict(os.environ, {
         "SUPABASE_URL": "http://test.supabase.co",
         "SUPABASE_SERVICE_ROLE_KEY": "test-service-role-key"
     }, clear=False), \
-         patch("supabase.create_client") as mock_create:
-        supabase_mock = MagicMock()
-        
-        user_2fa_mock = MagicMock()
-        user_2fa_mock.data = []
-        supabase_mock.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
-        
-        mock_create.return_value = supabase_mock
-        
+         patch("src.routes.auth_2fa.create_client", return_value=supabase_mock), \
+         patch("src.routes.totp.create_client", return_value=supabase_mock):
         yield supabase_mock
 
 
