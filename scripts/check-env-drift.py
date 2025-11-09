@@ -18,6 +18,8 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, Set
 
+from repo_root_utils import get_repo_root
+
 
 def load_schema(schema_path: Path) -> Dict[str, Any]:
     """Load the environment schema from YAML file."""
@@ -79,7 +81,7 @@ def check_env_file(schema: Dict[str, Any], env_path: Path, expected_categories: 
 
 def main():
     """Main entry point."""
-    repo_root = Path(__file__).parent.parent
+    repo_root = get_repo_root()
     schema_path = repo_root / 'config' / 'env.schema.yaml'
     
     if not schema_path.exists():

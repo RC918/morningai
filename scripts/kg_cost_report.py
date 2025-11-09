@@ -7,7 +7,9 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from repo_root_utils import get_repo_root
+
+sys.path.insert(0, str(get_repo_root()))
 
 from agents.dev_agent.knowledge_graph import get_embeddings_cache  # noqa: E402
 
@@ -131,9 +133,9 @@ def generate_comparison_report():
 
 def check_cost_limit():
     """Check if approaching or exceeded daily cost limit"""
-    import os
+    from common.config.settings import settings
 
-    max_daily_cost_str = os.getenv('OPENAI_MAX_DAILY_COST')
+    max_daily_cost_str = settings.openai_max_daily_cost
     if not max_daily_cost_str:
         print("ℹ️  No daily cost limit configured (OPENAI_MAX_DAILY_COST not set)")
         return 0

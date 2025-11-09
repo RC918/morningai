@@ -33,6 +33,7 @@ except ImportError:
     sys.exit(2)
 
 import requests
+from common.config.settings import settings
 
 
 class OrchestratorMonitor:
@@ -243,8 +244,8 @@ class OrchestratorMonitor:
 
 
 def main():
-    slack_webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
-    api_url = os.environ.get("ORCHESTRATOR_API_URL", "https://morningai-orchestrator-api.onrender.com")
+    slack_webhook_url = settings.slack_webhook_url
+    api_url = settings.orchestrator_api_url or "https://morningai-orchestrator-api.onrender.com"
     
     if not slack_webhook_url:
         print("Error: SLACK_WEBHOOK_URL environment variable is not set")

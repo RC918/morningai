@@ -359,6 +359,12 @@ class Settings(BaseSettings):
         description="Sentry organization slug"
     )
     
+    sentry_project: Optional[str] = Field(
+        None,
+        alias="SENTRY_PROJECT",
+        description="Sentry project slug"
+    )
+    
     alert_email: Optional[str] = Field(
         None,
         description="Email address for system alerts"
@@ -547,6 +553,12 @@ class Settings(BaseSettings):
     orchestrator_path: str = Field(
         default="handoff/20250928/40_App/orchestrator",
         description="Path to orchestrator module"
+    )
+    
+    orchestrator_api_url: Optional[str] = Field(
+        None,
+        alias="ORCHESTRATOR_API_URL",
+        description="Orchestrator API URL for health monitoring"
     )
     
     orchestrator_jwt_secret_secret: Optional[SecretStr] = Field(
