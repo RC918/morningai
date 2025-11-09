@@ -650,33 +650,39 @@ class Test2FAIntegration:
                 with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
                     mock_feature.return_value = True
                     
-                    with patch('src.routes.auth_enhanced.create_client') as mock_supabase:
-                        mock_client = MagicMock()
-                        mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
-                            {
-                                'user_id': 'owner-001',
-                                'enabled': True,
-                                'verified_at': '2025-11-01T00:00:00Z'
-                            }
-                        ]
-                        mock_supabase.return_value = mock_client
+                    with patch('src.routes.auth_enhanced.get_settings') as mock_get_settings:
+                        settings_mock = MagicMock()
+                        settings_mock.supabase_url = 'https://supabase.local'
+                        settings_mock.supabase_service_role_key = 'test-key'
+                        mock_get_settings.return_value = settings_mock
                         
-                        response = client.post('/api/auth/v2/login',
-                            json={
-                                'email': 'owner@example.com',
-                                'password': 'test_password'
-                            }
-                        )
-                        
-                        assert response.status_code == 200
-                        data = json.loads(response.data)
-                        assert data.get('requires_2fa') is True
-                        assert data.get('next_step') == 'challenge_2fa'
-                        assert 'token' in data
-                        
-                        set_cookie_header = response.headers.get('Set-Cookie', '')
-                        assert 'access_token' not in set_cookie_header
-                        assert 'refresh_token' not in set_cookie_header
+                        with patch('supabase.create_client') as mock_supabase:
+                            mock_client = MagicMock()
+                            mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
+                                {
+                                    'user_id': 'owner-001',
+                                    'enabled': True,
+                                    'verified_at': '2025-11-01T00:00:00Z'
+                                }
+                            ]
+                            mock_supabase.return_value = mock_client
+                            
+                            response = client.post('/api/auth/v2/login',
+                                json={
+                                    'email': 'owner@example.com',
+                                    'password': 'test_password'
+                                }
+                            )
+                            
+                            assert response.status_code == 200
+                            data = json.loads(response.data)
+                            assert data.get('requires_2fa') is True
+                            assert data.get('next_step') == 'challenge_2fa'
+                            assert 'token' in data
+                            
+                            set_cookie_header = response.headers.get('Set-Cookie', '')
+                            assert 'access_token' not in set_cookie_header
+                            assert 'refresh_token' not in set_cookie_header
     
     def test_non_owner_login_allowed_without_2fa(self, client, mock_redis):
         """Test that non-owner roles can login without 2FA when not enabled"""
