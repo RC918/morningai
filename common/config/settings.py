@@ -319,6 +319,18 @@ class Settings(BaseSettings):
         description="Render instance ID (auto-set by Render platform)"
     )
     
+    git_commit: Optional[str] = Field(
+        None,
+        alias="GIT_COMMIT",
+        description="Git commit SHA for version tracking (auto-set by CI)"
+    )
+    
+    render_git_commit: Optional[str] = Field(
+        None,
+        alias="RENDER_GIT_COMMIT",
+        description="Git commit SHA from Render platform (auto-set by Render)"
+    )
+    
     upstash_redis_rest_url: Optional[str] = Field(
         None,
         alias="UPSTASH_REDIS_REST_URL",
