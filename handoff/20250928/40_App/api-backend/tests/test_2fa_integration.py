@@ -54,24 +54,107 @@ def mock_redis():
 
 @pytest.fixture(autouse=True)
 def mock_supabase():
-    """Mock Supabase client for all 2FA routes"""
+    """Mock Supabase client with stateful fake to avoid recursion"""
     import os
     
-    supabase_mock = MagicMock()
+    class Result:
+        """Plain result object to avoid MagicMock recursion"""
+        def __init__(self, data):
+            self.data = data
     
-    user_2fa_mock = MagicMock()
-    user_2fa_mock.data = []
-    supabase_mock.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
-    supabase_mock.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value.data = {}
-    supabase_mock.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [{}]
+    state = {
+        "user_2fa": {},
+        "backup_codes": {}
+    }
+    
+    def make_user_2fa_table():
+        table = MagicMock(name="user_2fa.table")
+        
+        def select(*args, **kwargs):
+            sel = MagicMock(name="user_2fa.select")
+            
+            def eq(col, val):
+                filt = MagicMock(name="user_2fa.eq")
+                
+                def execute():
+                    row = state["user_2fa"].get(val)
+                    return Result([] if row is None else [row])
+                
+                single = MagicMock(name="user_2fa.single")
+                single.execute.side_effect = lambda: Result(state["user_2fa"].get(val, {}))
+                
+                filt.execute.side_effect = execute
+                filt.single.return_value = single
+                return filt
+            
+            sel.eq.side_effect = eq
+            return sel
+        
+        def update(payload):
+            upd = MagicMock(name="user_2fa.update")
+            
+            def eq(col, val):
+                upd_eq = MagicMock(name="user_2fa.update.eq")
+                
+                def execute():
+                    prev = state["user_2fa"].get(val, {})
+                    prev.update(payload)
+                    state["user_2fa"][val] = prev
+                    return Result([prev])
+                
+                upd_eq.execute.side_effect = execute
+                return upd_eq
+            
+            upd.eq.side_effect = eq
+            return upd
+        
+        table.select.side_effect = select
+        table.update.side_effect = update
+        return table
+    
+    def make_backup_codes_table():
+        table = MagicMock(name="backup_codes.table")
+        
+        def select(*args, **kwargs):
+            sel = MagicMock(name="backup_codes.select")
+            
+            def eq(col, val):
+                filt = MagicMock(name="backup_codes.eq")
+                
+                def execute():
+                    codes = state["backup_codes"].get(val, [])
+                    return Result(codes)
+                
+                filt.execute.side_effect = execute
+                return filt
+            
+            sel.eq.side_effect = eq
+            return sel
+        
+        table.select.side_effect = select
+        return table
+    
+    supabase = MagicMock(name="supabase")
+    
+    def table_side_effect(name):
+        if name == "user_2fa":
+            return make_user_2fa_table()
+        if name in ("backup_codes", "user_backup_codes"):
+            return make_backup_codes_table()
+        default_table = MagicMock(name=f"{name}.table")
+        default_table.select.return_value.eq.return_value.execute.return_value = Result([])
+        return default_table
+    
+    supabase.table.side_effect = table_side_effect
+    supabase._test_state = state
     
     with patch.dict(os.environ, {
         "SUPABASE_URL": "http://test.supabase.co",
         "SUPABASE_SERVICE_ROLE_KEY": "test-service-role-key"
     }, clear=False), \
-         patch("src.routes.auth_2fa.create_client", return_value=supabase_mock), \
-         patch("src.routes.totp.create_client", return_value=supabase_mock):
-        yield supabase_mock
+         patch("src.routes.auth_2fa.create_client", return_value=supabase), \
+         patch("src.routes.totp.create_client", return_value=supabase):
+        yield supabase
 
 
 @pytest.fixture
@@ -228,13 +311,12 @@ class TestEnrollEndpointIntegration:
         pre_auth_token_enroll
     ):
         """Test enrollment fails if 2FA already enabled"""
-        user_2fa_mock = MagicMock()
-        user_2fa_mock.data = [{
-            'user_id': 'user-001',
-            'totp_secret': 'encrypted_secret',
-            'is_verified': True
-        }]
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
+        mock_supabase._test_state["user_2fa"]["user-001"] = {
+            "user_id": "user-001",
+            "secret_encrypted": "encrypted_secret",
+            "enabled": True,
+            "verified_at": "2025-01-01T00:00:00Z"
+        }
         
         response = client.post(
             '/api/auth/v2/2fa/enroll',
@@ -260,13 +342,12 @@ class TestVerifyEnrollEndpointIntegration:
         pre_auth_token_enroll
     ):
         """Test successful enrollment verification"""
-        user_2fa_mock = MagicMock()
-        user_2fa_mock.data = [{
-            'user_id': 'user-001',
-            'totp_secret': 'encrypted_secret',
-            'is_verified': False
-        }]
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
+        mock_supabase._test_state["user_2fa"]["user-001"] = {
+            "user_id": "user-001",
+            "secret_encrypted": "encrypted_secret",
+            "enabled": False,
+            "verified_at": None
+        }
         
         response = client.post(
             '/api/auth/v2/2fa/verify-enroll',
@@ -347,13 +428,12 @@ class TestVerifyEnrollEndpointIntegration:
         pre_auth_token_enroll
     ):
         """Test verify-enroll fails with wrong TOTP code"""
-        user_2fa_mock = MagicMock()
-        user_2fa_mock.data = [{
-            'user_id': 'user-001',
-            'totp_secret': 'encrypted_secret',
-            'is_verified': False
-        }]
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
+        mock_supabase._test_state["user_2fa"]["user-001"] = {
+            "user_id": "user-001",
+            "secret_encrypted": "encrypted_secret",
+            "enabled": False,
+            "verified_at": None
+        }
         
         mock_totp.verify_totp.return_value = False
         
@@ -381,13 +461,12 @@ class TestChallengeEndpointIntegration:
         pre_auth_token_challenge
     ):
         """Test successful challenge with TOTP code"""
-        user_2fa_mock = MagicMock()
-        user_2fa_mock.data = [{
-            'user_id': 'user-001',
-            'totp_secret': 'encrypted_secret',
-            'is_verified': True
-        }]
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
+        mock_supabase._test_state["user_2fa"]["user-001"] = {
+            "user_id": "user-001",
+            "secret_encrypted": "encrypted_secret",
+            "enabled": True,
+            "verified_at": "2025-01-01T00:00:00Z"
+        }
         
         response = client.post(
             '/api/auth/v2/2fa/challenge',
@@ -416,32 +495,19 @@ class TestChallengeEndpointIntegration:
         pre_auth_token_challenge
     ):
         """Test successful challenge with backup code"""
-        user_2fa_mock = MagicMock()
-        user_2fa_mock.data = [{
-            'user_id': 'user-001',
-            'totp_secret': 'encrypted_secret',
-            'is_verified': True
-        }]
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
+        mock_supabase._test_state["user_2fa"]["user-001"] = {
+            "user_id": "user-001",
+            "secret_encrypted": "encrypted_secret",
+            "enabled": True,
+            "verified_at": "2025-01-01T00:00:00Z"
+        }
         
-        backup_codes_mock = MagicMock()
-        backup_codes_mock.data = [
+        mock_supabase._test_state["backup_codes"]["user-001"] = [
             {'code_hash': 'hash1', 'is_used': False},
             {'code_hash': 'hash2', 'is_used': False}
         ]
         
-        def mock_table_chain(*args, **kwargs):
-            if args[0] == 'user_backup_codes':
-                return MagicMock(
-                    select=MagicMock(return_value=MagicMock(
-                        eq=MagicMock(return_value=MagicMock(
-                            execute=MagicMock(return_value=backup_codes_mock)
-                        ))
-                    ))
-                )
-            return mock_supabase.table(*args, **kwargs)
-        
-        mock_supabase.table.side_effect = mock_table_chain
+        mock_backup_codes.verify_code.return_value = True
         
         response = client.post(
             '/api/auth/v2/2fa/challenge',
@@ -581,13 +647,12 @@ class TestTokenSingleUse:
         pre_auth_token_enroll
     ):
         """Test that pre-auth token is consumed after successful verify-enroll"""
-        user_2fa_mock = MagicMock()
-        user_2fa_mock.data = [{
-            'user_id': 'user-001',
-            'totp_secret': 'encrypted_secret',
-            'is_verified': False
-        }]
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
+        mock_supabase._test_state["user_2fa"]["user-001"] = {
+            "user_id": "user-001",
+            "secret_encrypted": "encrypted_secret",
+            "enabled": False,
+            "verified_at": None
+        }
         
         response1 = client.post(
             '/api/auth/v2/2fa/verify-enroll',
@@ -617,13 +682,12 @@ class TestTokenSingleUse:
         pre_auth_token_challenge
     ):
         """Test that pre-auth token is consumed after successful challenge"""
-        user_2fa_mock = MagicMock()
-        user_2fa_mock.data = [{
-            'user_id': 'user-001',
-            'totp_secret': 'encrypted_secret',
-            'is_verified': True
-        }]
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = user_2fa_mock
+        mock_supabase._test_state["user_2fa"]["user-001"] = {
+            "user_id": "user-001",
+            "secret_encrypted": "encrypted_secret",
+            "enabled": True,
+            "verified_at": "2025-01-01T00:00:00Z"
+        }
         
         response1 = client.post(
             '/api/auth/v2/2fa/challenge',
