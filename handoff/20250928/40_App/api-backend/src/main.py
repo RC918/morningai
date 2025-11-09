@@ -6,6 +6,14 @@ import re
 import logging
 from common.config.settings import settings
 
+from pathlib import Path
+# Path calculation: main.py -> src/ -> api-backend/ -> 40_App/ -> 20250928/ -> handoff/ -> repo root
+repo_root = Path(__file__).resolve().parents[5]  # api-backend/src/main.py -> repo root
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+    logging.basicConfig(level=logging.INFO)
+    logging.info(f"Added repo root to sys.path: {repo_root}")
+
 orchestrator_path = settings.orchestrator_path
 if not orchestrator_path:
     orchestrator_path = os.path.abspath(
@@ -95,7 +103,6 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 else:
     SENTRY_DSN = None
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 try:
     from security_manager import SecurityManager
 
