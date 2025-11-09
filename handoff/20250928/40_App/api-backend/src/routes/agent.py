@@ -53,10 +53,13 @@ _queue = None
 # Module-level aliases for backward compatibility with tests that patch these attributes
 redis_client = None
 redis_client_rq = None
+q = None
 
 def get_agent_redis_client():
     """Get or create Redis client for agent routes (lazy initialization)"""
-    global _redis_client
+    global _redis_client, redis_client
+    if redis_client is not None:
+        return redis_client
     if _redis_client is None:
         redis_url = get_secure_redis_url(allow_local=settings.testing)
         redis_kwargs = {
@@ -67,11 +70,14 @@ def get_agent_redis_client():
             "retry_on_timeout": True
         }
         _redis_client = Redis.from_url(redis_url, **redis_kwargs)
+        redis_client = _redis_client
     return _redis_client
 
 def get_agent_redis_client_rq():
     """Get or create Redis client for RQ (lazy initialization)"""
-    global _redis_client_rq
+    global _redis_client_rq, redis_client_rq
+    if redis_client_rq is not None:
+        return redis_client_rq
     if _redis_client_rq is None:
         redis_url = get_secure_redis_url(allow_local=settings.testing)
         redis_kwargs_rq = {
@@ -81,14 +87,18 @@ def get_agent_redis_client_rq():
             "retry_on_timeout": True
         }
         _redis_client_rq = Redis.from_url(redis_url, **redis_kwargs_rq)
+        redis_client_rq = _redis_client_rq
     return _redis_client_rq
 
 def get_agent_queue():
     """Get or create RQ Queue (lazy initialization)"""
-    global _queue
+    global _queue, q
+    if q is not None:
+        return q
     if _queue is None:
-        RQ_QUEUE_NAME = settings.rq_queue_name or "orchestrator"
-        _queue = Queue(RQ_QUEUE_NAME, connection=get_agent_redis_client_rq(), serializer=JSONSerializer())
+        queue_name = settings.rq_queue_name or "orchestrator"
+        _queue = Queue(queue_name, connection=get_agent_redis_client_rq(), serializer=JSONSerializer())
+        q = _queue
     return _queue
 
 @bp.route("/faq", methods=["GET"])
@@ -350,9 +360,10 @@ def debug_queue_status():
                 "timestamp": datetime.utcnow().isoformat()
             }), 503
         
-        queue_length = get_agent_redis_client_rq().llen(f"rq:queue:{RQ_QUEUE_NAME}")
+        queue_name = settings.rq_queue_name or "orchestrator"
+        queue_length = get_agent_redis_client_rq().llen(f"rq:queue:{queue_name}")
         
-        recent_jobs = get_agent_redis_client_rq().lrange(f"rq:queue:{RQ_QUEUE_NAME}", 0, 4)
+        recent_jobs = get_agent_redis_client_rq().lrange(f"rq:queue:{queue_name}", 0, 4)
         
         task_keys = list(get_agent_redis_client().scan_iter("agent:task:*", count=100))
         sample_task = None
