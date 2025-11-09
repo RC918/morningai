@@ -51,6 +51,8 @@ def disable_sentry_in_tests(monkeypatch):
     monkeypatch.delenv("SENTRY_DSN", raising=False)
     monkeypatch.setenv("SENTRY_ENABLED", "false")
     monkeypatch.setenv("TESTING", "true")
+    monkeypatch.setenv("ENABLE_MOCK_USERS", "true")
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-key-for-testing")
 
 
 # Legacy fixtures (maintained for backward compatibility)

@@ -25,7 +25,7 @@ class TestAgentDynamicImportFailures:
     
     def test_agent_redis_connection_failure(self, client, auth_headers_admin):
         """Test agent endpoint when Redis connection fails"""
-        with patch('src.routes.agent.redis_client', None):
+        with patch('src.routes.agent.get_agent_redis_client', return_value=None):
             response = client.post('/api/agent/faq',
                                  json={'query': 'Test query'},
                                  headers=auth_headers_admin)
@@ -34,8 +34,10 @@ class TestAgentDynamicImportFailures:
     
     def test_agent_queue_submission_failure(self, client, auth_headers_admin):
         """Test agent endpoint when queue submission fails"""
-        with patch('src.routes.agent.redis_client') as mock_redis:
+        with patch('src.routes.agent.get_agent_redis_client') as mock_get_client:
+            mock_redis = Mock()
             mock_redis.hset.side_effect = Exception("Redis connection lost")
+            mock_get_client.return_value = mock_redis
             
             response = client.post('/api/agent/faq',
                                  json={'query': 'Test query'},
@@ -90,7 +92,7 @@ class TestAgentDebugEndpoints:
     
     def test_debug_queue_redis_unavailable(self, client, auth_headers_admin):
         """Test debug queue endpoint when Redis is unavailable"""
-        with patch('src.routes.agent.redis_client', None):
+        with patch('src.routes.agent.get_agent_redis_client', return_value=None):
             response = client.get('/api/agent/debug/queue',
                                 headers=auth_headers_admin)
             
@@ -100,8 +102,10 @@ class TestAgentDebugEndpoints:
     
     def test_debug_queue_redis_error(self, client, auth_headers_admin):
         """Test debug queue endpoint when Redis raises error"""
-        with patch('src.routes.agent.redis_client_rq') as mock_redis:
+        with patch('src.routes.agent.get_agent_redis_client_rq') as mock_get_client_rq:
+            mock_redis = Mock()
             mock_redis.llen.side_effect = Exception("Redis error")
+            mock_get_client_rq.return_value = mock_redis
             
             response = client.get('/api/agent/debug/queue',
                                 headers=auth_headers_admin)
@@ -119,7 +123,7 @@ class TestAgentDebugEndpoints:
     
     def test_debug_status_redis_unavailable(self, client, auth_headers_admin):
         """Test debug status endpoint when Redis is unavailable"""
-        with patch('src.routes.agent.redis_client', None):
+        with patch('src.routes.agent.get_agent_redis_client', return_value=None):
             response = client.get('/api/agent/debug/status/task-123',
                                 headers=auth_headers_admin)
             
@@ -131,7 +135,7 @@ class TestAgentHealthCheck:
     
     def test_health_check_redis_unavailable(self, client):
         """Test health check when Redis is unavailable"""
-        with patch('src.routes.agent.redis_client', None):
+        with patch('src.routes.agent.get_agent_redis_client', return_value=None):
             response = client.get('/api/agent/health')
             
             assert response.status_code in [200, 400, 404, 500, 503]
@@ -141,8 +145,10 @@ class TestAgentHealthCheck:
     
     def test_health_check_all_services_available(self, client):
         """Test health check when all services are available"""
-        with patch('src.routes.agent.redis_client') as mock_redis:
+        with patch('src.routes.agent.get_agent_redis_client') as mock_get_client:
+            mock_redis = Mock()
             mock_redis.ping.return_value = True
+            mock_get_client.return_value = mock_redis
             
             response = client.get('/api/agent/health')
             
@@ -182,8 +188,10 @@ class TestAgentConcurrentRequests:
     
     def test_agent_concurrent_queue_submissions(self, client, auth_headers_admin):
         """Test multiple concurrent agent requests"""
-        with patch('src.routes.agent.redis_client') as mock_redis:
+        with patch('src.routes.agent.get_agent_redis_client') as mock_get_client:
+            mock_redis = Mock()
             mock_redis.hset.return_value = 1
+            mock_get_client.return_value = mock_redis
             
             responses = []
             for i in range(5):
@@ -197,8 +205,10 @@ class TestAgentConcurrentRequests:
     
     def test_agent_queue_full_handling(self, client, auth_headers_admin):
         """Test agent behavior when queue is full"""
-        with patch('src.routes.agent.redis_client_rq') as mock_redis:
+        with patch('src.routes.agent.get_agent_redis_client_rq') as mock_get_client_rq:
+            mock_redis = Mock()
             mock_redis.llen.return_value = 10000
+            mock_get_client_rq.return_value = mock_redis
             
             response = client.post('/api/agent/faq',
                                  json={'query': 'Test query'},
