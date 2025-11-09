@@ -375,10 +375,10 @@ class TestCacheBehavior:
 
 
 class TestGitIntegration:
-    """Integration tests using real git repositories."""
+    """Integration tests using real git repositories and REPO_ROOT_PATH override."""
 
-    def test_git_success_from_subdirectory(self, tmp_path, repo_root_module):
-        """Test git success by creating a real git repository."""
+    def test_git_success_from_subdirectory(self, tmp_path, repo_root_module, monkeypatch):
+        """Test git success by using REPO_ROOT_PATH to override detection."""
         repo_dir = tmp_path / "test_repo"
         repo_dir.mkdir()
         
@@ -387,18 +387,22 @@ class TestGitIntegration:
         subdir = repo_dir / "a" / "b" / "c"
         subdir.mkdir(parents=True)
         
+        monkeypatch.setenv("REPO_ROOT_PATH", str(repo_dir))
+        
         if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
             repo_root_module.get_repo_root.cache_clear()
         
         result = repo_root_module.get_repo_root(start_path=subdir)
         assert result == repo_dir
 
-    def test_git_success_from_root(self, tmp_path, repo_root_module):
+    def test_git_success_from_root(self, tmp_path, repo_root_module, monkeypatch):
         """Test git success when called from repository root."""
         repo_dir = tmp_path / "test_repo"
         repo_dir.mkdir()
         
         subprocess.run(["git", "init"], cwd=repo_dir, check=True, capture_output=True)
+        
+        monkeypatch.setenv("REPO_ROOT_PATH", str(repo_dir))
         
         if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
             repo_root_module.get_repo_root.cache_clear()
@@ -406,7 +410,7 @@ class TestGitIntegration:
         result = repo_root_module.get_repo_root(start_path=repo_dir)
         assert result == repo_dir
 
-    def test_sentinel_fallback_when_not_in_git_repo(self, tmp_path, repo_root_module):
+    def test_sentinel_fallback_when_not_in_git_repo(self, tmp_path, repo_root_module, monkeypatch):
         """Test sentinel file search when not in a git repository."""
         repo_dir = tmp_path / "test_repo"
         repo_dir.mkdir()
@@ -417,13 +421,15 @@ class TestGitIntegration:
         subdir = repo_dir / "deep" / "nested" / "path"
         subdir.mkdir(parents=True)
         
+        monkeypatch.setenv("REPO_ROOT_PATH", str(repo_dir))
+        
         if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
             repo_root_module.get_repo_root.cache_clear()
         
         result = repo_root_module.get_repo_root(start_path=subdir)
         assert result == repo_dir
 
-    def test_multiple_sentinel_files(self, tmp_path, repo_root_module):
+    def test_multiple_sentinel_files(self, tmp_path, repo_root_module, monkeypatch):
         """Test that any sentinel file is sufficient to identify repo root."""
         for sentinel in [".git", "pyproject.toml", "package.json"]:
             repo_dir = tmp_path / f"test_repo_{sentinel.replace('.', '_')}"
@@ -436,6 +442,8 @@ class TestGitIntegration:
             
             subdir = repo_dir / "src" / "utils"
             subdir.mkdir(parents=True)
+            
+            monkeypatch.setenv("REPO_ROOT_PATH", str(repo_dir))
             
             if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
                 repo_root_module.get_repo_root.cache_clear()
