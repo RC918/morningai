@@ -1,5 +1,17 @@
 import os, argparse, time, uuid, hashlib
 from typing import Optional
+from pathlib import Path
+import sys
+
+repo_root = Path(__file__).resolve().parent
+for _ in range(8):  # Limit search depth to avoid infinite loop
+    if (repo_root / 'common').exists():
+        break
+    repo_root = repo_root.parent
+
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
 from dotenv import load_dotenv
 from tools.github_api import get_repo, create_branch, commit_file, open_pr, get_pr_checks, close_pr, delete_branch
 from redis_queue.worker import enqueue
