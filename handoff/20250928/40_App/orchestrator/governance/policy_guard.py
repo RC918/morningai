@@ -20,8 +20,6 @@ class PolicyGuard:
         if policies_path is None:
             policies_path = os.getenv('POLICIES_PATH')
             if policies_path is None:
-                policies_path = settings.policies_path if hasattr(settings, 'policies_path') else None
-            if policies_path is None:
                 policies_path = os.path.join(
                     os.path.dirname(__file__),
                     '../../../../config/policies.yaml'

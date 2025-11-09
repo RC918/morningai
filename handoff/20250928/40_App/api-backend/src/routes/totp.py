@@ -102,19 +102,20 @@ def is_2fa_feature_enabled() -> bool:
     import os
     from common.config.settings import settings
     
-    # Check environment variable directly for test compatibility
-    force_enable_in_tests = os.getenv('FORCE_ENABLE_2FA_IN_TESTS', '').lower() == 'true'
-    if force_enable_in_tests:
-        return True
-    
     try:
         from flask import current_app
         if current_app and current_app.config.get('TESTING'):
-            return False
+            force_enable_in_tests = os.getenv('FORCE_ENABLE_2FA_IN_TESTS', '').lower() == 'true'
+            return force_enable_in_tests
     except (ImportError, RuntimeError):
         pass
     
-    return settings.feature_2fa_enabled or True
+    # In production/non-test mode, check FEATURE_2FA_ENABLED env var or settings
+    feature_enabled_env = os.getenv('FEATURE_2FA_ENABLED', '').lower()
+    if feature_enabled_env:
+        return feature_enabled_env == 'true'
+    
+    return bool(settings.feature_2fa_enabled) if hasattr(settings, 'feature_2fa_enabled') else False
 
 
 def get_totp_manager():

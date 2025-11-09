@@ -50,8 +50,9 @@ _redis_client = None
 _redis_client_rq = None
 _queue = None
 
-# Module-level alias for backward compatibility with tests that patch redis_client
+# Module-level aliases for backward compatibility with tests that patch these attributes
 redis_client = None
+redis_client_rq = None
 
 def get_agent_redis_client():
     """Get or create Redis client for agent routes (lazy initialization)"""
