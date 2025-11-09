@@ -415,8 +415,13 @@ def verify_token():
         
         if not access_token:
             auth_header = request.headers.get('Authorization')
-            if auth_header and auth_header.startswith('Bearer '):
-                access_token = auth_header.split(' ')[1]
+            if auth_header:
+                if not auth_header.startswith('Bearer '):
+                    return jsonify({'message': 'Invalid authorization format'}), 401
+                parts = auth_header.split(' ')
+                if len(parts) != 2:
+                    return jsonify({'message': 'Invalid authorization format'}), 401
+                access_token = parts[1]
         
         if not access_token:
             return jsonify({'message': 'Not authenticated'}), 401

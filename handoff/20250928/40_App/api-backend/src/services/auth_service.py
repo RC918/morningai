@@ -58,33 +58,40 @@ def validate_security_config():
     errors = []
     warnings = []
     
+    s = get_settings()
+    is_production = s.is_production
+    enable_mock = bool(s.enable_mock_users)
+    
     jwt_secret = _get_jwt_secret()
     if not jwt_secret:
-        if IS_PRODUCTION:
+        if is_production:
             errors.append("JWT_SECRET_KEY environment variable is not set")
         else:
             logger.warning(
                 "JWT_SECRET_KEY not set in non-production environment. "
                 "Using fallback test secret. DO NOT USE IN PRODUCTION."
             )
-    elif IS_PRODUCTION:
+    elif is_production:
         if len(jwt_secret) < 32:
             errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(jwt_secret)})")
         if jwt_secret in ['your-secret-key', 'secret', 'changeme', 'test', 'test-secret-key-for-testing']:
             errors.append("JWT_SECRET_KEY is using a known weak/default value")
     
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    if is_production and enable_mock:
         errors.append("ENABLE_MOCK_USERS must be false in production (current: true)")
     
     # P0-3: Validate Cookie Configuration
-    if COOKIE_SAMESITE == 'None' and not COOKIE_SECURE:
+    cookie_secure = s.cookie_secure if s.cookie_secure is not None else (True if is_production else False)
+    cookie_samesite = s.cookie_samesite or 'Lax'
+    
+    if cookie_samesite == 'None' and not cookie_secure:
         errors.append("COOKIE_SAMESITE=None requires COOKIE_SECURE=True (browsers will reject)")
     
-    if IS_PRODUCTION and not COOKIE_SECURE:
+    if is_production and not cookie_secure:
         warnings.append("COOKIE_SECURE should be True in production")
     
-    if COOKIE_SAMESITE not in ['Strict', 'Lax', 'None']:
-        errors.append(f"COOKIE_SAMESITE must be 'Strict', 'Lax', or 'None' (current: {COOKIE_SAMESITE})")
+    if cookie_samesite not in ['Strict', 'Lax', 'None']:
+        errors.append(f"COOKIE_SAMESITE must be 'Strict', 'Lax', or 'None' (current: {cookie_samesite})")
     
     if errors:
         for error in errors:
@@ -96,10 +103,10 @@ def validate_security_config():
             logger.warning(f"Security configuration warning: {warning}")
     
     logger.info("Security configuration validated successfully")
-    logger.info(f"Environment: {ENVIRONMENT}")
-    logger.info(f"Cookie SameSite: {COOKIE_SAMESITE}")
-    logger.info(f"Cookie Secure: {COOKIE_SECURE}")
-    logger.info(f"Mock Users Enabled: {ENABLE_MOCK_USERS}")
+    logger.info(f"Environment: {s.environment or 'development'}")
+    logger.info(f"Cookie SameSite: {cookie_samesite}")
+    logger.info(f"Cookie Secure: {cookie_secure}")
+    logger.info(f"Mock Users Enabled: {enable_mock}")
 
 
 def get_redis_client():
@@ -301,18 +308,25 @@ def create_cookie_config(name: str, value: str, max_age_seconds: int, httponly: 
     Returns:
         Dict with cookie configuration
     """
+    s = get_settings()
+    is_production = s.is_production
+    cookie_secure = s.cookie_secure if s.cookie_secure is not None else (True if is_production else False)
+    cookie_samesite = s.cookie_samesite or 'Lax'
+    cookie_domain = s.cookie_domain
+    cookie_path = s.cookie_path or '/'
+    
     config = {
         'key': name,
         'value': value,
         'max_age': max_age_seconds,
-        'secure': COOKIE_SECURE,
+        'secure': cookie_secure,
         'httponly': httponly,
-        'samesite': COOKIE_SAMESITE,
-        'path': COOKIE_PATH
+        'samesite': cookie_samesite,
+        'path': cookie_path
     }
     
-    if COOKIE_DOMAIN:
-        config['domain'] = COOKIE_DOMAIN
+    if cookie_domain:
+        config['domain'] = cookie_domain
     
     return config
 
@@ -338,7 +352,10 @@ def set_auth_cookies(response, access_token: str, refresh_token: str, access_exp
         **create_cookie_config('refresh_token', refresh_token, refresh_max_age, httponly=True)
     )
     
-    if csrf_token or COOKIE_SAMESITE == 'None':
+    s = get_settings()
+    cookie_samesite = s.cookie_samesite or 'Lax'
+    
+    if csrf_token or cookie_samesite == 'None':
         csrf_token = csrf_token or generate_csrf_token()
         # CSRF token expires with access token
         response.set_cookie(
@@ -355,14 +372,21 @@ def clear_auth_cookies(response):
     Args:
         response: Flask response object
     """
+    s = get_settings()
+    is_production = s.is_production
+    cookie_secure = s.cookie_secure if s.cookie_secure is not None else (True if is_production else False)
+    cookie_samesite = s.cookie_samesite or 'Lax'
+    cookie_domain = s.cookie_domain
+    cookie_path = s.cookie_path or '/'
+    
     cookie_attrs = {
         'max_age': 0,
-        'path': COOKIE_PATH,
-        'secure': COOKIE_SECURE,
-        'samesite': COOKIE_SAMESITE
+        'path': cookie_path,
+        'secure': cookie_secure,
+        'samesite': cookie_samesite
     }
-    if COOKIE_DOMAIN:
-        cookie_attrs['domain'] = COOKIE_DOMAIN
+    if cookie_domain:
+        cookie_attrs['domain'] = cookie_domain
     
     response.set_cookie('access_token', '', **cookie_attrs)
     response.set_cookie('refresh_token', '', **cookie_attrs)
@@ -377,14 +401,17 @@ def _get_mock_users() -> Dict:
     WARNING: Only available when ENABLE_MOCK_USERS=true
     In production, this returns empty dict
     """
-    if not ENABLE_MOCK_USERS:
+    s = get_settings()
+    enable_mock = bool(s.enable_mock_users)
+    
+    if not enable_mock:
         return {}
     
     return {
         'owner@morningai.com': {
             'id': 'owner-001',
             'email': 'owner@morningai.com',
-            'hashed_password': generate_password_hash(settings.owner_password or 'owner123'),
+            'hashed_password': generate_password_hash(s.owner_password or 'owner123'),
             'name': 'Platform Owner',
             'role': 'owner',
             'tenant_id': 'platform',
@@ -393,7 +420,7 @@ def _get_mock_users() -> Dict:
         'admin@morningai.com': {
             'id': 'admin-001',
             'email': 'admin@morningai.com',
-            'hashed_password': generate_password_hash(settings.admin_password or 'admin123'),
+            'hashed_password': generate_password_hash(s.admin_password or 'admin123'),
             'name': 'System Admin',
             'role': 'admin',
             'tenant_id': 'tenant-001',
@@ -412,11 +439,15 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     Returns:
         User dict or None if authentication failed
     """
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    s = get_settings()
+    is_production = s.is_production
+    enable_mock = bool(s.enable_mock_users)
+    
+    if is_production and enable_mock:
         logger.error("Mock users should not be enabled in production")
         return None
     
-    if ENABLE_MOCK_USERS:
+    if enable_mock:
         mock_users = _get_mock_users()
         
         user = mock_users.get(email)
@@ -439,8 +470,8 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     
     import requests
     
-    supabase_url = get_settings().supabase_url
-    supabase_anon_key = get_settings().supabase_anon_key
+    supabase_url = s.supabase_url
+    supabase_anon_key = s.supabase_anon_key
     
     if not supabase_url or not supabase_anon_key:
         logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set when ENABLE_MOCK_USERS=false")
@@ -500,11 +531,15 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
     Returns:
         User dict or None if not found
     """
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    s = get_settings()
+    is_production = s.is_production
+    enable_mock = bool(s.enable_mock_users)
+    
+    if is_production and enable_mock:
         logger.error("Mock users should not be enabled in production")
         return None
     
-    if ENABLE_MOCK_USERS:
+    if enable_mock:
         mock_users = _get_mock_users()
         
         for user in mock_users.values():
@@ -522,8 +557,8 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
     
     import requests
     
-    supabase_url = get_settings().supabase_url
-    supabase_service_key = get_settings().supabase_service_role_key
+    supabase_url = s.supabase_url
+    supabase_service_key = s.supabase_service_role_key
     
     if not supabase_url or not supabase_service_key:
         logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set when ENABLE_MOCK_USERS=false")
