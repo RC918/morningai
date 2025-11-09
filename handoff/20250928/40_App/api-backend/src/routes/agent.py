@@ -75,11 +75,12 @@ def get_agent_redis_client():
     Returns None if redis_client is explicitly set to None (e.g., by tests).
     """
     global _redis_client, redis_client
-    if 'redis_client' in globals() and redis_client is not None:
-        return redis_client
-    elif 'redis_client' in globals() and redis_client is None and _redis_client is not None:
-        # redis_client was explicitly set to None, but _redis_client exists
+    
+    if redis_client is None:
         return None
+    
+    if redis_client is not None:
+        return redis_client
     
     if _redis_client is None:
         redis_url = AGENT_REDIS_URL
