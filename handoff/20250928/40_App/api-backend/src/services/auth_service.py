@@ -51,26 +51,36 @@ def is_production():
     """Check if running in production mode (dynamic check)
     
     Priority order:
-    1. Flask app.config FLASK_ENV or ENVIRONMENT (explicit production setting)
-    2. os.environ FLASK_ENV or ENVIRONMENT (explicit production setting)
-    3. Flask app.config TESTING (if True and no explicit env, return False)
-    4. settings.is_production (fallback)
+    1. os.environ ENVIRONMENT (explicit production setting - highest priority for tests)
+    2. os.environ FLASK_ENV (fallback if ENVIRONMENT not set)
+    3. Flask app.config ENVIRONMENT (explicit production setting)
+    4. Flask app.config FLASK_ENV (fallback if ENVIRONMENT not set)
+    5. Flask app.config TESTING (if True and no explicit env, return False)
+    6. settings.is_production (fallback)
     
-    This allows tests to explicitly set ENVIRONMENT=production to test production
-    behavior even when TESTING=True.
+    This ensures tests can explicitly set ENVIRONMENT=production to test production
+    behavior, even when FLASK_ENV=development or TESTING=True.
     """
+    env = os.environ.get("ENVIRONMENT")
+    if env:
+        return env.lower() in ("production", "prod")
+    
+    flask_env = os.environ.get("FLASK_ENV")
+    if flask_env:
+        return flask_env.lower() in ("production", "prod")
+    
     try:
         from flask import current_app
         if current_app:
-            env = (current_app.config.get("FLASK_ENV") or current_app.config.get("ENVIRONMENT") or "").lower()
+            env = current_app.config.get("ENVIRONMENT")
             if env:
-                return env == "production"
+                return str(env).lower() in ("production", "prod")
+            
+            flask_env = current_app.config.get("FLASK_ENV")
+            if flask_env:
+                return str(flask_env).lower() in ("production", "prod")
     except Exception:
         pass
-    
-    fe = (os.getenv("FLASK_ENV") or os.getenv("ENVIRONMENT") or "").lower()
-    if fe:
-        return fe == "production"
     
     try:
         from flask import current_app
