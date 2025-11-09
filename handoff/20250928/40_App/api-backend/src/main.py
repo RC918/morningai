@@ -6,7 +6,8 @@ import re
 import logging
 
 from pathlib import Path
-repo_root = Path(__file__).resolve().parents[4]  # api-backend/src/main.py -> repo root
+# Path calculation: main.py -> src/ -> api-backend/ -> 40_App/ -> 20250928/ -> handoff/ -> repo root
+repo_root = Path(__file__).resolve().parents[5]  # api-backend/src/main.py -> repo root
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
     logging.basicConfig(level=logging.INFO)
