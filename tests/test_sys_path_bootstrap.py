@@ -243,3 +243,236 @@ class TestSysPathBootstrap:
         assert str(pythonpath_dir) in sys.path
         
         sys.path = original_path
+
+    def test_priority_order_repo_root_before_pythonpath(self, monkeypatch, tmp_path):
+        """Test REPO_ROOT has higher priority than PYTHONPATH (verifies indices)"""
+        repo_root_dir = tmp_path / "repo_root"
+        pythonpath_dir = tmp_path / "pythonpath_dir"
+        
+        repo_root_dir.mkdir()
+        pythonpath_dir.mkdir()
+        
+        monkeypatch.setenv('REPO_ROOT', str(repo_root_dir))
+        monkeypatch.setenv('PYTHONPATH', str(pythonpath_dir))
+        
+        original_path = sys.path.copy()
+        
+        def normalize_path(path):
+            return os.path.realpath(os.path.abspath(path))
+        
+        def add_to_sys_path(path):
+            normalized = normalize_path(path)
+            normalized_sys_path = [normalize_path(p) for p in sys.path if p]
+            if normalized not in normalized_sys_path:
+                sys.path.insert(0, normalized)
+                return True
+            return False
+        
+        if 'PYTHONPATH' in os.environ:
+            pythonpath_entries = os.environ['PYTHONPATH'].split(os.pathsep)
+            for entry in reversed(pythonpath_entries):
+                if entry and os.path.isdir(entry):
+                    add_to_sys_path(entry)
+        
+        if 'REPO_ROOT' in os.environ:
+            repo_root = os.environ['REPO_ROOT']
+            repo_path = Path(repo_root)
+            if repo_path.name == 'common':
+                repo_root = str(repo_path.parent)
+            if repo_root and os.path.isdir(repo_root):
+                add_to_sys_path(repo_root)
+        
+        # Verify both are in sys.path
+        normalized_repo = normalize_path(str(repo_root_dir))
+        normalized_python = normalize_path(str(pythonpath_dir))
+        normalized_sys_path = [normalize_path(p) for p in sys.path if p]
+        
+        assert normalized_repo in normalized_sys_path
+        assert normalized_python in normalized_sys_path
+        
+        repo_index = normalized_sys_path.index(normalized_repo)
+        python_index = normalized_sys_path.index(normalized_python)
+        
+        assert repo_index < python_index, f"REPO_ROOT should come before PYTHONPATH, but {repo_index} >= {python_index}"
+        
+        sys.path = original_path
+
+    def test_priority_order_pythonpath_before_marker(self, monkeypatch, tmp_path):
+        """Test PYTHONPATH has higher priority than marker files (verifies indices)"""
+        pythonpath_dir = tmp_path / "pythonpath_dir"
+        marker_dir = tmp_path / "marker_dir"
+        
+        pythonpath_dir.mkdir()
+        marker_dir.mkdir()
+        (marker_dir / "pyproject.toml").touch()
+        
+        script_file = marker_dir / "script.py"
+        script_file.touch()
+        
+        monkeypatch.setenv('PYTHONPATH', str(pythonpath_dir))
+        
+        original_path = sys.path.copy()
+        
+        def normalize_path(path):
+            return os.path.realpath(os.path.abspath(path))
+        
+        def add_to_sys_path(path):
+            normalized = normalize_path(path)
+            normalized_sys_path = [normalize_path(p) for p in sys.path if p]
+            if normalized not in normalized_sys_path:
+                sys.path.insert(0, normalized)
+                return True
+            return False
+        
+        script_path = Path(script_file).resolve()
+        for parent in [script_path] + list(script_path.parents):
+            if ((parent / 'pyproject.toml').exists() or 
+                (parent / '.git').exists() or 
+                (parent / 'env.schema.yaml').exists() or 
+                (parent / 'env_schema.yaml').exists() or 
+                (parent / 'common').is_dir()):
+                add_to_sys_path(str(parent))
+                break
+        
+        if 'PYTHONPATH' in os.environ:
+            pythonpath_entries = os.environ['PYTHONPATH'].split(os.pathsep)
+            for entry in reversed(pythonpath_entries):
+                if entry and os.path.isdir(entry):
+                    add_to_sys_path(entry)
+        
+        # Verify both are in sys.path
+        normalized_python = normalize_path(str(pythonpath_dir))
+        normalized_marker = normalize_path(str(marker_dir))
+        normalized_sys_path = [normalize_path(p) for p in sys.path if p]
+        
+        assert normalized_python in normalized_sys_path
+        assert normalized_marker in normalized_sys_path
+        
+        python_index = normalized_sys_path.index(normalized_python)
+        marker_index = normalized_sys_path.index(normalized_marker)
+        
+        assert python_index < marker_index, f"PYTHONPATH should come before marker, but {python_index} >= {marker_index}"
+        
+        sys.path = original_path
+
+    def test_pythonpath_left_to_right_precedence(self, monkeypatch, tmp_path):
+        """Test PYTHONPATH entries maintain left-to-right precedence"""
+        dir1 = tmp_path / "dir1"
+        dir2 = tmp_path / "dir2"
+        dir3 = tmp_path / "dir3"
+        
+        dir1.mkdir()
+        dir2.mkdir()
+        dir3.mkdir()
+        
+        monkeypatch.setenv('PYTHONPATH', f"{dir1}{os.pathsep}{dir2}{os.pathsep}{dir3}")
+        
+        original_path = sys.path.copy()
+        
+        def normalize_path(path):
+            return os.path.realpath(os.path.abspath(path))
+        
+        def add_to_sys_path(path):
+            normalized = normalize_path(path)
+            normalized_sys_path = [normalize_path(p) for p in sys.path if p]
+            if normalized not in normalized_sys_path:
+                sys.path.insert(0, normalized)
+                return True
+            return False
+        
+        if 'PYTHONPATH' in os.environ:
+            pythonpath_entries = os.environ['PYTHONPATH'].split(os.pathsep)
+            for entry in reversed(pythonpath_entries):
+                if entry and os.path.isdir(entry):
+                    add_to_sys_path(entry)
+        
+        # Verify all are in sys.path
+        normalized_dir1 = normalize_path(str(dir1))
+        normalized_dir2 = normalize_path(str(dir2))
+        normalized_dir3 = normalize_path(str(dir3))
+        normalized_sys_path = [normalize_path(p) for p in sys.path if p]
+        
+        assert normalized_dir1 in normalized_sys_path
+        assert normalized_dir2 in normalized_sys_path
+        assert normalized_dir3 in normalized_sys_path
+        
+        idx1 = normalized_sys_path.index(normalized_dir1)
+        idx2 = normalized_sys_path.index(normalized_dir2)
+        idx3 = normalized_sys_path.index(normalized_dir3)
+        
+        assert idx1 < idx2 < idx3, f"PYTHONPATH entries should maintain left-to-right precedence: {idx1} < {idx2} < {idx3}"
+        
+        sys.path = original_path
+
+    def test_complete_priority_order(self, monkeypatch, tmp_path):
+        """Test complete priority order: REPO_ROOT > PYTHONPATH > marker files"""
+        repo_root_dir = tmp_path / "repo_root"
+        pythonpath_dir = tmp_path / "pythonpath_dir"
+        marker_dir = tmp_path / "marker_dir"
+        
+        repo_root_dir.mkdir()
+        pythonpath_dir.mkdir()
+        marker_dir.mkdir()
+        (marker_dir / "pyproject.toml").touch()
+        
+        script_file = marker_dir / "script.py"
+        script_file.touch()
+        
+        monkeypatch.setenv('REPO_ROOT', str(repo_root_dir))
+        monkeypatch.setenv('PYTHONPATH', str(pythonpath_dir))
+        
+        original_path = sys.path.copy()
+        
+        def normalize_path(path):
+            return os.path.realpath(os.path.abspath(path))
+        
+        def add_to_sys_path(path):
+            normalized = normalize_path(path)
+            normalized_sys_path = [normalize_path(p) for p in sys.path if p]
+            if normalized not in normalized_sys_path:
+                sys.path.insert(0, normalized)
+                return True
+            return False
+        
+        script_path = Path(script_file).resolve()
+        for parent in [script_path] + list(script_path.parents):
+            if ((parent / 'pyproject.toml').exists() or 
+                (parent / '.git').exists() or 
+                (parent / 'env.schema.yaml').exists() or 
+                (parent / 'env_schema.yaml').exists() or 
+                (parent / 'common').is_dir()):
+                add_to_sys_path(str(parent))
+                break
+        
+        if 'PYTHONPATH' in os.environ:
+            pythonpath_entries = os.environ['PYTHONPATH'].split(os.pathsep)
+            for entry in reversed(pythonpath_entries):
+                if entry and os.path.isdir(entry):
+                    add_to_sys_path(entry)
+        
+        if 'REPO_ROOT' in os.environ:
+            repo_root = os.environ['REPO_ROOT']
+            repo_path = Path(repo_root)
+            if repo_path.name == 'common':
+                repo_root = str(repo_path.parent)
+            if repo_root and os.path.isdir(repo_root):
+                add_to_sys_path(repo_root)
+        
+        # Verify all are in sys.path
+        normalized_repo = normalize_path(str(repo_root_dir))
+        normalized_python = normalize_path(str(pythonpath_dir))
+        normalized_marker = normalize_path(str(marker_dir))
+        normalized_sys_path = [normalize_path(p) for p in sys.path if p]
+        
+        assert normalized_repo in normalized_sys_path
+        assert normalized_python in normalized_sys_path
+        assert normalized_marker in normalized_sys_path
+        
+        repo_index = normalized_sys_path.index(normalized_repo)
+        python_index = normalized_sys_path.index(normalized_python)
+        marker_index = normalized_sys_path.index(normalized_marker)
+        
+        assert repo_index < python_index < marker_index, \
+            f"Priority order should be REPO_ROOT < PYTHONPATH < marker, but got {repo_index} < {python_index} < {marker_index}"
+        
+        sys.path = original_path

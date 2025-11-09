@@ -38,7 +38,7 @@ The service uses a multi-tier fallback mechanism to locate the `common` module:
    - Example: `PYTHONPATH=/app`
 
 3. **Marker Files** (Priority 3): Auto-discovery
-   - Searches for: `pyproject.toml`, `.git`, `env.schema.yaml`, `common/` directory
+   - Searches for: `pyproject.toml`, `.git`, `env.schema.yaml` or `env_schema.yaml`, `common/` directory
    - Walks up directory tree from script location
 
 4. **DEBUG_IMPORTS**: Enable import debugging

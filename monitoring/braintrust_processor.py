@@ -12,36 +12,54 @@ import logging
 logging.basicConfig(level=logging.INFO)
 _bootstrap_logger = logging.getLogger(__name__)
 
-if 'REPO_ROOT' in os.environ:
-    repo_root = os.environ['REPO_ROOT']
-    if repo_root and repo_root.endswith('/common'):
-        repo_root = str(Path(repo_root).parent)
+
+def _normalize_path(path):
+    """Normalize path to avoid duplicates from different representations"""
+    return os.path.realpath(os.path.abspath(path))
+
+
+def _add_to_sys_path(path, mechanism_name):
+    """Add normalized path to sys.path if not already present"""
+    normalized = _normalize_path(path)
+    normalized_sys_path = [_normalize_path(p) for p in sys.path if p]
+    if normalized not in normalized_sys_path:
+        sys.path.insert(0, normalized)
         if os.getenv('DEBUG_IMPORTS'):
-            _bootstrap_logger.info(f"⚠️  REPO_ROOT misconfigured as common dir, corrected to: {repo_root}")
-    if repo_root and os.path.isdir(repo_root) and repo_root not in sys.path:
-        sys.path.insert(0, repo_root)
-        if os.getenv('DEBUG_IMPORTS'):
-            _bootstrap_logger.info(f"✅ sys.path bootstrap: REPO_ROOT={repo_root}")
+            _bootstrap_logger.info(f"✅ sys.path bootstrap: {mechanism_name}={normalized}")
+        return True
+    return False
+
+
+processor_file_path = Path(__file__).resolve()
+for parent in [processor_file_path] + list(processor_file_path.parents):
+    if ((parent / 'pyproject.toml').exists() or 
+        (parent / '.git').exists() or 
+        (parent / 'env.schema.yaml').exists() or 
+        (parent / 'env_schema.yaml').exists() or 
+        (parent / 'common').is_dir()):
+        _add_to_sys_path(str(parent), f"marker file at {parent}")
+        break
 
 if 'PYTHONPATH' in os.environ:
     pythonpath_entries = os.environ['PYTHONPATH'].split(os.pathsep)
     for entry in reversed(pythonpath_entries):
-        if entry and os.path.isdir(entry) and entry not in sys.path:
-            sys.path.insert(0, entry)
-            if os.getenv('DEBUG_IMPORTS'):
-                _bootstrap_logger.info(f"✅ sys.path bootstrap: PYTHONPATH entry={entry}")
+        if entry and os.path.isdir(entry):
+            _add_to_sys_path(entry, f"PYTHONPATH entry")
 
-processor_file_path = Path(__file__).resolve()
-for parent in [processor_file_path] + list(processor_file_path.parents):
-    if (parent / 'pyproject.toml').exists() or (parent / '.git').exists() or (parent / 'env.schema.yaml').exists() or (parent / 'common').is_dir():
-        if str(parent) not in sys.path:
-            sys.path.insert(0, str(parent))
-            if os.getenv('DEBUG_IMPORTS'):
-                _bootstrap_logger.info(f"✅ sys.path bootstrap: marker file at {parent}")
-        break
+if 'REPO_ROOT' in os.environ:
+    repo_root = os.environ['REPO_ROOT']
+    repo_path = Path(repo_root)
+    
+    if repo_path.name == 'common':
+        repo_root = str(repo_path.parent)
+        if os.getenv('DEBUG_IMPORTS'):
+            _bootstrap_logger.info(f"⚠️  REPO_ROOT misconfigured as common dir, corrected to: {repo_root}")
+    
+    if repo_root and os.path.isdir(repo_root):
+        _add_to_sys_path(repo_root, "REPO_ROOT")
 
 if os.getenv('DEBUG_IMPORTS'):
-    _bootstrap_logger.info(f"Final sys.path (first 3): {sys.path[:3]}")
+    _bootstrap_logger.info(f"Final sys.path (first 5): {sys.path[:5]}")
 
 from datetime import datetime
 from typing import Dict, Any, Optional

@@ -447,7 +447,7 @@ Services that import the `common` module use a multi-tier fallback mechanism to 
 |----------|-----------|----------|---------|
 | 1 | REPO_ROOT | Explicit control | `REPO_ROOT=/app` |
 | 2 | PYTHONPATH | Standard Python | `PYTHONPATH=/app:/other` |
-| 3 | Marker files | Auto-discovery | `.git`, `pyproject.toml` |
+| 3 | Marker files | Auto-discovery | `.git`, `pyproject.toml`, `env.schema.yaml` or `env_schema.yaml` |
 
 ### Configuration by Environment
 
