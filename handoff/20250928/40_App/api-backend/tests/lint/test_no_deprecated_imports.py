@@ -66,6 +66,9 @@ def check_file_for_deprecated_imports(file_path: Path) -> List[Tuple[int, str, s
                             ))
             
             elif isinstance(node, ast.ImportFrom):
+                if node.level > 0:
+                    continue
+                
                 if node.module:
                     for deprecated in DEPRECATED_MODULES:
                         if node.module == deprecated or node.module.endswith(f".{deprecated}"):
@@ -81,9 +84,10 @@ def check_file_for_deprecated_imports(file_path: Path) -> List[Tuple[int, str, s
                                 import_stmt,
                                 deprecated
                             ))
-                        elif deprecated.endswith(f".{node.module}"):
+                        else:
                             for alias in node.names:
-                                if alias.name == deprecated.split('.')[-1]:
+                                fqn = f"{node.module}.{alias.name}"
+                                if fqn == deprecated:
                                     import_stmt = f"from {node.module} import {alias.name}"
                                     if alias.asname:
                                         import_stmt += f" as {alias.asname}"
@@ -166,16 +170,21 @@ def test_aliased_import_detection():
     import tempfile
     
     test_cases = [
-        # (code, should_detect, description)
         ("import utils.preauth_token", True, "Direct module import"),
         ("import utils.preauth_token as preauth", True, "Module import with alias"),
         ("from utils.preauth_token import generate_preauth_token", True, "Direct function import"),
         ("from utils.preauth_token import generate_preauth_token as gen_token", True, "Function import with alias"),
         ("from utils.preauth_token import generate_preauth_token as gen, validate_and_consume_preauth_token as validate", True, "Multiple imports with aliases"),
         ("from utils.preauth_token import generate_preauth_token, validate_and_consume_preauth_token as validate", True, "Mixed imports (some aliased)"),
+        ("from utils import preauth_token", True, "Import submodule from parent"),
+        ("from utils import preauth_token as pt", True, "Import submodule from parent with alias"),
+        ("from utils.preauth_token import *", True, "Star import"),
+        ("from utils.preauth_token import (\n    generate_preauth_token as gen\n)", True, "Multi-line import with parentheses"),
         ("from utils.pre_auth_token import PreAuthTokenManager", False, "Valid import (not deprecated)"),
         ("import utils.pre_auth_token", False, "Valid module import (not deprecated)"),
         ("from utils.pre_auth_token import PreAuthTokenManager as Manager", False, "Valid aliased import (not deprecated)"),
+        ("import utils.preauth_token_tools", False, "Similar name should not trigger"),
+        ("from utils import preauth_token_tools", False, "Similar submodule name should not trigger"),
     ]
     
     for code, should_detect, description in test_cases:
