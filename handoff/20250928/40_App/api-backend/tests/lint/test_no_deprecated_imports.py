@@ -10,6 +10,8 @@ import os
 from pathlib import Path
 from typing import List, Tuple
 
+from src.utils.repo_root import get_api_backend_root as _get_api_backend_root
+
 
 DEPRECATED_MODULES = [
     "utils.preauth_token",
@@ -22,8 +24,7 @@ ALLOWLIST = [
 
 def get_api_backend_root() -> Path:
     """Get the api-backend root directory."""
-    current_file = Path(__file__).resolve()
-    return current_file.parent.parent.parent
+    return _get_api_backend_root()
 
 
 def find_python_files(root: Path, include_pattern: str = "src/**/*.py") -> List[Path]:

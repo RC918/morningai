@@ -17,7 +17,10 @@ import sys
 import logging
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'src'))
+
 from common.config.settings import settings
+from utils.repo_root import get_api_backend_root
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -51,8 +54,8 @@ class DeploymentVerifier:
         orchestrator_path = settings.orchestrator_path
         
         if not orchestrator_path:
-            script_dir = Path(__file__).parent.parent
-            orchestrator_path = script_dir / '..' / 'orchestrator'
+            backend_dir = get_api_backend_root()
+            orchestrator_path = backend_dir.parent / 'orchestrator'
             logger.info(f"ORCHESTRATOR_PATH not set, using fallback: {orchestrator_path}")
         
         if not Path(orchestrator_path).exists():

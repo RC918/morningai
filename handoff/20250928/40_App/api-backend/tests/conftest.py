@@ -10,8 +10,13 @@ from pathlib import Path
 import pytest
 from unittest.mock import patch
 
+# Add src to path first for imports
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'src'))
+
+from utils.repo_root import get_api_backend_root
+
 # Setup Python path for imports
-backend_dir = Path(__file__).parent.parent
+backend_dir = get_api_backend_root()
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 

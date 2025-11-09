@@ -13,10 +13,12 @@ import yaml
 import sys
 from pathlib import Path
 
+from repo_root_utils import get_repo_root
+
 
 def load_env_schema():
     """Load environment schema from config/env.schema.yaml"""
-    schema_path = Path(__file__).parent.parent / 'config' / 'env.schema.yaml'
+    schema_path = get_repo_root() / 'config' / 'env.schema.yaml'
     with open(schema_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
