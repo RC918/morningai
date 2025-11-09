@@ -50,6 +50,8 @@ _redis_client = None
 _redis_client_rq = None
 _queue = None
 
+RQ_QUEUE_NAME = settings.rq_queue_name or "orchestrator"
+
 def get_agent_redis_client():
     """Get or create Redis client for agent routes (lazy initialization)"""
     global _redis_client
@@ -83,7 +85,6 @@ def get_agent_queue():
     """Get or create RQ Queue (lazy initialization)"""
     global _queue
     if _queue is None:
-        RQ_QUEUE_NAME = settings.rq_queue_name or "orchestrator"
         _queue = Queue(RQ_QUEUE_NAME, connection=get_agent_redis_client_rq(), serializer=JSONSerializer())
     return _queue
 
