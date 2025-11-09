@@ -35,7 +35,9 @@ class PreAuthTokenManager:
 
     def __init__(self):
         self._redis_client = None  # Lazy initialization
-        self.jwt_secret = settings.jwt_secret_key or "test-secret-key-for-testing"
+        
+        secret = self._resolve_jwt_secret()
+        self.jwt_secret = secret if secret is not None else "test-secret-key-for-testing"
 
         from src.services.auth_service import is_production
         if is_production():
@@ -44,6 +46,22 @@ class PreAuthTokenManager:
                     "JWT_SECRET_KEY must be set to a secure value in production environment. "
                     "The default test key is not allowed."
                 )
+    
+    def _resolve_jwt_secret(self) -> Optional[str]:
+        """Resolve JWT secret with proper precedence for test compatibility"""
+        try:
+            from flask import current_app
+            if current_app:
+                secret = current_app.config.get("JWT_SECRET_KEY")
+                if secret is not None:
+                    return secret
+        except Exception:
+            pass
+        
+        if "JWT_SECRET_KEY" in os.environ:
+            return os.environ["JWT_SECRET_KEY"]
+        
+        return settings.jwt_secret_key
     
     @property
     def redis_client(self):
