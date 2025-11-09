@@ -577,6 +577,7 @@ pnpm test:coverage
 - **[Redis Security](REDIS_SECURITY.md)** - Redis security requirements
 - **[RLS Implementation](RLS_IMPLEMENTATION_GUIDE.md)** - Row-level security
 - **[Secret Scanning](SECRET_SCANNING_GUIDE.md)** - Secret management
+- **[Authentication API](openapi.auth.yaml)** - 2FA/TOTP endpoints (OpenAPI 3.0.3)
 
 ### Testing
 - **[Testing Guide](TESTING.md)** - Comprehensive testing documentation
