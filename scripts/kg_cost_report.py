@@ -133,9 +133,9 @@ def generate_comparison_report():
 
 def check_cost_limit():
     """Check if approaching or exceeded daily cost limit"""
-    import os
+    from common.config.settings import settings
 
-    max_daily_cost_str = os.getenv('OPENAI_MAX_DAILY_COST')
+    max_daily_cost_str = settings.openai_max_daily_cost
     if not max_daily_cost_str:
         print("ℹ️  No daily cost limit configured (OPENAI_MAX_DAILY_COST not set)")
         return 0
