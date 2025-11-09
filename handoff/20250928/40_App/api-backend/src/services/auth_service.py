@@ -34,18 +34,18 @@ def _get_jwt_secret():
     return get_settings().jwt_secret_key or 'test-secret-key-for-testing'
 
 # Cookie Configuration
-COOKIE_SECURE = settings.cookie_secure if hasattr(settings, 'cookie_secure') else (True if IS_PRODUCTION else False)
+COOKIE_SECURE = settings.cookie_secure if settings.cookie_secure is not None else (True if IS_PRODUCTION else False)
 COOKIE_SAMESITE = settings.cookie_samesite or 'Lax'  # Configurable: 'Strict', 'Lax', or 'None'
 COOKIE_HTTPONLY = True
-COOKIE_DOMAIN = settings.cookie_domain if hasattr(settings, 'cookie_domain') else None  # Optional: restrict to specific domain
-COOKIE_PATH = settings.cookie_path if hasattr(settings, 'cookie_path') else '/'  # Optional: restrict to specific path
+COOKIE_DOMAIN = settings.cookie_domain  # Optional: restrict to specific domain
+COOKIE_PATH = settings.cookie_path or '/'  # Optional: restrict to specific path
 
-ENABLE_MOCK_USERS = settings.enable_mock_users or False
+ENABLE_MOCK_USERS = settings.enable_mock_users if settings.enable_mock_users is not None else False
 
 # CSRF Configuration
 CSRF_TOKEN_LENGTH = 32  # bytes
 
-FEATURE_2FA_PREAUTH = settings.feature_2fa_preauth or False
+FEATURE_2FA_PREAUTH = settings.feature_2fa_preauth if settings.feature_2fa_preauth is not None else False
 PREAUTH_TOKEN_TTL = settings.preauth_token_ttl or 300  # 5 minutes default
 
 
