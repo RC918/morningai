@@ -755,6 +755,178 @@ class Test2FAIntegration:
                         data = json.loads(response.data)
                         assert data.get('requires_2fa') is True
                         assert data.get('next_step') == 'enroll_2fa'
+    
+    def test_owner_login_feature_disabled_goes_to_session(self, client, mock_redis):
+        """Test that owner login proceeds to session when FEATURE_2FA_ENABLED is false"""
+        with patch('src.routes.auth_enhanced.authenticate_user') as mock_auth:
+            mock_auth.return_value = {
+                'id': 'owner-001',
+                'email': 'owner@example.com',
+                'role': 'owner',
+                'name': 'Owner User',
+                'tenant_id': 'tenant-001'
+            }
+            
+            with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+                mock_feature.return_value = False
+                
+                response = client.post('/api/auth/v2/login',
+                    json={
+                        'email': 'owner@example.com',
+                        'password': 'test_password'
+                    }
+                )
+                
+                assert response.status_code == 200
+                data = json.loads(response.data)
+                assert data.get('next_step') == 'session'
+                assert 'user' in data
+                assert data['user']['role'] == 'owner'
+                
+                cookies = response.headers.getlist('Set-Cookie')
+                cookie_str = ' '.join(cookies)
+                assert 'access_token' in cookie_str
+                assert 'refresh_token' in cookie_str
+    
+    def test_owner_login_supabase_failure_defaults_to_enroll(self, client, mock_redis):
+        """Test that Supabase query failure defaults to enroll_2fa flow"""
+        with patch('src.routes.auth_enhanced.authenticate_user') as mock_auth:
+            mock_auth.return_value = {
+                'id': 'owner-001',
+                'email': 'owner@example.com',
+                'role': 'owner',
+                'name': 'Owner User',
+                'tenant_id': 'tenant-001'
+            }
+            
+            with patch('src.routes.totp.check_2fa_required') as mock_2fa_check:
+                mock_2fa_check.return_value = True
+                
+                with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+                    mock_feature.return_value = True
+                    
+                    with patch('src.routes.auth_enhanced.get_settings') as mock_get_settings:
+                        settings_mock = MagicMock()
+                        settings_mock.supabase_url = 'https://supabase.local'
+                        settings_mock.supabase_service_role_key = 'test-key'
+                        mock_get_settings.return_value = settings_mock
+                        
+                        with patch('supabase.create_client') as mock_supabase:
+                            mock_supabase.side_effect = Exception('Supabase connection failed')
+                            
+                            response = client.post('/api/auth/v2/login',
+                                json={
+                                    'email': 'owner@example.com',
+                                    'password': 'test_password'
+                                }
+                            )
+                            
+                            assert response.status_code == 200
+                            data = json.loads(response.data)
+                            assert data.get('requires_2fa') is True
+                            assert data.get('next_step') == 'enroll_2fa'
+                            assert 'token' in data
+                            
+                            cookies = response.headers.getlist('Set-Cookie')
+                            cookie_str = ' '.join(cookies)
+                            assert 'access_token' not in cookie_str
+                            assert 'refresh_token' not in cookie_str
+    
+    def test_pre_auth_token_cookie_attributes(self, client, mock_redis):
+        """Test that pre_auth_token cookie has correct attributes (HttpOnly, Path)"""
+        with patch('src.routes.auth_enhanced.authenticate_user') as mock_auth:
+            mock_auth.return_value = {
+                'id': 'owner-001',
+                'email': 'owner@example.com',
+                'role': 'owner',
+                'name': 'Owner User',
+                'tenant_id': 'tenant-001'
+            }
+            
+            with patch('src.routes.totp.check_2fa_required') as mock_2fa_check:
+                mock_2fa_check.return_value = True
+                
+                with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+                    mock_feature.return_value = True
+                    
+                    with patch('src.routes.auth_enhanced.FEATURE_2FA_PREAUTH', True):
+                        with patch('supabase.create_client') as mock_supabase:
+                            mock_client = MagicMock()
+                            mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+                            mock_supabase.return_value = mock_client
+                            
+                            response = client.post('/api/auth/v2/login',
+                                json={
+                                    'email': 'owner@example.com',
+                                    'password': 'test_password'
+                                }
+                            )
+                            
+                            assert response.status_code == 200
+                            
+                            cookies = response.headers.getlist('Set-Cookie')
+                            pre_auth_cookie = None
+                            for cookie in cookies:
+                                if 'pre_auth_token' in cookie:
+                                    pre_auth_cookie = cookie
+                                    break
+                            
+                            assert pre_auth_cookie is not None, "pre_auth_token cookie not found"
+                            assert 'HttpOnly' in pre_auth_cookie
+                            assert 'Path=/api/auth/v2/2fa' in pre_auth_cookie
+                            assert 'SameSite' in pre_auth_cookie
+    
+    def test_non_owner_enabled_but_unverified_2fa(self, client, mock_redis):
+        """Test that non-owner with enabled but unverified 2FA requires enrollment"""
+        with patch('src.routes.auth_enhanced.authenticate_user') as mock_auth:
+            mock_auth.return_value = {
+                'id': 'user-001',
+                'email': 'user@example.com',
+                'role': 'user',
+                'name': 'Regular User',
+                'tenant_id': 'tenant-001'
+            }
+            
+            with patch('src.routes.totp.check_2fa_required') as mock_2fa_check:
+                mock_2fa_check.return_value = True
+                
+                with patch('src.routes.totp.is_2fa_feature_enabled') as mock_feature:
+                    mock_feature.return_value = True
+                    
+                    with patch('src.routes.auth_enhanced.get_settings') as mock_get_settings:
+                        settings_mock = MagicMock()
+                        settings_mock.supabase_url = 'https://supabase.local'
+                        settings_mock.supabase_service_role_key = 'test-key'
+                        mock_get_settings.return_value = settings_mock
+                        
+                        with patch('supabase.create_client') as mock_supabase:
+                            mock_client = MagicMock()
+                            mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
+                                {
+                                    'user_id': 'user-001',
+                                    'enabled': True,
+                                    'verified_at': None
+                                }
+                            ]
+                            mock_supabase.return_value = mock_client
+                            
+                            response = client.post('/api/auth/v2/login',
+                                json={
+                                    'email': 'user@example.com',
+                                    'password': 'test_password'
+                                }
+                            )
+                            
+                            assert response.status_code == 200
+                            data = json.loads(response.data)
+                            assert data.get('requires_2fa') is True
+                            assert data.get('next_step') == 'enroll_2fa'
+                            assert 'token' in data
+                            
+                            cookies = response.headers.getlist('Set-Cookie')
+                            cookie_str = ' '.join(cookies)
+                            assert 'access_token' not in cookie_str
+                            assert 'refresh_token' not in cookie_str
 
 
 if __name__ == '__main__':
