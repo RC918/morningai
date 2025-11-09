@@ -4,8 +4,9 @@ import datetime
 import asyncio
 import re
 import logging
+from common.config.settings import settings
 
-orchestrator_path = os.getenv("ORCHESTRATOR_PATH")
+orchestrator_path = settings.orchestrator_path
 if not orchestrator_path:
     orchestrator_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../orchestrator")
@@ -53,8 +54,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
-APP_VERSION = os.getenv("APP_VERSION", "8.0.0")
+SENTRY_DSN = settings.sentry_dsn
+APP_VERSION = settings.app_version or "8.0.0"
 
 
 def before_send(event, hint):
@@ -77,7 +78,7 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 
         sentry_sdk.init(
             dsn=SENTRY_DSN,
-            environment=os.getenv("ENVIRONMENT", "production"),
+            environment=settings.environment or "production",
             release=f"morningai@{APP_VERSION}",
             integrations=[FlaskIntegration()],
             traces_sample_rate=1.0,
@@ -124,7 +125,7 @@ except SystemExit as e:
     logger.error(f"Security configuration validation failed: {e}")
     raise
 
-if os.environ.get("ENVIRONMENT", "").lower() == "production":
+if settings.is_production:
     from src.utils.pre_auth_token import get_pre_auth_manager
 
     try:
@@ -158,9 +159,7 @@ if not flask_secret:
         flask_secret = "asdf#FGSgvasgf$5$WGT"
 app.config["SECRET_KEY"] = flask_secret
 
-cors_origins = os.environ.get(
-    "CORS_ORIGINS", "http://localhost:5173,http://localhost:5174"
-).split(",")
+cors_origins = (settings.cors_origins or "http://localhost:5173,http://localhost:5174").split(",")
 cors_origins = [origin.strip() for origin in cors_origins]
 
 
@@ -169,7 +168,7 @@ def is_vercel_preview(origin):
     Check if origin is a Vercel preview URL
     Only allows Vercel previews in non-production environments for security
     """
-    if os.environ.get("ENVIRONMENT") == "production":
+    if settings.is_production:
         return False
     return origin and re.match(r"https://.*\.vercel\.app$", origin)
 
@@ -210,9 +209,9 @@ cors_config = {
 CORS(app, resources={r"/*": cors_config})
 
 if SECURITY_AVAILABLE:
-    encryption_master_key = os.environ.get("ENCRYPTION_MASTER_KEY")
+    encryption_master_key = settings.encryption_master_key
     if not encryption_master_key:
-        legacy_master_key = os.environ.get("MASTER_KEY")
+        legacy_master_key = settings.master_key
         if legacy_master_key:
             logger.warning(
                 "DEPRECATION: MASTER_KEY is deprecated. Please use ENCRYPTION_MASTER_KEY instead. "
@@ -310,12 +309,10 @@ def get_health_payload():
             "database": str(db_status),
             "redis": redis_info,
             "phase": str(
-                os.environ.get(
-                    "APP_PHASE", "Phase 8: Self-service Dashboard & Reporting Center"
-                )
+                settings.app_phase or "Phase 8: Self-service Dashboard & Reporting Center"
             ),
-            "version": str(os.environ.get("APP_VERSION", "8.0.0")),
-            "git_commit": str(os.environ.get("GIT_COMMIT", os.environ.get("RENDER_GIT_COMMIT", "unknown"))),
+            "version": str(settings.app_version or "8.0.0"),
+            "git_commit": str(settings.git_commit or settings.render_git_commit or "unknown"),
             "timestamp": datetime.datetime.now().isoformat(),
             "services": {
                 "phase4_apis": (
@@ -372,7 +369,7 @@ db_dir = os.path.join(os.path.dirname(__file__), "database")
 os.makedirs(db_dir, exist_ok=True)
 
 DATABASE_URL = get_settings().database_url
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
+ENVIRONMENT = settings.environment or "development"
 
 if ENVIRONMENT == "production":
     if not DATABASE_URL:
@@ -420,7 +417,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 import sys
 
-if "pytest" in sys.modules or os.getenv("TESTING") == "true":
+if "pytest" in sys.modules or settings.testing:
     from sqlalchemy.pool import StaticPool
 
     app.config["TESTING"] = True
@@ -454,7 +451,7 @@ def validate_rate_limit_redis():
     Raises:
         RuntimeError: If Redis is unavailable in production environment
     """
-    if not os.getenv("RATE_LIMIT_FAIL_FAST", "true").lower() == "true":
+    if not settings.rate_limit_fail_fast:
         logger.info("ℹ️  Rate limit fail-fast disabled via RATE_LIMIT_FAIL_FAST=false")
         return
 
@@ -1551,6 +1548,6 @@ if __name__ == "__main__":
     except Exception as e:
         logger.warning(f"Failed to check Redis security on startup: {e}")
 
-    port = int(os.environ.get("PORT", 5001))
-    debug = os.environ.get("FLASK_ENV") != "production"
+    port = settings.port or 5001
+    debug = settings.flask_env != "production"
     app.run(host="0.0.0.0", port=port, debug=debug)

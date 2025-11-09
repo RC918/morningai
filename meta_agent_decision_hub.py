@@ -21,6 +21,7 @@ from collections import defaultdict, deque
 import redis
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from common.config.settings import settings
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'handoff/20250928/40_App/api-backend/src'))
 from utils.redis_config import get_secure_redis_url
@@ -437,7 +438,7 @@ class MetaAgentDecisionHub:
     def __init__(self, redis_url: Optional[str] = None, db_url: str = None):
         try:
             if not redis_url:
-                redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+                redis_url = get_secure_redis_url(allow_local=settings.testing)
             self.redis = redis.from_url(redis_url)
             self.db = None  # 暫時不使用數據庫連接
             self.ooda_loop = OODALoop(self.redis, self.db)

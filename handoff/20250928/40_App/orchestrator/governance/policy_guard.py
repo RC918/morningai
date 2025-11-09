@@ -5,6 +5,7 @@ import re
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional
 from pathlib import Path
+from common.config.settings import settings
 
 
 class PolicyViolation(Exception):
@@ -17,7 +18,7 @@ class PolicyGuard:
     
     def __init__(self, policies_path: Optional[str] = None):
         if policies_path is None:
-            policies_path = os.getenv('POLICIES_PATH')
+            policies_path = settings.policies_path if hasattr(settings, 'policies_path') else None
             if policies_path is None:
                 policies_path = os.path.join(
                     os.path.dirname(__file__),

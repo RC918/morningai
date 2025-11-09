@@ -99,8 +99,10 @@ def is_2fa_feature_enabled() -> bool:
         True if FEATURE_2FA_ENABLED is set to 'true' (case-insensitive), False otherwise
         False if running in Flask test mode (TESTING=True) unless forced
     """
-    if os.environ.get('FORCE_ENABLE_2FA_IN_TESTS', 'false').lower() == 'true':
-        return os.environ.get('FEATURE_2FA_ENABLED', 'true').lower() == 'true'
+    from common.config.settings import settings
+    
+    if settings.force_enable_2fa_in_tests if hasattr(settings, 'force_enable_2fa_in_tests') else False:
+        return settings.feature_2fa_enabled or True
     
     try:
         from flask import current_app
@@ -109,7 +111,7 @@ def is_2fa_feature_enabled() -> bool:
     except (ImportError, RuntimeError):
         pass
     
-    return os.environ.get('FEATURE_2FA_ENABLED', 'true').lower() == 'true'
+    return settings.feature_2fa_enabled or True
 
 
 def get_totp_manager():

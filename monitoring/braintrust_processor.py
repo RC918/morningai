@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import asyncio
+from common.config.settings import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,12 +24,12 @@ class TraceProcessor:
     """Process and store Vercel traces"""
     
     def __init__(self):
-        self.database_url = os.getenv("DATABASE_URL")
+        self.database_url = settings.database_url
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable required")
         
-        self.cost_alert_threshold = float(os.getenv("COST_ALERT_THRESHOLD", "10.0"))
-        self.latency_alert_threshold = float(os.getenv("LATENCY_ALERT_THRESHOLD", "500.0"))
+        self.cost_alert_threshold = settings.cost_alert_threshold or 10.0
+        self.latency_alert_threshold = settings.latency_alert_threshold or 500.0
     
     def get_connection(self):
         """Get database connection"""

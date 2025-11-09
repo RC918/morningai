@@ -12,11 +12,12 @@ from exceptions import (
     GitHubPermissionError
 )
 from utils.retry import retry_with_backoff, API_RETRY_CONFIG
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-GITHUB_TOKEN = os.getenv("AGENT_GITHUB_TOKEN", os.getenv("GITHUB_TOKEN"))
-GITHUB_REPO = os.getenv("GITHUB_REPO", "RC918/morningai")
+GITHUB_TOKEN = settings.agent_github_token or settings.github_token
+GITHUB_REPO = settings.github_repo or "RC918/morningai"
 
 @retry_with_backoff(
     max_retries=API_RETRY_CONFIG.max_retries,

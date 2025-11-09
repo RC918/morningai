@@ -3,11 +3,12 @@ Gunicorn configuration file for MorningAI API Backend
 """
 import multiprocessing
 import os
+from common.config.settings import settings
 
-bind = f"0.0.0.0:{os.getenv('PORT', '8000')}"
+bind = f"0.0.0.0:{settings.port or 8000}"
 backlog = 2048
 
-workers = int(os.getenv('GUNICORN_WORKERS', '4'))
+workers = settings.gunicorn_workers or 4
 worker_class = 'sync'  # Use 'gevent' or 'eventlet' for async if needed
 worker_connections = 1000
 threads = 2  # Threads per worker (only for gthread worker class)
@@ -20,7 +21,7 @@ keepalive = 5  # Seconds to wait for requests on Keep-Alive connections
 
 accesslog = '-'  # Log to stdout
 errorlog = '-'   # Log to stderr
-loglevel = os.getenv('GUNICORN_LOG_LEVEL', 'info')
+loglevel = settings.gunicorn_log_level or 'info'
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
 proc_name = 'morningai-api'
@@ -33,7 +34,7 @@ group = None
 tmp_upload_dir = None
 
 
-reload = os.getenv('GUNICORN_RELOAD', 'false').lower() == 'true'
+reload = settings.gunicorn_reload or False
 reload_engine = 'auto'
 
 limit_request_line = 4094

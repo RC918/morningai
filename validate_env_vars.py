@@ -5,6 +5,7 @@ Checks all required environment variables for cloud services
 """
 import os
 from datetime import datetime
+from common.config.settings import settings
 
 REQUIRED_ENV_VARS = {
     'Supabase': ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
@@ -29,7 +30,7 @@ def validate_env_vars():
         
         service_valid = True
         for var in vars_list:
-            value = os.getenv(var)
+            value = getattr(settings, var.lower(), None)
             if value:
                 if len(value) > 20:
                     display_value = f"{value[:10]}...{value[-5:]}"

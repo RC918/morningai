@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from supabase import create_client, Client
 from .embedding_tool import EmbeddingTool
+from common.config.settings import settings
 
 # TODO: Remove this sys.modules hack after fixing conftest patch targets (important-comment)
 # This hack ensures conftest patches work regardless of import path. (important-comment)
@@ -35,8 +36,8 @@ class FAQManagementTool:
             supabase_key: Supabase service role key
             embedding_tool: EmbeddingTool instance (creates new if None)
         """
-        self.supabase_url = supabase_url or os.getenv('SUPABASE_URL')
-        self.supabase_key = supabase_key or os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        self.supabase_url = supabase_url or settings.supabase_url
+        self.supabase_key = supabase_key or settings.supabase_service_role_key
         
         if not self.supabase_url or not self.supabase_key:
             raise ValueError("Supabase URL and key are required")

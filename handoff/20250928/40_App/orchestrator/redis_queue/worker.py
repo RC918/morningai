@@ -51,6 +51,7 @@ from persistence.db_writer import (
     upsert_task_done,
     upsert_task_error
 )
+from common.config.settings import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,8 +59,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
-APP_VERSION = os.getenv("APP_VERSION", "8.0.0")
+SENTRY_DSN = settings.sentry_dsn
+APP_VERSION = settings.app_version or "8.0.0"
 
 if SENTRY_DSN and SENTRY_DSN.strip():
     try:
@@ -68,7 +69,7 @@ if SENTRY_DSN and SENTRY_DSN.strip():
         
         sentry_sdk.init(
             dsn=SENTRY_DSN,
-            environment=os.getenv("ENVIRONMENT", "production"),
+            environment=settings.environment or "production",
             release=f"morningai@{APP_VERSION}",
             integrations=[RqIntegration()],
             traces_sample_rate=1.0,
@@ -80,7 +81,7 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 else:
     SENTRY_DSN = None
 
-redis_url = os.getenv("REDIS_URL")
+redis_url = settings.redis_url
 if not redis_url:
     import sys
     _api_backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../api-backend/src'))
@@ -89,14 +90,14 @@ if not redis_url:
     
     try:
         from utils.redis_config import get_secure_redis_url
-        redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+        redis_url = get_secure_redis_url(allow_local=settings.testing)
     except (ImportError, ValueError) as e:
         redis_url = "redis://localhost:6379/0"
         logger.warning(f"⚠️ Failed to get secure Redis URL: {e}, using fallback: {redis_url}")
 else:
     if not redis_url.startswith("rediss://") and not redis_url.startswith("redis://localhost"):
         logger.warning(f"⚠️ Redis URL does not use TLS: {redis_url[:30]}...")
-RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
+RQ_QUEUE_NAME = settings.rq_queue_name or "orchestrator"
 
 redis_retry = RedisRetry(ExponentialBackoff(base=1, cap=10), retries=5)
 redis = Redis.from_url(
@@ -127,7 +128,7 @@ redis_client_rq = Redis.from_url(
 )
 q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
-WORKER_ID = os.getenv("RENDER_INSTANCE_ID", os.getenv("HOSTNAME", "worker-local"))
+WORKER_ID = settings.render_instance_id or settings.hostname or "worker-local"
 shutdown_event = threading.Event()
 shutting_down = False
 cleanup_started = False
@@ -300,7 +301,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     Returns:
         dict: {"pr_url": str, "trace_id": str, "state": str}
     """
-    use_langgraph = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
+    use_langgraph = settings.use_langgraph or False
     
     if use_langgraph:
         from langgraph_orchestrator import run_orchestrator

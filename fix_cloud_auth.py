@@ -7,13 +7,14 @@ import os
 import sys
 import requests
 from datetime import datetime
+from common.config.settings import settings
 
 def validate_supabase_auth():
     """Validate and provide repair guidance for Supabase authentication"""
     print("🔍 Diagnosing Supabase authentication...")
     
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    supabase_url = settings.supabase_url
+    supabase_key = settings.supabase_service_role_key
     
     if not supabase_url or not supabase_key:
         print("❌ Missing environment variables")
@@ -56,8 +57,8 @@ def validate_cloudflare_auth():
     """Validate and provide repair guidance for Cloudflare authentication"""
     print("🔍 Diagnosing Cloudflare authentication...")
     
-    cf_token = os.getenv("CLOUDFLARE_API_TOKEN")
-    cf_zone = os.getenv("CLOUDFLARE_ZONE_ID")
+    cf_token = settings.cloudflare_api_token
+    cf_zone = settings.cloudflare_zone_id
     
     if not cf_token or not cf_zone:
         print("❌ Missing environment variables")
@@ -119,7 +120,7 @@ def validate_vercel_auth():
     """Validate and provide repair guidance for Vercel authentication"""
     print("🔍 Diagnosing Vercel authentication...")
     
-    vercel_token = os.getenv("VERCEL_TOKEN")
+    vercel_token = settings.vercel_token
     
     if not vercel_token:
         print("❌ Missing VERCEL_TOKEN environment variable")

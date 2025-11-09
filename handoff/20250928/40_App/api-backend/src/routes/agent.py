@@ -14,6 +14,7 @@ from src.middleware.auth_middleware import analyst_required, jwt_required, roles
 from src.utils.redis_config import get_secure_redis_url
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from redis_queue.worker import run_orchestrator_task
+from common.config.settings import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
+SENTRY_DSN = settings.sentry_dsn
 if SENTRY_DSN and SENTRY_DSN.strip():
     import sentry_sdk
 else:
@@ -45,7 +46,7 @@ bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
 
-redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+redis_url = get_secure_redis_url(allow_local=settings.testing)
 
 redis_kwargs = {
     "decode_responses": True,
@@ -72,7 +73,7 @@ if redis_url.startswith("rediss://"):
 
 redis_client_rq = Redis.from_url(redis_url, **redis_kwargs_rq)
 
-RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
+RQ_QUEUE_NAME = settings.rq_queue_name or "orchestrator"
 q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
 @bp.route("/faq", methods=["GET"])
@@ -102,7 +103,7 @@ def create_faq_task():
         }), 400
     
     try:
-        repo = os.getenv("GITHUB_REPO", "RC918/morningai")
+        repo = settings.github_repo or "RC918/morningai"
         task_id = str(uuid.uuid4())
         
         user_id = getattr(request, 'user_id', None)

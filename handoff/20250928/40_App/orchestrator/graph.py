@@ -8,6 +8,7 @@ from llm.faq_generator import generate_faq_content
 from utils.rate_limit import check_pr_rate_limit
 from governance.cost_tracker import get_cost_tracker, CostBudgetExceeded
 from governance.reputation_engine import get_reputation_engine
+from common.config.settings import settings
 
 def planner(goal:str):
     steps = ["analyze", "patch", "open PR", "check CI"]
@@ -31,7 +32,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
             reputation_engine.record_event(agent_id, 'cost_overrun', trace_id=trace_id, reason=str(e))
         return None, "budget_exceeded", trace_id
     
-    allowed, count = check_pr_rate_limit(trace_id, max_per_hour=10, redis_url=os.getenv("REDIS_URL"))
+    allowed, count = check_pr_rate_limit(trace_id, max_per_hour=10, redis_url=settings.redis_url)
     if not allowed:
         print(f"[Rate Limit] BLOCKED - Already created {count} PRs this hour")
         return None, "rate_limited", trace_id
@@ -55,7 +56,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     
     commit_file(repo, branch, "docs/FAQ.md", faq_content, f"docs: add FAQ.md (trace-id: {trace_id})")
     
-    is_test_mode = os.getenv("ORCHESTRATOR_TEST_MODE", "false").lower() == "true"
+    is_test_mode = settings.orchestrator_test_mode or False
     
     pr_body = f"""## Automated FAQ Update
 
@@ -175,6 +176,6 @@ if __name__ == "__main__":
     load_dotenv()
     ap = argparse.ArgumentParser()
     ap.add_argument("--goal", required=True)
-    ap.add_argument("--repo", default=os.getenv("GITHUB_REPO","RC918/morningai"))
+    ap.add_argument("--repo", default=settings.github_repo or "RC918/morningai")
     args = ap.parse_args()
     main(args.goal, args.repo)

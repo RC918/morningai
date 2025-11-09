@@ -21,12 +21,13 @@ import jwt
 import redis.exceptions
 
 from .redis_client import get_redis_client
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 PRE_AUTH_TOKEN_EXPIRY_MINUTES = 5
 MAX_ATTEMPTS_PER_TOKEN = 5
-REDIS_KEY_PREFIX = os.getenv("REDIS_KEY_PREFIX", "morningai")
+REDIS_KEY_PREFIX = settings.redis_key_prefix or "morningai"
 
 
 class PreAuthTokenManager:
@@ -34,12 +35,9 @@ class PreAuthTokenManager:
 
     def __init__(self):
         self.redis_client = get_redis_client()
-        self.jwt_secret = os.environ.get(
-            "JWT_SECRET_KEY", "test-secret-key-for-testing"
-        )
+        self.jwt_secret = settings.jwt_secret_key or "test-secret-key-for-testing"
 
-        env = os.environ.get("ENVIRONMENT", "").lower()
-        if env == "production":
+        if settings.is_production:
             if not self.jwt_secret or self.jwt_secret == "test-secret-key-for-testing":
                 raise RuntimeError(
                     "JWT_SECRET_KEY must be set to a secure value in production environment. "

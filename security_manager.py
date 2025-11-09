@@ -19,12 +19,13 @@ import secrets
 import jwt
 from functools import wraps
 from flask import request, jsonify, current_app
+from common.config.settings import settings
 
 class KeyManagementService:
     """密鑰管理服務"""
     
     def __init__(self, master_key: Optional[str] = None):
-        self.master_key = master_key or os.environ.get('MASTER_KEY', self._generate_master_key())
+        self.master_key = master_key or settings.master_key or self._generate_master_key()
         self.fernet = self._create_fernet_instance()
         self.keys_cache = {}
         

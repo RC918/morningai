@@ -18,6 +18,7 @@ import subprocess
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def get_repo_root(start_path: Optional[Path] = None) -> Path:
         >>> config_path = repo_root / 'config' / 'env.schema.yaml'
         >>> assert config_path.exists()
     """
-    env_root = os.environ.get('REPO_ROOT_PATH')
+    env_root = settings.repo_root_path if hasattr(settings, 'repo_root_path') else None
     if env_root:
         env_path = Path(env_root).resolve()
         if env_path.exists() and env_path.is_dir():
