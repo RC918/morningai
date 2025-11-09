@@ -170,7 +170,7 @@ def login():
         from .totp import check_2fa_required, is_2fa_feature_enabled
         from supabase import create_client
         
-        if check_2fa_required(user['id']):
+        if check_2fa_required(user['id'], user['role']):
             next_step = 'enroll_2fa'
             scope = 'enroll'
             
@@ -217,7 +217,7 @@ def login():
                         httponly=True,
                         secure=COOKIE_SECURE,
                         samesite=COOKIE_SAMESITE,
-                        path='/api/auth/v2/totp'
+                        path='/api/auth/v2/2fa'
                     )
                     
                     logger.info(f"Pre-auth token set for user {user['id']}")
