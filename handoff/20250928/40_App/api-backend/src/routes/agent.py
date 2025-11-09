@@ -70,10 +70,17 @@ redis_client_rq = None
 q = None
 
 def get_agent_redis_client():
-    """Get or create Redis client for agent routes (lazy initialization)"""
+    """Get or create Redis client for agent routes (lazy initialization)
+    
+    Returns None if redis_client is explicitly set to None (e.g., by tests).
+    """
     global _redis_client, redis_client
-    if redis_client is not None:
+    if 'redis_client' in globals() and redis_client is not None:
         return redis_client
+    elif 'redis_client' in globals() and redis_client is None and _redis_client is not None:
+        # redis_client was explicitly set to None, but _redis_client exists
+        return None
+    
     if _redis_client is None:
         redis_url = AGENT_REDIS_URL
         redis_kwargs = {
