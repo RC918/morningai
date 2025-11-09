@@ -21,9 +21,6 @@ from common.config.settings import get_settings, settings
 
 logger = logging.getLogger(__name__)
 
-ENVIRONMENT = settings.environment or 'development'
-IS_PRODUCTION = settings.is_production
-
 # Token Configuration
 ACCESS_TOKEN_EXPIRY_MINUTES = 15
 REFRESH_TOKEN_EXPIRY_DAYS = 7
@@ -33,14 +30,24 @@ def _get_jwt_secret():
     """Get JWT secret key from settings at runtime"""
     return get_settings().jwt_secret_key or 'test-secret-key-for-testing'
 
-# Cookie Configuration
-COOKIE_SECURE = settings.cookie_secure if settings.cookie_secure is not None else (True if IS_PRODUCTION else False)
+def _get_cookie_secure():
+    """Get cookie secure setting at runtime"""
+    s = get_settings()
+    if s.cookie_secure is not None:
+        return s.cookie_secure
+    return s.is_production
+
+def _get_cookie_domain():
+    """Get cookie domain setting at runtime"""
+    return get_settings().cookie_domain
+
+def _get_cookie_path():
+    """Get cookie path setting at runtime"""
+    return get_settings().cookie_path or '/'
+
+# Cookie Configuration (constants that don't depend on runtime state)
 COOKIE_SAMESITE = settings.cookie_samesite or 'Lax'  # Configurable: 'Strict', 'Lax', or 'None'
 COOKIE_HTTPONLY = True
-COOKIE_DOMAIN = settings.cookie_domain  # Optional: restrict to specific domain
-COOKIE_PATH = settings.cookie_path or '/'  # Optional: restrict to specific path
-
-ENABLE_MOCK_USERS = settings.enable_mock_users if settings.enable_mock_users is not None else False
 
 # CSRF Configuration
 CSRF_TOKEN_LENGTH = 32  # bytes
@@ -60,28 +67,28 @@ def validate_security_config():
     
     jwt_secret = _get_jwt_secret()
     if not jwt_secret:
-        if IS_PRODUCTION:
+        if get_settings().is_production:
             errors.append("JWT_SECRET_KEY environment variable is not set")
         else:
             logger.warning(
                 "JWT_SECRET_KEY not set in non-production environment. "
                 "Using fallback test secret. DO NOT USE IN PRODUCTION."
             )
-    elif IS_PRODUCTION:
+    elif get_settings().is_production:
         if len(jwt_secret) < 32:
             errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(jwt_secret)})")
         if jwt_secret in ['your-secret-key', 'secret', 'changeme', 'test', 'test-secret-key-for-testing']:
             errors.append("JWT_SECRET_KEY is using a known weak/default value")
     
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
-        errors.append("ENABLE_MOCK_USERS must be false in production (current: true)")
+    if get_settings().is_production and get_settings().enable_mock_users:
+        errors.append("get_settings().enable_mock_users must be false in production (current: true)")
     
     # P0-3: Validate Cookie Configuration
-    if COOKIE_SAMESITE == 'None' and not COOKIE_SECURE:
-        errors.append("COOKIE_SAMESITE=None requires COOKIE_SECURE=True (browsers will reject)")
+    if COOKIE_SAMESITE == 'None' and not _get_cookie_secure():
+        errors.append("COOKIE_SAMESITE=None requires _get_cookie_secure()=True (browsers will reject)")
     
-    if IS_PRODUCTION and not COOKIE_SECURE:
-        warnings.append("COOKIE_SECURE should be True in production")
+    if get_settings().is_production and not _get_cookie_secure():
+        warnings.append("_get_cookie_secure() should be True in production")
     
     if COOKIE_SAMESITE not in ['Strict', 'Lax', 'None']:
         errors.append(f"COOKIE_SAMESITE must be 'Strict', 'Lax', or 'None' (current: {COOKIE_SAMESITE})")
@@ -98,8 +105,8 @@ def validate_security_config():
     logger.info("Security configuration validated successfully")
     logger.info(f"Environment: {ENVIRONMENT}")
     logger.info(f"Cookie SameSite: {COOKIE_SAMESITE}")
-    logger.info(f"Cookie Secure: {COOKIE_SECURE}")
-    logger.info(f"Mock Users Enabled: {ENABLE_MOCK_USERS}")
+    logger.info(f"Cookie Secure: {_get_cookie_secure()}")
+    logger.info(f"Mock Users Enabled: {get_settings().enable_mock_users}")
 
 
 def get_redis_client():
@@ -305,14 +312,14 @@ def create_cookie_config(name: str, value: str, max_age_seconds: int, httponly: 
         'key': name,
         'value': value,
         'max_age': max_age_seconds,
-        'secure': COOKIE_SECURE,
+        'secure': _get_cookie_secure(),
         'httponly': httponly,
         'samesite': COOKIE_SAMESITE,
-        'path': COOKIE_PATH
+        'path': _get_cookie_path()
     }
     
-    if COOKIE_DOMAIN:
-        config['domain'] = COOKIE_DOMAIN
+    if _get_cookie_domain():
+        config['domain'] = _get_cookie_domain()
     
     return config
 
@@ -357,12 +364,12 @@ def clear_auth_cookies(response):
     """
     cookie_attrs = {
         'max_age': 0,
-        'path': COOKIE_PATH,
-        'secure': COOKIE_SECURE,
+        'path': _get_cookie_path(),
+        'secure': _get_cookie_secure(),
         'samesite': COOKIE_SAMESITE
     }
-    if COOKIE_DOMAIN:
-        cookie_attrs['domain'] = COOKIE_DOMAIN
+    if _get_cookie_domain():
+        cookie_attrs['domain'] = _get_cookie_domain()
     
     response.set_cookie('access_token', '', **cookie_attrs)
     response.set_cookie('refresh_token', '', **cookie_attrs)
@@ -374,10 +381,10 @@ def _get_mock_users() -> Dict:
     """
     Get mock users for development/testing
     
-    WARNING: Only available when ENABLE_MOCK_USERS=true
+    WARNING: Only available when get_settings().enable_mock_users=true
     In production, this returns empty dict
     """
-    if not ENABLE_MOCK_USERS:
+    if not get_settings().enable_mock_users:
         return {}
     
     return {
@@ -407,16 +414,16 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     Authenticate user with email and password
     
     In production: Uses Supabase Auth
-    In development: Uses mock users if ENABLE_MOCK_USERS=true, otherwise Supabase Auth
+    In development: Uses mock users if get_settings().enable_mock_users=true, otherwise Supabase Auth
     
     Returns:
         User dict or None if authentication failed
     """
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    if get_settings().is_production and get_settings().enable_mock_users:
         logger.error("Mock users should not be enabled in production")
         return None
     
-    if ENABLE_MOCK_USERS:
+    if get_settings().enable_mock_users:
         mock_users = _get_mock_users()
         
         user = mock_users.get(email)
@@ -443,7 +450,7 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     supabase_anon_key = get_settings().supabase_anon_key
     
     if not supabase_url or not supabase_anon_key:
-        logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set when ENABLE_MOCK_USERS=false")
+        logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set when get_settings().enable_mock_users=false")
         return None
     
     try:
@@ -495,16 +502,16 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
     Get user by ID
     
     In production: Uses Supabase Auth
-    In development: Uses mock users if ENABLE_MOCK_USERS=true, otherwise Supabase Auth
+    In development: Uses mock users if get_settings().enable_mock_users=true, otherwise Supabase Auth
     
     Returns:
         User dict or None if not found
     """
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    if get_settings().is_production and get_settings().enable_mock_users:
         logger.error("Mock users should not be enabled in production")
         return None
     
-    if ENABLE_MOCK_USERS:
+    if get_settings().enable_mock_users:
         mock_users = _get_mock_users()
         
         for user in mock_users.values():
@@ -526,7 +533,7 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
     supabase_service_key = get_settings().supabase_service_role_key
     
     if not supabase_url or not supabase_service_key:
-        logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set when ENABLE_MOCK_USERS=false")
+        logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set when get_settings().enable_mock_users=false")
         return None
     
     try:
