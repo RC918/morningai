@@ -21,26 +21,144 @@ from common.config.settings import get_settings, settings
 
 logger = logging.getLogger(__name__)
 
-ENVIRONMENT = settings.environment or 'development'
-IS_PRODUCTION = settings.is_production
-
 # Token Configuration
 ACCESS_TOKEN_EXPIRY_MINUTES = 15
 REFRESH_TOKEN_EXPIRY_DAYS = 7
 JWT_ALGORITHM = 'HS256'
 
+def _as_bool(val):
+    """Convert value to boolean"""
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return False
+    s = str(val).strip().lower()
+    return s in ("1", "true", "yes", "on")
+
+def is_testing_mode():
+    """Check if running in testing mode (dynamic check)"""
+    try:
+        from flask import current_app
+        if current_app:
+            v = current_app.config.get("TESTING")
+            if v is not None:
+                return _as_bool(v)
+    except Exception:
+        pass
+    return _as_bool(os.getenv("TESTING"))
+
+def is_production():
+    """Check if running in production mode (dynamic check)
+    
+    Priority order:
+    1. os.environ ENVIRONMENT (explicit production setting - highest priority for tests)
+    2. os.environ FLASK_ENV (fallback if ENVIRONMENT not set)
+    3. Flask app.config ENVIRONMENT (explicit production setting)
+    4. Flask app.config FLASK_ENV (fallback if ENVIRONMENT not set)
+    5. Flask app.config TESTING (if True and no explicit env, return False)
+    6. settings.is_production (fallback)
+    
+    This ensures tests can explicitly set ENVIRONMENT=production to test production
+    behavior, even when FLASK_ENV=development or TESTING=True.
+    """
+    env = os.environ.get("ENVIRONMENT")
+    if env:
+        return env.lower() in ("production", "prod")
+    
+    flask_env = os.environ.get("FLASK_ENV")
+    if flask_env:
+        return flask_env.lower() in ("production", "prod")
+    
+    try:
+        from flask import current_app
+        if current_app:
+            env = current_app.config.get("ENVIRONMENT")
+            if env:
+                return str(env).lower() in ("production", "prod")
+            
+            flask_env = current_app.config.get("FLASK_ENV")
+            if flask_env:
+                return str(flask_env).lower() in ("production", "prod")
+    except Exception:
+        pass
+    
+    try:
+        from flask import current_app
+        if current_app and _as_bool(current_app.config.get("TESTING")):
+            return False
+    except Exception:
+        pass
+    
+    try:
+        return bool(get_settings().is_production)
+    except Exception:
+        return False
+
+def is_mock_users_enabled():
+    """Check if mock users are enabled (dynamic check)
+    
+    Test mode: Default to True unless explicitly overridden
+    Non-test mode: Default to False unless explicitly enabled
+    
+    Priority order in test mode:
+    1. os.environ ENABLE_MOCK_USERS (explicit override)
+    2. Flask app.config ENABLE_MOCK_USERS (explicit override)
+    3. Default to True (test mode default)
+    
+    Priority order in non-test mode:
+    1. Flask app.config ENABLE_MOCK_USERS (explicit override)
+    2. os.environ ENABLE_MOCK_USERS (explicit override)
+    3. settings.enable_mock_users (fallback)
+    4. Default to False
+    """
+    if is_testing_mode():
+        env_v = os.getenv("ENABLE_MOCK_USERS")
+        if env_v is not None:
+            return _as_bool(env_v)
+        
+        try:
+            from flask import current_app
+            if current_app and "ENABLE_MOCK_USERS" in current_app.config:
+                v = current_app.config.get("ENABLE_MOCK_USERS")
+                if v is not None:
+                    return _as_bool(v)
+        except Exception:
+            pass
+        
+        return True
+    
+    try:
+        from flask import current_app
+        if current_app and "ENABLE_MOCK_USERS" in current_app.config:
+            v = current_app.config.get("ENABLE_MOCK_USERS")
+            if v is not None:
+                return _as_bool(v)
+    except Exception:
+        pass
+    
+    env_v = os.getenv("ENABLE_MOCK_USERS")
+    if env_v is not None:
+        return _as_bool(env_v)
+    
+    try:
+        v = getattr(get_settings(), "enable_mock_users", None)
+        if v is not None:
+            return _as_bool(v)
+    except Exception:
+        pass
+    
+    return False
+
 def _get_jwt_secret():
     """Get JWT secret key from settings at runtime"""
     return get_settings().jwt_secret_key or 'test-secret-key-for-testing'
 
-# Cookie Configuration
-COOKIE_SECURE = settings.cookie_secure if settings.cookie_secure is not None else (True if IS_PRODUCTION else False)
+# Cookie Configuration (read from settings at module load - these are less critical for tests)
+COOKIE_SECURE = settings.cookie_secure if settings.cookie_secure is not None else (True if settings.is_production else False)
 COOKIE_SAMESITE = settings.cookie_samesite or 'Lax'  # Configurable: 'Strict', 'Lax', or 'None'
 COOKIE_HTTPONLY = True
 COOKIE_DOMAIN = settings.cookie_domain  # Optional: restrict to specific domain
 COOKIE_PATH = settings.cookie_path or '/'  # Optional: restrict to specific path
-
-ENABLE_MOCK_USERS = settings.enable_mock_users if settings.enable_mock_users is not None else False
 
 # CSRF Configuration
 CSRF_TOKEN_LENGTH = 32  # bytes
@@ -57,34 +175,43 @@ def validate_security_config():
     """
     errors = []
     warnings = []
+    jwt_errors = []
+    
+    prod = is_production()
+    mock_users = is_mock_users_enabled()
     
     jwt_secret = _get_jwt_secret()
     if not jwt_secret:
-        if IS_PRODUCTION:
-            errors.append("JWT_SECRET_KEY environment variable is not set")
+        if prod:
+            jwt_errors.append("JWT_SECRET_KEY environment variable is not set")
         else:
             logger.warning(
                 "JWT_SECRET_KEY not set in non-production environment. "
                 "Using fallback test secret. DO NOT USE IN PRODUCTION."
             )
-    elif IS_PRODUCTION:
+    elif prod:
         if len(jwt_secret) < 32:
-            errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(jwt_secret)})")
+            jwt_errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(jwt_secret)})")
         if jwt_secret in ['your-secret-key', 'secret', 'changeme', 'test', 'test-secret-key-for-testing']:
-            errors.append("JWT_SECRET_KEY is using a known weak/default value")
+            jwt_errors.append("JWT_SECRET_KEY is using a known weak/default value")
     
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    if prod and mock_users:
         errors.append("ENABLE_MOCK_USERS must be false in production (current: true)")
     
     # P0-3: Validate Cookie Configuration
     if COOKIE_SAMESITE == 'None' and not COOKIE_SECURE:
         errors.append("COOKIE_SAMESITE=None requires COOKIE_SECURE=True (browsers will reject)")
     
-    if IS_PRODUCTION and not COOKIE_SECURE:
+    if prod and not COOKIE_SECURE:
         warnings.append("COOKIE_SECURE should be True in production")
     
     if COOKIE_SAMESITE not in ['Strict', 'Lax', 'None']:
         errors.append(f"COOKIE_SAMESITE must be 'Strict', 'Lax', or 'None' (current: {COOKIE_SAMESITE})")
+    
+    if jwt_errors:
+        for error in jwt_errors:
+            logger.error(f"Security configuration error: {error}")
+        raise RuntimeError(f"Invalid JWT secret in production: {'; '.join(jwt_errors)}")
     
     if errors:
         for error in errors:
@@ -96,10 +223,11 @@ def validate_security_config():
             logger.warning(f"Security configuration warning: {warning}")
     
     logger.info("Security configuration validated successfully")
-    logger.info(f"Environment: {ENVIRONMENT}")
+    env_name = settings.environment or 'development'
+    logger.info(f"Environment: {env_name}")
     logger.info(f"Cookie SameSite: {COOKIE_SAMESITE}")
     logger.info(f"Cookie Secure: {COOKIE_SECURE}")
-    logger.info(f"Mock Users Enabled: {ENABLE_MOCK_USERS}")
+    logger.info(f"Mock Users Enabled: {is_mock_users_enabled()}")
 
 
 def get_redis_client():
@@ -377,7 +505,7 @@ def _get_mock_users() -> Dict:
     WARNING: Only available when ENABLE_MOCK_USERS=true
     In production, this returns empty dict
     """
-    if not ENABLE_MOCK_USERS:
+    if not is_mock_users_enabled():
         return {}
     
     return {
@@ -412,11 +540,11 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     Returns:
         User dict or None if authentication failed
     """
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    if is_production() and is_mock_users_enabled():
         logger.error("Mock users should not be enabled in production")
         return None
     
-    if ENABLE_MOCK_USERS:
+    if is_mock_users_enabled():
         mock_users = _get_mock_users()
         
         user = mock_users.get(email)
@@ -500,11 +628,11 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
     Returns:
         User dict or None if not found
     """
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    if is_production() and is_mock_users_enabled():
         logger.error("Mock users should not be enabled in production")
         return None
     
-    if ENABLE_MOCK_USERS:
+    if is_mock_users_enabled():
         mock_users = _get_mock_users()
         
         for user in mock_users.values():

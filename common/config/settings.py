@@ -646,7 +646,7 @@ class Settings(BaseSettings):
     
     
     rate_limit_requests: int = Field(
-        default=100,
+        default=60,
         description="Maximum requests per window"
     )
     
@@ -735,6 +735,12 @@ class Settings(BaseSettings):
     enable_mock_users: bool = Field(
         default=False,
         description="Enable mock users for development/testing"
+    )
+    
+    feature_cookie_auth: bool = Field(
+        default=False,
+        alias="FEATURE_COOKIE_AUTH",
+        description="Enable cookie-based authentication (token in cookie instead of JSON body)"
     )
     
     use_langgraph: bool = Field(
