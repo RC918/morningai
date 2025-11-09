@@ -716,6 +716,12 @@ class Settings(BaseSettings):
         description="Enable Two-Factor Authentication (2FA/TOTP) feature"
     )
     
+    force_enable_2fa_in_tests: bool = Field(
+        default=False,
+        alias="FORCE_ENABLE_2FA_IN_TESTS",
+        description="Force enable 2FA in test mode (overrides TESTING=True check)"
+    )
+    
     feature_2fa_preauth: bool = Field(
         default=False,
         description="Enable Pre-Auth Token for 2FA (Week 1 - reduces password transmission)"

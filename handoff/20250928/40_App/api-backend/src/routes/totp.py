@@ -99,7 +99,11 @@ def is_2fa_feature_enabled() -> bool:
         True if FEATURE_2FA_ENABLED is set to 'true' (case-insensitive), False otherwise
         False if running in Flask test mode (TESTING=True) unless forced
     """
+    import os
     from common.config.settings import settings
+    
+    if os.getenv('FORCE_ENABLE_2FA_IN_TESTS', '').lower() == 'true':
+        return True
     
     if settings.force_enable_2fa_in_tests if hasattr(settings, 'force_enable_2fa_in_tests') else False:
         return settings.feature_2fa_enabled or True
