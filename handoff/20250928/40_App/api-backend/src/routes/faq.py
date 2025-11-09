@@ -56,9 +56,6 @@ redis_kwargs = {
     "retry_on_timeout": True
 }
 
-if redis_url.startswith("rediss://"):
-    redis_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
-
 redis_client = Redis.from_url(redis_url, **redis_kwargs)
 
 CACHE_TTL = settings.faq_cache_ttl or 300

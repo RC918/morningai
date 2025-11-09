@@ -40,11 +40,8 @@ def create_redis_client():
             if not redis_url.startswith("rediss://"):
                 logger.warning("⚠️ Redis URL not using TLS (rediss://), recommend upgrading for security")
             
-            ssl_cert_reqs = ssl.CERT_REQUIRED if redis_url.startswith("rediss://") else None
-            
             client = redis.from_url(
                 redis_url,
-                ssl_cert_reqs=ssl_cert_reqs,
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,

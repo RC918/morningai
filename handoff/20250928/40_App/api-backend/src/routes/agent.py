@@ -56,9 +56,6 @@ redis_kwargs = {
     "retry_on_timeout": True
 }
 
-if redis_url.startswith("rediss://"):
-    redis_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
-
 redis_client = Redis.from_url(redis_url, **redis_kwargs)
 
 redis_kwargs_rq = {
@@ -67,9 +64,6 @@ redis_kwargs_rq = {
     "retry": retry,
     "retry_on_timeout": True
 }
-
-if redis_url.startswith("rediss://"):
-    redis_kwargs_rq["ssl_cert_reqs"] = ssl.CERT_REQUIRED
 
 redis_client_rq = Redis.from_url(redis_url, **redis_kwargs_rq)
 
