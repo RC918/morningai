@@ -731,6 +731,12 @@ class Settings(BaseSettings):
         description="Enable mock users for development/testing"
     )
     
+    feature_cookie_auth: bool = Field(
+        default=False,
+        alias="FEATURE_COOKIE_AUTH",
+        description="Enable cookie-based authentication (token in cookie instead of JSON body)"
+    )
+    
     use_langgraph: bool = Field(
         default=False,
         description="Enable LangGraph orchestrator mode"
