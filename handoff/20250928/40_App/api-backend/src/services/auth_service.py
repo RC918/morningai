@@ -98,10 +98,10 @@ def is_mock_users_enabled():
     """Check if mock users are enabled (dynamic check)
     
     Priority order:
-    1. Flask app.config ENABLE_MOCK_USERS (explicit setting)
-    2. os.environ ENABLE_MOCK_USERS (explicit setting)
-    3. settings.enable_mock_users (explicit setting)
-    4. Default to True if TESTING mode (for test compatibility)
+    1. Flask app.config ENABLE_MOCK_USERS (explicit override)
+    2. os.environ ENABLE_MOCK_USERS (explicit override)
+    3. Default to True if TESTING mode (for test compatibility)
+    4. settings.enable_mock_users (fallback for non-test environments)
     """
     try:
         from flask import current_app
@@ -116,15 +116,15 @@ def is_mock_users_enabled():
     if env_v is not None:
         return _as_bool(env_v)
     
+    if is_testing_mode():
+        return True
+    
     try:
         v = getattr(get_settings(), "enable_mock_users", None)
         if v is not None:
             return _as_bool(v)
     except Exception:
         pass
-    
-    if is_testing_mode():
-        return True
     
     return False
 
