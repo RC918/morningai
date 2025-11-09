@@ -167,6 +167,20 @@ if not flask_secret:
         flask_secret = "asdf#FGSgvasgf$5$WGT"
 app.config["SECRET_KEY"] = flask_secret
 
+def _as_bool(val):
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return False
+    s = str(val).strip().lower()
+    return s in ("1", "true", "yes", "on")
+
+app.config["ENABLE_MOCK_USERS"] = _as_bool(os.getenv("ENABLE_MOCK_USERS"))
+app.config["TESTING"] = _as_bool(os.getenv("TESTING"))
+rate_limit_env = os.getenv("RATE_LIMIT_REQUESTS")
+if rate_limit_env:
+    app.config["RATE_LIMIT_REQUESTS"] = int(rate_limit_env)
+
 cors_origins = (app_settings.cors_origins or "http://localhost:5173,http://localhost:5174").split(",")
 cors_origins = [origin.strip() for origin in cors_origins]
 

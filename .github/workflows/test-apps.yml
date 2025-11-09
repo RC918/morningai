@@ -46,6 +46,7 @@ jobs:
           FLASK_ENV: testing
           TESTING: true
           ENABLE_MOCK_USERS: true
+          RATE_LIMIT_REQUESTS: 60
   
   test-orchestrator:
     name: Orchestrator Tests

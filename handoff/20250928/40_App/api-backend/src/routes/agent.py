@@ -55,13 +55,25 @@ redis_client = None
 redis_client_rq = None
 q = None
 
+def _is_testing_mode():
+    """Check if running in testing mode (dynamic check)"""
+    try:
+        from flask import current_app
+        if current_app:
+            v = current_app.config.get("TESTING")
+            if v is not None:
+                return bool(v)
+    except Exception:
+        pass
+    return (os.getenv("TESTING", "").lower() in ("1", "true", "yes", "on"))
+
 def get_agent_redis_client():
     """Get or create Redis client for agent routes (lazy initialization)"""
     global _redis_client, redis_client
     if redis_client is not None:
         return redis_client
     if _redis_client is None:
-        redis_url = get_secure_redis_url(allow_local=settings.testing)
+        redis_url = get_secure_redis_url(allow_local=_is_testing_mode())
         redis_kwargs = {
             "decode_responses": True,
             "socket_connect_timeout": 5,
@@ -79,7 +91,7 @@ def get_agent_redis_client_rq():
     if redis_client_rq is not None:
         return redis_client_rq
     if _redis_client_rq is None:
-        redis_url = get_secure_redis_url(allow_local=settings.testing)
+        redis_url = get_secure_redis_url(allow_local=_is_testing_mode())
         redis_kwargs_rq = {
             "socket_connect_timeout": 5,
             "socket_timeout": 30,
