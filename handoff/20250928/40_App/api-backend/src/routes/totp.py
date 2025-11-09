@@ -793,7 +793,7 @@ def verify_totp_login():
             httponly=True,
             secure=COOKIE_SECURE,
             samesite=COOKIE_SAMESITE,
-            path='/api/auth/v2/totp'
+            path='/api/auth/v2/2fa'
         )
         
         logger.info(f"2FA login completed successfully for user {user_id}")

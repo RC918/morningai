@@ -505,6 +505,17 @@ def challenge_2fa():
         response = make_response(jsonify(response_data), 200)
         set_auth_cookies(response, access_token, refresh_token, access_expiry_ms)
 
+        from ..services.auth_service import COOKIE_SECURE, COOKIE_SAMESITE
+        response.set_cookie(
+            'pre_auth_token',
+            '',
+            max_age=0,
+            httponly=True,
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
+            path='/api/auth/v2/2fa'
+        )
+
         logger.info(f"2FA login completed successfully for user {user_id}")
         return response
 

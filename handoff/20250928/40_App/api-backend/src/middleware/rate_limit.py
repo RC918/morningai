@@ -39,6 +39,14 @@ def get_rate_limit_redis():
     if redis_client is not None:
         return redis_client
     
+    try:
+        from flask import current_app
+        if current_app and current_app.config.get("TESTING"):
+            if os.getenv("ENABLE_RATE_LIMIT_IN_TESTS") != "true":
+                return None
+    except (RuntimeError, ImportError):
+        pass
+    
     now = time.monotonic()
     
     with redis_state_lock:
