@@ -95,7 +95,14 @@ def is_production():
         return False
 
 def is_mock_users_enabled():
-    """Check if mock users are enabled (dynamic check)"""
+    """Check if mock users are enabled (dynamic check)
+    
+    Priority order:
+    1. Flask app.config ENABLE_MOCK_USERS (explicit setting)
+    2. os.environ ENABLE_MOCK_USERS (explicit setting)
+    3. settings.enable_mock_users (explicit setting)
+    4. Default to True if TESTING mode (for test compatibility)
+    """
     try:
         from flask import current_app
         if current_app:
@@ -104,14 +111,22 @@ def is_mock_users_enabled():
                 return _as_bool(v)
     except Exception:
         pass
+    
     env_v = os.getenv("ENABLE_MOCK_USERS")
     if env_v is not None:
         return _as_bool(env_v)
+    
     try:
         v = getattr(get_settings(), "enable_mock_users", None)
-        return _as_bool(v)
+        if v is not None:
+            return _as_bool(v)
     except Exception:
-        return False
+        pass
+    
+    if is_testing_mode():
+        return True
+    
+    return False
 
 def _get_jwt_secret():
     """Get JWT secret key from settings at runtime"""
