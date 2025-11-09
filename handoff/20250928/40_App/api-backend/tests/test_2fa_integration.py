@@ -127,8 +127,8 @@ def pre_auth_token_enroll(mock_redis):
     manager = get_pre_auth_manager()
     token = manager.generate_token(
         user_id="user-001",
-        scope="enroll",
-        ttl=300
+        email="test@example.com",
+        scope="enroll"
     )
     return token
 
@@ -141,8 +141,8 @@ def pre_auth_token_challenge(mock_redis):
     manager = get_pre_auth_manager()
     token = manager.generate_token(
         user_id="user-001",
-        scope="challenge",
-        ttl=300
+        email="test@example.com",
+        scope="challenge"
     )
     return token
 
