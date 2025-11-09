@@ -1,0 +1,88 @@
+# Git and version control
+.git/
+.github/
+.gitignore
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache and compiled files
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+*.so
+.Python
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Type checking and linting
+.mypy_cache/
+.ruff_cache/
+.pylint.d/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Node.js (for frontend apps)
+**/node_modules/
+**/.next/
+**/.turbo/
+**/.cache/
+**/dist/
+**/build/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Devin attachments and local files
+attachments/
+*.md.backup
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.md
+
+# Test files (not needed in production containers)
+tests/
+**/test_*.py
+**/*_test.py
+
+# CI/CD configs (not needed in container)
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Environment files (secrets should come from env vars)
+.env
+.env.*
+!.env.example
+
+# Keep what we need for Docker builds
+!monitoring/**
+!common/**
+!orchestrator/**
+!handoff/**
+!agents/**

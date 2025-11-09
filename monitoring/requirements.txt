@@ -14,3 +14,7 @@ sentry-sdk>=1.40.0
 # Additional dependencies
 python-dotenv>=1.0.0  # For loading .env files
 requests>=2.31.0      # HTTP client (for Slack integration)
+
+# Required for common.config.settings module
+pydantic>=2.0.0
+pydantic-settings>=2.0.0

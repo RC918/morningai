@@ -3,6 +3,17 @@ Braintrust Trace Processing Service
 
 Receives traces from Vercel and processes them for monitoring and cost analysis.
 """
+# Fix deployment import path: Add repo root to sys.path before importing common
+from pathlib import Path
+import sys
+
+processor_file_path = Path(__file__).resolve()
+for parent in [processor_file_path] + list(processor_file_path.parents):
+    if (parent / 'pyproject.toml').exists() or (parent / '.git').exists() or (parent / 'env.schema.yaml').exists() or (parent / 'common').is_dir():
+        if str(parent) not in sys.path:
+            sys.path.insert(0, str(parent))
+        break
+
 import os
 import logging
 from datetime import datetime
