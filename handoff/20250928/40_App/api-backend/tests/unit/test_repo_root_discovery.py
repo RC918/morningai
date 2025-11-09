@@ -372,3 +372,73 @@ class TestCacheBehavior:
         result2 = repo_root_module.get_repo_root()
         assert call_count == 2
         assert result1 == result2
+
+
+class TestGitIntegration:
+    """Integration tests using real git repositories."""
+
+    def test_git_success_from_subdirectory(self, tmp_path, repo_root_module):
+        """Test git success by creating a real git repository."""
+        repo_dir = tmp_path / "test_repo"
+        repo_dir.mkdir()
+        
+        subprocess.run(["git", "init"], cwd=repo_dir, check=True, capture_output=True)
+        
+        subdir = repo_dir / "a" / "b" / "c"
+        subdir.mkdir(parents=True)
+        
+        if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
+            repo_root_module.get_repo_root.cache_clear()
+        
+        result = repo_root_module.get_repo_root(start_path=subdir)
+        assert result == repo_dir
+
+    def test_git_success_from_root(self, tmp_path, repo_root_module):
+        """Test git success when called from repository root."""
+        repo_dir = tmp_path / "test_repo"
+        repo_dir.mkdir()
+        
+        subprocess.run(["git", "init"], cwd=repo_dir, check=True, capture_output=True)
+        
+        if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
+            repo_root_module.get_repo_root.cache_clear()
+        
+        result = repo_root_module.get_repo_root(start_path=repo_dir)
+        assert result == repo_dir
+
+    def test_sentinel_fallback_when_not_in_git_repo(self, tmp_path, repo_root_module):
+        """Test sentinel file search when not in a git repository."""
+        repo_dir = tmp_path / "test_repo"
+        repo_dir.mkdir()
+        
+        (repo_dir / "config").mkdir()
+        (repo_dir / "config" / "env.schema.yaml").touch()
+        
+        subdir = repo_dir / "deep" / "nested" / "path"
+        subdir.mkdir(parents=True)
+        
+        if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
+            repo_root_module.get_repo_root.cache_clear()
+        
+        result = repo_root_module.get_repo_root(start_path=subdir)
+        assert result == repo_dir
+
+    def test_multiple_sentinel_files(self, tmp_path, repo_root_module):
+        """Test that any sentinel file is sufficient to identify repo root."""
+        for sentinel in [".git", "pyproject.toml", "package.json"]:
+            repo_dir = tmp_path / f"test_repo_{sentinel.replace('.', '_')}"
+            repo_dir.mkdir()
+            
+            if sentinel == ".git":
+                (repo_dir / sentinel).mkdir()
+            else:
+                (repo_dir / sentinel).touch()
+            
+            subdir = repo_dir / "src" / "utils"
+            subdir.mkdir(parents=True)
+            
+            if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
+                repo_root_module.get_repo_root.cache_clear()
+            
+            result = repo_root_module.get_repo_root(start_path=subdir)
+            assert result == repo_dir, f"Failed for sentinel: {sentinel}"
