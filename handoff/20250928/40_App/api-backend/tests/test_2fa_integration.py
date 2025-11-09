@@ -159,7 +159,7 @@ def mock_supabase():
     def table_side_effect(name):
         if name == "user_2fa":
             return make_user_2fa_table()
-        if name in ("backup_codes", "user_backup_codes"):
+        if name in ("backup_codes", "user_backup_codes", "totp_backup_codes"):
             return make_backup_codes_table()
         default_table = MagicMock(name=f"{name}.table")
         default_table.select.return_value.eq.return_value.execute.return_value = Result([])
