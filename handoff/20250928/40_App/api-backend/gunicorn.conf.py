@@ -5,6 +5,13 @@ Gunicorn configuration file for MorningAI API Backend
 # This is required because gunicorn may run from api-backend/ directory where common/ is not visible
 from pathlib import Path
 import sys
+import os
+
+if 'PYTHONPATH' in os.environ:
+    pythonpath_entries = os.environ['PYTHONPATH'].split(os.pathsep)
+    for entry in reversed(pythonpath_entries):
+        if entry and entry not in sys.path:
+            sys.path.insert(0, entry)
 
 config_file_path = Path(__file__).resolve()
 for parent in [config_file_path] + list(config_file_path.parents):
@@ -14,7 +21,6 @@ for parent in [config_file_path] + list(config_file_path.parents):
         break
 
 import multiprocessing
-import os
 from common.config.settings import settings
 
 bind = f"0.0.0.0:{settings.port or 8000}"

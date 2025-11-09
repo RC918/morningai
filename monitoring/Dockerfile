@@ -23,6 +23,9 @@ COPY common /app/common
 # Copy application code
 COPY monitoring/braintrust_processor.py .
 
+# Set PYTHONPATH as fallback for sys.path bootstrap
+ENV PYTHONPATH=/app
+
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser

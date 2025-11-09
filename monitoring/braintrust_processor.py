@@ -6,6 +6,13 @@ Receives traces from Vercel and processes them for monitoring and cost analysis.
 # Fix deployment import path: Add repo root to sys.path before importing common
 from pathlib import Path
 import sys
+import os
+
+if 'PYTHONPATH' in os.environ:
+    pythonpath_entries = os.environ['PYTHONPATH'].split(os.pathsep)
+    for entry in reversed(pythonpath_entries):
+        if entry and entry not in sys.path:
+            sys.path.insert(0, entry)
 
 processor_file_path = Path(__file__).resolve()
 for parent in [processor_file_path] + list(processor_file_path.parents):
@@ -13,8 +20,6 @@ for parent in [processor_file_path] + list(processor_file_path.parents):
         if str(parent) not in sys.path:
             sys.path.insert(0, str(parent))
         break
-
-import os
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional

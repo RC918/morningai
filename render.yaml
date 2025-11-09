@@ -110,6 +110,8 @@ services:
         value: "10.0"
       - key: LATENCY_ALERT_THRESHOLD
         value: "500.0"
+      - key: PYTHONPATH
+        value: /app
     autoDeploy: true
 
   - type: web
