@@ -133,7 +133,7 @@ if settings.is_production and not settings.testing:
         logger.error(f"Security configuration validation failed: {e}")
         raise
 
-if settings.is_production:
+if settings.is_production and not settings.testing:
     from src.utils.pre_auth_token import get_pre_auth_manager
 
     try:
