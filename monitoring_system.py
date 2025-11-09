@@ -14,6 +14,7 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from collections import deque
 import statistics
+from common.config.settings import settings
 
 # 配置日誌
 logging.basicConfig(
@@ -292,9 +293,9 @@ class MonitoringSystem:
 def main():
     """主函數"""
     # 從環境變數讀取配置
-    base_url = os.getenv('MONITOR_BASE_URL', 'https://morningai-backend-v2.onrender.com')
-    auth_token = os.getenv('MONITOR_AUTH_TOKEN')
-    slack_webhook = os.getenv('SLACK_WEBHOOK_URL')
+    base_url = settings.monitor_base_url or 'https://morningai-backend-v2.onrender.com'
+    auth_token = settings.monitor_auth_token
+    slack_webhook = settings.slack_webhook_url
     
     # 初始化監控系統
     monitor = MonitoringSystem(base_url, auth_token)

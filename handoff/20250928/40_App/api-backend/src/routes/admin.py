@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
 from src.middleware.auth_middleware import jwt_required, admin_required
+from common.config.settings import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -188,7 +189,7 @@ def _check_redis_status():
         from src.utils.redis_config import get_secure_redis_url
         from redis import Redis
         
-        redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+        redis_url = get_secure_redis_url(allow_local=settings.testing)
         redis_client = Redis.from_url(redis_url, socket_connect_timeout=2)
         redis_client.ping()
         return 'healthy'

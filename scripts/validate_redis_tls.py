@@ -21,10 +21,12 @@ import os
 import sys
 import logging
 from typing import Dict, List, Tuple
+from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../handoff/20250928/40_App/api-backend/src'))
 
 from utils.redis_config import get_secure_redis_url, is_redis_tls_enabled, get_redis_connection_info
+from common.config.settings import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,11 +47,11 @@ class RedisSecurityValidator:
         """Validate environment variable configuration"""
         logger.info("🔍 Validating environment variables...")
         
-        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
-        upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
-        redis_url = os.getenv("REDIS_URL")
-        environment = os.getenv("ENVIRONMENT", "development")
-        testing = os.getenv("TESTING")
+        upstash_url = settings.upstash_redis_rest_url
+        upstash_token = settings.upstash_redis_rest_token
+        redis_url = settings.redis_url
+        environment = settings.environment
+        testing = settings.testing
         
         if upstash_url and upstash_token:
             self.passed_checks.append("✅ Upstash Redis configured (HTTPS/TLS enabled)")
@@ -59,7 +61,7 @@ class RedisSecurityValidator:
         elif redis_url:
             if redis_url.startswith("rediss://"):
                 self.passed_checks.append("✅ Redis URL uses TLS (rediss://)")
-            elif redis_url.startswith("redis://localhost") and (testing == "true" or environment == "development"):
+            elif redis_url.startswith("redis://localhost") and (testing or environment == "development"):
                 self.warnings.append("⚠️ Using local Redis without TLS (development/testing only)")
             elif redis_url.startswith("redis://"):
                 if environment == "production":
@@ -85,9 +87,9 @@ class RedisSecurityValidator:
             if tls_enabled:
                 self.passed_checks.append("✅ Redis TLS is enabled")
             else:
-                environment = os.getenv("ENVIRONMENT", "development")
-                testing = os.getenv("TESTING")
-                if environment == "production" and testing != "true":
+                environment = settings.environment
+                testing = settings.testing
+                if environment == "production" and not testing:
                     self.errors.append("❌ Redis TLS is not enabled in production")
                     return False
                 else:
@@ -106,8 +108,10 @@ class RedisSecurityValidator:
                     return False
             
             try:
-                redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
-                logger.info(f"✅ Helper function returned: {redis_url[:30]}...")
+                redis_url = get_secure_redis_url(allow_local=settings.testing)
+                parsed = urlparse(redis_url or "")
+                safe_url = f"{parsed.scheme}://{parsed.hostname}:{parsed.port or 'default'}"
+                logger.info(f"✅ Helper function returned: {safe_url}")
                 self.passed_checks.append("✅ Helper function works correctly")
             except ValueError as e:
                 self.errors.append(f"❌ Helper function failed: {e}")

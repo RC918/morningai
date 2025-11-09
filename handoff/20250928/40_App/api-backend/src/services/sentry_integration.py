@@ -10,12 +10,13 @@ import os
 import logging
 from typing import Optional, Dict, Any
 from functools import wraps
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
-SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "production")
-APP_VERSION = os.getenv("APP_VERSION", "8.0.0")
+SENTRY_DSN = settings.sentry_dsn
+SENTRY_ENVIRONMENT = settings.sentry_environment or "production"
+APP_VERSION = settings.app_version or "8.0.0"
 
 sentry_sdk = None
 if SENTRY_DSN and SENTRY_DSN.strip():

@@ -6,6 +6,7 @@ import threading
 from functools import wraps
 from flask import request, jsonify, make_response, g
 from redis import ConnectionError as RedisConnectionError
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +15,8 @@ redis_client = None
 redis_connecting = False
 retry_attempts = 0
 next_retry_deadline = 0.0
-REDIS_MAX_RETRIES = int(os.getenv("RATE_LIMIT_REDIS_MAX_RETRIES", "3"))
-REDIS_RETRY_DELAY = float(os.getenv("RATE_LIMIT_REDIS_RETRY_DELAY", "1.0"))
+REDIS_MAX_RETRIES = settings.rate_limit_redis_max_retries or 3
+REDIS_RETRY_DELAY = settings.rate_limit_redis_retry_delay or 1.0
 REDIS_LONG_COOLDOWN = 60.0
 
 def get_rate_limit_redis():
@@ -78,9 +79,9 @@ def get_rate_limit_redis():
     
     return redis_client
 
-RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "60"))
-RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
-RATE_LIMIT_BY_USER = os.getenv("RATE_LIMIT_BY_USER", "false").lower() == "true"
+RATE_LIMIT_REQUESTS = settings.rate_limit_requests or 60
+RATE_LIMIT_WINDOW = settings.rate_limit_window or 60
+RATE_LIMIT_BY_USER = settings.rate_limit_by_user or False
 
 def _extract_user_id():
     """Extract user ID from request context with fallbacks"""

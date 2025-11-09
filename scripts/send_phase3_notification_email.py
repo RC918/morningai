@@ -18,9 +18,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-MAILTRAP_API_TOKEN = os.getenv('Mailtrap_API_TOKEN')
-SUPABASE_URL = os.getenv('SUPABASE_URL', '').rstrip('/')
-SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+from common.config.settings import settings
+
+MAILTRAP_API_TOKEN = settings.mailtrap_api_token
+SUPABASE_URL = (settings.supabase_url or '').rstrip('/')
+SUPABASE_SERVICE_KEY = settings.supabase_service_role_key
 
 BATCH_SIZE = 10  # Send 10 emails per batch
 RATE_LIMIT_DELAY = 1.0  # 1 second delay between emails

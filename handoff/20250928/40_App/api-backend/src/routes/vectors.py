@@ -44,7 +44,8 @@ def _get_db_pool():
         database_url = get_settings().database_url
         if not database_url:
             raise ValueError("DATABASE_URL environment variable not set")
-        _DB_POOL = ThreadedConnectionPool(minconn=1, maxconn=int(os.getenv("DB_POOL_MAX", "10")), dsn=database_url)
+        from common.config.settings import settings
+        _DB_POOL = ThreadedConnectionPool(minconn=1, maxconn=settings.db_pool_max or 10, dsn=database_url)
     return _DB_POOL
 
 

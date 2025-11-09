@@ -6,6 +6,7 @@ Reuses pattern from pgvector_store.py
 import os
 import logging
 from typing import Optional, TYPE_CHECKING
+from common.config.settings import settings
 
 if TYPE_CHECKING:
     from supabase import Client
@@ -32,8 +33,8 @@ def get_client() -> "Client":
             "Ensure dependency is installed and SUPABASE_URL/KEY are set."
         ) from e
     
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
+    supabase_url = settings.supabase_url
+    supabase_key = settings.supabase_service_role_key or settings.supabase_anon_key
     
     if not supabase_url or not supabase_key:
         raise RuntimeError(

@@ -6,13 +6,14 @@ import logging
 import os
 from typing import Dict, Any
 import aiohttp
+from common.config.settings import settings
 
 class RenderTool:
     """Render API interaction tool"""
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.api_key = os.getenv('RENDER_API_KEY')
+        self.api_key = settings.render_api_key
         self.base_url = 'https://api.render.com/v1'
         
         self.approval_required_ops = [

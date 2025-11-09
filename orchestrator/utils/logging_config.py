@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 from typing import Any, Dict
 import json
+from common.config.settings import settings
 
 
 class JSONFormatter(logging.Formatter):
@@ -64,11 +65,11 @@ def setup_logging(log_level: str = None, json_format: bool = None) -> None:
     """
     # Determine log level
     if log_level is None:
-        log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+        log_level = (settings.log_level or "INFO").upper()
     
     # Determine format based on environment
     if json_format is None:
-        environment = os.getenv("ENVIRONMENT", "development").lower()
+        environment = (settings.environment or "development").lower()
         json_format = environment == "production"
     
     # Get root logger
@@ -98,7 +99,7 @@ def setup_logging(log_level: str = None, json_format: bool = None) -> None:
     
     # Log configuration
     root_logger.info(
-        f"Logging configured: level={log_level}, json_format={json_format}, environment={os.getenv('ENVIRONMENT', 'development')}"
+        f"Logging configured: level={log_level}, json_format={json_format}, environment={settings.environment or 'development'}"
     )
 
 

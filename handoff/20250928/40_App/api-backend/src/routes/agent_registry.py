@@ -27,6 +27,7 @@ from src.models.agent_registry_db import (
     AgentDB, TaskDB, AgentTypeDB, AgentStatusDB, 
     PermissionLevelDB, TaskStatusDB, db
 )
+from common.config.settings import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,7 +35,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
+SENTRY_DSN = settings.sentry_dsn
 if SENTRY_DSN and SENTRY_DSN.strip():
     import sentry_sdk
 else:

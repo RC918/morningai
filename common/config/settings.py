@@ -69,6 +69,18 @@ class Settings(BaseSettings):
         """Admin password (unwrapped from SecretStr)"""
         return self.admin_password_secret.get_secret_value() if self.admin_password_secret else None
     
+    owner_password_secret: Optional[SecretStr] = Field(
+        None,
+        alias="OWNER_PASSWORD",
+        description="Owner user password for system access",
+        repr=False
+    )
+    
+    @property
+    def owner_password(self) -> Optional[str]:
+        """Owner password (unwrapped from SecretStr)"""
+        return self.owner_password_secret.get_secret_value() if self.owner_password_secret else None
+    
     flask_secret_key_secret: Optional[SecretStr] = Field(
         None,
         alias="SECRET_KEY",
@@ -137,6 +149,18 @@ class Settings(BaseSettings):
     cookie_samesite: Literal["Strict", "Lax", "None"] = Field(
         default="Lax",
         description="SameSite attribute for authentication cookies"
+    )
+    
+    cookie_domain: Optional[str] = Field(
+        default=None,
+        alias="COOKIE_DOMAIN",
+        description="Optional domain restriction for authentication cookies"
+    )
+    
+    cookie_path: str = Field(
+        default="/",
+        alias="COOKIE_PATH",
+        description="Path restriction for authentication cookies"
     )
     
     
@@ -295,6 +319,18 @@ class Settings(BaseSettings):
         description="Render instance ID (auto-set by Render platform)"
     )
     
+    git_commit: Optional[str] = Field(
+        None,
+        alias="GIT_COMMIT",
+        description="Git commit SHA for version tracking (auto-set by CI)"
+    )
+    
+    render_git_commit: Optional[str] = Field(
+        None,
+        alias="RENDER_GIT_COMMIT",
+        description="Git commit SHA from Render platform (auto-set by Render)"
+    )
+    
     upstash_redis_rest_url: Optional[str] = Field(
         None,
         alias="UPSTASH_REDIS_REST_URL",
@@ -357,6 +393,12 @@ class Settings(BaseSettings):
     sentry_org: Optional[str] = Field(
         None,
         description="Sentry organization slug"
+    )
+    
+    sentry_project: Optional[str] = Field(
+        None,
+        alias="SENTRY_PROJECT",
+        description="Sentry project slug"
     )
     
     alert_email: Optional[str] = Field(
@@ -547,6 +589,12 @@ class Settings(BaseSettings):
     orchestrator_path: str = Field(
         default="handoff/20250928/40_App/orchestrator",
         description="Path to orchestrator module"
+    )
+    
+    orchestrator_api_url: Optional[str] = Field(
+        None,
+        alias="ORCHESTRATOR_API_URL",
+        description="Orchestrator API URL for health monitoring"
     )
     
     orchestrator_jwt_secret_secret: Optional[SecretStr] = Field(

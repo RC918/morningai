@@ -13,11 +13,17 @@ COPY orchestrator/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Copy common module (required by orchestrator/task_queue/redis_queue.py)
+COPY common/ ./common/
+
 # Copy orchestrator code (preserve directory structure)
 COPY orchestrator/ ./orchestrator/
 
 # Install orchestrator package
 RUN pip install --no-cache-dir -e ./orchestrator
+
+# Set PYTHONPATH to include repo root for common module imports
+ENV PYTHONPATH=/app
 
 # Expose port
 EXPOSE 8000

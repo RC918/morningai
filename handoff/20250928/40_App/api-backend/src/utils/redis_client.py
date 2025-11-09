@@ -6,13 +6,16 @@ from common.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-def create_redis_client():
+def create_redis_client(skip_ping: bool = False):
     """
     Creates Redis client with automatic TLS detection
     Supports:
     1. Upstash Redis (HTTPS REST API)
     2. Redis Cloud (TLS TCP)
     3. Local Redis (non-TLS fallback)
+    
+    Args:
+        skip_ping: If True, skip the initial ping check (useful for testing)
     """
     
     upstash_url = get_settings().upstash_redis_rest_url
@@ -23,14 +26,19 @@ def create_redis_client():
                 url=upstash_url,
                 token=get_settings().upstash_redis_rest_token
             )
-            client.ping()
-            logger.info("✅ Connected to Upstash Redis (HTTPS)")
+            if not skip_ping:
+                client.ping()
+                logger.info("✅ Connected to Upstash Redis (HTTPS)")
             return client
         except ImportError:
             logger.warning("⚠️ upstash-redis not installed, falling back to standard Redis")
         except Exception as e:
-            logger.error(f"❌ Upstash Redis connection failed: {e}")
-            raise
+            if not skip_ping:
+                logger.error(f"❌ Upstash Redis connection failed: {e}")
+                raise
+            else:
+                logger.debug(f"Upstash Redis client created (ping skipped): {e}")
+                raise
     
     redis_url = get_settings().redis_url
     if redis_url:
@@ -40,24 +48,27 @@ def create_redis_client():
             if not redis_url.startswith("rediss://"):
                 logger.warning("⚠️ Redis URL not using TLS (rediss://), recommend upgrading for security")
             
-            ssl_cert_reqs = ssl.CERT_REQUIRED if redis_url.startswith("rediss://") else None
-            
             client = redis.from_url(
                 redis_url,
-                ssl_cert_reqs=ssl_cert_reqs,
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
                 retry_on_timeout=True
             )
-            client.ping()
             
-            tls_status = "TLS" if redis_url.startswith("rediss://") else "non-TLS"
-            logger.info(f"✅ Connected to Redis ({tls_status})")
+            if not skip_ping:
+                client.ping()
+                tls_status = "TLS" if redis_url.startswith("rediss://") else "non-TLS"
+                logger.info(f"✅ Connected to Redis ({tls_status})")
+            
             return client
         except Exception as e:
-            logger.error(f"❌ Redis connection failed: {e}")
-            raise
+            if not skip_ping:
+                logger.error(f"❌ Redis connection failed: {e}")
+                raise
+            else:
+                logger.debug(f"Redis client created (ping skipped): {e}")
+                raise
     
     raise ValueError("❌ No Redis configuration found (UPSTASH_REDIS_REST_URL or REDIS_URL)")
 
@@ -67,7 +78,7 @@ def get_redis_client():
     """Get Redis client singleton"""
     global redis_client
     if redis_client is None:
-        redis_client = create_redis_client()
+        redis_client = create_redis_client(skip_ping=settings.testing)
     return redis_client
 
 def get_redis_connection_info():

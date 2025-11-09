@@ -16,6 +16,7 @@ from functools import wraps
 from src.middleware.auth_middleware import jwt_required, admin_required
 from src.middleware.rate_limit import rate_limit
 from src.utils.redis_config import get_secure_redis_url
+from common.config.settings import settings
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..'))
 
@@ -32,7 +33,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
+SENTRY_DSN = settings.sentry_dsn
 if SENTRY_DSN and SENTRY_DSN.strip():
     try:
         import sentry_sdk
@@ -45,7 +46,7 @@ bp = Blueprint("faq", __name__, url_prefix="/api/faq")
 
 retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
 
-redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+redis_url = get_secure_redis_url(allow_local=settings.testing)
 
 redis_kwargs = {
     "decode_responses": True,
@@ -55,13 +56,10 @@ redis_kwargs = {
     "retry_on_timeout": True
 }
 
-if redis_url.startswith("rediss://"):
-    redis_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
-
 redis_client = Redis.from_url(redis_url, **redis_kwargs)
 
-CACHE_TTL = int(os.getenv("FAQ_CACHE_TTL", "300"))
-OPENAI_MAX_DAILY_COST = float(os.getenv("OPENAI_MAX_DAILY_COST", "20.0"))
+CACHE_TTL = settings.faq_cache_ttl or 300
+OPENAI_MAX_DAILY_COST = settings.openai_max_daily_cost or 20.0
 
 class FAQSearchRequest(BaseModel):
     """Request model for FAQ search"""
@@ -350,7 +348,7 @@ async def search_faqs():
             "error": {
                 "code": "internal_error",
                 "message": "An error occurred while searching FAQs",
-                "details": error_msg if os.getenv('DEBUG') == 'true' else None
+                "details": error_msg if settings.debug else None
             }
         }), 500
 

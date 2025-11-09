@@ -17,12 +17,12 @@ import logging
 import secrets
 from typing import Optional, Dict, Tuple
 from werkzeug.security import check_password_hash, generate_password_hash
-from common.config.settings import get_settings
+from common.config.settings import get_settings, settings
 
 logger = logging.getLogger(__name__)
 
-ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
-IS_PRODUCTION = ENVIRONMENT == 'production'
+ENVIRONMENT = settings.environment or 'development'
+IS_PRODUCTION = settings.is_production
 
 # Token Configuration
 ACCESS_TOKEN_EXPIRY_MINUTES = 15
@@ -34,19 +34,19 @@ def _get_jwt_secret():
     return get_settings().jwt_secret_key or 'test-secret-key-for-testing'
 
 # Cookie Configuration
-COOKIE_SECURE = os.environ.get('COOKIE_SECURE', 'true' if IS_PRODUCTION else 'false').lower() == 'true'
-COOKIE_SAMESITE = os.environ.get('COOKIE_SAMESITE', 'Lax')  # Configurable: 'Strict', 'Lax', or 'None'
+COOKIE_SECURE = settings.cookie_secure if settings.cookie_secure is not None else (True if IS_PRODUCTION else False)
+COOKIE_SAMESITE = settings.cookie_samesite or 'Lax'  # Configurable: 'Strict', 'Lax', or 'None'
 COOKIE_HTTPONLY = True
-COOKIE_DOMAIN = os.environ.get('COOKIE_DOMAIN', None)  # Optional: restrict to specific domain
-COOKIE_PATH = os.environ.get('COOKIE_PATH', '/')  # Optional: restrict to specific path
+COOKIE_DOMAIN = settings.cookie_domain  # Optional: restrict to specific domain
+COOKIE_PATH = settings.cookie_path or '/'  # Optional: restrict to specific path
 
-ENABLE_MOCK_USERS = os.environ.get('ENABLE_MOCK_USERS', 'true').lower() == 'true'
+ENABLE_MOCK_USERS = settings.enable_mock_users if settings.enable_mock_users is not None else False
 
 # CSRF Configuration
 CSRF_TOKEN_LENGTH = 32  # bytes
 
-FEATURE_2FA_PREAUTH = os.environ.get('FEATURE_2FA_PREAUTH', 'false').lower() == 'true'
-PREAUTH_TOKEN_TTL = int(os.environ.get('PREAUTH_TOKEN_TTL', '300'))  # 5 minutes default
+FEATURE_2FA_PREAUTH = settings.feature_2fa_preauth if settings.feature_2fa_preauth is not None else False
+PREAUTH_TOKEN_TTL = settings.preauth_token_ttl or 300  # 5 minutes default
 
 
 def validate_security_config():
@@ -384,7 +384,7 @@ def _get_mock_users() -> Dict:
         'owner@morningai.com': {
             'id': 'owner-001',
             'email': 'owner@morningai.com',
-            'hashed_password': generate_password_hash(os.environ.get('OWNER_PASSWORD', 'owner123')),
+            'hashed_password': generate_password_hash(settings.owner_password or 'owner123'),
             'name': 'Platform Owner',
             'role': 'owner',
             'tenant_id': 'platform',
@@ -393,7 +393,7 @@ def _get_mock_users() -> Dict:
         'admin@morningai.com': {
             'id': 'admin-001',
             'email': 'admin@morningai.com',
-            'hashed_password': generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'admin123')),
+            'hashed_password': generate_password_hash(settings.admin_password or 'admin123'),
             'name': 'System Admin',
             'role': 'admin',
             'tenant_id': 'tenant-001',

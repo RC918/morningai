@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../handoff/20250928/40_App/orchestrator'))
 
 from governance.reputation_engine import get_reputation_engine
+from common.config.settings import settings
 
 
 def update_all_agents():
@@ -88,8 +89,8 @@ def send_summary_notification():
     try:
         import requests
         
-        bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-        chat_id = os.getenv('TELEGRAM_ADMIN_CHAT_ID')
+        bot_token = settings.telegram_bot_token
+        chat_id = settings.telegram_admin_chat_id
         
         if not bot_token or not chat_id:
             print("[INFO] Telegram not configured, skipping notification")
