@@ -221,3 +221,22 @@ def rate_limit(f):
             return f(*args, **kwargs)
     
     return decorated_function
+
+
+def __getattr__(name):
+    """
+    Provide backward compatibility for deprecated module-level constants.
+    
+    This allows existing code to import RATE_LIMIT_REQUESTS, but the value
+    is dynamically resolved at access time rather than module import time.
+    """
+    if name == "RATE_LIMIT_REQUESTS":
+        import warnings
+        warnings.warn(
+            "Importing RATE_LIMIT_REQUESTS as a constant is deprecated. "
+            "Use get_rate_limit_requests() for dynamic resolution.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return get_rate_limit_requests()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
