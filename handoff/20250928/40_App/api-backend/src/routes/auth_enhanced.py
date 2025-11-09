@@ -170,9 +170,10 @@ def login():
         from .totp import check_2fa_required, is_2fa_feature_enabled
         from supabase import create_client
         
-        if check_2fa_required(user['id']):
+        if check_2fa_required(user['id'], user['role']):
             next_step = 'enroll_2fa'
             scope = 'enroll'
+            is_2fa_setup = False
             
             supabase_url = get_settings().supabase_url
             supabase_key = get_settings().supabase_service_role_key
@@ -185,8 +186,27 @@ def login():
                     if user_2fa.data and user_2fa.data[0].get('enabled') and user_2fa.data[0].get('verified_at'):
                         next_step = 'challenge_2fa'
                         scope = 'challenge'
+                        is_2fa_setup = True
                 except Exception as supabase_error:
                     logger.warning(f"Supabase query failed for user {user['email']}, defaulting to enroll_2fa: {supabase_error}")
+            
+            if user['role'] == 'owner' and not is_2fa_setup:
+                logger.warning(
+                    f"Owner role user {user['email']} (ID: {user['id']}) attempted login without 2FA setup. Login blocked.",
+                    extra={
+                        'event': 'owner_2fa_enforcement',
+                        'user_id': user['id'],
+                        'user_email': user['email'],
+                        'user_role': user['role'],
+                        'action': 'login_blocked'
+                    }
+                )
+                return jsonify({
+                    'error': '2FA setup required for owner role',
+                    'message': 'Owner accounts must have Two-Factor Authentication enabled. Please contact your administrator to set up 2FA before logging in.',
+                    'requires_2fa_setup': True,
+                    'user_role': 'owner'
+                }), 403
             
             tmp_token = generate_preauth_token(
                 user_id=user['id'],

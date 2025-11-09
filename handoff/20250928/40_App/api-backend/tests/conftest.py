@@ -51,6 +51,9 @@ def disable_sentry_in_tests(monkeypatch):
     monkeypatch.delenv("SENTRY_DSN", raising=False)
     monkeypatch.setenv("SENTRY_ENABLED", "false")
     monkeypatch.setenv("TESTING", "true")
+    monkeypatch.setenv("COOKIE_SAMESITE", "Lax")
+    monkeypatch.setenv("COOKIE_SECURE", "false")
+    monkeypatch.setenv("ENVIRONMENT", "test")
 
 
 # Legacy fixtures (maintained for backward compatibility)
