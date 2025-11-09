@@ -372,3 +372,59 @@ class TestCacheBehavior:
         result2 = repo_root_module.get_repo_root()
         assert call_count == 2
         assert result1 == result2
+
+
+class TestProductionGuards:
+    """Test production environment guards for REPO_ROOT_PATH."""
+
+    def test_repo_root_path_ignored_in_production(self, tmp_path, repo_root_module, monkeypatch, caplog):
+        """REPO_ROOT_PATH should be ignored when ENVIRONMENT=production."""
+        fake_repo = tmp_path / "fake_repo"
+        fake_repo.mkdir()
+        
+        monkeypatch.setenv("REPO_ROOT_PATH", str(fake_repo))
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        
+        actual_repo = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = str(actual_repo) + "\n"
+        monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: mock_result)
+        
+        if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
+            repo_root_module.get_repo_root.cache_clear()
+        
+        result = repo_root_module.get_repo_root()
+        
+        assert result == actual_repo
+        assert result != fake_repo
+        assert "REPO_ROOT_PATH is set in production environment" in caplog.text
+        assert "Ignoring REPO_ROOT_PATH and using auto-detection" in caplog.text
+
+    def test_repo_root_path_allowed_in_non_production(self, tmp_path, repo_root_module, monkeypatch):
+        """REPO_ROOT_PATH should work in non-production environments."""
+        fake_repo = tmp_path / "fake_repo"
+        fake_repo.mkdir()
+        
+        monkeypatch.setenv("REPO_ROOT_PATH", str(fake_repo))
+        monkeypatch.setenv("ENVIRONMENT", "development")
+        
+        if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
+            repo_root_module.get_repo_root.cache_clear()
+        
+        result = repo_root_module.get_repo_root()
+        assert result == fake_repo
+
+    def test_repo_root_path_allowed_when_environment_not_set(self, tmp_path, repo_root_module, monkeypatch):
+        """REPO_ROOT_PATH should work when ENVIRONMENT is not set."""
+        fake_repo = tmp_path / "fake_repo"
+        fake_repo.mkdir()
+        
+        monkeypatch.setenv("REPO_ROOT_PATH", str(fake_repo))
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+        
+        if hasattr(repo_root_module.get_repo_root, 'cache_clear'):
+            repo_root_module.get_repo_root.cache_clear()
+        
+        result = repo_root_module.get_repo_root()
+        assert result == fake_repo

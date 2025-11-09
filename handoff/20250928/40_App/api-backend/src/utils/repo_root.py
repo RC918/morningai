@@ -60,14 +60,22 @@ def get_repo_root(start_path: Optional[Path] = None) -> Path:
     """
     env_root = os.environ.get('REPO_ROOT_PATH')
     if env_root:
-        env_path = Path(env_root).resolve()
-        if env_path.exists() and env_path.is_dir():
-            return env_path
-        else:
-            logger.debug(
-                "REPO_ROOT_PATH=%r is not a valid directory; ignoring and falling back to git/sentinels",
-                env_root
+        is_production = os.environ.get('ENVIRONMENT') == 'production'
+        if is_production:
+            logger.warning(
+                "REPO_ROOT_PATH is set in production environment. "
+                "This should only be used in testing/CI. "
+                "Ignoring REPO_ROOT_PATH and using auto-detection."
             )
+        else:
+            env_path = Path(env_root).resolve()
+            if env_path.exists() and env_path.is_dir():
+                return env_path
+            else:
+                logger.debug(
+                    "REPO_ROOT_PATH=%r is not a valid directory; ignoring and falling back to git/sentinels",
+                    env_root
+                )
     
     try:
         result = subprocess.run(
