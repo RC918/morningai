@@ -195,21 +195,36 @@ def is_vercel_preview(origin):
     Blocks them in production for security.
     """
     if not origin:
+        logging.info(f"[CORS DEBUG] is_vercel_preview: origin is None/empty")
         return False
     
     env = (app_settings.environment or "").lower()
+    logging.info(f"[CORS DEBUG] is_vercel_preview: origin={repr(origin)}, env={repr(env)}")
+    
     if env == "production":
+        logging.info(f"[CORS DEBUG] is_vercel_preview: blocking because env=production")
         return False
     
-    return bool(re.match(r"^https://.*\.vercel\.app$", origin))
+    matches = bool(re.match(r"^https://.*\.vercel\.app$", origin))
+    logging.info(f"[CORS DEBUG] is_vercel_preview: regex match={matches}")
+    return matches
 
 
 @app.after_request
 def add_cors_headers(response):
     """Add CORS headers for allowed origins including Vercel preview URLs"""
     origin = request.headers.get("Origin")
+    
+    logging.info(f"[CORS DEBUG] add_cors_headers: origin={repr(origin)}")
+    logging.info(f"[CORS DEBUG] add_cors_headers: cors_origins={cors_origins}")
+    
+    in_allowlist = origin in cors_origins
+    is_preview = is_vercel_preview(origin)
+    
+    logging.info(f"[CORS DEBUG] add_cors_headers: in_allowlist={in_allowlist}, is_preview={is_preview}")
 
-    if origin in cors_origins or is_vercel_preview(origin):
+    if in_allowlist or is_preview:
+        logging.info(f"[CORS DEBUG] add_cors_headers: ADDING CORS headers for origin={repr(origin)}")
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Headers"] = (
@@ -219,6 +234,8 @@ def add_cors_headers(response):
             "GET, POST, PUT, DELETE, OPTIONS, PATCH"
         )
         response.headers["Vary"] = "Origin"
+    else:
+        logging.info(f"[CORS DEBUG] add_cors_headers: NOT adding CORS headers (origin not allowed)")
 
     return response
 
