@@ -16,8 +16,10 @@ def test_redis_unavailable_returns_503(app):
     token = create_user_token()
     
     with app.test_client() as client:
-        with patch('src.routes.agent.redis_client') as mock_redis:
+        with patch('src.routes.agent.get_agent_redis_client') as mock_get_client:
+            mock_redis = MagicMock()
             mock_redis.hset.side_effect = RedisConnectionError("Connection refused")
+            mock_get_client.return_value = mock_redis
             
             response = client.post('/api/agent/faq', json={
                 'question': 'Test question during Redis outage'
@@ -33,8 +35,10 @@ def test_redis_retry_with_sentry_trace(app):
     
     with app.test_client() as client:
         with patch('src.routes.agent.sentry_sdk') as mock_sentry:
-            with patch('src.routes.agent.redis_client') as mock_redis:
+            with patch('src.routes.agent.get_agent_redis_client') as mock_get_client:
+                mock_redis = MagicMock()
                 mock_redis.hset.side_effect = RedisConnectionError("Connection timeout")
+                mock_get_client.return_value = mock_redis
                 
                 response = client.post('/api/agent/faq', json={
                     'question': 'Test Sentry trace_id'
@@ -58,9 +62,11 @@ def test_redis_connection_with_retry_succeeds(app):
         return "OK"
     
     with app.test_client() as client:
-        with patch('src.routes.agent.redis_client') as mock_redis:
+        with patch('src.routes.agent.get_agent_redis_client') as mock_get_client:
+            mock_redis = MagicMock()
             mock_redis.hset.side_effect = intermittent_failure
             mock_redis.expire.return_value = True
+            mock_get_client.return_value = mock_redis
             
             response = client.post('/api/agent/faq', json={
                 'question': 'Test retry success'

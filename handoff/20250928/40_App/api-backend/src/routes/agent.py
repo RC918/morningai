@@ -346,9 +346,10 @@ def debug_queue_status():
                 "timestamp": datetime.utcnow().isoformat()
             }), 503
         
-        queue_length = get_agent_redis_client_rq().llen(f"rq:queue:{RQ_QUEUE_NAME}")
+        queue_name = settings.rq_queue_name or "orchestrator"
+        queue_length = get_agent_redis_client_rq().llen(f"rq:queue:{queue_name}")
         
-        recent_jobs = get_agent_redis_client_rq().lrange(f"rq:queue:{RQ_QUEUE_NAME}", 0, 4)
+        recent_jobs = get_agent_redis_client_rq().lrange(f"rq:queue:{queue_name}", 0, 4)
         
         task_keys = list(get_agent_redis_client().scan_iter("agent:task:*", count=100))
         sample_task = None
