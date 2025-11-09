@@ -368,7 +368,7 @@ class TestVerifyEnrollEndpointIntegration:
         assert 'Set-Cookie' in response.headers
         
         mock_totp.verify_totp.assert_called_once()
-        mock_backup_codes.generate_codes.assert_called_once()
+        mock_backup_codes.generate_backup_codes.assert_called_once()
     
     def test_verify_enroll_without_token(self, client, mock_redis, mock_supabase):
         """Test verify-enroll fails without pre-auth token"""
@@ -504,11 +504,11 @@ class TestChallengeEndpointIntegration:
         }
         
         mock_supabase._test_state["backup_codes"]["user-001"] = [
-            {'code_hash': 'hash1', 'is_used': False},
-            {'code_hash': 'hash2', 'is_used': False}
+            {'id': 1, 'code_hash': 'hash1', 'used': False, 'user_id': 'user-001'},
+            {'id': 2, 'code_hash': 'hash2', 'used': False, 'user_id': 'user-001'}
         ]
         
-        mock_backup_codes.verify_code.return_value = True
+        mock_backup_codes.verify_backup_code.return_value = True
         
         response = client.post(
             '/api/auth/v2/2fa/challenge',
