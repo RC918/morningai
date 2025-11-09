@@ -60,12 +60,14 @@ def _is_testing_mode():
 
 AGENT_REDIS_URL = get_secure_redis_url(allow_local=_is_testing_mode())
 
+_UNSET = object()
+
 _redis_client = None
 _redis_client_rq = None
 _queue = None
 
 # Module-level aliases for backward compatibility with tests that patch these attributes
-redis_client = None
+redis_client = _UNSET
 redis_client_rq = None
 q = None
 
@@ -73,13 +75,16 @@ def get_agent_redis_client():
     """Get or create Redis client for agent routes (lazy initialization)
     
     Returns None if redis_client is explicitly set to None (e.g., by tests).
+    Otherwise performs lazy initialization on first call.
+    
+    The sentinel pattern allows tests to:
+    - Patch redis_client to a mock → returns the mock
+    - Patch redis_client to None → returns None (simulates Redis unavailable)
+    - Leave redis_client unpatched → performs lazy initialization
     """
     global _redis_client, redis_client
     
-    if redis_client is None:
-        return None
-    
-    if redis_client is not None:
+    if redis_client is not _UNSET:
         return redis_client
     
     if _redis_client is None:
