@@ -23,13 +23,14 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..
 sys.path.insert(0, project_root)
 
 from orchestrator.task_queue.redis_queue import create_redis_queue
+from common.config.settings import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Ops Agent Worker Dashboard", version="1.0.0")
 
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
+allowed_origins = (settings.allowed_origins or "http://localhost:3000,http://localhost:8080").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -40,7 +41,7 @@ app.add_middleware(
 
 async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")):
     """Verify API key for dashboard access"""
-    expected_key = os.getenv("DASHBOARD_API_KEY")
+    expected_key = settings.dashboard_api_key
     if not expected_key:
         raise HTTPException(
             status_code=500,
@@ -70,7 +71,7 @@ class WorkerCommand(BaseModel):
 async def startup_event():
     """Initialize Redis connection on startup"""
     global redis_queue
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    redis_url = settings.redis_url or "redis://localhost:6379"
     try:
         redis_queue = await create_redis_queue(redis_url=redis_url)
         logger.info(f"Connected to Redis at {redis_url}")
@@ -208,7 +209,7 @@ async def start_worker(config: WorkerConfig):
             "worker.py"
         )
         
-        vercel_token = os.getenv("VERCEL_TOKEN")
+        vercel_token = settings.vercel_token_new
         if not vercel_token:
             raise HTTPException(
                 status_code=500,
@@ -623,5 +624,5 @@ def get_dashboard_html() -> str:
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", os.getenv("DASHBOARD_PORT", "8080")))
+    port = int(settings.port or settings.dashboard_port or "8080")
     uvicorn.run(app, host="0.0.0.0", port=port)

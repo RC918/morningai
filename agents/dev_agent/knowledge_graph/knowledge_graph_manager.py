@@ -48,14 +48,11 @@ class KnowledgeGraphManager:
             enable_cache: Whether to enable Redis cache
             max_daily_cost: Maximum daily cost in USD (default from env or None)
         """
-        self.supabase_url = supabase_url or os.getenv('SUPABASE_URL')
-        self.supabase_password = supabase_password or os.getenv(
-            'SUPABASE_DB_PASSWORD')
+        self.supabase_url = supabase_url or settings.supabase_url
+        self.supabase_password = supabase_password or settings.supabase_db_password
         self.openai_api_key = openai_api_key or settings.openai_api_key
 
-        self.max_daily_cost = max_daily_cost or (
-            float(os.getenv('OPENAI_MAX_DAILY_COST', '0')) or None
-        )
+        self.max_daily_cost = max_daily_cost or settings.openai_max_daily_cost
 
         self.db_pool = None
         self.cache = EmbeddingsCache() if enable_cache else None

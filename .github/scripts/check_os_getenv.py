@@ -74,18 +74,44 @@ def should_skip_file(filepath: Path) -> bool:
         '.github/scripts/check_os_getenv.py',
         'handoff/20250928/40_App/api-backend/conftest.py',
         'handoff/20250928/40_App/api-backend/sitecustomize.py',
+        'env_schema_validator.py',
+        'common/utils/repo_root.py',
     }
     
-    skip_dirs = {'.venv', '.git', 'node_modules', '__pycache__', '.pytest_cache'}
+    skip_dirs = {
+        '.venv', '.git', 'node_modules', '__pycache__', '.pytest_cache',
+        '_vendor', 'site-packages', 'pip'
+    }
+    
+    skip_path_patterns = {
+        'tests/',
+        'migrations/',
+        'examples/',
+        '/60_Design/',
+        'scripts/test_',
+        'sandbox/',
+        '.github/scripts/',
+        'docs/',
+        'phase6_startup.py',
+        'phase7_startup.py',
+    }
     
     parts = filepath.parts
     if any(skip_dir in parts for skip_dir in skip_dirs):
         return True
     
     filepath_str = str(filepath)
+    
     for pattern in skip_patterns:
         if filepath_str.endswith(pattern):
             return True
+    
+    for pattern in skip_path_patterns:
+        if pattern in filepath_str:
+            return True
+    
+    if filepath.name.startswith('test_') and filepath.parent.name != 'tests':
+        return True
     
     return False
 

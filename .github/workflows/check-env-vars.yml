@@ -26,10 +26,7 @@ jobs:
       - name: Check for new os.getenv calls (AST-based)
         run: |
           echo "Running AST-based checker for os.getenv() calls..."
-          python3 .github/scripts/check_os_getenv.py
-          
-          # Note: Script exits with 0 in warning mode (current)
-          # After PR 1c is merged, change to: python3 .github/scripts/check_os_getenv.py --strict
+          python3 .github/scripts/check_os_getenv.py --strict
       
       - name: Verify settings module exists
         run: |

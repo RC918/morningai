@@ -25,6 +25,7 @@ if api_backend_path not in sys.path:
 from utils.redis_config import get_secure_redis_url
 from orchestrator import RedisQueue, create_redis_queue, UnifiedTask
 from ops_agent_ooda import OpsAgentOODA
+from common.config.settings import settings
 
 governance_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestrator')
 if governance_path not in sys.path:
@@ -75,9 +76,9 @@ class OpsAgentWorker:
         if redis_url:
             self.redis_url = redis_url
         else:
-            self.redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
-        self.vercel_token = vercel_token or os.getenv("VERCEL_TOKEN_NEW")
-        self.team_id = team_id or os.getenv("VERCEL_TEAM_ID")
+            self.redis_url = get_secure_redis_url(allow_local=settings.testing)
+        self.vercel_token = vercel_token or settings.vercel_token_new
+        self.team_id = team_id or settings.vercel_team_id
         self.poll_interval = poll_interval
         
         self.queue: Optional[RedisQueue] = None

@@ -34,9 +34,6 @@ class EmbeddingTool:
             reload_settings()
             self.api_key = get_settings().openai_api_key
         
-        if not self.api_key:
-            self.api_key = os.getenv("OPENAI_API_KEY")
-        
         self.model = model
         
         if not self.api_key:

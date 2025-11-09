@@ -289,8 +289,8 @@ class DevAgent:
         )
         self.pattern_learner = BugFixPatternLearner(self.knowledge_graph)
 
-        telegram_token = telegram_bot_token or os.getenv('TELEGRAM_BOT_TOKEN')
-        admin_id = admin_chat_id or os.getenv('TELEGRAM_ADMIN_CHAT_ID')
+        telegram_token = telegram_bot_token or settings.telegram_bot_token
+        admin_id = admin_chat_id or settings.telegram_admin_chat_id
         self.hitl_client = HITLApprovalSystem(
             telegram_bot_token=telegram_token,
             admin_chat_id=admin_id

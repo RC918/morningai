@@ -21,8 +21,9 @@ class UpstashRedisClient:
         rest_url: Optional[str] = None,
         rest_token: Optional[str] = None
     ):
-        self.rest_url = rest_url or os.getenv('UPSTASH_REDIS_REST_URL')
-        self.rest_token = rest_token or os.getenv('UPSTASH_REDIS_REST_TOKEN')
+        from common.config.settings import settings
+        self.rest_url = rest_url or settings.upstash_redis_rest_url
+        self.rest_token = rest_token or settings.upstash_redis_rest_token
 
         if not self.rest_url or not self.rest_token:
             raise ValueError(
