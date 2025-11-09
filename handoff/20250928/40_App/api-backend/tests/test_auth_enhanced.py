@@ -593,8 +593,8 @@ class Test2FAIntegration:
         
         assert result is False
     
-    def test_owner_login_blocked_without_2fa_setup(self, client, mock_redis):
-        """Test that owner role login is blocked when 2FA is not set up (P0 Security)"""
+    def test_owner_login_requires_2fa_enrollment(self, client, mock_redis):
+        """Test that owner role without 2FA gets enrollment flow (P0 Security)"""
         with patch('src.routes.auth_enhanced.authenticate_user') as mock_auth:
             mock_auth.return_value = {
                 'id': 'owner-001',
@@ -622,16 +622,16 @@ class Test2FAIntegration:
                             }
                         )
                         
-                        assert response.status_code == 403
+                        assert response.status_code == 200
                         data = json.loads(response.data)
-                        assert data.get('error') == '2FA setup required for owner role'
-                        assert data.get('requires_2fa_setup') is True
-                        assert data.get('user_role') == 'owner'
-                        assert 'message' in data
+                        assert data.get('requires_2fa') is True
+                        assert data.get('next_step') == 'enroll_2fa'
+                        assert 'token' in data
                         
-                        set_cookie_header = response.headers.get('Set-Cookie', '')
-                        assert 'access_token' not in set_cookie_header
-                        assert 'refresh_token' not in set_cookie_header
+                        cookies = response.headers.getlist('Set-Cookie')
+                        cookie_str = ' '.join(cookies)
+                        assert 'access_token' not in cookie_str
+                        assert 'refresh_token' not in cookie_str
     
     def test_owner_login_allowed_with_2fa_setup(self, client, mock_redis):
         """Test that owner role login proceeds to 2FA challenge when 2FA is set up"""
@@ -710,8 +710,8 @@ class Test2FAIntegration:
                 assert 'access_token' in cookie_str
                 assert 'refresh_token' in cookie_str
     
-    def test_owner_login_blocked_with_2fa_enabled_but_not_verified(self, client, mock_redis):
-        """Test that owner login is blocked when 2FA is enabled but not verified"""
+    def test_owner_login_requires_enrollment_when_not_verified(self, client, mock_redis):
+        """Test that owner gets enrollment flow when 2FA is enabled but not verified"""
         with patch('src.routes.auth_enhanced.authenticate_user') as mock_auth:
             mock_auth.return_value = {
                 'id': 'owner-001',
@@ -745,10 +745,10 @@ class Test2FAIntegration:
                             }
                         )
                         
-                        assert response.status_code == 403
+                        assert response.status_code == 200
                         data = json.loads(response.data)
-                        assert data.get('error') == '2FA setup required for owner role'
-                        assert data.get('requires_2fa_setup') is True
+                        assert data.get('requires_2fa') is True
+                        assert data.get('next_step') == 'enroll_2fa'
 
 
 if __name__ == '__main__':
