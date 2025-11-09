@@ -16,10 +16,12 @@ import difflib
 
 import yaml
 
+from src.utils.repo_root import get_repo_root
+
 
 def load_schema_vars() -> Set[str]:
     """Load environment variable names from config/env.schema.yaml."""
-    repo_root = Path(__file__).parent.parent.parent.parent.parent.parent.parent
+    repo_root = get_repo_root()
     schema_path = repo_root / 'config' / 'env.schema.yaml'
     
     if not schema_path.exists():
@@ -167,9 +169,10 @@ def test_env_vars_defined():
     schema_vars = load_schema_vars()
     print(f"\n✓ Loaded {len(schema_vars)} variables from config/env.schema.yaml")
     
-    api_backend_dir = Path(__file__).parent.parent.parent
+    from src.utils.repo_root import get_api_backend_root
+    api_backend_dir = get_api_backend_root()
     src_dir = api_backend_dir / 'src'
-    repo_root = api_backend_dir.parent.parent.parent.parent
+    repo_root = get_repo_root()
     
     if not src_dir.exists():
         raise FileNotFoundError(f"Source directory not found: {src_dir}")

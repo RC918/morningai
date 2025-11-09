@@ -10,7 +10,9 @@ descriptions, and default values.
 import sys
 from pathlib import Path
 
-project_root = Path(__file__).parent.parent
+from repo_root_utils import get_repo_root
+
+project_root = get_repo_root()
 sys.path.insert(0, str(project_root))
 
 from common.config.settings import Settings

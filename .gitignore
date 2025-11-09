@@ -55,3 +55,4 @@ ux-qa-results/
 
 # i18n test results (should not be committed)
 **/i18n-test-results/
+handoff/20250928/40_App/api-backend/.venv-311/
