@@ -48,15 +48,25 @@ def is_testing_mode():
     return _as_bool(os.getenv("TESTING"))
 
 def is_production():
-    """Check if running in production mode (dynamic check)"""
+    """Check if running in production mode (dynamic check)
+    
+    Priority order:
+    1. Flask app.config FLASK_ENV or ENVIRONMENT (explicit production setting)
+    2. os.environ FLASK_ENV or ENVIRONMENT (explicit production setting)
+    3. Flask app.config TESTING (if True and no explicit env, return False)
+    4. settings.is_production (fallback)
+    
+    This allows tests to explicitly set ENVIRONMENT=production to test production
+    behavior even when TESTING=True.
+    """
     try:
         from flask import current_app
         if current_app:
-            if _as_bool(current_app.config.get("TESTING")):
-                return False
             env = (current_app.config.get("FLASK_ENV") or current_app.config.get("ENVIRONMENT") or "").lower()
             if env:
                 return env == "production"
+            if _as_bool(current_app.config.get("TESTING")):
+                return False
     except Exception:
         pass
     fe = (os.getenv("FLASK_ENV") or os.getenv("ENVIRONMENT") or "").lower()
