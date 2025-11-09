@@ -5,18 +5,24 @@ This test scans src/** for imports of deprecated modules and fails CI if found.
 Tests are excluded to allow backward compatibility testing.
 """
 
-import ast
-import os
+import sys
 from pathlib import Path
-from typing import List, Tuple
 
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent.parent))
+
+from common.tests.lint_helpers import (
+    check_file_for_deprecated_imports,
+    find_python_files,
+    format_violations_message
+)
+from common.tests.test_config import (
+    API_BACKEND_DEPRECATED_MODULES,
+    PREAUTH_TOKEN_MIGRATION_GUIDE
+)
 from src.utils.repo_root import get_api_backend_root as _get_api_backend_root
 
 
-DEPRECATED_MODULES = [
-    "utils.preauth_token",
-    "src.utils.preauth_token",
-]
+DEPRECATED_MODULES = API_BACKEND_DEPRECATED_MODULES
 
 ALLOWLIST = [
 ]
@@ -25,84 +31,6 @@ ALLOWLIST = [
 def get_api_backend_root() -> Path:
     """Get the api-backend root directory."""
     return _get_api_backend_root()
-
-
-def find_python_files(root: Path, include_pattern: str = "src/**/*.py") -> List[Path]:
-    """Find all Python files matching the pattern."""
-    return list(root.glob(include_pattern))
-
-
-def check_file_for_deprecated_imports(file_path: Path) -> List[Tuple[int, str, str]]:
-    """
-    Check a Python file for deprecated module imports.
-    
-    Detects both direct and aliased imports:
-    - import utils.preauth_token
-    - import utils.preauth_token as preauth  (aliased)
-    - from utils.preauth_token import generate_preauth_token
-    - from utils.preauth_token import generate_preauth_token as gen_token  (aliased)
-    
-    Returns:
-        List of (line_number, import_statement, deprecated_module) tuples
-    """
-    violations = []
-    
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            tree = ast.parse(f.read(), filename=str(file_path))
-        
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    for deprecated in DEPRECATED_MODULES:
-                        if alias.name == deprecated or alias.name.endswith(f".{deprecated}"):
-                            import_stmt = f"import {alias.name}"
-                            if alias.asname:
-                                import_stmt += f" as {alias.asname}"
-                            violations.append((
-                                node.lineno,
-                                import_stmt,
-                                deprecated
-                            ))
-            
-            elif isinstance(node, ast.ImportFrom):
-                if node.level > 0:
-                    continue
-                
-                if node.module:
-                    for deprecated in DEPRECATED_MODULES:
-                        if node.module == deprecated or node.module.endswith(f".{deprecated}"):
-                            names_list = []
-                            for alias in node.names:
-                                if alias.asname:
-                                    names_list.append(f"{alias.name} as {alias.asname}")
-                                else:
-                                    names_list.append(alias.name)
-                            import_stmt = f"from {node.module} import {', '.join(names_list)}"
-                            violations.append((
-                                node.lineno,
-                                import_stmt,
-                                deprecated
-                            ))
-                        else:
-                            for alias in node.names:
-                                fqn = f"{node.module}.{alias.name}"
-                                if fqn == deprecated:
-                                    import_stmt = f"from {node.module} import {alias.name}"
-                                    if alias.asname:
-                                        import_stmt += f" as {alias.asname}"
-                                    violations.append((
-                                        node.lineno,
-                                        import_stmt,
-                                        deprecated
-                                    ))
-    
-    except SyntaxError:
-        pass
-    except Exception as e:
-        print(f"Warning: Could not parse {file_path}: {e}")
-    
-    return violations
 
 
 def test_no_deprecated_imports_in_src():
@@ -123,37 +51,17 @@ def test_no_deprecated_imports_in_src():
         if str(relative_path) in ALLOWLIST:
             continue
         
-        violations = check_file_for_deprecated_imports(file_path)
+        violations = check_file_for_deprecated_imports(file_path, DEPRECATED_MODULES)
         if violations:
             all_violations.append((file_path, violations))
     
     if all_violations:
-        error_message = [
-            "\n❌ Deprecated module imports found in production code!\n",
-            "The following files import deprecated modules:\n"
-        ]
-        
-        for file_path, violations in all_violations:
-            relative_path = file_path.relative_to(root)
-            error_message.append(f"\n📄 {relative_path}:")
-            for line_no, import_stmt, deprecated_module in violations:
-                error_message.append(f"  Line {line_no}: {import_stmt}")
-                error_message.append(f"    ❌ Deprecated: {deprecated_module}")
-        
-        error_message.extend([
-            "\n",
-            "🔧 Migration Guide:",
-            "  - Replace 'utils.preauth_token' with 'utils.pre_auth_token'",
-            "  - Use PreAuthTokenManager class instead of standalone functions:",
-            "    • generate_preauth_token() → PreAuthTokenManager.generate_token()",
-            "    • validate_and_consume_preauth_token() → PreAuthTokenManager.verify_token() + consume_token_atomic()",
-            "    • revoke_preauth_tokens_for_user() → PreAuthTokenManager.revoke_token()",
-            "\n",
-            "📚 See: handoff/20250928/40_App/api-backend/src/utils/pre_auth_token.py",
-            ""
-        ])
-        
-        raise AssertionError("\n".join(error_message))
+        error_message = format_violations_message(
+            all_violations,
+            root,
+            PREAUTH_TOKEN_MIGRATION_GUIDE
+        )
+        raise AssertionError(error_message)
 
 
 if __name__ == "__main__":
@@ -192,7 +100,7 @@ def test_aliased_import_detection():
             f.write(code + "\n")
             f.flush()
             
-            violations = check_file_for_deprecated_imports(Path(f.name))
+            violations = check_file_for_deprecated_imports(Path(f.name), DEPRECATED_MODULES)
             
             if should_detect:
                 assert len(violations) > 0, f"Failed to detect: {description}\n  Code: {code}"
