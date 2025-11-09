@@ -15,17 +15,21 @@ def client():
 @pytest.fixture
 def mock_redis_task_flow():
     """Mock Redis for complete task flow testing"""
-    with patch('src.routes.agent.redis_client') as mock_client, \
-         patch('src.routes.agent.redis_client_rq') as mock_client_rq, \
-         patch('src.routes.agent.q') as mock_queue:
+    with patch('src.routes.agent.get_agent_redis_client') as mock_get_client, \
+         patch('src.routes.agent.get_agent_redis_client_rq') as mock_get_client_rq, \
+         patch('src.routes.agent.get_agent_queue') as mock_get_queue:
         
         tasks = {}
         
         def mock_get(key):
             return tasks.get(key)
         
-        def mock_setex(key, ttl, value):
-            tasks[key] = value
+        def mock_hset(key, mapping=None, **kwargs):
+            if mapping:
+                tasks[key] = mapping
+            return True
+        
+        def mock_expire(key, ttl):
             return True
         
         def mock_enqueue(*args, **kwargs):
@@ -33,13 +37,21 @@ def mock_redis_task_flow():
             job.id = kwargs.get('job_id', str(uuid.uuid4()))
             return job
         
+        mock_client = MagicMock()
         mock_client.get.side_effect = mock_get
-        mock_client.setex.side_effect = mock_setex
+        mock_client.hset.side_effect = mock_hset
+        mock_client.expire.side_effect = mock_expire
         mock_client.type.return_value = "string"
-        mock_queue.enqueue.side_effect = mock_enqueue
+        mock_get_client.return_value = mock_client
         
+        mock_client_rq = MagicMock()
         mock_client_rq.llen.return_value = 1
         mock_client_rq.lrange.return_value = [b'test-job-1']
+        mock_get_client_rq.return_value = mock_client_rq
+        
+        mock_queue = MagicMock()
+        mock_queue.enqueue.side_effect = mock_enqueue
+        mock_get_queue.return_value = mock_queue
         
         yield mock_client, tasks
 

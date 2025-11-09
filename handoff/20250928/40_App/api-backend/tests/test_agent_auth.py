@@ -15,8 +15,9 @@ def client():
 @pytest.fixture
 def mock_redis():
     """Mock Redis client for tests that need it"""
-    with patch('src.routes.agent.redis_client') as mock_client, \
-         patch('src.routes.agent.redis_client_rq') as mock_client_rq:
+    with patch('src.routes.agent.get_agent_redis_client') as mock_get_client, \
+         patch('src.routes.agent.get_agent_redis_client_rq') as mock_get_client_rq:
+        mock_client = MagicMock()
         mock_client.type.return_value = "hash"
         mock_client.hgetall.return_value = {
             "status": "queued",
@@ -25,9 +26,14 @@ def mock_redis():
             "question": "test question"
         }
         mock_client.scan_iter.return_value = iter(["agent:task:test-123"])
+        mock_client.ping.return_value = True
+        mock_get_client.return_value = mock_client
         
+        mock_client_rq = MagicMock()
         mock_client_rq.llen.return_value = 0
         mock_client_rq.lrange.return_value = []
+        mock_client_rq.ping.return_value = True
+        mock_get_client_rq.return_value = mock_client_rq
         
         yield mock_client
 
