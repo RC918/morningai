@@ -49,6 +49,10 @@ def _get_cookie_path():
 COOKIE_SAMESITE = settings.cookie_samesite or 'Lax'  # Configurable: 'Strict', 'Lax', or 'None'
 COOKIE_HTTPONLY = True
 
+COOKIE_SECURE = settings.cookie_secure if settings.cookie_secure is not None else settings.is_production
+COOKIE_DOMAIN = settings.cookie_domain
+COOKIE_PATH = settings.cookie_path or '/'
+
 # CSRF Configuration
 CSRF_TOKEN_LENGTH = 32  # bytes
 
@@ -81,14 +85,14 @@ def validate_security_config():
             errors.append("JWT_SECRET_KEY is using a known weak/default value")
     
     if get_settings().is_production and get_settings().enable_mock_users:
-        errors.append("get_settings().enable_mock_users must be false in production (current: true)")
+        errors.append("ENABLE_MOCK_USERS must be false in production (current: true)")
     
     # P0-3: Validate Cookie Configuration
     if COOKIE_SAMESITE == 'None' and not _get_cookie_secure():
-        errors.append("COOKIE_SAMESITE=None requires _get_cookie_secure()=True (browsers will reject)")
+        errors.append("COOKIE_SAMESITE=None requires COOKIE_SECURE=True (browsers will reject)")
     
     if get_settings().is_production and not _get_cookie_secure():
-        warnings.append("_get_cookie_secure() should be True in production")
+        warnings.append("COOKIE_SECURE should be True in production")
     
     if COOKIE_SAMESITE not in ['Strict', 'Lax', 'None']:
         errors.append(f"COOKIE_SAMESITE must be 'Strict', 'Lax', or 'None' (current: {COOKIE_SAMESITE})")
@@ -103,7 +107,7 @@ def validate_security_config():
             logger.warning(f"Security configuration warning: {warning}")
     
     logger.info("Security configuration validated successfully")
-    logger.info(f"Environment: {ENVIRONMENT}")
+    logger.info(f"Environment: {get_settings().environment or 'development'}")
     logger.info(f"Cookie SameSite: {COOKIE_SAMESITE}")
     logger.info(f"Cookie Secure: {_get_cookie_secure()}")
     logger.info(f"Mock Users Enabled: {get_settings().enable_mock_users}")
