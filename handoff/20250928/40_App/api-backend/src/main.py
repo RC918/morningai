@@ -175,7 +175,10 @@ def _as_bool(val):
     s = str(val).strip().lower()
     return s in ("1", "true", "yes", "on")
 
-app.config["ENABLE_MOCK_USERS"] = _as_bool(os.getenv("ENABLE_MOCK_USERS"))
+enable_mock = os.getenv("ENABLE_MOCK_USERS")
+if enable_mock is not None:
+    app.config["ENABLE_MOCK_USERS"] = _as_bool(enable_mock)
+
 app.config["TESTING"] = _as_bool(os.getenv("TESTING"))
 rate_limit_env = os.getenv("RATE_LIMIT_REQUESTS")
 if rate_limit_env:

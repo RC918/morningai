@@ -97,15 +97,39 @@ def is_production():
 def is_mock_users_enabled():
     """Check if mock users are enabled (dynamic check)
     
-    Priority order:
+    Test mode: Default to True unless explicitly overridden
+    Non-test mode: Default to False unless explicitly enabled
+    
+    Priority order in test mode:
+    1. os.environ ENABLE_MOCK_USERS (explicit override)
+    2. Flask app.config ENABLE_MOCK_USERS (explicit override)
+    3. Default to True (test mode default)
+    
+    Priority order in non-test mode:
     1. Flask app.config ENABLE_MOCK_USERS (explicit override)
     2. os.environ ENABLE_MOCK_USERS (explicit override)
-    3. Default to True if TESTING mode (for test compatibility)
-    4. settings.enable_mock_users (fallback for non-test environments)
+    3. settings.enable_mock_users (fallback)
+    4. Default to False
     """
+    if is_testing_mode():
+        env_v = os.getenv("ENABLE_MOCK_USERS")
+        if env_v is not None:
+            return _as_bool(env_v)
+        
+        try:
+            from flask import current_app
+            if current_app and "ENABLE_MOCK_USERS" in current_app.config:
+                v = current_app.config.get("ENABLE_MOCK_USERS")
+                if v is not None:
+                    return _as_bool(v)
+        except Exception:
+            pass
+        
+        return True
+    
     try:
         from flask import current_app
-        if current_app:
+        if current_app and "ENABLE_MOCK_USERS" in current_app.config:
             v = current_app.config.get("ENABLE_MOCK_USERS")
             if v is not None:
                 return _as_bool(v)
@@ -115,9 +139,6 @@ def is_mock_users_enabled():
     env_v = os.getenv("ENABLE_MOCK_USERS")
     if env_v is not None:
         return _as_bool(env_v)
-    
-    if is_testing_mode():
-        return True
     
     try:
         v = getattr(get_settings(), "enable_mock_users", None)
