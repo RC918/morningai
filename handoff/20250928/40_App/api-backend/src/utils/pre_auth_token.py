@@ -37,7 +37,8 @@ class PreAuthTokenManager:
         self._redis_client = None  # Lazy initialization
         self.jwt_secret = settings.jwt_secret_key or "test-secret-key-for-testing"
 
-        if settings.is_production and not settings.testing:
+        from src.services.auth_service import is_production, is_testing_mode
+        if is_production() and not is_testing_mode():
             if not self.jwt_secret or self.jwt_secret == "test-secret-key-for-testing":
                 raise RuntimeError(
                     "JWT_SECRET_KEY must be set to a secure value in production environment. "

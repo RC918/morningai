@@ -52,12 +52,14 @@ def is_production():
     try:
         from flask import current_app
         if current_app:
-            env = (current_app.config.get("ENV") or current_app.config.get("FLASK_ENV") or "").lower()
+            if _as_bool(current_app.config.get("TESTING")):
+                return False
+            env = (current_app.config.get("FLASK_ENV") or current_app.config.get("ENVIRONMENT") or "").lower()
             if env:
                 return env == "production"
     except Exception:
         pass
-    fe = (os.getenv("FLASK_ENV") or os.getenv("ENV") or "").lower()
+    fe = (os.getenv("FLASK_ENV") or os.getenv("ENVIRONMENT") or "").lower()
     if fe:
         return fe == "production"
     try:
