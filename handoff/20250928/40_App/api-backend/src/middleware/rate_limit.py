@@ -79,7 +79,21 @@ def get_rate_limit_redis():
     
     return redis_client
 
-RATE_LIMIT_REQUESTS = settings.rate_limit_requests or 60
+def get_rate_limit_requests():
+    """Get rate limit requests dynamically from app.config, env, or settings"""
+    try:
+        from flask import current_app
+        if current_app:
+            v = current_app.config.get("RATE_LIMIT_REQUESTS")
+            if v is not None:
+                return int(v)
+    except Exception:
+        pass
+    env_v = os.getenv("RATE_LIMIT_REQUESTS")
+    if env_v is not None:
+        return int(env_v)
+    return settings.rate_limit_requests or 60
+
 RATE_LIMIT_WINDOW = settings.rate_limit_window or 60
 RATE_LIMIT_BY_USER = settings.rate_limit_by_user or False
 
@@ -140,6 +154,8 @@ def rate_limit(f):
             
             unique_member = f"{time.time_ns()}-{uuid.uuid4()}"
             
+            rate_limit_requests = get_rate_limit_requests()
+            
             pipe = client.pipeline()
             pipe.zremrangebyscore(rate_limit_key, 0, window_start)
             pipe.zcard(rate_limit_key)
@@ -148,10 +164,10 @@ def rate_limit(f):
             results = pipe.execute()
             
             pre_count = results[1]
-            remaining = max(0, RATE_LIMIT_REQUESTS - pre_count - 1)
+            remaining = max(0, rate_limit_requests - pre_count - 1)
             reset_time = int(current_time + RATE_LIMIT_WINDOW)
             
-            if pre_count >= RATE_LIMIT_REQUESTS:
+            if pre_count >= rate_limit_requests:
                 logger.warning(f"Rate limit exceeded for {identifier}: {pre_count} requests")
                 
                 try:
@@ -164,11 +180,11 @@ def rate_limit(f):
                 response = jsonify({
                     "error": {
                         "code": "rate_limit_exceeded",
-                        "message": f"Rate limit exceeded. Maximum {RATE_LIMIT_REQUESTS} requests per {RATE_LIMIT_WINDOW} seconds."
+                        "message": f"Rate limit exceeded. Maximum {rate_limit_requests} requests per {RATE_LIMIT_WINDOW} seconds."
                     }
                 })
                 response.status_code = 429
-                response.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
+                response.headers['X-RateLimit-Limit'] = str(rate_limit_requests)
                 response.headers['X-RateLimit-Remaining'] = '0'
                 response.headers['X-RateLimit-Reset'] = str(reset_time)
                 return response
@@ -186,13 +202,13 @@ def rate_limit(f):
                 response_obj = make_response(result[0])
                 status_code = result[1] if len(result) > 1 else 200
                 response_obj.status_code = status_code
-                response_obj.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
+                response_obj.headers['X-RateLimit-Limit'] = str(rate_limit_requests)
                 response_obj.headers['X-RateLimit-Remaining'] = str(remaining)
                 response_obj.headers['X-RateLimit-Reset'] = str(reset_time)
                 return response_obj
             else:
                 response_obj = make_response(result)
-                response_obj.headers['X-RateLimit-Limit'] = str(RATE_LIMIT_REQUESTS)
+                response_obj.headers['X-RateLimit-Limit'] = str(rate_limit_requests)
                 response_obj.headers['X-RateLimit-Remaining'] = str(remaining)
                 response_obj.headers['X-RateLimit-Reset'] = str(reset_time)
                 return response_obj
@@ -205,3 +221,22 @@ def rate_limit(f):
             return f(*args, **kwargs)
     
     return decorated_function
+
+
+def __getattr__(name):
+    """
+    Provide backward compatibility for deprecated module-level constants.
+    
+    This allows existing code to import RATE_LIMIT_REQUESTS, but the value
+    is dynamically resolved at access time rather than module import time.
+    """
+    if name == "RATE_LIMIT_REQUESTS":
+        import warnings
+        warnings.warn(
+            "Importing RATE_LIMIT_REQUESTS as a constant is deprecated. "
+            "Use get_rate_limit_requests() for dynamic resolution.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return get_rate_limit_requests()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

@@ -35,14 +35,37 @@ class PreAuthTokenManager:
 
     def __init__(self):
         self._redis_client = None  # Lazy initialization
-        self.jwt_secret = settings.jwt_secret_key or "test-secret-key-for-testing"
+        
+        secret = self._resolve_jwt_secret()
+        self.jwt_secret = secret if secret is not None else "test-secret-key-for-testing"
 
-        if settings.is_production and not settings.testing:
+        from src.services.auth_service import is_production
+        if is_production():
             if not self.jwt_secret or self.jwt_secret == "test-secret-key-for-testing":
                 raise RuntimeError(
                     "JWT_SECRET_KEY must be set to a secure value in production environment. "
                     "The default test key is not allowed."
                 )
+    
+    def _resolve_jwt_secret(self) -> Optional[str]:
+        """Resolve JWT secret with proper precedence for test compatibility
+        
+        Precedence: os.environ → app.config → settings
+        This ensures pytest's monkeypatch.setenv() takes effect even when Flask app context exists.
+        """
+        if "JWT_SECRET_KEY" in os.environ:
+            return os.environ["JWT_SECRET_KEY"]
+        
+        try:
+            from flask import current_app
+            if current_app:
+                secret = current_app.config.get("JWT_SECRET_KEY")
+                if secret is not None:
+                    return secret
+        except Exception:
+            pass
+        
+        return settings.jwt_secret_key
     
     @property
     def redis_client(self):
