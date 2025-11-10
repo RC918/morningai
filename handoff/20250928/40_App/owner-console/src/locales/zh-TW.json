@@ -19,6 +19,13 @@
         "setupButton": "設定 2FA"
       }
     },
+    "recentActivity": {
+      "placeholder": {
+        "acme": "Acme Corp - 2 小時前",
+        "opsAgent": "ops_agent v2.1 - 5 小時前",
+        "maintenance": "明天凌晨 2:00 UTC"
+      }
+    },
     "stats": {
       "totalTenants": "總租戶數",
       "activeAgents": "活躍 Agents",

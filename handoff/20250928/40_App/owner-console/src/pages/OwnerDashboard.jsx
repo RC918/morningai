@@ -147,21 +147,21 @@ const OwnerDashboard = () => {
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{t('dashboard.recentActivity.newTenant')}</p>
-                  <p className="text-xs text-gray-500">Acme Corp - 2 hours ago</p>
+                  <p className="text-xs text-gray-500">{t('dashboard.recentActivity.placeholder.acme')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{t('dashboard.recentActivity.agentDeployed')}</p>
-                  <p className="text-xs text-gray-500">ops_agent v2.1 - 5 hours ago</p>
+                  <p className="text-xs text-gray-500">{t('dashboard.recentActivity.placeholder.opsAgent')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{t('dashboard.recentActivity.maintenanceScheduled')}</p>
-                  <p className="text-xs text-gray-500">Tomorrow at 2:00 AM UTC</p>
+                  <p className="text-xs text-gray-500">{t('dashboard.recentActivity.placeholder.maintenance')}</p>
                 </div>
               </div>
             </div>

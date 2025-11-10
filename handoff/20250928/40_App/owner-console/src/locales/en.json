@@ -6,6 +6,13 @@
         "description": "As an owner, we strongly recommend enabling 2FA to protect your account and platform.",
         "setupButton": "Set Up 2FA"
       }
+    },
+    "recentActivity": {
+      "placeholder": {
+        "acme": "Acme Corp - 2 hours ago",
+        "opsAgent": "ops_agent v2.1 - 5 hours ago",
+        "maintenance": "Tomorrow at 2:00 AM UTC"
+      }
     }
   },
   "settings": {
