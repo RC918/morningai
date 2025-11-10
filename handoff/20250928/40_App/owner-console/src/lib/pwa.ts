@@ -10,7 +10,7 @@
  * - App install prompts
  */
 
-import { isFeatureEnabled } from './feature-flags';
+import { isFeatureEnabled } from './feature-flags.ts';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
