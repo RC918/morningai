@@ -12,6 +12,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { LoginResponse, User } from '../auth';
 
 describe('2FA Authentication Flow', () => {
   beforeEach(() => {
@@ -20,34 +21,40 @@ describe('2FA Authentication Flow', () => {
 
   describe('next_step handling', () => {
     it('should handle next_step=session (successful login)', () => {
-      const mockResponse = {
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
+      };
+
+      const mockResponse: LoginResponse = {
         next_step: 'session',
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
+        user: mockUser,
+        tokens: {
+          expiresAt: Date.now() + 3600000,
         },
-        token: 'jwt-token-123',
       };
 
       expect(mockResponse.next_step).toBe('session');
       expect(mockResponse.user).toBeDefined();
-      expect(mockResponse.token).toBeDefined();
+      expect(mockResponse.tokens).toBeDefined();
     });
 
     it('should handle next_step=enroll_2fa (2FA enrollment required)', () => {
-      const mockResponse = {
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
+      };
+
+      const mockResponse: LoginResponse = {
         next_step: 'enroll_2fa',
         tmp_login_token: 'tmp-token-123',
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
-        },
+        user: mockUser,
       };
 
       expect(mockResponse.next_step).toBe('enroll_2fa');
@@ -56,7 +63,7 @@ describe('2FA Authentication Flow', () => {
     });
 
     it('should handle next_step=challenge_2fa (2FA verification required)', () => {
-      const mockResponse = {
+      const mockResponse: LoginResponse = {
         next_step: 'challenge_2fa',
         tmp_login_token: 'tmp-token-456',
       };
@@ -66,97 +73,115 @@ describe('2FA Authentication Flow', () => {
     });
 
     it('should handle missing next_step (legacy response)', () => {
-      const mockResponse = {
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
+      };
+
+      const mockResponse: LoginResponse = {
+        user: mockUser,
+        tokens: {
+          expiresAt: Date.now() + 3600000,
         },
-        token: 'jwt-token-123',
       };
 
       expect(mockResponse.next_step).toBeUndefined();
       expect(mockResponse.user).toBeDefined();
-      expect(mockResponse.token).toBeDefined();
+      expect(mockResponse.tokens).toBeDefined();
     });
   });
 
   describe('Token field handling', () => {
-    it('should use token field for successful login (next_step=session)', () => {
-      const mockResponse = {
-        next_step: 'session',
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
-        },
-        token: 'jwt-token-123',
+    it('should use tokens field for successful login (next_step=session)', () => {
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
       };
 
-      expect(mockResponse.token).toBe('jwt-token-123');
+      const mockResponse: LoginResponse = {
+        next_step: 'session',
+        user: mockUser,
+        tokens: {
+          expiresAt: Date.now() + 3600000,
+        },
+      };
+
+      expect(mockResponse.tokens).toBeDefined();
       expect(mockResponse.tmp_login_token).toBeUndefined();
     });
 
     it('should use tmp_login_token for 2FA enrollment (next_step=enroll_2fa)', () => {
-      const mockResponse = {
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
+      };
+
+      const mockResponse: LoginResponse = {
         next_step: 'enroll_2fa',
         tmp_login_token: 'tmp-token-123',
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
-        },
+        user: mockUser,
       };
 
       expect(mockResponse.tmp_login_token).toBe('tmp-token-123');
-      expect(mockResponse.token).toBeUndefined();
+      expect(mockResponse.tokens).toBeUndefined();
     });
 
     it('should use tmp_login_token for 2FA challenge (next_step=challenge_2fa)', () => {
-      const mockResponse = {
+      const mockResponse: LoginResponse = {
         next_step: 'challenge_2fa',
         tmp_login_token: 'tmp-token-456',
       };
 
       expect(mockResponse.tmp_login_token).toBe('tmp-token-456');
-      expect(mockResponse.token).toBeUndefined();
+      expect(mockResponse.tokens).toBeUndefined();
     });
 
     it('should handle token field fallback for legacy responses', () => {
-      const mockResponse = {
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
-        },
-        token: 'jwt-token-123',
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
       };
 
-      const tokenToUse = mockResponse.token || mockResponse.tmp_login_token;
-      expect(tokenToUse).toBe('jwt-token-123');
+      const mockResponse: LoginResponse = {
+        user: mockUser,
+        tokens: {
+          expiresAt: Date.now() + 3600000,
+        },
+      };
+
+      const hasToken = mockResponse.tokens || mockResponse.tmp_login_token;
+      expect(hasToken).toBeDefined();
     });
   });
 
   describe('AuthProvider state management', () => {
     it('should set authenticated=true only when next_step=session', () => {
-      const sessionResponse = {
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
+      };
+
+      const sessionResponse: LoginResponse = {
         next_step: 'session',
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
+        user: mockUser,
+        tokens: {
+          expiresAt: Date.now() + 3600000,
         },
-        token: 'jwt-token-123',
       };
 
       const shouldAuthenticate = sessionResponse.next_step === 'session' || !sessionResponse.next_step;
@@ -164,16 +189,18 @@ describe('2FA Authentication Flow', () => {
     });
 
     it('should NOT set authenticated=true when next_step=enroll_2fa', () => {
-      const enrollResponse = {
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
+      };
+
+      const enrollResponse: LoginResponse = {
         next_step: 'enroll_2fa',
         tmp_login_token: 'tmp-token-123',
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
-        },
+        user: mockUser,
       };
 
       const shouldAuthenticate = enrollResponse.next_step === 'session' || !enrollResponse.next_step;
@@ -181,7 +208,7 @@ describe('2FA Authentication Flow', () => {
     });
 
     it('should NOT set authenticated=true when next_step=challenge_2fa', () => {
-      const challengeResponse = {
+      const challengeResponse: LoginResponse = {
         next_step: 'challenge_2fa',
         tmp_login_token: 'tmp-token-456',
       };
@@ -191,15 +218,19 @@ describe('2FA Authentication Flow', () => {
     });
 
     it('should set authenticated=true for legacy responses (no next_step)', () => {
-      const legacyResponse = {
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
+      };
+
+      const legacyResponse: LoginResponse = {
+        user: mockUser,
+        tokens: {
+          expiresAt: Date.now() + 3600000,
         },
-        token: 'jwt-token-123',
       };
 
       const shouldAuthenticate = legacyResponse.next_step === 'session' || !legacyResponse.next_step;
@@ -224,7 +255,7 @@ describe('2FA Authentication Flow', () => {
       const apiEnabled = false;
 
       if (!isProduction && !apiEnabled) {
-        const mockUser = {
+        const mockUser: User = {
           id: 'mock-user-id',
           email: 'test@example.com',
           role: 'owner',
@@ -238,52 +269,60 @@ describe('2FA Authentication Flow', () => {
 
   describe('2FA Flow Integration', () => {
     it('should complete full 2FA enrollment flow', () => {
-      const loginResponse = {
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
+      };
+
+      const loginResponse: LoginResponse = {
         next_step: 'enroll_2fa',
         tmp_login_token: 'tmp-token-123',
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
-        },
+        user: mockUser,
       };
 
       expect(loginResponse.next_step).toBe('enroll_2fa');
 
-      const enrollResponse = {
+      const enrollResponse: LoginResponse = {
         next_step: 'session',
         user: loginResponse.user,
-        token: 'jwt-token-123',
+        tokens: {
+          expiresAt: Date.now() + 3600000,
+        },
       };
 
       expect(enrollResponse.next_step).toBe('session');
-      expect(enrollResponse.token).toBeDefined();
+      expect(enrollResponse.tokens).toBeDefined();
     });
 
     it('should complete full 2FA challenge flow', () => {
-      const loginResponse = {
+      const loginResponse: LoginResponse = {
         next_step: 'challenge_2fa',
         tmp_login_token: 'tmp-token-456',
       };
 
       expect(loginResponse.next_step).toBe('challenge_2fa');
 
-      const challengeResponse = {
+      const mockUser: User = {
+        id: 'user-123',
+        email: 'owner@example.com',
+        role: 'owner',
+        tenantId: 'tenant-123',
+        name: 'Test Owner',
+      };
+
+      const challengeResponse: LoginResponse = {
         next_step: 'session',
-        user: {
-          id: 'user-123',
-          email: 'owner@example.com',
-          role: 'owner',
-          tenantId: 'tenant-123',
-          name: 'Test Owner',
+        user: mockUser,
+        tokens: {
+          expiresAt: Date.now() + 3600000,
         },
-        token: 'jwt-token-789',
       };
 
       expect(challengeResponse.next_step).toBe('session');
-      expect(challengeResponse.token).toBeDefined();
+      expect(challengeResponse.tokens).toBeDefined();
     });
   });
 });
