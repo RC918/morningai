@@ -538,6 +538,13 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   await ensureCsrfToken();
   
   if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
+    if (import.meta.env.PROD) {
+      throw new Error(
+        'Backend API is not configured. Please contact your system administrator. ' +
+        '(OWNER_CONSOLE_API feature flag is disabled in production)'
+      );
+    }
+    
     console.warn(
       '[Auth] Mock authentication is active. Using fake user data instead of real backend. ' +
       'Set VITE_FEATURE_OWNER_CONSOLE_API=true to enable real authentication.'

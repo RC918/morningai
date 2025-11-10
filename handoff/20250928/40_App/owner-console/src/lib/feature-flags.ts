@@ -121,6 +121,12 @@ function getDefaultValue(key: string): boolean {
  */
 export function isFeatureEnabled(key: string): boolean {
   if (isOwnerConsoleFlag(key)) {
+    if (import.meta.env.PROD && key === 'OWNER_CONSOLE_API') {
+      const envValue = getEnvFlag(key);
+      if (envValue !== undefined) return envValue;
+      return true;
+    }
+    
     const urlValue = getUrlParamFlag(key);
     if (urlValue !== undefined) {
       logFeatureFlagResolution(key, 'url', urlValue);

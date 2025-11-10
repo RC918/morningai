@@ -9,7 +9,7 @@ import { LanguageSwitcher } from './LanguageSwitcher'
 import { TwoFactorVerify } from './2fa/TwoFactorVerify'
 import { TwoFactorEnroll } from './2fa/TwoFactorEnroll'
 
-const LoginPage = ({ onLogin }) => {
+const LoginPage = ({ onLogin, onRefreshUser }) => {
   const { t } = useTranslation()
   const [credentials, setCredentials] = useState({
     email: '',
@@ -41,8 +41,9 @@ const LoginPage = ({ onLogin }) => {
       const result = await onLogin(credentials)
       
       if (result && result.next_step) {
-        if (result.tmp_login_token) {
-          setTmpLoginToken(result.tmp_login_token)
+        const preAuthToken = result.token || result.tmp_login_token
+        if (preAuthToken) {
+          setTmpLoginToken(preAuthToken)
         }
         
         if (result.next_step === 'enroll_2fa') {
@@ -72,7 +73,6 @@ const LoginPage = ({ onLogin }) => {
   const handle2FAVerify = async (params) => {
     if (tmpLoginToken) {
       const { challengeTwoFA } = await import('@/lib/2fa-api')
-      const { getCurrentUser } = await import('@/lib/auth')
       
       await challengeTwoFA({
         code: params.isBackup ? undefined : params.code,
@@ -84,14 +84,14 @@ const LoginPage = ({ onLogin }) => {
       setTmpLoginToken('')
       
       try {
-        const user = await getCurrentUser()
-        onLogin(user)
+        if (onRefreshUser) {
+          await onRefreshUser()
+        }
       } catch (error) {
         setError(error.message || t('auth.login.loginError'))
       }
     } else {
       const { verifyTwoFALogin } = await import('@/lib/2fa-api')
-      const { getCurrentUser } = await import('@/lib/auth')
       
       await verifyTwoFALogin({
         email: credentials.email,
@@ -104,8 +104,9 @@ const LoginPage = ({ onLogin }) => {
       setShow2FADialog(false)
       
       try {
-        const user = await getCurrentUser()
-        onLogin(user)
+        if (onRefreshUser) {
+          await onRefreshUser()
+        }
       } catch (error) {
         setError(error.message || t('auth.login.loginError'))
       }
@@ -124,9 +125,9 @@ const LoginPage = ({ onLogin }) => {
     setTmpLoginToken('')
     
     try {
-      const { getCurrentUser } = await import('@/lib/auth')
-      const user = await getCurrentUser()
-      onLogin(user)
+      if (onRefreshUser) {
+        await onRefreshUser()
+      }
     } catch (error) {
       setError(error.message || t('auth.login.loginError'))
     }
