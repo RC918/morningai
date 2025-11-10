@@ -78,7 +78,7 @@ def get_redis_client():
     """Get Redis client singleton"""
     global redis_client
     if redis_client is None:
-        redis_client = create_redis_client(skip_ping=get_settings().testing)
+        redis_client = create_redis_client(skip_ping=settings.testing)
     return redis_client
 
 def get_redis_connection_info():
