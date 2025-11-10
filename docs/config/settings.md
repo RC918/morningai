@@ -745,3 +745,198 @@ For questions or issues with the settings module:
 - Add AST-based CI gate to prevent new os.getenv() calls (PR #1d)
 - Add more comprehensive unit tests (PR #1e)
 - Consider adding runtime configuration reloading for production
+
+## CORS Configuration
+
+### Overview
+
+The `CORS_ORIGINS` environment variable controls which origins are allowed to make cross-origin requests to the API backend. This is critical for security and for enabling frontend applications (including Vercel preview deployments) to communicate with the backend.
+
+### Environment Variable
+
+**Name**: `CORS_ORIGINS` (uppercase)  
+**Field**: `cors_origins` (lowercase with underscore)  
+**Type**: `str` (comma-separated list)  
+**Default**: `"http://localhost:5173,http://localhost:5174"`  
+**Alias**: `alias="CORS_ORIGINS"` (required for Pydantic to load the environment variable)
+
+### Configuration Format
+
+CORS origins must be specified as a comma-separated list of full URLs (including protocol):
+
+```bash
+# ✅ Correct format
+CORS_ORIGINS="http://localhost:5173,http://localhost:5174,https://app.example.com,https://preview.vercel.app"
+
+# ❌ Incorrect formats
+CORS_ORIGINS="localhost:5173"  # Missing protocol
+CORS_ORIGINS="https://app.example.com/"  # Trailing slash (will cause mismatch)
+CORS_ORIGINS="https://app.example.com https://preview.vercel.app"  # Space-separated (must be comma-separated)
+```
+
+### Environment-Specific Configuration
+
+#### Development
+
+```bash
+CORS_ORIGINS="http://localhost:5173,http://localhost:5174"
+```
+
+Development typically only needs localhost origins for local frontend development.
+
+#### Staging
+
+```bash
+CORS_ORIGINS="http://localhost:5173,http://localhost:5174,https://morningai-staging.vercel.app,https://owner-console-staging.vercel.app,https://morningai-git-feature-branch-abc123.vercel.app,https://owner-console-git-feature-branch-abc123.vercel.app"
+```
+
+Staging should include:
+- Localhost origins (for local testing against staging backend)
+- Staging deployment URLs
+- Vercel preview URLs for active feature branches
+
+**Note**: Vercel preview URLs follow the pattern `https://{app}-git-{branch}-{hash}.vercel.app`. You need to add each preview URL explicitly to `CORS_ORIGINS` in Render.com when testing feature branches.
+
+#### Production
+
+```bash
+CORS_ORIGINS="https://morningai.com,https://app.morningai.com,https://owner-console.morningai.com"
+```
+
+Production should ONLY include production domains. Never include:
+- Localhost origins
+- Staging domains
+- Vercel preview URLs (blocked by `is_vercel_preview()` for security)
+
+### Vercel Preview URL Handling
+
+The backend includes special logic to automatically allow Vercel preview URLs in non-production environments:
+
+```python
+def is_vercel_preview(origin):
+    """
+    Check if origin is a Vercel preview URL.
+    Allows Vercel preview origins in staging and development environments.
+    Blocks them in production for security.
+    """
+    if not origin:
+        return False
+    
+    env = (app_settings.environment or "").lower()
+    
+    if env == "production":
+        return False  # Block Vercel previews in production
+    
+    # Allow Vercel preview URLs in staging/development
+    return bool(re.match(r"^https://.*\.vercel\.app$", origin))
+```
+
+**Behavior**:
+- **Staging/Development**: Vercel preview URLs (`*.vercel.app`) are automatically allowed even if not in `CORS_ORIGINS`
+- **Production**: Vercel preview URLs are blocked for security, regardless of `CORS_ORIGINS` setting
+
+### Render.com Configuration
+
+To set `CORS_ORIGINS` in Render.com:
+
+1. Go to your service (e.g., `morningai-backend-v2-stg`)
+2. Navigate to **Environment** tab
+3. Add environment variable:
+   - **Key**: `CORS_ORIGINS`
+   - **Value**: Comma-separated list of origins (no spaces around commas)
+4. Click **Save Changes**
+5. Render.com will automatically redeploy (2-3 minutes)
+
+### Verification
+
+After deploying with `CORS_ORIGINS` configured, check the startup logs to verify the environment variable was loaded correctly:
+
+```
+[CORS DEBUG] Startup: ENVIRONMENT='staging', CORS_ORIGINS='http://localhost:5173,http://localhost:5174,https://app.example.com'
+[CORS DEBUG] Startup: app_settings.environment='staging', app_settings.cors_origins='http://localhost:5173,http://localhost:5174,https://app.example.com'
+[CORS DEBUG] Startup: Parsed cors_origins list=['http://localhost:5173', 'http://localhost:5174', 'https://app.example.com']
+```
+
+When a request is made from an allowed origin, you should see:
+
+```
+[CORS DEBUG] add_cors_headers: method=GET, path=/api/auth/v2/csrf, origin='https://app.example.com'
+[CORS DEBUG] add_cors_headers: cors_origins=['http://localhost:5173', 'http://localhost:5174', 'https://app.example.com']
+[CORS DEBUG] add_cors_headers: in_allowlist=True, is_preview=False
+[CORS DEBUG] add_cors_headers: ADDING CORS headers for origin='https://app.example.com'
+```
+
+### Troubleshooting
+
+#### Issue: CORS_ORIGINS environment variable not loaded
+
+**Symptom**: Backend logs show default localhost values even though `CORS_ORIGINS` is set in Render.com.
+
+**Root Cause**: The `cors_origins` field in `settings.py` was missing the `alias="CORS_ORIGINS"` configuration, causing Pydantic to look for lowercase `cors_origins` instead of uppercase `CORS_ORIGINS`.
+
+**Solution**: Ensure the field definition includes the alias (fixed in PR #1247):
+
+```python
+cors_origins: str = Field(
+    default="http://localhost:5173,http://localhost:5174",
+    alias="CORS_ORIGINS",  # ← Required for Pydantic to load CORS_ORIGINS env var
+    description="CORS allowed origins (comma-separated)"
+)
+```
+
+#### Issue: CORS errors in browser console
+
+**Symptom**: Browser shows "Access to fetch at '...' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present"
+
+**Diagnosis**:
+1. Check backend logs for `[CORS DEBUG]` lines
+2. Verify `origin` value matches an entry in `cors_origins` list (exact match required, including protocol and no trailing slash)
+3. Check `in_allowlist` and `is_preview` values
+4. Verify `ADDING CORS headers` log appears
+
+**Common Causes**:
+- Origin URL has trailing slash (e.g., `https://app.example.com/` vs `https://app.example.com`)
+- Protocol mismatch (e.g., `http://` vs `https://`)
+- Origin not in `CORS_ORIGINS` environment variable
+- Typo in origin URL
+
+#### Issue: Vercel preview URLs not working in staging
+
+**Symptom**: Vercel preview URLs show CORS errors even though `ENVIRONMENT=staging`.
+
+**Diagnosis**:
+1. Check backend logs for `[CORS DEBUG] is_vercel_preview: env='...'`
+2. Verify `env` is `'staging'` not `'production'`
+3. Check regex match result: `[CORS DEBUG] is_vercel_preview: regex match=True`
+
+**Solution**: Ensure `ENVIRONMENT=staging` is set in Render.com and backend has redeployed with the latest code.
+
+### Security Considerations
+
+1. **Never use `*` (wildcard) for CORS origins** when credentials are involved - browsers will reject it
+2. **Always include protocol** (`https://`) in origin URLs
+3. **No trailing slashes** in origin URLs - they must match exactly
+4. **Production should only include production domains** - never include staging or preview URLs
+5. **Vercel preview URLs are automatically blocked in production** for security
+
+### Testing
+
+Unit tests for CORS configuration are located in `handoff/20250928/40_App/api-backend/tests/test_cors_config.py`:
+
+- `test_cors_origins_env_var_loaded_via_alias`: Verifies `CORS_ORIGINS` environment variable is loaded
+- `test_cors_headers_added_for_allowed_origin`: Verifies CORS headers are added for allowed origins
+- `test_cors_headers_not_added_for_disallowed_origin`: Verifies CORS headers are not added for disallowed origins
+- `test_vercel_preview_allowed_in_staging`: Verifies Vercel preview URLs are allowed in staging
+- `test_vercel_preview_blocked_in_production`: Verifies Vercel preview URLs are blocked in production
+
+Run tests with:
+
+```bash
+pytest handoff/20250928/40_App/api-backend/tests/test_cors_config.py -v
+```
+
+### Related Documentation
+
+- [Environment Variables Schema](./env_schema.md)
+- [Vercel Deployment Strategy](../deployment/VERCEL_DEPLOYMENT_STRATEGY.md)
+- [Vercel Environment Variables](../deployment/VERCEL_ENVIRONMENT_VARIABLES.md)
