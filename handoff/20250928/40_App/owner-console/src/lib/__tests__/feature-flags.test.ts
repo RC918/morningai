@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolveFeatureFlag, isFeatureEnabled, type FeatureFlagSources } from '../feature-flags';
+import { resolveFeatureFlag, isFeatureEnabled, type FeatureFlagSources } from '../feature-flags.ts';
 
 describe('resolveFeatureFlag (pure function)', () => {
   describe('Production mode - OWNER_CONSOLE_API', () => {
