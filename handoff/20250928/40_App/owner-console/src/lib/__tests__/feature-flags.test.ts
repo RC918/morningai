@@ -6,7 +6,7 @@
  * - Development mode priority chain
  * - Edge cases and fallbacks
  * 
- * The tests use the exported `resolveFeatureFlag()` pure function which allows
+ * The tests use the exported resolveFeatureFlag() pure function which allows
  * testing production behavior without relying on Vite's compile-time constants.
  */
 
