@@ -884,6 +884,41 @@ cors_origins: str = Field(
 )
 ```
 
+#### Issue: ENVIRONMENT variable not loaded (staging reads as production)
+
+**Symptom**: Backend logs show `env='production'` even though `ENVIRONMENT=staging` is set in Render.com. This causes `is_vercel_preview()` to block all Vercel preview URLs, resulting in CORS errors.
+
+**Root Cause**: The `environment` field in `settings.py` was missing the `alias="ENVIRONMENT"` configuration. Pydantic's `model_config` has `case_sensitive=True`, so it only reads the exact field name `environment` (lowercase) and ignores `ENVIRONMENT` (uppercase).
+
+**Diagnosis**: Check backend startup logs for:
+```
+[CORS DEBUG] Startup: ENVIRONMENT='staging', ...
+[CORS DEBUG] is_vercel_preview: env='production'  # ← Should be 'staging'!
+```
+
+If `env='production'` when `ENVIRONMENT=staging` is set, the alias is missing.
+
+**Solution**: Ensure the field definition includes the alias (fixed in this PR):
+
+```python
+environment: Literal["development", "staging", "production"] = Field(
+    default="production",
+    alias="ENVIRONMENT",  # ← Required for Pydantic to load ENVIRONMENT env var
+    description="Deployment environment"
+)
+
+flask_env: Literal["development", "staging", "production"] = Field(
+    default="development",
+    alias="FLASK_ENV",  # ← Required for Pydantic to load FLASK_ENV env var
+    description="Flask environment mode"
+)
+```
+
+**Impact**: Without this alias, staging backends default to `environment='production'`, which:
+- Blocks all Vercel preview URLs (security feature)
+- Causes CORS errors for preview deployments
+- Prevents 2FA testing on preview environments
+
 #### Issue: CORS errors in browser console
 
 **Symptom**: Browser shows "Access to fetch at '...' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present"
@@ -1107,4 +1142,3 @@ CORS_ORIGINS=https://owner-console.vercel.app,https://owner-console-git-*.vercel
 git commit --allow-empty -m "Redeploy to update env vars"
 git push
 ```
-
