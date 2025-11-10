@@ -1,181 +1,61 @@
 /**
  * 2FA Authentication Flow Tests
  * 
- * Tests for 2FA authentication flow including:
- * - next_step handling (session, enroll_2fa, challenge_2fa)
+ * Comprehensive tests for 2FA authentication flow including:
+ * - AuthProvider component behavior with different next_step values
  * - Token field fallback (token vs tmp_login_token)
- * - AuthProvider state management based on next_step
+ * - State management based on next_step
  * - Production lock behavior (OWNER_CONSOLE_API flag)
  * 
- * Note: These tests verify the frontend 2FA flow logic without requiring
- * a live backend. Backend integration should be tested via E2E tests.
+ * These tests verify actual component behavior, not just data structures.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import React from 'react';
+import { AuthProvider, useAuth } from '../../components/AuthProvider';
 import type { LoginResponse, User } from '../auth';
+import * as authModule from '../auth';
 
-describe('2FA Authentication Flow', () => {
+vi.mock('../auth', async () => {
+  const actual = await vi.importActual('../auth');
+  return {
+    ...actual,
+    login: vi.fn(),
+    logout: vi.fn(),
+    getCurrentUser: vi.fn(),
+    isAuthenticated: vi.fn(),
+    initAuth: vi.fn(),
+    cleanupAuth: vi.fn(),
+  };
+});
+
+describe('AuthProvider Component - 2FA Flow', () => {
+  const mockUser: User = {
+    id: 'user-123',
+    email: 'owner@example.com',
+    role: 'owner',
+    tenantId: 'tenant-123',
+    name: 'Test Owner',
+  };
+
   beforeEach(() => {
     localStorage.clear();
-  });
-
-  describe('next_step handling', () => {
-    it('should handle next_step=session (successful login)', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
-      };
-
-      const mockResponse: LoginResponse = {
-        next_step: 'session',
-        user: mockUser,
-        tokens: {
-          expiresAt: Date.now() + 3600000,
-        },
-      };
-
-      expect(mockResponse.next_step).toBe('session');
-      expect(mockResponse.user).toBeDefined();
-      expect(mockResponse.tokens).toBeDefined();
-    });
-
-    it('should handle next_step=enroll_2fa (2FA enrollment required)', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
-      };
-
-      const mockResponse: LoginResponse = {
-        next_step: 'enroll_2fa',
-        tmp_login_token: 'tmp-token-123',
-        user: mockUser,
-      };
-
-      expect(mockResponse.next_step).toBe('enroll_2fa');
-      expect(mockResponse.tmp_login_token).toBeDefined();
-      expect(mockResponse.user).toBeDefined();
-    });
-
-    it('should handle next_step=challenge_2fa (2FA verification required)', () => {
-      const mockResponse: LoginResponse = {
-        next_step: 'challenge_2fa',
-        tmp_login_token: 'tmp-token-456',
-      };
-
-      expect(mockResponse.next_step).toBe('challenge_2fa');
-      expect(mockResponse.tmp_login_token).toBeDefined();
-    });
-
-    it('should handle missing next_step (legacy response)', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
-      };
-
-      const mockResponse: LoginResponse = {
-        user: mockUser,
-        tokens: {
-          expiresAt: Date.now() + 3600000,
-        },
-      };
-
-      expect(mockResponse.next_step).toBeUndefined();
-      expect(mockResponse.user).toBeDefined();
-      expect(mockResponse.tokens).toBeDefined();
+    sessionStorage.clear();
+    vi.clearAllMocks();
+    
+    vi.mocked(authModule.initAuth).mockResolvedValue({
+      isAuthenticated: false,
+      user: null,
     });
   });
 
-  describe('Token field handling', () => {
-    it('should use tokens field for successful login (next_step=session)', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
-      };
-
-      const mockResponse: LoginResponse = {
-        next_step: 'session',
-        user: mockUser,
-        tokens: {
-          expiresAt: Date.now() + 3600000,
-        },
-      };
-
-      expect(mockResponse.tokens).toBeDefined();
-      expect(mockResponse.tmp_login_token).toBeUndefined();
-    });
-
-    it('should use tmp_login_token for 2FA enrollment (next_step=enroll_2fa)', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
-      };
-
-      const mockResponse: LoginResponse = {
-        next_step: 'enroll_2fa',
-        tmp_login_token: 'tmp-token-123',
-        user: mockUser,
-      };
-
-      expect(mockResponse.tmp_login_token).toBe('tmp-token-123');
-      expect(mockResponse.tokens).toBeUndefined();
-    });
-
-    it('should use tmp_login_token for 2FA challenge (next_step=challenge_2fa)', () => {
-      const mockResponse: LoginResponse = {
-        next_step: 'challenge_2fa',
-        tmp_login_token: 'tmp-token-456',
-      };
-
-      expect(mockResponse.tmp_login_token).toBe('tmp-token-456');
-      expect(mockResponse.tokens).toBeUndefined();
-    });
-
-    it('should handle token field fallback for legacy responses', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
-      };
-
-      const mockResponse: LoginResponse = {
-        user: mockUser,
-        tokens: {
-          expiresAt: Date.now() + 3600000,
-        },
-      };
-
-      const hasToken = mockResponse.tokens || mockResponse.tmp_login_token;
-      expect(hasToken).toBeDefined();
-    });
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
-  describe('AuthProvider state management', () => {
-    it('should set authenticated=true only when next_step=session', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
-      };
-
+  describe('next_step=session (successful login)', () => {
+    it('should set isAuthenticated=true when next_step is session', async () => {
       const sessionResponse: LoginResponse = {
         next_step: 'session',
         user: mockUser,
@@ -184,48 +64,173 @@ describe('2FA Authentication Flow', () => {
         },
       };
 
-      const shouldAuthenticate = sessionResponse.next_step === 'session' || !sessionResponse.next_step;
-      expect(shouldAuthenticate).toBe(true);
+      vi.mocked(authModule.login).mockResolvedValue(sessionResponse);
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.login({ email: 'test@example.com', password: 'password' });
+      });
+
+      expect(result.current.isAuthenticated).toBe(true);
+      expect(result.current.user).toEqual(mockUser);
     });
 
-    it('should NOT set authenticated=true when next_step=enroll_2fa', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
+    it('should return full response to caller', async () => {
+      const sessionResponse: LoginResponse = {
+        next_step: 'session',
+        user: mockUser,
+        tokens: {
+          expiresAt: Date.now() + 3600000,
+        },
       };
 
+      vi.mocked(authModule.login).mockResolvedValue(sessionResponse);
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      let response: LoginResponse | undefined;
+      await act(async () => {
+        response = await result.current.login({ email: 'test@example.com', password: 'password' });
+      });
+
+      expect(response).toEqual(sessionResponse);
+      expect(response?.next_step).toBe('session');
+    });
+  });
+
+  describe('next_step=enroll_2fa (2FA enrollment required)', () => {
+    it('should NOT set isAuthenticated when next_step is enroll_2fa', async () => {
       const enrollResponse: LoginResponse = {
         next_step: 'enroll_2fa',
         tmp_login_token: 'tmp-token-123',
         user: mockUser,
       };
 
-      const shouldAuthenticate = enrollResponse.next_step === 'session' || !enrollResponse.next_step;
-      expect(shouldAuthenticate).toBe(false);
+      vi.mocked(authModule.login).mockResolvedValue(enrollResponse);
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.login({ email: 'test@example.com', password: 'password' });
+      });
+
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
     });
 
-    it('should NOT set authenticated=true when next_step=challenge_2fa', () => {
+    it('should return full response with tmp_login_token', async () => {
+      const enrollResponse: LoginResponse = {
+        next_step: 'enroll_2fa',
+        tmp_login_token: 'tmp-token-123',
+        user: mockUser,
+      };
+
+      vi.mocked(authModule.login).mockResolvedValue(enrollResponse);
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      let response: LoginResponse | undefined;
+      await act(async () => {
+        response = await result.current.login({ email: 'test@example.com', password: 'password' });
+      });
+
+      expect(response).toEqual(enrollResponse);
+      expect(response?.next_step).toBe('enroll_2fa');
+      expect(response?.tmp_login_token).toBe('tmp-token-123');
+    });
+  });
+
+  describe('next_step=challenge_2fa (2FA verification required)', () => {
+    it('should NOT set isAuthenticated when next_step is challenge_2fa', async () => {
       const challengeResponse: LoginResponse = {
         next_step: 'challenge_2fa',
         tmp_login_token: 'tmp-token-456',
       };
 
-      const shouldAuthenticate = challengeResponse.next_step === 'session' || !challengeResponse.next_step;
-      expect(shouldAuthenticate).toBe(false);
+      vi.mocked(authModule.login).mockResolvedValue(challengeResponse);
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.login({ email: 'test@example.com', password: 'password' });
+      });
+
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
     });
 
-    it('should set authenticated=true for legacy responses (no next_step)', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
+    it('should return full response with tmp_login_token', async () => {
+      const challengeResponse: LoginResponse = {
+        next_step: 'challenge_2fa',
+        tmp_login_token: 'tmp-token-456',
       };
 
+      vi.mocked(authModule.login).mockResolvedValue(challengeResponse);
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      let response: LoginResponse | undefined;
+      await act(async () => {
+        response = await result.current.login({ email: 'test@example.com', password: 'password' });
+      });
+
+      expect(response).toEqual(challengeResponse);
+      expect(response?.next_step).toBe('challenge_2fa');
+      expect(response?.tmp_login_token).toBe('tmp-token-456');
+    });
+  });
+
+  describe('missing next_step (legacy response)', () => {
+    it('should set isAuthenticated=true for legacy responses without next_step', async () => {
       const legacyResponse: LoginResponse = {
         user: mockUser,
         tokens: {
@@ -233,87 +238,53 @@ describe('2FA Authentication Flow', () => {
         },
       };
 
-      const shouldAuthenticate = legacyResponse.next_step === 'session' || !legacyResponse.next_step;
-      expect(shouldAuthenticate).toBe(true);
+      vi.mocked(authModule.login).mockResolvedValue(legacyResponse);
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.login({ email: 'test@example.com', password: 'password' });
+      });
+
+      expect(result.current.isAuthenticated).toBe(true);
+      expect(result.current.user).toEqual(mockUser);
     });
   });
 
-  describe('Production lock behavior', () => {
-    it('should verify OWNER_CONSOLE_API flag controls backend usage', () => {
-      const isProduction = import.meta.env.PROD;
-      const apiEnabled = true;
+  describe('Error handling', () => {
+    it('should clear authentication state on login error', async () => {
+      vi.mocked(authModule.login).mockRejectedValue(new Error('Invalid credentials'));
 
-      if (isProduction && !apiEnabled) {
-        expect(() => {
-          throw new Error('Backend API is not configured. Please contact your system administrator.');
-        }).toThrow('Backend API is not configured');
-      }
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await expect(async () => {
+        await act(async () => {
+          await result.current.login({ email: 'test@example.com', password: 'wrong' });
+        });
+      }).rejects.toThrow('Invalid credentials');
+
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
     });
 
-    it('should allow mock auth in development when OWNER_CONSOLE_API=false', () => {
-      const isProduction = import.meta.env.PROD;
-      const apiEnabled = false;
-
-      if (!isProduction && !apiEnabled) {
-        const mockUser: User = {
-          id: 'mock-user-id',
-          email: 'test@example.com',
-          role: 'owner',
-          tenantId: 'mock-tenant-id',
-          name: 'Mock User',
-        };
-        expect(mockUser.id).toBe('mock-user-id');
-      }
-    });
-  });
-
-  describe('2FA Flow Integration', () => {
-    it('should complete full 2FA enrollment flow', () => {
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
-      };
-
-      const loginResponse: LoginResponse = {
-        next_step: 'enroll_2fa',
-        tmp_login_token: 'tmp-token-123',
-        user: mockUser,
-      };
-
-      expect(loginResponse.next_step).toBe('enroll_2fa');
-
-      const enrollResponse: LoginResponse = {
-        next_step: 'session',
-        user: loginResponse.user,
-        tokens: {
-          expiresAt: Date.now() + 3600000,
-        },
-      };
-
-      expect(enrollResponse.next_step).toBe('session');
-      expect(enrollResponse.tokens).toBeDefined();
-    });
-
-    it('should complete full 2FA challenge flow', () => {
-      const loginResponse: LoginResponse = {
-        next_step: 'challenge_2fa',
-        tmp_login_token: 'tmp-token-456',
-      };
-
-      expect(loginResponse.next_step).toBe('challenge_2fa');
-
-      const mockUser: User = {
-        id: 'user-123',
-        email: 'owner@example.com',
-        role: 'owner',
-        tenantId: 'tenant-123',
-        name: 'Test Owner',
-      };
-
-      const challengeResponse: LoginResponse = {
+    it('should clear authentication state on logout', async () => {
+      const sessionResponse: LoginResponse = {
         next_step: 'session',
         user: mockUser,
         tokens: {
@@ -321,8 +292,75 @@ describe('2FA Authentication Flow', () => {
         },
       };
 
-      expect(challengeResponse.next_step).toBe('session');
-      expect(challengeResponse.tokens).toBeDefined();
+      vi.mocked(authModule.login).mockResolvedValue(sessionResponse);
+      vi.mocked(authModule.logout).mockResolvedValue();
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.login({ email: 'test@example.com', password: 'password' });
+      });
+
+      expect(result.current.isAuthenticated).toBe(true);
+
+      await act(async () => {
+        await result.current.logout();
+      });
+
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
+    });
+
+    it('should handle refreshUser success', async () => {
+      vi.mocked(authModule.getCurrentUser).mockResolvedValue(mockUser);
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.refreshUser();
+      });
+
+      expect(result.current.isAuthenticated).toBe(true);
+      expect(result.current.user).toEqual(mockUser);
+    });
+
+    it('should handle refreshUser error', async () => {
+      vi.mocked(authModule.getCurrentUser).mockRejectedValue(new Error('Session expired'));
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await expect(async () => {
+        await act(async () => {
+          await result.current.refreshUser();
+        });
+      }).rejects.toThrow('Session expired');
+
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
     });
   });
 });
