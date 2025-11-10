@@ -553,11 +553,13 @@ class Settings(BaseSettings):
     
     flask_env: Literal["development", "staging", "production"] = Field(
         default="development",
+        alias="FLASK_ENV",
         description="Flask environment mode"
     )
     
     environment: Literal["development", "staging", "production"] = Field(
         default="production",
+        alias="ENVIRONMENT",
         description="Deployment environment"
     )
     
