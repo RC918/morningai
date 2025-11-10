@@ -12,6 +12,13 @@
   "dashboard": {
     "title": "平台概覽",
     "subtitle": "一目了然地監控您的 MorningAI 平台",
+    "2fa": {
+      "prompt": {
+        "title": "尚未啟用雙重驗證 (2FA)",
+        "description": "作為擁有者，我們強烈建議啟用 2FA 以保護您的帳戶和平台。",
+        "setupButton": "設定 2FA"
+      }
+    },
     "stats": {
       "totalTenants": "總租戶數",
       "activeAgents": "活躍 Agents",
@@ -230,6 +237,13 @@
       "title": "雙重驗證",
       "subtitle": "為您的帳戶增加額外的安全保護層",
       "loading": "載入中...",
+      "card": {
+        "title": "雙重驗證 (2FA)",
+        "description": "使用雙重驗證增強您的帳戶安全性",
+        "manage": "管理您的 2FA 設定",
+        "manageDescription": "設定、停用或重新產生雙重驗證的備用代碼",
+        "manageButton": "管理 2FA"
+      },
       "featureDisabled": {
         "title": "功能無法使用",
         "description": "此環境目前無法使用雙因素驗證。請聯絡您的系統管理員以獲取更多資訊。"

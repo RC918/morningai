@@ -1,13 +1,22 @@
 {
-  "add-item-add-button": "Add",
-  "add-item-input-placeholder": "New list item",
-  "app-title": "What to pack",
-  "delete-item-button": "Delete",
-  "items-count_one": "Showing {{count, number}} item",
-  "items-count_other": "Showing {{count, number}} items",
-  "menu-item-translation-methods": "Translation methods",
-  "send-via-email": "Send via e-mail",
-  "share-button": "Share",
-  "terms-conditions-agreement": "I agree with the <a>Terms and Conditions</a>",
-  "welcome-message": "Hello {{name}}!"
+  "dashboard": {
+    "2fa": {
+      "prompt": {
+        "title": "Two-Factor Authentication (2FA) Not Enabled",
+        "description": "As an owner, we strongly recommend enabling 2FA to protect your account and platform.",
+        "setupButton": "Set Up 2FA"
+      }
+    }
+  },
+  "settings": {
+    "2fa": {
+      "card": {
+        "title": "Two-Factor Authentication (2FA)",
+        "description": "Enhance your account security with two-factor authentication",
+        "manage": "Manage your 2FA settings",
+        "manageDescription": "Set up, disable, or regenerate backup codes for two-factor authentication",
+        "manageButton": "Manage 2FA"
+      }
+    }
+  }
 }

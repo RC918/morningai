@@ -77,23 +77,23 @@ const PlatformSettings = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
-            Two-Factor Authentication (2FA)
+            {t('settings.2fa.card.title')}
           </CardTitle>
           <CardDescription>
-            Enhance your account security with two-factor authentication
+            {t('settings.2fa.card.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-sm font-medium">Manage your 2FA settings</p>
+              <p className="text-sm font-medium">{t('settings.2fa.card.manage')}</p>
               <p className="text-sm text-gray-600">
-                Set up, disable, or regenerate backup codes for two-factor authentication
+                {t('settings.2fa.card.manageDescription')}
               </p>
             </div>
             <Link to="/settings/2fa">
               <Button variant="outline" className="flex items-center gap-2">
-                Manage 2FA
+                {t('settings.2fa.card.manageButton')}
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </Link>

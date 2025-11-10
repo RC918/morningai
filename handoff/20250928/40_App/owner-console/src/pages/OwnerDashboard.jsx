@@ -57,15 +57,15 @@ const OwnerDashboard = () => {
           <Shield className="h-4 w-4 text-yellow-600" />
           <AlertDescription className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="font-medium text-yellow-900">Two-Factor Authentication (2FA) Not Enabled</p>
+              <p className="font-medium text-yellow-900">{t('dashboard.2fa.prompt.title')}</p>
               <p className="text-sm text-yellow-800 mt-1">
-                As an owner, we strongly recommend enabling 2FA to protect your account and platform.
+                {t('dashboard.2fa.prompt.description')}
               </p>
             </div>
             <div className="flex items-center gap-2 ml-4">
               <Link to="/settings/2fa">
                 <Button size="sm" variant="default">
-                  Set Up 2FA
+                  {t('dashboard.2fa.prompt.setupButton')}
                 </Button>
               </Link>
               <Button
