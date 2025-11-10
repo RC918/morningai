@@ -91,10 +91,27 @@ function getEnvFlag(key: string): boolean | undefined {
 }
 
 /**
+ * Get default value for a feature flag
+ * 
+ * For OWNER_CONSOLE_API: defaults to true in production builds to prevent
+ * accidentally shipping mock authentication to production/staging.
+ * 
+ * For other flags: defaults to false
+ */
+function getDefaultValue(key: string): boolean {
+  if (key === 'OWNER_CONSOLE_API' && import.meta.env.PROD) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Check if a feature is enabled
  * 
  * For new Owner Console flags (OWNER_CONSOLE_*):
- * - Priority: URL params → localStorage → env vars → default (false)
+ * - Priority: URL params → localStorage → env vars → default (production-aware)
+ * - OWNER_CONSOLE_API defaults to true in production builds
  * 
  * For legacy features:
  * - Delegates to feature-flags.js (comma-separated VITE_FEATURES)
@@ -105,18 +122,48 @@ function getEnvFlag(key: string): boolean | undefined {
 export function isFeatureEnabled(key: string): boolean {
   if (isOwnerConsoleFlag(key)) {
     const urlValue = getUrlParamFlag(key);
-    if (urlValue !== undefined) return urlValue;
+    if (urlValue !== undefined) {
+      logFeatureFlagResolution(key, 'url', urlValue);
+      return urlValue;
+    }
     
     const localStorageValue = getLocalStorageFlag(key);
-    if (localStorageValue !== undefined) return localStorageValue;
+    if (localStorageValue !== undefined) {
+      logFeatureFlagResolution(key, 'localStorage', localStorageValue);
+      return localStorageValue;
+    }
     
     const envValue = getEnvFlag(key);
-    if (envValue !== undefined) return envValue;
+    if (envValue !== undefined) {
+      logFeatureFlagResolution(key, 'env', envValue);
+      return envValue;
+    }
     
-    return false;
+    const defaultValue = getDefaultValue(key);
+    logFeatureFlagResolution(key, 'default', defaultValue);
+    
+    if (key === 'OWNER_CONSOLE_API' && !defaultValue && import.meta.env.PROD) {
+      console.warn(
+        '[Feature Flags] OWNER_CONSOLE_API is disabled in production build. ' +
+        'This will use mock authentication instead of real backend. ' +
+        'Set VITE_FEATURE_OWNER_CONSOLE_API=true in environment variables.'
+      );
+    }
+    
+    return defaultValue;
   }
   
   return legacyIsEnabled(key.toLowerCase());
+}
+
+/**
+ * Log feature flag resolution for diagnostics
+ * Only logs in development or when explicitly enabled
+ */
+function logFeatureFlagResolution(key: string, source: string, value: boolean): void {
+  if (import.meta.env.DEV || localStorage.getItem('debug_feature_flags') === 'true') {
+    console.info(`[Feature Flags] ${key} resolved from ${source}: ${value}`);
+  }
 }
 
 /**

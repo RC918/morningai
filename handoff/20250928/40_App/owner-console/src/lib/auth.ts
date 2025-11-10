@@ -538,6 +538,10 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   await ensureCsrfToken();
   
   if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
+    console.warn(
+      '[Auth] Mock authentication is active. Using fake user data instead of real backend. ' +
+      'Set VITE_FEATURE_OWNER_CONSOLE_API=true to enable real authentication.'
+    );
     const mockTokens = {
       expiresAt: Date.now() + 60 * 60 * 1000,
     };
