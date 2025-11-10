@@ -16,7 +16,7 @@ const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 const UXMetrics = lazy(() => import('@/pages/UXMetrics'))
 
 function AppContent() {
-  const { isAuthenticated, isLoading, user, login, logout } = useAuth()
+  const { isAuthenticated, isLoading, user, login, logout, refreshUser } = useAuth()
 
   if (isLoading) {
     return (
@@ -27,7 +27,7 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage onLogin={login} />
+    return <LoginPage onLogin={login} onRefreshUser={refreshUser} />
   }
 
   return (
