@@ -161,7 +161,7 @@ export function isFeatureEnabled(key: string): boolean {
  * Only logs in development or when explicitly enabled
  */
 function logFeatureFlagResolution(key: string, source: string, value: boolean): void {
-  if (import.meta.env.DEV || localStorage.getItem('debug_feature_flags') === 'true') {
+  if (import.meta.env.DEV || (typeof window !== 'undefined' && localStorage.getItem('debug_feature_flags') === 'true')) {
     console.info(`[Feature Flags] ${key} resolved from ${source}: ${value}`);
   }
 }
