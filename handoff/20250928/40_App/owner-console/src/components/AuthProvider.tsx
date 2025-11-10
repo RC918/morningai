@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<any>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -78,8 +78,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (credentials: LoginCredentials) => {
     try {
       const response = await authLogin(credentials);
-      setUser(response.user);
-      setIsAuthenticated(true);
+      
+      if (response.next_step === 'session' || !response.next_step) {
+        setUser(response.user);
+        setIsAuthenticated(true);
+      }
+      
+      return response;
     } catch (error) {
       setUser(null);
       setIsAuthenticated(false);
