@@ -702,10 +702,15 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
   const data: RefreshTokenResponse = await response.json();
   
   const newTokens: AuthTokens = {
+    accessToken: data.tokens.accessToken,
     expiresAt: data.tokens.expiresAt,
   };
   
   storeTokenExpiry(newTokens.expiresAt);
+  
+  if (data.tokens.accessToken) {
+    storeAccessToken(data.tokens.accessToken);
+  }
   
   return newTokens;
 }

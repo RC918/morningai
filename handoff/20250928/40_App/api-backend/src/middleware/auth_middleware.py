@@ -1,5 +1,6 @@
 import jwt
 import os
+import logging
 from functools import wraps
 from flask import request, jsonify, current_app
 from common.config.settings import get_settings
@@ -77,6 +78,9 @@ def _extract_jwt_from_request():
     2. X-Access-Token header (fallback for environments where cookies are blocked)
     3. access_token cookie (for browser-based authentication)
     
+    If Authorization header is present but invalid, we continue to try X-Access-Token and cookie
+    to enable true fallback behavior (e.g., when stale/malformed Authorization header exists).
+    
     Returns:
         tuple: (token, error_response) where error_response is None if successful
     """
@@ -85,8 +89,7 @@ def _extract_jwt_from_request():
         token, error = _parse_bearer_token(auth_header)
         if not error:
             return token, None
-        # This prevents confusion when both are present
-        return None, error
+        logging.warning(f"Invalid Authorization header, trying fallback methods: {error[0].get_json()}")
     
     x_access_token = request.headers.get('X-Access-Token')
     if x_access_token:

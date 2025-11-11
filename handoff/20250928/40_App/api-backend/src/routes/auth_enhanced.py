@@ -194,6 +194,11 @@ def login():
                 ttl=PREAUTH_TOKEN_TTL
             )
             
+            # Generate a short-lived JWT access token for 2FA API calls
+            access_token, access_expiry_ms = generate_access_token(
+                user['id'], user['email'], user['role']
+            )
+            
             response_data = {
                 'requires_2fa': True,
                 'next_step': next_step,
@@ -201,6 +206,10 @@ def login():
                 'user': {
                     'id': user['id'],
                     'email': user['email']
+                },
+                'tokens': {
+                    'accessToken': access_token,
+                    'expiresAt': access_expiry_ms
                 }
             }
             
@@ -303,6 +312,7 @@ def refresh():
         
         response_data = {
             'tokens': {
+                'accessToken': access_token,
                 'expiresAt': access_expiry_ms
             }
         }
