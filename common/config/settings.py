@@ -551,7 +551,7 @@ class Settings(BaseSettings):
     )
     
     
-    flask_env: Literal["development", "staging", "production"] = Field(
+    flask_env: Literal["development", "staging", "production", "testing"] = Field(
         default="development",
         alias="FLASK_ENV",
         description="Flask environment mode"
