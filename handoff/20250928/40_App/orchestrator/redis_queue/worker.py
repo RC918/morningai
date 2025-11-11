@@ -612,12 +612,14 @@ if __name__ == "__main__":
                 import random
                 suffix = f"{int(time.time())}-{random.randint(1000, 9999)}"
                 RQ_WORKER_NAME = f"{HEARTBEAT_ID}-{os.getpid()}-{suffix}"
+                WORKER_ID = RQ_WORKER_NAME  # Sync WORKER_ID for cleanup compatibility
                 logger.warning(
                     f"Worker name collision detected, retrying with new name",
                     extra={
                         "operation": "startup",
                         "error": str(e),
                         "new_rq_worker_name": RQ_WORKER_NAME,
+                        "worker_id": WORKER_ID,
                         "attempt": attempt + 1
                     }
                 )
