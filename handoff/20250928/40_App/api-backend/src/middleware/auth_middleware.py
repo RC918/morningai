@@ -70,11 +70,12 @@ def _parse_bearer_token(auth_header):
 
 def _extract_jwt_from_request():
     """
-    Extract JWT token from request (Authorization header or access_token cookie).
+    Extract JWT token from request (Authorization header, X-Access-Token header, or access_token cookie).
     
     Priority:
     1. Authorization header (for API clients and backward compatibility)
-    2. access_token cookie (for browser-based authentication)
+    2. X-Access-Token header (fallback for environments where cookies are blocked)
+    3. access_token cookie (for browser-based authentication)
     
     Returns:
         tuple: (token, error_response) where error_response is None if successful
@@ -87,13 +88,17 @@ def _extract_jwt_from_request():
         # This prevents confusion when both are present
         return None, error
     
+    x_access_token = request.headers.get('X-Access-Token')
+    if x_access_token:
+        return x_access_token, None
+    
     cookie_token = request.cookies.get('access_token')
     if cookie_token:
         return cookie_token, None
     
     return None, (jsonify({
         'error': 'Authorization header missing',
-        'message': 'Please provide a valid JWT token via Authorization header or access_token cookie.'
+        'message': 'Please provide a valid JWT token via Authorization header, X-Access-Token header, or access_token cookie.'
     }), 401)
 
 def jwt_required(f):

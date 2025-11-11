@@ -242,6 +242,7 @@ def login():
                 'avatar': user.get('avatar')
             },
             'tokens': {
+                'accessToken': access_token,
                 'expiresAt': access_expiry_ms
             }
         }
