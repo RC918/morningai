@@ -12,6 +12,11 @@ export function sanitizeRedirect(url: string | null | undefined): string {
 
   const trimmed = url.trim();
 
+  if (trimmed.match(/^(javascript|data):/i)) {
+    console.warn('[Security] Rejected dangerous protocol redirect:', url);
+    return '/';
+  }
+
   if (!trimmed.startsWith('/')) {
     console.warn('[Security] Rejected non-relative redirect:', url);
     return '/';
@@ -19,11 +24,6 @@ export function sanitizeRedirect(url: string | null | undefined): string {
 
   if (trimmed.startsWith('//')) {
     console.warn('[Security] Rejected protocol-relative redirect:', url);
-    return '/';
-  }
-
-  if (trimmed.match(/^(javascript|data):/i)) {
-    console.warn('[Security] Rejected dangerous protocol redirect:', url);
     return '/';
   }
 
