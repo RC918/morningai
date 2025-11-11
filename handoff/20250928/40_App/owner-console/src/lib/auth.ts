@@ -172,6 +172,14 @@ export function isAuthenticated(): boolean {
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || 
   (import.meta.env.MODE === 'development' ? 'http://localhost:5000' : '');
 
+if (import.meta.env.PROD && !API_BASE_URL) {
+  console.error(
+    '[Auth] API Base URL is not configured. ' +
+    'Set VITE_API_BASE_URL in environment variables. ' +
+    'Expected: https://morningai-backend-v2-stg.onrender.com (staging) or production URL'
+  );
+}
+
 /**
  * CSRF token storage
  * Stored in-memory and sessionStorage for cross-origin compatibility
@@ -562,6 +570,14 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
       },
       tokens: mockTokens,
     };
+  }
+  
+  if (!API_BASE_URL) {
+    throw new Error(
+      'API Base URL is not configured. ' +
+      'Please set VITE_API_BASE_URL environment variable. ' +
+      'Contact your system administrator for the correct backend URL.'
+    );
   }
   
   const response = await fetch(`${API_BASE_URL}/api/auth/v2/login`, {

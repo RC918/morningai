@@ -15,7 +15,7 @@
 import { 
   isFeatureEnabled as legacyIsEnabled, 
   AVAILABLE_FEATURES as LEGACY_AVAILABLE 
-} from './feature-flags.js';
+} from './feature-flags.legacy.js';
 
 export const AVAILABLE_FEATURES = LEGACY_AVAILABLE;
 
@@ -80,6 +80,7 @@ function getLocalStorageFlag(key: string): boolean | undefined {
 
 /**
  * Get feature flag value from environment variables
+ * Supports case-insensitive boolean parsing for common formats
  */
 function getEnvFlag(key: string): boolean | undefined {
   const envKey = `VITE_FEATURE_${key}`;
@@ -87,7 +88,18 @@ function getEnvFlag(key: string): boolean | undefined {
   
   if (envValue === undefined) return undefined;
   
-  return envValue === 'true' || envValue === '1';
+  const normalizedValue = envValue.toLowerCase().trim();
+  
+  if (['true', '1', 'yes', 'on'].includes(normalizedValue)) {
+    return true;
+  }
+  
+  if (['false', '0', 'no', 'off'].includes(normalizedValue)) {
+    return false;
+  }
+  
+  console.warn(`[Feature Flags] Invalid value for ${envKey}: "${envValue}". Expected true/false.`);
+  return undefined;
 }
 
 /**
