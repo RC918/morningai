@@ -45,7 +45,7 @@ jobs:
             if ERROR_OUTPUT=$(python -m py_compile "$file" 2>&1); then
               echo "✅ $file"
               echo "✅ $file" >> $GITHUB_STEP_SUMMARY
-              ((PASSED_COUNT++))
+              PASSED_COUNT=$((PASSED_COUNT + 1))
             else
               echo "❌ $file - FAILED"
               echo "$ERROR_OUTPUT"
