@@ -371,6 +371,9 @@ class TestPreAuthManagerAtomicityEdgeCases:
         under concurrent access.
         
         This simulates the real usage pattern in routes.
+        Uses two-phase synchronization to ensure all verify calls complete before
+        any consume calls begin, preventing race conditions where verify sees
+        consumed=True from another thread's consume.
         """
         user_id = "test-user-workflow-123"
         email = "workflow@example.com"
@@ -381,13 +384,17 @@ class TestPreAuthManagerAtomicityEdgeCases:
         cleanup_jtis(jti)
         
         n_threads = 10
-        barrier = Barrier(n_threads)
+        start_barrier = Barrier(n_threads)
+        verify_barrier = Barrier(n_threads)
         
         def verify_and_consume():
             """Typical workflow: verify then consume"""
-            barrier.wait()
+            start_barrier.wait()
             
             verified_payload = pre_auth_manager.verify_token(token)
+            
+            verify_barrier.wait()
+            
             if not verified_payload:
                 return (False, "verify_failed")
             
