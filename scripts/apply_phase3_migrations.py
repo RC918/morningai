@@ -15,6 +15,9 @@ except ImportError:
     )
     sys.exit(2)
 
+from repo_root_utils import get_repo_root
+sys.path.insert(0, str(get_repo_root()))
+
 import psycopg2
 from common.config.settings import settings
 
