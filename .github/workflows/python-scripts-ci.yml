@@ -157,20 +157,66 @@ jobs:
           pip install -r scripts/requirements.txt
       
       - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/scripts" >> $GITHUB_ENV
       
       - name: Verify monitor script runs (dry run)
         run: |
           echo "## Monitor Script Dry Run" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Run monitor with mock API URL to verify it executes without syntax errors
-          # This will fail on API connection but that's expected - we just want to verify syntax
-          if timeout 10s python scripts/monitor_orchestrator.py 2>&1 | head -20 || true; then
-            echo "✅ Monitor script executed without syntax errors" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Note: API connection failures are expected in CI environment" >> $GITHUB_STEP_SUMMARY
+          # Capture output and exit code without aborting the step
+          set +e
+          OUTPUT=$(timeout 10s python scripts/monitor_orchestrator.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Print full output to job logs
+          echo "$OUTPUT"
+          
+          append_summary() {
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            printf "%s\n" "$1" | tail -n 200 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          }
+          
+          # 1) Critical syntax/import errors
+          if echo "$OUTPUT" | grep -qE "(SyntaxError|IndentationError|ImportError|ModuleNotFoundError)"; then
+            echo "❌ Monitor script has critical syntax/import errors" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 1
           fi
+          
+          # 2) Timeout (expected in CI)
+          if [ "$EXIT_CODE" -eq 124 ]; then
+            echo "✅ Script timed out (expected in CI); no syntax/import errors detected" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 0
+          fi
+          
+          # 3) Traceback handling: allow only network-related exceptions
+          if echo "$OUTPUT" | grep -q "Traceback"; then
+            LAST=$(printf "%s\n" "$OUTPUT" | awk 'NF{line=$0} END{print line}')
+            if echo "$LAST" | grep -qiE "(requests\.exceptions\.ConnectionError|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|Temporary failure in name resolution|Name or service not known|gaierror)"; then
+              echo "✅ Network error encountered (tolerated); no syntax/import errors" >> $GITHUB_STEP_SUMMARY
+              append_summary "$OUTPUT"
+              exit 0
+            else
+              echo "❌ Runtime traceback (non-network)" >> $GITHUB_STEP_SUMMARY
+              append_summary "$OUTPUT"
+              exit 1
+            fi
+          fi
+          
+          # 4) No errors and exit code is 0
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "✅ Monitor script executed successfully" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
+          # 5) Unknown non-network error
+          echo "❌ Monitor script exited with code $EXIT_CODE" >> $GITHUB_STEP_SUMMARY
+          append_summary "$OUTPUT"
+          exit 1
         env:
           ORCHESTRATOR_API_URL: https://test-api.example.com
           # No SLACK_WEBHOOK_URL - test graceful degradation
