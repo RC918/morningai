@@ -137,11 +137,130 @@ jobs:
             exit 1
           fi
 
+  self-test:
+    name: CI Logic Self-Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install requests
+      
+      - name: Test Tier 1 - SyntaxError detection
+        run: |
+          echo "Testing Tier 1: SyntaxError detection"
+          
+          # Create temp file with syntax error
+          echo "def foo(" > /tmp/test_syntax.py
+          
+          # Run detection logic
+          set +e
+          OUTPUT=$(python /tmp/test_syntax.py 2>&1)
+          set -e
+          
+          # Should detect SyntaxError
+          if echo "$OUTPUT" | grep -qiE "(SyntaxError|IndentationError|ImportError|ModuleNotFoundError)"; then
+            echo "✅ Tier 1 correctly detected SyntaxError"
+          else
+            echo "❌ Tier 1 failed to detect SyntaxError"
+            echo "Output: $OUTPUT"
+            exit 1
+          fi
+      
+      - name: Test Tier 2 - Timeout detection
+        run: |
+          echo "Testing Tier 2: Timeout detection"
+          
+          # Create script that sleeps
+          echo "import time; time.sleep(100)" > /tmp/test_timeout.py
+          
+          # Run with timeout
+          set +e
+          OUTPUT=$(timeout 1s python /tmp/test_timeout.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Should detect timeout (exit 124)
+          if [ "$EXIT_CODE" -eq 124 ]; then
+            echo "✅ Tier 2 correctly detected timeout"
+          else
+            echo "❌ Tier 2 failed to detect timeout (exit code: $EXIT_CODE)"
+            exit 1
+          fi
+      
+      - name: Test Tier 3 - Network error detection
+        run: |
+          echo "Testing Tier 3: Network error detection"
+          
+          # Create script that raises network error
+          cat > /tmp/test_network.py << 'PYEOF'
+          import requests
+          try:
+              requests.get("http://invalid-host-that-does-not-exist-12345.example.com", timeout=1)
+          except Exception as e:
+              print(f"Error: {e}")
+              exit(1)
+          PYEOF
+          
+          # Run script
+          set +e
+          OUTPUT=$(python /tmp/test_network.py 2>&1)
+          set -e
+          
+          # Should detect network error
+          if echo "$OUTPUT" | grep -qiE "(requests\.exceptions\.ConnectionError|urllib3\.exceptions\.NewConnectionError|HTTPSConnectionPool|Max retries exceeded|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|NameResolutionError|Temporary failure in name resolution|Name or service not known|gaierror|Failed to resolve)"; then
+            echo "✅ Tier 3 correctly detected network error"
+          else
+            echo "❌ Tier 3 failed to detect network error"
+            echo "Output: $OUTPUT"
+            exit 1
+          fi
+      
+      - name: Test Tier 5 - Non-network error detection
+        run: |
+          echo "Testing Tier 5: Non-network error detection"
+          
+          # Create script that raises ValueError
+          cat > /tmp/test_value_error.py << 'PYEOF'
+          raise ValueError("This is a test error")
+          PYEOF
+          
+          # Run script
+          set +e
+          OUTPUT=$(python /tmp/test_value_error.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Should NOT match network patterns
+          if echo "$OUTPUT" | grep -qiE "(requests\.exceptions\.ConnectionError|urllib3\.exceptions\.NewConnectionError|HTTPSConnectionPool|Max retries exceeded|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|NameResolutionError|Temporary failure in name resolution|Name or service not known|gaierror|Failed to resolve)"; then
+            echo "❌ Tier 5 incorrectly matched network pattern for ValueError"
+            echo "Output: $OUTPUT"
+            exit 1
+          else
+            echo "✅ Tier 5 correctly did not match network pattern"
+          fi
+          
+          # Should have non-zero exit code
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "✅ Tier 5 correctly detected non-zero exit code"
+          else
+            echo "❌ Tier 5 failed to detect error (exit code was 0)"
+            exit 1
+          fi
+
   integration-check:
     name: Monitor Integration Check
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [syntax-check, monitor-tests]
+    needs: [syntax-check, monitor-tests, self-test]
     
     steps:
       - name: Checkout code
