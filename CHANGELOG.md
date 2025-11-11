@@ -8,6 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Python Scripts CI Workflow** - Comprehensive CI checks for Python scripts to prevent syntax errors
+  - `python-scripts-ci.yml`: New workflow with 3 jobs (syntax-check, monitor-tests, integration-check)
+  - **Syntax Validation**: Compiles monitor-related Python scripts using `python -m py_compile`
+    - Scoped to: `monitor_orchestrator.py`, `repo_root_utils.py`, `test_monitor_graceful_degradation.py`
+    - TODO: Expand to all scripts after fixing legacy syntax errors (e.g., `kg_cost_report.py:54`)
+  - **Monitor Tests**: Runs `test_monitor_graceful_degradation.py` in CI environment
+  - **Integration Check**: Dry-run verification that monitor script executes without syntax errors
+  - **GitHub Step Summary**: Clear, actionable summaries for all check results
+  - Prevents future syntax errors like the f-string backslash issue (PR #1261)
+  - Runs on: PRs, pushes to main, and manual trigger (workflow_dispatch)
+  - Related: PR #1261 hotfix, PR #1258 monitor improvements
+
+### Fixed
+- **Monitor Orchestrator Workflow** (PR #1258)
+  - Fixed Pydantic alias for `SLACK_WEBHOOK_URL` to allow loading from environment variables
+  - Added `repr=False` to prevent accidental logging of webhook URL in settings repr
+  - **Behavior Change**: Monitor now gracefully degrades when Slack webhook not configured
+    - Old behavior: `sys.exit(1)` if `SLACK_WEBHOOK_URL` missing
+    - New behavior: Continues with health checks, prints alerts to console
+    - Rationale: Allows GitHub Actions workflows to succeed in CI/CD environments without Slack
+    - Production: Recommended to configure `SLACK_WEBHOOK_URL` for real-time alerts
+
+- **Reputation Engine Path Resolution** (PR #1258)
+  - Fixed `policies.yaml` path resolution with robust fallback chain
+  - Changed from 4 levels up (incorrect) to 5 levels up (correct) to reach repo root
+  - Added support for `POLICIES_PATH` environment variable override
+  - Added multiple candidate paths for different execution environments:
+    - Priority 1: `POLICIES_PATH` env var (explicit override)
+    - Priority 2: Repo root resolution (5 levels up from governance/)
+    - Priority 3: Current working directory
+    - Priority 4: Backward compatibility (4 levels up)
+    - Priority 5: Legacy relative path fallback
+  - Fixes GitHub Actions workflow failures in reputation-update workflow
+
+### Added
 - **2FA Pre-Authentication Flow Security Enhancements** (PR #1149)
   - Atomic token consumption using Redis WATCH/MULTI to prevent race conditions
   - Production JWT secret validation with fail-fast startup check

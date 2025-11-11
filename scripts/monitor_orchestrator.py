@@ -51,7 +51,12 @@ class OrchestratorMonitor:
         self.critical_queue_depth = 500
     
     def send_slack_alert(self, message: str, severity: str = "warning") -> bool:
-        """Send alert to Slack"""
+        """Send alert to Slack (gracefully skips if webhook not configured)"""
+        if not self.slack_webhook_url:
+            sanitized_message = message.replace('*', '').replace('\n', ' ')
+            print(f"[{severity.upper()}] {sanitized_message}")
+            return True
+        
         emoji_map = {
             "info": ":information_source:",
             "warning": ":warning:",
@@ -251,8 +256,9 @@ def main():
     api_url = settings.orchestrator_api_url or "https://morningai-orchestrator-api.onrender.com"
     
     if not slack_webhook_url:
-        print("Error: SLACK_WEBHOOK_URL environment variable is not set")
-        sys.exit(1)
+        print("[WARNING] SLACK_WEBHOOK_URL not configured - Slack alerts disabled")
+        print("[INFO] Continuing with health checks only (no Slack notifications)")
+        slack_webhook_url = ""
     
     monitor = OrchestratorMonitor(api_url, slack_webhook_url)
     exit_code = monitor.run()

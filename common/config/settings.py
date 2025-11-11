@@ -316,6 +316,7 @@ class Settings(BaseSettings):
     
     render_instance_id: Optional[str] = Field(
         None,
+        alias="RENDER_INSTANCE_ID",
         description="Render instance ID (auto-set by Render platform)"
     )
     
@@ -497,7 +498,9 @@ class Settings(BaseSettings):
     
     slack_webhook_url: Optional[str] = Field(
         None,
-        description="Slack webhook URL for notifications"
+        alias="SLACK_WEBHOOK_URL",
+        description="Slack webhook URL for notifications",
+        repr=False
     )
     
     telegram_bot_token_secret: Optional[SecretStr] = Field(
@@ -586,6 +589,7 @@ class Settings(BaseSettings):
     
     hostname: Optional[str] = Field(
         None,
+        alias="HOSTNAME",
         description="System hostname (auto-detected)"
     )
     
