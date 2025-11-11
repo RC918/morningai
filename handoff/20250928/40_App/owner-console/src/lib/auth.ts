@@ -26,6 +26,7 @@ import { isFeatureEnabled } from './feature-flags.ts';
 
 
 export interface AuthTokens {
+  accessToken?: string; // Access token (for fallback when cookies are blocked)
   expiresAt: number; // Unix timestamp in milliseconds
 }
 
@@ -54,6 +55,7 @@ export interface LoginResponse {
 
 export interface RefreshTokenResponse {
   tokens: {
+    accessToken?: string;
     expiresAt: number;
   };
 }
@@ -63,6 +65,23 @@ const TOKEN_EXPIRY_KEY = 'morningai_token_expiry';
 const USER_STORAGE_KEY = 'morningai_user';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
 
+let inMemoryAccessToken: string | null = null;
+
+
+/**
+ * Store access token in memory (fallback for when cookies are blocked)
+ * SECURITY: Never store in localStorage to prevent XSS attacks
+ */
+export function storeAccessToken(token: string | null): void {
+  inMemoryAccessToken = token;
+}
+
+/**
+ * Get access token from memory
+ */
+export function getAccessToken(): string | null {
+  return inMemoryAccessToken;
+}
 
 /**
  * Store token expiry time
@@ -108,6 +127,8 @@ export function getStoredTokenExpiry(): number | null {
  */
 export function clearTokens(): void {
   if (typeof window === 'undefined') return;
+  
+  inMemoryAccessToken = null;
   
   try {
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
@@ -449,6 +470,11 @@ async function authenticatedFetch(
     }
   }
   
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+  
   const response = await fetch(url, {
     ...options,
     headers,
@@ -472,6 +498,11 @@ async function authenticatedFetch(
         if (csrfToken) {
           retryHeaders.set('X-CSRF-Token', csrfToken);
         }
+      }
+      
+      const accessToken = getAccessToken();
+      if (accessToken) {
+        retryHeaders.set('Authorization', `Bearer ${accessToken}`);
       }
       
       const retryResponse = await fetch(url, {
@@ -508,6 +539,11 @@ async function authenticatedFetch(
         if (csrfToken) {
           retryHeaders.set('X-CSRF-Token', csrfToken);
         }
+      }
+      
+      const accessToken = getAccessToken();
+      if (accessToken) {
+        retryHeaders.set('Authorization', `Bearer ${accessToken}`);
       }
       
       const retryResponse = await fetch(url, {
@@ -599,6 +635,10 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   if (data.tokens && data.user) {
     storeTokenExpiry(data.tokens.expiresAt);
     storeUser(data.user);
+    
+    if (data.tokens.accessToken) {
+      storeAccessToken(data.tokens.accessToken);
+    }
   }
   
   return data;
@@ -663,10 +703,15 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
   const data: RefreshTokenResponse = await response.json();
   
   const newTokens: AuthTokens = {
+    accessToken: data.tokens.accessToken,
     expiresAt: data.tokens.expiresAt,
   };
   
   storeTokenExpiry(newTokens.expiresAt);
+  
+  if (data.tokens.accessToken) {
+    storeAccessToken(data.tokens.accessToken);
+  }
   
   return newTokens;
 }
