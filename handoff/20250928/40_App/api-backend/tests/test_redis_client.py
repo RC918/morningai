@@ -14,9 +14,9 @@ class TestRedisClientSkipPing:
         mock_settings.upstash_redis_rest_url = None
         
         with patch('utils.redis_client.get_settings', return_value=mock_settings):
-            with patch('utils.redis_client.redis') as mock_redis_module:
+            with patch('redis.from_url') as mock_from_url:
                 mock_client = MagicMock()
-                mock_redis_module.from_url.return_value = mock_client
+                mock_from_url.return_value = mock_client
                 
                 import utils.redis_client as redis_client_module
                 redis_client_module.redis_client = None
@@ -25,7 +25,7 @@ class TestRedisClientSkipPing:
                 client = get_redis_client()
                 
                 assert client is not None
-                mock_redis_module.from_url.assert_called_once()
+                mock_from_url.assert_called_once()
                 mock_client.ping.assert_not_called()
     
     def test_get_redis_client_respects_testing_flag_false(self):
@@ -36,9 +36,9 @@ class TestRedisClientSkipPing:
         mock_settings.upstash_redis_rest_url = None
         
         with patch('utils.redis_client.get_settings', return_value=mock_settings):
-            with patch('utils.redis_client.redis') as mock_redis_module:
+            with patch('redis.from_url') as mock_from_url:
                 mock_client = MagicMock()
-                mock_redis_module.from_url.return_value = mock_client
+                mock_from_url.return_value = mock_client
                 
                 import utils.redis_client as redis_client_module
                 redis_client_module.redis_client = None
@@ -47,7 +47,7 @@ class TestRedisClientSkipPing:
                 client = get_redis_client()
                 
                 assert client is not None
-                mock_redis_module.from_url.assert_called_once()
+                mock_from_url.assert_called_once()
                 mock_client.ping.assert_called_once()
     
     def test_create_redis_client_with_skip_ping_true(self):
@@ -57,9 +57,9 @@ class TestRedisClientSkipPing:
         mock_settings.upstash_redis_rest_url = None
         
         with patch('utils.redis_client.get_settings', return_value=mock_settings):
-            with patch('utils.redis_client.redis') as mock_redis_module:
+            with patch('redis.from_url') as mock_from_url:
                 mock_client = MagicMock()
-                mock_redis_module.from_url.return_value = mock_client
+                mock_from_url.return_value = mock_client
                 
                 from utils.redis_client import create_redis_client
                 client = create_redis_client(skip_ping=True)
@@ -74,9 +74,9 @@ class TestRedisClientSkipPing:
         mock_settings.upstash_redis_rest_url = None
         
         with patch('utils.redis_client.get_settings', return_value=mock_settings):
-            with patch('utils.redis_client.redis') as mock_redis_module:
+            with patch('redis.from_url') as mock_from_url:
                 mock_client = MagicMock()
-                mock_redis_module.from_url.return_value = mock_client
+                mock_from_url.return_value = mock_client
                 
                 from utils.redis_client import create_redis_client
                 client = create_redis_client(skip_ping=False)
@@ -91,7 +91,7 @@ class TestRedisClientSkipPing:
         mock_settings.upstash_redis_rest_token = "test_token"
         
         with patch('utils.redis_client.get_settings', return_value=mock_settings):
-            with patch('utils.redis_client.Redis') as mock_upstash_redis:
+            with patch('upstash_redis.Redis') as mock_upstash_redis:
                 mock_client = MagicMock()
                 mock_upstash_redis.return_value = mock_client
                 
@@ -108,7 +108,7 @@ class TestRedisClientSkipPing:
         mock_settings.upstash_redis_rest_token = "test_token"
         
         with patch('utils.redis_client.get_settings', return_value=mock_settings):
-            with patch('utils.redis_client.Redis') as mock_upstash_redis:
+            with patch('upstash_redis.Redis') as mock_upstash_redis:
                 mock_client = MagicMock()
                 mock_upstash_redis.return_value = mock_client
                 
@@ -126,9 +126,9 @@ class TestRedisClientSkipPing:
         mock_settings.upstash_redis_rest_url = None
         
         with patch('utils.redis_client.get_settings', return_value=mock_settings):
-            with patch('utils.redis_client.redis') as mock_redis_module:
+            with patch('redis.from_url') as mock_from_url:
                 mock_client = MagicMock()
-                mock_redis_module.from_url.return_value = mock_client
+                mock_from_url.return_value = mock_client
                 
                 import utils.redis_client as redis_client_module
                 redis_client_module.redis_client = None
@@ -138,4 +138,4 @@ class TestRedisClientSkipPing:
                 client2 = get_redis_client()
                 
                 assert client1 is client2
-                assert mock_redis_module.from_url.call_count == 1
+                assert mock_from_url.call_count == 1
