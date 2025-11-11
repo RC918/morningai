@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '@morningai/shared-ui'
-import { Settings, Save } from 'lucide-react'
+import { Settings, Save, Shield, ChevronRight } from 'lucide-react'
 
 const PlatformSettings = () => {
   const { t } = useTranslation()
@@ -68,6 +69,34 @@ const PlatformSettings = () => {
               <option>{t('settings.security.1hour')}</option>
               <option>{t('settings.security.4hours')}</option>
             </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            {t('settings.2fa.card.title')}
+          </CardTitle>
+          <CardDescription>
+            {t('settings.2fa.card.description')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">{t('settings.2fa.card.manage')}</p>
+              <p className="text-sm text-gray-600">
+                {t('settings.2fa.card.manageDescription')}
+              </p>
+            </div>
+            <Link to="/settings/2fa">
+              <Button variant="outline" className="flex items-center gap-2">
+                {t('settings.2fa.card.manageButton')}
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
