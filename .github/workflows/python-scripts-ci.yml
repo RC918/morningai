@@ -194,7 +194,9 @@ jobs:
           fi
           
           # 3) Network-related errors (tolerated) → PASS
-          if echo "$OUTPUT" | grep -qiE "(requests\.exceptions\.ConnectionError|urllib3\.exceptions\.NewConnectionError|HTTPSConnectionPool|Max retries exceeded|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|NameResolutionError|Temporary failure in name resolution|Name or service not known|gaierror|Failed to resolve)"; then
+          # Supports multiple HTTP libraries: requests, urllib3, httpx, aiohttp, socket
+          # Also covers builtin exceptions: ConnectionError, TimeoutError, OSError
+          if echo "$OUTPUT" | grep -qiE "(requests\.exceptions\.(ConnectionError|Timeout|RequestException)|urllib3\.exceptions\.(NewConnectionError|MaxRetryError|TimeoutError)|httpx\.(ConnectError|ConnectTimeout|ReadTimeout|WriteTimeout|PoolTimeout|NetworkError|TimeoutException)|aiohttp\.(ClientConnectionError|ClientConnectorError|ServerTimeoutError|ServerDisconnectedError)|socket\.(gaierror|timeout|herror)|HTTPSConnectionPool|HTTPConnectionPool|Max retries exceeded|Connection (refused|reset|aborted|closed)|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|timed out|NameResolutionError|Temporary failure in name resolution|Name or service not known|gaierror|Failed to resolve|Network is unreachable|Host is unreachable|Connection timed out|ConnectionRefusedError|TimeoutError|OSError.*Connection)"; then
             echo "✅ Network error encountered (tolerated); no syntax/import errors" >> $GITHUB_STEP_SUMMARY
             append_summary "$OUTPUT"
             exit 0
