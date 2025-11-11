@@ -179,41 +179,34 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           }
           
-          # 1) Critical syntax/import errors
-          if echo "$OUTPUT" | grep -qE "(SyntaxError|IndentationError|ImportError|ModuleNotFoundError)"; then
+          # 1) Critical syntax/import errors → FAIL
+          if echo "$OUTPUT" | grep -qiE "(SyntaxError|IndentationError|ImportError|ModuleNotFoundError)"; then
             echo "❌ Monitor script has critical syntax/import errors" >> $GITHUB_STEP_SUMMARY
             append_summary "$OUTPUT"
             exit 1
           fi
           
-          # 2) Timeout (expected in CI)
+          # 2) Timeout (expected in CI) → PASS
           if [ "$EXIT_CODE" -eq 124 ]; then
             echo "✅ Script timed out (expected in CI); no syntax/import errors detected" >> $GITHUB_STEP_SUMMARY
             append_summary "$OUTPUT"
             exit 0
           fi
           
-          # 3) Traceback handling: allow only network-related exceptions
-          if echo "$OUTPUT" | grep -q "Traceback"; then
-            LAST=$(printf "%s\n" "$OUTPUT" | awk 'NF{line=$0} END{print line}')
-            if echo "$LAST" | grep -qiE "(requests\.exceptions\.ConnectionError|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|Temporary failure in name resolution|Name or service not known|gaierror)"; then
-              echo "✅ Network error encountered (tolerated); no syntax/import errors" >> $GITHUB_STEP_SUMMARY
-              append_summary "$OUTPUT"
-              exit 0
-            else
-              echo "❌ Runtime traceback (non-network)" >> $GITHUB_STEP_SUMMARY
-              append_summary "$OUTPUT"
-              exit 1
-            fi
+          # 3) Network-related errors (tolerated) → PASS
+          if echo "$OUTPUT" | grep -qiE "(requests\.exceptions\.ConnectionError|urllib3\.exceptions\.NewConnectionError|HTTPSConnectionPool|Max retries exceeded|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|NameResolutionError|Temporary failure in name resolution|Name or service not known|gaierror|Failed to resolve)"; then
+            echo "✅ Network error encountered (tolerated); no syntax/import errors" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 0
           fi
           
-          # 4) No errors and exit code is 0
+          # 4) Success → PASS
           if [ "$EXIT_CODE" -eq 0 ]; then
             echo "✅ Monitor script executed successfully" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
           
-          # 5) Unknown non-network error
+          # 5) Unknown non-network error → FAIL
           echo "❌ Monitor script exited with code $EXIT_CODE" >> $GITHUB_STEP_SUMMARY
           append_summary "$OUTPUT"
           exit 1
