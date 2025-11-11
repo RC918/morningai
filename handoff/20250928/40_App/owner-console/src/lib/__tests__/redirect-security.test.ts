@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { SpyInstance } from 'vitest';
 import { sanitizeRedirect } from '../redirect-security';
 
 describe('sanitizeRedirect', () => {
-  let consoleWarnSpy: SpyInstance;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     consoleWarnSpy = vi.spyOn(console, 'warn');
