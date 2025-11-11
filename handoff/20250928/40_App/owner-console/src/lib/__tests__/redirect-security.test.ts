@@ -2,15 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { sanitizeRedirect } from '../redirect-security';
 
 describe('sanitizeRedirect', () => {
-  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
-    consoleWarnSpy = vi.spyOn(console, 'warn');
-    consoleWarnSpy.mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    consoleWarnSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 
   describe('Valid relative paths', () => {
@@ -40,7 +37,7 @@ describe('sanitizeRedirect', () => {
   describe('Absolute URLs (should be rejected)', () => {
     it('should reject http URLs', () => {
       expect(sanitizeRedirect('http://evil.com')).toBe('/');
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(console.warn).toHaveBeenCalledWith(
         '[Security] Rejected non-relative redirect:',
         'http://evil.com'
       );
@@ -48,7 +45,7 @@ describe('sanitizeRedirect', () => {
 
     it('should reject https URLs', () => {
       expect(sanitizeRedirect('https://evil.com')).toBe('/');
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(console.warn).toHaveBeenCalledWith(
         '[Security] Rejected non-relative redirect:',
         'https://evil.com'
       );
@@ -63,7 +60,7 @@ describe('sanitizeRedirect', () => {
   describe('Protocol-relative URLs (should be rejected)', () => {
     it('should reject protocol-relative URLs', () => {
       expect(sanitizeRedirect('//evil.com')).toBe('/');
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(console.warn).toHaveBeenCalledWith(
         '[Security] Rejected protocol-relative redirect:',
         '//evil.com'
       );
@@ -71,7 +68,7 @@ describe('sanitizeRedirect', () => {
 
     it('should reject protocol-relative URLs with paths', () => {
       expect(sanitizeRedirect('//evil.com/path')).toBe('/');
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(console.warn).toHaveBeenCalledWith(
         '[Security] Rejected protocol-relative redirect:',
         '//evil.com/path'
       );
@@ -81,7 +78,7 @@ describe('sanitizeRedirect', () => {
   describe('Dangerous protocols (should be rejected)', () => {
     it('should reject javascript: protocol', () => {
       expect(sanitizeRedirect('javascript:alert(1)')).toBe('/');
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(console.warn).toHaveBeenCalledWith(
         '[Security] Rejected dangerous protocol redirect:',
         'javascript:alert(1)'
       );
@@ -94,7 +91,7 @@ describe('sanitizeRedirect', () => {
 
     it('should reject data: protocol', () => {
       expect(sanitizeRedirect('data:text/html,<script>alert(1)</script>')).toBe('/');
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(console.warn).toHaveBeenCalledWith(
         '[Security] Rejected dangerous protocol redirect:',
         'data:text/html,<script>alert(1)</script>'
       );
