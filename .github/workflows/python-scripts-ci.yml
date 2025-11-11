@@ -42,8 +42,10 @@ jobs:
           
           # Denylist: scripts with known legacy issues (temporary)
           # Remove from this list as issues are fixed
-          # Currently empty - all scripts pass syntax check
-          DENYLIST=()
+          # kg_cost_report.py: Multi-line f-string syntax requires Python 3.12+ (CI uses 3.11)
+          DENYLIST=(
+            "scripts/kg_cost_report.py"
+          )
           
           # Check all Python scripts in scripts/
           for file in scripts/*.py; do
