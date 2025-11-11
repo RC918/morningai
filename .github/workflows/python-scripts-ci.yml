@@ -41,10 +41,14 @@ jobs:
           
           # Find all Python files in scripts/
           while IFS= read -r file; do
-            if python -m py_compile "$file" 2>&1; then
+            echo "Checking $file..."
+            if ERROR_OUTPUT=$(python -m py_compile "$file" 2>&1); then
+              echo "✅ $file"
               echo "✅ $file" >> $GITHUB_STEP_SUMMARY
               ((PASSED_COUNT++))
             else
+              echo "❌ $file - FAILED"
+              echo "$ERROR_OUTPUT"
               echo "❌ $file" >> $GITHUB_STEP_SUMMARY
               FAILED_FILES+=("$file")
             fi
@@ -89,7 +93,10 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov
       
       - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/scripts" >> $GITHUB_ENV
+      
+      - name: Verify PYTHONPATH
+        run: python -c "import sys; print('sys.path:', sys.path)"
       
       - name: Run monitor tests
         id: test
