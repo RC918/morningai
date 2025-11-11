@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, Alert
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { TwoFactorVerify } from './2fa/TwoFactorVerify'
 import { TwoFactorEnroll } from './2fa/TwoFactorEnroll'
+import { sanitizeRedirect } from '@/lib/redirect-security'
 
 const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
   const { t } = useTranslation()
@@ -88,7 +89,8 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
           await onRefreshUser()
         }
         if (redirectPath && redirectPath !== '/' && typeof window !== 'undefined') {
-          window.location.href = redirectPath
+          const safeRedirect = sanitizeRedirect(redirectPath)
+          window.location.href = safeRedirect
         }
       } catch (error) {
         setError(error.message || t('auth.login.loginError'))
@@ -111,7 +113,8 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
           await onRefreshUser()
         }
         if (redirectPath && redirectPath !== '/' && typeof window !== 'undefined') {
-          window.location.href = redirectPath
+          const safeRedirect = sanitizeRedirect(redirectPath)
+          window.location.href = safeRedirect
         }
       } catch (error) {
         setError(error.message || t('auth.login.loginError'))
@@ -135,7 +138,8 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
         await onRefreshUser()
       }
       if (redirectPath && redirectPath !== '/' && typeof window !== 'undefined') {
-        window.location.href = redirectPath
+        const safeRedirect = sanitizeRedirect(redirectPath)
+        window.location.href = safeRedirect
       }
     } catch (error) {
       setError(error.message || t('auth.login.loginError'))
