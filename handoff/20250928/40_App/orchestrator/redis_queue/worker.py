@@ -137,6 +137,9 @@ HEARTBEAT_ID = (
 
 RQ_WORKER_NAME = f"{HEARTBEAT_ID}-{os.getpid()}"
 
+# Backward compatibility alias for tests and monitoring
+WORKER_ID = RQ_WORKER_NAME
+
 LEGACY_WORKER_NAME = "worker-local"
 
 shutdown_event = threading.Event()
@@ -148,6 +151,7 @@ logger.info(
     f"Worker identity computed",
     extra={
         "operation": "startup",
+        "worker_id": WORKER_ID,
         "heartbeat_id": HEARTBEAT_ID,
         "rq_worker_name": RQ_WORKER_NAME,
         "render_instance_id": os.getenv('RENDER_INSTANCE_ID'),
@@ -164,7 +168,7 @@ def update_worker_heartbeat():
     Updates state to 'shutting_down' when shutdown is initiated.
     Uses HEARTBEAT_ID for stable monitoring identity.
     """
-    logger.info(f"Heartbeat thread started", extra={"operation": "heartbeat", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
+    logger.info(f"Heartbeat thread started", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
     
     while not shutdown_event.is_set():
         try:
@@ -177,26 +181,27 @@ def update_worker_heartbeat():
                     json.dumps({
                         "state": state,
                         "last_heartbeat": datetime.now(timezone.utc).isoformat() + "Z",
+                        "worker_id": WORKER_ID,
                         "heartbeat_id": HEARTBEAT_ID,
                         "rq_worker_name": RQ_WORKER_NAME,
                         "timestamp": int(time.time())
                     })
                 )
-                logger.debug(f"Heartbeat updated", extra={"operation": "heartbeat", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME, "state": state})
+                logger.debug(f"Heartbeat updated", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME, "state": state})
             
             shutdown_event.wait(30)
         except RedisConnectionError as e:
-            logger.error(f"Heartbeat Redis connection error: {e}", extra={"operation": "heartbeat", "heartbeat_id": HEARTBEAT_ID})
+            logger.error(f"Heartbeat Redis connection error: {e}", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
             if SENTRY_DSN:
                 sentry_sdk.capture_exception(e)
             shutdown_event.wait(30)
         except Exception as e:
-            logger.exception(f"Heartbeat update failed", extra={"operation": "heartbeat", "heartbeat_id": HEARTBEAT_ID})
+            logger.exception(f"Heartbeat update failed", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
             if SENTRY_DSN:
                 sentry_sdk.capture_exception(e)
             shutdown_event.wait(30)
     
-    logger.info(f"Heartbeat thread stopped", extra={"operation": "heartbeat", "heartbeat_id": HEARTBEAT_ID})
+    logger.info(f"Heartbeat thread stopped", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
 
 def cleanup_heartbeat():
     """
@@ -209,11 +214,11 @@ def cleanup_heartbeat():
     global heartbeat_thread, shutting_down, cleanup_started
     
     if cleanup_started:
-        logger.debug(f"Cleanup already in progress, skipping duplicate call", extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
+        logger.debug(f"Cleanup already in progress, skipping duplicate call", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
         return
     
     cleanup_started = True
-    logger.info(f"Initiating graceful shutdown", extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
+    logger.info(f"Initiating graceful shutdown", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
     shutting_down = True
     
     try:
@@ -224,14 +229,15 @@ def cleanup_heartbeat():
             json.dumps({
                 "state": "shutting_down",
                 "last_heartbeat": datetime.now(timezone.utc).isoformat() + "Z",
+                "worker_id": WORKER_ID,
                 "heartbeat_id": HEARTBEAT_ID,
                 "rq_worker_name": RQ_WORKER_NAME,
                 "timestamp": int(time.time())
             })
         )
-        logger.info(f"Updated heartbeat state to shutting_down", extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID})
+        logger.info(f"Updated heartbeat state to shutting_down", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
     except Exception as e:
-        logger.exception(f"Failed to update heartbeat state during shutdown", extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID})
+        logger.exception(f"Failed to update heartbeat state during shutdown", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
         if SENTRY_DSN:
             sentry_sdk.capture_exception(e)
     
@@ -240,21 +246,21 @@ def cleanup_heartbeat():
     if heartbeat_thread and heartbeat_thread.is_alive():
         heartbeat_thread.join(timeout=5)
         if heartbeat_thread.is_alive():
-            logger.warning(f"Heartbeat thread did not stop within timeout", extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID})
+            logger.warning(f"Heartbeat thread did not stop within timeout", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
         else:
-            logger.info(f"Heartbeat thread stopped successfully", extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID})
+            logger.info(f"Heartbeat thread stopped successfully", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
     
     try:
         if redis_client_rq:
-            redis_client_rq.srem('rq:workers', RQ_WORKER_NAME)
-            logger.info(f"Removed worker from rq:workers set", extra={"operation": "shutdown", "rq_worker_name": RQ_WORKER_NAME})
+            redis_client_rq.srem('rq:workers', WORKER_ID)
+            logger.info(f"Removed worker from rq:workers set", extra={"operation": "shutdown", "worker_id": WORKER_ID})
         
         if redis:
             heartbeat_key = f"worker:heartbeat:{HEARTBEAT_ID}"
             redis.delete(heartbeat_key)
-            logger.info(f"Cleaned up heartbeat key", extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "key": heartbeat_key})
+            logger.info(f"Cleaned up heartbeat key", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "key": heartbeat_key})
     except Exception as e:
-        logger.exception(f"Failed to cleanup Redis keys", extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
+        logger.exception(f"Failed to cleanup Redis keys", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
         if SENTRY_DSN:
             sentry_sdk.capture_exception(e)
 
