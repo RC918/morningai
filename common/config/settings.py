@@ -316,6 +316,7 @@ class Settings(BaseSettings):
     
     render_instance_id: Optional[str] = Field(
         None,
+        alias="RENDER_INSTANCE_ID",
         description="Render instance ID (auto-set by Render platform)"
     )
     
@@ -588,6 +589,7 @@ class Settings(BaseSettings):
     
     hostname: Optional[str] = Field(
         None,
+        alias="HOSTNAME",
         description="System hostname (auto-detected)"
     )
     
