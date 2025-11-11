@@ -133,6 +133,54 @@ class TestEnvironmentVariableLoading:
             assert instance.redis_url == 'redis://test:6379'
             assert instance.openai_api_key == 'sk-test-key'
             assert instance.github_token == 'ghp_test_token'
+    
+    def test_environment_alias_loads_uppercase_var(self):
+        """ENVIRONMENT (uppercase) should be loaded via alias to environment field"""
+        with patch.dict(os.environ, {'ENVIRONMENT': 'staging'}, clear=False):
+            instance = Settings()
+            assert instance.environment == 'staging', \
+                "ENVIRONMENT=staging should be loaded into environment field"
+        
+        with patch.dict(os.environ, {'ENVIRONMENT': 'production'}, clear=False):
+            instance = Settings()
+            assert instance.environment == 'production', \
+                "ENVIRONMENT=production should be loaded into environment field"
+        
+        with patch.dict(os.environ, {'ENVIRONMENT': 'development'}, clear=False):
+            instance = Settings()
+            assert instance.environment == 'development', \
+                "ENVIRONMENT=development should be loaded into environment field"
+    
+    def test_flask_env_alias_loads_uppercase_var(self):
+        """FLASK_ENV (uppercase) should be loaded via alias to flask_env field"""
+        with patch.dict(os.environ, {'FLASK_ENV': 'staging'}, clear=False):
+            instance = Settings()
+            assert instance.flask_env == 'staging', \
+                "FLASK_ENV=staging should be loaded into flask_env field"
+        
+        with patch.dict(os.environ, {'FLASK_ENV': 'production'}, clear=False):
+            instance = Settings()
+            assert instance.flask_env == 'production', \
+                "FLASK_ENV=production should be loaded into flask_env field"
+    
+    def test_environment_defaults_to_production_when_not_set(self):
+        """environment field should default to 'production' when ENVIRONMENT not set"""
+        env_without_environment = {k: v for k, v in os.environ.items() 
+                                   if k != 'ENVIRONMENT'}
+        
+        with patch.dict(os.environ, env_without_environment, clear=True):
+            instance = Settings()
+            assert instance.environment == 'production', \
+                "environment should default to 'production' when ENVIRONMENT not set"
+    
+    def test_cors_origins_alias_loads_uppercase_var(self):
+        """CORS_ORIGINS (uppercase) should be loaded via alias to cors_origins field"""
+        with patch.dict(os.environ, {
+            'CORS_ORIGINS': 'https://example.com,https://test.com'
+        }, clear=False):
+            instance = Settings()
+            assert instance.cors_origins == 'https://example.com,https://test.com', \
+                "CORS_ORIGINS should be loaded into cors_origins field"
 
 
 class TestBackwardCompatibility:

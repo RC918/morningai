@@ -884,6 +884,41 @@ cors_origins: str = Field(
 )
 ```
 
+#### Issue: ENVIRONMENT variable not loaded (staging reads as production)
+
+**Symptom**: Backend logs show `env='production'` even though `ENVIRONMENT=staging` is set in Render.com. This causes `is_vercel_preview()` to block all Vercel preview URLs, resulting in CORS errors.
+
+**Root Cause**: The `environment` field in `settings.py` was missing the `alias="ENVIRONMENT"` configuration. Pydantic's `model_config` has `case_sensitive=True`, so it only reads the exact field name `environment` (lowercase) and ignores `ENVIRONMENT` (uppercase).
+
+**Diagnosis**: Check backend startup logs for:
+```
+[CORS DEBUG] Startup: ENVIRONMENT='staging', ...
+[CORS DEBUG] is_vercel_preview: env='production'  # ← Should be 'staging'!
+```
+
+If `env='production'` when `ENVIRONMENT=staging` is set, the alias is missing.
+
+**Solution**: Ensure the field definition includes the alias (fixed in this PR):
+
+```python
+environment: Literal["development", "staging", "production"] = Field(
+    default="production",
+    alias="ENVIRONMENT",  # ← Required for Pydantic to load ENVIRONMENT env var
+    description="Deployment environment"
+)
+
+flask_env: Literal["development", "staging", "production"] = Field(
+    default="development",
+    alias="FLASK_ENV",  # ← Required for Pydantic to load FLASK_ENV env var
+    description="Flask environment mode"
+)
+```
+
+**Impact**: Without this alias, staging backends default to `environment='production'`, which:
+- Blocks all Vercel preview URLs (security feature)
+- Causes CORS errors for preview deployments
+- Prevents 2FA testing on preview environments
+
 #### Issue: CORS errors in browser console
 
 **Symptom**: Browser shows "Access to fetch at '...' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present"
@@ -940,3 +975,170 @@ pytest handoff/20250928/40_App/api-backend/tests/test_cors_config.py -v
 - [Environment Variables Schema](./env_schema.md)
 - [Vercel Deployment Strategy](../deployment/VERCEL_DEPLOYMENT_STRATEGY.md)
 - [Vercel Environment Variables](../deployment/VERCEL_ENVIRONMENT_VARIABLES.md)
+
+## Owner Console Feature Flags
+
+### VITE_FEATURE_OWNER_CONSOLE_API
+
+Controls whether the Owner Console uses real backend authentication or mock data.
+
+**Type**: `boolean`  
+**Default**: `true` (in production builds), `false` (in development)  
+**Category**: Frontend  
+**Security Level**: Public
+
+#### Behavior
+
+**Production Builds** (`import.meta.env.PROD = true`):
+- **Default**: `true` - Uses real backend API
+- **Priority**: Environment variable → Default (true)
+- **Security**: URL parameters and localStorage are **ignored** in production to prevent accidental mock auth in production/staging
+
+**Development Builds** (`import.meta.env.DEV = true`):
+- **Default**: `false` - Uses mock authentication for local development
+- **Priority**: URL params → localStorage → Environment variable → Default (false)
+- **Flexibility**: Developers can override via URL or localStorage for testing
+
+#### Priority Order
+
+**Development**:
+```
+URL Parameter > localStorage > Environment Variable > Default (false)
+```
+
+**Production**:
+```
+Environment Variable > Default (true)
+```
+*Note: URL parameters and localStorage are ignored in production for security*
+
+#### Usage Examples
+
+**Set via Environment Variable** (recommended for production/staging):
+```bash
+# Enable real backend (production default)
+VITE_FEATURE_OWNER_CONSOLE_API=true
+
+# Disable (use mock auth - development only)
+VITE_FEATURE_OWNER_CONSOLE_API=false
+```
+
+**Override via URL Parameter** (development only):
+```
+# Enable real backend
+http://localhost:5173/?feature_OWNER_CONSOLE_API=true
+
+# Disable (use mock auth)
+http://localhost:5173/?feature_OWNER_CONSOLE_API=false
+```
+
+**Override via localStorage** (development only):
+```javascript
+// Enable real backend
+localStorage.setItem('feature_flag_OWNER_CONSOLE_API', 'true');
+
+// Disable (use mock auth)
+localStorage.setItem('feature_flag_OWNER_CONSOLE_API', 'false');
+
+// Clear override
+localStorage.removeItem('feature_flag_OWNER_CONSOLE_API');
+```
+
+**Programmatic Access**:
+```javascript
+import { isFeatureEnabled, setFeatureFlag, clearFeatureFlag } from '@/lib/feature-flags';
+
+// Check if feature is enabled
+const useRealBackend = isFeatureEnabled('OWNER_CONSOLE_API');
+
+// Set flag (development only - localStorage)
+setFeatureFlag('OWNER_CONSOLE_API', true);
+
+// Clear flag
+clearFeatureFlag('OWNER_CONSOLE_API');
+```
+
+#### Security Considerations
+
+1. **Production Lock**: In production builds, URL parameters and localStorage overrides are **disabled** for `OWNER_CONSOLE_API` to prevent users from accidentally enabling mock authentication in production/staging environments.
+
+2. **Mock Auth Warning**: When `OWNER_CONSOLE_API` is disabled in production, the application throws an error instead of falling back to mock authentication:
+   ```
+   Backend API is not configured. Please contact your system administrator.
+   (OWNER_CONSOLE_API feature flag is disabled in production)
+   ```
+
+3. **CORS Requirements**: When using real backend authentication, ensure:
+   - Backend CORS is configured to allow the Owner Console origin
+   - `CORS_ORIGINS` environment variable includes the Owner Console URL
+   - Example: `CORS_ORIGINS=https://owner-console.vercel.app,https://owner-console-preview.vercel.app`
+
+#### Debugging
+
+Enable debug logging to see feature flag resolution:
+
+**Development** (automatic):
+```javascript
+// Debug logs are automatically enabled in development
+// Console output: [Feature Flags] OWNER_CONSOLE_API resolved from url: true
+```
+
+**Production** (manual):
+```javascript
+// Enable debug logging
+localStorage.setItem('debug_feature_flags', 'true');
+
+// Disable debug logging
+localStorage.removeItem('debug_feature_flags');
+```
+
+#### Related Configuration
+
+- **Backend API URL**: `VITE_API_BASE_URL` (default: `http://localhost:5001`)
+- **CORS Origins**: `CORS_ORIGINS` (backend setting)
+- **2FA Settings**: `FEATURE_2FA_ENABLED`, `FEATURE_2FA_PREAUTH`
+
+#### Migration Notes
+
+**Before** (hardcoded mock check):
+```javascript
+const useMockAuth = import.meta.env.VITE_USE_MOCK === 'true';
+```
+
+**After** (feature flag):
+```javascript
+import { isFeatureEnabled } from '@/lib/feature-flags';
+
+const useRealBackend = isFeatureEnabled('OWNER_CONSOLE_API');
+```
+
+#### Troubleshooting
+
+**Problem**: Owner Console shows "Mock User" in production
+
+**Solution**: Verify environment variables are set correctly:
+```bash
+# Check Vercel environment variables
+vercel env ls
+
+# Should show:
+# VITE_FEATURE_OWNER_CONSOLE_API = true (Production, Preview)
+# VITE_API_BASE_URL = https://api.morningai.com (Production)
+```
+
+**Problem**: CORS errors when using real backend
+
+**Solution**: Add Owner Console origin to backend CORS configuration:
+```bash
+# Backend environment variable
+CORS_ORIGINS=https://owner-console.vercel.app,https://owner-console-git-*.vercel.app
+```
+
+**Problem**: Feature flag not updating after environment variable change
+
+**Solution**: Vite injects environment variables at build time. Redeploy to pick up new values:
+```bash
+# Trigger new deployment
+git commit --allow-empty -m "Redeploy to update env vars"
+git push
+```
