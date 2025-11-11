@@ -61,6 +61,29 @@ jobs:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
           tolgee pull --api-key "$TOLGEE_API_KEY"
+      
+      - name: Validate pulled translations (Preflight Check)
+        run: |
+          echo "🔍 Validating pulled translations before creating PR..."
+          
+          # Check for demo data patterns in all locale files
+          if grep -r "What to pack\|add-item-add-button\|delete-item-button\|Quoi emballer\|Was mitnehmen" \
+            handoff/20250928/40_App/owner-console/src/locales/ \
+            handoff/20250928/40_App/frontend-dashboard/src/i18n/locales/ 2>/dev/null; then
+            echo ""
+            echo "❌ ERROR: Tolgee demo data detected in pulled translations!"
+            echo "This indicates the Tolgee projects contain corrupted/demo data."
+            echo ""
+            echo "Please fix the Tolgee project data before running sync again:"
+            echo "1. Check Tolgee projects #24693 and #24702"
+            echo "2. Remove any demo data (packing list app strings)"
+            echo "3. Ensure correct translations are imported"
+            echo "4. Re-run this workflow"
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ Preflight validation passed - no demo data detected"
 
       - name: Create PR if changes
         uses: peter-evans/create-pull-request@v6
