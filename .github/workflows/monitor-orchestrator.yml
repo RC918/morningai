@@ -22,6 +22,9 @@ jobs:
         run: |
           pip install -r scripts/requirements.txt
       
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+      
       - name: Run monitoring script
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
