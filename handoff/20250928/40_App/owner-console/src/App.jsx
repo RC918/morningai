@@ -27,7 +27,8 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage onLogin={login} onRefreshUser={refreshUser} />
+    const intendedPath = typeof window !== 'undefined' ? window.location.pathname : '/'
+    return <LoginPage onLogin={login} onRefreshUser={refreshUser} redirectPath={intendedPath} />
   }
 
   return (

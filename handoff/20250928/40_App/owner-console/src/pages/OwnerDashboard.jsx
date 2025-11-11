@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
+import { Link } from 'react-router-dom'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Alert, AlertDescription } from '@morningai/shared-ui'
 import { 
   Users, 
   Shield,
   Activity,
   DollarSign,
   TrendingUp,
-  Server
+  Server,
+  X
 } from 'lucide-react'
+import { getStoredUser } from '@/lib/auth'
+import { getTwoFAStatus } from '@/lib/2fa-api'
 
 const OwnerDashboard = () => {
   const { t } = useTranslation()
@@ -18,6 +22,28 @@ const OwnerDashboard = () => {
     totalCost: 1234.56,
     systemHealth: 98.5
   })
+  const [show2FAPrompt, setShow2FAPrompt] = useState(false)
+  const [checking2FA, setChecking2FA] = useState(true)
+
+  useEffect(() => {
+    const check2FAStatus = async () => {
+      try {
+        const user = getStoredUser()
+        if (user && user.role === 'owner') {
+          const status = await getTwoFAStatus()
+          if (!status.enabled && !status.feature_disabled) {
+            setShow2FAPrompt(true)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check 2FA status:', error)
+      } finally {
+        setChecking2FA(false)
+      }
+    }
+
+    check2FAStatus()
+  }, [])
 
   return (
     <div className="p-8 space-y-6">
@@ -25,6 +51,35 @@ const OwnerDashboard = () => {
         <h1 className="text-3xl font-bold text-gray-900">{t('dashboard.title')}</h1>
         <p className="text-gray-600 mt-1">{t('dashboard.subtitle')}</p>
       </div>
+
+      {!checking2FA && show2FAPrompt && (
+        <Alert className="bg-yellow-50 border-yellow-200">
+          <Shield className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="font-medium text-yellow-900">{t('dashboard.2fa.prompt.title')}</p>
+              <p className="text-sm text-yellow-800 mt-1">
+                {t('dashboard.2fa.prompt.description')}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 ml-4">
+              <Link to="/settings/2fa">
+                <Button size="sm" variant="default">
+                  {t('dashboard.2fa.prompt.setupButton')}
+                </Button>
+              </Link>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShow2FAPrompt(false)}
+                className="text-yellow-900 hover:text-yellow-950"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -92,21 +147,21 @@ const OwnerDashboard = () => {
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{t('dashboard.recentActivity.newTenant')}</p>
-                  <p className="text-xs text-gray-500">Acme Corp - 2 hours ago</p>
+                  <p className="text-xs text-gray-500">{t('dashboard.recentActivity.placeholder.acme')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{t('dashboard.recentActivity.agentDeployed')}</p>
-                  <p className="text-xs text-gray-500">ops_agent v2.1 - 5 hours ago</p>
+                  <p className="text-xs text-gray-500">{t('dashboard.recentActivity.placeholder.opsAgent')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{t('dashboard.recentActivity.maintenanceScheduled')}</p>
-                  <p className="text-xs text-gray-500">Tomorrow at 2:00 AM UTC</p>
+                  <p className="text-xs text-gray-500">{t('dashboard.recentActivity.placeholder.maintenance')}</p>
                 </div>
               </div>
             </div>

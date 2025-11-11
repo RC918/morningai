@@ -159,6 +159,7 @@ describe('Auth Module', () => {
     beforeEach(() => {
       vi.mock('../feature-flags.ts', () => ({
         isFeatureEnabled: () => true,
+        AVAILABLE_FEATURES: [],
       }));
     });
 
@@ -278,6 +279,7 @@ describe('Auth Module', () => {
     beforeEach(() => {
       vi.mock('../feature-flags.ts', () => ({
         isFeatureEnabled: () => true,
+        AVAILABLE_FEATURES: [],
       }));
     });
 
@@ -356,6 +358,7 @@ describe('Auth Module', () => {
     beforeEach(() => {
       vi.mock('../feature-flags.ts', () => ({
         isFeatureEnabled: () => true,
+        AVAILABLE_FEATURES: [],
       }));
     });
 

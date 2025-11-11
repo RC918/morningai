@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, Alert
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { TwoFactorVerify } from './2fa/TwoFactorVerify'
 import { TwoFactorEnroll } from './2fa/TwoFactorEnroll'
+import { sanitizeRedirect } from '@/lib/redirect-security'
 
-const LoginPage = ({ onLogin, onRefreshUser }) => {
+const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
   const { t } = useTranslation()
   const [credentials, setCredentials] = useState({
     email: '',
@@ -87,6 +88,10 @@ const LoginPage = ({ onLogin, onRefreshUser }) => {
         if (onRefreshUser) {
           await onRefreshUser()
         }
+        if (redirectPath && redirectPath !== '/' && typeof window !== 'undefined') {
+          const safeRedirect = sanitizeRedirect(redirectPath)
+          window.location.href = safeRedirect
+        }
       } catch (error) {
         setError(error.message || t('auth.login.loginError'))
       }
@@ -106,6 +111,10 @@ const LoginPage = ({ onLogin, onRefreshUser }) => {
       try {
         if (onRefreshUser) {
           await onRefreshUser()
+        }
+        if (redirectPath && redirectPath !== '/' && typeof window !== 'undefined') {
+          const safeRedirect = sanitizeRedirect(redirectPath)
+          window.location.href = safeRedirect
         }
       } catch (error) {
         setError(error.message || t('auth.login.loginError'))
@@ -127,6 +136,10 @@ const LoginPage = ({ onLogin, onRefreshUser }) => {
     try {
       if (onRefreshUser) {
         await onRefreshUser()
+      }
+      if (redirectPath && redirectPath !== '/' && typeof window !== 'undefined') {
+        const safeRedirect = sanitizeRedirect(redirectPath)
+        window.location.href = safeRedirect
       }
     } catch (error) {
       setError(error.message || t('auth.login.loginError'))
