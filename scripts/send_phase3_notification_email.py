@@ -18,6 +18,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from repo_root_utils import get_repo_root
+sys.path.insert(0, str(get_repo_root()))
+
 from common.config.settings import settings
 
 MAILTRAP_API_TOKEN = settings.mailtrap_api_token
