@@ -55,6 +55,7 @@ export interface LoginResponse {
 
 export interface RefreshTokenResponse {
   tokens: {
+    accessToken?: string;
     expiresAt: number;
   };
 }
