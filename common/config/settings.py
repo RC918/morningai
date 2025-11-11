@@ -498,7 +498,9 @@ class Settings(BaseSettings):
     
     slack_webhook_url: Optional[str] = Field(
         None,
-        description="Slack webhook URL for notifications"
+        alias="SLACK_WEBHOOK_URL",
+        description="Slack webhook URL for notifications",
+        repr=False
     )
     
     telegram_bot_token_secret: Optional[SecretStr] = Field(

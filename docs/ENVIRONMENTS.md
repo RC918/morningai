@@ -437,6 +437,79 @@ For complete local development setup instructions, see:
 
 ---
 
+## 🔔 Monitor Orchestrator Behavior
+
+The monitor orchestrator (`scripts/monitor_orchestrator.py`) performs health checks and queue monitoring for the Orchestrator API.
+
+### Slack Notifications
+
+**Graceful Degradation** (Default Behavior):
+- **Optional**: If `SLACK_WEBHOOK_URL` is not configured, the monitor will continue to run
+- **Console Fallback**: Alerts are printed to console instead of sent to Slack
+- **Use Case**: Allows CI/CD workflows (GitHub Actions) to succeed even without Slack integration
+- **Exit Code**: Monitor exit code reflects health/queue check results, not Slack notification status
+
+**Production Recommendations**:
+- ✅ **Recommended**: Configure `SLACK_WEBHOOK_URL` in GitHub Secrets for real-time alerts
+- ✅ Monitor GitHub Actions logs for console output when Slack is not configured
+- ⚠️ **Warning**: If Slack webhook is accidentally removed, alerts will only appear in logs
+
+**Configuration**:
+```bash
+# Optional - enables Slack notifications
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+
+# Optional - override default Orchestrator API URL
+ORCHESTRATOR_API_URL=https://morningai-orchestrator-api.onrender.com
+```
+
+**Behavior Examples**:
+
+*With Slack configured*:
+```bash
+$ python scripts/monitor_orchestrator.py
+Checking health: https://morningai-orchestrator-api.onrender.com/health
+✓ Health check passed (response time: 0.23s)
+✓ Queue stats: pending=5, processing=2, total=7
+✓ All checks passed
+# Slack alert sent to channel
+```
+
+*Without Slack configured*:
+```bash
+$ python scripts/monitor_orchestrator.py
+[WARNING] SLACK_WEBHOOK_URL not configured - Slack alerts disabled
+[INFO] Continuing with health checks only (no Slack notifications)
+Checking health: https://morningai-orchestrator-api.onrender.com/health
+✓ Health check passed (response time: 0.23s)
+✓ Queue stats: pending=5, processing=2, total=7
+✓ All checks passed
+# No Slack alert sent - alerts printed to console only
+```
+
+*When critical issues detected (without Slack)*:
+```bash
+$ python scripts/monitor_orchestrator.py
+[WARNING] SLACK_WEBHOOK_URL not configured - Slack alerts disabled
+[INFO] Continuing with health checks only (no Slack notifications)
+Checking health: https://morningai-orchestrator-api.onrender.com/health
+[CRITICAL] Health Check Failed - Connection Error
+Unable to connect to the API.
+URL: https://morningai-orchestrator-api.onrender.com/health
+Possible causes: Service is down, network issue, or DNS problem
+✗ Some checks failed
+# Exit code: 1 (failure)
+```
+
+**GitHub Actions Integration**:
+
+The monitor runs every 5 minutes via GitHub Actions workflow (`.github/workflows/monitor-orchestrator.yml`). The workflow will:
+- ✅ **Succeed** if health checks pass (even without Slack configured)
+- ❌ **Fail** if health checks fail (alerts visible in workflow logs)
+- 📊 Alerts are visible in GitHub Actions logs regardless of Slack configuration
+
+---
+
 ## 🔧 Import Path Configuration
 
 Services that import the `common` module use a multi-tier fallback mechanism to ensure imports work across all environments.

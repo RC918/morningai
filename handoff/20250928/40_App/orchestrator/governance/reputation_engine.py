@@ -1,6 +1,7 @@
 """Reputation Engine - Agent reputation scoring and management"""
 import os
 import yaml
+from pathlib import Path
 from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta
 
@@ -12,10 +13,26 @@ class ReputationEngine:
         self.supabase = supabase_client
         
         if policies_path is None:
-            policies_path = os.path.join(
-                os.path.dirname(__file__),
-                '../../../../config/policies.yaml'
-            )
+            policies_path = os.getenv('POLICIES_PATH')
+            
+            if not policies_path:
+                current_file = Path(__file__).resolve()
+                candidates = [
+                    current_file.parents[5] / "config" / "policies.yaml",
+                    Path.cwd() / "config" / "policies.yaml",
+                    current_file.parents[4] / "config" / "policies.yaml",
+                ]
+                
+                for candidate in candidates:
+                    if candidate.exists():
+                        policies_path = str(candidate)
+                        break
+                
+                if not policies_path:
+                    policies_path = os.path.join(
+                        os.path.dirname(__file__),
+                        '../../../../config/policies.yaml'
+                    )
         
         self.policies = self._load_policies(policies_path)
         self.reputation_config = self.policies.get('reputation', {})
