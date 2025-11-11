@@ -148,6 +148,7 @@ jobs:
   changed-files-strict-i18n:
     name: Changed Files Strict i18n Check
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -170,20 +171,7 @@ jobs:
         run: pnpm --filter @morningai/shared-ui build
       
       - name: Validate Locale Files (Tolgee Corruption Guard)
-        run: |
-          set -o pipefail
-          
-          # Check for Tolgee demo data patterns that indicate corruption
-          if grep -r "What to pack\|add-item-add-button\|delete-item-button" \
-            handoff/20250928/40_App/owner-console/src/locales/ \
-            handoff/20250928/40_App/frontend-dashboard/src/i18n/locales/ 2>/dev/null; then
-            echo "❌ ERROR: Tolgee demo data detected in locale files!"
-            echo "This indicates the Tolgee project contains corrupted/demo data."
-            echo "Please fix the Tolgee project data before merging."
-            exit 1
-          fi
-          
-          echo "✅ Locale files validation passed - no demo data detected"
+        run: node scripts/validate-tolgee-structure.js
       
       - name: Strict i18n Check on Changed Files
         run: |
