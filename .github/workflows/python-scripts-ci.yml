@@ -30,20 +30,45 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Compile monitor-related Python scripts
+      - name: Compile all Python scripts
         id: compile
         run: |
           echo "## Python Syntax Check Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "_Scoped to monitor-related files for this P1 PR_" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           
           FAILED_FILES=()
           PASSED_COUNT=0
+          SKIPPED_COUNT=0
           
-          # Check monitor-related files only (scoped for P1)
-          # TODO: Expand to all scripts after fixing legacy syntax errors
-          for file in scripts/monitor_orchestrator.py scripts/repo_root_utils.py scripts/test_monitor_graceful_degradation.py; do
+          # Denylist: scripts with known legacy issues (temporary)
+          # Remove from this list as issues are fixed
+          # Currently empty - all scripts pass syntax check
+          DENYLIST=()
+          
+          # Check all Python scripts in scripts/
+          for file in scripts/*.py; do
+            # Skip if not a file
+            if [ ! -f "$file" ]; then
+              continue
+            fi
+            
+            # Skip if in denylist
+            SKIP=false
+            for denied in "${DENYLIST[@]}"; do
+              if [ "$file" = "$denied" ]; then
+                SKIP=true
+                break
+              fi
+            done
+            
+            if [ "$SKIP" = true ]; then
+              echo "⏭️ Skipping $file (in denylist)"
+              echo "⏭️ $file (legacy issue)" >> $GITHUB_STEP_SUMMARY
+              SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+              continue
+            fi
+            
+            # Check syntax
             echo "Checking $file..."
             if ERROR_OUTPUT=$(python -m py_compile "$file" 2>&1); then
               echo "✅ $file"
@@ -53,12 +78,15 @@ jobs:
               echo "❌ $file - FAILED"
               echo "$ERROR_OUTPUT"
               echo "❌ $file" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$ERROR_OUTPUT" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
               FAILED_FILES+=("$file")
             fi
           done
           
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Summary**: $PASSED_COUNT files passed syntax check" >> $GITHUB_STEP_SUMMARY
+          echo "**Summary**: $PASSED_COUNT passed, $SKIPPED_COUNT skipped (legacy)" >> $GITHUB_STEP_SUMMARY
           
           if [ ${#FAILED_FILES[@]} -gt 0 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -74,6 +102,10 @@ jobs:
           else
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### ✅ All checked scripts have valid syntax" >> $GITHUB_STEP_SUMMARY
+            if [ $SKIPPED_COUNT -gt 0 ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ $SKIPPED_COUNT scripts skipped due to known legacy issues" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
 
   monitor-tests:
