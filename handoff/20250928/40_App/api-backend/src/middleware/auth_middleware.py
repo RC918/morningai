@@ -80,15 +80,20 @@ def _extract_jwt_from_request():
     
     If Authorization header is present but invalid, we continue to try X-Access-Token and cookie
     to enable true fallback behavior (e.g., when stale/malformed Authorization header exists).
+    However, if no fallback methods succeed, we return the original Authorization error to preserve
+    error semantics for API consumers.
     
     Returns:
         tuple: (token, error_response) where error_response is None if successful
     """
+    invalid_format_error = None
+    
     auth_header = request.headers.get('Authorization')
     if auth_header:
         token, error = _parse_bearer_token(auth_header)
         if not error:
             return token, None
+        invalid_format_error = error
         logging.warning(f"Invalid Authorization header, trying fallback methods: {error[0].get_json()}")
     
     x_access_token = request.headers.get('X-Access-Token')
@@ -98,6 +103,9 @@ def _extract_jwt_from_request():
     cookie_token = request.cookies.get('access_token')
     if cookie_token:
         return cookie_token, None
+    
+    if invalid_format_error:
+        return None, invalid_format_error
     
     return None, (jsonify({
         'error': 'Authorization header missing',
