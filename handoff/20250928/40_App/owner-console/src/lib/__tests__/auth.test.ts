@@ -157,8 +157,9 @@ describe('Auth Module', () => {
 
   describe('Login Flow (P0)', () => {
     beforeEach(() => {
-      vi.mock('../feature-flags', () => ({
+      vi.mock('../feature-flags.ts', () => ({
         isFeatureEnabled: () => true,
+        AVAILABLE_FEATURES: [],
       }));
     });
 
@@ -276,8 +277,9 @@ describe('Auth Module', () => {
 
   describe('Logout Flow (P0)', () => {
     beforeEach(() => {
-      vi.mock('../feature-flags', () => ({
+      vi.mock('../feature-flags.ts', () => ({
         isFeatureEnabled: () => true,
+        AVAILABLE_FEATURES: [],
       }));
     });
 
@@ -354,8 +356,9 @@ describe('Auth Module', () => {
 
   describe('Token Refresh (P0)', () => {
     beforeEach(() => {
-      vi.mock('../feature-flags', () => ({
+      vi.mock('../feature-flags.ts', () => ({
         isFeatureEnabled: () => true,
+        AVAILABLE_FEATURES: [],
       }));
     });
 
