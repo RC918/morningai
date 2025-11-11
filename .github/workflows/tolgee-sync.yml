@@ -6,6 +6,12 @@ on:
   schedule:
     - cron: '0 2 * * *' # 10:00 Asia/Taipei
   workflow_dispatch:
+    inputs:
+      bootstrap:
+        description: 'Bootstrap: Push existing translations to new Tolgee projects (one-time only)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -26,7 +32,28 @@ jobs:
       - name: Install Tolgee CLI
         run: npm i -g @tolgee/cli
 
+      - name: Bootstrap - Push translations to Owner Console (one-time)
+        if: github.event.inputs.bootstrap == 'true'
+        working-directory: handoff/20250928/40_App/owner-console
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🚀 Bootstrap: Pushing existing translations to Owner Console (Project #24693)..."
+          tolgee push --api-key "$TOLGEE_API_KEY" --path ./src/locales --force-mode OVERRIDE
+          echo "✅ Owner Console translations pushed successfully"
+
+      - name: Bootstrap - Push translations to Frontend Dashboard (one-time)
+        if: github.event.inputs.bootstrap == 'true'
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🚀 Bootstrap: Pushing existing translations to Frontend Dashboard (Project #24702)..."
+          tolgee push --api-key "$TOLGEE_API_KEY" --path ./src/i18n/locales --force-mode OVERRIDE
+          echo "✅ Frontend Dashboard translations pushed successfully"
+
       - name: Preflight - Dry Pull and Validate Frontend Dashboard
+        if: github.event.inputs.bootstrap != 'true'
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -38,6 +65,7 @@ jobs:
           echo "✅ Frontend Dashboard preflight validation passed"
 
       - name: Preflight - Dry Pull and Validate Owner Console
+        if: github.event.inputs.bootstrap != 'true'
         working-directory: handoff/20250928/40_App/owner-console
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -49,6 +77,7 @@ jobs:
           echo "✅ Owner Console preflight validation passed"
 
       - name: Pull translations for Frontend Dashboard
+        if: github.event.inputs.bootstrap != 'true'
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -56,6 +85,7 @@ jobs:
           tolgee pull --api-key "$TOLGEE_API_KEY"
 
       - name: Pull translations for Owner Console
+        if: github.event.inputs.bootstrap != 'true'
         working-directory: handoff/20250928/40_App/owner-console
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -63,6 +93,7 @@ jobs:
           tolgee pull --api-key "$TOLGEE_API_KEY"
       
       - name: Validate pulled translations (Preflight Check)
+        if: github.event.inputs.bootstrap != 'true'
         run: |
           echo "🔍 Validating pulled translations before creating PR..."
           
@@ -86,6 +117,7 @@ jobs:
           echo "✅ Preflight validation passed - no demo data detected"
 
       - name: Create PR if changes
+        if: github.event.inputs.bootstrap != 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: "chore(i18n): sync translations from Tolgee"
