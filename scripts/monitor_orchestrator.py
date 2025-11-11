@@ -251,7 +251,7 @@ class OrchestratorMonitor:
 
 
 def main():
-    slack_webhook_url = settings.slack_webhook_url or os.getenv("SLACK_WEBHOOK_URL")
+    slack_webhook_url = settings.slack_webhook_url
     api_url = settings.orchestrator_api_url or "https://morningai-orchestrator-api.onrender.com"
     
     if not slack_webhook_url:
