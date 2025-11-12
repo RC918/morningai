@@ -60,45 +60,77 @@ jobs:
             echo "NEEDS_BOOTSTRAP=false" >> $GITHUB_ENV
           fi
 
-      - name: Bootstrap - Import translations to Owner Console
+      - name: Bootstrap - Ensure languages exist in Owner Console
+        if: env.OC_KEYS == '0' || github.event.inputs.bootstrap == 'true'
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🔧 Ensuring required languages exist in Owner Console (Project #24693)..."
+          
+          # Create en-US if it doesn't exist (ignore errors if already exists)
+          curl -X POST -H "X-API-Key: $TOLGEE_API_KEY" -H "Content-Type: application/json" \
+            -d '{"tag":"en-US","name":"English (US)","originalName":"English (US)"}' \
+            "https://app.tolgee.io/v2/projects/24693/languages" 2>/dev/null || true
+          
+          # Create zh-TW if it doesn't exist (ignore errors if already exists)
+          curl -X POST -H "X-API-Key: $TOLGEE_API_KEY" -H "Content-Type: application/json" \
+            -d '{"tag":"zh-TW","name":"Traditional Chinese (Taiwan)","originalName":"繁體中文（台灣）"}' \
+            "https://app.tolgee.io/v2/projects/24693/languages" 2>/dev/null || true
+          
+          echo "✅ Languages verified/created"
+
+      - name: Bootstrap - Push translations to Owner Console
         if: env.OC_KEYS == '0' || github.event.inputs.bootstrap == 'true'
         working-directory: handoff/20250928/40_App/owner-console
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
-          echo "🚀 Bootstrap: Importing translations to Owner Console (Project #24693)..."
-          for f in src/locales/*.json; do
-            lang="$(basename "$f" .json)"
-            echo "  📝 Importing $lang from $f..."
-            tolgee import \
-              --api-key "$TOLGEE_API_KEY" \
-              --project-id 24693 \
-              --language-tag "$lang" \
-              --file "$f" \
-              --format JSON_I18NEXT \
-              --force-mode OVERRIDE
-          done
-          echo "✅ Owner Console translations imported successfully"
+          echo "🚀 Bootstrap: Pushing translations to Owner Console (Project #24693)..."
+          cd src/locales
+          tolgee push \
+            --api-key "$TOLGEE_API_KEY" \
+            --project-id 24693 \
+            --files-template "{languageTag}.json" \
+            --format JSON_I18NEXT \
+            --no-strict-namespace \
+            --force-mode OVERRIDE
+          echo "✅ Owner Console translations pushed successfully"
 
-      - name: Bootstrap - Import translations to Frontend Dashboard
+      - name: Bootstrap - Ensure languages exist in Frontend Dashboard
+        if: env.FD_KEYS == '0' || github.event.inputs.bootstrap == 'true'
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🔧 Ensuring required languages exist in Frontend Dashboard (Project #24702)..."
+          
+          # Create en-US if it doesn't exist (ignore errors if already exists)
+          curl -X POST -H "X-API-Key: $TOLGEE_API_KEY" -H "Content-Type: application/json" \
+            -d '{"tag":"en-US","name":"English (US)","originalName":"English (US)"}' \
+            "https://app.tolgee.io/v2/projects/24702/languages" 2>/dev/null || true
+          
+          # Create zh-TW if it doesn't exist (ignore errors if already exists)
+          curl -X POST -H "X-API-Key: $TOLGEE_API_KEY" -H "Content-Type: application/json" \
+            -d '{"tag":"zh-TW","name":"Traditional Chinese (Taiwan)","originalName":"繁體中文（台灣）"}' \
+            "https://app.tolgee.io/v2/projects/24702/languages" 2>/dev/null || true
+          
+          echo "✅ Languages verified/created"
+
+      - name: Bootstrap - Push translations to Frontend Dashboard
         if: env.FD_KEYS == '0' || github.event.inputs.bootstrap == 'true'
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
-          echo "🚀 Bootstrap: Importing translations to Frontend Dashboard (Project #24702)..."
-          for f in src/i18n/locales/*.json; do
-            lang="$(basename "$f" .json)"
-            echo "  📝 Importing $lang from $f..."
-            tolgee import \
-              --api-key "$TOLGEE_API_KEY" \
-              --project-id 24702 \
-              --language-tag "$lang" \
-              --file "$f" \
-              --format JSON_I18NEXT \
-              --force-mode OVERRIDE
-          done
-          echo "✅ Frontend Dashboard translations imported successfully"
+          echo "🚀 Bootstrap: Pushing translations to Frontend Dashboard (Project #24702)..."
+          cd src/i18n/locales
+          tolgee push \
+            --api-key "$TOLGEE_API_KEY" \
+            --project-id 24702 \
+            --files-template "{languageTag}.json" \
+            --format JSON_I18NEXT \
+            --no-strict-namespace \
+            --force-mode OVERRIDE
+          echo "✅ Frontend Dashboard translations pushed successfully"
 
       - name: Verify bootstrap success
         if: env.NEEDS_BOOTSTRAP == 'true' || github.event.inputs.bootstrap == 'true'
