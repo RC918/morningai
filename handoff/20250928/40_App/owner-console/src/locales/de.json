@@ -1,0 +1,13 @@
+{
+  "add-item-add-button": "Einfügen",
+  "add-item-input-placeholder": "Neuer Eintrag",
+  "app-title": "Was mitnehmen",
+  "delete-item-button": "Löschen",
+  "items-count_one": "Zeige {{count, number}} Eintrag",
+  "items-count_other": "Zeige {{count, number}} Einträge",
+  "menu-item-translation-methods": "Übersetzungsmethoden",
+  "send-via-email": "Per Email abschicken",
+  "share-button": "Teilen",
+  "terms-conditions-agreement": "Ich stimme den <a>Allgemeinen Geschäftsbedingungen</a> zu",
+  "welcome-message": "Hallo {{name}}!"
+}

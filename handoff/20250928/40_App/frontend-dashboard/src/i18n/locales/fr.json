@@ -1,0 +1,13 @@
+{
+  "add-item-add-button": "Ajouter",
+  "add-item-input-placeholder": "Nouvel élément de la liste",
+  "app-title": "Quoi emballer",
+  "delete-item-button": "Supprimer",
+  "items-count_one": "Affiche {{count, number}} élément",
+  "items-count_other": "Affiche {{count, number}} éléments",
+  "menu-item-translation-methods": "Méthodes de traduction",
+  "send-via-email": "Envoyer par courriel",
+  "share-button": "Partager",
+  "terms-conditions-agreement": "J'accepte les <a>Conditions générales</a>",
+  "welcome-message": "Bonjour {{name}}!"
+}
