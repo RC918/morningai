@@ -29,11 +29,14 @@ from typing import List, Tuple
 NETWORK_ERROR_PATTERNS: List[Tuple[str, str]] = [
     (r'\brequests\.exceptions\.ConnectionError\b', 'requests.exceptions.ConnectionError'),
     (r'\brequests\.exceptions\.Timeout\b', 'requests.exceptions.Timeout'),
+    (r'\brequests\.exceptions\.ConnectTimeout\b', 'requests.exceptions.ConnectTimeout'),
+    (r'\brequests\.exceptions\.ReadTimeout\b', 'requests.exceptions.ReadTimeout'),
     (r'\brequests\.exceptions\.RequestException\b', 'requests.exceptions.RequestException'),
     
     (r'\burllib3\.exceptions\.NewConnectionError\b', 'urllib3.exceptions.NewConnectionError'),
     (r'\burllib3\.exceptions\.MaxRetryError\b', 'urllib3.exceptions.MaxRetryError'),
     (r'\burllib3\.exceptions\.TimeoutError\b', 'urllib3.exceptions.TimeoutError'),
+    (r'\burllib3\.exceptions\.ReadTimeoutError\b', 'urllib3.exceptions.ReadTimeoutError'),
     
     (r'\bhttpx\.ConnectError\b', 'httpx.ConnectError'),
     (r'\bhttpx\.ConnectTimeout\b', 'httpx.ConnectTimeout'),
