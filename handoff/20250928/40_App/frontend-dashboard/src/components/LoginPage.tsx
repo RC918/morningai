@@ -87,13 +87,12 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
       
       if (result.user) {
         await apiClient.bootstrapCsrf()
-        const user = await apiClient.getCurrentUser()
-        onLogin(user)
+        onLogin(result.user)
       } else {
         setError(result.message || t('auth.login.loginFailed'))
       }
     } catch (error) {
-      if (credentials.username === 'admin' && credentials.password === 'admin123') {
+      if (import.meta.env.DEV && credentials.username === 'admin' && credentials.password === 'admin123') {
         const mockUser: User = {
           id: 1,
           name: t('sidebar.user.defaultName'),

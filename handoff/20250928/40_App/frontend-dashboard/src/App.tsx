@@ -70,6 +70,13 @@ function AppContent() {
   }, [isAuthenticated, redirectToLogin, navigate])
 
   useEffect(() => {
+    const PUBLIC_ROUTES = new Set(['/', '/login', '/signup', '/pricing', '/auth/callback'])
+    if (isAuthenticated && PUBLIC_ROUTES.has(location.pathname)) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isAuthenticated, location.pathname, navigate])
+
+  useEffect(() => {
     const handleApiError = (event: Event) => {
       const customEvent = event as CustomEvent
       const { endpoint, error, status, requestId } = customEvent.detail
@@ -103,8 +110,13 @@ function AppContent() {
         tenant_id: ''
       })
       
-      const returnUrl = window.location.pathname + window.location.search
-      setRedirectToLogin(returnUrl)
+      const isAuthRoute = ['/login', '/signup', '/auth'].some(p => window.location.pathname.startsWith(p))
+      if (isAuthRoute) {
+        setRedirectToLogin('/')
+      } else {
+        const returnUrl = window.location.pathname + window.location.search
+        setRedirectToLogin(returnUrl)
+      }
       
       addToast({
         title: t('auth.sessionExpired'),
@@ -377,6 +389,9 @@ function AppContent() {
           {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
             <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
           )}
+          
+          {/* Catch-all route for authenticated users */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>
           </main>
