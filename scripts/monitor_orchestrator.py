@@ -53,7 +53,8 @@ class OrchestratorMonitor:
     def send_slack_alert(self, message: str, severity: str = "warning") -> bool:
         """Send alert to Slack (gracefully skips if webhook not configured)"""
         if not self.slack_webhook_url:
-            print(f"[{severity.upper()}] {message.replace('*', '').replace('\\n', ' ')}")
+            sanitized_message = message.replace('*', '').replace('\n', ' ')
+            print(f"[{severity.upper()}] {sanitized_message}")
             return True
         
         emoji_map = {

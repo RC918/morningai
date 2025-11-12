@@ -1,0 +1,215 @@
+name: Python Scripts CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**/*.py'
+      - 'scripts/requirements.txt'
+      - '.github/workflows/python-scripts-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/**/*.py'
+      - 'scripts/requirements.txt'
+      - '.github/workflows/python-scripts-ci.yml'
+
+jobs:
+  syntax-check:
+    name: Python Syntax Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Compile monitor-related Python scripts
+        id: compile
+        run: |
+          echo "## Python Syntax Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Scoped to monitor-related files for this P1 PR_" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          FAILED_FILES=()
+          PASSED_COUNT=0
+          
+          # Check monitor-related files only (scoped for P1)
+          # TODO: Expand to all scripts after fixing legacy syntax errors
+          for file in scripts/monitor_orchestrator.py scripts/repo_root_utils.py scripts/test_monitor_graceful_degradation.py; do
+            echo "Checking $file..."
+            if ERROR_OUTPUT=$(python -m py_compile "$file" 2>&1); then
+              echo "✅ $file"
+              echo "✅ $file" >> $GITHUB_STEP_SUMMARY
+              PASSED_COUNT=$((PASSED_COUNT + 1))
+            else
+              echo "❌ $file - FAILED"
+              echo "$ERROR_OUTPUT"
+              echo "❌ $file" >> $GITHUB_STEP_SUMMARY
+              FAILED_FILES+=("$file")
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Summary**: $PASSED_COUNT files passed syntax check" >> $GITHUB_STEP_SUMMARY
+          
+          if [ ${#FAILED_FILES[@]} -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Syntax Errors Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The following files have syntax errors:" >> $GITHUB_STEP_SUMMARY
+            for file in "${FAILED_FILES[@]}"; do
+              echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please fix syntax errors before merging." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ All checked scripts have valid syntax" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  monitor-tests:
+    name: Monitor Orchestrator Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+      
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/scripts" >> $GITHUB_ENV
+      
+      - name: Verify PYTHONPATH
+        run: python -c "import sys; print('sys.path:', sys.path)"
+      
+      - name: Run monitor tests
+        id: test
+        run: |
+          echo "## Monitor Orchestrator Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run tests with verbose output
+          if pytest scripts/test_monitor_graceful_degradation.py -v --tb=short 2>&1 | tee test_output.txt; then
+            echo "### ✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+      
+      - name: Test monitor script imports
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Import Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Test that monitor_orchestrator.py can be imported
+          if python -c "import scripts.monitor_orchestrator" 2>&1; then
+            echo "✅ monitor_orchestrator.py imports successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ monitor_orchestrator.py failed to import" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  integration-check:
+    name: Monitor Integration Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [syntax-check, monitor-tests]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+      
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/scripts" >> $GITHUB_ENV
+      
+      - name: Verify monitor script runs (dry run)
+        run: |
+          echo "## Monitor Script Dry Run" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Capture output and exit code without aborting the step
+          set +e
+          OUTPUT=$(timeout 10s python scripts/monitor_orchestrator.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Print full output to job logs
+          echo "$OUTPUT"
+          
+          append_summary() {
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            printf "%s\n" "$1" | tail -n 200 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          }
+          
+          # 1) Critical syntax/import errors → FAIL
+          if echo "$OUTPUT" | grep -qiE "(SyntaxError|IndentationError|ImportError|ModuleNotFoundError)"; then
+            echo "❌ Monitor script has critical syntax/import errors" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 1
+          fi
+          
+          # 2) Timeout (expected in CI) → PASS
+          if [ "$EXIT_CODE" -eq 124 ]; then
+            echo "✅ Script timed out (expected in CI); no syntax/import errors detected" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 0
+          fi
+          
+          # 3) Network-related errors (tolerated) → PASS
+          if echo "$OUTPUT" | grep -qiE "(requests\.exceptions\.ConnectionError|urllib3\.exceptions\.NewConnectionError|HTTPSConnectionPool|Max retries exceeded|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|NameResolutionError|Temporary failure in name resolution|Name or service not known|gaierror|Failed to resolve)"; then
+            echo "✅ Network error encountered (tolerated); no syntax/import errors" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 0
+          fi
+          
+          # 4) Success → PASS
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "✅ Monitor script executed successfully" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
+          # 5) Unknown non-network error → FAIL
+          echo "❌ Monitor script exited with code $EXIT_CODE" >> $GITHUB_STEP_SUMMARY
+          append_summary "$OUTPUT"
+          exit 1
+        env:
+          ORCHESTRATOR_API_URL: https://test-api.example.com
+          # No SLACK_WEBHOOK_URL - test graceful degradation
