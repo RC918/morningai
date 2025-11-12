@@ -52,7 +52,73 @@
     "tabs": {
       "agents": "Agents",
       "events": "Events",
-      "violations": "Violations"
+      "violations": "Violations",
+      "executionLogs": "Execution Logs"
+    },
+    "executionLogs": {
+      "title": "Agent Execution Logs",
+      "subtitle": "Monitor agent task execution history and performance",
+      "noLogs": "No execution logs found",
+      "filters": {
+        "status": "Status",
+        "allStatuses": "All Statuses",
+        "agentId": "Agent ID",
+        "agentIdPlaceholder": "Filter by agent ID",
+        "tenantId": "Tenant ID",
+        "tenantIdPlaceholder": "Filter by tenant ID",
+        "taskType": "Task Type",
+        "taskTypePlaceholder": "Filter by task type",
+        "dateRange": "Date Range",
+        "startDate": "Start Date",
+        "endDate": "End Date",
+        "clearFilters": "Clear Filters",
+        "applyFilters": "Apply Filters"
+      },
+      "statuses": {
+        "queued": "Queued",
+        "assigned": "Assigned",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "columns": {
+        "taskId": "Task ID",
+        "status": "Status",
+        "taskType": "Task Type",
+        "agent": "Agent",
+        "tenant": "Tenant",
+        "duration": "Duration",
+        "timestamps": "Timestamps",
+        "actions": "Actions"
+      },
+      "summary": {
+        "title": "Execution Summary",
+        "totalExecutions": "Total Executions",
+        "successRate": "Success Rate",
+        "avgDuration": "Avg Duration",
+        "statusBreakdown": "Status Breakdown"
+      },
+      "details": {
+        "viewDetails": "View Details",
+        "taskDetails": "Task Details",
+        "agentInfo": "Agent Information",
+        "executionTime": "Execution Time",
+        "payload": "Payload",
+        "result": "Result",
+        "errorMessage": "Error Message",
+        "createdAt": "Created",
+        "startedAt": "Started",
+        "completedAt": "Completed",
+        "updatedAt": "Updated"
+      },
+      "pagination": {
+        "showing": "Showing {{start}}-{{end}} of {{total}}",
+        "page": "Page {{current}} of {{total}}",
+        "previous": "Previous",
+        "next": "Next",
+        "pageSize": "Items per page"
+      }
     },
     "agents": {
       "title": "Agent Reputation Leaderboard",
