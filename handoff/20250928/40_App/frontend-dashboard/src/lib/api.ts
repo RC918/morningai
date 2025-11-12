@@ -28,10 +28,17 @@ class ApiClient {
 
   private async refreshAccessToken(): Promise<void> {
     try {
+      let csrfToken = this.getCsrfToken()
+      if (!csrfToken) {
+        await this.bootstrapCsrf()
+        csrfToken = this.getCsrfToken()
+      }
+      
       const response = await fetch(`${this.baseURL}/api/auth/v2/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken || '',
         },
         credentials: 'include',
       })

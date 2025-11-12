@@ -70,13 +70,36 @@ function AppContent() {
       })
     }
 
+    const handleAuthError = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const { endpoint, message } = customEvent.detail
+      console.warn('Auth error detected, logging out:', { endpoint, message })
+      
+      setIsAuthenticated(false)
+      setUser({
+        id: null,
+        name: '',
+        email: '',
+        avatar: '',
+        role: '',
+        tenant_id: ''
+      })
+      
+      setTimeout(() => {
+        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
+        window.location.href = `/login?returnUrl=${returnUrl}`
+      }, 100)
+    }
+
     window.addEventListener('api-error', handleApiError as EventListener)
+    window.addEventListener('auth-error', handleAuthError as EventListener)
 
     const PUBLIC_ROUTES = new Set(['/', '/login', '/signup', '/pricing', '/auth/callback'])
     if (PUBLIC_ROUTES.has(location.pathname)) {
       setLoading(false)
       return () => {
         window.removeEventListener('api-error', handleApiError as EventListener)
+        window.removeEventListener('auth-error', handleAuthError as EventListener)
       }
     }
 
@@ -142,6 +165,7 @@ function AppContent() {
 
     return () => {
       window.removeEventListener('api-error', handleApiError as EventListener)
+      window.removeEventListener('auth-error', handleAuthError as EventListener)
     }
   }, [addToast, setUser, location.pathname, t])
 
@@ -235,6 +259,7 @@ function AppContent() {
             <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
           
           {/* Feature-gated routes */}
           {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
