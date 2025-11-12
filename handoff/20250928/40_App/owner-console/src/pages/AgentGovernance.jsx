@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { getAdminAgents } from '@/lib/generated/admin/admin'
 import { getGovernanceEvents, getGovernanceViolations, getGovernanceStatistics } from '@/lib/generated/governance/governance'
+import AgentExecutionLogs from '@/components/AgentExecutionLogs'
 
 const AgentGovernance = () => {
   const { t } = useTranslation()
@@ -215,10 +216,11 @@ const AgentGovernance = () => {
       )}
 
       <Tabs defaultValue="agents" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="agents">{t('governance.tabs.agents')}</TabsTrigger>
           <TabsTrigger value="events">{t('governance.tabs.events')}</TabsTrigger>
           <TabsTrigger value="violations">{t('governance.tabs.violations')}</TabsTrigger>
+          <TabsTrigger value="executionLogs">{t('governance.tabs.executionLogs')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
@@ -343,6 +345,10 @@ const AgentGovernance = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="executionLogs" className="space-y-4">
+          <AgentExecutionLogs />
         </TabsContent>
       </Tabs>
     </div>
