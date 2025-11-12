@@ -200,11 +200,11 @@ jobs:
         run: |
           echo "Testing Tier 3: Network error detection"
           
-          # Create script that raises network error
+          # Create script that raises network error (using 127.0.0.1:9 for deterministic ConnectionRefused)
           cat > /tmp/test_network.py << 'PYEOF'
           import requests
           try:
-              requests.get("http://invalid-host-that-does-not-exist-12345.example.com", timeout=1)
+              requests.get("http://127.0.0.1:9", timeout=1)
           except Exception as e:
               print(f"Error: {e}")
               exit(1)
