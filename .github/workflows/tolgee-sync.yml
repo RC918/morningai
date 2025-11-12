@@ -32,25 +32,100 @@ jobs:
       - name: Install Tolgee CLI
         run: npm i -g @tolgee/cli
 
-      - name: Bootstrap - Push translations to Owner Console (one-time)
-        if: github.event.inputs.bootstrap == 'true'
+      - name: Install jq for JSON parsing
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Check if Tolgee projects need bootstrap
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🔍 Checking if Tolgee projects are empty..."
+          
+          # Check Owner Console project
+          OC_KEYS=$(curl -s -H "X-API-Key: $TOLGEE_API_KEY" "https://app.tolgee.io/v2/projects/24693/keys?page=0&size=1" | jq -r '.page.totalElements // 0')
+          echo "Owner Console (24693) has $OC_KEYS keys"
+          echo "OC_KEYS=$OC_KEYS" >> $GITHUB_ENV
+          
+          # Check Frontend Dashboard project
+          FD_KEYS=$(curl -s -H "X-API-Key: $TOLGEE_API_KEY" "https://app.tolgee.io/v2/projects/24702/keys?page=0&size=1" | jq -r '.page.totalElements // 0')
+          echo "Frontend Dashboard (24702) has $FD_KEYS keys"
+          echo "FD_KEYS=$FD_KEYS" >> $GITHUB_ENV
+          
+          # Determine if bootstrap is needed
+          if [ "$OC_KEYS" = "0" ] || [ "$FD_KEYS" = "0" ]; then
+            echo "⚠️  Bootstrap needed: One or more projects are empty"
+            echo "NEEDS_BOOTSTRAP=true" >> $GITHUB_ENV
+          else
+            echo "✅ Both projects have translations, skipping bootstrap"
+            echo "NEEDS_BOOTSTRAP=false" >> $GITHUB_ENV
+          fi
+
+      - name: Bootstrap - Import translations to Owner Console
+        if: env.OC_KEYS == '0' || github.event.inputs.bootstrap == 'true'
         working-directory: handoff/20250928/40_App/owner-console
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
-          echo "🚀 Bootstrap: Pushing existing translations to Owner Console (Project #24693)..."
-          tolgee push --api-key "$TOLGEE_API_KEY" --files-template "src/locales/{languageTag}.json" --no-strict-namespace --force-mode OVERRIDE
-          echo "✅ Owner Console translations pushed successfully"
+          echo "🚀 Bootstrap: Importing translations to Owner Console (Project #24693)..."
+          for f in src/locales/*.json; do
+            lang="$(basename "$f" .json)"
+            echo "  📝 Importing $lang from $f..."
+            tolgee import \
+              --api-key "$TOLGEE_API_KEY" \
+              --project-id 24693 \
+              --language-tag "$lang" \
+              --file "$f" \
+              --format JSON_I18NEXT \
+              --force-mode OVERRIDE
+          done
+          echo "✅ Owner Console translations imported successfully"
 
-      - name: Bootstrap - Push translations to Frontend Dashboard (one-time)
-        if: github.event.inputs.bootstrap == 'true'
+      - name: Bootstrap - Import translations to Frontend Dashboard
+        if: env.FD_KEYS == '0' || github.event.inputs.bootstrap == 'true'
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
-          echo "🚀 Bootstrap: Pushing existing translations to Frontend Dashboard (Project #24702)..."
-          tolgee push --api-key "$TOLGEE_API_KEY" --files-template "src/i18n/locales/{languageTag}.json" --no-strict-namespace --force-mode OVERRIDE
-          echo "✅ Frontend Dashboard translations pushed successfully"
+          echo "🚀 Bootstrap: Importing translations to Frontend Dashboard (Project #24702)..."
+          for f in src/i18n/locales/*.json; do
+            lang="$(basename "$f" .json)"
+            echo "  📝 Importing $lang from $f..."
+            tolgee import \
+              --api-key "$TOLGEE_API_KEY" \
+              --project-id 24702 \
+              --language-tag "$lang" \
+              --file "$f" \
+              --format JSON_I18NEXT \
+              --force-mode OVERRIDE
+          done
+          echo "✅ Frontend Dashboard translations imported successfully"
+
+      - name: Verify bootstrap success
+        if: env.NEEDS_BOOTSTRAP == 'true' || github.event.inputs.bootstrap == 'true'
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🔍 Verifying bootstrap success..."
+          
+          # Re-check key counts
+          OC_KEYS_AFTER=$(curl -s -H "X-API-Key: $TOLGEE_API_KEY" "https://app.tolgee.io/v2/projects/24693/keys?page=0&size=1" | jq -r '.page.totalElements // 0')
+          FD_KEYS_AFTER=$(curl -s -H "X-API-Key: $TOLGEE_API_KEY" "https://app.tolgee.io/v2/projects/24702/keys?page=0&size=1" | jq -r '.page.totalElements // 0')
+          
+          echo "Owner Console now has $OC_KEYS_AFTER keys"
+          echo "Frontend Dashboard now has $FD_KEYS_AFTER keys"
+          
+          # Fail if still empty
+          if [ "$OC_KEYS_AFTER" = "0" ]; then
+            echo "❌ ERROR: Owner Console still has 0 keys after bootstrap!"
+            exit 1
+          fi
+          
+          if [ "$FD_KEYS_AFTER" = "0" ]; then
+            echo "❌ ERROR: Frontend Dashboard still has 0 keys after bootstrap!"
+            exit 1
+          fi
+          
+          echo "✅ Bootstrap verification passed!"
 
       - name: Preflight - Dry Pull and Validate Frontend Dashboard
         if: github.event.inputs.bootstrap != 'true'
