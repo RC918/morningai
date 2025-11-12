@@ -302,11 +302,141 @@ jobs:
             exit 1
           fi
 
+  self-test:
+    name: CI Logic Self-Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install requests
+      
+      - name: Test Tier 1 - SyntaxError detection
+        run: |
+          echo "Testing Tier 1: SyntaxError detection"
+          
+          # Create temp file with syntax error
+          echo "def foo(" > /tmp/test_syntax.py
+          
+          # Run detection logic
+          set +e
+          OUTPUT=$(python /tmp/test_syntax.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Use centralized classifier (wrap with set +e since classifier exits 1 for FAIL)
+          set +e
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          CLASSIFIER_EXIT=$?
+          set -e
+          
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          
+          if [ "$TIER" = "1" ] && [ "$STATUS" = "FAIL" ]; then
+            echo "✅ Tier 1 correctly detected SyntaxError"
+          else
+            echo "❌ Tier 1 failed (got Tier $TIER, Status $STATUS)"
+            exit 1
+          fi
+      
+      - name: Test Tier 2 - Timeout detection
+        run: |
+          echo "Testing Tier 2: Timeout detection"
+          
+          # Create script that sleeps
+          echo "import time; time.sleep(100)" > /tmp/test_timeout.py
+          
+          # Run with timeout
+          set +e
+          OUTPUT=$(timeout 1s python /tmp/test_timeout.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Should detect timeout (exit 124)
+          if [ "$EXIT_CODE" -eq 124 ]; then
+            echo "✅ Tier 2 correctly detected timeout"
+          else
+            echo "❌ Tier 2 failed to detect timeout (exit code: $EXIT_CODE)"
+            exit 1
+          fi
+      
+      - name: Test Tier 3 - Network error detection
+        run: |
+          echo "Testing Tier 3: Network error detection"
+          
+          # Create script that raises network error (using 127.0.0.1:9 for deterministic ConnectionRefused)
+          cat > /tmp/test_network.py << 'PYEOF'
+          import requests
+          try:
+              requests.get("http://127.0.0.1:9", timeout=1)
+          except Exception as e:
+              print(f"Error: {e}")
+              exit(1)
+          PYEOF
+          
+          # Run script
+          set +e
+          OUTPUT=$(python /tmp/test_network.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Use centralized classifier (classifier exits 0 for PASS, so no need for set +e wrapper)
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          
+          if [ "$TIER" = "3" ] && [ "$STATUS" = "PASS" ]; then
+            echo "✅ Tier 3 correctly detected network error"
+          else
+            echo "❌ Tier 3 failed (got Tier $TIER, Status $STATUS)"
+            exit 1
+          fi
+      
+      - name: Test Tier 5 - Non-network error detection
+        run: |
+          echo "Testing Tier 5: Non-network error detection"
+          
+          # Create script that raises ValueError
+          cat > /tmp/test_value_error.py << 'PYEOF'
+          raise ValueError("This is a test error")
+          PYEOF
+          
+          # Run script
+          set +e
+          OUTPUT=$(python /tmp/test_value_error.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Use centralized classifier (wrap with set +e since classifier exits 1 for FAIL)
+          set +e
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          CLASSIFIER_EXIT=$?
+          set -e
+          
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          
+          if [ "$TIER" = "5" ] && [ "$STATUS" = "FAIL" ]; then
+            echo "✅ Tier 5 correctly detected non-network error"
+          else
+            echo "❌ Tier 5 failed (got Tier $TIER, Status $STATUS)"
+            exit 1
+          fi
+
   integration-check:
     name: Monitor Integration Check
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [syntax-check, monitor-tests]
+    needs: [syntax-check, monitor-tests, self-test]
     
     steps:
       - name: Checkout code
