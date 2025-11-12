@@ -10,6 +10,11 @@
  * 
  * Usage:
  *   node scripts/validate-tolgee-structure.js [path]
+ *   node scripts/validate-tolgee-structure.js --fd-locales <path> --oc-locales <path>
+ *   
+ * Options:
+ *   --fd-locales <path>  Path to frontend-dashboard locales directory
+ *   --oc-locales <path>  Path to owner-console locales directory
  *   
  * Exit codes:
  *   0 - All validations passed
@@ -163,10 +168,10 @@ function validateLocaleFile(filePath, appConfig, fileName) {
 /**
  * Validate all locale files for an app
  */
-function validateApp(appName, appConfig, basePath) {
+function validateApp(appName, appConfig, basePath, customLocalesPath = null) {
   info(`\n=== Validating ${appName} ===`);
   
-  const localesPath = path.join(basePath, appConfig.path);
+  const localesPath = customLocalesPath || path.join(basePath, appConfig.path);
   
   if (!fs.existsSync(localesPath)) {
     error(`Locales directory not found: ${localesPath}`);
@@ -191,16 +196,57 @@ function validateApp(appName, appConfig, basePath) {
 }
 
 /**
+ * Parse command line arguments
+ */
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const result = {
+    basePath: null,
+    fdLocales: null,
+    ocLocales: null
+  };
+  
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--fd-locales' && i + 1 < args.length) {
+      result.fdLocales = args[i + 1];
+      i++;
+    } else if (args[i] === '--oc-locales' && i + 1 < args.length) {
+      result.ocLocales = args[i + 1];
+      i++;
+    } else if (!args[i].startsWith('--')) {
+      result.basePath = args[i];
+    }
+  }
+  
+  return result;
+}
+
+/**
  * Main validation function
  */
 function main() {
-  const basePath = process.argv[2] || process.cwd();
+  const args = parseArgs();
+  const basePath = args.basePath || process.cwd();
   
   console.log('🔍 Tolgee Locale File Structure Validator\n');
-  info(`Base path: ${basePath}\n`);
+  
+  if (args.fdLocales || args.ocLocales) {
+    info('Using custom locale paths:');
+    if (args.fdLocales) info(`  Frontend Dashboard: ${args.fdLocales}`);
+    if (args.ocLocales) info(`  Owner Console: ${args.ocLocales}`);
+    info('');
+  } else {
+    info(`Base path: ${basePath}\n`);
+  }
   
   for (const [appName, appConfig] of Object.entries(APPS)) {
-    validateApp(appName, appConfig, basePath);
+    let customPath = null;
+    if (appName === 'frontend-dashboard' && args.fdLocales) {
+      customPath = args.fdLocales;
+    } else if (appName === 'owner-console' && args.ocLocales) {
+      customPath = args.ocLocales;
+    }
+    validateApp(appName, appConfig, basePath, customPath);
   }
   
   console.log('\n' + '='.repeat(50));

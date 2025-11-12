@@ -61,8 +61,7 @@ jobs:
           echo "🔍 Performing preflight validation for Frontend Dashboard..."
           mkdir -p /tmp/tolgee-preview-fd
           tolgee pull --api-key "$TOLGEE_API_KEY" --path /tmp/tolgee-preview-fd
-          node ../../../../../../scripts/validate-tolgee-structure.js /tmp/tolgee-preview-fd/../../../..
-          echo "✅ Frontend Dashboard preflight validation passed"
+          echo "✅ Frontend Dashboard preflight pull completed"
 
       - name: Preflight - Dry Pull and Validate Owner Console
         if: github.event.inputs.bootstrap != 'true'
@@ -73,8 +72,7 @@ jobs:
           echo "🔍 Performing preflight validation for Owner Console..."
           mkdir -p /tmp/tolgee-preview-oc
           tolgee pull --api-key "$TOLGEE_API_KEY" --path /tmp/tolgee-preview-oc
-          node ../../../../../scripts/validate-tolgee-structure.js /tmp/tolgee-preview-oc/../../..
-          echo "✅ Owner Console preflight validation passed"
+          echo "✅ Owner Console preflight pull completed"
 
       - name: Pull translations for Frontend Dashboard
         if: github.event.inputs.bootstrap != 'true'
@@ -97,10 +95,15 @@ jobs:
         run: |
           echo "🔍 Validating pulled translations before creating PR..."
           
-          # Check for demo data patterns in all locale files
+          # Use structured validator on /tmp files (just pulled from Tolgee)
+          node $GITHUB_WORKSPACE/scripts/validate-tolgee-structure.js \
+            --fd-locales /tmp/tolgee-preview-fd \
+            --oc-locales /tmp/tolgee-preview-oc
+          
+          # Additional quick grep check for demo patterns
           if grep -r "What to pack\|add-item-add-button\|delete-item-button\|Quoi emballer\|Was mitnehmen" \
-            handoff/20250928/40_App/owner-console/src/locales/ \
-            handoff/20250928/40_App/frontend-dashboard/src/i18n/locales/ 2>/dev/null; then
+            /tmp/tolgee-preview-fd/ \
+            /tmp/tolgee-preview-oc/ 2>/dev/null; then
             echo ""
             echo "❌ ERROR: Tolgee demo data detected in pulled translations!"
             echo "This indicates the Tolgee projects contain corrupted/demo data."
