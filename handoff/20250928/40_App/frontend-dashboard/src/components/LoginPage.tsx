@@ -246,22 +246,16 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
           className="text-center mb-8"
           variants={prefersReducedMotion ? undefined : itemVariants}
         >
-          <Link to="/" className="inline-block">
-            <motion.div
-              className="mx-auto w-16 h-16 mb-4"
+          <Link to="/" className="inline-flex items-center gap-4 hover:opacity-80 transition-opacity">
+            <motion.img 
+              src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+              alt="" 
+              aria-hidden="true"
+              className="w-[28px] h-[28px] rounded-lg"
               whileHover={prefersReducedMotion ? {} : { scale: 1.1, rotate: 5 }}
               transition={{ duration: 0.3 }}
-            >
-              <img 
-                src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
-                alt="Morning AI" 
-                className="w-full h-full rounded-2xl cursor-pointer"
-                style={{ width: '64px', height: '64px', maxWidth: '64px', maxHeight: '64px' }}
-              />
-            </motion.div>
-          </Link>
-          <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
+            />
+            <h1 className="text-[28px] leading-[36px] font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
           </Link>
           <p className="text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
         </motion.div>

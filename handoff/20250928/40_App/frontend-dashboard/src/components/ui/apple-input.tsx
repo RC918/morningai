@@ -157,7 +157,7 @@ function AppleInput({
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
             {leftIcon}
           </div>
         )}
@@ -170,9 +170,10 @@ function AppleInput({
           className={cn(
             appleInputVariants({ variant, inputSize, state, className }),
             label && "pt-6 pb-2",
-            leftIcon && "pl-10",
-            (rightIcon || showPasswordToggle || showStateIcon) && "pr-10",
-            "placeholder:text-muted-foreground/50 selection:bg-primary selection:text-primary-foreground"
+            leftIcon && "pl-12",
+            (rightIcon || showPasswordToggle || showStateIcon) && "pr-12",
+            "placeholder:text-muted-foreground/50 selection:bg-primary selection:text-primary-foreground",
+            "relative z-0"
           )}
           disabled={disabled}
           required={required}
@@ -186,7 +187,7 @@ function AppleInput({
         />
 
         {/* Right Icons */}
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex items-center gap-2 pointer-events-auto">
           {/* State Icon */}
           <AnimatePresence>
             {state === "error" && errorText && (
