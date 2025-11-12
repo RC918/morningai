@@ -139,7 +139,8 @@ function AppleInput({
         <motion.label
           htmlFor={props.id}
           className={cn(
-            "absolute left-4 pointer-events-none origin-left font-medium transition-colors",
+            "absolute pointer-events-none origin-left font-medium transition-colors",
+            leftIcon ? "left-12" : "left-4",
             showFloatingLabel ? "text-xs" : "text-sm top-1/2 -translate-y-1/2",
             disabled && "opacity-50"
           )}
@@ -157,7 +158,7 @@ function AppleInput({
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10">
             {leftIcon}
           </div>
         )}

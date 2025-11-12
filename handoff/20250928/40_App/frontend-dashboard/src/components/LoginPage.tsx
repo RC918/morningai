@@ -255,7 +255,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
                 alt="" 
                 aria-hidden="true"
-                className="w-[28px] h-[28px] rounded-lg"
+                className="w-[36px] h-[36px] rounded-lg"
               />
             </motion.div>
             <h1 className="text-[28px] leading-[36px] font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
