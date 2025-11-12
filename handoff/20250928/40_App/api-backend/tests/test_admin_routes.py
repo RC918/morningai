@@ -3,22 +3,34 @@ Tests for admin routes (SystemMonitoring and AgentGovernance endpoints)
 P0-3: Real API Connection for Owner Console
 """
 import pytest
+import os
+import sys
 from unittest.mock import patch, MagicMock
-from src.main import app as flask_app
-from src.models.user import db
 
 
 @pytest.fixture
 def app():
     """Create Flask app for testing"""
-    flask_app.config['TESTING'] = True
-    flask_app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    
-    with flask_app.app_context():
-        db.create_all()
-        yield flask_app
-        db.session.remove()
-        db.drop_all()
+    with patch.dict(os.environ, {
+        'TESTING': 'true',
+        'JWT_SECRET_KEY': 'test-secret-key-that-is-at-least-32-characters-long',
+        'FLASK_SECRET_KEY': 'test-flask-secret-key-at-least-32-chars',
+        'SENTRY_DSN': ''
+    }):
+        if 'src.main' in sys.modules:
+            del sys.modules['src.main']
+        
+        from src.main import app as flask_app
+        from src.models.user import db
+        
+        flask_app.config['TESTING'] = True
+        flask_app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        
+        with flask_app.app_context():
+            db.create_all()
+            yield flask_app
+            db.session.remove()
+            db.drop_all()
 
 
 @pytest.fixture
