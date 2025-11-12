@@ -226,14 +226,18 @@ jobs:
           # Run script
           set +e
           OUTPUT=$(python /tmp/test_network.py 2>&1)
+          EXIT_CODE=$?
           set -e
           
-          # Should detect network error
-          if echo "$OUTPUT" | grep -qiE "(requests\.exceptions\.ConnectionError|urllib3\.exceptions\.NewConnectionError|HTTPSConnectionPool|Max retries exceeded|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|NameResolutionError|Temporary failure in name resolution|Name or service not known|gaierror|Failed to resolve)"; then
+          # Use centralized classifier
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          
+          if [ "$TIER" = "3" ] && [ "$STATUS" = "PASS" ]; then
             echo "✅ Tier 3 correctly detected network error"
           else
-            echo "❌ Tier 3 failed to detect network error"
-            echo "Output: $OUTPUT"
+            echo "❌ Tier 3 failed (got Tier $TIER, Status $STATUS)"
             exit 1
           fi
       
@@ -252,20 +256,15 @@ jobs:
           EXIT_CODE=$?
           set -e
           
-          # Should NOT match network patterns
-          if echo "$OUTPUT" | grep -qiE "(requests\.exceptions\.ConnectionError|urllib3\.exceptions\.NewConnectionError|HTTPSConnectionPool|Max retries exceeded|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|NameResolutionError|Temporary failure in name resolution|Name or service not known|gaierror|Failed to resolve)"; then
-            echo "❌ Tier 5 incorrectly matched network pattern for ValueError"
-            echo "Output: $OUTPUT"
-            exit 1
-          else
-            echo "✅ Tier 5 correctly did not match network pattern"
-          fi
+          # Use centralized classifier
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
           
-          # Should have non-zero exit code
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            echo "✅ Tier 5 correctly detected non-zero exit code"
+          if [ "$TIER" = "5" ] && [ "$STATUS" = "FAIL" ]; then
+            echo "✅ Tier 5 correctly detected non-network error"
           else
-            echo "❌ Tier 5 failed to detect error (exit code was 0)"
+            echo "❌ Tier 5 failed (got Tier $TIER, Status $STATUS)"
             exit 1
           fi
 
