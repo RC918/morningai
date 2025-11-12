@@ -66,7 +66,73 @@
     "tabs": {
       "agents": "Agents 列表",
       "events": "事件",
-      "violations": "違規"
+      "violations": "違規",
+      "executionLogs": "執行日誌"
+    },
+    "executionLogs": {
+      "title": "Agent 執行日誌",
+      "subtitle": "監控 agent 任務執行歷史與效能",
+      "noLogs": "找不到執行日誌",
+      "filters": {
+        "status": "狀態",
+        "allStatuses": "所有狀態",
+        "agentId": "Agent ID",
+        "agentIdPlaceholder": "依 agent ID 篩選",
+        "tenantId": "租戶 ID",
+        "tenantIdPlaceholder": "依租戶 ID 篩選",
+        "taskType": "任務類型",
+        "taskTypePlaceholder": "依任務類型篩選",
+        "dateRange": "日期範圍",
+        "startDate": "開始日期",
+        "endDate": "結束日期",
+        "clearFilters": "清除篩選",
+        "applyFilters": "套用篩選"
+      },
+      "statuses": {
+        "queued": "排隊中",
+        "assigned": "已分配",
+        "running": "執行中",
+        "completed": "已完成",
+        "failed": "失敗",
+        "cancelled": "已取消"
+      },
+      "columns": {
+        "taskId": "任務 ID",
+        "status": "狀態",
+        "taskType": "任務類型",
+        "agent": "Agent",
+        "tenant": "租戶",
+        "duration": "執行時長",
+        "timestamps": "時間戳記",
+        "actions": "操作"
+      },
+      "summary": {
+        "title": "執行摘要",
+        "totalExecutions": "總執行次數",
+        "successRate": "成功率",
+        "avgDuration": "平均執行時長",
+        "statusBreakdown": "狀態分布"
+      },
+      "details": {
+        "viewDetails": "查看詳情",
+        "taskDetails": "任務詳情",
+        "agentInfo": "Agent 資訊",
+        "executionTime": "執行時間",
+        "payload": "輸入資料",
+        "result": "執行結果",
+        "errorMessage": "錯誤訊息",
+        "createdAt": "建立時間",
+        "startedAt": "開始時間",
+        "completedAt": "完成時間",
+        "updatedAt": "更新時間"
+      },
+      "pagination": {
+        "showing": "顯示 {{start}}-{{end}} / 共 {{total}} 筆",
+        "page": "第 {{current}} 頁 / 共 {{total}} 頁",
+        "previous": "上一頁",
+        "next": "下一頁",
+        "pageSize": "每頁顯示筆數"
+      }
     },
     "agents": {
       "title": "Agent 聲譽排行榜",
