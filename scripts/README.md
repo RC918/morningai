@@ -84,9 +84,16 @@ The Python Scripts CI workflow runs on every PR and includes:
 
 The following CI checks are required to pass before merging to `main`:
 
-- ✅ Python Syntax Validation
-- ✅ Monitor Orchestrator Tests  
-- ✅ Monitor Integration Check
+- ✅ `Python Scripts CI / syntax-check`
+- ✅ `Python Scripts CI / monitor-tests`
+- ✅ `Python Scripts CI / integration-check`
+
+**Important**: Use the exact check names shown above (including the workflow name prefix `Python Scripts CI /`) when configuring branch protection rules in GitHub Settings > Branches.
+
+To verify the exact check names:
+1. Open any PR's Checks tab
+2. Copy the full context name for each job
+3. Use those exact names in branch protection settings
 
 These checks ensure code quality and prevent breaking changes.
 
