@@ -6,6 +6,12 @@ on:
   schedule:
     - cron: '0 2 * * *' # 10:00 Asia/Taipei
   workflow_dispatch:
+    inputs:
+      bootstrap:
+        description: 'Bootstrap: Push existing translations to new Tolgee projects (one-time only)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -26,7 +32,50 @@ jobs:
       - name: Install Tolgee CLI
         run: npm i -g @tolgee/cli
 
+      - name: Bootstrap - Push translations to Owner Console (one-time)
+        if: github.event.inputs.bootstrap == 'true'
+        working-directory: handoff/20250928/40_App/owner-console
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🚀 Bootstrap: Pushing existing translations to Owner Console (Project #24693)..."
+          tolgee push --api-key "$TOLGEE_API_KEY" --path ./src/locales --force-mode OVERRIDE
+          echo "✅ Owner Console translations pushed successfully"
+
+      - name: Bootstrap - Push translations to Frontend Dashboard (one-time)
+        if: github.event.inputs.bootstrap == 'true'
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🚀 Bootstrap: Pushing existing translations to Frontend Dashboard (Project #24702)..."
+          tolgee push --api-key "$TOLGEE_API_KEY" --path ./src/i18n/locales --force-mode OVERRIDE
+          echo "✅ Frontend Dashboard translations pushed successfully"
+
+      - name: Preflight - Dry Pull and Validate Frontend Dashboard
+        if: github.event.inputs.bootstrap != 'true'
+        working-directory: handoff/20250928/40_App/frontend-dashboard
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🔍 Performing preflight validation for Frontend Dashboard..."
+          mkdir -p /tmp/tolgee-preview-fd
+          tolgee pull --api-key "$TOLGEE_API_KEY" --path /tmp/tolgee-preview-fd
+          echo "✅ Frontend Dashboard preflight pull completed"
+
+      - name: Preflight - Dry Pull and Validate Owner Console
+        if: github.event.inputs.bootstrap != 'true'
+        working-directory: handoff/20250928/40_App/owner-console
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🔍 Performing preflight validation for Owner Console..."
+          mkdir -p /tmp/tolgee-preview-oc
+          tolgee pull --api-key "$TOLGEE_API_KEY" --path /tmp/tolgee-preview-oc
+          echo "✅ Owner Console preflight pull completed"
+
       - name: Pull translations for Frontend Dashboard
+        if: github.event.inputs.bootstrap != 'true'
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -34,13 +83,44 @@ jobs:
           tolgee pull --api-key "$TOLGEE_API_KEY"
 
       - name: Pull translations for Owner Console
+        if: github.event.inputs.bootstrap != 'true'
         working-directory: handoff/20250928/40_App/owner-console
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
           tolgee pull --api-key "$TOLGEE_API_KEY"
+      
+      - name: Validate pulled translations (Preflight Check)
+        if: github.event.inputs.bootstrap != 'true'
+        run: |
+          echo "🔍 Validating pulled translations before creating PR..."
+          
+          # Use structured validator on /tmp files (just pulled from Tolgee)
+          node $GITHUB_WORKSPACE/scripts/validate-tolgee-structure.js \
+            --fd-locales /tmp/tolgee-preview-fd \
+            --oc-locales /tmp/tolgee-preview-oc
+          
+          # Additional quick grep check for demo patterns
+          if grep -r "What to pack\|add-item-add-button\|delete-item-button\|Quoi emballer\|Was mitnehmen" \
+            /tmp/tolgee-preview-fd/ \
+            /tmp/tolgee-preview-oc/ 2>/dev/null; then
+            echo ""
+            echo "❌ ERROR: Tolgee demo data detected in pulled translations!"
+            echo "This indicates the Tolgee projects contain corrupted/demo data."
+            echo ""
+            echo "Please fix the Tolgee project data before running sync again:"
+            echo "1. Check Tolgee projects #24693 and #24702"
+            echo "2. Remove any demo data (packing list app strings)"
+            echo "3. Ensure correct translations are imported"
+            echo "4. Re-run this workflow"
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ Preflight validation passed - no demo data detected"
 
       - name: Create PR if changes
+        if: github.event.inputs.bootstrap != 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: "chore(i18n): sync translations from Tolgee"
