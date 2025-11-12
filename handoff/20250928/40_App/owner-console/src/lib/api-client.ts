@@ -1,3 +1,5 @@
+import { getAccessToken } from './auth.ts';
+
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || '';
 
 /**
@@ -50,6 +52,11 @@ export async function apiClient<T>(
     if (csrfToken) {
       headers['X-CSRF-Token'] = csrfToken;
     }
+  }
+  
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
   
   const res = await fetch(`${API_BASE_URL}${finalUrl}`, {
@@ -311,6 +318,11 @@ export async function apiClientWithMeta<T>(
     if (csrfToken) {
       headers['X-CSRF-Token'] = csrfToken;
     }
+  }
+  
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
   const controller = new AbortController();

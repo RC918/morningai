@@ -75,6 +75,19 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### ✅ All checked scripts have valid syntax" >> $GITHUB_STEP_SUMMARY
           fi
+      
+      - name: Test CI Output Classifier
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## CI Output Classifier Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if python .github/scripts/test_classify_ci_output.py -v; then
+            echo "✅ All 28 classifier tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Classifier tests failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
 
   monitor-tests:
     name: Monitor Orchestrator Tests
@@ -280,6 +293,8 @@ jobs:
       
       - name: Verify monitor script runs (dry run)
         run: |
+          set -o pipefail  # Ensure pipeline failures are caught
+          
           echo "## Monitor Script Dry Run" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
@@ -298,37 +313,44 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           }
           
-          # 1) Critical syntax/import errors → FAIL
-          if echo "$OUTPUT" | grep -qiE "(SyntaxError|IndentationError|ImportError|ModuleNotFoundError)"; then
-            echo "❌ Monitor script has critical syntax/import errors" >> $GITHUB_STEP_SUMMARY
+          # Use centralized classifier with error handling
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          CLASSIFIER_EXIT=$?
+          
+          # Check classifier succeeded
+          if [ $CLASSIFIER_EXIT -ne 0 ]; then
+            echo "❌ Classifier failed with exit code $CLASSIFIER_EXIT" >> $GITHUB_STEP_SUMMARY
+            echo "Raw output:" >> $GITHUB_STEP_SUMMARY
             append_summary "$OUTPUT"
             exit 1
           fi
           
-          # 2) Timeout (expected in CI) → PASS
-          if [ "$EXIT_CODE" -eq 124 ]; then
-            echo "✅ Script timed out (expected in CI); no syntax/import errors detected" >> $GITHUB_STEP_SUMMARY
+          # Parse output with validation
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          REASON=$(echo "$CLASSIFICATION" | grep "^REASON=" | cut -d= -f2-)
+          
+          # Validate parsed values
+          if [ -z "$TIER" ] || [ -z "$STATUS" ] || [ -z "$REASON" ]; then
+            echo "❌ Failed to parse classifier output" >> $GITHUB_STEP_SUMMARY
+            echo "Raw classifier output:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$CLASSIFICATION" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "Classification: Tier $TIER - $STATUS - $REASON"
+          
+          if [ "$STATUS" = "PASS" ]; then
+            echo "✅ $REASON" >> $GITHUB_STEP_SUMMARY
             append_summary "$OUTPUT"
             exit 0
-          fi
-          
-          # 3) Network-related errors (tolerated) → PASS
-          if echo "$OUTPUT" | grep -qiE "(requests\.exceptions\.ConnectionError|urllib3\.exceptions\.NewConnectionError|HTTPSConnectionPool|Max retries exceeded|Connection (refused|reset)|ECONNREFUSED|ETIMEDOUT|timed out|NameResolutionError|Temporary failure in name resolution|Name or service not known|gaierror|Failed to resolve)"; then
-            echo "✅ Network error encountered (tolerated); no syntax/import errors" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ $REASON" >> $GITHUB_STEP_SUMMARY
             append_summary "$OUTPUT"
-            exit 0
+            exit 1
           fi
-          
-          # 4) Success → PASS
-          if [ "$EXIT_CODE" -eq 0 ]; then
-            echo "✅ Monitor script executed successfully" >> $GITHUB_STEP_SUMMARY
-            exit 0
-          fi
-          
-          # 5) Unknown non-network error → FAIL
-          echo "❌ Monitor script exited with code $EXIT_CODE" >> $GITHUB_STEP_SUMMARY
-          append_summary "$OUTPUT"
-          exit 1
         env:
           ORCHESTRATOR_API_URL: https://test-api.example.com
           # No SLACK_WEBHOOK_URL - test graceful degradation
