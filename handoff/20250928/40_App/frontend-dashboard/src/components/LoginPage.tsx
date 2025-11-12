@@ -243,24 +243,26 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
         animate="visible"
       >
         <motion.div
-          className="text-center mb-8"
+          className="w-full mb-8"
           variants={prefersReducedMotion ? undefined : itemVariants}
         >
-          <Link to="/" className="inline-flex items-center gap-4 hover:opacity-80 transition-opacity">
-            <motion.div
-              whileHover={prefersReducedMotion ? {} : { scale: 1.1, rotate: 5 }}
-              transition={{ duration: 0.3 }}
-            >
-              <img 
-                src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
-                alt="" 
-                aria-hidden="true"
-                className="w-[36px] h-[36px] rounded-lg"
-              />
-            </motion.div>
-            <h1 className="text-[28px] leading-[36px] font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
-          </Link>
-          <p className="text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
+          <div className="flex justify-center">
+            <Link to="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+              <motion.div
+                whileHover={prefersReducedMotion ? {} : { scale: 1.1, rotate: 5 }}
+                transition={{ duration: 0.3 }}
+              >
+                <img 
+                  src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+                  alt="" 
+                  aria-hidden="true"
+                  className="w-[48px] h-[48px] rounded-lg"
+                />
+              </motion.div>
+              <h1 className="text-[28px] leading-[36px] font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
+            </Link>
+          </div>
+          <p className="text-center text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? undefined : itemVariants}>
@@ -290,20 +292,19 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   id="username"
                   name="username"
                   type="text"
-                  label={t('auth.login.username')}
                   placeholder={t('auth.login.usernamePlaceholder')}
                   value={credentials.username}
                   onChange={handleChange}
                   leftIcon={<User className="w-4 h-4" />}
                   required
                   haptic="light"
+                  aria-label={t('auth.login.username')}
                 />
 
                 <AppleInput
                   id="password"
                   name="password"
                   type="password"
-                  label={t('auth.login.password')}
                   placeholder={t('auth.login.passwordPlaceholder')}
                   value={credentials.password}
                   onChange={handleChange}
@@ -311,6 +312,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   showPasswordToggle
                   required
                   haptic="light"
+                  aria-label={t('auth.login.password')}
                 />
 
                 <motion.div

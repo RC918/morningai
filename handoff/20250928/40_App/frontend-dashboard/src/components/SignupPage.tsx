@@ -153,24 +153,26 @@ const SignupPage = () => {
         animate="visible"
       >
         <motion.div
-          className="text-center mb-8"
+          className="w-full mb-8"
           variants={prefersReducedMotion ? undefined : itemVariants}
         >
-          <Link to="/" className="inline-flex items-center gap-4 hover:opacity-80 transition-opacity">
-            <motion.div
-              whileHover={prefersReducedMotion ? {} : { scale: 1.1, rotate: 5 }}
-              transition={{ duration: 0.3 }}
-            >
-              <img 
-                src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
-                alt="" 
-                aria-hidden="true"
-                className="w-[36px] h-[36px] rounded-lg"
-              />
-            </motion.div>
-            <h1 className="text-[28px] leading-[36px] font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
-          </Link>
-          <p className="text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
+          <div className="flex justify-center">
+            <Link to="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+              <motion.div
+                whileHover={prefersReducedMotion ? {} : { scale: 1.1, rotate: 5 }}
+                transition={{ duration: 0.3 }}
+              >
+                <img 
+                  src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+                  alt="" 
+                  aria-hidden="true"
+                  className="w-[48px] h-[48px] rounded-lg"
+                />
+              </motion.div>
+              <h1 className="text-[28px] leading-[36px] font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
+            </Link>
+          </div>
+          <p className="text-center text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? undefined : itemVariants}>
@@ -219,33 +221,32 @@ const SignupPage = () => {
                       id="fullName"
                       name="fullName"
                       type="text"
-                      label={t('auth.signup.fullName', '姓名')}
                       placeholder={t('auth.signup.fullNamePlaceholder', '請輸入您的姓名')}
                       value={formData.fullName}
                       onChange={handleChange}
                       leftIcon={<User className="w-4 h-4" />}
                       required
                       haptic="light"
+                      aria-label={t('auth.signup.fullName', '姓名')}
                     />
 
                     <AppleInput
                       id="email"
                       name="email"
                       type="email"
-                      label={t('auth.signup.email', '電子郵件')}
                       placeholder={t('auth.signup.emailPlaceholder', '請輸入電子郵件')}
                       value={formData.email}
                       onChange={handleChange}
                       leftIcon={<Mail className="w-4 h-4" />}
                       required
                       haptic="light"
+                      aria-label={t('auth.signup.email', '電子郵件')}
                     />
 
                     <AppleInput
                       id="password"
                       name="password"
                       type="password"
-                      label={t('auth.signup.password', '密碼')}
                       placeholder={t('auth.signup.passwordPlaceholder', '至少 6 個字元')}
                       value={formData.password}
                       onChange={handleChange}
@@ -255,13 +256,13 @@ const SignupPage = () => {
                       minLength={6}
                       haptic="light"
                       helperText={t('auth.signup.passwordHelp', '密碼至少需要 6 個字元')}
+                      aria-label={t('auth.signup.password', '密碼')}
                     />
 
                     <AppleInput
                       id="confirmPassword"
                       name="confirmPassword"
                       type="password"
-                      label={t('auth.signup.confirmPassword', '確認密碼')}
                       placeholder={t('auth.signup.confirmPasswordPlaceholder', '再次輸入密碼')}
                       value={formData.confirmPassword}
                       onChange={handleChange}
@@ -269,6 +270,7 @@ const SignupPage = () => {
                       showPasswordToggle
                       required
                       haptic="light"
+                      aria-label={t('auth.signup.confirmPassword', '確認密碼')}
                     />
 
                     <motion.div
