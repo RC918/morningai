@@ -30,15 +30,26 @@ class ApiClient {
     try {
       let csrfToken = this.getCsrfToken()
       if (!csrfToken) {
-        await this.bootstrapCsrf()
+        const bootstrapped = await this.bootstrapCsrf()
+        if (!bootstrapped) {
+          const error = new Error('csrf_unavailable') as ApiError
+          error.status = 0
+          throw error
+        }
         csrfToken = this.getCsrfToken()
+      }
+      
+      if (!csrfToken) {
+        const error = new Error('csrf_unavailable') as ApiError
+        error.status = 0
+        throw error
       }
       
       const response = await fetch(`${this.baseURL}/api/auth/v2/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken || '',
+          'X-CSRF-Token': csrfToken,
         },
         credentials: 'include',
       })
@@ -244,14 +255,28 @@ class ApiClient {
     })
   }
 
-  async bootstrapCsrf(): Promise<void> {
-    try {
-      await fetch(`${this.baseURL}/api/auth/v2/csrf`, {
-        credentials: 'include',
-      })
-    } catch (error) {
-      console.warn('Failed to bootstrap CSRF token:', error)
+  async bootstrapCsrf(): Promise<boolean> {
+    const maxAttempts = 3
+    const delayMs = 150
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        await fetch(`${this.baseURL}/api/auth/v2/csrf`, {
+          credentials: 'include',
+        })
+        
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+        
+        if (this.getCsrfToken()) {
+          return true
+        }
+      } catch (error) {
+        console.warn(`CSRF bootstrap attempt ${attempt + 1}/${maxAttempts} failed:`, error)
+      }
     }
+    
+    console.error('Failed to bootstrap CSRF token after all attempts')
+    return false
   }
 
   async getBillingPlans(): Promise<any[]> {

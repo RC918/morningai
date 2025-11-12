@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TolgeeProvider } from '@tolgee/react'
@@ -55,9 +55,19 @@ const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 function AppContent() {
   const { t } = useTranslation()
   const location = useLocation()
+  const navigate = useNavigate()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [redirectToLogin, setRedirectToLogin] = useState<string | null>(null)
   const { user, setUser, addToast } = useAppStore()
+
+  useEffect(() => {
+    if (!isAuthenticated && redirectToLogin !== null) {
+      const returnUrl = encodeURIComponent(redirectToLogin)
+      navigate(`/login?returnUrl=${returnUrl}`, { replace: true })
+      setRedirectToLogin(null)
+    }
+  }, [isAuthenticated, redirectToLogin, navigate])
 
   useEffect(() => {
     const handleApiError = (event: Event) => {
@@ -70,10 +80,16 @@ function AppContent() {
       })
     }
 
-    const handleAuthError = (event: Event) => {
+    const handleAuthError = async (event: Event) => {
       const customEvent = event as CustomEvent
       const { endpoint, message } = customEvent.detail
       console.warn('Auth error detected, logging out:', { endpoint, message })
+      
+      try {
+        await supabase.auth.signOut()
+      } catch (error) {
+        console.error('Supabase signOut error during auth-error:', error)
+      }
       
       setIsAuthenticated(false)
       setUser({
@@ -85,10 +101,14 @@ function AppContent() {
         tenant_id: ''
       })
       
-      setTimeout(() => {
-        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-        window.location.href = `/login?returnUrl=${returnUrl}`
-      }, 100)
+      const returnUrl = window.location.pathname + window.location.search
+      setRedirectToLogin(returnUrl)
+      
+      addToast({
+        title: t('auth.sessionExpired'),
+        description: t('auth.pleaseSignInAgain'),
+        variant: "destructive"
+      })
     }
 
     window.addEventListener('api-error', handleApiError as EventListener)
@@ -259,7 +279,6 @@ function AppContent() {
             <Suspense fallback={<PageLoader message={t('common.loadingPage')} />}>
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
           
           {/* Feature-gated routes */}
           {isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (

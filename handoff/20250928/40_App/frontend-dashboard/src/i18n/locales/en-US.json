@@ -26,6 +26,8 @@
       "logoutSuccess": "Logged Out",
       "logoutMessage": "You have successfully logged out"
     },
+    "sessionExpired": "Session Expired",
+    "pleaseSignInAgain": "Please sign in again",
     "sso": {
       "loginWithGoogle": "Continue with Google",
       "loginWithApple": "Continue with Apple",

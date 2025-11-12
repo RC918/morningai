@@ -26,6 +26,8 @@
       "logoutSuccess": "已登出",
       "logoutMessage": "您已成功登出系統"
     },
+    "sessionExpired": "會話已過期",
+    "pleaseSignInAgain": "請重新登入",
     "sso": {
       "loginWithGoogle": "使用 Google 繼續",
       "loginWithApple": "使用 Apple 繼續",
