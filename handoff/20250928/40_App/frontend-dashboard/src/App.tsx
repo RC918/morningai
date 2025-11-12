@@ -91,6 +91,8 @@ function AppContent() {
         console.error('Supabase signOut error during auth-error:', error)
       }
       
+      document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+      
       setIsAuthenticated(false)
       setUser({
         id: null,
@@ -123,12 +125,41 @@ function AppContent() {
       }
     }
 
+    if (isAuthenticated) {
+      setLoading(false)
+      return () => {
+        window.removeEventListener('api-error', handleApiError as EventListener)
+        window.removeEventListener('auth-error', handleAuthError as EventListener)
+      }
+    }
+
     const checkAuth = async () => {
       try {
         const { session, error: sessionError } = await getSession()
         
         if (session && !sessionError) {
-          await bootstrapCsrf()
+          const csrfBootstrapped = await bootstrapCsrf()
+          if (!csrfBootstrapped) {
+            console.error('CSRF bootstrap failed, clearing state and redirecting to login')
+            try {
+              await supabase.auth.signOut()
+            } catch (error) {
+              console.error('Supabase signOut error during CSRF failure:', error)
+            }
+            document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+            setUser({
+              id: null,
+              name: '',
+              email: '',
+              avatar: '',
+              role: '',
+              tenant_id: ''
+            })
+            setIsAuthenticated(false)
+            setRedirectToLogin(location.pathname + location.search)
+            setLoading(false)
+            return
+          }
           
           const supabaseUser = session.user
           setUser({
@@ -145,8 +176,25 @@ function AppContent() {
         }
         
         try {
-          await bootstrapCsrf()
-          const userData = await apiClient.verifyAuth()
+          const csrfBootstrapped = await bootstrapCsrf()
+          if (!csrfBootstrapped) {
+            console.error('CSRF bootstrap failed, clearing state and redirecting to login')
+            document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+            setUser({
+              id: null,
+              name: '',
+              email: '',
+              avatar: '',
+              role: '',
+              tenant_id: ''
+            })
+            setIsAuthenticated(false)
+            setRedirectToLogin(location.pathname + location.search)
+            setLoading(false)
+            return
+          }
+          
+          const userData = await apiClient.getCurrentUser()
           setUser(userData)
           setIsAuthenticated(true)
         } catch (authError) {
@@ -187,7 +235,7 @@ function AppContent() {
       window.removeEventListener('api-error', handleApiError as EventListener)
       window.removeEventListener('auth-error', handleAuthError as EventListener)
     }
-  }, [addToast, setUser, location.pathname, t])
+  }, [addToast, setUser, t, isAuthenticated, location.pathname, location.search])
 
   const handleLogin = (userData: any) => {
     setUser(userData)
@@ -206,13 +254,15 @@ function AppContent() {
       console.error('Supabase signOut error:', error)
     }
     
+    document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+    
     setUser({
       id: null,
-      name: 'Ryan Chen',
-      email: 'ryan@morningai.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
-      role: 'Owner',
-      tenant_id: 'tenant_001'
+      name: '',
+      email: '',
+      avatar: '',
+      role: '',
+      tenant_id: ''
     })
     setIsAuthenticated(false)
     addToast({
@@ -221,7 +271,7 @@ function AppContent() {
       variant: "default"
     })
     
-    window.location.href = '/'
+    navigate('/', { replace: true })
   }
 
   if (loading) {

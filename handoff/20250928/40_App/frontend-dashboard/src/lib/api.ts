@@ -101,6 +101,8 @@ class ApiClient {
           
           console.warn(`Authentication failed [${requestId}]: ${endpoint}`)
           
+          let authErrorDispatched = false
+          
           try {
             await this.refreshAccessToken()
             
@@ -125,13 +127,11 @@ class ApiClient {
             const retryResponse = await fetch(url, retryConfig)
             
             if (retryResponse.status === 401) {
-              window.dispatchEvent(new CustomEvent('auth-error', {
-                detail: { endpoint, requestId, message: 'Authentication required' }
-              }))
-              
-              if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
-                const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-                window.location.href = `/login?returnUrl=${returnUrl}`
+              if (!authErrorDispatched) {
+                window.dispatchEvent(new CustomEvent('auth-error', {
+                  detail: { endpoint, requestId, message: 'Authentication required' }
+                }))
+                authErrorDispatched = true
               }
               
               const retryErrorData = await retryResponse.json().catch(() => ({}))
@@ -153,13 +153,11 @@ class ApiClient {
             
             return await retryResponse.json()
           } catch (refreshError) {
-            window.dispatchEvent(new CustomEvent('auth-error', {
-              detail: { endpoint, requestId, message: 'Authentication required' }
-            }))
-            
-            if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
-              const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-              window.location.href = `/login?returnUrl=${returnUrl}`
+            if (!authErrorDispatched) {
+              window.dispatchEvent(new CustomEvent('auth-error', {
+                detail: { endpoint, requestId, message: 'Authentication required' }
+              }))
+              authErrorDispatched = true
             }
             
             throw refreshError
@@ -245,7 +243,7 @@ class ApiClient {
   }
 
   async verifyAuth(): Promise<any> {
-    return this.request('/auth/verify')
+    return this.getCurrentUser()
   }
 
   async login(credentials: any): Promise<any> {

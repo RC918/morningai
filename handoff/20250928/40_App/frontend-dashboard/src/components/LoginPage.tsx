@@ -86,7 +86,9 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
       }
       
       if (result.user) {
-        onLogin(result.user)
+        await apiClient.bootstrapCsrf()
+        const user = await apiClient.getCurrentUser()
+        onLogin(user)
       } else {
         setError(result.message || t('auth.login.loginFailed'))
       }
