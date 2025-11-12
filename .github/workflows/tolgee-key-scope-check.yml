@@ -1,0 +1,116 @@
+name: Tolgee API Key Scope Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-key-scope:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      
+      - name: Check if TOLGEE_API_KEY is a Personal Access Token
+        env:
+          TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
+        run: |
+          echo "🔍 Checking TOLGEE_API_KEY scope..."
+          echo ""
+          
+          # Test 1: List all projects (PAT should succeed, project-scoped key should fail)
+          echo "Test 1: Checking if key can list all projects..."
+          LIST_RESPONSE=$(curl -s -H "X-API-Key: $TOLGEE_API_KEY" https://app.tolgee.io/v2/projects)
+          LIST_CODE=$(echo "$LIST_RESPONSE" | jq -r '.code // "success"')
+          
+          if [ "$LIST_CODE" = "pak_access_not_allowed" ]; then
+            echo "❌ Key cannot list projects (likely project-scoped key)"
+            echo "Response: $LIST_RESPONSE"
+            IS_PAT=false
+          elif [ "$LIST_CODE" = "success" ]; then
+            echo "✅ Key can list projects (likely Personal Access Token)"
+            PROJECT_COUNT=$(echo "$LIST_RESPONSE" | jq '.projects | length')
+            echo "Found $PROJECT_COUNT accessible projects"
+            IS_PAT=true
+          else
+            echo "⚠️ Unexpected response: $LIST_RESPONSE"
+            IS_PAT=unknown
+          fi
+          
+          echo ""
+          echo "Test 2: Checking access to Owner Console project #24693..."
+          OC_RESPONSE=$(curl -s -H "X-API-Key: $TOLGEE_API_KEY" https://app.tolgee.io/v2/projects/24693)
+          OC_CODE=$(echo "$OC_RESPONSE" | jq -r '.code // "success"')
+          
+          if [ "$OC_CODE" = "pak_created_for_different_project" ]; then
+            echo "❌ Key cannot access project #24693 (created for different project)"
+            CAN_ACCESS_OC=false
+          elif [ "$OC_CODE" = "success" ]; then
+            echo "✅ Key can access project #24693"
+            OC_NAME=$(echo "$OC_RESPONSE" | jq -r '.name')
+            echo "Project name: $OC_NAME"
+            CAN_ACCESS_OC=true
+          else
+            echo "⚠️ Unexpected response: $OC_RESPONSE"
+            CAN_ACCESS_OC=unknown
+          fi
+          
+          echo ""
+          echo "Test 3: Checking access to Frontend Dashboard project #24702..."
+          FD_RESPONSE=$(curl -s -H "X-API-Key: $TOLGEE_API_KEY" https://app.tolgee.io/v2/projects/24702)
+          FD_CODE=$(echo "$FD_RESPONSE" | jq -r '.code // "success"')
+          
+          if [ "$FD_CODE" = "pak_created_for_different_project" ]; then
+            echo "❌ Key cannot access project #24702 (created for different project)"
+            CAN_ACCESS_FD=false
+          elif [ "$FD_CODE" = "success" ]; then
+            echo "✅ Key can access project #24702"
+            FD_NAME=$(echo "$FD_RESPONSE" | jq -r '.name')
+            echo "Project name: $FD_NAME"
+            CAN_ACCESS_FD=true
+          else
+            echo "⚠️ Unexpected response: $FD_RESPONSE"
+            CAN_ACCESS_FD=unknown
+          fi
+          
+          echo ""
+          echo "=========================================="
+          echo "SUMMARY"
+          echo "=========================================="
+          
+          if [ "$IS_PAT" = "true" ] && [ "$CAN_ACCESS_OC" = "true" ] && [ "$CAN_ACCESS_FD" = "true" ]; then
+            echo "✅ TOLGEE_API_KEY is a Personal Access Token with access to both projects"
+            echo ""
+            echo "You can proceed with:"
+            echo "1. Merge PRs #1260 → #1265 → #1259"
+            echo "2. Run the bootstrap workflow to push translations"
+            echo "3. Resume normal automated sync"
+            exit 0
+          elif [ "$IS_PAT" = "false" ] || [ "$CAN_ACCESS_OC" = "false" ] || [ "$CAN_ACCESS_FD" = "false" ]; then
+            echo "❌ TOLGEE_API_KEY is NOT suitable for automated sync"
+            echo ""
+            echo "Issue detected:"
+            if [ "$IS_PAT" = "false" ]; then
+              echo "  - Key is project-scoped (not a Personal Access Token)"
+            fi
+            if [ "$CAN_ACCESS_OC" = "false" ]; then
+              echo "  - Key cannot access Owner Console project #24693"
+            fi
+            if [ "$CAN_ACCESS_FD" = "false" ]; then
+              echo "  - Key cannot access Frontend Dashboard project #24702"
+            fi
+            echo ""
+            echo "ACTION REQUIRED:"
+            echo "1. Go to https://app.tolgee.io/account/apiKeys"
+            echo "2. Create a new Personal Access Token (not Project API Key)"
+            echo "3. Set permissions: Read + Write translations, Manage projects"
+            echo "4. Update GitHub secret TOLGEE_API_KEY with the new token"
+            echo "5. Re-run this workflow to verify"
+            exit 1
+          else
+            echo "⚠️ Could not determine key scope (unexpected responses)"
+            echo "Please check the logs above for details"
+            exit 1
+          fi
