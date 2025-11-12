@@ -177,14 +177,22 @@ jobs:
           # Run detection logic
           set +e
           OUTPUT=$(python /tmp/test_syntax.py 2>&1)
+          EXIT_CODE=$?
           set -e
           
-          # Should detect SyntaxError
-          if echo "$OUTPUT" | grep -qiE "(SyntaxError|IndentationError|ImportError|ModuleNotFoundError)"; then
+          # Use centralized classifier (wrap with set +e since classifier exits 1 for FAIL)
+          set +e
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          CLASSIFIER_EXIT=$?
+          set -e
+          
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          
+          if [ "$TIER" = "1" ] && [ "$STATUS" = "FAIL" ]; then
             echo "✅ Tier 1 correctly detected SyntaxError"
           else
-            echo "❌ Tier 1 failed to detect SyntaxError"
-            echo "Output: $OUTPUT"
+            echo "❌ Tier 1 failed (got Tier $TIER, Status $STATUS)"
             exit 1
           fi
       
@@ -229,7 +237,7 @@ jobs:
           EXIT_CODE=$?
           set -e
           
-          # Use centralized classifier
+          # Use centralized classifier (classifier exits 0 for PASS, so no need for set +e wrapper)
           CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
           TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
           STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
@@ -256,8 +264,12 @@ jobs:
           EXIT_CODE=$?
           set -e
           
-          # Use centralized classifier
+          # Use centralized classifier (wrap with set +e since classifier exits 1 for FAIL)
+          set +e
           CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          CLASSIFIER_EXIT=$?
+          set -e
+          
           TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
           STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
           
