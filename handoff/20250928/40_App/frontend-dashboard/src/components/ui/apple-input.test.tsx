@@ -192,13 +192,13 @@ describe('AppleInput', () => {
     it('applies padding when left icon is present', () => {
       render(<AppleInput leftIcon={<Mail />} />);
       const input = screen.getByRole('textbox');
-      expect(input.className).toContain('pl-10');
+      expect(input.className).toContain('pl-12');
     });
 
     it('applies padding when right icon is present', () => {
       render(<AppleInput rightIcon={<Lock />} />);
       const input = screen.getByRole('textbox');
-      expect(input.className).toContain('pr-10');
+      expect(input.className).toContain('pr-12');
     });
   });
 
