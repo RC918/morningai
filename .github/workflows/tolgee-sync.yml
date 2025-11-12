@@ -39,7 +39,7 @@ jobs:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
           echo "🚀 Bootstrap: Pushing existing translations to Owner Console (Project #24693)..."
-          tolgee push --api-key "$TOLGEE_API_KEY" --path ./src/locales --force-mode OVERRIDE
+          tolgee push --api-key "$TOLGEE_API_KEY" --files-template "src/locales/{languageTag}.json" --no-strict-namespace --force-mode OVERRIDE
           echo "✅ Owner Console translations pushed successfully"
 
       - name: Bootstrap - Push translations to Frontend Dashboard (one-time)
@@ -49,7 +49,7 @@ jobs:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
           echo "🚀 Bootstrap: Pushing existing translations to Frontend Dashboard (Project #24702)..."
-          tolgee push --api-key "$TOLGEE_API_KEY" --path ./src/i18n/locales --force-mode OVERRIDE
+          tolgee push --api-key "$TOLGEE_API_KEY" --files-template "src/i18n/locales/{languageTag}.json" --no-strict-namespace --force-mode OVERRIDE
           echo "✅ Frontend Dashboard translations pushed successfully"
 
       - name: Preflight - Dry Pull and Validate Frontend Dashboard
