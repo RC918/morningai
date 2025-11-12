@@ -47,12 +47,10 @@ jobs:
             "scripts/kg_cost_report.py"
           )
           
-          # Check all Python scripts in scripts/
-          for file in scripts/*.py; do
-            # Skip if not a file
-            if [ ! -f "$file" ]; then
-              continue
-            fi
+          # Check all Python scripts in scripts/ (recursive, excluding __pycache__)
+          while IFS= read -r -d '' file; do
+            # Normalize path for denylist comparison
+            file="${file#./}"
             
             # Skip if in denylist
             SKIP=false
@@ -85,7 +83,7 @@ jobs:
               echo '```' >> $GITHUB_STEP_SUMMARY
               FAILED_FILES+=("$file")
             fi
-          done
+          done < <(find scripts -name "*.py" -not -path "*/__pycache__/*" -type f -print0)
           
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Summary**: $PASSED_COUNT passed, $SKIPPED_COUNT skipped (legacy)" >> $GITHUB_STEP_SUMMARY
