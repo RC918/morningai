@@ -271,6 +271,179 @@ class TestAgentGovernanceEndpoints:
         assert response.status_code == 401
 
 
+class TestAgentExecutionLogsEndpoint:
+    """Tests for Agent Execution Logs endpoint (Task 8)"""
+    
+    def test_get_agent_execution_logs_success(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs returns execution logs"""
+        response = client.get('/api/admin/agent-execution-logs', headers=auth_headers_admin)
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'execution_logs' in data
+        assert 'pagination' in data
+        assert 'filters' in data
+        assert 'summary' in data
+        assert 'timestamp' in data
+        assert isinstance(data['execution_logs'], list)
+        
+        pagination = data['pagination']
+        assert 'page' in pagination
+        assert 'page_size' in pagination
+        assert 'total_items' in pagination
+        assert 'total_pages' in pagination
+        
+        summary = data['summary']
+        assert 'total_executions' in summary
+        assert 'status_counts' in summary
+        assert 'success_rate' in summary
+    
+    def test_get_agent_execution_logs_with_status_filter(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with status filter"""
+        response = client.get(
+            '/api/admin/agent-execution-logs?status=completed',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['filters']['status'] == 'completed'
+    
+    def test_get_agent_execution_logs_with_agent_id_filter(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with agent_id filter"""
+        agent_id = 'test-agent-123'
+        response = client.get(
+            f'/api/admin/agent-execution-logs?agent_id={agent_id}',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['filters']['agent_id'] == agent_id
+    
+    def test_get_agent_execution_logs_with_pagination(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with pagination parameters"""
+        response = client.get(
+            '/api/admin/agent-execution-logs?page=2&page_size=25',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        pagination = data['pagination']
+        assert pagination['page'] == 2
+        assert pagination['page_size'] == 25
+    
+    def test_get_agent_execution_logs_with_date_range(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with date range filters"""
+        start_date = '2025-11-01T00:00:00Z'
+        end_date = '2025-11-12T23:59:59Z'
+        response = client.get(
+            f'/api/admin/agent-execution-logs?start_date={start_date}&end_date={end_date}',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['filters']['start_date'] == start_date
+        assert data['filters']['end_date'] == end_date
+    
+    def test_get_agent_execution_logs_with_sorting(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with sorting parameters"""
+        response = client.get(
+            '/api/admin/agent-execution-logs?sort_by=completed_at&sort_order=asc',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['filters']['sort_by'] == 'completed_at'
+        assert data['filters']['sort_order'] == 'asc'
+    
+    def test_get_agent_execution_logs_invalid_status(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with invalid status returns 400"""
+        response = client.get(
+            '/api/admin/agent-execution-logs?status=invalid_status',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'error' in data
+        assert 'Invalid status parameter' in data['error']
+    
+    def test_get_agent_execution_logs_invalid_sort_by(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with invalid sort_by returns 400"""
+        response = client.get(
+            '/api/admin/agent-execution-logs?sort_by=invalid_field',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'error' in data
+        assert 'Invalid sort_by parameter' in data['error']
+    
+    def test_get_agent_execution_logs_invalid_sort_order(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with invalid sort_order returns 400"""
+        response = client.get(
+            '/api/admin/agent-execution-logs?sort_order=invalid_order',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'error' in data
+        assert 'Invalid sort_order parameter' in data['error']
+    
+    def test_get_agent_execution_logs_invalid_start_date(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with invalid start_date returns 400"""
+        response = client.get(
+            '/api/admin/agent-execution-logs?start_date=invalid-date',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'error' in data
+        assert 'Invalid start_date parameter' in data['error']
+    
+    def test_get_agent_execution_logs_no_auth(self, client):
+        """Test GET /api/admin/agent-execution-logs without authentication returns 401"""
+        response = client.get('/api/admin/agent-execution-logs')
+        
+        assert response.status_code == 401
+        data = response.get_json()
+        assert 'error' in data
+    
+    def test_get_agent_execution_logs_max_page_size(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs respects max page_size of 200"""
+        response = client.get(
+            '/api/admin/agent-execution-logs?page_size=500',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        pagination = data['pagination']
+        assert pagination['page_size'] == 200
+    
+    def test_get_agent_execution_logs_combined_filters(self, client, auth_headers_admin):
+        """Test GET /api/admin/agent-execution-logs with multiple filters"""
+        response = client.get(
+            '/api/admin/agent-execution-logs?status=completed&task_type=faq&page=1&page_size=10&sort_by=created_at&sort_order=desc',
+            headers=auth_headers_admin
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        filters = data['filters']
+        assert filters['status'] == 'completed'
+        assert filters['task_type'] == 'faq'
+        assert filters['sort_by'] == 'created_at'
+        assert filters['sort_order'] == 'desc'
+
+
 class TestAdminEndpointsIntegration:
     """Integration tests for admin endpoints"""
     
@@ -317,3 +490,17 @@ class TestAdminEndpointsIntegration:
                 headers=auth_headers_admin
             )
             assert resume_response.status_code == 200
+    
+    def test_agent_execution_logs_flow(self, client, auth_headers_admin):
+        """Test agent execution logs endpoint flow"""
+        response = client.get('/api/admin/agent-execution-logs', headers=auth_headers_admin)
+        assert response.status_code == 200
+        
+        data = response.get_json()
+        assert 'execution_logs' in data
+        assert 'summary' in data
+        
+        summary = data['summary']
+        assert 'total_executions' in summary
+        assert 'status_counts' in summary
+        assert 'success_rate' in summary
