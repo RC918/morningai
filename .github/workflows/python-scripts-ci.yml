@@ -75,6 +75,19 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### ✅ All checked scripts have valid syntax" >> $GITHUB_STEP_SUMMARY
           fi
+      
+      - name: Test CI Output Classifier
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## CI Output Classifier Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if python .github/scripts/test_classify_ci_output.py -v; then
+            echo "✅ All 28 classifier tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Classifier tests failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
 
   monitor-tests:
     name: Monitor Orchestrator Tests
@@ -161,6 +174,8 @@ jobs:
       
       - name: Verify monitor script runs (dry run)
         run: |
+          set -o pipefail  # Ensure pipeline failures are caught
+          
           echo "## Monitor Script Dry Run" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
@@ -179,12 +194,32 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           }
           
-          # Use centralized classifier to determine pass/fail
-          # This ensures consistency with self-test job and improves maintainability
+          # Use centralized classifier with error handling
           CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          CLASSIFIER_EXIT=$?
+          
+          # Check classifier succeeded
+          if [ $CLASSIFIER_EXIT -ne 0 ]; then
+            echo "❌ Classifier failed with exit code $CLASSIFIER_EXIT" >> $GITHUB_STEP_SUMMARY
+            echo "Raw output:" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 1
+          fi
+          
+          # Parse output with validation
           TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
           STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
           REASON=$(echo "$CLASSIFICATION" | grep "^REASON=" | cut -d= -f2-)
+          
+          # Validate parsed values
+          if [ -z "$TIER" ] || [ -z "$STATUS" ] || [ -z "$REASON" ]; then
+            echo "❌ Failed to parse classifier output" >> $GITHUB_STEP_SUMMARY
+            echo "Raw classifier output:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$CLASSIFICATION" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
           
           echo "Classification: Tier $TIER - $STATUS - $REASON"
           
