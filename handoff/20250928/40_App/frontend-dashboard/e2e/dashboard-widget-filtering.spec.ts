@@ -70,19 +70,22 @@ test.describe('Dashboard Widget Filtering - E2E', () => {
   test('should not have task_execution in widget add dialog', async ({ page }) => {
     await page.waitForLoadState('networkidle')
     
-    const addWidgetButton = page.locator('button:has-text("Add Widget"), button:has-text("新增"), button:has-text("添加")')
+    const addWidgetButton = page.getByRole('button', { name: /add widget|新增|添加/i })
+    const buttonCount = await addWidgetButton.count()
     
-    if (await addWidgetButton.count() > 0) {
-      await addWidgetButton.first().click()
-      
-      await page.waitForTimeout(500)
-      
-      const taskExecutionOption = page.locator('text=/task.?execution/i')
-      await expect(taskExecutionOption).toHaveCount(0)
-      
-      const growthStrategist = page.locator('text=/GrowthStrategist/i')
-      await expect(growthStrategist).toHaveCount(0)
-    }
+    test.skip(buttonCount === 0, 'Add widget button not available (may require edit mode)')
+    
+    await expect(addWidgetButton.first()).toBeVisible()
+    await addWidgetButton.first().click()
+    
+    const dialog = page.getByRole('dialog').or(page.locator('[role="dialog"]'))
+    await expect(dialog).toBeVisible({ timeout: 5000 })
+    
+    const taskExecutionOption = dialog.locator('text=/task.?execution/i')
+    await expect(taskExecutionOption).toHaveCount(0)
+    
+    const growthStrategist = dialog.locator('text=/GrowthStrategist/i')
+    await expect(growthStrategist).toHaveCount(0)
   })
 
   test('should not expose task_execution in page source', async ({ page }) => {
@@ -104,18 +107,22 @@ test.describe('Dashboard Widget Filtering - E2E', () => {
     
     page.on('response', async (response) => {
       const url = response.url()
+      const contentType = response.headers()['content-type'] || ''
       
-      if (url.includes('/dashboard') || url.includes('/widgets')) {
+      if ((url.includes('/dashboard') || url.includes('/widgets')) && contentType.includes('application/json')) {
         try {
-          const body = await response.text()
-          if (body.toLowerCase().includes('task_execution') || 
-              body.includes('GrowthStrategist') ||
-              body.includes('OpsAgent') ||
-              body.includes('PMAgent') ||
-              body.includes('SecurityManager')) {
-            taskExecutionRequests.push(url)
+          const body = await response.json()
+          const bodyStr = JSON.stringify(body)
+          
+          if (bodyStr.toLowerCase().includes('task_execution') || 
+              bodyStr.includes('GrowthStrategist') ||
+              bodyStr.includes('OpsAgent') ||
+              bodyStr.includes('PMAgent') ||
+              bodyStr.includes('SecurityManager')) {
+            taskExecutionRequests.push(`${url} - Contains: ${bodyStr.substring(0, 100)}`)
           }
-        } catch (e) {
+        } catch (error) {
+          console.error(`Failed to parse JSON response from ${url}:`, error)
         }
       }
     })
@@ -123,6 +130,9 @@ test.describe('Dashboard Widget Filtering - E2E', () => {
     await page.goto('/dashboard')
     await page.waitForLoadState('networkidle')
     
+    if (taskExecutionRequests.length > 0) {
+      throw new Error(`Found task_execution in network responses:\n${taskExecutionRequests.join('\n')}`)
+    }
     expect(taskExecutionRequests).toHaveLength(0)
   })
 
@@ -165,16 +175,23 @@ test.describe('Dashboard Widget Filtering - E2E', () => {
     let taskExecutionWidget = page.locator('text=/task.?execution|任務執行/i')
     await expect(taskExecutionWidget).toHaveCount(0)
     
-    const languageSelector = page.locator('button:has-text("Language"), button:has-text("語言")')
+    const languageSelector = page.getByRole('button', { name: /language|語言/i })
+    const selectorCount = await languageSelector.count()
     
-    if (await languageSelector.count() > 0) {
+    if (selectorCount > 0) {
+      await expect(languageSelector.first()).toBeVisible()
       await languageSelector.first().click()
-      await page.waitForTimeout(500)
       
-      const chineseOption = page.locator('text=/中文|Chinese|zh/i')
-      if (await chineseOption.count() > 0) {
+      const languageMenu = page.getByRole('menu').or(page.locator('[role="menu"]'))
+      await expect(languageMenu).toBeVisible({ timeout: 3000 })
+      
+      const chineseOption = languageMenu.getByRole('menuitem', { name: /中文|Chinese|zh/i })
+      const chineseCount = await chineseOption.count()
+      
+      if (chineseCount > 0) {
         await chineseOption.first().click()
-        await page.waitForTimeout(1000)
+        
+        await page.waitForLoadState('networkidle')
         
         taskExecutionWidget = page.locator('text=/task.?execution|任務執行/i')
         await expect(taskExecutionWidget).toHaveCount(0)

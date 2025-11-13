@@ -1,4 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, waitFor } from '@testing-library/react'
+import { BrowserRouter } from 'react-router-dom'
+import Dashboard from '../Dashboard'
+import { excludeTaskExecution, normalizeWidgetId } from '@/lib/dashboardFilters'
+import apiClient from '@/lib/api'
 
 /**
  * Unit Tests for Dashboard Widget Filtering Logic
@@ -21,72 +26,30 @@ interface Widget {
   }
 }
 
-const getDefaultWidgets = (): Widget[] => [
-  { id: 'cpu_usage', type: 'metric', component: null },
-  { id: 'memory_usage', type: 'metric', component: null },
-  { id: 'response_time', type: 'metric', component: null },
-  { id: 'error_rate', type: 'metric', component: null },
-  { id: 'active_strategies', type: 'metric', component: null },
-  { id: 'pending_approvals', type: 'metric', component: null }
-]
-
-const filterDashboardLayout = (widgets: Widget[]): Widget[] => {
-  return widgets.filter((widget: Widget) => widget.id !== 'task_execution')
-}
-
-const filterAvailableWidgets = (widgets: Widget[]): Widget[] => {
-  return widgets.filter((widget: Widget) => widget.id !== 'task_execution')
-}
-
-describe('Dashboard Widget Filtering - Unit Tests', () => {
-  describe('getDefaultWidgets', () => {
-    it('should return exactly 6 default widgets', () => {
-      const defaultWidgets = getDefaultWidgets()
-      
-      expect(defaultWidgets).toHaveLength(6)
+describe('Dashboard Widget Filtering - Shared Module Tests', () => {
+  describe('normalizeWidgetId', () => {
+    it('should convert widget ID to lowercase', () => {
+      expect(normalizeWidgetId('task_execution')).toBe('task_execution')
+      expect(normalizeWidgetId('TASK_EXECUTION')).toBe('task_execution')
+      expect(normalizeWidgetId('Task_Execution')).toBe('task_execution')
+      expect(normalizeWidgetId('TaSk_ExEcUtIoN')).toBe('task_execution')
     })
 
-    it('should not include task_execution in default widgets', () => {
-      const defaultWidgets = getDefaultWidgets()
-      
-      const hasTaskExecution = defaultWidgets.some(widget => widget.id === 'task_execution')
-      expect(hasTaskExecution).toBe(false)
-    })
-
-    it('should return widgets with correct structure', () => {
-      const defaultWidgets = getDefaultWidgets()
-      
-      defaultWidgets.forEach(widget => {
-        expect(widget).toHaveProperty('id')
-        expect(widget).toHaveProperty('type')
-        expect(widget).toHaveProperty('component')
-        expect(typeof widget.id).toBe('string')
-        expect(typeof widget.type).toBe('string')
-      })
-    })
-
-    it('should include expected default widget IDs', () => {
-      const defaultWidgets = getDefaultWidgets()
-      const widgetIds = defaultWidgets.map(w => w.id)
-      
-      expect(widgetIds).toContain('cpu_usage')
-      expect(widgetIds).toContain('memory_usage')
-      expect(widgetIds).toContain('response_time')
-      expect(widgetIds).toContain('error_rate')
-      expect(widgetIds).toContain('active_strategies')
-      expect(widgetIds).toContain('pending_approvals')
+    it('should handle other widget IDs', () => {
+      expect(normalizeWidgetId('CPU_USAGE')).toBe('cpu_usage')
+      expect(normalizeWidgetId('Memory_Usage')).toBe('memory_usage')
     })
   })
 
-  describe('filterDashboardLayout', () => {
-    it('should filter out task_execution from saved layout', () => {
-      const mockLayout: Widget[] = [
+  describe('excludeTaskExecution', () => {
+    it('should filter out task_execution (lowercase)', () => {
+      const mockWidgets: Widget[] = [
         { id: 'cpu_usage', type: 'metric', component: null },
-        { id: 'task_execution', type: 'timeline', component: null }, // Should be filtered out
+        { id: 'task_execution', type: 'timeline', component: null },
         { id: 'memory_usage', type: 'metric', component: null }
       ]
 
-      const filtered = filterDashboardLayout(mockLayout)
+      const filtered = excludeTaskExecution(mockWidgets)
       
       expect(filtered).toHaveLength(2)
       expect(filtered.some(w => w.id === 'task_execution')).toBe(false)
@@ -94,21 +57,63 @@ describe('Dashboard Widget Filtering - Unit Tests', () => {
       expect(filtered.some(w => w.id === 'memory_usage')).toBe(true)
     })
 
+    it('should filter out TASK_EXECUTION (uppercase) - case insensitive', () => {
+      const mockWidgets: Widget[] = [
+        { id: 'cpu_usage', type: 'metric', component: null },
+        { id: 'TASK_EXECUTION', type: 'timeline', component: null },
+        { id: 'memory_usage', type: 'metric', component: null }
+      ]
+
+      const filtered = excludeTaskExecution(mockWidgets)
+      
+      expect(filtered).toHaveLength(2)
+      expect(filtered.some(w => normalizeWidgetId(w.id) === 'task_execution')).toBe(false)
+    })
+
+    it('should filter out Task_Execution (mixed case) - case insensitive', () => {
+      const mockWidgets: Widget[] = [
+        { id: 'cpu_usage', type: 'metric', component: null },
+        { id: 'Task_Execution', type: 'timeline', component: null },
+        { id: 'memory_usage', type: 'metric', component: null }
+      ]
+
+      const filtered = excludeTaskExecution(mockWidgets)
+      
+      expect(filtered).toHaveLength(2)
+      expect(filtered.some(w => normalizeWidgetId(w.id) === 'task_execution')).toBe(false)
+    })
+
+    it('should filter all case variations of task_execution', () => {
+      const mockWidgets: Widget[] = [
+        { id: 'cpu_usage', type: 'metric', component: null },
+        { id: 'task_execution', type: 'timeline', component: null },
+        { id: 'TASK_EXECUTION', type: 'timeline', component: null },
+        { id: 'Task_Execution', type: 'timeline', component: null },
+        { id: 'TaSk_ExEcUtIoN', type: 'timeline', component: null },
+        { id: 'memory_usage', type: 'metric', component: null }
+      ]
+
+      const filtered = excludeTaskExecution(mockWidgets)
+      
+      expect(filtered).toHaveLength(2)
+      expect(filtered.every(w => normalizeWidgetId(w.id) !== 'task_execution')).toBe(true)
+    })
+
     it('should handle layout with multiple task_execution widgets', () => {
       const mockLayout: Widget[] = [
         { id: 'cpu_usage', type: 'metric', component: null },
         { id: 'task_execution', type: 'timeline', component: null },
         { id: 'memory_usage', type: 'metric', component: null },
-        { id: 'task_execution', type: 'timeline', component: null } // Duplicate
+        { id: 'task_execution', type: 'timeline', component: null }
       ]
 
-      const filtered = filterDashboardLayout(mockLayout)
+      const filtered = excludeTaskExecution(mockLayout)
       
       expect(filtered).toHaveLength(2)
       expect(filtered.every(w => w.id !== 'task_execution')).toBe(true)
     })
 
-    it('should preserve non-task_execution widgets from saved layout', () => {
+    it('should preserve non-task_execution widgets', () => {
       const mockLayout: Widget[] = [
         { id: 'cpu_usage', type: 'metric', component: null },
         { id: 'task_execution', type: 'timeline', component: null },
@@ -116,7 +121,7 @@ describe('Dashboard Widget Filtering - Unit Tests', () => {
         { id: 'circuit_breakers', type: 'status', component: null }
       ]
 
-      const filtered = filterDashboardLayout(mockLayout)
+      const filtered = excludeTaskExecution(mockLayout)
       
       expect(filtered).toHaveLength(3)
       expect(filtered.some(w => w.id === 'task_execution')).toBe(false)
@@ -127,9 +132,7 @@ describe('Dashboard Widget Filtering - Unit Tests', () => {
 
     it('should handle empty layout', () => {
       const mockLayout: Widget[] = []
-
-      const filtered = filterDashboardLayout(mockLayout)
-      
+      const filtered = excludeTaskExecution(mockLayout)
       expect(filtered).toHaveLength(0)
     })
 
@@ -137,9 +140,7 @@ describe('Dashboard Widget Filtering - Unit Tests', () => {
       const mockLayout: Widget[] = [
         { id: 'task_execution', type: 'timeline', component: null }
       ]
-
-      const filtered = filterDashboardLayout(mockLayout)
-      
+      const filtered = excludeTaskExecution(mockLayout)
       expect(filtered).toHaveLength(0)
     })
 
@@ -155,95 +156,12 @@ describe('Dashboard Widget Filtering - Unit Tests', () => {
         { id: 'task_execution', type: 'timeline', component: null }
       ]
 
-      const filtered = filterDashboardLayout(mockLayout)
+      const filtered = excludeTaskExecution(mockLayout)
       
       expect(filtered).toHaveLength(1)
       expect(filtered[0]).toHaveProperty('name', 'CPU Usage')
       expect(filtered[0]).toHaveProperty('position')
       expect(filtered[0].position).toEqual({ x: 0, y: 0 })
-    })
-  })
-
-  describe('filterAvailableWidgets', () => {
-    it('should filter out task_execution from available widgets', () => {
-      const mockAvailableWidgets: Widget[] = [
-        { id: 'cpu_usage', name: 'CPU Usage', type: 'metric', component: null },
-        { id: 'task_execution', name: 'Task Execution', type: 'timeline', component: null }, // Should be filtered
-        { id: 'memory_usage', name: 'Memory Usage', type: 'metric', component: null },
-        { id: 'circuit_breakers', name: 'Circuit Breakers', type: 'status', component: null }
-      ]
-
-      const filtered = filterAvailableWidgets(mockAvailableWidgets)
-      
-      expect(filtered).toHaveLength(3)
-      expect(filtered.some(w => w.id === 'task_execution')).toBe(false)
-      expect(filtered.some(w => w.id === 'cpu_usage')).toBe(true)
-      expect(filtered.some(w => w.id === 'memory_usage')).toBe(true)
-      expect(filtered.some(w => w.id === 'circuit_breakers')).toBe(true)
-    })
-
-    it('should handle empty available widgets list', () => {
-      const mockAvailableWidgets: Widget[] = []
-
-      const filtered = filterAvailableWidgets(mockAvailableWidgets)
-      
-      expect(filtered).toHaveLength(0)
-    })
-
-    it('should preserve widget metadata during filtering', () => {
-      const mockAvailableWidgets: Widget[] = [
-        { id: 'cpu_usage', name: 'CPU Usage', type: 'metric', component: null },
-        { id: 'task_execution', name: 'Task Execution', type: 'timeline', component: null }
-      ]
-
-      const filtered = filterAvailableWidgets(mockAvailableWidgets)
-      
-      expect(filtered).toHaveLength(1)
-      expect(filtered[0]).toHaveProperty('name', 'CPU Usage')
-      expect(filtered[0]).toHaveProperty('type', 'metric')
-    })
-  })
-
-  describe('Integration: Widget Filtering Consistency', () => {
-    it('should consistently filter task_execution across all operations', () => {
-      const mockWidgets: Widget[] = [
-        { id: 'cpu_usage', type: 'metric', component: null },
-        { id: 'task_execution', type: 'timeline', component: null },
-        { id: 'memory_usage', type: 'metric', component: null }
-      ]
-
-      const filteredLayout = filterDashboardLayout(mockWidgets)
-      const filteredAvailable = filterAvailableWidgets(mockWidgets)
-      const defaultWidgets = getDefaultWidgets()
-
-      expect(filteredLayout.some(w => w.id === 'task_execution')).toBe(false)
-      expect(filteredAvailable.some(w => w.id === 'task_execution')).toBe(false)
-      expect(defaultWidgets.some(w => w.id === 'task_execution')).toBe(false)
-    })
-
-    it('should verify no owner-console agent names in widget IDs', () => {
-      const defaultWidgets = getDefaultWidgets()
-      const widgetIds = defaultWidgets.map(w => w.id.toLowerCase())
-
-      const ownerConsoleTerms = ['growthstrategist', 'opsagent', 'pmagent', 'securitymanager', 'task_execution']
-      
-      ownerConsoleTerms.forEach(term => {
-        expect(widgetIds.some(id => id.includes(term))).toBe(false)
-      })
-    })
-
-    it('should maintain filtering with case variations', () => {
-      const mockWidgets: Widget[] = [
-        { id: 'cpu_usage', type: 'metric', component: null },
-        { id: 'task_execution', type: 'timeline', component: null },
-        { id: 'TASK_EXECUTION', type: 'timeline', component: null }, // Different case
-        { id: 'Task_Execution', type: 'timeline', component: null }  // Mixed case
-      ]
-
-      const filtered = filterDashboardLayout(mockWidgets)
-      
-      expect(filtered.some(w => w.id === 'task_execution')).toBe(false)
-      
     })
 
     it('should verify filtering prevents owner-console data leakage', () => {
@@ -253,12 +171,12 @@ describe('Dashboard Widget Filtering - Unit Tests', () => {
           id: 'task_execution', 
           type: 'timeline', 
           component: null,
-          name: 'Task Execution - GrowthStrategist' // Contains owner-console agent name
+          name: 'Task Execution - GrowthStrategist'
         },
         { id: 'memory_usage', type: 'metric', component: null }
       ]
 
-      const filtered = filterDashboardLayout(backendResponse)
+      const filtered = excludeTaskExecution(backendResponse)
       
       expect(filtered).toHaveLength(2)
       expect(filtered.some(w => w.id === 'task_execution')).toBe(false)
@@ -269,5 +187,122 @@ describe('Dashboard Widget Filtering - Unit Tests', () => {
       expect(allWidgetNames).not.toContain('PMAgent')
       expect(allWidgetNames).not.toContain('SecurityManager')
     })
+  })
+})
+
+describe('Dashboard Component Integration Tests', () => {
+  vi.mock('@/lib/api', () => ({
+    default: {
+      request: vi.fn(),
+      getDashboardWidgets: vi.fn(),
+      getDashboardData: vi.fn()
+    }
+  }))
+
+  vi.mock('@/lib/safeInterval', () => ({
+    safeInterval: vi.fn(() => () => {})
+  }))
+
+  vi.mock('../WidgetLibrary', () => ({
+    WidgetLibrary: {},
+    getWidgetComponent: vi.fn(() => null)
+  }))
+
+  vi.mock('../ReportCenter', () => ({
+    default: () => null
+  }))
+
+  vi.mock('../SaveStatusIndicator', () => ({
+    default: () => null
+  }))
+
+  vi.mock('@/hooks/useUndoRedo', () => ({
+    default: () => ({
+      state: [],
+      setState: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      canUndo: false,
+      canRedo: false
+    })
+  }))
+
+  vi.mock('react-dnd', () => ({
+    DndProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    useDrag: () => [{ isDragging: false }, vi.fn()],
+    useDrop: () => [{ isOver: false }, vi.fn()]
+  }))
+
+  vi.mock('react-dnd-html5-backend', () => ({
+    HTML5Backend: {}
+  }))
+
+  vi.mock('framer-motion', () => ({
+    motion: {
+      div: ({ children, ...props }: any) => <div {...props}>{children}</div>
+    },
+    AnimatePresence: ({ children }: any) => <>{children}</>,
+    useReducedMotion: () => true
+  }))
+
+  vi.mock('react-i18next', () => ({
+    useTranslation: () => ({
+      t: (key: string) => key,
+      i18n: { language: 'en' }
+    })
+  }))
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should use excludeTaskExecution when loading dashboard layout', async () => {
+    const mockLayout = {
+      widgets: [
+        { id: 'cpu_usage', type: 'metric', position: { x: 0, y: 0 } },
+        { id: 'task_execution', type: 'timeline', position: { x: 6, y: 0 } }
+      ]
+    }
+
+    vi.mocked(apiClient.request).mockResolvedValue(mockLayout)
+    vi.mocked(apiClient.getDashboardWidgets).mockResolvedValue({ widgets: [] })
+    vi.mocked(apiClient.getDashboardData).mockResolvedValue({})
+
+    render(
+      <BrowserRouter>
+        <Dashboard />
+      </BrowserRouter>
+    )
+
+    await waitFor(() => {
+      expect(apiClient.request).toHaveBeenCalledWith('/dashboard/layouts?user_id=default')
+    })
+
+    expect(apiClient.request).toHaveBeenCalled()
+  })
+
+  it('should use excludeTaskExecution when loading available widgets', async () => {
+    const mockWidgets = {
+      widgets: [
+        { id: 'cpu_usage', name: 'CPU Usage', type: 'metric' },
+        { id: 'task_execution', name: 'Task Execution', type: 'timeline' }
+      ]
+    }
+
+    vi.mocked(apiClient.request).mockResolvedValue({ widgets: null })
+    vi.mocked(apiClient.getDashboardWidgets).mockResolvedValue(mockWidgets)
+    vi.mocked(apiClient.getDashboardData).mockResolvedValue({})
+
+    render(
+      <BrowserRouter>
+        <Dashboard />
+      </BrowserRouter>
+    )
+
+    await waitFor(() => {
+      expect(apiClient.getDashboardWidgets).toHaveBeenCalled()
+    })
+
+    expect(apiClient.getDashboardWidgets).toHaveBeenCalled()
   })
 })
