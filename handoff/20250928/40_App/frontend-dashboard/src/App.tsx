@@ -99,6 +99,7 @@ function AppContent() {
       }
       
       document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+      apiClient.clearCsrfToken()
       
       setIsAuthenticated(false)
       setUser({
@@ -267,6 +268,7 @@ function AppContent() {
     }
     
     document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+    apiClient.clearCsrfToken()
     
     setUser({
       id: null,

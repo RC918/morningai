@@ -1,7 +1,4 @@
-const isVercelPreview = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
-const API_BASE_URL = isVercelPreview
-  ? '/api'  // Vercel proxy handles /api/* -> backend/api/*
-  : (import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com') + '/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 interface RequestOptions extends RequestInit {
@@ -37,6 +34,10 @@ class ApiClient {
     }
     
     return null
+  }
+
+  clearCsrfToken(): void {
+    this.csrfToken = null
   }
 
   private async refreshAccessToken(): Promise<void> {
