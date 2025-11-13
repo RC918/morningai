@@ -190,10 +190,12 @@ const Dashboard = (): React.ReactElement => {
     try {
       const layout: { widgets?: Widget[] } = await apiClient.request('/dashboard/layouts?user_id=default')
       if (layout.widgets) {
-        setDashboardLayout(layout.widgets.map((widget: Widget): Widget => ({
-          ...widget,
-          component: null
-        })))
+        setDashboardLayout(layout.widgets
+          .filter((widget: Widget) => widget.id !== 'task_execution')
+          .map((widget: Widget): Widget => ({
+            ...widget,
+            component: null
+          })))
       } else {
         setDashboardLayout(getDefaultWidgets())
       }
@@ -206,7 +208,7 @@ const Dashboard = (): React.ReactElement => {
   const loadAvailableWidgets = useCallback(async (): Promise<void> => {
     try {
       const response: { widgets?: Widget[] } = await apiClient.getDashboardWidgets()
-      setAvailableWidgets(response.widgets || [])
+      setAvailableWidgets((response.widgets || []).filter((widget: Widget) => widget.id !== 'task_execution'))
     } catch (error) {
       console.error('Failed to load available widgets:', error)
     }
@@ -297,8 +299,7 @@ const Dashboard = (): React.ReactElement => {
     { id: 'response_time', type: 'metric', component: null },
     { id: 'error_rate', type: 'metric', component: null },
     { id: 'active_strategies', type: 'metric', component: null },
-    { id: 'pending_approvals', type: 'metric', component: null },
-    { id: 'task_execution', type: 'metric', component: null }
+    { id: 'pending_approvals', type: 'metric', component: null }
   ]
 
   const moveWidget = useCallback((dragIndex: number, hoverIndex: number): void => {
