@@ -14,6 +14,7 @@ interface ApiError extends Error {
 class ApiClient {
   private baseURL: string
   private useMock: boolean
+  private csrfToken: string | null = null
 
   constructor() {
     this.baseURL = API_BASE_URL
@@ -21,9 +22,18 @@ class ApiClient {
   }
 
   private getCsrfToken(): string | null {
+    if (this.csrfToken) {
+      return this.csrfToken
+    }
+    
     if (typeof document === 'undefined') return null
     const match = document.cookie.match(/csrf_token=([^;]+)/)
-    return match ? match[1] : null
+    if (match) {
+      this.csrfToken = match[1]
+      return this.csrfToken
+    }
+    
+    return null
   }
 
   private async refreshAccessToken(): Promise<void> {
@@ -259,9 +269,18 @@ class ApiClient {
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        await fetch(`${this.baseURL}/api/auth/v2/csrf`, {
+        const response = await fetch(`${this.baseURL}/api/auth/v2/csrf`, {
           credentials: 'include',
         })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.csrf_token) {
+            this.csrfToken = data.csrf_token
+            console.log('CSRF token bootstrapped successfully')
+            return true
+          }
+        }
         
         await new Promise(resolve => setTimeout(resolve, delayMs))
         
