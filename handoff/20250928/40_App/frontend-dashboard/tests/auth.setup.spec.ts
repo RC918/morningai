@@ -76,22 +76,22 @@ setup('authenticate', async ({ page }) => {
   });
   console.log('   Disabled animations');
 
-  const usernameCount = await page.locator('#username').count();
-  const passwordCount = await page.locator('#password').count();
+  const emailCount = await page.locator('input[name="email"]').count();
+  const passwordCount = await page.locator('input[name="password"]').count();
   const inputCount = await page.locator('input').count();
-  console.log(`   Found ${usernameCount} username input(s) and ${passwordCount} password input(s)`);
+  console.log(`   Found ${emailCount} email input(s) and ${passwordCount} password input(s)`);
   console.log(`   Total input elements: ${inputCount}`);
 
-  if (usernameCount === 0) {
+  if (emailCount === 0) {
     const bodyText = await page.evaluate(() => document.body.innerText.slice(0, 500));
     console.log(`   Page body text: ${bodyText}`);
   }
 
-  await page.waitForSelector('#username', { state: 'visible', timeout: 30000 });
-  console.log('   Username input is visible');
+  await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 30000 });
+  console.log('   Email input is visible');
 
-  await page.fill('#username', username);
-  await page.fill('#password', password);
+  await page.fill('input[name="email"]', username);
+  await page.fill('input[name="password"]', password);
   console.log('   Filled in credentials');
 
   await page.click('button[type="submit"]');
