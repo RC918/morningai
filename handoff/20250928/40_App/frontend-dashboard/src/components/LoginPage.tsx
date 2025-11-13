@@ -61,6 +61,8 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     setError('')
 
     try {
+      await apiClient.bootstrapCsrf()
+      
       const result: LoginResponse = await apiClient.login(credentials)
       
       if (result.next_step) {
