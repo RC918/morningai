@@ -12,6 +12,7 @@ import { LanguageSwitcher } from './LanguageSwitcher'
 import { TwoFactorVerify } from './2fa/TwoFactorVerify'
 import { TwoFactorEnroll } from './2fa/TwoFactorEnroll'
 import apiClient from '@/lib/api'
+import { bootstrapCsrf } from '@/lib/api-client'
 import { signInWithOAuth } from '@/lib/supabaseClient'
 import type { LoginResponse } from '@/types/2fa'
 
@@ -61,7 +62,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     setError('')
 
     try {
-      await apiClient.bootstrapCsrf()
+      await bootstrapCsrf()
       
       const result: LoginResponse = await apiClient.login(credentials)
       
@@ -88,7 +89,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
       }
       
       if (result.user) {
-        await apiClient.bootstrapCsrf()
+        await bootstrapCsrf()
         onLogin(result.user)
       } else {
         setError(result.message || t('auth.login.loginFailed'))
