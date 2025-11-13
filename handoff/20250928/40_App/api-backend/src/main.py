@@ -952,12 +952,6 @@ def get_available_widgets():
             "category": "resilience",
         },
         {
-            "id": "task_execution",
-            "name": "任務執行狀態",
-            "type": "timeline",
-            "category": "tasks",
-        },
-        {
             "id": "cost_today",
             "name": "今日成本",
             "type": "counter",
@@ -985,37 +979,6 @@ def get_dashboard_data_legacy():
         hours = int(request.args.get("hours", 1))
         dashboard_data = monitoring_dashboard.get_dashboard_data(hours=hours)
 
-        dashboard_data["task_execution"] = {
-            "recent_tasks": [
-                {
-                    "name": "AI策略優化",
-                    "status": "completed",
-                    "duration": "2.3s",
-                    "agent": "GrowthStrategist",
-                },
-                {
-                    "name": "系統監控檢查",
-                    "status": "running",
-                    "duration": "1.1s",
-                    "agent": "OpsAgent",
-                },
-                {
-                    "name": "用戶反饋分析",
-                    "status": "pending",
-                    "duration": "-",
-                    "agent": "PMAgent",
-                },
-                {
-                    "name": "安全審計",
-                    "status": "completed",
-                    "duration": "5.7s",
-                    "agent": "SecurityManager",
-                },
-            ],
-            "total_tasks_today": 47,
-            "success_rate": 0.96,
-            "avg_duration": "3.2s",
-        }
 
         dashboard_data["system_metrics"] = {
             "cpu_usage": 72,
