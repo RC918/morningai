@@ -409,7 +409,10 @@ function AppContent() {
 function App() {
   useEffect(() => {
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
-    if (sentryDsn && !window.__SENTRY_INITIALIZED__) {
+    const isPreview = import.meta.env.VERCEL_ENV === 'preview'
+    const isCI = import.meta.env.CI === 'true'
+    
+    if (sentryDsn && !window.__SENTRY_INITIALIZED__ && !isPreview && !isCI) {
       import('@sentry/react').then((Sentry) => {
         Sentry.init({
           dsn: sentryDsn,

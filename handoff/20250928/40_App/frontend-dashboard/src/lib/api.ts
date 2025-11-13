@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com'
+const API_BASE_URL = import.meta.env.VERCEL_ENV === 'preview' 
+  ? '/api'  // Proxied through Vercel (same-site, cookies work with SameSite=Lax)
+  : import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com'
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 interface RequestOptions extends RequestInit {
