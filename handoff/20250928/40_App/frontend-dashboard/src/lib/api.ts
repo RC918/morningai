@@ -1,4 +1,35 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+/**
+ * Resolve API base URL with defensive normalization
+ * - Respects VITE_API_BASE_URL environment variable
+ * - Ensures /api suffix for backend URLs
+ * - Forces /api proxy on Vercel preview to avoid CORS issues
+ */
+function resolveApiBaseUrl(): string {
+  let raw = import.meta.env.VITE_API_BASE_URL || '/api'
+  
+  raw = raw.trim().replace(/\/+$/, '')
+  
+  const isAbsolute = /^https?:\/\//i.test(raw)
+  if (isAbsolute && !/\/api$/i.test(raw)) {
+    raw += '/api'
+  }
+  
+  const isVercelPreview = typeof window !== 'undefined' && /\.vercel\.app$/.test(window.location.hostname)
+  const allowCrossOrigin = import.meta.env.VITE_ALLOW_CROSS_ORIGIN_API === 'true'
+  
+  if (isVercelPreview && isAbsolute && !allowCrossOrigin) {
+    console.warn(
+      'Preview environment detected with cross-origin API URL. ' +
+      'Overriding to "/api" to use Vercel proxy and avoid CORS issues. ' +
+      'Set VITE_ALLOW_CROSS_ORIGIN_API=true to bypass (not recommended).'
+    )
+    return '/api'
+  }
+  
+  return raw || '/api'
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 interface RequestOptions extends RequestInit {
