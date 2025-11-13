@@ -50,6 +50,113 @@ tags:
     description: Two-factor authentication verification during login
 
 paths:
+  /api/auth/v2/csrf:
+    get:
+      tags:
+        - Authentication
+      summary: Get CSRF token
+      description: |
+        Generates and returns a CSRF token for use in state-changing operations.
+        The token is also set as an HttpOnly=false cookie for JavaScript access.
+        
+        **Usage**:
+        - Call this endpoint before making POST/PUT/PATCH/DELETE requests
+        - Extract token from response or cookie
+        - Include token in `X-CSRF-Token` header
+        
+        **Security**:
+        - Token expires with access token (15 minutes)
+        - Required for `/api/auth/v2/refresh` endpoint
+      responses:
+        '200':
+          description: CSRF token generated successfully
+          headers:
+            Set-Cookie:
+              description: CSRF token cookie (HttpOnly=false)
+              schema:
+                type: string
+                example: csrf_token=abc123; Path=/; SameSite=None; Secure
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  csrf_token:
+                    type: string
+                    description: CSRF token value
+        '500':
+          description: Failed to generate CSRF token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/v2/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: |
+        Refreshes the access token using the refresh token stored in cookies.
+        Implements token rotation - returns new access AND refresh tokens.
+        
+        **⚠️ CSRF Protection Required**:
+        - This endpoint requires a valid CSRF token in the `X-CSRF-Token` header
+        - Obtain CSRF token from `/api/auth/v2/csrf` endpoint first
+        - Frontend should retry CSRF bootstrap up to 3 times if token is missing
+        
+        **Token Rotation**:
+        - Old refresh token is blacklisted after successful refresh
+        - New refresh token must be used for subsequent refreshes
+        
+        **Security**:
+        - Refresh token must be valid and not expired
+        - Refresh token must not be blacklisted
+        - CSRF token must match the token in the cookie
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema:
+            type: string
+          description: CSRF token obtained from `/api/auth/v2/csrf`
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Token refreshed successfully
+          headers:
+            Set-Cookie:
+              description: New session cookies (access_token, refresh_token)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tokens:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                        description: New JWT access token
+                      expiresAt:
+                        type: integer
+                        description: Access token expiry (Unix timestamp in milliseconds)
+        '401':
+          description: Invalid or expired refresh token, or missing/invalid CSRF token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Token refresh failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/auth/v2/2fa/enroll:
     post:
       tags:
@@ -275,6 +382,21 @@ components:
         **Token Lifetime**: Configurable via `PREAUTH_TOKEN_TTL` (default: 300 seconds)
         
         **Single-Use**: Tokens are consumed atomically using Redis Lua scripts to prevent race conditions.
+    
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: |
+        HttpOnly refresh token cookie used for token refresh operations.
+        
+        **Cookie Attributes**:
+        - HttpOnly: true (prevents JavaScript access)
+        - Secure: true (HTTPS only)
+        - SameSite: None (allows cross-site requests for Vercel ↔ Render)
+        - Max-Age: 7 days (configurable via `REFRESH_TOKEN_EXPIRY_DAYS`)
+        
+        **Token Rotation**: Each refresh operation issues a new refresh token and blacklists the old one.
 
   schemas:
     User:

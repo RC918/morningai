@@ -12,11 +12,12 @@ import { LanguageSwitcher } from './LanguageSwitcher'
 import { TwoFactorVerify } from './2fa/TwoFactorVerify'
 import { TwoFactorEnroll } from './2fa/TwoFactorEnroll'
 import apiClient from '@/lib/api'
+import { bootstrapCsrf } from '@/lib/api-client'
 import { signInWithOAuth } from '@/lib/supabaseClient'
 import type { LoginResponse } from '@/types/2fa'
 
 interface Credentials {
-  username: string
+  email: string
   password: string
 }
 
@@ -35,7 +36,7 @@ interface LoginPageProps {
 const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
   const { t } = useTranslation()
   const [credentials, setCredentials] = useState<Credentials>({
-    username: '',
+    email: '',
     password: ''
   })
   const [loading, setLoading] = useState<boolean>(false)
@@ -61,6 +62,8 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
     setError('')
 
     try {
+      await bootstrapCsrf()
+      
       const result: LoginResponse = await apiClient.login(credentials)
       
       if (result.next_step) {
@@ -86,12 +89,13 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
       }
       
       if (result.user) {
+        await bootstrapCsrf()
         onLogin(result.user)
       } else {
         setError(result.message || t('auth.login.loginFailed'))
       }
     } catch (error) {
-      if (credentials.username === 'admin' && credentials.password === 'admin123') {
+      if (import.meta.env.DEV && credentials.email === 'admin' && credentials.password === 'admin123') {
         const mockUser: User = {
           id: 1,
           name: t('sidebar.user.defaultName'),
@@ -135,7 +139,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
       const { verifyTwoFALogin } = await import('@/lib/2fa-api')
       
       await verifyTwoFALogin({
-        email: credentials.username,
+        email: credentials.email,
         password: credentials.password,
         totp_code: params.isBackup ? undefined : params.code,
         backup_code: params.isBackup ? params.code : undefined,
@@ -290,12 +294,12 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 )}
 
                 <AppleInput
-                  id="username"
-                  name="username"
-                  type="text"
-                  label={t('auth.login.username')}
-                  placeholder={t('auth.login.usernamePlaceholder')}
-                  value={credentials.username}
+                  id="email"
+                  name="email"
+                  type="email"
+                  label={t('auth.login.email')}
+                  placeholder={t('auth.login.emailPlaceholder')}
+                  value={credentials.email}
                   onChange={handleChange}
                   leftIcon={<User className="w-4 h-4" />}
                   required
@@ -413,13 +417,15 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 </Link>
               </div>
 
-              <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <h2 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
-                <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
-                  <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
+              {import.meta.env.DEV && (
+                <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                  <h2 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
+                  <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                    <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
+                    <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
