@@ -378,7 +378,10 @@
     "apiError": "API Error",
     "loadingApp": "Loading application...",
     "loadingPage": "Loading page...",
-    "mainContentArea": "Main content area"
+    "mainContentArea": "Main content area",
+    "units": {
+      "milliseconds": "ms"
+    }
   },
   "settings": {
     "title": "System Settings",

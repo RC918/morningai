@@ -72,7 +72,7 @@ const ResponseTimeWidget = ({ data }: { data: any }) => {
         <Zap className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{data?.system_metrics?.response_time || 0}ms</div>
+        <div className="text-2xl font-bold">{data?.system_metrics?.response_time || 0}{t('common.units.milliseconds')}</div>
         <p className="text-xs text-muted-foreground mt-2">
           <span className="text-green-600 flex items-center">
             <TrendingDown className="w-3 h-3 mr-1" />
