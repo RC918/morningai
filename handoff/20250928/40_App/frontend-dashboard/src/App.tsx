@@ -409,8 +409,8 @@ function AppContent() {
 function App() {
   useEffect(() => {
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
-    const isPreview = import.meta.env.VERCEL_ENV === 'preview'
-    const isCI = import.meta.env.CI === 'true'
+    const isPreview = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+    const isCI = import.meta.env.MODE === 'test'
     
     if (sentryDsn && !window.__SENTRY_INITIALIZED__ && !isPreview && !isCI) {
       import('@sentry/react').then((Sentry) => {
