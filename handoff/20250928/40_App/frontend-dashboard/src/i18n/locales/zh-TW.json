@@ -378,7 +378,10 @@
     "apiError": "API 錯誤",
     "loadingApp": "正在載入應用程式...",
     "loadingPage": "正在載入頁面...",
-    "mainContentArea": "主要內容區域"
+    "mainContentArea": "主要內容區域",
+    "units": {
+      "milliseconds": "ms"
+    }
   },
   "settings": {
     "title": "系統設定",
