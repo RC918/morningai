@@ -1,7 +1,7 @@
 const isVercelPreview = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
 const API_BASE_URL = isVercelPreview
-  ? '/api'
-  : import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com'
+  ? '/api'  // Vercel proxy handles /api/* -> backend/api/*
+  : (import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com') + '/api'
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 interface RequestOptions extends RequestInit {
@@ -58,7 +58,7 @@ class ApiClient {
         throw error
       }
       
-      const response = await fetch(`${this.baseURL}/api/auth/v2/refresh`, {
+      const response = await fetch(`${this.baseURL}/auth/v2/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ class ApiClient {
 
   async request(endpoint: string, options: RequestOptions = {}): Promise<any> {
     const requestId = Math.random().toString(36).substr(2, 9)
-    const url = `${this.baseURL}/api${endpoint}`
+    const url = `${this.baseURL}${endpoint}`
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -272,7 +272,7 @@ class ApiClient {
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const response = await fetch(`${this.baseURL}/api/auth/v2/csrf`, {
+        const response = await fetch(`${this.baseURL}/auth/v2/csrf`, {
           credentials: 'include',
         })
         
