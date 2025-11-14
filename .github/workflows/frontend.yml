@@ -326,8 +326,8 @@ jobs:
       - name: TypeScript Check - Owner Console
         run: pnpm -F owner-console exec tsc --noEmit
   
-  storybook-tests:
-    name: Storybook Tests (Visual + A11y)
+  storybook-a11y-tests:
+    name: Storybook A11y Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -345,6 +345,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+      
       - name: Install Playwright browsers
         run: |
           cd packages/shared-ui
@@ -353,7 +361,7 @@ jobs:
       - name: Build shared-ui package
         run: pnpm --filter @morningai/shared-ui build
       
-      - name: Run Storybook tests (visual + a11y)
+      - name: Run Storybook accessibility tests
         run: |
           cd packages/shared-ui
           pnpm run test-storybook:ci
