@@ -21,7 +21,6 @@ export default defineConfig({
     locale: 'en-US',
     timezoneId: 'America/New_York',
     colorScheme: 'light',
-    reducedMotion: 'reduce',
   },
   webServer: {
     command: 'pnpm preview --port 4173',
