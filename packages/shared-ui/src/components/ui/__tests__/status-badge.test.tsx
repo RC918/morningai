@@ -95,10 +95,11 @@ describe('StatusBadge', () => {
     expect(screen.getByTestId('status-badge')).toBeInTheDocument()
   })
 
-  it('renders running status with animated icon', () => {
+  it('renders running status with animated icon (respects prefers-reduced-motion)', () => {
     const { container } = render(<StatusBadge status="running">Running</StatusBadge>)
     const svg = container.querySelector('svg')
-    expect(svg).toHaveClass('animate-pulse')
+    expect(svg).toHaveClass('motion-safe:animate-pulse')
+    expect(svg).toHaveClass('motion-reduce:animate-none')
   })
 
   it('includes gap-1 for icon/text spacing', () => {
