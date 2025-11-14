@@ -5,12 +5,13 @@ Shared UI component library for MorningAI monorepo, featuring Apple-level design
 ## Features
 
 - 🎨 **Apple-level Design System** - iOS-inspired materials, spring animations, and polished interactions
-- 🧩 **47 Shared Components** - Extracted from frontend-dashboard and owner-console
+- 🧩 **48 Shared Components** - Extracted from frontend-dashboard and owner-console (including StatusBadge)
 - 🎭 **Radix UI Foundation** - Built on top of Radix UI primitives for accessibility
 - 🎬 **Framer Motion 12.15** - Smooth spring-based animations with reduced motion support
 - 🎯 **Design Tokens** - Centralized color, typography, spacing, and animation tokens
 - 📦 **Tree-shakeable** - ESM and CJS builds with TypeScript support
 - ♿ **Accessible** - WCAG AAA compliant (7:1 color contrast)
+- 📚 **Storybook** - Interactive component documentation and visual testing
 
 ## Components Extracted
 
@@ -47,6 +48,9 @@ Shared UI component library for MorningAI monorepo, featuring Apple-level design
 - `Button` - Primary action button
 - `Toggle` - Toggle button
 - `ToggleGroup` - Group of toggle buttons
+
+### Status & Indicators (1)
+- `StatusBadge` - Status indicator with semantic colors (completed, running, failed, queued, assigned, cancelled)
 
 ### Feedback & Overlays (14)
 - `Dialog` - Modal dialog
@@ -141,10 +145,37 @@ pnpm run build
 pnpm run dev
 ```
 
+### Storybook
+
+View and interact with components in isolation:
+
+```bash
+pnpm run storybook
+```
+
+Build Storybook for deployment:
+
+```bash
+pnpm run build-storybook
+```
+
 ### Type Checking
 
 ```bash
 pnpm run type-check
+```
+
+### Testing
+
+```bash
+# Run tests
+pnpm run test
+
+# Run tests in watch mode
+pnpm run test:watch
+
+# Run tests with coverage
+pnpm run test:coverage
 ```
 
 ## Animation System
@@ -262,22 +293,24 @@ packages/shared-ui/
 ## Current Status
 
 ✅ **Phase 1 Complete**: Component Extraction
-- 47 components extracted
+- 48 components extracted (including StatusBadge)
 - Apple-level design system integrated
 - Animation utilities added
 - Design tokens centralized
 - Package structure created
 - Dependencies configured
 
-⏳ **Phase 2 Pending**: Application Migration
+✅ **Phase 2 Complete**: Storybook & Documentation
+- Storybook 8 configured with Vite
+- Interactive component stories
+- Design tokens preview decorator
+- Unit tests for StatusBadge
+- Component documentation
+
+⏳ **Phase 3 Pending**: Application Migration
 - Migrate frontend-dashboard to use shared components
 - Migrate owner-console to use shared components
 - Remove duplicate files
-
-⏳ **Phase 3 Pending**: Optimization
-- Add component documentation
-- Set up Storybook
-- Add unit tests
 
 ## Migration Guide
 
