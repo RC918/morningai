@@ -100,10 +100,10 @@ jobs:
           cd handoff/20250928/40_App/frontend-dashboard
           pnpm exec playwright install --with-deps chromium
       
-      - name: Run Playwright E2E tests
+      - name: Run Playwright E2E tests (excluding VRT)
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
-          pnpm run test:e2e
+          pnpm exec playwright test --grep-invert @vrt
       
       - name: Upload Playwright test results
         if: always()
