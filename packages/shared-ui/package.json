@@ -38,7 +38,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test-storybook": "test-storybook",
-    "test-storybook:ci": "concurrently -k -s first -n \"SB,TEST\" -c \"magenta,blue\" \"pnpm build-storybook --quiet && npx http-server storybook-static --port 6006 --silent\" \"wait-on tcp:127.0.0.1:6006 && pnpm test-storybook\"",
+    "test-storybook:ci": "concurrently -k -s first -n \"SB,TEST\" -c \"magenta,blue\" \"pnpm build-storybook --quiet && npx http-server storybook-static --port 6006 --silent\" \"wait-on tcp:127.0.0.1:6006 && pnpm test-storybook --url http://127.0.0.1:6006 --maxWorkers=2\"",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "type-check": "tsc --noEmit",
     "compile:tokens": "node scripts/compile-tokens.js",

@@ -357,11 +357,3 @@ jobs:
         run: |
           cd packages/shared-ui
           pnpm run test-storybook:ci
-      
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: storybook-test-results
-          path: packages/shared-ui/test-results/
-          retention-days: 30
