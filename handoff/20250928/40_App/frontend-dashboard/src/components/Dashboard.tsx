@@ -20,6 +20,7 @@ import SaveStatusIndicator from './SaveStatusIndicator'
 import useUndoRedo from '@/hooks/useUndoRedo'
 import apiClient from '@/lib/api'
 import { safeInterval } from '@/lib/safeInterval'
+import { excludeTaskExecution } from '@/lib/dashboardFilters'
 
 interface Widget {
   id: string
@@ -190,8 +191,7 @@ const Dashboard = (): React.ReactElement => {
     try {
       const layout: { widgets?: Widget[] } = await apiClient.request('/dashboard/layouts?user_id=default')
       if (layout.widgets) {
-        setDashboardLayout(layout.widgets
-          .filter((widget: Widget) => widget.id !== 'task_execution')
+        setDashboardLayout(excludeTaskExecution(layout.widgets)
           .map((widget: Widget): Widget => ({
             ...widget,
             component: null
@@ -208,7 +208,7 @@ const Dashboard = (): React.ReactElement => {
   const loadAvailableWidgets = useCallback(async (): Promise<void> => {
     try {
       const response: { widgets?: Widget[] } = await apiClient.getDashboardWidgets()
-      setAvailableWidgets((response.widgets || []).filter((widget: Widget) => widget.id !== 'task_execution'))
+      setAvailableWidgets(excludeTaskExecution(response.widgets || []))
     } catch (error) {
       console.error('Failed to load available widgets:', error)
     }
