@@ -16,20 +16,77 @@ import {
   SelectValue,
   Alert,
   AlertDescription,
-  AlertTitle
+  AlertTitle,
+  StatusBadge
 } from '@morningai/shared-ui'
 import { 
-  Activity,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
   Filter,
   RefreshCw,
-  XCircle,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
+
+const warnedStatuses = new Set()
+
+/**
+ * Normalize backend execution log status to StatusBadge variants
+ * Handles common synonyms and case variations
+ * @param {string} status - Raw status from backend
+ * @returns {{ normalized: string, isKnown: boolean }}
+ */
+const normalizeExecutionLogStatus = (status) => {
+  if (!status) {
+    return { normalized: 'queued', isKnown: false }
+  }
+
+  const normalized = status.toLowerCase().trim()
+
+  const statusMap = {
+    'completed': 'completed',
+    'success': 'completed',
+    'succeeded': 'completed',
+    'done': 'completed',
+    'finished': 'completed',
+    
+    'running': 'running',
+    'in_progress': 'running',
+    'in-progress': 'running',
+    'processing': 'running',
+    'active': 'running',
+    'executing': 'running',
+    
+    'failed': 'failed',
+    'error': 'failed',
+    'errored': 'failed',
+    'exception': 'failed',
+    'crashed': 'failed',
+    
+    'queued': 'queued',
+    'pending': 'queued',
+    'waiting': 'queued',
+    
+    'assigned': 'assigned',
+    'scheduled': 'assigned',
+    
+    'cancelled': 'cancelled',
+    'canceled': 'cancelled',
+    'aborted': 'cancelled',
+    'terminated': 'cancelled',
+  }
+
+  const mappedStatus = statusMap[normalized]
+  
+  if (!mappedStatus) {
+    if (!warnedStatuses.has(normalized)) {
+      console.warn(`[AgentExecutionLogs] Unknown execution log status: "${status}". Defaulting to "queued". Please add mapping if this is a valid status.`)
+      warnedStatuses.add(normalized)
+    }
+    return { normalized: 'queued', isKnown: false }
+  }
+
+  return { normalized: mappedStatus, isKnown: true }
+}
 
 const AgentExecutionLogs = () => {
   const { t } = useTranslation()
@@ -111,40 +168,6 @@ const AgentExecutionLogs = () => {
     setPagination(prev => ({ ...prev, page: 1 }))
   }
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 border-green-300'
-      case 'running':
-        return 'bg-blue-100 text-blue-800 border-blue-300'
-      case 'failed':
-        return 'bg-red-100 text-red-800 border-red-300'
-      case 'queued':
-        return 'bg-gray-100 text-gray-800 border-gray-300'
-      case 'assigned':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300'
-      case 'cancelled':
-        return 'bg-orange-100 text-orange-800 border-orange-300'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300'
-    }
-  }
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4" />
-      case 'running':
-        return <Activity className="w-4 h-4 animate-pulse" />
-      case 'failed':
-        return <XCircle className="w-4 h-4" />
-      case 'queued':
-      case 'assigned':
-        return <Clock className="w-4 h-4" />
-      default:
-        return <Activity className="w-4 h-4" />
-    }
-  }
 
   const formatDuration = (durationMs) => {
     if (!durationMs) return t('common.na')
@@ -360,15 +383,19 @@ const AgentExecutionLogs = () => {
             <p className="text-center text-gray-500 py-8">{t('governance.executionLogs.noLogs')}</p>
           ) : (
             <div className="space-y-3">
-              {logs.map((log) => (
+              {logs.map((log) => {
+                const { normalized: normalizedStatus, isKnown } = normalizeExecutionLogStatus(log.status)
+                return (
                 <div key={log.task_id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        {getStatusIcon(log.status)}
-                        <Badge className={getStatusColor(log.status)}>
-                          {t(`governance.executionLogs.statuses.${log.status}`)}
-                        </Badge>
+                        <StatusBadge status={normalizedStatus} showIcon>
+                          {isKnown 
+                            ? t(`governance.executionLogs.statuses.${normalizedStatus}`)
+                            : t('governance.executionLogs.statuses.unknown', { defaultValue: 'Unknown' })
+                          }
+                        </StatusBadge>
                         <span className="text-sm font-mono text-gray-600">
                           {log.task_id?.substring(0, 12)}...
                         </span>
@@ -419,7 +446,7 @@ const AgentExecutionLogs = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
 
