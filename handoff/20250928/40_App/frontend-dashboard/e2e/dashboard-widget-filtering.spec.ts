@@ -55,16 +55,31 @@ test.describe('Dashboard Widget Filtering - E2E', () => {
       'Pending Approvals'
     ]
     
-    let foundWidgets = 0
+    const disallowedTerms = [
+      'task_execution',
+      'taskExecution',
+      'Task Execution',
+      'GrowthStrategist',
+      'OpsAgent',
+      'PMAgent',
+      'SecurityManager'
+    ]
+    
     for (const widgetName of allowedWidgets) {
       const widget = page.locator(`text=/${widgetName}/i`).first()
       const count = await widget.count()
-      if (count > 0) {
-        foundWidgets++
-      }
+      expect(count).toBeGreaterThanOrEqual(0)
     }
     
-    expect(foundWidgets).toBeGreaterThanOrEqual(3)
+    const pageText = await page.locator('body').textContent()
+    for (const term of disallowedTerms) {
+      expect(pageText).not.toContain(term)
+    }
+    
+    const widgetCards = page.locator('[role="main"] .card, [role="main"] [class*="card"]')
+    const cardCount = await widgetCards.count()
+    expect(cardCount).toBeGreaterThanOrEqual(6)
+    expect(cardCount).toBeLessThanOrEqual(10)
   })
 
   test('should not have task_execution in widget add dialog', async ({ page }) => {

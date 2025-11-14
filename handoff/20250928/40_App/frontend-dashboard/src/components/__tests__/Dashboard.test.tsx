@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import Dashboard from '../Dashboard'
-import { excludeTaskExecution, normalizeWidgetId } from '@/lib/dashboardFilters'
+import * as dashboardFilters from '@/lib/dashboardFilters'
+import { normalizeWidgetId } from '@/lib/dashboardFilters'
 import apiClient from '@/lib/api'
 
 /**
@@ -49,7 +50,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
         { id: 'memory_usage', type: 'metric', component: null }
       ]
 
-      const filtered = excludeTaskExecution(mockWidgets)
+      const filtered = dashboardFilters.excludeTaskExecution(mockWidgets)
       
       expect(filtered).toHaveLength(2)
       expect(filtered.some(w => w.id === 'task_execution')).toBe(false)
@@ -64,7 +65,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
         { id: 'memory_usage', type: 'metric', component: null }
       ]
 
-      const filtered = excludeTaskExecution(mockWidgets)
+      const filtered = dashboardFilters.excludeTaskExecution(mockWidgets)
       
       expect(filtered).toHaveLength(2)
       expect(filtered.some(w => normalizeWidgetId(w.id) === 'task_execution')).toBe(false)
@@ -77,7 +78,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
         { id: 'memory_usage', type: 'metric', component: null }
       ]
 
-      const filtered = excludeTaskExecution(mockWidgets)
+      const filtered = dashboardFilters.excludeTaskExecution(mockWidgets)
       
       expect(filtered).toHaveLength(2)
       expect(filtered.some(w => normalizeWidgetId(w.id) === 'task_execution')).toBe(false)
@@ -93,7 +94,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
         { id: 'memory_usage', type: 'metric', component: null }
       ]
 
-      const filtered = excludeTaskExecution(mockWidgets)
+      const filtered = dashboardFilters.excludeTaskExecution(mockWidgets)
       
       expect(filtered).toHaveLength(2)
       expect(filtered.every(w => normalizeWidgetId(w.id) !== 'task_execution')).toBe(true)
@@ -107,7 +108,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
         { id: 'task_execution', type: 'timeline', component: null }
       ]
 
-      const filtered = excludeTaskExecution(mockLayout)
+      const filtered = dashboardFilters.excludeTaskExecution(mockLayout)
       
       expect(filtered).toHaveLength(2)
       expect(filtered.every(w => w.id !== 'task_execution')).toBe(true)
@@ -121,7 +122,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
         { id: 'circuit_breakers', type: 'status', component: null }
       ]
 
-      const filtered = excludeTaskExecution(mockLayout)
+      const filtered = dashboardFilters.excludeTaskExecution(mockLayout)
       
       expect(filtered).toHaveLength(3)
       expect(filtered.some(w => w.id === 'task_execution')).toBe(false)
@@ -132,7 +133,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
 
     it('should handle empty layout', () => {
       const mockLayout: Widget[] = []
-      const filtered = excludeTaskExecution(mockLayout)
+      const filtered = dashboardFilters.excludeTaskExecution(mockLayout)
       expect(filtered).toHaveLength(0)
     })
 
@@ -140,7 +141,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
       const mockLayout: Widget[] = [
         { id: 'task_execution', type: 'timeline', component: null }
       ]
-      const filtered = excludeTaskExecution(mockLayout)
+      const filtered = dashboardFilters.excludeTaskExecution(mockLayout)
       expect(filtered).toHaveLength(0)
     })
 
@@ -156,7 +157,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
         { id: 'task_execution', type: 'timeline', component: null }
       ]
 
-      const filtered = excludeTaskExecution(mockLayout)
+      const filtered = dashboardFilters.excludeTaskExecution(mockLayout)
       
       expect(filtered).toHaveLength(1)
       expect(filtered[0]).toHaveProperty('name', 'CPU Usage')
@@ -176,7 +177,7 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
         { id: 'memory_usage', type: 'metric', component: null }
       ]
 
-      const filtered = excludeTaskExecution(backendResponse)
+      const filtered = dashboardFilters.excludeTaskExecution(backendResponse)
       
       expect(filtered).toHaveLength(2)
       expect(filtered.some(w => w.id === 'task_execution')).toBe(false)
@@ -191,6 +192,8 @@ describe('Dashboard Widget Filtering - Shared Module Tests', () => {
 })
 
 describe('Dashboard Component Integration Tests', () => {
+  let setStateMock: ReturnType<typeof vi.fn>
+
   vi.mock('@/lib/api', () => ({
     default: {
       request: vi.fn(),
@@ -216,16 +219,20 @@ describe('Dashboard Component Integration Tests', () => {
     default: () => null
   }))
 
-  vi.mock('@/hooks/useUndoRedo', () => ({
-    default: () => ({
-      state: [],
-      setState: vi.fn(),
-      undo: vi.fn(),
-      redo: vi.fn(),
-      canUndo: false,
-      canRedo: false
-    })
-  }))
+  vi.mock('@/hooks/useUndoRedo', () => {
+    const mockSetState = vi.fn()
+    return {
+      default: () => ({
+        state: [],
+        setState: mockSetState,
+        undo: vi.fn(),
+        redo: vi.fn(),
+        canUndo: false,
+        canRedo: false
+      }),
+      __mockSetState: mockSetState
+    }
+  })
 
   vi.mock('react-dnd', () => ({
     DndProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -252,11 +259,18 @@ describe('Dashboard Component Integration Tests', () => {
     })
   }))
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    const undoRedoModule = await import('@/hooks/useUndoRedo')
+    setStateMock = (undoRedoModule as any).__mockSetState
+    if (setStateMock) {
+      setStateMock.mockClear()
+    }
   })
 
   it('should use excludeTaskExecution when loading dashboard layout', async () => {
+    const excludeSpy = vi.spyOn(dashboardFilters, 'excludeTaskExecution')
+    
     const mockLayout = {
       widgets: [
         { id: 'cpu_usage', type: 'metric', position: { x: 0, y: 0 } },
@@ -278,10 +292,28 @@ describe('Dashboard Component Integration Tests', () => {
       expect(apiClient.request).toHaveBeenCalledWith('/dashboard/layouts?user_id=default')
     })
 
-    expect(apiClient.request).toHaveBeenCalled()
+    expect(excludeSpy).toHaveBeenCalledWith(mockLayout.widgets)
+    
+    await waitFor(() => {
+      const layoutCalls = setStateMock.mock.calls.filter(call => Array.isArray(call[0]) && call[0].length > 0)
+      expect(layoutCalls.length).toBeGreaterThan(0)
+    })
+    
+    const layoutPayload = setStateMock.mock.calls.find(call => 
+      Array.isArray(call[0]) && call[0].some((w: any) => w.id === 'cpu_usage')
+    )?.[0]
+    
+    if (layoutPayload) {
+      expect(layoutPayload.some((w: any) => w.id === 'task_execution')).toBe(false)
+      expect(layoutPayload.every((w: any) => w.component === null)).toBe(true)
+    }
+    
+    excludeSpy.mockRestore()
   })
 
   it('should use excludeTaskExecution when loading available widgets', async () => {
+    const excludeSpy = vi.spyOn(dashboardFilters, 'excludeTaskExecution')
+    
     const mockWidgets = {
       widgets: [
         { id: 'cpu_usage', name: 'CPU Usage', type: 'metric' },
@@ -303,6 +335,8 @@ describe('Dashboard Component Integration Tests', () => {
       expect(apiClient.getDashboardWidgets).toHaveBeenCalled()
     })
 
-    expect(apiClient.getDashboardWidgets).toHaveBeenCalled()
+    expect(excludeSpy).toHaveBeenCalledWith(mockWidgets.widgets)
+    
+    excludeSpy.mockRestore()
   })
 })
