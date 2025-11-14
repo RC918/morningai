@@ -37,6 +37,8 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test-storybook": "test-storybook",
+    "test-storybook:ci": "concurrently -k -s first -n \"SB,TEST\" -c \"magenta,blue\" \"pnpm build-storybook --quiet && npx http-server storybook-static --port 6006 --silent\" \"wait-on tcp:127.0.0.1:6006 && pnpm test-storybook\"",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "type-check": "tsc --noEmit",
     "compile:tokens": "node scripts/compile-tokens.js",
@@ -99,6 +101,7 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "^8.6.14",
     "@storybook/addon-essentials": "^8.6.14",
     "@storybook/addon-interactions": "^8.6.14",
     "@storybook/addon-links": "^8.6.14",
@@ -106,15 +109,21 @@
     "@storybook/react": "^8.6.14",
     "@storybook/react-vite": "^8.6.14",
     "@storybook/test": "^8.6.14",
+    "@storybook/test-runner": "^0.24.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitest/ui": "^4.0.3",
+    "axe-playwright": "^2.2.2",
+    "concurrently": "^9.2.1",
     "happy-dom": "^20.0.8",
+    "http-server": "^14.1.1",
+    "playwright": "^1.56.1",
     "storybook": "^8.6.14",
     "tsup": "^8.0.1",
     "typescript": "5.9.3",
-    "vitest": "^4.0.3"
+    "vitest": "^4.0.3",
+    "wait-on": "^9.0.3"
   }
 }

@@ -325,3 +325,43 @@ jobs:
       
       - name: TypeScript Check - Owner Console
         run: pnpm -F owner-console exec tsc --noEmit
+  
+  storybook-tests:
+    name: Storybook Tests (Visual + A11y)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        run: |
+          cd packages/shared-ui
+          pnpm exec playwright install --with-deps chromium
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+      
+      - name: Run Storybook tests (visual + a11y)
+        run: |
+          cd packages/shared-ui
+          pnpm run test-storybook:ci
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-test-results
+          path: packages/shared-ui/test-results/
+          retention-days: 30
