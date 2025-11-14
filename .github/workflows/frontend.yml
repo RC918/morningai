@@ -56,10 +56,62 @@ jobs:
           cd handoff/20250928/40_App/owner-console
           pnpm run typecheck
       
+      - name: Test frontend-dashboard
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm run test -- --coverage --coverage.reporter=text --coverage.reporter=json --coverage.reporter=html
+      
+      - name: Upload frontend-dashboard coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dashboard-coverage
+          path: handoff/20250928/40_App/frontend-dashboard/coverage/
+          retention-days: 30
+      
       - name: Test owner-console
         run: |
           cd handoff/20250928/40_App/owner-console
-          pnpm run test
+          pnpm run test -- --run --coverage --coverage.reporter=text --coverage.reporter=json --coverage.reporter=html
+      
+      - name: Upload owner-console coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-console-coverage
+          path: handoff/20250928/40_App/owner-console/coverage/
+          retention-days: 30
+      
+      - name: Test shared-ui
+        run: |
+          cd packages/shared-ui
+          pnpm run test -- --coverage --coverage.reporter=text --coverage.reporter=json --coverage.reporter=html
+      
+      - name: Upload shared-ui coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-ui-coverage
+          path: packages/shared-ui/coverage/
+          retention-days: 30
+      
+      - name: Install Playwright browsers
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm exec playwright install --with-deps chromium
+      
+      - name: Run Playwright E2E tests (including VRT)
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm run test:e2e
+      
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: handoff/20250928/40_App/frontend-dashboard/playwright-report/
+          retention-days: 30
   
   i18n-baseline-check:
     name: i18n Violation Baseline Check

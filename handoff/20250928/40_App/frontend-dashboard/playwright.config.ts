@@ -16,6 +16,12 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    viewport: { width: 1280, height: 736 },
+    deviceScaleFactor: 1,
+    locale: 'en-US',
+    timezoneId: 'America/New_York',
+    colorScheme: 'light',
+    reducedMotion: 'reduce',
   },
   webServer: {
     command: 'pnpm preview --port 4173',
@@ -26,7 +32,10 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 736 },
+      },
     },
   ],
 })
