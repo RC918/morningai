@@ -51,7 +51,7 @@ const getStatusIcon = (status: StatusBadgeProps["status"]) => {
     case "completed":
       return <CheckCircle className="w-3 h-3" />
     case "running":
-      return <Activity className="w-3 h-3 animate-pulse" />
+      return <Activity className="w-3 h-3 motion-safe:animate-pulse motion-reduce:animate-none" />
     case "failed":
       return <XCircle className="w-3 h-3" />
     case "queued":

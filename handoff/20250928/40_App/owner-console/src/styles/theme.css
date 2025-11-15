@@ -1,0 +1,120 @@
+/* Import design tokens from shared-ui */
+@import '@morningai/shared-ui/tokens.css';
+
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --breakpoint-*: initial;
+  
+  /* Design Token: Font Families */
+  --font-family-primary: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-secondary: 'JetBrains Mono', 'Courier New', monospace;
+  --font-family-display: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  /* Map shared-ui spacing tokens to Tailwind spacing */
+  --spacing-xs: var(--space-xs);
+  --spacing-sm: var(--space-sm);
+  --spacing-md: var(--space-md);
+  --spacing-lg: var(--space-lg);
+  --spacing-xl: var(--space-xl);
+  --spacing-2xl: var(--space-2xl);
+  --spacing-3xl: var(--space-3xl);
+  --spacing-4xl: var(--space-4xl);
+  
+  /* Flatten semantic colors for clean Tailwind utilities */
+  --color-success-50: var(--color-semantic-success-50);
+  --color-success-100: var(--color-semantic-success-100);
+  --color-success-200: var(--color-semantic-success-200);
+  --color-success-300: var(--color-semantic-success-300);
+  --color-success-400: var(--color-semantic-success-400);
+  --color-success-500: var(--color-semantic-success-500);
+  --color-success-600: var(--color-semantic-success-600);
+  --color-success-700: var(--color-semantic-success-700);
+  --color-success-800: var(--color-semantic-success-800);
+  --color-success-900: var(--color-semantic-success-900);
+  
+  --color-error-50: var(--color-semantic-error-50);
+  --color-error-100: var(--color-semantic-error-100);
+  --color-error-200: var(--color-semantic-error-200);
+  --color-error-300: var(--color-semantic-error-300);
+  --color-error-400: var(--color-semantic-error-400);
+  --color-error-500: var(--color-semantic-error-500);
+  --color-error-600: var(--color-semantic-error-600);
+  --color-error-700: var(--color-semantic-error-700);
+  --color-error-800: var(--color-semantic-error-800);
+  --color-error-900: var(--color-semantic-error-900);
+  
+  --color-warning-50: var(--color-semantic-warning-50);
+  --color-warning-100: var(--color-semantic-warning-100);
+  --color-warning-200: var(--color-semantic-warning-200);
+  --color-warning-300: var(--color-semantic-warning-300);
+  --color-warning-400: var(--color-semantic-warning-400);
+  --color-warning-500: var(--color-semantic-warning-500);
+  --color-warning-600: var(--color-semantic-warning-600);
+  --color-warning-700: var(--color-semantic-warning-700);
+  --color-warning-800: var(--color-semantic-warning-800);
+  --color-warning-900: var(--color-semantic-warning-900);
+  
+  --color-info-50: var(--color-semantic-info-50);
+  --color-info-100: var(--color-semantic-info-100);
+  --color-info-200: var(--color-semantic-info-200);
+  --color-info-300: var(--color-semantic-info-300);
+  --color-info-400: var(--color-semantic-info-400);
+  --color-info-500: var(--color-semantic-info-500);
+  --color-info-600: var(--color-semantic-info-600);
+  --color-info-700: var(--color-semantic-info-700);
+  --color-info-800: var(--color-semantic-info-800);
+  --color-info-900: var(--color-semantic-info-900);
+  
+  /* Create accent default alias (defaults to purple) */
+  --color-accent-50: var(--color-accent-purple-50);
+  --color-accent-100: var(--color-accent-purple-100);
+  --color-accent-200: var(--color-accent-purple-200);
+  --color-accent-300: var(--color-accent-purple-300);
+  --color-accent-400: var(--color-accent-purple-400);
+  --color-accent-500: var(--color-accent-purple-500);
+  --color-accent-600: var(--color-accent-purple-600);
+  --color-accent-700: var(--color-accent-purple-700);
+  --color-accent-800: var(--color-accent-purple-800);
+  --color-accent-900: var(--color-accent-purple-900);
+  
+  /* primary and neutral are already flat in tokens.css, no mapping needed */
+  
+  /* Map typography tokens */
+  --font-size-caption: var(--font-size-caption);
+  --font-size-small: var(--font-size-small);
+  --font-size-body: var(--font-size-body);
+  --font-size-heading3: var(--font-size-heading3);
+  --font-size-heading2: var(--font-size-heading2);
+  --font-size-heading1: var(--font-size-heading1);
+  --font-size-display: var(--font-size-display);
+  
+  --font-weight-regular: var(--font-weight-regular);
+  --font-weight-medium: var(--font-weight-medium);
+  --font-weight-semibold: var(--font-weight-semibold);
+  --font-weight-bold: var(--font-weight-bold);
+  
+  /* Fix line-height mapping: tokens.css uses --font-lineHeight-* not --line-height-* */
+  --line-height-caption: var(--font-lineHeight-caption);
+  --line-height-small: var(--font-lineHeight-small);
+  --line-height-body: var(--font-lineHeight-body);
+  --line-height-heading3: var(--font-lineHeight-heading3);
+  --line-height-heading2: var(--font-lineHeight-heading2);
+  --line-height-heading1: var(--font-lineHeight-heading1);
+  --line-height-display: var(--font-lineHeight-display);
+  
+  /* Map radius tokens */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-full: var(--radius-full);
+  
+  /* Map shadow tokens */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+}
