@@ -1,5 +1,6 @@
 import type { StorybookConfig } from '@storybook/react-vite'
 import type { InlineConfig } from 'vite'
+import preserveDirectives from 'rollup-plugin-preserve-directives'
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
@@ -22,6 +23,13 @@ const config: StorybookConfig = {
       build: {
         ...(config.build || {}),
         sourcemap: false,
+        rollupOptions: {
+          ...(config.build?.rollupOptions || {}),
+          plugins: [
+            ...(config.build?.rollupOptions?.plugins || []),
+            preserveDirectives(),
+          ],
+        },
       },
       ssr: {
         ...(config.ssr || {}),
