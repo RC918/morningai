@@ -34,10 +34,29 @@ for app in "handoff/20250928/40_App/frontend-dashboard" "handoff/20250928/40_App
       fi
     done
     
-    if [ "$CSS_IMPORTED" = false ]; then
-      echo "    ❌ ERROR: react-resizable-panels CSS not imported!"
-      echo "    Add to main.jsx/tsx or main entry file:"
-      echo "    import 'react-resizable-panels/styles.css';"
+    CSS_FALLBACK=false
+    INDEX_CSS_FILES=(
+      "$app/src/index.css"
+      "$app/src/styles/index.css"
+    )
+    
+    for index_css in "${INDEX_CSS_FILES[@]}"; do
+      if [ -f "$index_css" ]; then
+        if grep -q "\[UX-SENTINEL\].*Resizable Panels" "$index_css" 2>/dev/null; then
+          echo "    ✓ CSS fallback found in $(basename "$index_css")"
+          CSS_FALLBACK=true
+          break
+        fi
+      fi
+    done
+    
+    if [ "$CSS_IMPORTED" = false ] && [ "$CSS_FALLBACK" = false ]; then
+      echo "    ❌ ERROR: react-resizable-panels styles not configured!"
+      echo "    Either:"
+      echo "    1. Import library CSS in main.jsx/tsx:"
+      echo "       import 'react-resizable-panels/styles.css';"
+      echo "    OR"
+      echo "    2. Add CSS fallback in index.css with [UX-SENTINEL] marker"
       ERROR_FOUND=true
     fi
   fi
