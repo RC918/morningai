@@ -272,13 +272,13 @@ const AgentExecutionLogs = () => {
   if (loading && logs.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-lg">
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -289,7 +289,7 @@ const AgentExecutionLogs = () => {
               onClick={loadExecutionLogs} 
               variant="outline" 
               size="sm" 
-              className="ml-4"
+              className="ml-md"
             >
               {t('common.retry')}
             </Button>
@@ -299,53 +299,53 @@ const AgentExecutionLogs = () => {
 
       {/* Summary Statistics */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-md">
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('governance.executionLogs.summary.totalExecutions')}</p>
-                <Activity className="w-5 h-5 text-blue-600" />
+            <CardContent className="pt-lg">
+              <div className="flex items-center justify-between mb-sm">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.totalExecutions')}</p>
+                <Activity className="w-5 h-5 text-primary-600" />
               </div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-neutral-900 dark:text-white">
                 {summary.total_executions || 0}
               </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('governance.executionLogs.summary.successRate')}</p>
-                <CheckCircle className="w-5 h-5 text-green-600" />
+            <CardContent className="pt-lg">
+              <div className="flex items-center justify-between mb-sm">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.successRate')}</p>
+                <CheckCircle className="w-5 h-5 text-success-600" />
               </div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-neutral-900 dark:text-white">
                 {summary.success_rate ? `${(summary.success_rate * 100).toFixed(1)}%` : t('common.na')}
               </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('governance.executionLogs.summary.avgDuration')}</p>
-                <Clock className="w-5 h-5 text-purple-600" />
+            <CardContent className="pt-lg">
+              <div className="flex items-center justify-between mb-sm">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.avgDuration')}</p>
+                <Clock className="w-5 h-5 text-accent-600" />
               </div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-neutral-900 dark:text-white">
                 {formatDuration(summary.avg_duration_ms)}
               </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('governance.executionLogs.summary.statusBreakdown')}</p>
-                <Filter className="w-5 h-5 text-orange-600" />
+            <CardContent className="pt-lg">
+              <div className="flex items-center justify-between mb-sm">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.statusBreakdown')}</p>
+                <Filter className="w-5 h-5 text-warning-600" />
               </div>
               <div className="space-y-1">
                 {summary.status_counts && Object.entries(summary.status_counts).map(([status, count]) => (
                   <div key={status} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">{t(`governance.executionLogs.statuses.${status}`)}</span>
+                    <span className="text-neutral-600 dark:text-neutral-400">{t(`governance.executionLogs.statuses.${status}`)}</span>
                     <span className="font-semibold">{count}</span>
                   </div>
                 ))}
@@ -358,15 +358,15 @@ const AgentExecutionLogs = () => {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-sm">
             <Filter className="w-5 h-5" />
             {t('common.filter')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.status')}
               </label>
               <Select 
@@ -389,7 +389,7 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.agentId')}
               </label>
               <Input
@@ -400,7 +400,7 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.taskType')}
               </label>
               <Input
@@ -411,7 +411,7 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.startDate')}
               </label>
               <Input
@@ -422,7 +422,7 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.endDate')}
               </label>
               <Input
@@ -432,7 +432,7 @@ const AgentExecutionLogs = () => {
               />
             </div>
 
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-sm">
               <Button onClick={handleApplyFilters} className="flex-1">
                 {t('governance.executionLogs.filters.applyFilters')}
               </Button>
@@ -460,7 +460,7 @@ const AgentExecutionLogs = () => {
         </CardHeader>
         <CardContent>
           {logs.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">{t('governance.executionLogs.noLogs')}</p>
+            <p className="text-center text-neutral-500 py-8">{t('governance.executionLogs.noLogs')}</p>
           ) : (
             <>
               {/* Desktop Table View (md and up) */}
@@ -499,7 +499,7 @@ const AgentExecutionLogs = () => {
                                 {log.task_type}
                               </Badge>
                             ) : (
-                              <span className="text-gray-400">{t('common.na')}</span>
+                              <span className="text-neutral-400">{t('common.na')}</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -507,13 +507,13 @@ const AgentExecutionLogs = () => {
                               <div>
                                 <p className="font-medium text-sm">{log.agent.agent_type || t('common.na')}</p>
                                 {log.agent.reputation_score !== undefined && (
-                                  <p className="text-xs text-gray-500">
+                                  <p className="text-xs text-neutral-500">
                                     {t('governance.agents.reputation')}: {log.agent.reputation_score}
                                   </p>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-gray-400">{t('common.na')}</span>
+                              <span className="text-neutral-400">{t('common.na')}</span>
                             )}
                           </TableCell>
                           <TableCell className="font-mono text-xs">
@@ -537,17 +537,17 @@ const AgentExecutionLogs = () => {
                 {logs.map((log) => {
                   const { normalized: normalizedStatus, isKnown } = normalizeExecutionLogStatus(log.status)
                   return (
-                    <div key={log.task_id} className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <div key={log.task_id} className="border rounded-lg p-md hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-3 mb-sm">
                             <StatusBadge status={normalizedStatus} showIcon>
                               {isKnown 
                                 ? t(`governance.executionLogs.statuses.${normalizedStatus}`)
                                 : t('governance.executionLogs.statuses.unknown', { defaultValue: 'Unknown' })
                               }
                             </StatusBadge>
-                            <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                            <span className="text-sm font-mono text-neutral-600 dark:text-neutral-400">
                               {log.task_id?.substring(0, 12)}...
                             </span>
                             {log.task_type && (
@@ -557,13 +557,13 @@ const AgentExecutionLogs = () => {
                             )}
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="grid grid-cols-2 gap-md text-sm">
                             {log.agent && (
                               <div>
-                                <p className="text-gray-600 dark:text-gray-400">{t('governance.executionLogs.columns.agent')}</p>
+                                <p className="text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.columns.agent')}</p>
                                 <p className="font-medium">{log.agent.agent_type || t('common.na')}</p>
                                 {log.agent.reputation_score !== undefined && (
-                                  <p className="text-xs text-gray-500">
+                                  <p className="text-xs text-neutral-500">
                                     {t('governance.agents.reputation')}: {log.agent.reputation_score}
                                   </p>
                                 )}
@@ -572,24 +572,24 @@ const AgentExecutionLogs = () => {
                             
                             {log.tenant_id && (
                               <div>
-                                <p className="text-gray-600 dark:text-gray-400">{t('governance.executionLogs.columns.tenant')}</p>
+                                <p className="text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.columns.tenant')}</p>
                                 <p className="font-medium font-mono text-xs">{log.tenant_id.substring(0, 12)}...</p>
                               </div>
                             )}
                             
                             <div>
-                              <p className="text-gray-600 dark:text-gray-400">{t('governance.executionLogs.columns.duration')}</p>
+                              <p className="text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.columns.duration')}</p>
                               <p className="font-medium">{formatDuration(log.duration_ms)}</p>
                             </div>
                             
                             <div>
-                              <p className="text-gray-600 dark:text-gray-400">{t('governance.executionLogs.details.createdAt')}</p>
+                              <p className="text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.details.createdAt')}</p>
                               <p className="font-medium text-xs">{formatTimestamp(log.timestamps?.created_at)}</p>
                             </div>
                           </div>
 
                           {log.error_message && (
-                            <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-800 dark:text-red-400">
+                            <div className="mt-3 p-sm bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded text-sm text-error-800 dark:text-error-400">
                               <p className="font-semibold">{t('governance.executionLogs.details.errorMessage')}:</p>
                               <p className="text-xs mt-1">{log.error_message}</p>
                             </div>
@@ -605,8 +605,8 @@ const AgentExecutionLogs = () => {
 
           {/* Pagination */}
           {pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center justify-between mt-lg pt-md border-t">
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 {t('governance.executionLogs.pagination.showing', {
                   start: (pagination.page - 1) * pagination.page_size + 1,
                   end: Math.min(pagination.page * pagination.page_size, pagination.total_items),
@@ -635,7 +635,7 @@ const AgentExecutionLogs = () => {
                     />
                   </PaginationItem>
                   <PaginationItem>
-                    <span className="text-sm text-gray-600 dark:text-gray-400 px-4">
+                    <span className="text-sm text-neutral-600 dark:text-neutral-400 px-md">
                       {t('governance.executionLogs.pagination.page', {
                         current: pagination.page,
                         total: pagination.total_pages
