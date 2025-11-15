@@ -18,6 +18,25 @@ VITE_SUPABASE_URL
 
 **Why?** Vite only exposes environment variables prefixed with `VITE_` to the client bundle. This prevents accidental exposure of sensitive backend secrets.
 
+### VITE_API_BASE_URL Semantics (Updated Nov 2025)
+
+**Important:** The value must include the `/api` suffix for proper routing.
+
+**For Vercel Deployments (Recommended):**
+```bash
+VITE_API_BASE_URL=/api  # Relative path - uses Vercel proxy
+```
+This leverages Vercel's rewrite rules to proxy API requests to the backend, enabling same-site cookies and avoiding CORS issues.
+
+**For Direct Backend Access (Local Development):**
+```bash
+VITE_API_BASE_URL=http://localhost:8000/api  # Full URL with /api suffix
+# or
+VITE_API_BASE_URL=https://morningai-backend-v2-stg.onrender.com/api
+```
+
+**Schema Definition:** See `config/env.schema.yaml` for complete specification.
+
 ### Backend Variables (Server-Side)
 
 Backend variables should **not** be prefixed with `VITE_` and should only be used in serverless functions (if any):
