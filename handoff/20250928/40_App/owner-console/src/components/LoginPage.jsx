@@ -188,7 +188,7 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
       </motion.div>
       
       <motion.div
-        className="w-full max-w-[28rem] px-4"
+        className="w-full max-w-md px-4"
         variants={prefersReducedMotion ? {} : containerVariants}
         initial="hidden"
         animate="visible"
