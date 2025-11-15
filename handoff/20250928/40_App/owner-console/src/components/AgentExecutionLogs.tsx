@@ -18,6 +18,7 @@ import {
   AlertDescription,
   AlertTitle,
   StatusBadge,
+  StatusBadgeProps,
   Pagination,
   PaginationContent,
   PaginationItem,
@@ -103,14 +104,16 @@ const warnedStatuses = new Set<string>()
  * Normalize backend execution log status to StatusBadge variants
  * Handles common synonyms and case variations
  */
-const normalizeExecutionLogStatus = (status: string | undefined): { normalized: string; isKnown: boolean } => {
+export const normalizeExecutionLogStatus = (
+  status: string | undefined
+): { normalized: StatusBadgeProps['status']; isKnown: boolean } => {
   if (!status) {
     return { normalized: 'queued', isKnown: false }
   }
 
   const normalized = status.toLowerCase().trim()
 
-  const statusMap: Record<string, string> = {
+  const statusMap: Record<string, StatusBadgeProps['status']> = {
     'completed': 'completed',
     'success': 'completed',
     'succeeded': 'completed',
@@ -480,7 +483,7 @@ const AgentExecutionLogs = () => {
                       return (
                         <TableRow key={log.task_id}>
                           <TableCell>
-                            <StatusBadge status={normalizedStatus as any} showIcon>
+                            <StatusBadge status={normalizedStatus} showIcon>
                               {isKnown 
                                 ? t(`governance.executionLogs.statuses.${normalizedStatus}`)
                                 : t('governance.executionLogs.statuses.unknown', { defaultValue: 'Unknown' })
@@ -538,7 +541,7 @@ const AgentExecutionLogs = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <StatusBadge status={normalizedStatus as any} showIcon>
+                            <StatusBadge status={normalizedStatus} showIcon>
                               {isKnown 
                                 ? t(`governance.executionLogs.statuses.${normalizedStatus}`)
                                 : t('governance.executionLogs.statuses.unknown', { defaultValue: 'Unknown' })
@@ -621,7 +624,13 @@ const AgentExecutionLogs = () => {
                           handlePageChange(pagination.page - 1)
                         }
                       }}
+                      onKeyDown={(e) => {
+                        if (pagination.page === 1 && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault()
+                        }
+                      }}
                       aria-disabled={pagination.page === 1}
+                      tabIndex={pagination.page === 1 ? -1 : 0}
                       className={pagination.page === 1 ? 'pointer-events-none opacity-50' : ''}
                     />
                   </PaginationItem>
@@ -642,7 +651,13 @@ const AgentExecutionLogs = () => {
                           handlePageChange(pagination.page + 1)
                         }
                       }}
+                      onKeyDown={(e) => {
+                        if (pagination.page === pagination.total_pages && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault()
+                        }
+                      }}
                       aria-disabled={pagination.page === pagination.total_pages}
+                      tabIndex={pagination.page === pagination.total_pages ? -1 : 0}
                       className={pagination.page === pagination.total_pages ? 'pointer-events-none opacity-50' : ''}
                     />
                   </PaginationItem>
