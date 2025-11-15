@@ -204,24 +204,23 @@ class TestAnonRolePublicAccess:
 
 
 @pytest.mark.parametrize("table", TABLES_AUTHENTICATED_ONLY)
-class TestAnonRoleAuthenticatedAccess:
-    """Test that anon key (with JWT) can access authenticated tables
+class TestAnonRoleBlockedFromSensitive:
+    """Test that anonymous users (no JWT) are blocked from authenticated-only tables
     
-    Note: In Supabase, the anon key acts as an 'authenticated' role when it has a valid JWT.
-    Based on migration 014, these tables have policies for 'authenticated' role, which includes
-    anon key with JWT. This is the expected behavior - these tables are readable by authenticated users.
+    Note: True anonymous access (anon key without JWT) should be blocked from
+    authenticated-only tables. This tests the actual anonymous role behavior.
     """
     
-    def test_anon_can_access_authenticated_tables(self, table):
-        """anon key (with JWT) should have read access to authenticated tables"""
-        headers = get_headers('anonymous')
+    def test_anon_blocked_from_authenticated_tables(self, table):
+        """anonymous users (no JWT) should be blocked from authenticated-only tables"""
+        headers = get_anon_headers()
         response = requests.get(
             f'{SUPABASE_URL}/rest/v1/{table}?limit=1',
             headers=headers,
             timeout=10
         )
-        assert response.status_code == 200, \
-            f"anon key (authenticated) should have access to {table}, got {response.status_code}"
+        assert response.status_code in [401, 403], \
+            f"anonymous (no JWT) should be BLOCKED from {table}, got {response.status_code}"
 
 
 @pytest.mark.parametrize("table", TABLES_WITH_RLS)
