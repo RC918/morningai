@@ -497,6 +497,66 @@ jobs:
           path: handoff/20250928/40_App/${{ matrix.app }}/i18n-test-results/
           retention-days: 7
 
+  a11y-label-sentinel:
+    name: A11y Label Visibility Check
+    runs-on: ubuntu-latest
+    needs: [smoke-tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [frontend-dashboard, owner-console]
+        include:
+          - app: frontend-dashboard
+            port: 4173
+          - app: owner-console
+            port: 4174
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      
+      - name: Workspace install
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui
+        run: pnpm --filter @morningai/shared-ui run build
+      
+      - name: Build application
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: pnpm run build
+      
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+      
+      - name: Start preview server
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: |
+          pnpm run preview --port ${{ matrix.port }} &
+          echo $! > preview-server.pid
+          timeout 30 bash -c 'until curl -s http://localhost:${{ matrix.port }} > /dev/null; do sleep 1; done'
+      
+      - name: Run sentinel check
+        env:
+          BASE_URL: http://localhost:${{ matrix.port }}
+          APP_NAME: ${{ matrix.app }}
+        run: node scripts/ux/check-a11y-labels.mjs
+      
+      - name: Stop preview server
+        if: always()
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        run: |
+          if [ -f preview-server.pid ]; then
+            kill $(cat preview-server.pid) || true
+          fi
+
   ai-perceptual-qa:
     name: AI Perceptual QA
     runs-on: ubuntu-latest
@@ -505,10 +565,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [frontend-dashboard]
+        app: [frontend-dashboard, owner-console]
         include:
           - app: frontend-dashboard
             port: 4173
+          - app: owner-console
+            port: 4174
     steps:
       - uses: actions/checkout@v4
       
@@ -666,7 +728,7 @@ jobs:
   ux-quality-gate:
     name: UX Quality Gate
     runs-on: ubuntu-latest
-    needs: [smoke-tests, tokens-drift-check, visual-regression-test, motion-performance-test, accessibility-audit, i18n-coverage]
+    needs: [smoke-tests, tokens-drift-check, visual-regression-test, motion-performance-test, accessibility-audit, i18n-coverage, a11y-label-sentinel]
     if: always()
     steps:
       - name: Check UX quality results
@@ -674,6 +736,7 @@ jobs:
           echo "🎨 UX Ops Pipeline Results:"
           echo "- Smoke Tests: ${{ needs.smoke-tests.result }}"
           echo "- Tokens Drift Check: ${{ needs.tokens-drift-check.result }}"
+          echo "- A11y Label Sentinel: ${{ needs.a11y-label-sentinel.result }}"
           echo "- Visual Regression: ${{ needs.visual-regression-test.result }}"
           echo "- Motion Performance: ${{ needs.motion-performance-test.result }}"
           echo "- Accessibility Audit: ${{ needs.accessibility-audit.result }}"
@@ -688,6 +751,12 @@ jobs:
           # Fail if tokens drift check failed (critical)
           if [ "${{ needs.tokens-drift-check.result }}" != "success" ]; then
             echo "❌ UX Quality Gate FAILED: Design tokens drift detected"
+            exit 1
+          fi
+          
+          # Fail if a11y label sentinel failed (critical - prevents visible hidden labels)
+          if [ "${{ needs.a11y-label-sentinel.result }}" != "success" ]; then
+            echo "❌ UX Quality Gate FAILED: Accessibility labels are visible"
             exit 1
           fi
           
