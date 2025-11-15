@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Mail, Search, Eye, EyeOff } from 'lucide-react'
+import { Mail, Search as SearchIcon, Eye, EyeOff } from 'lucide-react'
 import { Input } from './input'
 import { Label } from './label'
 import { Button } from './button'
@@ -71,7 +71,7 @@ export const Number: Story = {
 export const Search: Story = {
   render: () => (
     <div className="relative w-[300px]">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+      <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
       <Input className="pl-9" placeholder="Search..." />
     </div>
   ),
@@ -85,7 +85,7 @@ export const WithIcon: Story = {
         <Input className="pl-9" type="email" placeholder="Email" />
       </div>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input className="pl-9" placeholder="Search" />
       </div>
     </div>
