@@ -1,71 +1,10 @@
-/* Import design tokens from shared-ui */
-@import '@morningai/shared-ui/tokens.css';
-
-@import "tailwindcss";
-
 /* Load fonts from Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-@theme {
-  --color-*: initial;
-  --font-*: initial;
-  --breakpoint-*: initial;
-  
-  /* Design Token: Font Families */
-  --font-family-primary: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-family-secondary: 'JetBrains Mono', 'Courier New', monospace;
-  --font-family-display: 'Inter', system-ui, -apple-system, sans-serif;
-  
-  /* Map shared-ui spacing tokens to Tailwind spacing */
-  --spacing-xs: var(--space-xs);
-  --spacing-sm: var(--space-sm);
-  --spacing-md: var(--space-md);
-  --spacing-lg: var(--space-lg);
-  --spacing-xl: var(--space-xl);
-  --spacing-2xl: var(--space-2xl);
-  --spacing-3xl: var(--space-3xl);
-  --spacing-4xl: var(--space-4xl);
-  
-  /* Map shared-ui color tokens (already use --color-* naming) */
-  /* Colors are automatically available as utilities like text-primary-500, bg-success-50, etc. */
-  
-  /* Map typography tokens */
-  --font-size-caption: var(--font-size-caption);
-  --font-size-small: var(--font-size-small);
-  --font-size-body: var(--font-size-body);
-  --font-size-heading3: var(--font-size-heading3);
-  --font-size-heading2: var(--font-size-heading2);
-  --font-size-heading1: var(--font-size-heading1);
-  --font-size-display: var(--font-size-display);
-  
-  --font-weight-regular: var(--font-weight-regular);
-  --font-weight-medium: var(--font-weight-medium);
-  --font-weight-semibold: var(--font-weight-semibold);
-  --font-weight-bold: var(--font-weight-bold);
-  
-  --line-height-caption: var(--line-height-caption);
-  --line-height-small: var(--line-height-small);
-  --line-height-body: var(--line-height-body);
-  --line-height-heading3: var(--line-height-heading3);
-  --line-height-heading2: var(--line-height-heading2);
-  --line-height-heading1: var(--line-height-heading1);
-  --line-height-display: var(--line-height-display);
-  
-  /* Map radius tokens */
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
-  --radius-2xl: var(--radius-2xl);
-  --radius-full: var(--radius-full);
-  
-  /* Map shadow tokens */
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
-  --shadow-2xl: var(--shadow-2xl);
-}
+/* Import theme with design tokens (must come before Tailwind) */
+@import './styles/theme.css';
+
+@import "tailwindcss";
 
 /* Fix for vertical text rendering issue in Chinese locale */
 /* Ensure all text renders horizontally regardless of language */
