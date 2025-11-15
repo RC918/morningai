@@ -2,6 +2,60 @@
 
 <!-- 簡要說明此 PR 的目的和變更內容 -->
 
+## 如何測試 (How to Test)
+
+<!-- 請詳細說明如何測試此 PR 的變更 -->
+
+### 測試類型 (Test Types)
+
+請勾選已執行的測試類型：
+
+- [ ] 單元測試 (Unit Tests) - `pnpm test`
+- [ ] 整合測試 (Integration Tests)
+- [ ] E2E 測試 (End-to-End Tests) - Playwright
+- [ ] 視覺回歸測試 (Visual Regression Tests) - VRT
+- [ ] 手動測試 (Manual Testing)
+- [ ] 無障礙測試 (Accessibility Testing)
+
+### 測試步驟 (Test Steps)
+
+<!-- 請描述手動測試的具體步驟 -->
+
+1. 
+2. 
+3. 
+
+### 預期結果 (Expected Results)
+
+<!-- 描述預期的行為和結果 -->
+
+### 實際結果 (Actual Results)
+
+<!-- 描述實際觀察到的行為和結果 -->
+
+### 測試環境 (Test Environment)
+
+- [ ] 本地開發環境 (Local Development)
+- [ ] CI/CD Pipeline
+- [ ] Staging 環境
+- [ ] 不同瀏覽器測試（如適用）：Chrome / Firefox / Safari / Edge
+
+### 受影響的區域 (Affected Areas)
+
+<!-- 列出此變更可能影響的其他功能或區域 -->
+
+- 
+
+### 截圖/影片 (Screenshots/Videos)
+
+<!-- 如有 UI 變更，請附上截圖或影片 -->
+
+### 新增的自動化測試 (New Automated Tests)
+
+<!-- 列出為此 PR 新增的測試文件和測試案例 -->
+
+- 
+
 ## i18n 檢查清單（強制）
 
 <!-- 所有用戶可見的變更都必須符合 i18n 要求 -->
