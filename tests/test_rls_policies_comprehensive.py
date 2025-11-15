@@ -40,7 +40,14 @@ TABLES_AUTHENTICATED_ONLY = [
     'reputation_events'
 ]
 
-TABLES_WITH_RLS = TABLES_PUBLIC_ANON + TABLES_AUTHENTICATED_ONLY
+DEV_AGENT_TABLES = [
+    'code_embeddings',
+    'code_patterns',
+    'code_relationships',
+    'embedding_cache_stats'
+]
+
+TABLES_WITH_RLS = TABLES_PUBLIC_ANON + TABLES_AUTHENTICATED_ONLY + DEV_AGENT_TABLES
 
 
 def generate_authenticated_jwt():
@@ -233,8 +240,8 @@ class TestRLSPolicySummary:
     
     def test_all_tables_have_rls_enabled(self):
         """Verify that all expected tables have RLS enabled"""
-        assert len(TABLES_WITH_RLS) == 9, \
-            f"Expected 9 tables with RLS, got {len(TABLES_WITH_RLS)}"
+        assert len(TABLES_WITH_RLS) == 13, \
+            f"Expected 13 tables with RLS (9 main + 4 dev_agent), got {len(TABLES_WITH_RLS)}"
     
     def test_service_role_key_is_set(self):
         """Verify that SUPABASE_SERVICE_ROLE_KEY is configured"""
@@ -268,6 +275,9 @@ def run_comprehensive_rls_tests():
     print("Testing all roles (service_role, authenticated, anonymous)")
     print("Testing critical operations (SELECT, INSERT)")
     print(f"Testing {len(TABLES_WITH_RLS)} tables with RLS enabled")
+    print(f"  - {len(TABLES_PUBLIC_ANON)} public tables (FAQs)")
+    print(f"  - {len(TABLES_AUTHENTICATED_ONLY)} authenticated-only tables")
+    print(f"  - {len(DEV_AGENT_TABLES)} dev_agent tables")
     print()
     
     total_tests = 0
