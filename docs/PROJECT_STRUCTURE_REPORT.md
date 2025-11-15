@@ -6,9 +6,10 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.2.0  
-**Last Updated**: 2025-11-04  
-**Project Phase**: Phase 8 (v8.0.0)
+**Document Version**: 1.3.0  
+**Last Updated**: 2025-11-15  
+**Project Phase**: Phase 8 (v8.0.0)  
+**Owner Console Status**: P0+P1 Complete (Week 1-2), Week 3 60% Complete, Week 4 Not Started
 
 ---
 
@@ -49,7 +50,8 @@ This document provides a comprehensive overview of the MorningAI project structu
 - **Total Lines of Code**: ~100,000+
 - **Documentation Files**: 50+
 - **GitHub Actions Workflows**: 15+
-- **Test Coverage**: 41% (Target: 80%)
+- **Test Coverage**: 41% overall (Target: 80%)
+  - **Owner Console**: 59.89% lines, 57.43% statements (exceeds 30% target)
 - **Active Branches**: `main` (production), `develop` (staging)
 
 ### Technology Stack
@@ -563,16 +565,44 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 
 **Architecture**: React 19.1.0 + Vite 6 + TypeScript 5.9
 
+**Development Status** (Updated 2025-11-15):
+- ✅ **P0 (Week 1)**: Token security (credentials + CSRF + 401 retry) - COMPLETE
+- ✅ **P1 (Week 2)**: 2FA system (10 components + 11 tests + enforcement), Test coverage 59.89% lines - COMPLETE
+- 🟡 **P1 (Week 3)**: Mock cleanup (complete), Agent Logs (60% - missing Trace links/drawer/skeleton), SystemMonitoring (60% - missing skeleton/empty states/charts) - PARTIAL
+- 🔴 **P2 (Week 4)**: Billing/Subscription/Alerting - NOT STARTED
+
 **Key Features**:
-- System Monitoring (health checks, metrics, logs)
-- Agent Governance (agent management, execution tracking, reputation)
-- Tenant Management
-- 2FA Settings
-- Admin controls
+- ✅ System Monitoring (health checks, metrics, logs, real API integration)
+- ✅ Agent Governance (agent management, execution tracking, reputation)
+- ✅ Tenant Management (real API integration)
+- ✅ 2FA Settings (enrollment, challenge, backup codes, trusted devices)
+- ✅ Admin controls with enhanced security
+- 🟡 Agent Execution Logs (filtering, pagination, sorting - missing Trace ID links, detail drawer, skeleton loading)
+- 🔴 Billing Dashboard (not started)
+- 🔴 Subscription Management (not started)
+- 🔴 Alerting System (not started)
+
+**Test Coverage**:
+- 59.89% lines, 57.43% statements (exceeds 30% target)
+- 47 tests passing
+- Key test files: `auth-2fa.test.tsx` (11 tests), `2fa-api.test.ts` (7 tests)
+
+**Security Features**:
+- ✅ HttpOnly cookies with credentials: 'include'
+- ✅ CSRF token protection (automatic injection)
+- ✅ 401 automatic refresh retry mechanism
+- ✅ 403 CSRF failure automatic retry
+- ✅ Open redirect prevention (sanitizeRedirect)
+- ✅ Mandatory 2FA for owner role
+- ✅ Generated clients use secured apiClient
 
 **Deployment**:
 - Production: https://admin.gm365.me
 - Vercel deployment
+
+**Related Documentation**:
+- Phase Plan: `docs/OWNER_CONSOLE_PHASE_PLAN.md`
+- Investigation Report: `docs/WEEK_3_4_INVESTIGATION_REPORT.md`
 
 ⚠️ **Cross-Import Restrictions**: ESLint enforces `no-restricted-imports` to prevent accidental imports between frontend-dashboard and owner-console. Use `packages/shared-ui` for shared components.
 
