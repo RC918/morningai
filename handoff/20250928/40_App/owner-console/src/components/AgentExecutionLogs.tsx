@@ -272,13 +272,13 @@ const AgentExecutionLogs = () => {
 
   if (loading && logs.length === 0) {
     return (
-      <div className="space-y-lg">
+      <div className="space-y-6">
         {/* Summary Statistics Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-md">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
-              <CardContent className="pt-lg">
-                <div className="flex items-center justify-between mb-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-2">
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-5 w-5 rounded-full" />
                 </div>
@@ -294,7 +294,7 @@ const AgentExecutionLogs = () => {
             <Skeleton className="h-6 w-32" />
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i}>
                   <Skeleton className="h-4 w-20 mb-2" />
@@ -332,7 +332,7 @@ const AgentExecutionLogs = () => {
   }
 
   return (
-    <div className="space-y-lg">
+    <div className="space-y-6">
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -343,7 +343,7 @@ const AgentExecutionLogs = () => {
               onClick={loadExecutionLogs} 
               variant="outline" 
               size="sm" 
-              className="ml-md"
+              className="ml-4"
             >
               {t('common.retry')}
             </Button>
@@ -353,10 +353,10 @@ const AgentExecutionLogs = () => {
 
       {/* Summary Statistics */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-md">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="pt-lg">
-              <div className="flex items-center justify-between mb-sm">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.totalExecutions')}</p>
                 <Activity className="w-5 h-5 text-primary-600" />
               </div>
@@ -367,8 +367,8 @@ const AgentExecutionLogs = () => {
           </Card>
 
           <Card>
-            <CardContent className="pt-lg">
-              <div className="flex items-center justify-between mb-sm">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.successRate')}</p>
                 <CheckCircle className="w-5 h-5 text-success-600" />
               </div>
@@ -379,8 +379,8 @@ const AgentExecutionLogs = () => {
           </Card>
 
           <Card>
-            <CardContent className="pt-lg">
-              <div className="flex items-center justify-between mb-sm">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.avgDuration')}</p>
                 <Clock className="w-5 h-5 text-accent-600" />
               </div>
@@ -391,8 +391,8 @@ const AgentExecutionLogs = () => {
           </Card>
 
           <Card>
-            <CardContent className="pt-lg">
-              <div className="flex items-center justify-between mb-sm">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.statusBreakdown')}</p>
                 <Filter className="w-5 h-5 text-neutral-600" />
               </div>
@@ -412,13 +412,13 @@ const AgentExecutionLogs = () => {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-sm">
+          <CardTitle className="flex items-center gap-2">
             <Filter className="w-5 h-5" />
             {t('common.filter')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.status')}
@@ -486,7 +486,7 @@ const AgentExecutionLogs = () => {
               />
             </div>
 
-            <div className="flex items-end gap-sm">
+            <div className="flex items-end gap-2">
               <Button onClick={handleApplyFilters} className="flex-1">
                 {t('governance.executionLogs.filters.applyFilters')}
               </Button>
@@ -591,10 +591,10 @@ const AgentExecutionLogs = () => {
                 {logs.map((log) => {
                   const { normalized: normalizedStatus, isKnown } = normalizeExecutionLogStatus(log.status)
                   return (
-                    <div key={log.task_id} className="border rounded-lg p-md hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                    <div key={log.task_id} className="border rounded-lg p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-sm">
+                          <div className="flex items-center gap-3 mb-2">
                             <StatusBadge status={normalizedStatus} showIcon>
                               {isKnown 
                                 ? t(`governance.executionLogs.statuses.${normalizedStatus}`)
@@ -611,7 +611,7 @@ const AgentExecutionLogs = () => {
                             )}
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-md text-sm">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
                             {log.agent && (
                               <div>
                                 <p className="text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.columns.agent')}</p>

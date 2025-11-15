@@ -15,6 +15,10 @@
       }
     }
   },
+  "monitoring": {
+    "noHealthData": "No system health data available",
+    "noMetricsData": "No metrics available yet"
+  },
   "settings": {
     "2fa": {
       "card": {
