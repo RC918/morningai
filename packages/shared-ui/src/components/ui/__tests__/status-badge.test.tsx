@@ -100,4 +100,10 @@ describe('StatusBadge', () => {
     const svg = container.querySelector('svg')
     expect(svg).toHaveClass('animate-pulse')
   })
+
+  it('includes gap-1 for icon/text spacing', () => {
+    const { container } = render(<StatusBadge status="completed">Completed</StatusBadge>)
+    const badge = container.firstChild as HTMLElement
+    expect(badge).toHaveClass('gap-1')
+  })
 })
