@@ -295,6 +295,34 @@ curl http://localhost:8001/health
 
 ### Step 7: Run Storybook (Optional)
 
+**Owner Console**:
+```bash
+cd handoff/20250928/40_App/owner-console
+pnpm storybook
+# Access at http://localhost:6007
+```
+
+**Features**:
+- MSW addon for API mocking with wildcard host matching
+- Dark mode toggle in toolbar (synced with next-themes)
+- Test runner with a11y checks: `pnpm test-storybook`
+- 13 stories covering SystemMonitoring and AgentExecutionLogs
+
+**Adding MSW Handlers:**
+```typescript
+export const MyStory = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get('*/api/your-endpoint', () => {
+          return HttpResponse.json({ data: 'mock response' });
+        }),
+      ],
+    },
+  },
+};
+```
+
 **Shared UI Components**:
 ```bash
 cd packages/shared-ui
