@@ -306,7 +306,7 @@ pnpm storybook
 - Interactive component documentation and testing environment
 - View and test UI components in isolation
 - Added November 2025 (Storybook 8.6.14)
-- 8+ core components documented (Card, Button, Badge, Alert, Avatar, Progress, Tabs, Dialog)
+- Core components documented in `packages/shared-ui` (Card, Button, Badge, Alert, Avatar, Progress, Tabs, Dialog, Input, Form, Table, Pagination, Select, StatusBadge)
 
 **Adding New Stories:**
 1. Create `*.stories.tsx` file next to your component
@@ -487,7 +487,7 @@ morningai/
 │   │   └── vite.config.ts        # Vite configuration
 │   │
 │   └── owner-console/             # Owner management console
-│       ├── src/components/AgentExecutionLogs.jsx  # Agent execution history (added Nov 2025)
+│       ├── src/components/AgentExecutionLogs.tsx  # Agent execution history (added Nov 2025)
 │       ├── src/pages/AgentGovernance.jsx          # Agent governance dashboard
 │       └── ...                    # Owner console files
 │
@@ -618,7 +618,7 @@ pnpm test:coverage
 
 #### Visual Regression Testing (VRT)
 
-**Status:** ✅ Re-enabled November 2025 (PR #1288)
+**Status:** ✅ Re-enabled November 2025 (PR #1288; related: #1287 frontend tests, #1293 Storybook test-runner)
 
 **What is VRT?**
 - Automated visual comparison of UI screenshots

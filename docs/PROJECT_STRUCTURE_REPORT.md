@@ -955,7 +955,7 @@ primary_region = "nrt"
 - **Configuration**: 
   - Frontend Dashboard: `handoff/20250928/40_App/frontend-dashboard/.storybook/main.ts:1-53`
   - Shared UI: `packages/shared-ui/.storybook/main.ts` (Storybook 8.6.14)
-- **Stories**: 34+ total (26 in frontend-dashboard, 8+ in shared-ui, 5 in tools/frontend-lab)
+- **Stories**: 39+ total (26 in frontend-dashboard, 13 in shared-ui, 5 in tools/frontend-lab)
 - **Components Documented**: Apple-style components, design system showcase, color/spacing/typography systems, shared UI components (Card, Button, Badge, Alert, Avatar, Progress, Tabs, Dialog)
 - **Running Storybook**:
   - Shared UI: `pnpm --filter @morningai/shared-ui storybook` (port 6006)

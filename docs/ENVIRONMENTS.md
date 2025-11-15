@@ -428,7 +428,7 @@ ENABLE_RATE_LIMIT_IN_TESTS=false
 RUN_PY_BROWSER_E2E=false
 
 # Flask environment mode (now accepts 'testing' for test environments)
-FLASK_ENV=testing  # Options: development, production, testing
+FLASK_ENV=testing  # Options: development, staging, production, testing (default: development)
 ```
 
 **⚠️ CRITICAL:** These flags MUST ONLY be set in test/development environments. Never set in production/staging.
