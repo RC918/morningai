@@ -92,6 +92,22 @@
 - [ ] 所有測試通過：`pnpm test`
 - [ ] 程式碼遵循現有模式和慣例
 
+## 文檔更新檢查清單 (Documentation Updates)
+
+如果此 PR 包含以下類型的變更，請確認相關文檔已更新：
+
+- [ ] **新增基礎設施/工具** (Storybook, VRT, CI jobs 等) → 更新 `ONBOARDING_GUIDE.md` 和 `PROJECT_STRUCTURE_REPORT.md`
+- [ ] **新增/修改環境變數** → 更新 `config/env.schema.yaml` 和 `docs/ENVIRONMENTS.md`
+- [ ] **新增功能/API 端點** → 更新 `ONBOARDING_GUIDE.md` 或相關 API 文檔
+- [ ] **修改部署流程** → 更新 `docs/deployment/` 相關文件
+- [ ] **架構變更** → 更新 `PROJECT_STRUCTURE_REPORT.md` 和相關 ADR
+- [ ] 不適用 - 此 PR 不需要文檔更新
+
+**重要**: 文檔是單一真實來源。請確保：
+- `config/env.schema.yaml` 是所有環境變數的 SSOT
+- `ENVIRONMENTS.md` 反映所有環境變數變更
+- `ONBOARDING_GUIDE.md` 包含新開發者需要的所有設置步驟
+
 ## 提醒
 - [ ] 不修改 OpenAPI/資料欄位（若要改，先提 RFC）
 - [ ] 設計 PR 僅含 UI/文案/樣式；工程 PR 僅含 API/邏輯
