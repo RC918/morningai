@@ -101,6 +101,10 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-react": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
     "@storybook/addon-a11y": "^8.6.14",
     "@storybook/addon-essentials": "^8.6.14",
     "@storybook/addon-interactions": "^8.6.14",
@@ -108,6 +112,7 @@
     "@storybook/blocks": "^8.6.14",
     "@storybook/react": "^8.6.14",
     "@storybook/react-vite": "^8.6.14",
+    "@storybook/react-webpack5": "8.6.14",
     "@storybook/test": "^8.6.14",
     "@storybook/test-runner": "^0.24.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -116,6 +121,7 @@
     "@types/react-dom": "^18.2.0",
     "@vitest/ui": "^4.0.3",
     "axe-playwright": "^2.2.2",
+    "babel-loader": "^10.0.0",
     "concurrently": "^9.2.1",
     "happy-dom": "^20.0.8",
     "http-server": "^14.1.1",

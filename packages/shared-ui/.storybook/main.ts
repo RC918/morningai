@@ -1,6 +1,5 @@
-import type { StorybookConfig } from '@storybook/react-vite'
-import type { InlineConfig } from 'vite'
-import preserveDirectives from 'rollup-plugin-preserve-directives'
+import type { StorybookConfig } from '@storybook/react-webpack5'
+import type { Configuration } from 'webpack'
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
@@ -11,36 +10,41 @@ const config: StorybookConfig = {
     '@storybook/addon-a11y',
   ],
   framework: {
-    name: '@storybook/react-vite',
+    name: '@storybook/react-webpack5',
     options: {},
   },
   docs: {
     autodocs: 'tag',
   },
-  async viteFinal(config: InlineConfig) {
-    return {
-      ...config,
-      build: {
-        ...(config.build || {}),
-        sourcemap: false,
-        rollupOptions: {
-          ...(config.build?.rollupOptions || {}),
-          plugins: [
-            ...(config.build?.rollupOptions?.plugins || []),
-            preserveDirectives(),
+  async webpackFinal(config: Configuration) {
+    config.module = config.module || {}
+    config.module.rules = config.module.rules || []
+    
+    config.module.rules.push({
+      test: /\.(ts|tsx)$/,
+      exclude: /node_modules/,
+      use: {
+        loader: 'babel-loader',
+        options: {
+          presets: [
+            '@babel/preset-env',
+            ['@babel/preset-react', { runtime: 'automatic', importSource: 'react' }],
+            '@babel/preset-typescript',
           ],
         },
       },
-      ssr: {
-        ...(config.ssr || {}),
-        noExternal: [
-          /^@radix-ui/,
-          'react-remove-scroll',
-          'aria-hidden',
-          'react-style-singleton',
-        ],
-      },
+    })
+    
+    config.resolve = config.resolve || {}
+    config.resolve.extensions = config.resolve.extensions || []
+    if (!config.resolve.extensions.includes('.ts')) {
+      config.resolve.extensions.push('.ts')
     }
+    if (!config.resolve.extensions.includes('.tsx')) {
+      config.resolve.extensions.push('.tsx')
+    }
+    
+    return config
   },
 }
 
