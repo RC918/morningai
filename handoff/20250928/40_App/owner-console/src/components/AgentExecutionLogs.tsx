@@ -29,7 +29,8 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  Skeleton
 } from '@morningai/shared-ui'
 import { 
   Filter,
@@ -271,8 +272,61 @@ const AgentExecutionLogs = () => {
 
   if (loading && logs.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="space-y-lg">
+        {/* Summary Statistics Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-md">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="pt-lg">
+                <div className="flex items-center justify-between mb-sm">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-5 w-5 rounded-full" />
+                </div>
+                <Skeleton className="h-9 w-20" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Filters Skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i}>
+                  <Skeleton className="h-4 w-20 mb-2" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Table Skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64 mt-2" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-36" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }

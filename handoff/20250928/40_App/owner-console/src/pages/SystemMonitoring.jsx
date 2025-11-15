@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Alert, AlertDescription, AlertTitle } from '@morningai/shared-ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Alert, AlertDescription, AlertTitle, Skeleton } from '@morningai/shared-ui'
 import { Activity, Server, Database, Zap, AlertTriangle, Cpu, HardDrive, RefreshCw } from 'lucide-react'
 import { getAdminSystemHealth, getAdminSystemMetrics } from '@/lib/generated/admin/admin'
 
@@ -65,9 +65,58 @@ const SystemMonitoring = () => {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="p-8 space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-9 w-64 mb-2" />
+            <Skeleton className="h-5 w-96" />
+          </div>
+          <Skeleton className="h-10 w-24" />
+        </div>
+
+        {/* System Health Card Skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between mb-4">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex justify-between">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Metrics Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     )
@@ -107,6 +156,18 @@ const SystemMonitoring = () => {
         </Alert>
       )}
 
+      {!error && !health && !loading && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">{t('monitoring.noHealthData')}</p>
+            <Button onClick={loadSystemData} variant="outline" className="mt-4">
+              {t('common.refresh')}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {health && (
         <Card>
           <CardHeader>
@@ -136,6 +197,18 @@ const SystemMonitoring = () => {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!error && !metrics && !loading && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Database className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">{t('monitoring.noMetricsData')}</p>
+            <Button onClick={loadSystemData} variant="outline" className="mt-4">
+              {t('common.refresh')}
+            </Button>
           </CardContent>
         </Card>
       )}
