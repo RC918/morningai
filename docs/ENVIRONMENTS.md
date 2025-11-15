@@ -419,6 +419,22 @@ RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempt
 RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
 ```
 
+**Testing Flags** (⚠️ **DEVELOPMENT/TEST ONLY** - Added Nov 2025):
+```bash
+# Enable rate limiting in test environment (default: false)
+ENABLE_RATE_LIMIT_IN_TESTS=false
+
+# Enable Playwright browser E2E tests (requires staging credentials)
+RUN_PY_BROWSER_E2E=false
+
+# Flask environment mode (now accepts 'testing' for test environments)
+FLASK_ENV=testing  # Options: development, production, testing
+```
+
+**⚠️ CRITICAL:** These flags MUST ONLY be set in test/development environments. Never set in production/staging.
+
+**Schema:** See `config/env.schema.yaml` for complete definitions and constraints.
+
 **Frontend `.env.local`**:
 ```bash
 VITE_API_URL=http://localhost:8000
@@ -429,6 +445,21 @@ VITE_ENVIRONMENT=development
 VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
 VITE_ORCHESTRATOR_URL=https://morningai-orchestrator-api-stg.onrender.com
 ```
+
+**VITE_API_BASE_URL** (Frontend - Added/Updated Nov 2025):
+```bash
+# For Vercel preview/production deployments (uses Vercel proxy)
+VITE_API_BASE_URL=/api
+
+# For local development or direct backend access
+VITE_API_BASE_URL=http://localhost:8000/api
+# or
+VITE_API_BASE_URL=https://morningai-backend-v2-stg.onrender.com/api
+```
+
+**Important:** The value must include the `/api` suffix. For Vercel deployments, use `/api` (relative path) to leverage Vercel's proxy. For direct backend access, use the full URL with `/api` suffix.
+
+**Schema:** See `config/env.schema.yaml` for complete definition.
 
 ### Setup Documentation
 

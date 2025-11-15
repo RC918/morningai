@@ -949,11 +949,17 @@ primary_region = "nrt"
 - Accessibility tests: axe-core integration
 
 **Storybook Architecture**:
-- **Location**: `handoff/20250928/40_App/frontend-dashboard/.storybook/`
-- **Configuration**: `handoff/20250928/40_App/frontend-dashboard/.storybook/main.ts:1-53`
-- **Stories**: 26 total (21 in frontend-dashboard, 5 in tools/frontend-lab)
-- **Components Documented**: Apple-style components, design system showcase, color/spacing/typography systems
-- **Note**: `packages/shared-ui` (52 components) has no independent Storybook; components are documented through application-layer Storybook
+- **Location**: 
+  - Application Layer: `handoff/20250928/40_App/frontend-dashboard/.storybook/`
+  - Shared UI: `packages/shared-ui/.storybook/` (added November 2025)
+- **Configuration**: 
+  - Frontend Dashboard: `handoff/20250928/40_App/frontend-dashboard/.storybook/main.ts:1-53`
+  - Shared UI: `packages/shared-ui/.storybook/main.ts` (Storybook 8.6.14)
+- **Stories**: 34+ total (26 in frontend-dashboard, 8+ in shared-ui, 5 in tools/frontend-lab)
+- **Components Documented**: Apple-style components, design system showcase, color/spacing/typography systems, shared UI components (Card, Button, Badge, Alert, Avatar, Progress, Tabs, Dialog)
+- **Running Storybook**:
+  - Shared UI: `pnpm --filter @morningai/shared-ui storybook` (port 6006)
+  - Frontend Dashboard: `pnpm --filter frontend-dashboard storybook` (port 6006)
 - **Design Tokens**: Single source of truth at `packages/shared-ui/src/tokens.json`
 
 ### CI/CD Testing

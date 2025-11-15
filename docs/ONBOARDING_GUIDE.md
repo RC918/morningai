@@ -293,6 +293,28 @@ curl http://localhost:8001/health
 - Open http://localhost:5173 in browser
 - Should see MorningAI dashboard
 
+### Step 7: Run Storybook (Optional)
+
+**Shared UI Components**:
+```bash
+cd packages/shared-ui
+pnpm storybook
+# Access at http://localhost:6006
+```
+
+**What is Storybook?**
+- Interactive component documentation and testing environment
+- View and test UI components in isolation
+- Added November 2025 (Storybook 8.6.14)
+- 8+ core components documented (Card, Button, Badge, Alert, Avatar, Progress, Tabs, Dialog)
+
+**Adding New Stories:**
+1. Create `*.stories.tsx` file next to your component
+2. Follow existing patterns in `packages/shared-ui/src/components/ui/*.stories.tsx`
+3. Stories are automatically discovered by Storybook
+
+**Documentation:** See [Storybook Documentation](https://storybook.js.org/docs/react/get-started/introduction)
+
 ---
 
 ## Development Workflow
@@ -465,8 +487,19 @@ morningai/
 │   │   └── vite.config.ts        # Vite configuration
 │   │
 │   └── owner-console/             # Owner management console
+│       ├── src/components/AgentExecutionLogs.jsx  # Agent execution history (added Nov 2025)
+│       ├── src/pages/AgentGovernance.jsx          # Agent governance dashboard
 │       └── ...                    # Owner console files
 │
+**Owner Console Features** (Admin Interface):
+- **Agent Governance** (`/governance`) - Agent reputation, permissions, violations
+- **Agent Execution Logs** (`/governance` → Execution Logs tab) - **NEW Nov 2025**
+  - Detailed task execution history with status, timestamps, and trace IDs
+  - Filter by agent type, status, and time range
+  - API endpoint: `GET /api/admin/agent-execution-logs`
+- **Tenant Management** (`/tenants`) - Multi-tenant account management
+- **System Monitoring** (`/monitoring`) - System health and metrics
+
 ├── docs/                           # Documentation
 │   ├── ENVIRONMENTS.md            # Environment architecture
 │   ├── ops/
@@ -582,6 +615,37 @@ pnpm test:coverage
 ### Testing
 - **[Testing Guide](TESTING.md)** - Comprehensive testing documentation
 - **[Phase 3 Testing](PHASE3_TESTING_GUIDE.md)** - Phase 3 testing guide
+
+#### Visual Regression Testing (VRT)
+
+**Status:** ✅ Re-enabled November 2025 (PR #1288)
+
+**What is VRT?**
+- Automated visual comparison of UI screenshots
+- Detects unintended visual changes
+- Uses Playwright for browser automation
+
+**Running VRT Tests:**
+```bash
+cd handoff/20250928/40_App/frontend-dashboard
+
+# Run VRT tests
+pnpm test:vrt
+
+# Update snapshots (after intentional UI changes)
+pnpm test:vrt --update-snapshots
+```
+
+**CI Integration:**
+- VRT runs automatically on PRs via `.github/workflows/frontend.yml`
+- Snapshots stored in `tests/vrt.spec.ts-snapshots/`
+- Failures indicate visual regressions - review carefully before updating
+
+**Configuration:** `playwright.config.ts` - VRT-specific settings
+
+**Troubleshooting:**
+- If VRT fails after intentional UI changes, update snapshots locally and commit
+- Ensure consistent browser/OS for snapshot generation (CI uses Ubuntu + Chromium)
 
 ---
 
