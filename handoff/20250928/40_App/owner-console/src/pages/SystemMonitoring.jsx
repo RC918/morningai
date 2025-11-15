@@ -47,13 +47,13 @@ const SystemMonitoring = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'healthy':
-        return 'bg-green-100 text-green-800 border-green-300'
+        return 'bg-success-100 text-success-800 border-success-300'
       case 'degraded':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+        return 'bg-warning-100 text-warning-800 border-warning-300'
       case 'unhealthy':
-        return 'bg-red-100 text-red-800 border-red-300'
+        return 'bg-error-100 text-error-800 border-error-300'
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300'
+        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
     }
   }
 
@@ -67,7 +67,7 @@ const SystemMonitoring = () => {
     return (
       <div className="p-8">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
       </div>
     )
@@ -77,11 +77,11 @@ const SystemMonitoring = () => {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Activity className="w-8 h-8 text-green-600" />
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
+            <Activity className="w-8 h-8 text-success-600" />
             {t('monitoring.title')}
           </h1>
-          <p className="text-gray-600 mt-1">{t('monitoring.subtitle')}</p>
+          <p className="text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
         </div>
         <Button onClick={loadSystemData} variant="outline" disabled={loading}>
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -124,12 +124,12 @@ const SystemMonitoring = () => {
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">{t('monitoring.uptime')}</span>
+                <span className="text-sm text-neutral-600 dark:text-neutral-400">{t('monitoring.uptime')}</span>
                 <span className="text-sm font-semibold">{formatUptime(health.uptime_hours)}</span>
               </div>
               {health.services && Object.entries(health.services).map(([service, status]) => (
                 <div key={service} className="flex justify-between">
-                  <span className="text-sm text-gray-600 capitalize">{service}</span>
+                  <span className="text-sm text-neutral-600 dark:text-neutral-400 capitalize">{service}</span>
                   <Badge className={getStatusColor(status)} variant="outline">
                     {status}
                   </Badge>
