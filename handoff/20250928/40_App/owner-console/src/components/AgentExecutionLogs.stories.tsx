@@ -14,8 +14,8 @@ export const InitialLoading = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/agent-execution-logs', async () => {
-          await new Promise(resolve => setTimeout(resolve, 10000));
+        http.get('*/api/admin/agent-execution-logs', async () => {
+          await new Promise(resolve => setTimeout(resolve, 1500));
           return HttpResponse.json({});
         }),
       ],
@@ -27,7 +27,7 @@ export const WithSuccessfulExecutions = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/agent-execution-logs', () => {
+        http.get('*/api/admin/agent-execution-logs', () => {
           return HttpResponse.json({
             execution_logs: [
               {
@@ -105,7 +105,7 @@ export const WithMixedStatuses = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/agent-execution-logs', () => {
+        http.get('*/api/admin/agent-execution-logs', () => {
           return HttpResponse.json({
             execution_logs: [
               {
@@ -217,7 +217,7 @@ export const ErrorState = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/agent-execution-logs', () => {
+        http.get('*/api/admin/agent-execution-logs', () => {
           return HttpResponse.json(
             { error: 'Failed to fetch execution logs' },
             { status: 500 }
@@ -232,7 +232,7 @@ export const EmptyState = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/agent-execution-logs', () => {
+        http.get('*/api/admin/agent-execution-logs', () => {
           return HttpResponse.json({
             execution_logs: [],
             summary: {
@@ -256,7 +256,7 @@ export const WithPagination = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/agent-execution-logs', () => {
+        http.get('*/api/admin/agent-execution-logs', () => {
           return HttpResponse.json({
             execution_logs: Array.from({ length: 10 }, (_, i) => ({
               task_id: `task-${String(i + 1).padStart(3, '0')}`,

@@ -1,69 +1,78 @@
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, delay } from 'msw';
 
 export const handlers = [
-  http.get('/api/monitoring/system-health', () => {
-    return HttpResponse.json({
-      status: 'healthy',
-      uptime: 86400,
-      memory: {
-        used: 512,
-        total: 1024,
-        percentage: 50
-      },
-      cpu: {
-        usage: 25
-      },
-      services: {
-        database: 'healthy',
-        redis: 'healthy',
-        queue: 'healthy'
-      }
-    });
+  http.get('*/api/auth/v2/csrf', async () => {
+    return HttpResponse.json({ token: 'test-csrf-token' });
   }),
 
-  http.get('/api/monitoring/metrics', () => {
-    return HttpResponse.json({
-      activeAgents: 5,
-      queueDepth: 12,
-      tasksCompleted: 150,
-      averageResponseTime: 2.5
-    });
+  http.post('*/api/auth/v2/refresh', async () => {
+    return HttpResponse.json({ ok: true });
   }),
 
-  http.get('/api/admin/agent-execution-logs', () => {
+  http.get('*/api/admin/system/health', async () => {
+    await delay(1500);
     return HttpResponse.json({
-      logs: [
-        {
-          id: '1',
-          agent_type: 'dev_agent',
-          task_type: 'create_pr',
-          status: 'completed',
-          created_at: '2025-11-15T10:00:00Z',
-          completed_at: '2025-11-15T10:05:00Z',
-          duration: 300,
-          trace_id: 'trace-001'
+      data: {
+        status: 'healthy',
+        uptime_seconds: 86400,
+        services: {
+          database: { status: 'healthy', response_time_ms: 15 },
+          redis: { status: 'healthy', response_time_ms: 5 },
+          api: { status: 'healthy', response_time_ms: 20 },
         },
-        {
-          id: '2',
-          agent_type: 'ops_agent',
-          task_type: 'deploy',
-          status: 'running',
-          created_at: '2025-11-15T10:10:00Z',
-          trace_id: 'trace-002'
-        }
-      ],
-      total: 2,
-      page: 1,
-      pageSize: 10
+      },
     });
   }),
 
-  http.get('/api/admin/agent-stats', () => {
+  http.get('*/api/admin/system/metrics', async () => {
+    await delay(1500);
     return HttpResponse.json({
-      totalExecutions: 150,
-      successRate: 92.5,
-      averageDuration: 245,
-      activeAgents: 5
+      data: {
+        cpu_usage: 45.2,
+        memory_usage: 62.8,
+        disk_usage: 38.5,
+        request_rate: 150,
+      },
     });
-  })
+  }),
+
+  http.get('*/api/admin/agent-execution-logs', async () => {
+    await delay(1500);
+    return HttpResponse.json({
+      execution_logs: [
+        {
+          task_id: 'task-001',
+          status: 'completed',
+          task_type: 'code_review',
+          agent: { agent_type: 'dev_agent', reputation_score: 150 },
+          duration_ms: 5000,
+          timestamps: {
+            created_at: '2024-01-15T10:00:00Z',
+            completed_at: '2024-01-15T10:00:05Z',
+          },
+        },
+      ],
+      summary: {
+        total_executions: 1,
+        success_rate: 100,
+        avg_duration_ms: 5000,
+      },
+      pagination: {
+        total_items: 1,
+        total_pages: 1,
+      },
+    });
+  }),
+
+  http.get('*/api/admin/agent-stats', async () => {
+    await delay(1500);
+    return HttpResponse.json({
+      data: {
+        total_agents: 5,
+        active_agents: 3,
+        total_tasks: 100,
+        success_rate: 95,
+      },
+    });
+  }),
 ];

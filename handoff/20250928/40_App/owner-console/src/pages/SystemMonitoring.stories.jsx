@@ -14,8 +14,8 @@ export const Loading = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/system-health', async () => {
-          await new Promise(resolve => setTimeout(resolve, 10000));
+        http.get('*/api/admin/system/health', async () => {
+          await new Promise(resolve => setTimeout(resolve, 1500));
           return HttpResponse.json({});
         }),
       ],
@@ -27,10 +27,10 @@ export const EmptyHealthData = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/system-health', () => {
+        http.get('*/api/admin/system/health', () => {
           return HttpResponse.json(null);
         }),
-        http.get('/api/admin/system-metrics', () => {
+        http.get('*/api/admin/system/metrics', () => {
           return HttpResponse.json({
             cpu: { usage_percent: 45, count: 4 },
             memory: { usage_percent: 62, used_gb: 6.2, total_gb: 10 },
@@ -46,7 +46,7 @@ export const EmptyMetricsData = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/system-health', () => {
+        http.get('*/api/admin/system/health', () => {
           return HttpResponse.json({
             status: 'healthy',
             uptime_hours: 72,
@@ -57,7 +57,7 @@ export const EmptyMetricsData = {
             }
           });
         }),
-        http.get('/api/admin/system-metrics', () => {
+        http.get('*/api/admin/system/metrics', () => {
           return HttpResponse.json(null);
         }),
       ],
@@ -69,7 +69,7 @@ export const HealthySystem = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/system-health', () => {
+        http.get('*/api/admin/system/health', () => {
           return HttpResponse.json({
             status: 'healthy',
             uptime_hours: 168,
@@ -81,7 +81,7 @@ export const HealthySystem = {
             }
           });
         }),
-        http.get('/api/admin/system-metrics', () => {
+        http.get('*/api/admin/system/metrics', () => {
           return HttpResponse.json({
             cpu: { usage_percent: 35, count: 8 },
             memory: { usage_percent: 58, used_gb: 11.6, total_gb: 20 },
@@ -97,7 +97,7 @@ export const DegradedSystem = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/system-health', () => {
+        http.get('*/api/admin/system/health', () => {
           return HttpResponse.json({
             status: 'degraded',
             uptime_hours: 24,
@@ -109,7 +109,7 @@ export const DegradedSystem = {
             }
           });
         }),
-        http.get('/api/admin/system-metrics', () => {
+        http.get('*/api/admin/system/metrics', () => {
           return HttpResponse.json({
             cpu: { usage_percent: 78, count: 8 },
             memory: { usage_percent: 85, used_gb: 17, total_gb: 20 },
@@ -125,7 +125,7 @@ export const UnhealthySystem = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/system-health', () => {
+        http.get('*/api/admin/system/health', () => {
           return HttpResponse.json({
             status: 'unhealthy',
             uptime_hours: 2,
@@ -137,7 +137,7 @@ export const UnhealthySystem = {
             }
           });
         }),
-        http.get('/api/admin/system-metrics', () => {
+        http.get('*/api/admin/system/metrics', () => {
           return HttpResponse.json({
             cpu: { usage_percent: 95, count: 8 },
             memory: { usage_percent: 98, used_gb: 19.6, total_gb: 20 },
@@ -153,13 +153,13 @@ export const ErrorState = {
   parameters: {
     msw: {
       handlers: [
-        http.get('/api/admin/system-health', () => {
+        http.get('*/api/admin/system/health', () => {
           return HttpResponse.json(
             { error: 'Failed to fetch system health' },
             { status: 500 }
           );
         }),
-        http.get('/api/admin/system-metrics', () => {
+        http.get('*/api/admin/system/metrics', () => {
           return HttpResponse.json(
             { error: 'Failed to fetch system metrics' },
             { status: 500 }
