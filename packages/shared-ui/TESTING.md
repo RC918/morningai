@@ -242,14 +242,14 @@ storybook-a11y-tests:
       run: pnpm run test-storybook:ci
 ```
 
-**Note**: The CI uses Storybook dev server (`storybook --ci`) instead of static build (`build-storybook`) to avoid Vite bundling issues with "use client" directives in React Server Components.
+**Note**: The CI uses static Storybook build (`build-storybook`) with Vite configuration patches to handle "use client" directives in Radix UI components. The `.storybook/main.ts` includes a `viteFinal` hook that disables sourcemaps and prevents externalizing Radix packages.
 
 ### Performance Optimizations
 
 - **Playwright Cache**: Browsers are cached between runs (~200MB saved)
 - **maxWorkers=2**: Limits parallel tests to avoid CI resource exhaustion
 - **Explicit URL**: `--url http://127.0.0.1:6006` avoids auto-detection issues
-- **Dev Server Mode**: Uses `storybook --ci` instead of static build for faster startup and better compatibility
+- **Vite Configuration**: Custom `viteFinal` hook fixes bundling issues with React Server Component directives
 
 ## Troubleshooting
 
