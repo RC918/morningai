@@ -1034,6 +1034,32 @@ pytest tests/test_specific.py -v
 3. Check if tests pass locally
 4. Review recent commits for breaking changes
 
+### Issue: Tailwind v4 max-w-* utilities not working correctly
+
+**Symptoms**: Container widths collapse to 16px instead of expected rem values (e.g., max-w-md should be 28rem/448px but renders as 16px)
+
+**Root Cause**: Tailwind v4 incorrectly maps max-w-* utilities to --spacing-* tokens which are intended for padding/margin, not container widths.
+
+**Solution**: The fix is already implemented in `owner-console/src/styles/theme.css`:
+- Separate `--max-width-*` tokens are defined (lines 24-35)
+- These tokens use correct rem values (sm: 24rem, md: 28rem, lg: 32rem, etc.)
+- Tailwind v4 now uses these dedicated tokens instead of spacing tokens
+
+**Verification**:
+```bash
+# Run the regression test
+cd handoff/20250928/40_App/owner-console
+npm run test:e2e -- max-width-regression.spec.ts
+
+# Check computed styles in browser DevTools
+# max-w-md should show maxWidth: 448px (not 16px)
+```
+
+**Related**:
+- PR #1303: Initial hotfix with CSS overrides
+- PR #1304: Root cause fix with dedicated --max-width-* tokens
+- Regression test: `e2e/max-width-regression.spec.ts`
+
 ---
 
 ## Getting Help
