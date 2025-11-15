@@ -111,16 +111,16 @@ export const WithIcon: Story = {
 export const IconOnly: Story = {
   render: () => (
     <div className="flex gap-2">
-      <Button size="icon">
+      <Button size="icon" aria-label="Next">
         <ChevronRight />
       </Button>
-      <Button size="icon" variant="outline">
+      <Button size="icon" variant="outline" aria-label="Download">
         <Download />
       </Button>
-      <Button size="icon" variant="ghost">
+      <Button size="icon" variant="ghost" aria-label="Add">
         <Plus />
       </Button>
-      <Button size="icon" variant="destructive">
+      <Button size="icon" variant="destructive" aria-label="Delete">
         <Trash2 />
       </Button>
     </div>
@@ -188,7 +188,7 @@ export const AllSizes: Story = {
       <Button size="sm">Small</Button>
       <Button size="default">Default</Button>
       <Button size="lg">Large</Button>
-      <Button size="icon">
+      <Button size="icon" aria-label="Add">
         <Plus />
       </Button>
     </div>

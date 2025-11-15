@@ -16,7 +16,7 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   render: () => (
     <Select>
-      <SelectTrigger className="w-[180px]">
+      <SelectTrigger className="w-[180px]" aria-label="Select a fruit">
         <SelectValue placeholder="Select a fruit" />
       </SelectTrigger>
       <SelectContent>
@@ -33,7 +33,7 @@ export const Default: Story = {
 export const WithGroups: Story = {
   render: () => (
     <Select>
-      <SelectTrigger className="w-[200px]">
+      <SelectTrigger className="w-[200px]" aria-label="Select a timezone">
         <SelectValue placeholder="Select a timezone" />
       </SelectTrigger>
       <SelectContent>
@@ -58,7 +58,7 @@ export const WithGroups: Story = {
 export const Small: Story = {
   render: () => (
     <Select>
-      <SelectTrigger size="sm" className="w-[150px]">
+      <SelectTrigger size="sm" className="w-[150px]" aria-label="Select size">
         <SelectValue placeholder="Select size" />
       </SelectTrigger>
       <SelectContent>
@@ -75,7 +75,7 @@ export const Small: Story = {
 export const Disabled: Story = {
   render: () => (
     <Select disabled>
-      <SelectTrigger className="w-[180px]">
+      <SelectTrigger className="w-[180px]" aria-label="Select an option">
         <SelectValue placeholder="Select an option" />
       </SelectTrigger>
       <SelectContent>
@@ -90,7 +90,7 @@ export const Disabled: Story = {
 export const WithDisabledItems: Story = {
   render: () => (
     <Select>
-      <SelectTrigger className="w-[180px]">
+      <SelectTrigger className="w-[180px]" aria-label="Select a plan">
         <SelectValue placeholder="Select a plan" />
       </SelectTrigger>
       <SelectContent>
@@ -108,7 +108,7 @@ export const WithDisabledItems: Story = {
 export const LongList: Story = {
   render: () => (
     <Select>
-      <SelectTrigger className="w-[200px]">
+      <SelectTrigger className="w-[200px]" aria-label="Select a country">
         <SelectValue placeholder="Select a country" />
       </SelectTrigger>
       <SelectContent>
@@ -135,7 +135,7 @@ export const LongList: Story = {
 export const WithDefaultValue: Story = {
   render: () => (
     <Select defaultValue="banana">
-      <SelectTrigger className="w-[180px]">
+      <SelectTrigger className="w-[180px]" aria-label="Select a fruit">
         <SelectValue placeholder="Select a fruit" />
       </SelectTrigger>
       <SelectContent>
@@ -154,7 +154,7 @@ export const MultipleSelects: Story = {
       <div className="space-y-2">
         <label className="text-sm font-medium">Country</label>
         <Select>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[200px]" aria-label="Select country">
             <SelectValue placeholder="Select country" />
           </SelectTrigger>
           <SelectContent>
@@ -167,7 +167,7 @@ export const MultipleSelects: Story = {
       <div className="space-y-2">
         <label className="text-sm font-medium">Language</label>
         <Select>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[200px]" aria-label="Select language">
             <SelectValue placeholder="Select language" />
           </SelectTrigger>
           <SelectContent>
@@ -180,7 +180,7 @@ export const MultipleSelects: Story = {
       <div className="space-y-2">
         <label className="text-sm font-medium">Currency</label>
         <Select>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[200px]" aria-label="Select currency">
             <SelectValue placeholder="Select currency" />
           </SelectTrigger>
           <SelectContent>

@@ -101,6 +101,7 @@ export const PasswordWithToggle: Story = {
           type={showPassword ? 'text' : 'password'}
           placeholder="Enter password"
           className="pr-10"
+          aria-label="Password"
         />
         <Button
           type="button"
@@ -108,6 +109,7 @@ export const PasswordWithToggle: Story = {
           size="sm"
           className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
           onClick={() => setShowPassword(!showPassword)}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
         >
           {showPassword ? (
             <EyeOff className="size-4 text-muted-foreground" />
@@ -169,36 +171,36 @@ export const AllTypes: Story = {
   render: () => (
     <div className="w-[300px] space-y-4">
       <div className="space-y-2">
-        <Label>Text</Label>
-        <Input type="text" placeholder="Text input" />
+        <Label htmlFor="text-input">Text</Label>
+        <Input id="text-input" type="text" placeholder="Text input" />
       </div>
       <div className="space-y-2">
-        <Label>Email</Label>
-        <Input type="email" placeholder="email@example.com" />
+        <Label htmlFor="email-input">Email</Label>
+        <Input id="email-input" type="email" placeholder="email@example.com" />
       </div>
       <div className="space-y-2">
-        <Label>Password</Label>
-        <Input type="password" placeholder="Password" />
+        <Label htmlFor="password-input">Password</Label>
+        <Input id="password-input" type="password" placeholder="Password" />
       </div>
       <div className="space-y-2">
-        <Label>Number</Label>
-        <Input type="number" placeholder="0" />
+        <Label htmlFor="number-input">Number</Label>
+        <Input id="number-input" type="number" placeholder="0" />
       </div>
       <div className="space-y-2">
-        <Label>Tel</Label>
-        <Input type="tel" placeholder="+1 (555) 000-0000" />
+        <Label htmlFor="tel-input">Tel</Label>
+        <Input id="tel-input" type="tel" placeholder="+1 (555) 000-0000" />
       </div>
       <div className="space-y-2">
-        <Label>URL</Label>
-        <Input type="url" placeholder="https://example.com" />
+        <Label htmlFor="url-input">URL</Label>
+        <Input id="url-input" type="url" placeholder="https://example.com" />
       </div>
       <div className="space-y-2">
-        <Label>Date</Label>
-        <Input type="date" />
+        <Label htmlFor="date-input">Date</Label>
+        <Input id="date-input" type="date" />
       </div>
       <div className="space-y-2">
-        <Label>Time</Label>
-        <Input type="time" />
+        <Label htmlFor="time-input">Time</Label>
+        <Input id="time-input" type="time" />
       </div>
     </div>
   ),
