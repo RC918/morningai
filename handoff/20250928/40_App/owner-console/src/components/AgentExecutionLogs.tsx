@@ -340,7 +340,7 @@ const AgentExecutionLogs = () => {
             <CardContent className="pt-lg">
               <div className="flex items-center justify-between mb-sm">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.statusBreakdown')}</p>
-                <Filter className="w-5 h-5 text-warning-600" />
+                <Filter className="w-5 h-5 text-neutral-600" />
               </div>
               <div className="space-y-1">
                 {summary.status_counts && Object.entries(summary.status_counts).map(([status, count]) => (
