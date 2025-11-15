@@ -242,11 +242,14 @@ storybook-a11y-tests:
       run: pnpm run test-storybook:ci
 ```
 
+**Note**: The CI uses Storybook dev server (`storybook --ci`) instead of static build (`build-storybook`) to avoid Vite bundling issues with "use client" directives in React Server Components.
+
 ### Performance Optimizations
 
 - **Playwright Cache**: Browsers are cached between runs (~200MB saved)
 - **maxWorkers=2**: Limits parallel tests to avoid CI resource exhaustion
 - **Explicit URL**: `--url http://127.0.0.1:6006` avoids auto-detection issues
+- **Dev Server Mode**: Uses `storybook --ci` instead of static build for faster startup and better compatibility
 
 ## Troubleshooting
 
