@@ -25,10 +25,14 @@ const config: StorybookConfig = {
     buildStoriesJson: true,
   },
   async viteFinal(config) {
+    const filteredPlugins = (config.plugins || []).filter((plugin: any) => {
+      if (!plugin) return false;
+      const name = typeof plugin === 'object' && plugin.name ? plugin.name : '';
+      return !name.toLowerCase().includes('pwa');
+    });
+
     return mergeConfig(config, {
-      plugins: config.plugins?.filter(
-        (plugin: any) => plugin && plugin.name !== 'vite-plugin-pwa'
-      ),
+      plugins: filteredPlugins,
       optimizeDeps: {
         include: [
           'react',
