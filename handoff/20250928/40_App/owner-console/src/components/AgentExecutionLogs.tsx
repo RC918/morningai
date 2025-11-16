@@ -30,7 +30,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Skeleton
+  Skeleton,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger
 } from '@morningai/shared-ui'
 import { 
   Filter,
@@ -38,9 +44,13 @@ import {
   Activity,
   CheckCircle,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Copy,
+  ExternalLink,
+  Eye
 } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
+import { toast } from 'sonner'
 
 interface ExecutionLogAgent {
   agent_type?: string
@@ -63,6 +73,8 @@ interface ExecutionLog {
   duration_ms?: number
   timestamps?: ExecutionLogTimestamps
   error_message?: string
+  trace_id?: string
+  pr_url?: string
 }
 
 interface ExecutionSummary {
@@ -166,6 +178,8 @@ const AgentExecutionLogs = () => {
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<ExecutionLog[]>([])
   const [summary, setSummary] = useState<ExecutionSummary | null>(null)
+  const [selectedLog, setSelectedLog] = useState<ExecutionLog | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [pagination, setPagination] = useState<PaginationState>({ 
     page: 1, 
     page_size: 50, 
@@ -268,6 +282,21 @@ const AgentExecutionLogs = () => {
 
   const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }))
+  }
+
+  const handleCopyTraceId = async (traceId: string) => {
+    try {
+      await navigator.clipboard.writeText(traceId)
+      toast.success(t('governance.executionLogs.traceIdCopied', { defaultValue: 'Trace ID copied to clipboard' }))
+    } catch (err) {
+      console.error('Failed to copy trace ID:', err)
+      toast.error(t('governance.executionLogs.traceIdCopyFailed', { defaultValue: 'Failed to copy trace ID' }))
+    }
+  }
+
+  const handleViewDetails = (log: ExecutionLog) => {
+    setSelectedLog(log)
+    setIsDrawerOpen(true)
   }
 
   const isEmptyValue = (value: any): boolean => {
@@ -541,6 +570,7 @@ const AgentExecutionLogs = () => {
                       <TableHead>{t('governance.executionLogs.columns.tenant')}</TableHead>
                       <TableHead>{t('governance.executionLogs.columns.duration')}</TableHead>
                       <TableHead>{t('governance.executionLogs.details.createdAt')}</TableHead>
+                      <TableHead className="text-right">{t('common.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -557,7 +587,21 @@ const AgentExecutionLogs = () => {
                             </StatusBadge>
                           </TableCell>
                           <TableCell className="font-mono text-xs">
-                            {log.task_id?.substring(0, 12)}...
+                            <div className="flex items-center gap-2">
+                              <span>{log.task_id?.substring(0, 12)}...</span>
+                              {log.trace_id && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => handleCopyTraceId(log.trace_id!)}
+                                  aria-label={t('governance.executionLogs.copyTraceId', { defaultValue: 'Copy trace ID' })}
+                                  title={t('governance.executionLogs.copyTraceId', { defaultValue: 'Copy trace ID' })}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             {log.task_type ? (
@@ -591,6 +635,16 @@ const AgentExecutionLogs = () => {
                           <TableCell className="text-xs">
                             {formatTimestamp(log.timestamps?.created_at)}
                           </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewDetails(log)}
+                              aria-label={t('governance.executionLogs.viewDetails', { defaultValue: 'View details' })}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       )
                     })}
@@ -606,7 +660,7 @@ const AgentExecutionLogs = () => {
                     <div key={log.task_id} className="border rounded-lg p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <StatusBadge status={normalizedStatus} showIcon>
                               {isKnown 
                                 ? t(`governance.executionLogs.statuses.${normalizedStatus}`)
@@ -616,6 +670,17 @@ const AgentExecutionLogs = () => {
                             <span className="text-sm font-mono text-neutral-600 dark:text-neutral-400">
                               {log.task_id?.substring(0, 12)}...
                             </span>
+                            {log.trace_id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleCopyTraceId(log.trace_id!)}
+                                aria-label={t('governance.executionLogs.copyTraceId', { defaultValue: 'Copy trace ID' })}
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            )}
                             {log.task_type && (
                               <Badge variant="outline" className="text-xs">
                                 {log.task_type}
@@ -660,6 +725,18 @@ const AgentExecutionLogs = () => {
                               <p className="text-xs mt-1">{log.error_message}</p>
                             </div>
                           )}
+
+                          <div className="mt-3 flex justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewDetails(log)}
+                              aria-label={t('governance.executionLogs.viewDetails', { defaultValue: 'View details' })}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              {t('governance.executionLogs.viewDetails', { defaultValue: 'View details' })}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -733,6 +810,211 @@ const AgentExecutionLogs = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Execution Log Details Sheet */}
+      <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{t('governance.executionLogs.details.title', { defaultValue: 'Execution Log Details' })}</SheetTitle>
+            <SheetDescription>
+              {t('governance.executionLogs.details.subtitle', { defaultValue: 'Detailed information about this execution' })}
+            </SheetDescription>
+          </SheetHeader>
+
+          {selectedLog && (
+            <div className="mt-6 space-y-6">
+              {/* Status and Basic Info */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    {t('governance.executionLogs.columns.status')}
+                  </label>
+                  <div className="mt-1">
+                    <StatusBadge status={normalizeExecutionLogStatus(selectedLog.status).normalized} showIcon>
+                      {t(`governance.executionLogs.statuses.${normalizeExecutionLogStatus(selectedLog.status).normalized}`)}
+                    </StatusBadge>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    {t('governance.executionLogs.columns.taskId')}
+                  </label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <code className="text-sm font-mono bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
+                      {selectedLog.task_id}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => navigator.clipboard.writeText(selectedLog.task_id)}
+                      aria-label={t('common.copy')}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+
+                {selectedLog.trace_id && (
+                  <div>
+                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      {t('governance.executionLogs.details.traceId', { defaultValue: 'Trace ID' })}
+                    </label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <code className="text-sm font-mono bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
+                        {selectedLog.trace_id}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => handleCopyTraceId(selectedLog.trace_id!)}
+                        aria-label={t('governance.executionLogs.copyTraceId', { defaultValue: 'Copy trace ID' })}
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {selectedLog.task_type && (
+                  <div>
+                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      {t('governance.executionLogs.columns.taskType')}
+                    </label>
+                    <div className="mt-1">
+                      <Badge variant="outline">{selectedLog.task_type}</Badge>
+                    </div>
+                  </div>
+                )}
+
+                {selectedLog.pr_url && (
+                  <div>
+                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      {t('governance.executionLogs.details.prUrl', { defaultValue: 'Pull Request' })}
+                    </label>
+                    <div className="mt-1">
+                      <a
+                        href={selectedLog.pr_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1"
+                      >
+                        {selectedLog.pr_url}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Agent Info */}
+              {selectedLog.agent && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-3">
+                    {t('governance.executionLogs.columns.agent')}
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                        {t('governance.agents.type', { defaultValue: 'Type' })}
+                      </span>
+                      <span className="text-sm font-medium">{selectedLog.agent.agent_type || t('common.na')}</span>
+                    </div>
+                    {selectedLog.agent.reputation_score !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                          {t('governance.agents.reputation')}
+                        </span>
+                        <span className="text-sm font-medium">{selectedLog.agent.reputation_score}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Timing Info */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-3">
+                  {t('governance.executionLogs.details.timing', { defaultValue: 'Timing' })}
+                </h3>
+                <div className="space-y-2">
+                  {selectedLog.timestamps?.created_at && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                        {t('governance.executionLogs.details.createdAt')}
+                      </span>
+                      <span className="text-sm font-medium">{formatTimestamp(selectedLog.timestamps.created_at)}</span>
+                    </div>
+                  )}
+                  {selectedLog.timestamps?.started_at && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                        {t('governance.executionLogs.details.startedAt', { defaultValue: 'Started At' })}
+                      </span>
+                      <span className="text-sm font-medium">{formatTimestamp(selectedLog.timestamps.started_at)}</span>
+                    </div>
+                  )}
+                  {selectedLog.timestamps?.completed_at && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                        {t('governance.executionLogs.details.completedAt', { defaultValue: 'Completed At' })}
+                      </span>
+                      <span className="text-sm font-medium">{formatTimestamp(selectedLog.timestamps.completed_at)}</span>
+                    </div>
+                  )}
+                  {selectedLog.duration_ms !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                        {t('governance.executionLogs.columns.duration')}
+                      </span>
+                      <span className="text-sm font-medium">{formatDuration(selectedLog.duration_ms)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {selectedLog.error_message && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-error-600 dark:text-error-400 mb-3">
+                    {t('governance.executionLogs.details.errorMessage')}
+                  </h3>
+                  <div className="p-3 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded">
+                    <p className="text-sm text-error-800 dark:text-error-400 font-mono whitespace-pre-wrap">
+                      {selectedLog.error_message}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Tenant Info */}
+              {selectedLog.tenant_id && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-3">
+                    {t('governance.executionLogs.columns.tenant')}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <code className="text-sm font-mono bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
+                      {selectedLog.tenant_id}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => navigator.clipboard.writeText(selectedLog.tenant_id!)}
+                      aria-label={t('common.copy')}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
