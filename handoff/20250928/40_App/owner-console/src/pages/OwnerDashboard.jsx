@@ -144,21 +144,21 @@ const OwnerDashboard = () => {
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="w-2 h-2 bg-success-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-success-600 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{t('dashboard.recentActivity.newTenant')}</p>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('dashboard.recentActivity.placeholder.acme')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-primary-600 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{t('dashboard.recentActivity.agentDeployed')}</p>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('dashboard.recentActivity.placeholder.opsAgent')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="w-2 h-2 bg-warning-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-warning-600 rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{t('dashboard.recentActivity.maintenanceScheduled')}</p>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('dashboard.recentActivity.placeholder.maintenance')}</p>
