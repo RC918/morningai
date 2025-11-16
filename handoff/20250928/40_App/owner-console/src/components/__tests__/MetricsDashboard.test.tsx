@@ -14,6 +14,11 @@ vi.mock('react-i18next', () => ({
         'metricsDashboard.devMode.title': 'Development Mode - Mock Data',
         'metricsDashboard.devMode.description': 'This dashboard is displaying simulated data for development purposes only. Real metrics will be available once the monitoring backend is deployed.',
         'metricsDashboard.devMode.warning': 'Do not use this data for production decisions.',
+        'metricsDashboard.devInfo.title': 'Development Info',
+        'metricsDashboard.devInfo.description': 'The Metrics Dashboard requires the backend API endpoint:',
+        'metricsDashboard.devInfo.endpoint': 'GET /phase7/monitoring/dashboard',
+        'metricsDashboard.devInfo.hint': 'Ensure your backend server is running and the endpoint is implemented.',
+        'common.retry': 'Retry',
         'metricsDashboard.autoRefresh': `Auto-refresh: ${params?.status || ''}`,
         'metricsDashboard.autoRefreshOn': 'ON',
         'metricsDashboard.autoRefreshOff': 'OFF',
@@ -77,18 +82,18 @@ describe('MetricsDashboard Component (P1)', () => {
   });
 
   describe('Error Handling', () => {
-    it('should fall back to mock data when API call fails in development', async () => {
+    it('should display error state when API call fails', async () => {
       mockApiClientWithMeta.mockRejectedValueOnce(new Error('Network error'));
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Development Mode - Mock Data/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
       });
     });
 
-    it('should throw error in production when API endpoint not found', async () => {
-      vi.stubEnv('MODE', 'production');
+    it('should display error state when API endpoint not found', async () => {
       mockApiClientWithMeta.mockResolvedValueOnce({ 
         status: 404,
         data: null,
@@ -98,7 +103,23 @@ describe('MetricsDashboard Component (P1)', () => {
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/CRITICAL.*not implemented/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
+        expect(screen.getByText(/API endpoint not found/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should display development info in error state when in development mode', async () => {
+      mockApiClientWithMeta.mockResolvedValueOnce({ 
+        status: 404,
+        data: null,
+        headers: new Headers()
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Development Info')).toBeInTheDocument();
+        expect(screen.getByText(/GET \/phase7\/monitoring\/dashboard/i)).toBeInTheDocument();
       });
     });
   });
@@ -166,8 +187,8 @@ describe('MetricsDashboard Component (P1)', () => {
     });
   });
 
-  describe('Mock Data Fallback', () => {
-    it('should display mock data warning in development', async () => {
+  describe('Error State Display', () => {
+    it('should display error message when API fails', async () => {
       mockApiClientWithMeta.mockResolvedValueOnce({
         status: 404,
         data: null,
@@ -177,12 +198,12 @@ describe('MetricsDashboard Component (P1)', () => {
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Development Mode - Mock Data/i)).toBeInTheDocument();
-        expect(screen.getByText(/Do not use this data for production decisions/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
+        expect(screen.getByText(/API endpoint not found/i)).toBeInTheDocument();
       });
     });
 
-    it('should use mock data when API is unavailable in development', async () => {
+    it('should display retry button in error state', async () => {
       mockApiClientWithMeta.mockResolvedValueOnce({
         status: 404,
         data: null,
@@ -192,8 +213,7 @@ describe('MetricsDashboard Component (P1)', () => {
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText('Metrics Dashboard')).toBeInTheDocument();
-        expect(screen.getByText(/Development Mode - Mock Data/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
       });
     });
   });
