@@ -54,3 +54,151 @@ a:focus-visible {
     transition: outline-offset 0.2s ease;
   }
 }
+
+/* ============================================
+   Tailwind v4 max-w-* Utilities Override (CRITICAL FIX)
+   ============================================
+   
+   Issue: Tailwind v4 incorrectly maps max-w-* utilities to --spacing-* tokens,
+   which are intended for padding/margin (e.g., --spacing-md = 16px).
+   
+   Container widths should use standard rem values:
+   - max-w-sm: 24rem (~384px)
+   - max-w-md: 28rem (~448px)
+   - max-w-lg: 32rem (~512px)
+   - max-w-xl: 36rem (~576px)
+   - max-w-2xl: 42rem (~672px)
+   
+   These overrides restore the correct container widths and prevent
+   layout collapse issues like the one fixed in PR #1303.
+   
+   IMPORTANT: Using !important to ensure these overrides always take precedence
+   over Tailwind's generated utilities, regardless of CSS ordering or minification.
+   
+   Related: https://github.com/RC918/morningai/pull/1303
+*/
+.max-w-sm {
+  max-width: 24rem !important;
+}
+
+.max-w-md {
+  max-width: 28rem !important;
+}
+
+.max-w-lg {
+  max-width: 32rem !important;
+}
+
+.max-w-xl {
+  max-width: 36rem !important;
+}
+
+.max-w-2xl {
+  max-width: 42rem !important;
+}
+
+.max-w-3xl {
+  max-width: 48rem !important;
+}
+
+.max-w-4xl {
+  max-width: 56rem !important;
+}
+
+.max-w-5xl {
+  max-width: 64rem !important;
+}
+
+.max-w-6xl {
+  max-width: 72rem !important;
+}
+
+.max-w-7xl {
+  max-width: 80rem !important;
+}
+
+/* Responsive variants */
+@media (min-width: 640px) {
+  .sm\:max-w-sm { max-width: 24rem !important; }
+  .sm\:max-w-md { max-width: 28rem !important; }
+  .sm\:max-w-lg { max-width: 32rem !important; }
+  .sm\:max-w-xl { max-width: 36rem !important; }
+  .sm\:max-w-2xl { max-width: 42rem !important; }
+  .sm\:max-w-3xl { max-width: 48rem !important; }
+  .sm\:max-w-4xl { max-width: 56rem !important; }
+  .sm\:max-w-5xl { max-width: 64rem !important; }
+  .sm\:max-w-6xl { max-width: 72rem !important; }
+  .sm\:max-w-7xl { max-width: 80rem !important; }
+}
+
+@media (min-width: 768px) {
+  .md\:max-w-sm { max-width: 24rem !important; }
+  .md\:max-w-md { max-width: 28rem !important; }
+  .md\:max-w-lg { max-width: 32rem !important; }
+  .md\:max-w-xl { max-width: 36rem !important; }
+  .md\:max-w-2xl { max-width: 42rem !important; }
+  .md\:max-w-3xl { max-width: 48rem !important; }
+  .md\:max-w-4xl { max-width: 56rem !important; }
+  .md\:max-w-5xl { max-width: 64rem !important; }
+  .md\:max-w-6xl { max-width: 72rem !important; }
+  .md\:max-w-7xl { max-width: 80rem !important; }
+}
+
+@media (min-width: 1024px) {
+  .lg\:max-w-sm { max-width: 24rem !important; }
+  .lg\:max-w-md { max-width: 28rem !important; }
+  .lg\:max-w-lg { max-width: 32rem !important; }
+  .lg\:max-w-xl { max-width: 36rem !important; }
+  .lg\:max-w-2xl { max-width: 42rem !important; }
+  .lg\:max-w-3xl { max-width: 48rem !important; }
+  .lg\:max-w-4xl { max-width: 56rem !important; }
+  .lg\:max-w-5xl { max-width: 64rem !important; }
+  .lg\:max-w-6xl { max-width: 72rem !important; }
+  .lg\:max-w-7xl { max-width: 80rem !important; }
+}
+
+@media (min-width: 1280px) {
+  .xl\:max-w-sm { max-width: 24rem !important; }
+  .xl\:max-w-md { max-width: 28rem !important; }
+  .xl\:max-w-lg { max-width: 32rem !important; }
+  .xl\:max-w-xl { max-width: 36rem !important; }
+  .xl\:max-w-2xl { max-width: 42rem !important; }
+  .xl\:max-w-3xl { max-width: 48rem !important; }
+  .xl\:max-w-4xl { max-width: 56rem !important; }
+  .xl\:max-w-5xl { max-width: 64rem !important; }
+  .xl\:max-w-6xl { max-width: 72rem !important; }
+  .xl\:max-w-7xl { max-width: 80rem !important; }
+}
+
+@media (min-width: 1536px) {
+  .\32xl\:max-w-sm { max-width: 24rem !important; }
+  .\32xl\:max-w-md { max-width: 28rem !important; }
+  .\32xl\:max-w-lg { max-width: 32rem !important; }
+  .\32xl\:max-w-xl { max-width: 36rem !important; }
+  .\32xl\:max-w-2xl { max-width: 42rem !important; }
+  .\32xl\:max-w-3xl { max-width: 48rem !important; }
+  .\32xl\:max-w-4xl { max-width: 56rem !important; }
+  .\32xl\:max-w-5xl { max-width: 64rem !important; }
+  .\32xl\:max-w-6xl { max-width: 72rem !important; }
+  .\32xl\:max-w-7xl { max-width: 80rem !important; }
+}
+
+/* [UX-SENTINEL] Resizable Panels visual hide fallback */
+/* Hide accessibility labels in resize handles while keeping them accessible to screen readers */
+/* This prevents "panel 0", "panel 1", "Resize handle" from being visible in production */
+[data-panel-group] [role="separator"] {
+  font-size: 0;
+  line-height: 0;
+}
+
+/* Restore normal sizing for icons within the separator */
+[data-panel-group] [role="separator"] svg {
+  font-size: initial;
+  line-height: normal;
+}
+
+/* Ensure the handle remains interactive and accessible */
+[data-panel-group] [role="separator"]:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

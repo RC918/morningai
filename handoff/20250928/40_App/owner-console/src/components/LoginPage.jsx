@@ -177,7 +177,7 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
       <motion.div
         style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}
         initial={prefersReducedMotion ? {} : { opacity: 0, x: 20 }}
@@ -189,6 +189,7 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
       
       <motion.div
         className="w-full max-w-md px-4"
+        data-testid="login-card"
         variants={prefersReducedMotion ? {} : containerVariants}
         initial="hidden"
         animate="visible"
@@ -209,15 +210,15 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
               style={{ width: '64px', height: '64px', maxWidth: '64px', maxHeight: '64px' }}
             />
           </motion.div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">{t('app.tagline')}</p>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
+          <p className="text-neutral-600 dark:text-neutral-400 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? {} : itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('auth.login.title')}</CardTitle>
-              <CardDescription>
+          <Card className="!py-6 border-gray-200 dark:border-gray-800">
+            <CardHeader className="pt-1 pb-3">
+              <CardTitle className="leading-tight">{t('auth.login.title')}</CardTitle>
+              <CardDescription className="mt-1.5">
                 {t('auth.login.description')}
               </CardDescription>
             </CardHeader>
@@ -282,11 +283,11 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
                 </AppleButton>
               </form>
 
-              <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount', 'Development Account')}</h4>
-                <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <p>{t('auth.login.email', 'Email')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.emailPlaceholder', 'owner@morningai.com')}</code></p>
-                  <p>{t('auth.login.password', 'Password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.passwordPlaceholder', 'owner123')}</code></p>
+              <div className="mt-6 p-4 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
+                <h4 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">{t('auth.login.devAccount', 'Development Account')}</h4>
+                <div className="text-sm text-neutral-700 dark:text-neutral-300 space-y-1">
+                  <p>{t('auth.login.email', 'Email')}: <code className="bg-neutral-200 dark:bg-neutral-700 px-1 rounded">{t('auth.login.emailPlaceholder', 'owner@morningai.com')}</code></p>
+                  <p>{t('auth.login.password', 'Password')}: <code className="bg-neutral-200 dark:bg-neutral-700 px-1 rounded">{t('auth.login.passwordPlaceholder', 'owner123')}</code></p>
                 </div>
               </div>
             </CardContent>
@@ -294,7 +295,7 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
         </motion.div>
 
         <motion.div
-          className="text-center mt-8 text-sm text-gray-600 dark:text-gray-400"
+          className="text-center mt-8 text-sm text-neutral-600 dark:text-neutral-400"
           variants={prefersReducedMotion ? {} : itemVariants}
         >
           <p>{t('app.copyright')}</p>

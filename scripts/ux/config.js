@@ -55,6 +55,27 @@ const PAGES = {
       requiresAuth: false,
       viewport: { width: 1366, height: 900 },
     },
+    {
+      name: 'Dashboard',
+      path: '/dashboard',
+      description: 'Platform overview with statistics',
+      requiresAuth: true,
+      viewport: { width: 1366, height: 900 },
+    },
+    {
+      name: 'Agent Governance',
+      path: '/governance',
+      description: 'Agent reputation and permissions',
+      requiresAuth: true,
+      viewport: { width: 1366, height: 900 },
+    },
+    {
+      name: 'System Monitoring',
+      path: '/monitoring',
+      description: 'System health and metrics',
+      requiresAuth: true,
+      viewport: { width: 1366, height: 900 },
+    },
   ],
 };
 
@@ -89,6 +110,21 @@ const BUDGET = {
   imageQuality: 0.85,
 };
 
+const AUTH_CONFIG = {
+  'frontend-dashboard': {
+    usernameField: 'input[name="username"]',
+    passwordField: 'input[name="password"]',
+    successUrl: /\/dashboard(\/|$)/,
+    successSelector: 'nav[role="navigation"]',
+  },
+  'owner-console': {
+    usernameField: 'input[name="email"]',
+    passwordField: 'input[name="password"]',
+    successUrl: /\/dashboard(\/|$)/,
+    successSelector: 'nav[role="navigation"]',
+  },
+};
+
 module.exports = {
   PAGES,
   relevantTokens,
@@ -96,4 +132,5 @@ module.exports = {
   THRESHOLDS,
   DELIGHT_WEIGHTS,
   BUDGET,
+  AUTH_CONFIG,
 };

@@ -1,10 +1,4 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
-  "buildCommand": "cd ../../../ && pnpm --filter @morningai/shared-ui build && pnpm --filter owner-console build",
-  "installCommand": "cd ../../../ && pnpm install --prod=false",
-  "outputDirectory": "dist",
-  "ignoreCommand": "bash ../../../../scripts/vercel-ignore.sh",
   "headers": [
     {
       "source": "/assets/:path*.(css|js)",
@@ -60,14 +54,5 @@
         }
       ]
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/:path*",
-      "destination": "/"
-    }
-  ],
-  "git": {
-    "deploymentEnabled": true
-  }
+  ]
 }
