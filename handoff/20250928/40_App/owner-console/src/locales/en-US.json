@@ -177,7 +177,9 @@
     "memory": "Memory",
     "disk": "Disk",
     "usedTotal": "Used/Total",
-    "gbFormat": "{{used}}GB / {{total}}GB"
+    "gbFormat": "{{used}}GB / {{total}}GB",
+    "noHealthData": "No system health data available",
+    "noMetricsData": "No metrics available yet"
   },
   "uxMetrics": {
     "title": "UX Metrics Dashboard",
