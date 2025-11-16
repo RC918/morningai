@@ -79,16 +79,25 @@ MorningAI 採用多環境部署架構，確保開發、測試和生產環境的�
 - **Tenant Dashboard**: https://app.gm365.me
 - **Owner Console**: https://admin.gm365.me
 - **Database**: Supabase PostgreSQL (production)
+  - Project: `morningai` (qevmlbsunnwgrsdibdoi)
+  - URL: https://qevmlbsunnwgrsdibdoi.supabase.co
+  - Schema: Full production schema
 - **Branch**: `main`
 
 ### 🧪 Staging Environment (測試環境) ✅
 - **Backend API**: https://morningai-backend-v2-stg.onrender.com
 - **Orchestrator API**: https://morningai-orchestrator-api-stg.onrender.com
-- **Database**: Supabase PostgreSQL (staging: dckisglnlemvpvmyvnut)
+- **Database**: Supabase PostgreSQL (staging)
+  - Project: `morningai-staging` (dckisglnlemvpvmyvnut)
+  - URL: https://dckisglnlemvpvmyvnut.supabase.co
+  - Schema: Minimal test schema (tenants, user_profiles, agent_tasks)
+  - Purpose: RLS testing and security validation
 - **Redis**: Upstash (shared, key prefix: `stg:`)
 - **Branch**: `develop`
 - **Status**: ✅ Fully Operational
 - **文檔**: [Staging Setup Guide](docs/ops/STAGING_SETUP_GUIDE.md)
+
+⚠️ **Database Architecture Note**: MorningAI uses two separate Supabase databases for production and staging. Staging has a minimal schema focused on P0 security testing (RLS policies). This is intentional to keep the staging environment lightweight. See [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) for complete details.
 
 ### 💻 Local Development (本地開發)
 - **Backend**: `http://localhost:8000`

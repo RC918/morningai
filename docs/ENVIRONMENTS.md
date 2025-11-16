@@ -83,9 +83,13 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 
 #### Database
 - **Provider**: Supabase PostgreSQL
+- **Project Name**: `morningai` (production)
+- **Project ID**: `qevmlbsunnwgrsdibdoi`
+- **URL**: https://qevmlbsunnwgrsdibdoi.supabase.co
 - **Type**: Production instance
 - **Connection**: Pooler (port 6543)
 - **Backups**: Automatic daily backups
+- **Schema**: Full production schema with all tables
 
 #### Redis
 - **Provider**: Upstash
@@ -267,6 +271,10 @@ RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (expo
 - **URL**: https://dckisglnlemvpvmyvnut.supabase.co
 - **Connection**: Pooler (port 6543)
 - **Data**: Separate from production
+- **Schema**: Minimal test schema (tenants, user_profiles, agent_tasks)
+- **Purpose**: RLS testing and security validation
+
+⚠️ **Important**: Staging database has a minimal schema for security testing. Not all production tables exist in staging. This is intentional to keep the staging environment lightweight and focused on P0 security testing.
 
 #### Redis
 - **Provider**: Upstash (shared with production)
