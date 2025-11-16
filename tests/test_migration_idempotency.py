@@ -153,27 +153,27 @@ class TestMigrationIdempotency:
                 "3. Use DO $$ ... $$ blocks for complex logic"
             )
     
-    def test_migration_007_is_idempotent(self, migration_files):
+    def test_migration_019_is_idempotent(self, migration_files):
         """
-        Specific test for Migration 007 (user_profiles RLS fix).
+        Specific test for Migration 019 (user_profiles RLS fix).
         This migration was recently applied to production and should be idempotent.
         """
-        migration_007 = next(
-            (content for name, content in migration_files if "007_fix_user_profiles_rls_recursion" in name),
+        migration_019 = next(
+            (content for name, content in migration_files if "fix_user_profiles_rls_recursion" in name),
             None
         )
         
-        if not migration_007:
-            pytest.skip("Migration 007 not found")
+        if not migration_019:
+            pytest.skip("Migration 019 (user_profiles RLS recursion fix) not found")
         
-        assert "DROP POLICY IF EXISTS" in migration_007, \
-            "Migration 007 should use DROP POLICY IF EXISTS"
+        assert "DROP POLICY IF EXISTS" in migration_019, \
+            "Migration 019 should use DROP POLICY IF EXISTS"
         
-        assert "CREATE OR REPLACE FUNCTION" in migration_007, \
-            "Migration 007 should use CREATE OR REPLACE FUNCTION"
+        assert "CREATE OR REPLACE FUNCTION" in migration_019, \
+            "Migration 019 should use CREATE OR REPLACE FUNCTION"
         
-        assert "DO $$" in migration_007 or "IF NOT EXISTS" in migration_007, \
-            "Migration 007 should use conditional policy creation (DO block or IF NOT EXISTS)"
+        assert "DO $$" in migration_019 or "IF NOT EXISTS" in migration_019, \
+            "Migration 019 should use conditional policy creation (DO block or IF NOT EXISTS)"
 
 
 class TestMigrationRollback:

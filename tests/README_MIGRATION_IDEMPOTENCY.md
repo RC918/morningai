@@ -299,7 +299,7 @@ Before applying a migration to production:
 - [PRE_DEPLOYMENT_CHECKLIST.md](../migrations/PRE_DEPLOYMENT_CHECKLIST.md) - Pre-deployment verification
 - [DATABASE_ARCHITECTURE.md](../docs/DATABASE_ARCHITECTURE.md) - Database architecture overview
 - [README_RLS_TESTING.md](README_RLS_TESTING.md) - RLS testing guide
-- [Migration 007](../migrations/007_fix_user_profiles_rls_recursion.sql) - Example idempotent migration
+- [Migration 019](../migrations/019_fix_user_profiles_rls_recursion.sql) - Example idempotent migration
 
 ## Summary
 

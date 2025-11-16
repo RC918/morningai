@@ -94,7 +94,8 @@
         "running": "執行中",
         "completed": "已完成",
         "failed": "失敗",
-        "cancelled": "已取消"
+        "cancelled": "已取消",
+        "unknown": "未知"
       },
       "columns": {
         "taskId": "任務 ID",
@@ -113,14 +114,29 @@
         "avgDuration": "平均執行時長",
         "statusBreakdown": "狀態分布"
       },
+      "viewDetails": "查看詳情",
+      "copyTraceId": "複製 Trace ID",
+      "copyTaskId": "複製任務 ID",
+      "copyTenantId": "複製租戶 ID",
+      "traceIdCopied": "Trace ID 已複製到剪貼簿",
+      "traceIdCopyFailed": "複製 Trace ID 失敗",
+      "taskIdCopied": "任務 ID 已複製到剪貼簿",
+      "taskIdCopyFailed": "複製任務 ID 失敗",
+      "tenantIdCopied": "租戶 ID 已複製到剪貼簿",
+      "tenantIdCopyFailed": "複製租戶 ID 失敗",
+      "retryLoad": "重新載入執行日誌",
       "details": {
-        "viewDetails": "查看詳情",
+        "title": "執行日誌詳情",
+        "subtitle": "此次執行的詳細資訊",
         "taskDetails": "任務詳情",
         "agentInfo": "Agent 資訊",
         "executionTime": "執行時間",
         "payload": "輸入資料",
         "result": "執行結果",
         "errorMessage": "錯誤訊息",
+        "traceId": "Trace ID",
+        "prUrl": "Pull Request",
+        "timing": "時間資訊",
         "createdAt": "建立時間",
         "startedAt": "開始時間",
         "completedAt": "完成時間",
@@ -138,7 +154,8 @@
       "title": "Agent 聲譽排行榜",
       "subtitle": "依聲譽分數與權限等級排序的 Agents",
       "noAgents": "找不到 agents",
-      "reputation": "聲譽"
+      "reputation": "聲譽",
+      "type": "類型"
     },
     "events": {
       "title": "最近事件",
