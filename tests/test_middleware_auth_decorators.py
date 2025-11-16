@@ -3,56 +3,27 @@ Unit tests for middleware/auth_middleware.py decorator functions
 
 Tests the JWT decorators, request handling, and error responses.
 This is a security-critical component requiring comprehensive test coverage.
+
+Note: Flask and common module mocks are set up in conftest.py fixtures.
+The reset_flask_request_mock fixture ensures mock_request is reset before each test.
 """
 
 import pytest
 import jwt as pyjwt
-from unittest.mock import Mock, MagicMock, patch
 import sys
-from pathlib import Path
 import os
 from datetime import datetime, timedelta
 
 pytestmark = pytest.mark.unit
 os.environ['IDEMPOTENCY_TESTS_ALLOWED'] = 'true'
 
-class MockJsonifyResult:
-    def __init__(self, data):
-        self.data = data
-    
-    def get_json(self):
-        return self.data
-    
-    def __getitem__(self, key):
-        return self.data[key]
-    
-    def __contains__(self, key):
-        return key in self.data
-
-def mock_jsonify(data):
-    return MockJsonifyResult(data)
-
-mock_flask = MagicMock()
-mock_request = MagicMock()
-mock_g = MagicMock()
-
-mock_flask.request = mock_request
-mock_flask.jsonify = mock_jsonify
-mock_flask.g = mock_g
-
-sys.modules['flask'] = mock_flask
-
-sys.modules['common'] = MagicMock()
-sys.modules['common.config'] = MagicMock()
-sys.modules['common.config.settings'] = MagicMock()
-
-mock_settings = MagicMock()
-mock_settings.jwt_secret_key = 'test-secret-key-for-testing'
-sys.modules['common.config.settings'].get_settings.return_value = mock_settings
-
-sys.path.insert(0, str(Path(__file__).parent.parent / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'src'))
-
 from middleware import auth_middleware
+
+
+@pytest.fixture
+def mock_request():
+    """Get the mock request object from Flask mock."""
+    return sys.modules['flask'].request
 
 
 def create_valid_token(user_id='user123', role='user', username='testuser'):
@@ -201,8 +172,8 @@ class TestDecodeJwtWithFallback:
     def test_valid_authorization_header(self):
         """Test successful decode from Authorization header."""
         token = create_valid_token()
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         payload, error = auth_middleware._decode_jwt_with_fallback()
         
@@ -213,11 +184,11 @@ class TestDecodeJwtWithFallback:
     def test_fallback_to_x_access_token(self):
         """Test fallback to X-Access-Token header."""
         token = create_valid_token()
-        mock_request.headers = {
+        sys.modules['flask'].request.headers = {
             'Authorization': 'Bearer invalid-token',
             'X-Access-Token': token
         }
-        mock_request.cookies = {}
+        sys.modules['flask'].request.cookies = {}
         
         payload, error = auth_middleware._decode_jwt_with_fallback()
         
@@ -228,8 +199,8 @@ class TestDecodeJwtWithFallback:
     def test_fallback_to_cookie(self):
         """Test fallback to access_token cookie."""
         token = create_valid_token()
-        mock_request.headers = {'Authorization': 'Bearer invalid-token'}
-        mock_request.cookies = {'access_token': token}
+        sys.modules['flask'].request.headers = {'Authorization': 'Bearer invalid-token'}
+        sys.modules['flask'].request.cookies = {'access_token': token}
         
         payload, error = auth_middleware._decode_jwt_with_fallback()
         
@@ -239,8 +210,8 @@ class TestDecodeJwtWithFallback:
     
     def test_no_token_provided(self):
         """Test error when no token provided."""
-        mock_request.headers = {}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {}
+        sys.modules['flask'].request.cookies = {}
         
         payload, error = auth_middleware._decode_jwt_with_fallback()
         
@@ -251,8 +222,8 @@ class TestDecodeJwtWithFallback:
     def test_expired_token_no_fallback(self):
         """Test expired token with no valid fallback."""
         expired = create_expired_token()
-        mock_request.headers = {'Authorization': f'Bearer {expired}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {expired}'}
+        sys.modules['flask'].request.cookies = {}
         
         payload, error = auth_middleware._decode_jwt_with_fallback()
         
@@ -269,8 +240,8 @@ class TestJwtRequiredDecorator:
     def test_valid_token_allows_access(self):
         """Test that valid token allows access to protected endpoint."""
         token = create_valid_token(user_id='user123', role='user', username='testuser')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.jwt_required
         def protected_endpoint():
@@ -279,14 +250,14 @@ class TestJwtRequiredDecorator:
         result = protected_endpoint()
         
         assert result == {'message': 'success'}
-        assert hasattr(mock_request, 'current_user')
-        assert mock_request.current_user['user_id'] == 'user123'
-        assert mock_request.current_user['role'] == 'user'
+        assert hasattr(sys.modules['flask'].request, 'current_user')
+        assert sys.modules['flask'].request.current_user['user_id'] == 'user123'
+        assert sys.modules['flask'].request.current_user['role'] == 'user'
     
     def test_missing_token_denies_access(self):
         """Test that missing token denies access."""
-        mock_request.headers = {}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.jwt_required
         def protected_endpoint():
@@ -300,8 +271,8 @@ class TestJwtRequiredDecorator:
     def test_expired_token_denies_access(self):
         """Test that expired token denies access."""
         expired = create_expired_token()
-        mock_request.headers = {'Authorization': f'Bearer {expired}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {expired}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.jwt_required
         def protected_endpoint():
@@ -314,8 +285,8 @@ class TestJwtRequiredDecorator:
     
     def test_invalid_token_denies_access(self):
         """Test that invalid token denies access."""
-        mock_request.headers = {'Authorization': 'Bearer invalid-token'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': 'Bearer invalid-token'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.jwt_required
         def protected_endpoint():
@@ -329,12 +300,12 @@ class TestJwtRequiredDecorator:
     def test_sets_user_context(self):
         """Test that decorator sets user context correctly."""
         token = create_valid_token(user_id='user456', role='analyst', username='analyst_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.jwt_required
         def protected_endpoint():
-            return {'user': mock_request.current_user}
+            return {'user': sys.modules['flask'].request.current_user}
         
         result = protected_endpoint()
         
@@ -349,8 +320,8 @@ class TestAdminRequiredDecorator:
     def test_admin_role_allows_access(self):
         """Test that admin role allows access."""
         token = create_valid_token(user_id='admin1', role='admin', username='admin_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.admin_required
         def admin_endpoint():
@@ -363,8 +334,8 @@ class TestAdminRequiredDecorator:
     def test_user_role_denies_access(self):
         """Test that user role denies access."""
         token = create_valid_token(user_id='user1', role='user', username='regular_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.admin_required
         def admin_endpoint():
@@ -380,8 +351,8 @@ class TestAdminRequiredDecorator:
     def test_analyst_role_denies_access(self):
         """Test that analyst role denies access."""
         token = create_valid_token(user_id='analyst1', role='analyst', username='analyst_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.admin_required
         def admin_endpoint():
@@ -402,8 +373,8 @@ class TestAdminRequiredDecorator:
             'iat': datetime.utcnow()
         }
         token = pyjwt.encode(payload, 'test-secret-key-for-testing', algorithm='HS256')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.admin_required
         def admin_endpoint():
@@ -415,8 +386,8 @@ class TestAdminRequiredDecorator:
     
     def test_missing_token_denies_access(self):
         """Test that missing token denies access."""
-        mock_request.headers = {}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.admin_required
         def admin_endpoint():
@@ -434,8 +405,8 @@ class TestAnalystRequiredDecorator:
     def test_analyst_role_allows_access(self):
         """Test that analyst role allows access."""
         token = create_valid_token(user_id='analyst1', role='analyst', username='analyst_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.analyst_required
         def analyst_endpoint():
@@ -448,8 +419,8 @@ class TestAnalystRequiredDecorator:
     def test_admin_role_allows_access(self):
         """Test that admin role allows access (higher privilege)."""
         token = create_valid_token(user_id='admin1', role='admin', username='admin_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.analyst_required
         def analyst_endpoint():
@@ -462,8 +433,8 @@ class TestAnalystRequiredDecorator:
     def test_user_role_denies_access(self):
         """Test that user role denies access."""
         token = create_valid_token(user_id='user1', role='user', username='regular_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.analyst_required
         def analyst_endpoint():
@@ -486,8 +457,8 @@ class TestAnalystRequiredDecorator:
             'iat': datetime.utcnow()
         }
         token = pyjwt.encode(payload, 'test-secret-key-for-testing', algorithm='HS256')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.analyst_required
         def analyst_endpoint():
@@ -504,8 +475,8 @@ class TestRolesRequiredDecorator:
     def test_single_role_match(self):
         """Test with single matching role."""
         token = create_valid_token(user_id='admin1', role='admin', username='admin_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.roles_required('admin')
         def protected_endpoint():
@@ -518,8 +489,8 @@ class TestRolesRequiredDecorator:
     def test_multiple_roles_one_matches(self):
         """Test with multiple allowed roles, one matches."""
         token = create_valid_token(user_id='analyst1', role='analyst', username='analyst_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.roles_required('admin', 'analyst', 'user')
         def protected_endpoint():
@@ -532,8 +503,8 @@ class TestRolesRequiredDecorator:
     def test_no_role_match_denies_access(self):
         """Test that non-matching role denies access."""
         token = create_valid_token(user_id='user1', role='user', username='regular_user')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.roles_required('admin', 'analyst')
         def protected_endpoint():
@@ -558,8 +529,8 @@ class TestRolesRequiredDecorator:
             'iat': datetime.utcnow()
         }
         token = pyjwt.encode(payload, 'test-secret-key-for-testing', algorithm='HS256')
-        mock_request.headers = {'Authorization': f'Bearer {token}'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': f'Bearer {token}'}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.roles_required('some_specific_role')
         def protected_endpoint():
@@ -571,8 +542,8 @@ class TestRolesRequiredDecorator:
     
     def test_missing_token_denies_access(self):
         """Test that missing token denies access."""
-        mock_request.headers = {}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {}
+        sys.modules['flask'].request.cookies = {}
         
         @auth_middleware.roles_required('admin')
         def protected_endpoint():
@@ -589,8 +560,8 @@ class TestExtractJwtFromRequest:
     
     def test_extract_from_authorization_header(self):
         """Test extracting token from Authorization header."""
-        mock_request.headers = {'Authorization': 'Bearer test-token-123'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'Authorization': 'Bearer test-token-123'}
+        sys.modules['flask'].request.cookies = {}
         
         token, error = auth_middleware._extract_jwt_from_request()
         
@@ -599,8 +570,8 @@ class TestExtractJwtFromRequest:
     
     def test_extract_from_x_access_token_header(self):
         """Test extracting token from X-Access-Token header."""
-        mock_request.headers = {'X-Access-Token': 'test-token-456'}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {'X-Access-Token': 'test-token-456'}
+        sys.modules['flask'].request.cookies = {}
         
         token, error = auth_middleware._extract_jwt_from_request()
         
@@ -609,8 +580,8 @@ class TestExtractJwtFromRequest:
     
     def test_extract_from_cookie(self):
         """Test extracting token from cookie."""
-        mock_request.headers = {}
-        mock_request.cookies = {'access_token': 'test-token-789'}
+        sys.modules['flask'].request.headers = {}
+        sys.modules['flask'].request.cookies = {'access_token': 'test-token-789'}
         
         token, error = auth_middleware._extract_jwt_from_request()
         
@@ -619,11 +590,11 @@ class TestExtractJwtFromRequest:
     
     def test_priority_authorization_over_header(self):
         """Test that Authorization header has priority over X-Access-Token."""
-        mock_request.headers = {
+        sys.modules['flask'].request.headers = {
             'Authorization': 'Bearer priority-token',
             'X-Access-Token': 'fallback-token'
         }
-        mock_request.cookies = {}
+        sys.modules['flask'].request.cookies = {}
         
         token, error = auth_middleware._extract_jwt_from_request()
         
@@ -632,8 +603,8 @@ class TestExtractJwtFromRequest:
     
     def test_priority_header_over_cookie(self):
         """Test that X-Access-Token has priority over cookie."""
-        mock_request.headers = {'X-Access-Token': 'header-token'}
-        mock_request.cookies = {'access_token': 'cookie-token'}
+        sys.modules['flask'].request.headers = {'X-Access-Token': 'header-token'}
+        sys.modules['flask'].request.cookies = {'access_token': 'cookie-token'}
         
         token, error = auth_middleware._extract_jwt_from_request()
         
@@ -642,11 +613,11 @@ class TestExtractJwtFromRequest:
     
     def test_fallback_on_invalid_authorization(self):
         """Test fallback to X-Access-Token when Authorization is invalid."""
-        mock_request.headers = {
+        sys.modules['flask'].request.headers = {
             'Authorization': 'InvalidFormat',
             'X-Access-Token': 'valid-token'
         }
-        mock_request.cookies = {}
+        sys.modules['flask'].request.cookies = {}
         
         token, error = auth_middleware._extract_jwt_from_request()
         
@@ -655,8 +626,8 @@ class TestExtractJwtFromRequest:
     
     def test_no_token_returns_error(self):
         """Test that missing all token sources returns error."""
-        mock_request.headers = {}
-        mock_request.cookies = {}
+        sys.modules['flask'].request.headers = {}
+        sys.modules['flask'].request.cookies = {}
         
         token, error = auth_middleware._extract_jwt_from_request()
         

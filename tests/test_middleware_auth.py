@@ -2,48 +2,17 @@
 Unit tests for middleware/auth_middleware.py
 
 Tests JWT authentication middleware functionality.
+
+Note: Flask and common module mocks are set up in conftest.py fixtures.
 """
 
 import pytest
 import jwt as pyjwt
 import datetime
-from unittest.mock import MagicMock
-import sys
-from pathlib import Path
 import os
 
 pytestmark = pytest.mark.unit
 os.environ['IDEMPOTENCY_TESTS_ALLOWED'] = 'true'
-
-class MockJsonifyResult:
-    def __init__(self, data):
-        self.data = data
-    
-    def get_json(self):
-        return self.data
-    
-    def __getitem__(self, key):
-        return self.data[key]
-    
-    def __contains__(self, key):
-        return key in self.data
-
-def mock_jsonify(data):
-    return MockJsonifyResult(data)
-
-mock_flask = MagicMock()
-mock_flask.jsonify = mock_jsonify
-sys.modules['flask'] = mock_flask
-
-sys.modules['common'] = MagicMock()
-sys.modules['common.config'] = MagicMock()
-sys.modules['common.config.settings'] = MagicMock()
-
-mock_settings = MagicMock()
-mock_settings.jwt_secret_key = 'test-secret-key-for-testing'
-sys.modules['common.config.settings'].get_settings.return_value = mock_settings
-
-sys.path.insert(0, str(Path(__file__).parent.parent / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'src'))
 
 from middleware.auth_middleware import (
     normalize_role,
