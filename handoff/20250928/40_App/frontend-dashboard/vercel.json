@@ -1,7 +1,7 @@
 {
   "headers": [
     {
-      "source": "/assets/(.*)\\.(?:css|js)",
+      "source": "/assets/:path*.(css|js)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -10,7 +10,7 @@
       ]
     },
     {
-      "source": "/(.*)\\.(?:png|jpg|jpeg|svg|webp|ico|woff2|ttf)",
+      "source": "/:path*.(png|jpg|jpeg|svg|webp|ico|woff2|ttf)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -46,7 +46,7 @@
       ]
     },
     {
-      "source": "/workbox-(.*)\\.js",
+      "source": "/workbox-:hash.js",
       "headers": [
         {
           "key": "Cache-Control",
