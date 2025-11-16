@@ -18,7 +18,7 @@ BEGIN
             AND table_name = 'users' 
             AND column_name = 'tenant_id'
         ) THEN
-            ALTER TABLE users ADD COLUMN tenant_id UUID;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id UUID;
             ALTER TABLE users ADD CONSTRAINT fk_users_tenant 
                 FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
             CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id);
