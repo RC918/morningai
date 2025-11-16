@@ -8,6 +8,7 @@ Runs evaluation tasks against the AI agent and measures performance metrics.
 import json
 import argparse
 import time
+import re
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -28,7 +29,29 @@ class EvaluationRunner:
             for line in f:
                 if line.strip():
                     tasks.append(json.loads(line))
+        
+        self._validate_dataset(tasks)
         return tasks
+    
+    def _validate_dataset(self, tasks: List[Dict]):
+        """Validate that all affected_files exist and contain no wildcards."""
+        errors = []
+        
+        for task in tasks:
+            task_id = task.get('id', 'unknown')
+            affected_files = task.get('input', {}).get('affected_files', [])
+            
+            for file_path in affected_files:
+                if re.search(r'[*?\\[\\]]', file_path):
+                    errors.append(f"Task {task_id}: File path contains wildcards: {file_path}")
+                    continue
+                
+                if not Path(file_path).exists():
+                    errors.append(f"Task {task_id}: File does not exist: {file_path}")
+        
+        if errors:
+            error_msg = "Dataset validation failed:\n" + "\n".join(errors)
+            raise ValueError(error_msg)
     
     def run_task(self, task: Dict) -> Dict:
         """

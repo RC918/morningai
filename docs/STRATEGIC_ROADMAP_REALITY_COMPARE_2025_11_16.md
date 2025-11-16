@@ -15,7 +15,7 @@ This document compares the strategic roadmap from PR #665 (CTO_STRATEGIC_PLAN_MV
 **✅ Strong Foundation Progress (Infrastructure & Security):**
 - RLS implementation: **COMPLETED** (6 migrations, 70 policies, runtime verification tests)
 - Secret scanning: **COMPLETED** (Gitleaks + TruffleHog + pip-audit in CI)
-- Test coverage: **EXCEEDED TARGET** (Owner Console: 59.89% lines vs 50% target)
+- Test coverage: **EXCEEDED TARGET** (Owner Console: 59.89% lines as reported in CI on 2025-11-16 vs 50% target)
 - 2FA implementation: **COMPLETED** (10 components, 11 tests, enforced login flow)
 - Storybook integration: **COMPLETED** (Owner Console with MSW, dark mode, a11y checks)
 
@@ -55,7 +55,7 @@ The project has made **excellent progress on foundational infrastructure** (RLS,
 
 | Roadmap Item | Strategic Plan Target | Current Evidence | Status | Gap | Next Action |
 |--------------|----------------------|------------------|--------|-----|-------------|
-| **Test Coverage** | Week 6: 41% → 50% | ✅ Owner Console: **59.89% lines, 45.76% branches** (218 tests passing)<br>✅ handoff/20250928/40_App/owner-console/vitest.config.ts<br>❌ Backend: Tests failing (ModuleNotFoundError: rq, numpy, jwt issues) | **PARTIAL** | Backend coverage unknown due to test failures | **P0: Fix backend test environment** (see Backend Test Environment section) |
+| **Test Coverage** | Week 6: 41% → 50% | ✅ Owner Console: **59.89% lines, 45.76% branches** (as reported in CI on 2025-11-16; 218 tests passing)<br>✅ handoff/20250928/40_App/owner-console/vitest.config.ts<br>❌ Backend: Tests failing (ModuleNotFoundError: rq, numpy, jwt issues) | **PARTIAL** | Backend coverage unknown due to test failures | **P0: Fix backend test environment** (see Backend Test Environment section) |
 | **Storybook Integration** | Not in original plan | ✅ Owner Console Storybook 8.6.14<br>✅ 13 story files (SystemMonitoring, AgentExecutionLogs, etc.)<br>✅ MSW addon for API mocking<br>✅ Dark mode support<br>✅ a11y checks with test-runner<br>✅ PR #1306, #1309 | **COMPLETED** | test-storybook not in CI (Vite incompatibility) | Track Storybook + Vite + test-runner version alignment |
 | **VRT (Visual Regression Testing)** | Not in original plan | ✅ Re-enabled November 2025<br>✅ Playwright VRT in CI<br>✅ .github/workflows/ux-pipeline.yml | **COMPLETED** | None | Monitor VRT stability |
 | **E2E Testing** | Week 6: End-to-end tests | ✅ Playwright E2E tests<br>✅ handoff/20250928/40_App/owner-console/e2e/max-width-regression.spec.ts (236 lines) | **COMPLETED** | Limited coverage | Expand E2E test scenarios |
@@ -425,7 +425,7 @@ RuntimeError: Wrong 'jwt' package detected! This project requires PyJWT, not jwt
 
 - ✅ RLS implementation (6 migrations, 70 policies)
 - ✅ Secret scanning (Gitleaks + TruffleHog)
-- ✅ Test coverage 59.89% (Owner Console)
+- ✅ Test coverage 59.89% (Owner Console, as reported in CI on 2025-11-16)
 - ✅ 2FA implementation
 - ✅ Storybook integration
 - ✅ VRT re-enabled

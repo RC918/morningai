@@ -52,7 +52,7 @@ This document provides a comprehensive overview of the MorningAI project structu
 - **Documentation Files**: 50+
 - **GitHub Actions Workflows**: 15+
 - **Test Coverage**: 41% overall (Target: 80%)
-  - **Owner Console**: 59.89% lines, 57.43% statements (exceeds 30% target)
+  - **Owner Console**: 59.89% lines, 45.76% branches (as reported in CI on 2025-11-16; exceeds 30% target)
 - **Active Branches**: `main` (production), `develop` (staging)
 
 ### Technology Stack
@@ -614,7 +614,7 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 
 **Development Status** (Updated 2025-11-15):
 - ✅ **P0 (Week 1)**: Token security (credentials + CSRF + 401 retry) - COMPLETE
-- ✅ **P1 (Week 2)**: 2FA system (10 components + 11 tests + enforcement), Test coverage 59.89% lines - COMPLETE
+- ✅ **P1 (Week 2)**: 2FA system (10 components + 11 tests + enforcement), Test coverage 59.89% lines (as reported) - COMPLETE
 - 🟡 **P1 (Week 3)**: Mock cleanup (complete), Agent Logs (60% - missing Trace links/drawer/skeleton), SystemMonitoring (60% - missing skeleton/empty states/charts) - PARTIAL
 - 🔴 **P2 (Week 4)**: Billing/Subscription/Alerting - NOT STARTED
 - ✅ **P2 (Design System)**: Tailwind v4 theme integration + design token replacement - COMPLETE
@@ -631,7 +631,7 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 - 🔴 Alerting System (not started)
 
 **Test Coverage**:
-- 59.89% lines, 57.43% statements (exceeds 30% target)
+- 59.89% lines, 45.76% branches (as reported in CI on 2025-11-16; exceeds 30% target)
 - 47 tests passing
 - Key test files: `auth-2fa.test.tsx` (11 tests), `2fa-api.test.ts` (7 tests)
 
