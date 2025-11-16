@@ -56,3 +56,12 @@ ux-qa-results/
 # i18n test results (should not be committed)
 **/i18n-test-results/
 handoff/20250928/40_App/api-backend/.venv-311/
+
+# Coverage artifacts (should not be committed)
+.coverage
+coverage.xml
+coverage.json
+htmlcov/
+
+# Storybook build artifacts (should not be committed)
+packages/shared-ui/storybook-static/
