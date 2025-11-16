@@ -62,17 +62,33 @@
       "filters": {
         "status": "Status",
         "allStatuses": "All Statuses",
+        "agentType": "Agent Type",
+        "allAgentTypes": "All Agent Types",
         "agentId": "Agent ID",
         "agentIdPlaceholder": "Filter by agent ID",
         "tenantId": "Tenant ID",
         "tenantIdPlaceholder": "Filter by tenant ID",
         "taskType": "Task Type",
         "taskTypePlaceholder": "Filter by task type",
+        "timeRange": "Time Range",
+        "selectTimeRange": "Select time range",
+        "allTime": "All Time",
+        "last24Hours": "Last 24 Hours",
+        "last7Days": "Last 7 Days",
+        "last30Days": "Last 30 Days",
+        "customRange": "Custom Range",
         "dateRange": "Date Range",
         "startDate": "Start Date",
         "endDate": "End Date",
         "clearFilters": "Clear Filters",
         "applyFilters": "Apply Filters"
+      },
+      "agentTypes": {
+        "devAgent": "Dev Agent",
+        "opsAgent": "Ops Agent",
+        "pmAgent": "PM Agent",
+        "growthStrategist": "Growth Strategist",
+        "metaAgent": "Meta Agent"
       },
       "statuses": {
         "queued": "Queued",
@@ -80,7 +96,8 @@
         "running": "Running",
         "completed": "Completed",
         "failed": "Failed",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "unknown": "Unknown"
       },
       "columns": {
         "taskId": "Task ID",
@@ -99,14 +116,29 @@
         "avgDuration": "Avg Duration",
         "statusBreakdown": "Status Breakdown"
       },
+      "viewDetails": "View Details",
+      "copyTraceId": "Copy trace ID",
+      "copyTaskId": "Copy task ID",
+      "copyTenantId": "Copy tenant ID",
+      "traceIdCopied": "Trace ID copied to clipboard",
+      "traceIdCopyFailed": "Failed to copy trace ID",
+      "taskIdCopied": "Task ID copied to clipboard",
+      "taskIdCopyFailed": "Failed to copy task ID",
+      "tenantIdCopied": "Tenant ID copied to clipboard",
+      "tenantIdCopyFailed": "Failed to copy tenant ID",
+      "retryLoad": "Retry loading execution logs",
       "details": {
-        "viewDetails": "View Details",
+        "title": "Execution Log Details",
+        "subtitle": "Detailed information about this execution",
         "taskDetails": "Task Details",
         "agentInfo": "Agent Information",
         "executionTime": "Execution Time",
         "payload": "Payload",
         "result": "Result",
         "errorMessage": "Error Message",
+        "traceId": "Trace ID",
+        "prUrl": "Pull Request",
+        "timing": "Timing",
         "createdAt": "Created",
         "startedAt": "Started",
         "completedAt": "Completed",
@@ -124,7 +156,8 @@
       "title": "Agent Reputation Leaderboard",
       "subtitle": "Agents ranked by reputation score and permission level",
       "noAgents": "No agents found",
-      "reputation": "Reputation"
+      "reputation": "Reputation",
+      "type": "Type"
     },
     "events": {
       "title": "Recent Events",

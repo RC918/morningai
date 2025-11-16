@@ -76,17 +76,33 @@
       "filters": {
         "status": "狀態",
         "allStatuses": "所有狀態",
+        "agentType": "Agent 類型",
+        "allAgentTypes": "所有 Agent 類型",
         "agentId": "Agent ID",
         "agentIdPlaceholder": "依 agent ID 篩選",
         "tenantId": "租戶 ID",
         "tenantIdPlaceholder": "依租戶 ID 篩選",
         "taskType": "任務類型",
         "taskTypePlaceholder": "依任務類型篩選",
+        "timeRange": "時間範圍",
+        "selectTimeRange": "選擇時間範圍",
+        "allTime": "全部時間",
+        "last24Hours": "最近 24 小時",
+        "last7Days": "最近 7 天",
+        "last30Days": "最近 30 天",
+        "customRange": "自訂範圍",
         "dateRange": "日期範圍",
         "startDate": "開始日期",
         "endDate": "結束日期",
         "clearFilters": "清除篩選",
         "applyFilters": "套用篩選"
+      },
+      "agentTypes": {
+        "devAgent": "開發 Agent",
+        "opsAgent": "維運 Agent",
+        "pmAgent": "專案管理 Agent",
+        "growthStrategist": "成長策略 Agent",
+        "metaAgent": "Meta Agent"
       },
       "statuses": {
         "queued": "排隊中",
@@ -94,7 +110,8 @@
         "running": "執行中",
         "completed": "已完成",
         "failed": "失敗",
-        "cancelled": "已取消"
+        "cancelled": "已取消",
+        "unknown": "未知"
       },
       "columns": {
         "taskId": "任務 ID",
@@ -113,14 +130,29 @@
         "avgDuration": "平均執行時長",
         "statusBreakdown": "狀態分布"
       },
+      "viewDetails": "查看詳情",
+      "copyTraceId": "複製 Trace ID",
+      "copyTaskId": "複製任務 ID",
+      "copyTenantId": "複製租戶 ID",
+      "traceIdCopied": "Trace ID 已複製到剪貼簿",
+      "traceIdCopyFailed": "複製 Trace ID 失敗",
+      "taskIdCopied": "任務 ID 已複製到剪貼簿",
+      "taskIdCopyFailed": "複製任務 ID 失敗",
+      "tenantIdCopied": "租戶 ID 已複製到剪貼簿",
+      "tenantIdCopyFailed": "複製租戶 ID 失敗",
+      "retryLoad": "重新載入執行日誌",
       "details": {
-        "viewDetails": "查看詳情",
+        "title": "執行日誌詳情",
+        "subtitle": "此次執行的詳細資訊",
         "taskDetails": "任務詳情",
         "agentInfo": "Agent 資訊",
         "executionTime": "執行時間",
         "payload": "輸入資料",
         "result": "執行結果",
         "errorMessage": "錯誤訊息",
+        "traceId": "Trace ID",
+        "prUrl": "Pull Request",
+        "timing": "時間資訊",
         "createdAt": "建立時間",
         "startedAt": "開始時間",
         "completedAt": "完成時間",
@@ -138,7 +170,8 @@
       "title": "Agent 聲譽排行榜",
       "subtitle": "依聲譽分數與權限等級排序的 Agents",
       "noAgents": "找不到 agents",
-      "reputation": "聲譽"
+      "reputation": "聲譽",
+      "type": "類型"
     },
     "events": {
       "title": "最近事件",

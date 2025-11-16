@@ -867,7 +867,7 @@ grep -r "alert_rule" handoff/20250928/40_App/api-backend/alembic/versions/
 
 **更新內容：**
 - 反映 P0+P1 完成狀態
-- 更新測試覆蓋率數據（59.89% lines）
+- 更新測試覆蓋率數據（59.89% lines as reported in CI on 2025-11-16）
 - 記錄 Week 3+4 當前狀態
 - 添加 Generated Clients 安全性驗證結果
 
