@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Alert, AlertDescription, AlertTitle } from '@morningai/shared-ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Alert, AlertDescription, AlertTitle, Skeleton } from '@morningai/shared-ui'
 import { Activity, Server, Database, Zap, AlertTriangle, Cpu, HardDrive, RefreshCw } from 'lucide-react'
 import { getAdminSystemHealth, getAdminSystemMetrics } from '@/lib/generated/admin/admin'
 
@@ -63,18 +63,76 @@ const SystemMonitoring = () => {
     return `${Math.round(hours / 24)}d`
   }
 
-  if (loading) {
+  const isEmptyValue = (value) => {
+    if (value == null) return true
+    if (Array.isArray(value)) return value.length === 0
+    if (typeof value === 'object') return Object.keys(value).length === 0
+    return false
+  }
+
+  const showSkeleton = loading && isEmptyValue(health) && isEmptyValue(metrics)
+
+  if (showSkeleton) {
     return (
-      <div className="p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="p-8 space-y-6" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-9 w-64 mb-2" aria-hidden="true" />
+            <Skeleton className="h-5 w-96" aria-hidden="true" />
+          </div>
+          <Skeleton className="h-10 w-24" aria-hidden="true" />
+        </div>
+
+        {/* System Health Card Skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" aria-hidden="true" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between mb-4">
+              <Skeleton className="h-6 w-32" aria-hidden="true" />
+              <Skeleton className="h-6 w-24" aria-hidden="true" />
+            </div>
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex justify-between">
+                  <Skeleton className="h-4 w-24" aria-hidden="true" />
+                  <Skeleton className="h-4 w-20" aria-hidden="true" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Metrics Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" aria-hidden="true" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-16" aria-hidden="true" />
+                    <Skeleton className="h-4 w-12" aria-hidden="true" />
+                  </div>
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-20" aria-hidden="true" />
+                    <Skeleton className="h-4 w-24" aria-hidden="true" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-8 space-y-6" aria-busy={loading}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
@@ -107,6 +165,23 @@ const SystemMonitoring = () => {
         </Alert>
       )}
 
+      {!error && !loading && isEmptyValue(health) && (
+        <Card>
+          <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
+            <Activity className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
+            <p id="empty-health-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noHealthData')}</p>
+            <Button 
+              onClick={loadSystemData} 
+              variant="outline" 
+              className="mt-4"
+              aria-label={t('monitoring.retryLoadHealth', { defaultValue: 'Retry loading system health' })}
+            >
+              {t('common.refresh')}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {health && (
         <Card>
           <CardHeader>
@@ -136,6 +211,23 @@ const SystemMonitoring = () => {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!error && !loading && isEmptyValue(metrics) && (
+        <Card>
+          <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
+            <Database className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
+            <p id="empty-metrics-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noMetricsData')}</p>
+            <Button 
+              onClick={loadSystemData} 
+              variant="outline" 
+              className="mt-4"
+              aria-label={t('monitoring.retryLoadMetrics', { defaultValue: 'Retry loading system metrics' })}
+            >
+              {t('common.refresh')}
+            </Button>
           </CardContent>
         </Card>
       )}

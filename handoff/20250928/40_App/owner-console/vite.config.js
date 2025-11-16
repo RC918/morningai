@@ -6,7 +6,9 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
+  const isStorybook = process.argv.some(arg => arg.includes('storybook'))
+  
   const enableSentry = Boolean(
     process.env.SENTRY_ORG && 
     process.env.SENTRY_PROJECT && 
@@ -32,13 +34,7 @@ export default defineConfig(({ mode }) => {
       )
     : null
 
-  return {
-    base: '/',
-    plugins: [
-      react(),
-      tailwindcss(),
-      ...(sentryPlugin ? [sentryPlugin] : []),
-      VitePWA({
+  const pwaPlugin = !isStorybook ? VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'],
       manifest: {
@@ -119,7 +115,15 @@ export default defineConfig(({ mode }) => {
       devOptions: {
         enabled: true
       }
-    })
+    }) : null
+
+  return {
+    base: '/',
+    plugins: [
+      react(),
+      tailwindcss(),
+      ...(sentryPlugin ? [sentryPlugin] : []),
+      ...(pwaPlugin ? [pwaPlugin] : []),
     ],
     resolve: {
       alias: {
