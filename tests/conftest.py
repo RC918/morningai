@@ -121,7 +121,7 @@ def verify_test_environment():
     print(f"\n✅ RLS test environment verified: {supabase_url}")
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope='function')
 def reset_flask_request_mock():
     """
     Reset Flask request mock before each test.
@@ -139,6 +139,13 @@ def reset_flask_request_mock():
         mock_flask.request.headers = {}
         mock_flask.request.cookies = {}
         
+        if hasattr(mock_flask.request, 'current_user'):
+            delattr(mock_flask.request, 'current_user')
+        
+        if hasattr(mock_flask.request, 'user_id'):
+            delattr(mock_flask.request, 'user_id')
+        
+        # Reset g to a fresh MagicMock
         mock_flask.g = MagicMock()
     
     yield
