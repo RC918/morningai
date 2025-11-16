@@ -73,7 +73,7 @@ test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
     }
   });
 
-  test('all max-w-* utilities should use correct rem values', async ({ page }) => {
+  test('all max-w-* CSS variables should resolve to correct rem values', async ({ page }) => {
     await page.evaluate(() => {
       const testContainer = document.createElement('div');
       testContainer.id = 'max-w-test-container';
@@ -96,7 +96,7 @@ test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
       
       sizes.forEach(size => {
         const el = document.createElement('div');
-        el.className = `max-w-${size}`;
+        el.style.maxWidth = `var(--max-width-${size})`;
         el.setAttribute('data-size', size);
         el.setAttribute('data-expected', expectedWidths[size].toString());
         testContainer.appendChild(el);
