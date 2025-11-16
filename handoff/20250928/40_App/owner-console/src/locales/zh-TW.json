@@ -191,7 +191,9 @@
     "memory": "記憶體",
     "disk": "磁碟",
     "usedTotal": "已用/總量",
-    "gbFormat": "{{used}}GB / {{total}}GB"
+    "gbFormat": "{{used}}GB / {{total}}GB",
+    "noHealthData": "目前沒有系統健康資料",
+    "noMetricsData": "目前沒有指標數據"
   },
   "uxMetrics": {
     "title": "UX 指標儀表板",
