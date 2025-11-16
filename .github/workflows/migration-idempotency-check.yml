@@ -35,7 +35,7 @@ jobs:
         continue-on-error: true
         id: idempotency_tests
         env:
-          IDEMPOTENCY_TESTS_ALLOWED: true
+          IDEMPOTENCY_TESTS_ALLOWED: "true"
         run: |
           echo "Running static analysis of migration files..."
           pytest tests/test_migration_idempotency.py -v --tb=short
