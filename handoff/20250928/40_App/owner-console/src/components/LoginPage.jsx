@@ -214,7 +214,7 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? {} : itemVariants}>
-          <Card>
+          <Card data-testid="login-card">
             <CardHeader>
               <CardTitle>{t('auth.login.title')}</CardTitle>
               <CardDescription>
