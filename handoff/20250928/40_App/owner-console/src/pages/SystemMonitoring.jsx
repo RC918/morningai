@@ -47,13 +47,13 @@ const SystemMonitoring = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'healthy':
-        return 'bg-green-100 text-green-800 border-green-300'
+        return 'bg-success-100 text-success-800 border-success-300'
       case 'degraded':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+        return 'bg-warning-100 text-warning-800 border-warning-300'
       case 'unhealthy':
-        return 'bg-red-100 text-red-800 border-red-300'
+        return 'bg-error-100 text-error-800 border-error-300'
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300'
+        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
     }
   }
 
@@ -63,33 +63,42 @@ const SystemMonitoring = () => {
     return `${Math.round(hours / 24)}d`
   }
 
-  if (loading) {
+  const isEmptyValue = (value) => {
+    if (value == null) return true
+    if (Array.isArray(value)) return value.length === 0
+    if (typeof value === 'object') return Object.keys(value).length === 0
+    return false
+  }
+
+  const showSkeleton = loading && isEmptyValue(health) && isEmptyValue(metrics)
+
+  if (showSkeleton) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="p-8 space-y-6" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
         {/* Header Skeleton */}
         <div className="flex items-center justify-between">
           <div>
-            <Skeleton className="h-9 w-64 mb-2" />
-            <Skeleton className="h-5 w-96" />
+            <Skeleton className="h-9 w-64 mb-2" aria-hidden="true" />
+            <Skeleton className="h-5 w-96" aria-hidden="true" />
           </div>
-          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-24" aria-hidden="true" />
         </div>
 
         {/* System Health Card Skeleton */}
         <Card>
           <CardHeader>
-            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-6 w-48" aria-hidden="true" />
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between mb-4">
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-6 w-32" aria-hidden="true" />
+              <Skeleton className="h-6 w-24" aria-hidden="true" />
             </div>
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="flex justify-between">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-24" aria-hidden="true" />
+                  <Skeleton className="h-4 w-20" aria-hidden="true" />
                 </div>
               ))}
             </div>
@@ -101,17 +110,17 @@ const SystemMonitoring = () => {
           {[1, 2, 3].map((i) => (
             <Card key={i}>
               <CardHeader>
-                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-6 w-32" aria-hidden="true" />
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-16" aria-hidden="true" />
+                    <Skeleton className="h-4 w-12" aria-hidden="true" />
                   </div>
                   <div className="flex justify-between">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" aria-hidden="true" />
+                    <Skeleton className="h-4 w-24" aria-hidden="true" />
                   </div>
                 </div>
               </CardContent>
@@ -123,14 +132,14 @@ const SystemMonitoring = () => {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-8 space-y-6" aria-busy={loading}>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Activity className="w-8 h-8 text-green-600" />
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
+            <Activity className="w-8 h-8 text-success-600" />
             {t('monitoring.title')}
           </h1>
-          <p className="text-gray-600 mt-1">{t('monitoring.subtitle')}</p>
+          <p className="text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
         </div>
         <Button onClick={loadSystemData} variant="outline" disabled={loading}>
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -156,12 +165,17 @@ const SystemMonitoring = () => {
         </Alert>
       )}
 
-      {!error && !health && !loading && (
+      {!error && !loading && isEmptyValue(health) && (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">{t('monitoring.noHealthData')}</p>
-            <Button onClick={loadSystemData} variant="outline" className="mt-4">
+          <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
+            <Activity className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
+            <p id="empty-health-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noHealthData')}</p>
+            <Button 
+              onClick={loadSystemData} 
+              variant="outline" 
+              className="mt-4"
+              aria-label={t('monitoring.retryLoadHealth', { defaultValue: 'Retry loading system health' })}
+            >
               {t('common.refresh')}
             </Button>
           </CardContent>
@@ -185,12 +199,12 @@ const SystemMonitoring = () => {
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">{t('monitoring.uptime')}</span>
+                <span className="text-sm text-neutral-600 dark:text-neutral-400">{t('monitoring.uptime')}</span>
                 <span className="text-sm font-semibold">{formatUptime(health.uptime_hours)}</span>
               </div>
               {health.services && Object.entries(health.services).map(([service, status]) => (
                 <div key={service} className="flex justify-between">
-                  <span className="text-sm text-gray-600 capitalize">{service}</span>
+                  <span className="text-sm text-neutral-600 dark:text-neutral-400 capitalize">{service}</span>
                   <Badge className={getStatusColor(status)} variant="outline">
                     {status}
                   </Badge>
@@ -201,12 +215,17 @@ const SystemMonitoring = () => {
         </Card>
       )}
 
-      {!error && !metrics && !loading && (
+      {!error && !loading && isEmptyValue(metrics) && (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Database className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">{t('monitoring.noMetricsData')}</p>
-            <Button onClick={loadSystemData} variant="outline" className="mt-4">
+          <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
+            <Database className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
+            <p id="empty-metrics-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noMetricsData')}</p>
+            <Button 
+              onClick={loadSystemData} 
+              variant="outline" 
+              className="mt-4"
+              aria-label={t('monitoring.retryLoadMetrics', { defaultValue: 'Retry loading system metrics' })}
+            >
               {t('common.refresh')}
             </Button>
           </CardContent>

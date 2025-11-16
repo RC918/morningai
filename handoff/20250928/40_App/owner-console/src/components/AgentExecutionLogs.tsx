@@ -270,19 +270,28 @@ const AgentExecutionLogs = () => {
     setPagination(prev => ({ ...prev, page: newPage }))
   }
 
-  if (loading && logs.length === 0) {
+  const isEmptyValue = (value: any): boolean => {
+    if (value == null) return true
+    if (Array.isArray(value)) return value.length === 0
+    if (typeof value === 'object') return Object.keys(value).length === 0
+    return false
+  }
+
+  const showSkeleton = loading && logs.length === 0
+
+  if (showSkeleton) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
         {/* Summary Statistics Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-5 w-5 rounded-full" />
+                  <Skeleton className="h-4 w-24" aria-hidden="true" />
+                  <Skeleton className="h-5 w-5 rounded-full" aria-hidden="true" />
                 </div>
-                <Skeleton className="h-9 w-20" />
+                <Skeleton className="h-9 w-20" aria-hidden="true" />
               </CardContent>
             </Card>
           ))}
@@ -291,14 +300,14 @@ const AgentExecutionLogs = () => {
         {/* Filters Skeleton */}
         <Card>
           <CardHeader>
-            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-6 w-32" aria-hidden="true" />
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i}>
-                  <Skeleton className="h-4 w-20 mb-2" />
-                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-4 w-20 mb-2" aria-hidden="true" />
+                  <Skeleton className="h-10 w-full" aria-hidden="true" />
                 </div>
               ))}
             </div>
@@ -308,20 +317,20 @@ const AgentExecutionLogs = () => {
         {/* Table Skeleton */}
         <Card>
           <CardHeader>
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64 mt-2" />
+            <Skeleton className="h-6 w-48" aria-hidden="true" />
+            <Skeleton className="h-4 w-64 mt-2" aria-hidden="true" />
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-6 w-20" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-6 w-20" aria-hidden="true" />
+                  <Skeleton className="h-4 w-32" aria-hidden="true" />
+                  <Skeleton className="h-4 w-24" aria-hidden="true" />
+                  <Skeleton className="h-4 w-28" aria-hidden="true" />
+                  <Skeleton className="h-4 w-32" aria-hidden="true" />
+                  <Skeleton className="h-4 w-16" aria-hidden="true" />
+                  <Skeleton className="h-4 w-36" aria-hidden="true" />
                 </div>
               ))}
             </div>
@@ -332,7 +341,7 @@ const AgentExecutionLogs = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" aria-busy={loading}>
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -344,6 +353,7 @@ const AgentExecutionLogs = () => {
               variant="outline" 
               size="sm" 
               className="ml-4"
+              aria-label={t('governance.executionLogs.retryLoad', { defaultValue: 'Retry loading execution logs' })}
             >
               {t('common.retry')}
             </Button>
@@ -513,8 +523,10 @@ const AgentExecutionLogs = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {logs.length === 0 ? (
-            <p className="text-center text-neutral-500 py-8">{t('governance.executionLogs.noLogs')}</p>
+          {logs.length === 0 && !loading ? (
+            <div className="text-center py-8" role="region" aria-labelledby="empty-logs-title">
+              <p id="empty-logs-title" className="text-neutral-500">{t('governance.executionLogs.noLogs')}</p>
+            </div>
           ) : (
             <>
               {/* Desktop Table View (md and up) */}
@@ -643,7 +655,7 @@ const AgentExecutionLogs = () => {
                           </div>
 
                           {log.error_message && (
-                            <div className="mt-3 p-sm bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded text-sm text-error-800 dark:text-error-400">
+                            <div className="mt-3 p-2 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded text-sm text-error-800 dark:text-error-400">
                               <p className="font-semibold">{t('governance.executionLogs.details.errorMessage')}:</p>
                               <p className="text-xs mt-1">{log.error_message}</p>
                             </div>
@@ -659,7 +671,7 @@ const AgentExecutionLogs = () => {
 
           {/* Pagination */}
           {pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between mt-lg pt-md border-t">
+            <div className="flex items-center justify-between mt-6 pt-4 border-t">
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 {t('governance.executionLogs.pagination.showing', {
                   start: (pagination.page - 1) * pagination.page_size + 1,
@@ -689,7 +701,7 @@ const AgentExecutionLogs = () => {
                     />
                   </PaginationItem>
                   <PaginationItem>
-                    <span className="text-sm text-neutral-600 dark:text-neutral-400 px-md">
+                    <span className="text-sm text-neutral-600 dark:text-neutral-400 px-4">
                       {t('governance.executionLogs.pagination.page', {
                         current: pagination.page,
                         total: pagination.total_pages
