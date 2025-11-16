@@ -848,12 +848,61 @@ curl https://morningai-backend-v2-stg.onrender.com/api/phase7/monitoring/dashboa
 
 ### Running Tests
 
-**Backend Tests**:
+#### Backend Tests
+
+**Prerequisites**:
+
+The project uses **PyJWT** for JWT token handling. Make sure you have the correct package installed:
+
+```bash
+# Install PyJWT (NOT jwt==1.4.0)
+pip install PyJWT
+```
+
+**Important:** Do NOT install `jwt==1.4.0` as it conflicts with PyJWT. If you have `jwt` installed, uninstall it first:
+
+```bash
+pip uninstall jwt
+pip install PyJWT
+```
+
+**Running Unit Tests**:
+
 ```bash
 cd handoff/20250928/40_App/api-backend
 source ../../../../.venv/bin/activate
+
+# Run all unit tests
 pytest -v
+
+# Run specific test files
+pytest tests/test_middleware_auth.py -v
+pytest tests/test_middleware_auth_decorators.py -v
+
+# Run with coverage
+pytest tests/test_middleware_auth*.py --cov=handoff/20250928/40_App/api-backend/src/middleware/auth_middleware.py --cov-report=term
+
+# Run all unit tests with coverage
+pytest tests/test_middleware_auth*.py tests/test_scripts_*.py --cov=src --cov-report=term --cov-report=xml --cov-report=json
 ```
+
+**Test Environment Variables**:
+
+For unit tests, set:
+```bash
+export TESTING=true
+```
+
+For migration idempotency tests:
+```bash
+export IDEMPOTENCY_TESTS_ALLOWED=true
+```
+
+**Note:** RLS tests require Supabase credentials and should not be run by default. See [DATABASE_ARCHITECTURE.md](DATABASE_ARCHITECTURE.md) for details.
+
+**Coverage Targets**:
+- **Overall**: 74% (enforced by CI)
+- **Security-critical modules** (auth_middleware.py): ≥70%
 
 **Frontend Tests**:
 ```bash
