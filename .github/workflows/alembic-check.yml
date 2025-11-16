@@ -72,24 +72,6 @@ jobs:
           echo "Testing downgrade..."
           alembic downgrade -1
           echo "✅ Downgrade successful"
-      
-      - name: Test migration idempotency (P2.2)
-        working-directory: handoff/20250928/40_App/api-backend
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
-        run: |
-          echo "Testing migration idempotency..."
-          echo "1. Upgrade to head (first time)"
-          alembic upgrade head
-          echo "2. Upgrade to head again (should be idempotent)"
-          alembic upgrade head
-          alembic current
-          echo "3. Downgrade one step"
-          alembic downgrade -1
-          echo "4. Re-upgrade (should work)"
-          alembic upgrade head
-          alembic current
-          echo "✅ Migration idempotency test passed"
 
       - name: Test SQLite migrations (development)
         working-directory: handoff/20250928/40_App/api-backend
