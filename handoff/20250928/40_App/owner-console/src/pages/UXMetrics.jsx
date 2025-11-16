@@ -389,33 +389,33 @@ export default function UXMetrics() {
                       {t('uxMetrics.serious')}:{formatValue(metrics.summary.apps[app].a11y.avg_serious)}
                     </span>
                   )}
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-neutral-500 dark:text-neutral-400">
                     ({metrics.summary?.apps?.[app]?.a11y?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
                   </span>
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">{t('uxMetrics.motionTests')}</span>
+                <span className="text-sm text-neutral-600 dark:text-neutral-400">{t('uxMetrics.motionTests')}</span>
                 <div className="flex items-center gap-2">
                   {metrics.summary?.apps?.[app]?.motion?.avg_p95 !== null && metrics.summary?.apps?.[app]?.motion?.avg_p95 !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].motion.avg_p95, metrics.thresholds.motion.p95)}`}>
                       {formatValue(metrics.summary.apps[app].motion.avg_p95, 'ms')}
                     </span>
                   )}
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-neutral-500 dark:text-neutral-400">
                     ({metrics.summary?.apps?.[app]?.motion?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
                   </span>
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">{t('uxMetrics.vrtTests')}</span>
+                <span className="text-sm text-neutral-600 dark:text-neutral-400">{t('uxMetrics.vrtTests')}</span>
                 <div className="flex items-center gap-2">
                   {metrics.summary?.apps?.[app]?.vrt?.avg_mismatch !== null && metrics.summary?.apps?.[app]?.vrt?.avg_mismatch !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].vrt.avg_mismatch, metrics.thresholds.vrt.mismatch)}`}>
                       {formatValue(metrics.summary.apps[app].vrt.avg_mismatch, '%')}
                     </span>
                   )}
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-neutral-500 dark:text-neutral-400">
                     ({metrics.summary?.apps?.[app]?.vrt?.parsed || 0}/{metrics.summary?.apps?.[app]?.total_prs || 0})
                   </span>
                 </div>
@@ -431,7 +431,7 @@ export default function UXMetrics() {
           {/* i18n Coverage Trend */}
           {metrics.summary.trends['frontend-dashboard']?.i18n && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('uxMetrics.i18nTrend')}</h3>
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t('uxMetrics.i18nTrend')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={metrics.summary.trends['frontend-dashboard'].i18n.filter(d => d.value !== null)}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -448,7 +448,7 @@ export default function UXMetrics() {
           {/* Lighthouse Performance Trend */}
           {metrics.summary.trends.lighthouse && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('uxMetrics.lighthouseTrend')}</h3>
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t('uxMetrics.lighthouseTrend')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={metrics.summary.trends.lighthouse.filter(d => d.fcp !== null || d.lcp !== null)}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -466,7 +466,7 @@ export default function UXMetrics() {
           {/* Bundle Size Trend */}
           {metrics.summary.trends.bundleSize && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('uxMetrics.bundleSizeTrend')}</h3>
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t('uxMetrics.bundleSizeTrend')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={metrics.summary.trends.bundleSize.filter(d => d.change_kb !== null)}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -480,18 +480,18 @@ export default function UXMetrics() {
               {metrics.summary.bundleSize && (
                 <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-600">{t('uxMetrics.avgBundleSize')}:</span>
+                    <span className="text-neutral-600 dark:text-neutral-400">{t('uxMetrics.avgBundleSize')}:</span>
                     <span className="ml-2 font-medium">{formatValue(metrics.summary.bundleSize.avg_size_kb, ' KB')}</span>
                   </div>
                   <div>
-                    <span className="text-gray-600">{t('uxMetrics.avgChange')}:</span>
-                    <span className={`ml-2 font-medium ${metrics.summary.bundleSize.avg_change_kb > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <span className="text-neutral-600 dark:text-neutral-400">{t('uxMetrics.avgChange')}:</span>
+                    <span className={`ml-2 font-medium ${metrics.summary.bundleSize.avg_change_kb > 0 ? 'text-error-600' : 'text-success-600'}`}>
                       {metrics.summary.bundleSize.avg_change_kb > 0 ? '+' : ''}{formatValue(metrics.summary.bundleSize.avg_change_kb, ' KB')}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-600">{t('uxMetrics.totalChange')}:</span>
-                    <span className={`ml-2 font-medium ${metrics.summary.bundleSize.total_change_kb > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <span className="text-neutral-600 dark:text-neutral-400">{t('uxMetrics.totalChange')}:</span>
+                    <span className={`ml-2 font-medium ${metrics.summary.bundleSize.total_change_kb > 0 ? 'text-error-600' : 'text-success-600'}`}>
                       {metrics.summary.bundleSize.total_change_kb > 0 ? '+' : ''}{formatValue(metrics.summary.bundleSize.total_change_kb, ' KB')}
                     </span>
                   </div>
