@@ -981,15 +981,28 @@ primary_region = "nrt"
 **Storybook Architecture**:
 - **Location**: 
   - Application Layer: `handoff/20250928/40_App/frontend-dashboard/.storybook/`
+  - Owner Console: `handoff/20250928/40_App/owner-console/.storybook/` (added November 2025)
   - Shared UI: `packages/shared-ui/.storybook/` (added November 2025)
 - **Configuration**: 
   - Frontend Dashboard: `handoff/20250928/40_App/frontend-dashboard/.storybook/main.ts:1-53`
+  - Owner Console: `handoff/20250928/40_App/owner-console/.storybook/main.ts` (Storybook 8.6.14)
+    - **P1 Improvements** (November 2025): MSW addon, dark mode, test runner
+    - MSW Config: `.storybook/msw-config.ts` - Wildcard host matching (`*/api/...`)
+    - Preview Config: `.storybook/preview.tsx` - MSW initialization, dark mode sync
+    - Test Runner: `.storybook/test-runner.ts` - a11y checks with axe-playwright
   - Shared UI: `packages/shared-ui/.storybook/main.ts` (Storybook 8.6.14)
-- **Stories**: 39+ total (26 in frontend-dashboard, 13 in shared-ui, 5 in tools/frontend-lab)
-- **Components Documented**: Apple-style components, design system showcase, color/spacing/typography systems, shared UI components (Card, Button, Badge, Alert, Avatar, Progress, Tabs, Dialog)
+- **Stories**: 52+ total (26 in frontend-dashboard, 13 in owner-console, 13 in shared-ui, 5 in tools/frontend-lab)
+  - Owner Console Stories:
+    - `src/pages/SystemMonitoring.stories.jsx` - 7 variants (Loading, Healthy, Degraded, Unhealthy, Empty states, Error)
+    - `src/components/AgentExecutionLogs.stories.tsx` - 6 variants (Loading, Successful, Mixed statuses, Empty, Error, Pagination)
+- **Components Documented**: Apple-style components, design system showcase, color/spacing/typography systems, shared UI components (Card, Button, Badge, Alert, Avatar, Progress, Tabs, Dialog), Owner Console pages (SystemMonitoring, AgentExecutionLogs)
 - **Running Storybook**:
+  - Owner Console: `cd handoff/20250928/40_App/owner-console && pnpm storybook` (port 6007)
   - Shared UI: `pnpm --filter @morningai/shared-ui storybook` (port 6006)
   - Frontend Dashboard: `pnpm --filter frontend-dashboard storybook` (port 6006)
+- **Testing Storybook**:
+  - Owner Console: `cd handoff/20250928/40_App/owner-console && pnpm test-storybook` (a11y checks)
+  - Shared UI: `pnpm --filter @morningai/shared-ui test-storybook:ci`
 - **Design Tokens**: Single source of truth at `packages/shared-ui/src/tokens.json`
 
 ### CI/CD Testing
