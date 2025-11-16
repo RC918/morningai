@@ -594,6 +594,7 @@ jobs:
         run: pnpm run build
       
       - name: Install Playwright browsers
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
         run: pnpm exec playwright install --with-deps chromium
       
       - name: Start preview server
@@ -604,9 +605,10 @@ jobs:
           timeout 30 bash -c 'until curl -s http://localhost:${{ matrix.port }} > /dev/null; do sleep 1; done'
       
       - name: Run computed style checks
+        working-directory: handoff/20250928/40_App/${{ matrix.app }}
         env:
           BASE_URL: http://localhost:${{ matrix.port }}
-        run: node scripts/ux/check-computed-styles.mjs ${{ matrix.app }} $BASE_URL
+        run: node ../../../../scripts/ux/check-computed-styles.mjs ${{ matrix.app }} $BASE_URL
       
       - name: Stop preview server
         if: always()

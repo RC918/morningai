@@ -14,7 +14,7 @@
  *   node scripts/ux/check-computed-styles.mjs owner-console http://localhost:4174
  */
 
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 
 const APP_NAME = process.argv[2];
 const BASE_URL = process.argv[3] || 'http://localhost:4173';
