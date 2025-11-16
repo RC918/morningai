@@ -314,6 +314,42 @@ handoff/20250928/40_App/
     └── ...              # Contains LangGraph implementation, used by RQ workers
 ```
 
+### Tools Directory (`tools/`)
+
+**NEW: 2025-11-16** - Development and evaluation tools
+
+```
+tools/
+└── agent_eval/          # Agent evaluation harness
+    ├── README.md        # Evaluation harness documentation
+    ├── __init__.py      # Package initialization
+    ├── dataset.jsonl    # Test cases (10 tasks: bug_fix, feature, refactor, test)
+    ├── runner.py        # Evaluation runner (executable)
+    ├── metrics.py       # Metrics calculator (executable)
+    └── results/         # Evaluation results (gitignored)
+```
+
+**Purpose**: Provides measurable success rates for AI agent performance:
+- **Task Completion Rate**: Percentage of tasks completed
+- **Correctness Rate**: Percentage of correct solutions
+- **CI Pass Rate**: Percentage of PRs passing CI
+- **Time Efficiency**: Actual vs estimated time
+- **Overall Success Rate**: Weighted combination
+
+**Status**: ✅ Framework created, not yet integrated with orchestrator
+
+**Usage**:
+```bash
+# Run evaluation
+cd tools/agent_eval
+python runner.py --dataset dataset.jsonl --output results/latest.json
+
+# View metrics
+python metrics.py --results results/latest.json
+```
+
+**Integration**: Planned for Milestone 1 (Nov 23 - Dec 6, 2025). See [Strategic Roadmap Reality Comparison](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md).
+
 ### Documentation Directory (`docs/`)
 
 ```
@@ -351,6 +387,8 @@ docs/
 ├── sandbox/             # Sandbox documentation
 ├── policy/              # Policy documentation
 │
+├── STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md  # Strategic roadmap comparison (NEW: 2025-11-16)
+├── BACKEND_TEST_ENVIRONMENT_FIX.md  # Backend test fix documentation (NEW: 2025-11-16)
 ├── ENVIRONMENTS.md      # Environment architecture (NEW)
 ├── ONBOARDING_GUIDE.md  # Onboarding guide (NEW)
 ├── ARCHITECTURE.md      # System architecture
@@ -1205,7 +1243,12 @@ pnpm test:coverage
 
 ---
 
-**Document Version**: 1.0.0  
-**Last Updated**: 2025-10-28  
+**Document Version**: 1.4.0  
+**Last Updated**: 2025-11-16  
 **Maintained By**: CTO / DevOps Team  
 **Status**: ✅ Complete and Current
+
+**Changelog**:
+- 2025-11-16 (v1.4.0): Added agent evaluation harness, strategic roadmap comparison, backend test fix documentation
+- 2025-11-15 (v1.3.0): Updated Owner Console status
+- 2025-10-28 (v1.0.0): Initial version
