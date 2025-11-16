@@ -365,3 +365,56 @@ jobs:
         run: |
           cd packages/shared-ui
           pnpm run test-storybook:ci
+  
+  owner-console-e2e:
+    name: Owner Console E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+      
+      - name: Build owner-console
+        run: |
+          cd handoff/20250928/40_App/owner-console
+          pnpm run build
+      
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+      
+      - name: Install Playwright browsers
+        run: |
+          cd handoff/20250928/40_App/owner-console
+          pnpm exec playwright install --with-deps chromium
+      
+      - name: Run Playwright E2E tests
+        run: |
+          cd handoff/20250928/40_App/owner-console
+          pnpm run test:e2e
+      
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-owner-console
+          path: handoff/20250928/40_App/owner-console/playwright-report/
+          retention-days: 30

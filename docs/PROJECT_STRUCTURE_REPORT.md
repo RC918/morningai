@@ -565,11 +565,18 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 
 **Architecture**: React 19.1.0 + Vite 6 + TypeScript 5.9
 
+**Styling**: Tailwind CSS 4.1.7 with custom design system
+- Design tokens: `packages/shared-ui/src/tokens.json` (single source of truth)
+- Theme configuration: `src/styles/theme.css` (Tailwind v4 @theme syntax)
+- Container width tokens: `--max-width-*` (separate from spacing tokens)
+- Regression test: `e2e/max-width-regression.spec.ts` (prevents layout collapse)
+
 **Development Status** (Updated 2025-11-15):
 - ✅ **P0 (Week 1)**: Token security (credentials + CSRF + 401 retry) - COMPLETE
 - ✅ **P1 (Week 2)**: 2FA system (10 components + 11 tests + enforcement), Test coverage 59.89% lines - COMPLETE
 - 🟡 **P1 (Week 3)**: Mock cleanup (complete), Agent Logs (60% - missing Trace links/drawer/skeleton), SystemMonitoring (60% - missing skeleton/empty states/charts) - PARTIAL
 - 🔴 **P2 (Week 4)**: Billing/Subscription/Alerting - NOT STARTED
+- ✅ **P2 (Design System)**: Tailwind v4 theme integration + design token replacement - COMPLETE
 
 **Key Features**:
 - ✅ System Monitoring (health checks, metrics, logs, real API integration)
