@@ -6,10 +6,11 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.3.0  
-**Last Updated**: 2025-11-15  
+**Document Version**: 1.4.0  
+**Last Updated**: 2025-11-16  
 **Project Phase**: Phase 8 (v8.0.0)  
-**Owner Console Status**: P0+P1 Complete (Week 1-2), Week 3 60% Complete, Week 4 Not Started
+**Owner Console Status**: P0+P1 Complete (Week 1-2), Week 3 60% Complete, Week 4 Not Started  
+**Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
 ---
 
@@ -97,6 +98,8 @@ morningai/
 ├── scripts/                    # Utility scripts (env generation, drift check, secret verification, system state verification)
 ├── packages/                   # Shared packages (shared-ui for cross-app components)
 ├── tests/                      # Root-level tests
+├── tools/                      # Development tools
+│   └── agent_eval/            # Agent evaluation harness (NEW: 2025-11-16)
 ├── phase4_meta_agent_api.py   # Phase 4 API module (imported by backend)
 ├── phase5_data_intelligence_api.py  # Phase 5 API module (imported by backend)
 ├── phase6_security_governance_api.py  # Phase 6 API module (imported by backend)
