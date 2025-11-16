@@ -8,11 +8,11 @@ const PlatformSettings = () => {
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <Settings className="w-8 h-8 text-gray-600" />
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
+          <Settings className="w-8 h-8 text-neutral-600 dark:text-neutral-400" />
           {t('settings.title')}
         </h1>
-        <p className="text-gray-600 mt-1">{t('settings.subtitle')}</p>
+        <p className="text-neutral-600 dark:text-neutral-400 mt-1">{t('settings.subtitle')}</p>
       </div>
 
       <Card>
@@ -55,14 +55,14 @@ const PlatformSettings = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">{t('settings.security.requireMFA')}</p>
-              <p className="text-sm text-gray-600">{t('settings.security.requireMFADesc')}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('settings.security.requireMFADesc')}</p>
             </div>
             <input type="checkbox" defaultChecked className="w-5 h-5" />
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">{t('settings.security.sessionTimeout')}</p>
-              <p className="text-sm text-gray-600">{t('settings.security.sessionTimeoutDesc')}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('settings.security.sessionTimeoutDesc')}</p>
             </div>
             <select className="px-3 py-2 border rounded-lg">
               <option>{t('settings.security.30minutes')}</option>
@@ -87,7 +87,7 @@ const PlatformSettings = () => {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-sm font-medium">{t('settings.2fa.card.manage')}</p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 {t('settings.2fa.card.manageDescription')}
               </p>
             </div>
