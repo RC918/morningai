@@ -65,3 +65,6 @@ htmlcov/
 
 # Storybook build artifacts (should not be committed)
 packages/shared-ui/storybook-static/
+
+# Agent evaluation results
+tools/agent_eval/results/

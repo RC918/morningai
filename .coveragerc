@@ -1,0 +1,25 @@
+[run]
+source =
+    scripts
+    handoff/20250928/40_App/api-backend/src/middleware
+
+omit =
+    */tests/*
+    */test_*
+    */__pycache__/*
+    */node_modules/*
+    */.venv/*
+    */migrations/*
+    */agents/**
+    */orchestrator/**
+    */packages/**
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod

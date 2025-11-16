@@ -239,6 +239,7 @@ def get_agent_execution_logs():
     Query parameters:
     - status: Filter by task status (queued, assigned, running, completed, failed, cancelled)
     - agent_id: Filter by specific agent ID
+    - agent_type: Filter by agent type (dev_agent, ops_agent, pm_agent, growth_strategist, meta_agent)
     - tenant_id: Filter by specific tenant ID
     - task_type: Filter by task type (e.g., 'faq', 'bug_fix')
     - start_date: Filter tasks created after this date (ISO format)
@@ -255,6 +256,7 @@ def get_agent_execution_logs():
     try:
         status_filter = request.args.get('status')
         agent_id_filter = request.args.get('agent_id')
+        agent_type_filter = request.args.get('agent_type')
         tenant_id_filter = request.args.get('tenant_id')
         task_type_filter = request.args.get('task_type')
         start_date_str = request.args.get('start_date')
@@ -295,6 +297,17 @@ def get_agent_execution_logs():
         
         if agent_id_filter:
             filters.append(TaskDB.agent_id == agent_id_filter)
+        
+        if agent_type_filter:
+            try:
+                from src.models.agent_registry_db import AgentTypeDB
+                agent_type = AgentTypeDB(agent_type_filter)
+                filters.append(AgentDB.agent_type == agent_type)
+            except ValueError:
+                return jsonify({
+                    'error': 'Invalid agent_type parameter',
+                    'message': f'agent_type must be one of: dev_agent, ops_agent, pm_agent, growth_strategist, meta_agent'
+                }), 400
         
         if tenant_id_filter:
             filters.append(TaskDB.tenant_id == tenant_id_filter)
@@ -384,6 +397,7 @@ def get_agent_execution_logs():
             'filters': {
                 'status': status_filter,
                 'agent_id': agent_id_filter,
+                'agent_type': agent_type_filter,
                 'tenant_id': tenant_id_filter,
                 'task_type': task_type_filter,
                 'start_date': start_date_str,

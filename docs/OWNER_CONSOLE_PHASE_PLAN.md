@@ -17,14 +17,14 @@
 | Phase | 原計劃狀態 | 實際驗證狀態 | 完成度 |
 |-------|-----------|-------------|--------|
 | **Week 1 (P0)** | 待實施 | ✅ **已完成** | 100% |
-| **Week 2 (P1)** | 待實施 | ✅ **已完成並超標** | 100% (Coverage 59.89% vs 目標 30%) |
+| **Week 2 (P1)** | 待實施 | ✅ **已完成並超標** | 100% (Coverage 59.89% as reported vs 目標 30%) |
 | **Week 3 (P1)** | 待實施 | 🟡 **部分完成** | 60% |
 | **Week 4 (P2)** | 待實施 | 🔴 **未開始** | 0% |
 
 **關鍵發現：**
 - ✅ Token 安全：完整實現（credentials + CSRF + 401 retry）
 - ✅ 2FA 系統：10 組件 + 11 測試 + 強制執行
-- ✅ 測試覆蓋率：59.89% lines（超標 2 倍）
+- ✅ 測試覆蓋率：59.89% lines (as reported in CI on 2025-11-16; 超標 2 倍)
 - ✅ TenantManagement：真實 API 整合
 - 🟡 Agent Logs：核心功能完成，缺細節（Trace 連結、抽屜、skeleton）
 - 🟡 SystemMonitoring：基本完成，缺優化（skeleton、空狀態、圖表）
