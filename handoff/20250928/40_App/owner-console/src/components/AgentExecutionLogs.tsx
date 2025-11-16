@@ -284,13 +284,15 @@ const AgentExecutionLogs = () => {
     setPagination(prev => ({ ...prev, page: newPage }))
   }
 
-  const handleCopyTraceId = async (traceId: string) => {
+  const handleCopy = async (value: string, type: 'traceId' | 'taskId' | 'tenantId') => {
     try {
-      await navigator.clipboard.writeText(traceId)
-      toast.success(t('governance.executionLogs.traceIdCopied', { defaultValue: 'Trace ID copied to clipboard' }))
+      await navigator.clipboard.writeText(value)
+      const successKey = `governance.executionLogs.${type}Copied`
+      toast.success(t(successKey))
     } catch (err) {
-      console.error('Failed to copy trace ID:', err)
-      toast.error(t('governance.executionLogs.traceIdCopyFailed', { defaultValue: 'Failed to copy trace ID' }))
+      console.error(`Failed to copy ${type}:`, err)
+      const failureKey = `governance.executionLogs.${type}CopyFailed`
+      toast.error(t(failureKey))
     }
   }
 
@@ -594,9 +596,9 @@ const AgentExecutionLogs = () => {
                                   variant="ghost"
                                   size="sm"
                                   className="h-6 w-6 p-0"
-                                  onClick={() => handleCopyTraceId(log.trace_id!)}
-                                  aria-label={t('governance.executionLogs.copyTraceId', { defaultValue: 'Copy trace ID' })}
-                                  title={t('governance.executionLogs.copyTraceId', { defaultValue: 'Copy trace ID' })}
+                                  onClick={() => handleCopy(log.trace_id!, 'traceId')}
+                                  aria-label={t('governance.executionLogs.copyTraceId')}
+                                  title={t('governance.executionLogs.copyTraceId')}
                                 >
                                   <Copy className="h-3 w-3" />
                                 </Button>
@@ -675,8 +677,8 @@ const AgentExecutionLogs = () => {
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0"
-                                onClick={() => handleCopyTraceId(log.trace_id!)}
-                                aria-label={t('governance.executionLogs.copyTraceId', { defaultValue: 'Copy trace ID' })}
+                                onClick={() => handleCopy(log.trace_id!, 'traceId')}
+                                aria-label={t('governance.executionLogs.copyTraceId')}
                               >
                                 <Copy className="h-3 w-3" />
                               </Button>
@@ -731,10 +733,10 @@ const AgentExecutionLogs = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleViewDetails(log)}
-                              aria-label={t('governance.executionLogs.viewDetails', { defaultValue: 'View details' })}
+                              aria-label={t('governance.executionLogs.viewDetails')}
                             >
                               <Eye className="h-4 w-4 mr-2" />
-                              {t('governance.executionLogs.viewDetails', { defaultValue: 'View details' })}
+                              {t('governance.executionLogs.viewDetails')}
                             </Button>
                           </div>
                         </div>
@@ -815,9 +817,9 @@ const AgentExecutionLogs = () => {
       <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{t('governance.executionLogs.details.title', { defaultValue: 'Execution Log Details' })}</SheetTitle>
+            <SheetTitle>{t('governance.executionLogs.details.title')}</SheetTitle>
             <SheetDescription>
-              {t('governance.executionLogs.details.subtitle', { defaultValue: 'Detailed information about this execution' })}
+              {t('governance.executionLogs.details.subtitle')}
             </SheetDescription>
           </SheetHeader>
 
@@ -848,8 +850,8 @@ const AgentExecutionLogs = () => {
                       variant="ghost"
                       size="sm"
                       className="h-7 w-7 p-0"
-                      onClick={() => navigator.clipboard.writeText(selectedLog.task_id)}
-                      aria-label={t('common.copy')}
+                      onClick={() => handleCopy(selectedLog.task_id, 'taskId')}
+                      aria-label={t('governance.executionLogs.copyTaskId')}
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
@@ -859,7 +861,7 @@ const AgentExecutionLogs = () => {
                 {selectedLog.trace_id && (
                   <div>
                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                      {t('governance.executionLogs.details.traceId', { defaultValue: 'Trace ID' })}
+                      {t('governance.executionLogs.details.traceId')}
                     </label>
                     <div className="mt-1 flex items-center gap-2">
                       <code className="text-sm font-mono bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
@@ -869,8 +871,8 @@ const AgentExecutionLogs = () => {
                         variant="ghost"
                         size="sm"
                         className="h-7 w-7 p-0"
-                        onClick={() => handleCopyTraceId(selectedLog.trace_id!)}
-                        aria-label={t('governance.executionLogs.copyTraceId', { defaultValue: 'Copy trace ID' })}
+                        onClick={() => handleCopy(selectedLog.trace_id!, 'traceId')}
+                        aria-label={t('governance.executionLogs.copyTraceId')}
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
@@ -892,17 +894,18 @@ const AgentExecutionLogs = () => {
                 {selectedLog.pr_url && (
                   <div>
                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                      {t('governance.executionLogs.details.prUrl', { defaultValue: 'Pull Request' })}
+                      {t('governance.executionLogs.details.prUrl')}
                     </label>
-                    <div className="mt-1">
+                    <div className="mt-1 max-w-[420px]">
                       <a
                         href={selectedLog.pr_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1"
+                        title={selectedLog.pr_url}
+                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 inline-flex items-center gap-1 truncate"
                       >
-                        {selectedLog.pr_url}
-                        <ExternalLink className="h-3 w-3" />
+                        <span className="truncate">{selectedLog.pr_url}</span>
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
                       </a>
                     </div>
                   </div>
@@ -937,7 +940,7 @@ const AgentExecutionLogs = () => {
               {/* Timing Info */}
               <div className="border-t pt-4">
                 <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-3">
-                  {t('governance.executionLogs.details.timing', { defaultValue: 'Timing' })}
+                  {t('governance.executionLogs.details.timing')}
                 </h3>
                 <div className="space-y-2">
                   {selectedLog.timestamps?.created_at && (
@@ -951,7 +954,7 @@ const AgentExecutionLogs = () => {
                   {selectedLog.timestamps?.started_at && (
                     <div className="flex justify-between">
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                        {t('governance.executionLogs.details.startedAt', { defaultValue: 'Started At' })}
+                        {t('governance.executionLogs.details.startedAt')}
                       </span>
                       <span className="text-sm font-medium">{formatTimestamp(selectedLog.timestamps.started_at)}</span>
                     </div>
@@ -959,7 +962,7 @@ const AgentExecutionLogs = () => {
                   {selectedLog.timestamps?.completed_at && (
                     <div className="flex justify-between">
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                        {t('governance.executionLogs.details.completedAt', { defaultValue: 'Completed At' })}
+                        {t('governance.executionLogs.details.completedAt')}
                       </span>
                       <span className="text-sm font-medium">{formatTimestamp(selectedLog.timestamps.completed_at)}</span>
                     </div>
@@ -1003,8 +1006,8 @@ const AgentExecutionLogs = () => {
                       variant="ghost"
                       size="sm"
                       className="h-7 w-7 p-0"
-                      onClick={() => navigator.clipboard.writeText(selectedLog.tenant_id!)}
-                      aria-label={t('common.copy')}
+                      onClick={() => handleCopy(selectedLog.tenant_id!, 'tenantId')}
+                      aria-label={t('governance.executionLogs.copyTenantId')}
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
