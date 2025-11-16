@@ -15,7 +15,26 @@ import os
 pytestmark = pytest.mark.unit
 os.environ['IDEMPOTENCY_TESTS_ALLOWED'] = 'true'
 
-sys.modules['flask'] = MagicMock()
+class MockJsonifyResult:
+    def __init__(self, data):
+        self.data = data
+    
+    def get_json(self):
+        return self.data
+    
+    def __getitem__(self, key):
+        return self.data[key]
+    
+    def __contains__(self, key):
+        return key in self.data
+
+def mock_jsonify(data):
+    return MockJsonifyResult(data)
+
+mock_flask = MagicMock()
+mock_flask.jsonify = mock_jsonify
+sys.modules['flask'] = mock_flask
+
 sys.modules['common'] = MagicMock()
 sys.modules['common.config'] = MagicMock()
 sys.modules['common.config.settings'] = MagicMock()
