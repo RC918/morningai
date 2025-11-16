@@ -287,101 +287,35 @@ export const MetricsDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const isProduction = import.meta.env.MODE === 'production';
+        setLoading(true);
+        setError(null);
         
-        try {
-          const result = await apiClientWithMeta<BackendDashboardResponse>('/phase7/monitoring/dashboard', {
-            method: 'GET'
-          });
+        const result = await apiClientWithMeta<BackendDashboardResponse>('/phase7/monitoring/dashboard', {
+          method: 'GET'
+        });
 
-          if (result.status === 200 && result.data) {
-            const normalizedData = normalizeDashboardData(result.data);
-            setDashboardData(normalizedData);
-            setUsingMockData(false);
-            setLoading(false);
-            return;
-          } else if (result.status === 404) {
-            if (isProduction) {
-              throw new Error(
-                'CRITICAL: Metrics Dashboard API endpoint not implemented. ' +
-                'Cannot display metrics in production without real data.'
-              );
-            }
-          } else {
-            throw new Error(`API error: ${result.status}`);
-          }
-        } catch (apiError) {
-          if (isProduction) {
-            throw apiError;
-          }
-          console.warn('Failed to fetch real metrics data, using mock data:', apiError);
+        if (result.status === 200 && result.data) {
+          const normalizedData = normalizeDashboardData(result.data);
+          setDashboardData(normalizedData);
+          setLoading(false);
+          return;
+        } else if (result.status === 404) {
+          throw new Error(
+            'Metrics Dashboard API endpoint not found. ' +
+            'Please ensure the backend /phase7/monitoring/dashboard endpoint is implemented.'
+          );
+        } else {
+          throw new Error(`API returned status ${result.status}`);
         }
-
-        console.warn(
-          '⚠️ DEVELOPMENT MODE: Using mock data for Metrics Dashboard. ' +
-          'This data is NOT real and should not be used for production decisions.'
-        );
-        
-        const mockData: DashboardData = {
-          system_health: {
-            overall_status: 'healthy',
-            error_rate: 0.02,
-            avg_latency: 0.15,
-            open_circuit_breakers: 0
-          },
-          metrics: {
-            api_request_rate: { current: 1250, unit: 'req/min', trend: 'up' },
-            agent_task_success_rate: { current: 0.96, unit: '%', trend: 'stable' },
-            queue_depth: { current: 12, unit: 'tasks', trend: 'down' },
-            active_agents: { current: 5, unit: 'agents', trend: 'stable' }
-          },
-          agents: [
-            {
-              agent_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-              agent_type: 'dev_agent',
-              status: 'active',
-              reputation_score: 750,
-              task_success_rate: 0.95,
-              active_tasks: 3
-            },
-            {
-              agent_id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-              agent_type: 'ops_agent',
-              status: 'busy',
-              reputation_score: 820,
-              task_success_rate: 0.98,
-              active_tasks: 5
-            },
-            {
-              agent_id: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
-              agent_type: 'pm_agent',
-              status: 'idle',
-              reputation_score: 680,
-              task_success_rate: 0.92,
-              active_tasks: 0
-            }
-          ],
-          alerts: [
-            {
-              id: '1',
-              severity: 'warning',
-              message: 'Queue depth elevated above normal levels',
-              timestamp: new Date().toISOString()
-            }
-          ]
-        };
-
-        setDashboardData(mockData);
-        setUsingMockData(true);
-        setLoading(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch dashboard data';
+        setError(errorMessage);
         setLoading(false);
+        setDashboardData(null);
       }
     };
 
@@ -407,11 +341,36 @@ export const MetricsDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>{t('metricsDashboard.error')}</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <div className="space-y-4 p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{t('metricsDashboard.error')}</AlertTitle>
+          <AlertDescription>
+            {error}
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-2 text-sm underline hover:no-underline"
+            >
+              {t('common.retry')}
+            </button>
+          </AlertDescription>
+        </Alert>
+        {import.meta.env.DEV && (
+          <Alert variant="default" className="border-blue-600 bg-blue-50">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800">{t('metricsDashboard.devInfo.title')}</AlertTitle>
+            <AlertDescription className="text-blue-700">
+              <p className="mb-2">{t('metricsDashboard.devInfo.description')}</p>
+              <code className="block bg-blue-100 p-2 rounded text-sm">
+                {t('metricsDashboard.devInfo.endpoint')}
+              </code>
+              <p className="mt-2 text-xs">
+                {t('metricsDashboard.devInfo.hint')}
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
     );
   }
 
@@ -430,18 +389,6 @@ export const MetricsDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Mock Data Warning */}
-      {usingMockData && (
-        <Alert variant="default" className="border-warning-600 bg-warning-50">
-          <AlertCircle className="h-4 w-4 text-warning-600" />
-          <AlertTitle className="text-warning-800">{t('metricsDashboard.devMode.title')}</AlertTitle>
-          <AlertDescription className="text-warning-700">
-            {t('metricsDashboard.devMode.description')}
-            <strong className="block mt-1">{t('metricsDashboard.devMode.warning')}</strong>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
