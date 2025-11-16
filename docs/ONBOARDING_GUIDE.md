@@ -1062,6 +1062,79 @@ pytest tests/test_specific.py -v
 3. Check if tests pass locally
 4. Review recent commits for breaking changes
 
+### Issue: Tailwind v4 max-w-* utilities not working correctly
+
+**Symptoms**: 
+- Container widths collapse to 16px instead of expected rem values (e.g., max-w-md should be 28rem/448px but renders as 16px)
+- All `max-w-*` utilities affected (sm, md, lg, xl, 2xl, 3xl, 4xl, 5xl, 6xl, 7xl)
+- Layout appears vertically compressed and unusable
+- Issue only appears on Vercel preview deployments (not local dev due to different build optimizations)
+
+**Root Cause**: Tailwind v4's `@theme` syntax incorrectly maps `max-w-*` utilities to `--spacing-*` tokens which are intended for padding/margin, not container widths.
+
+**Technical Details**:
+In `theme.css`, we defined:
+```css
+--spacing-md: var(--space-md);  /* 16px from shared-ui */
+```
+
+Tailwind v4 then incorrectly generated:
+```css
+.max-w-md { max-width: var(--spacing-md); }  /* 16px - WRONG! */
+```
+
+But `max-w-md` should be:
+```css
+.max-w-md { max-width: 28rem; }  /* 448px - CORRECT */
+```
+
+**Solution**: The fix is already implemented in `owner-console/src/styles/theme.css`:
+- Separate `--max-width-*` tokens are defined (lines 24-35)
+- These tokens use correct rem values:
+  - `--max-width-sm: 24rem` (384px)
+  - `--max-width-md: 28rem` (448px)
+  - `--max-width-lg: 32rem` (512px)
+  - `--max-width-xl: 36rem` (576px)
+  - `--max-width-2xl: 42rem` (672px)
+  - `--max-width-3xl: 48rem` (768px)
+  - `--max-width-4xl: 56rem` (896px)
+  - `--max-width-5xl: 64rem` (1024px)
+  - `--max-width-6xl: 72rem` (1152px)
+  - `--max-width-7xl: 80rem` (1280px)
+- Tailwind v4 now uses these dedicated tokens instead of spacing tokens
+- Clean separation of concerns: spacing tokens (padding/margin) vs. container width tokens
+
+**Verification**:
+```bash
+# 1. Run the regression test
+cd handoff/20250928/40_App/owner-console
+npm run test:e2e -- max-width-regression.spec.ts
+
+# 2. Build and check compiled CSS
+npm run build
+grep "max-w-md" dist/assets/index-*.css
+# Should show: .max-w-md{max-width:var(--max-width-md)}
+
+# 3. Check computed styles in browser DevTools
+# Open login page, inspect element with max-w-md class
+# Computed maxWidth should be 448px (not 16px)
+```
+
+**If Issue Persists**:
+1. Clear build cache: `rm -rf dist node_modules/.vite`
+2. Reinstall dependencies: `pnpm install`
+3. Rebuild: `pnpm build`
+4. Check that `theme.css` contains `--max-width-*` tokens
+5. Verify no CSS overrides in `index.css` (hotfix was removed in PR #1308)
+
+**Related Documentation**:
+- **Detailed tracking doc**: `docs/TAILWIND_V4_MAX_WIDTH_ISSUE.md` (comprehensive 259-line analysis)
+- **PR #1303**: Initial hotfix with CSS overrides
+- **PR #1308**: Root cause fix with dedicated --max-width-* tokens
+- **Regression test**: `e2e/max-width-regression.spec.ts`
+
+**Risk Note**: Tailwind v4 token resolution behavior is based on observation, not official documentation. Future Tailwind v4 versions may change this behavior. Monitor for updates when upgrading Tailwind.
+
 ---
 
 ## Getting Help

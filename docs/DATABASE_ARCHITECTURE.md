@@ -247,7 +247,7 @@ export SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-key>
 
 - [ENVIRONMENTS.md](ENVIRONMENTS.md) - Complete environment configuration
 - [RLS_TESTING.md](../tests/README_RLS_TESTING.md) - RLS testing guide
-- [Migration 007](../migrations/007_fix_user_profiles_rls_recursion.sql) - RLS fix migration
+- [Migration 019](../migrations/019_fix_user_profiles_rls_recursion.sql) - RLS fix migration
 - [Staging Setup Guide](ops/STAGING_SETUP_GUIDE.md) - Staging environment setup
 
 ## Summary
