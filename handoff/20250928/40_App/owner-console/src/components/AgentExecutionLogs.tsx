@@ -94,10 +94,12 @@ interface PaginationState {
 interface FiltersState {
   status: string
   agent_id: string
+  agent_type: string
   tenant_id: string
   task_type: string
   start_date: string
   end_date: string
+  time_range: string
   sort_by: string
   sort_order: string
 }
@@ -190,13 +192,44 @@ const AgentExecutionLogs = () => {
   const [filters, setFilters] = useState<FiltersState>({
     status: '',
     agent_id: '',
+    agent_type: '',
     tenant_id: '',
     task_type: '',
     start_date: '',
     end_date: '',
+    time_range: '',
     sort_by: 'created_at',
     sort_order: 'desc'
   })
+
+  useEffect(() => {
+    if (filters.time_range) {
+      const now = new Date()
+      let startDate = ''
+      
+      switch (filters.time_range) {
+        case '24h':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          break
+        case '7d':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          break
+        case '30d':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          break
+        case 'custom':
+          return
+        default:
+          return
+      }
+      
+      setFilters(prev => ({
+        ...prev,
+        start_date: startDate,
+        end_date: now.toISOString().split('T')[0]
+      }))
+    }
+  }, [filters.time_range])
 
   useEffect(() => {
     loadExecutionLogs()
@@ -217,6 +250,7 @@ const AgentExecutionLogs = () => {
       
       if (filters.status) params.append('status', filters.status)
       if (filters.agent_id) params.append('agent_id', filters.agent_id)
+      if (filters.agent_type) params.append('agent_type', filters.agent_type)
       if (filters.tenant_id) params.append('tenant_id', filters.tenant_id)
       if (filters.task_type) params.append('task_type', filters.task_type)
       if (filters.start_date) params.append('start_date', filters.start_date)
@@ -250,10 +284,12 @@ const AgentExecutionLogs = () => {
     setFilters({
       status: '',
       agent_id: '',
+      agent_type: '',
       tenant_id: '',
       task_type: '',
       start_date: '',
       end_date: '',
+      time_range: '',
       sort_by: 'created_at',
       sort_order: 'desc'
     })
@@ -485,6 +521,28 @@ const AgentExecutionLogs = () => {
 
             <div>
               <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+                {t('governance.executionLogs.filters.agentType')}
+              </label>
+              <Select 
+                value={filters.agent_type} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('governance.executionLogs.filters.allAgentTypes')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{t('governance.executionLogs.filters.allAgentTypes')}</SelectItem>
+                  <SelectItem value="dev_agent">{t('governance.executionLogs.agentTypes.devAgent')}</SelectItem>
+                  <SelectItem value="ops_agent">{t('governance.executionLogs.agentTypes.opsAgent')}</SelectItem>
+                  <SelectItem value="pm_agent">{t('governance.executionLogs.agentTypes.pmAgent')}</SelectItem>
+                  <SelectItem value="growth_strategist">{t('governance.executionLogs.agentTypes.growthStrategist')}</SelectItem>
+                  <SelectItem value="meta_agent">{t('governance.executionLogs.agentTypes.metaAgent')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.agentId')}
               </label>
               <Input
@@ -507,12 +565,34 @@ const AgentExecutionLogs = () => {
 
             <div>
               <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+                {t('governance.executionLogs.filters.timeRange')}
+              </label>
+              <Select 
+                value={filters.time_range} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('governance.executionLogs.filters.selectTimeRange')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{t('governance.executionLogs.filters.allTime')}</SelectItem>
+                  <SelectItem value="24h">{t('governance.executionLogs.filters.last24Hours')}</SelectItem>
+                  <SelectItem value="7d">{t('governance.executionLogs.filters.last7Days')}</SelectItem>
+                  <SelectItem value="30d">{t('governance.executionLogs.filters.last30Days')}</SelectItem>
+                  <SelectItem value="custom">{t('governance.executionLogs.filters.customRange')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.startDate')}
               </label>
               <Input
                 type="date"
                 value={filters.start_date}
-                onChange={(e) => setFilters(prev => ({ ...prev, start_date: e.target.value }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, start_date: e.target.value, time_range: 'custom' }))}
+                disabled={filters.time_range !== 'custom' && filters.time_range !== ''}
               />
             </div>
 
@@ -523,7 +603,8 @@ const AgentExecutionLogs = () => {
               <Input
                 type="date"
                 value={filters.end_date}
-                onChange={(e) => setFilters(prev => ({ ...prev, end_date: e.target.value }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, end_date: e.target.value, time_range: 'custom' }))}
+                disabled={filters.time_range !== 'custom' && filters.time_range !== ''}
               />
             </div>
 
