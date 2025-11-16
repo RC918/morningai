@@ -19,10 +19,17 @@ def verify_test_environment():
     2. SUPABASE_URL must exactly match TEST_SUPABASE_URL (whitelist)
     3. SUPABASE_URL must NOT contain production markers
     
+    Note: This fixture is skipped for migration idempotency tests
+    (controlled by IDEMPOTENCY_TESTS_ALLOWED environment variable).
+    
     Raises:
         pytest.skip: If environment is not configured for RLS tests
         ValueError: If SUPABASE_URL appears to be a production environment
     """
+    idempotency_tests_allowed = os.environ.get('IDEMPOTENCY_TESTS_ALLOWED', 'false')
+    if idempotency_tests_allowed == 'true':
+        return
+    
     supabase_url = os.environ.get('SUPABASE_URL', '')
     test_supabase_url = os.environ.get('TEST_SUPABASE_URL', '')
     rls_tests_allowed = os.environ.get('RLS_TESTS_ALLOWED', 'false')
