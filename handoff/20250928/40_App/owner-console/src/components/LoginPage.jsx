@@ -215,10 +215,10 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? {} : itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('auth.login.title')}</CardTitle>
-              <CardDescription>
+          <Card className="!py-6 border-gray-200 dark:border-gray-800">
+            <CardHeader className="pt-1 pb-3">
+              <CardTitle className="leading-tight">{t('auth.login.title')}</CardTitle>
+              <CardDescription className="mt-1.5">
                 {t('auth.login.description')}
               </CardDescription>
             </CardHeader>
