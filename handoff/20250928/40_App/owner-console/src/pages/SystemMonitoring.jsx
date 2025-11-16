@@ -268,7 +268,7 @@ const SystemMonitoring = () => {
                   </div>
                 </div>
                 {metrics.cpu?.usage_percent != null && (
-                  <div className="h-16" aria-label={t('monitoring.cpuTrend', { defaultValue: 'CPU usage trend (last 24 hours)' })}>
+                  <div className="h-16" aria-label={t('monitoring.cpuTrend')}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={generateTrendData(metrics.cpu.usage_percent)}>
                         <Line 
@@ -309,7 +309,7 @@ const SystemMonitoring = () => {
                   </div>
                 </div>
                 {metrics.memory?.usage_percent != null && (
-                  <div className="h-16" aria-label={t('monitoring.memoryTrend', { defaultValue: 'Memory usage trend (last 24 hours)' })}>
+                  <div className="h-16" aria-label={t('monitoring.memoryTrend')}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={generateTrendData(metrics.memory.usage_percent)}>
                         <Line 
@@ -350,7 +350,7 @@ const SystemMonitoring = () => {
                   </div>
                 </div>
                 {metrics.disk?.usage_percent != null && (
-                  <div className="h-16" aria-label={t('monitoring.diskTrend', { defaultValue: 'Disk usage trend (last 24 hours)' })}>
+                  <div className="h-16" aria-label={t('monitoring.diskTrend')}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={generateTrendData(metrics.disk.usage_percent)}>
                         <Line 
