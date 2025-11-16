@@ -36,28 +36,35 @@ async function setupAuth(page) {
     return false;
   }
 
+  // Get app-specific authentication configuration
+  const authConfig = config.AUTH_CONFIG?.[APP_NAME];
+  if (!authConfig) {
+    console.log(`⚠️  No auth config for ${APP_NAME}`);
+    console.log('   Using default selectors (may not work)\n');
+    return false;
+  }
+
   console.log('🔐 Setting up authentication...');
   
   try {
     // Navigate to login page
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
     
-    // Wait for form to be visible
-    await page.waitForSelector('input[name="username"]', { state: 'visible', timeout: 10000 });
+    // Wait for form to be visible (use app-specific selector)
+    await page.waitForSelector(authConfig.usernameField, { state: 'visible', timeout: 10000 });
     
-    // Fill in credentials using attribute-based selectors
-    await page.fill('input[name="username"]', QA_TEST_EMAIL);
-    await page.fill('input[name="password"]', QA_TEST_PASSWORD);
+    // Fill in credentials using app-specific selectors
+    await page.fill(authConfig.usernameField, QA_TEST_EMAIL);
+    await page.fill(authConfig.passwordField, QA_TEST_PASSWORD);
     
     // Submit form by pressing Enter on password field (more reliable than clicking button)
-    await page.press('input[name="password"]', 'Enter');
+    await page.press(authConfig.passwordField, 'Enter');
     
-    // Wait for navigation to dashboard after successful login
-    await page.waitForURL(/\/dashboard(\/|$)/, { timeout: 15000 });
+    // Wait for navigation to dashboard after successful login (use app-specific URL pattern)
+    await page.waitForURL(authConfig.successUrl, { timeout: 15000 });
     
-    // Verify authentication by checking for authenticated-only elements
-    // The sidebar is only visible when authenticated
-    const isAuthenticated = await page.locator('nav[role="navigation"]').isVisible().catch(() => false);
+    // Verify authentication by checking for authenticated-only elements (use app-specific selector)
+    const isAuthenticated = await page.locator(authConfig.successSelector).isVisible().catch(() => false);
     
     if (isAuthenticated) {
       console.log('✅ Authentication successful\n');

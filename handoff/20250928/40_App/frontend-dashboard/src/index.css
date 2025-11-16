@@ -654,3 +654,23 @@ a:focus-visible {
 }
 
 /* Remove global writing-mode rules that interfere with Tailwind */
+
+/* [UX-SENTINEL] Resizable Panels visual hide fallback */
+/* Hide accessibility labels in resize handles while keeping them accessible to screen readers */
+/* This prevents "panel 0", "panel 1", "Resize handle" from being visible in production */
+[data-panel-group] [role="separator"] {
+  font-size: 0;
+  line-height: 0;
+}
+
+/* Restore normal sizing for icons within the separator */
+[data-panel-group] [role="separator"] svg {
+  font-size: initial;
+  line-height: normal;
+}
+
+/* Ensure the handle remains interactive and accessible */
+[data-panel-group] [role="separator"]:focus-visible {
+  outline: 2px solid #0051D0;
+  outline-offset: 2px;
+}
