@@ -62,17 +62,33 @@
       "filters": {
         "status": "Status",
         "allStatuses": "All Statuses",
+        "agentType": "Agent Type",
+        "allAgentTypes": "All Agent Types",
         "agentId": "Agent ID",
         "agentIdPlaceholder": "Filter by agent ID",
         "tenantId": "Tenant ID",
         "tenantIdPlaceholder": "Filter by tenant ID",
         "taskType": "Task Type",
         "taskTypePlaceholder": "Filter by task type",
+        "timeRange": "Time Range",
+        "selectTimeRange": "Select time range",
+        "allTime": "All Time",
+        "last24Hours": "Last 24 Hours",
+        "last7Days": "Last 7 Days",
+        "last30Days": "Last 30 Days",
+        "customRange": "Custom Range",
         "dateRange": "Date Range",
         "startDate": "Start Date",
         "endDate": "End Date",
         "clearFilters": "Clear Filters",
         "applyFilters": "Apply Filters"
+      },
+      "agentTypes": {
+        "devAgent": "Dev Agent",
+        "opsAgent": "Ops Agent",
+        "pmAgent": "PM Agent",
+        "growthStrategist": "Growth Strategist",
+        "metaAgent": "Meta Agent"
       },
       "statuses": {
         "queued": "Queued",
