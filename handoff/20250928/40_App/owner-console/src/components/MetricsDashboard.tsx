@@ -159,8 +159,8 @@ const MetricCard: React.FC<{
   description?: string;
 }> = ({ title, value, unit, trend, icon, description }) => {
   const getTrendIcon = () => {
-    if (trend === 'up') return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (trend === 'down') return <TrendingDown className="h-4 w-4 text-red-500" />;
+    if (trend === 'up') return <TrendingUp className="h-4 w-4 text-success-600" />;
+    if (trend === 'down') return <TrendingDown className="h-4 w-4 text-error-600" />;
     return null;
   };
 
@@ -231,12 +231,12 @@ const AgentStatusCard: React.FC<{ agent: AgentMetrics }> = ({ agent }) => {
   const { t } = useTranslation();
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'active': return 'bg-green-500';
-      case 'idle': return 'bg-blue-500';
-      case 'busy': return 'bg-yellow-500';
-      case 'offline': return 'bg-gray-500';
-      case 'error': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'active': return 'bg-success-600';
+      case 'idle': return 'bg-primary-600';
+      case 'busy': return 'bg-warning-600';
+      case 'offline': return 'bg-neutral-500';
+      case 'error': return 'bg-error-600';
+      default: return 'bg-neutral-500';
     }
   };
 
@@ -421,10 +421,10 @@ export const MetricsDashboard: React.FC = () => {
 
   const getHealthStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy': return 'text-green-500';
-      case 'degraded': return 'text-yellow-500';
-      case 'unhealthy': return 'text-red-500';
-      default: return 'text-gray-500';
+      case 'healthy': return 'text-success-600';
+      case 'degraded': return 'text-warning-600';
+      case 'unhealthy': return 'text-error-600';
+      default: return 'text-neutral-500';
     }
   };
 
@@ -432,10 +432,10 @@ export const MetricsDashboard: React.FC = () => {
     <div className="space-y-6 p-6">
       {/* Mock Data Warning */}
       {usingMockData && (
-        <Alert variant="default" className="border-yellow-500 bg-yellow-50">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertTitle className="text-yellow-800">{t('metricsDashboard.devMode.title')}</AlertTitle>
-          <AlertDescription className="text-yellow-700">
+        <Alert variant="default" className="border-warning-600 bg-warning-50">
+          <AlertCircle className="h-4 w-4 text-warning-600" />
+          <AlertTitle className="text-warning-800">{t('metricsDashboard.devMode.title')}</AlertTitle>
+          <AlertDescription className="text-warning-700">
             {t('metricsDashboard.devMode.description')}
             <strong className="block mt-1">{t('metricsDashboard.devMode.warning')}</strong>
           </AlertDescription>
