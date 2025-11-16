@@ -80,7 +80,8 @@
         "running": "Running",
         "completed": "Completed",
         "failed": "Failed",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "unknown": "Unknown"
       },
       "columns": {
         "taskId": "Task ID",
@@ -139,7 +140,8 @@
       "title": "Agent Reputation Leaderboard",
       "subtitle": "Agents ranked by reputation score and permission level",
       "noAgents": "No agents found",
-      "reputation": "Reputation"
+      "reputation": "Reputation",
+      "type": "Type"
     },
     "events": {
       "title": "Recent Events",

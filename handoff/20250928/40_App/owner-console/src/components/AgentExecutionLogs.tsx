@@ -384,7 +384,7 @@ const AgentExecutionLogs = () => {
               variant="outline" 
               size="sm" 
               className="ml-4"
-              aria-label={t('governance.executionLogs.retryLoad', { defaultValue: 'Retry loading execution logs' })}
+              aria-label={t('governance.executionLogs.retryLoad')}
             >
               {t('common.retry')}
             </Button>
@@ -584,7 +584,7 @@ const AgentExecutionLogs = () => {
                             <StatusBadge status={normalizedStatus} showIcon>
                               {isKnown 
                                 ? t(`governance.executionLogs.statuses.${normalizedStatus}`)
-                                : t('governance.executionLogs.statuses.unknown', { defaultValue: 'Unknown' })
+                                : t('governance.executionLogs.statuses.unknown')
                               }
                             </StatusBadge>
                           </TableCell>
@@ -642,7 +642,7 @@ const AgentExecutionLogs = () => {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleViewDetails(log)}
-                              aria-label={t('governance.executionLogs.viewDetails', { defaultValue: 'View details' })}
+                              aria-label={t('governance.executionLogs.viewDetails')}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -666,7 +666,7 @@ const AgentExecutionLogs = () => {
                             <StatusBadge status={normalizedStatus} showIcon>
                               {isKnown 
                                 ? t(`governance.executionLogs.statuses.${normalizedStatus}`)
-                                : t('governance.executionLogs.statuses.unknown', { defaultValue: 'Unknown' })
+                                : t('governance.executionLogs.statuses.unknown')
                               }
                             </StatusBadge>
                             <span className="text-sm font-mono text-neutral-600 dark:text-neutral-400">
@@ -921,7 +921,7 @@ const AgentExecutionLogs = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                        {t('governance.agents.type', { defaultValue: 'Type' })}
+                        {t('governance.agents.type')}
                       </span>
                       <span className="text-sm font-medium">{selectedLog.agent.agent_type || t('common.na')}</span>
                     </div>
