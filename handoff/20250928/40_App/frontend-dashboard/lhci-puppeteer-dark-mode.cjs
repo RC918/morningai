@@ -74,8 +74,10 @@ module.exports = async (browser, context) => {
     await page.goto(context.url, { waitUntil: 'networkidle0', timeout: 30000 });
     console.log('🌙 Navigation complete');
     
-    // Wait a bit for app initialization
-    await page.waitForTimeout(1000);
+    // Wait for app initialization (ThemeProvider, etc.)
+    // Use Promise-based timeout since page.waitForTimeout doesn't exist in LHCI's Puppeteer
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('🌙 Waited 1s for app initialization');
     
     // Verify dark mode is active AFTER app initialization
     const darkModeStatus = await page.evaluate(() => {
