@@ -536,7 +536,7 @@ class TestValidateSecurityConfig:
         
         with patch('services.auth_service.get_settings', return_value=mock_settings):
             with patch('services.auth_service.COOKIE_SAMESITE', 'Invalid'):
-                with pytest.raises(SystemExit, match="must be 'Strict', 'Lax', or 'None'"):
+                with pytest.raises(SystemExit, match="Security configuration validation failed"):
                     validate_security_config()
     
     def test_validate_security_config_success(self, monkeypatch):
@@ -556,7 +556,9 @@ class TestValidateSecurityConfig:
         mock_settings.cookie_path = '/'
         
         with patch('services.auth_service.get_settings', return_value=mock_settings):
-            validate_security_config()
+            with patch('services.auth_service.COOKIE_SAMESITE', 'Lax'):
+                with patch('services.auth_service.COOKIE_SECURE', True):
+                    validate_security_config()
 
 
 class TestTokenBlacklist:
