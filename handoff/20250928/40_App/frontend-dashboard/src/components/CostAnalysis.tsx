@@ -1,9 +1,3 @@
-/* eslint-disable i18next/no-literal-string */
-/* NOTE: This file is exempted from strict i18n checks to maintain PR scope.
- * i18n improvements will be addressed in a dedicated PR (see Issue #1328).
- * This aligns with local ESLint config which already exempts this file.
- */
-
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { Badge } from '@morningai/shared-ui'
@@ -139,9 +133,9 @@ const CostAnalysis = (): React.ReactElement => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="hourly">Hourly</SelectItem>
-              <SelectItem value="task">Per Task</SelectItem>
+              <SelectItem value="daily">{t('cost.periods.daily')}</SelectItem>
+              <SelectItem value="hourly">{t('cost.periods.hourly')}</SelectItem>
+              <SelectItem value="task">{t('cost.periods.task')}</SelectItem>
             </SelectContent>
           </Select>
           <AppleButton variant="outline" onClick={loadCostData}>
@@ -171,7 +165,7 @@ const CostAnalysis = (): React.ReactElement => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-neutral-600">{t('cost.currentMonth')}</p>
-              <div className="p-2 bg-info-100 rounded-lg">
+              <div className="p-2 bg-primary-100 rounded-lg">
                 <DollarSign className="w-5 h-5 text-info-600" />
               </div>
             </div>
@@ -207,9 +201,12 @@ const CostAnalysis = (): React.ReactElement => {
               <p className="text-sm text-neutral-600 mt-1">
                 {t('cost.usedPercentage')} {budgetUsagePercentage.toFixed(1)}%
               </p>
-              {costData && (
+              {costData && costData.usage?.tokens !== undefined && (
                 <p className="text-xs text-neutral-500 mt-1">
-                  Tokens: {costData.usage?.tokens?.toLocaleString() || 0} / {costData.limits?.tokens?.toLocaleString() || 0}
+                  {t('cost.tokensUsage', { 
+                    current: costData.usage?.tokens?.toLocaleString() || 0, 
+                    limit: costData.limits?.tokens?.toLocaleString() || 0 
+                  })}
                 </p>
               )}
             </div>

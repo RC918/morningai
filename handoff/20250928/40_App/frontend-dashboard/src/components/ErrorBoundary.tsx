@@ -1,9 +1,3 @@
-/* eslint-disable i18next/no-literal-string */
-/* NOTE: This file is exempted from strict i18n checks to maintain PR scope.
- * i18n improvements will be addressed in a dedicated PR (see Issue #1328).
- * This aligns with local ESLint config which already exempts this file.
- */
-
 import React from 'react'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
 import { AppleButton } from '@/components/ui/apple-button'
@@ -78,7 +72,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     const { t } = this.props
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-error-50 to-orange-100 flex items-center justify-center p-4">
           <Card className="w-full max-w-2xl">
             <CardHeader className="text-center">
               <div className="mx-auto w-16 h-16 bg-error-100 rounded-full flex items-center justify-center mb-4">

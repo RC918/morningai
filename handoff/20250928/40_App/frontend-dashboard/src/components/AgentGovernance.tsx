@@ -1,9 +1,3 @@
-/* eslint-disable i18next/no-literal-string */
-/* NOTE: This file is exempted from strict i18n checks to maintain PR scope.
- * i18n improvements will be addressed in a dedicated PR (see Issue #1328).
- * This aligns with local ESLint config which already exempts this file.
- */
-
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { Badge } from '@morningai/shared-ui'
@@ -129,13 +123,7 @@ const AgentGovernance = (): React.ReactElement => {
   }
 
   const getPermissionLevelLabel = (level: PermissionLevel): string => {
-    const labels: Record<PermissionLevel, string> = {
-      'prod_full_access': 'Production Full',
-      'prod_low_risk': 'Production Low Risk',
-      'staging_access': 'Staging',
-      'sandbox_only': 'Sandbox Only'
-    }
-    return labels[level] || level
+    return t(`governance.permissionLevels.${level}`, level)
   }
 
   const getEventTypeIcon = (eventType: EventType): React.ReactElement => {
@@ -145,7 +133,7 @@ const AgentGovernance = (): React.ReactElement => {
       case 'task_failure':
         return <XCircle className="w-4 h-4 text-error-600" />
       case 'budget_exceeded':
-        return <AlertTriangle className="w-4 h-4 text-orange-600" />
+        return <AlertTriangle className="w-4 h-4 text-warning-600" />
       case 'permission_denied':
         return <Shield className="w-4 h-4 text-error-600" />
       default:
@@ -172,13 +160,13 @@ const AgentGovernance = (): React.ReactElement => {
         <div>
           <h1 className="text-3xl font-bold text-neutral-900 flex items-center gap-3">
             <Shield className="w-8 h-8 text-info-600" />
-            Agent Governance
+            {t('governance.title')}
           </h1>
-          <p className="text-neutral-600 mt-1">Monitor agent reputation, permissions, and compliance</p>
+          <p className="text-neutral-600 mt-1">{t('governance.description')}</p>
         </div>
         <AppleButton onClick={loadGovernanceData} variant="outline">
           <Activity className="w-4 h-4 mr-2" />
-          Refresh
+          {t('governance.refresh')}
         </AppleButton>
       </div>
 
@@ -187,7 +175,7 @@ const AgentGovernance = (): React.ReactElement => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-neutral-600">Total Agents</p>
+                <p className="text-sm text-neutral-600">{t('governance.totalAgents')}</p>
                 <Shield className="w-5 h-5 text-info-600" />
               </div>
               <p className="text-3xl font-bold text-neutral-900">
@@ -199,7 +187,7 @@ const AgentGovernance = (): React.ReactElement => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-neutral-600">Avg Reputation</p>
+                <p className="text-sm text-neutral-600">{t('governance.avgReputation')}</p>
                 <TrendingUp className="w-5 h-5 text-success-600" />
               </div>
               <p className="text-3xl font-bold text-neutral-900">
@@ -211,7 +199,7 @@ const AgentGovernance = (): React.ReactElement => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-neutral-600">Daily Cost</p>
+                <p className="text-sm text-neutral-600">{t('governance.dailyCost')}</p>
                 <DollarSign className="w-5 h-5 text-accent-600" />
               </div>
               <p className="text-3xl font-bold text-neutral-900">
@@ -223,7 +211,7 @@ const AgentGovernance = (): React.ReactElement => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-neutral-600">Violations</p>
+                <p className="text-sm text-neutral-600">{t('governance.violations')}</p>
                 <AlertTriangle className="w-5 h-5 text-error-600" />
               </div>
               <p className="text-3xl font-bold text-neutral-900">
@@ -236,21 +224,21 @@ const AgentGovernance = (): React.ReactElement => {
 
       <Tabs defaultValue="agents" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="agents">Agents</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="violations">Violations</TabsTrigger>
+          <TabsTrigger value="agents">{t('governance.tabs.agents')}</TabsTrigger>
+          <TabsTrigger value="events">{t('governance.tabs.events')}</TabsTrigger>
+          <TabsTrigger value="violations">{t('governance.tabs.violations')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Agent Reputation Leaderboard</CardTitle>
-              <CardDescription>Agents ranked by reputation score and permission level</CardDescription>
+              <CardTitle>{t('governance.agents.title')}</CardTitle>
+              <CardDescription>{t('governance.agents.description')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {agents.length === 0 ? (
-                  <p className="text-center text-neutral-500 py-8">No agents found</p>
+                  <p className="text-center text-neutral-500 py-8">{t('governance.agents.noAgents')}</p>
                 ) : (
                   agents.map((agent, index) => (
                     <div 
@@ -262,13 +250,13 @@ const AgentGovernance = (): React.ReactElement => {
                         <div className="text-2xl font-bold text-neutral-400">#{index + 1}</div>
                         <div>
                           <p className="font-semibold text-neutral-900">{agent.agent_type}</p>
-                          <p className="text-sm text-neutral-600">ID: {agent.agent_id?.substring(0, 8)}...</p>
+                          <p className="text-sm text-neutral-600">{t('governance.agents.idLabel')} {agent.agent_id?.substring(0, 8)}...</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="text-2xl font-bold text-neutral-900">{agent.reputation_score}</p>
-                          <p className="text-sm text-neutral-600">Reputation</p>
+                          <p className="text-sm text-neutral-600">{t('governance.reputation')}</p>
                         </div>
                         <Badge className={getPermissionLevelColor(agent.permission_level)}>
                           {getPermissionLevelLabel(agent.permission_level)}
@@ -285,13 +273,13 @@ const AgentGovernance = (): React.ReactElement => {
         <TabsContent value="events" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Recent Events</CardTitle>
-              <CardDescription>Reputation events and agent activities</CardDescription>
+              <CardTitle>{t('governance.events.title')}</CardTitle>
+              <CardDescription>{t('governance.events.description')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {events.length === 0 ? (
-                  <p className="text-center text-neutral-500 py-8">No events found</p>
+                  <p className="text-center text-neutral-500 py-8">{t('governance.events.noEvents')}</p>
                 ) : (
                   events.map((event) => (
                     <div key={event.event_id} className="flex items-start gap-3 p-3 border rounded-lg">
@@ -306,11 +294,11 @@ const AgentGovernance = (): React.ReactElement => {
                         )}
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="outline" className="text-xs">
-                            Delta: {event.delta > 0 ? '+' : ''}{event.delta}
+                            {t('governance.events.delta')} {event.delta > 0 ? '+' : ''}{event.delta}
                           </Badge>
                           {event.trace_id && (
                             <Badge variant="outline" className="text-xs">
-                              Trace: {event.trace_id.substring(0, 8)}
+                              {t('governance.events.trace')} {event.trace_id.substring(0, 8)}
                             </Badge>
                           )}
                         </div>
@@ -326,15 +314,15 @@ const AgentGovernance = (): React.ReactElement => {
         <TabsContent value="violations" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Policy Violations</CardTitle>
-              <CardDescription>Security and compliance violations</CardDescription>
+              <CardTitle>{t('governance.violationsTab.title')}</CardTitle>
+              <CardDescription>{t('governance.violationsTab.description')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {violations.length === 0 ? (
                   <div className="text-center py-8">
                     <CheckCircle className="w-12 h-12 text-success-600 mx-auto mb-2" />
-                    <p className="text-neutral-500">No violations detected</p>
+                    <p className="text-neutral-500">{t('governance.violationsTab.noViolations')}</p>
                   </div>
                 ) : (
                   violations.map((violation) => (
@@ -348,11 +336,11 @@ const AgentGovernance = (): React.ReactElement => {
                         <p className="text-sm text-error-700 mt-1">{violation.description}</p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="destructive" className="text-xs">
-                            Severity: {violation.severity}
+                            {t('governance.violationsTab.severity')} {violation.severity}
                           </Badge>
                           {violation.resolved && (
                             <Badge variant="outline" className="text-xs bg-success-100 text-success-800">
-                              Resolved
+                              {t('governance.violationsTab.resolved')}
                             </Badge>
                           )}
                         </div>

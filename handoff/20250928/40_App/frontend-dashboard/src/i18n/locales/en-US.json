@@ -905,7 +905,10 @@
       "current": "This Month",
       "last": "Last Month",
       "quarter": "This Quarter",
-      "year": "This Year"
+      "year": "This Year",
+      "daily": "Daily",
+      "hourly": "Hourly",
+      "task": "Per Task"
     },
     "categories": {
       "aiService": "AI Services",
@@ -922,7 +925,8 @@
       "optimizeAiUsageDescription": "Run batch tasks during off-peak hours, estimated savings of $120 per month",
       "adjustStorageStrategy": "Adjust Storage Strategy",
       "adjustStorageStrategyDescription": "Migrate cold data to low-cost storage, estimated savings of $45 per month"
-    }
+    },
+    "tokensUsage": "Tokens: {{current}} / {{limit}}"
   },
   "errors": {
     "networkError": {
@@ -1084,44 +1088,6 @@
     }
   },
   "accessibility": {
-    "skipToContent": "Skip to main content",
-    "closeDialog": "Close dialog",
-    "openMenu": "Open menu",
-    "closeMenu": "Close menu",
-    "loading": "Loading",
-    "error": "Error",
-    "success": "Success",
-    "warning": "Warning",
-    "info": "Information",
-    "required": "Required field",
-    "optional": "Optional field",
-    "searchPlaceholder": "Search...",
-    "noResults": "No results found",
-    "pageNavigation": "Page navigation",
-    "currentPage": "Current page",
-    "goToPage": "Go to page {page}",
-    "previousPage": "Previous page",
-    "nextPage": "Next page",
-    "sortBy": "Sort by {field}",
-    "filterBy": "Filter by {field}",
-    "clearFilters": "Clear all filters",
-    "selectAll": "Select all",
-    "deselectAll": "Deselect all",
-    "expandSection": "Expand section",
-    "collapseSection": "Collapse section",
-    "showMore": "Show more",
-    "showLess": "Show less"
-  },
-  "toast": {
-    "closeNotification": "Close notification"
-  },
-  "modal": {
-    "close": "Close modal"
-  },
-  "sheet": {
-    "close": "Close sheet"
-  },
-  "accessibility": {
     "title": "Accessibility Settings",
     "subtitle": "Customize your experience",
     "settings": "Accessibility",
@@ -1159,6 +1125,90 @@
       "defaultDesc": "Standard focus outline",
       "enhanced": "Enhanced",
       "enhancedDesc": "High visibility focus outline"
+    }
+  },
+  "toast": {
+    "closeNotification": "Close notification"
+  },
+  "modal": {
+    "close": "Close modal"
+  },
+  "sheet": {
+    "close": "Close sheet"
+  },
+  "governance": {
+    "title": "Agent Governance",
+    "description": "Monitor agent reputation, permissions, and compliance",
+    "refresh": "Refresh",
+    "totalAgents": "Total Agents",
+    "avgReputation": "Avg Reputation",
+    "dailyCost": "Daily Cost",
+    "violations": "Violations",
+    "reputation": "Reputation",
+    "tabs": {
+      "agents": "Agents",
+      "events": "Events",
+      "violations": "Violations"
+    },
+    "agents": {
+      "title": "Agent Reputation Leaderboard",
+      "description": "Agents ranked by reputation score and permission level",
+      "noAgents": "No agents found",
+      "idLabel": "ID:"
+    },
+    "events": {
+      "title": "Recent Events",
+      "description": "Reputation events and agent activities",
+      "noEvents": "No events found",
+      "delta": "Delta:",
+      "trace": "Trace:"
+    },
+    "violationsTab": {
+      "title": "Policy Violations",
+      "description": "Security and compliance violations",
+      "noViolations": "No violations detected",
+      "severity": "Severity:",
+      "resolved": "Resolved"
+    },
+    "permissionLevels": {
+      "prod_full_access": "Production Full",
+      "prod_low_risk": "Production Low Risk",
+      "staging_access": "Staging",
+      "sandbox_only": "Sandbox Only"
+    }
+  },
+  "tenant": {
+    "title": "Tenant Settings",
+    "description": "Manage your organization and team members",
+    "loading": "Loading tenant information...",
+    "errorTitle": "Error Loading Tenant",
+    "retry": "Retry",
+    "retryAriaLabel": "Retry loading tenant information",
+    "organization": {
+      "title": "Organization Information",
+      "name": "Organization Name",
+      "id": "Organization ID",
+      "totalMembers": "Total Members",
+      "totalTasks": "Total Tasks",
+      "created": "Created"
+    },
+    "members": {
+      "title": "Team Members",
+      "tableCaption": "Team members with their roles and join dates",
+      "email": "Email",
+      "displayName": "Display Name",
+      "role": "Role",
+      "joined": "Joined",
+      "actions": "Actions",
+      "noMembers": "No members found",
+      "changeRoleAriaLabel": "Change role for {{email}}",
+      "updating": "Updating...",
+      "roles": {
+        "viewer": "Viewer",
+        "member": "Member",
+        "admin": "Admin",
+        "owner": "Owner"
+      }
     }
   }
 }

@@ -131,7 +131,7 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
     default: 'bg-neutral-900/90 dark:bg-neutral-800/90 border-neutral-700/20',
     primary: 'bg-primary-500/90 dark:bg-primary-600/90 border-primary-400/20',
     success: 'bg-success-500/90 dark:bg-success-600/90 border-success-400/20',
-    warning: 'bg-orange-500/90 dark:bg-orange-600/90 border-orange-400/20',
+    warning: 'bg-warning-500/90 dark:bg-warning-600/90 border-warning-400/20',
     error: 'bg-error-500/90 dark:bg-error-600/90 border-error-400/20'
   }
 

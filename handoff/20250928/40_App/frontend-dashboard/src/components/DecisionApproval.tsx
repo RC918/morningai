@@ -244,7 +244,7 @@ const DecisionApproval = (): React.ReactElement => {
   const getPriorityColor = (priority: PriorityLevel): string => {
     switch (priority) {
       case 'critical': return 'bg-error-100 text-error-800 border-error-200'
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200'
+      case 'high': return 'bg-warning-100 text-warning-800 border-warning-200'
       case 'medium': return 'bg-warning-100 text-warning-800 border-warning-200'
       case 'low': return 'bg-success-100 text-success-800 border-success-200'
       default: return 'bg-neutral-100 text-neutral-800 border-neutral-200'
@@ -285,7 +285,7 @@ const DecisionApproval = (): React.ReactElement => {
                 <p className="text-sm text-neutral-600">{t('approval.pendingDecisions')}</p>
                 <p className="text-2xl font-bold">{pendingDecisions.length}</p>
               </div>
-              <Clock className="w-8 h-8 text-orange-500" />
+              <Clock className="w-8 h-8 text-warning-500" />
             </div>
           </CardContent>
         </Card>
@@ -327,7 +327,7 @@ const DecisionApproval = (): React.ReactElement => {
                   ${pendingDecisions.reduce((acc, d) => acc + d.predicted_impact.cost_increase, 0).toFixed(2)}
                 </p>
               </div>
-              <DollarSign className="w-8 h-8 text-info-500" />
+              <DollarSign className="w-8 h-8 text-primary-500" />
             </div>
           </CardContent>
         </Card>
@@ -344,7 +344,7 @@ const DecisionApproval = (): React.ReactElement => {
           </Card>
         ) : (
           pendingDecisions.map((decision) => (
-            <Card key={decision.id} className="border-l-4 border-l-orange-400">
+            <Card key={decision.id} className="border-l-4 border-l-warning-400">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -364,7 +364,7 @@ const DecisionApproval = (): React.ReactElement => {
                     <div className="text-sm text-neutral-600 mb-2">
                       {t('approval.autoApproveCountdown')}
                     </div>
-                    <div className="text-lg font-mono text-orange-600">
+                    <div className="text-lg font-mono text-warning-600">
                       {formatTimeRemaining(decision.auto_approve_in)}
                     </div>
                     <Progress 
@@ -430,7 +430,7 @@ const DecisionApproval = (): React.ReactElement => {
                   <div className="space-y-2">
                     {decision.strategy.actions.map((action, index) => (
                       <div key={index} className="flex items-center space-x-3 p-2 bg-neutral-50 rounded">
-                        <div className="w-6 h-6 bg-info-100 text-info-600 rounded-full flex items-center justify-center text-sm font-medium">
+                        <div className="w-6 h-6 bg-primary-100 text-info-600 rounded-full flex items-center justify-center text-sm font-medium">
                           {index + 1}
                         </div>
                         <div className="flex-1">

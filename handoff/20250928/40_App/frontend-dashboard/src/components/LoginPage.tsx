@@ -273,7 +273,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
           <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
             <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
           </Link>
-          <p className="text-neutral-600 dark:text-neutral-600 mt-2">{t('app.tagline')}</p>
+          <p className="text-neutral-600 dark:text-neutral-300 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? undefined : itemVariants}>
@@ -353,7 +353,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                     <Separator className="w-full" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white dark:bg-neutral-800 px-2 text-neutral-500">
+                    <span className="bg-white dark:bg-neutral-800 px-2 text-neutral-500 dark:text-neutral-300">
                       {t('auth.login.orContinueWith')}
                     </span>
                   </div>
@@ -416,9 +416,11 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 </div>
               </div>
 
-              <div className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-600">
+              <div className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-300">
                 {t('auth.login.noAccount', '還沒有帳號？')}{' '}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium">
+                {/* NOTE: Using primary-200 for CI color-contrast compliance. 
+                    If reverting to primary-300 for brand consistency, adjust .lighthouserc precision settings. */}
+                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-200 dark:hover:text-primary-100 font-medium">
                   {t('auth.login.signupLink', '註冊')}
                 </Link>
               </div>
@@ -437,7 +439,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
         </motion.div>
 
         <motion.div
-          className="text-center mt-8 text-sm text-neutral-600 dark:text-neutral-600"
+          className="text-center mt-8 text-sm text-neutral-600 dark:text-neutral-300"
           variants={prefersReducedMotion ? undefined : itemVariants}
         >
           <p>{t('app.copyright')}</p>
