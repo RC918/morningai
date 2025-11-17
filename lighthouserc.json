@@ -6,12 +6,24 @@
         "/login"
       ],
       "numberOfRuns": 3,
-      "puppeteerScript": "./lhci-puppeteer-dark-mode.js",
+      "puppeteerScript": "lhci-puppeteer-dark-mode.js",
+      "puppeteerLaunchOptions": {
+        "args": [
+          "--no-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--disable-software-rasterizer",
+          "--disable-features=PaintHolding",
+          "--force-prefers-color-scheme=dark"
+        ]
+      },
       "settings": {
         "preset": "desktop",
         "formFactor": "desktop",
         "throttlingMethod": "simulate",
-        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"],
+        "maxWaitForFcp": 60000,
+        "maxWaitForLoad": 120000
       }
     },
     "assert": {

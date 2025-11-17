@@ -10,25 +10,22 @@
  */
 
 module.exports = async (browser, context) => {
-  console.log('🌙 Configuring dark mode for Lighthouse...');
+  console.log('🌙 Dark mode: start');
   
   try {
     const page = context.newPage ? await context.newPage() : context;
+    
+    console.log('🌙 Emulating dark mode preference...');
     
     await page.emulateMediaFeatures([
       { name: 'prefers-color-scheme', value: 'dark' }
     ]);
     
-    await page.goto('http://localhost:4173/', { 
-      waitUntil: 'domcontentloaded',
-      timeout: 30000
-    });
-    
-    await page.evaluate(() => {
+    await page.evaluateOnNewDocument(() => {
       localStorage.setItem('morningai-theme', 'dark');
     });
     
-    console.log('✅ Dark mode configured successfully');
+    console.log('✅ Dark mode: done');
   } catch (error) {
     console.error('❌ Error configuring dark mode:', error.message);
     throw error;
