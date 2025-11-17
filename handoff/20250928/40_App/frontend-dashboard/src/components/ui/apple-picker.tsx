@@ -82,7 +82,7 @@ const PickerItem = ({
         rotateX,
         height: itemHeight
       }}
-      className="flex items-center justify-center text-base font-medium text-gray-900 dark:text-white cursor-pointer"
+      className="flex items-center justify-center text-base font-medium text-neutral-900 dark:text-white cursor-pointer"
       onClick={() => snapToIndex(index)}
     >
       {option.label}
@@ -221,7 +221,7 @@ const PickerWheel = ({
       aria-activedescendant={`picker-option-${currentIndex}`}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="relative overflow-hidden select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-xl"
+      className="relative overflow-hidden select-none focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-xl"
       style={{ height }}
       onPointerDown={handleDragStart}
       onPointerMove={handleDrag}
@@ -237,7 +237,7 @@ const PickerWheel = ({
           height: `${itemHeight}px`
         }}
       >
-        <div className="absolute inset-0 border-t border-b border-gray-300 dark:border-gray-600" />
+        <div className="absolute inset-0 border-t border-b border-neutral-300 dark:border-neutral-600" />
       </div>
 
       {/* Gradient overlays */}
@@ -308,7 +308,7 @@ export const ApplePicker = ({
   }, [onChange])
 
   return (
-    <div className={cn('flex gap-2 bg-white dark:bg-gray-900 rounded-2xl p-4', className)}>
+    <div className={cn('flex gap-2 bg-white dark:bg-neutral-900 rounded-2xl p-4', className)}>
       {columns.map((column) => (
         <div key={column.id} className="flex-1">
           <PickerWheel

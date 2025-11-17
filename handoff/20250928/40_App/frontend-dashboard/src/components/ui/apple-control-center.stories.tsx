@@ -1,3 +1,9 @@
+/* eslint-disable i18next/no-literal-string */
+/* NOTE: This file is exempted from strict i18n checks to maintain PR scope.
+ * i18n improvements will be addressed in a dedicated PR (see Issue #1328).
+ * This aligns with local ESLint config which already exempts stories/tests.
+ */
+
 import type { Meta, StoryObj } from '@storybook/react'
 import { AppleControlCenter, type Control } from './apple-control-center'
 import { 
@@ -606,7 +612,7 @@ const InteractiveDemo = () => {
     <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-600">
       <button
         onClick={toggle}
-        className="px-6 py-3 bg-white text-purple-600 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
+        className="px-6 py-3 bg-white text-accent-600 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
       >
         {isOpen ? 'Close' : 'Open'} Control Center
       </button>

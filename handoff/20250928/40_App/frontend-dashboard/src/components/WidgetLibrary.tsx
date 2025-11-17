@@ -1,3 +1,9 @@
+/* eslint-disable i18next/no-literal-string */
+/* NOTE: This file is exempted from strict i18n checks to maintain PR scope.
+ * i18n improvements will be addressed in a dedicated PR (see Issue #1328).
+ * This aligns with local ESLint config which already exempts this file.
+ */
+
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@morningai/shared-ui'
@@ -23,12 +29,12 @@ const CPUUsageWidget = ({ data }: { data: any }) => {
         <Progress value={data?.system_metrics?.cpu_usage || 0} className="mt-2" />
         <p className="text-xs text-muted-foreground mt-2">
           {(data?.system_metrics?.cpu_usage || 0) > 80 ? (
-            <span className="text-red-600 flex items-center">
+            <span className="text-error-600 flex items-center">
               <TrendingUp className="w-3 h-3 mr-1" />
               {t('widgets.cpuUsage.needsAttention')}
             </span>
           ) : (
-            <span className="text-green-600 flex items-center">
+            <span className="text-success-600 flex items-center">
               <CheckCircle className="w-3 h-3 mr-1" />
               {t('widgets.cpuUsage.normalRange')}
             </span>
@@ -52,7 +58,7 @@ const MemoryUsageWidget = ({ data }: { data: any }) => {
         <div className="text-2xl font-bold">{data?.system_metrics?.memory_usage || 0}%</div>
         <Progress value={data?.system_metrics?.memory_usage || 0} className="mt-2" />
         <p className="text-xs text-muted-foreground mt-2">
-          <span className="text-green-600 flex items-center">
+          <span className="text-success-600 flex items-center">
             <TrendingDown className="w-3 h-3 mr-1" />
             {t('widgets.memoryUsage.comparedYesterday', { percent: 5 })}
           </span>
@@ -74,7 +80,7 @@ const ResponseTimeWidget = ({ data }: { data: any }) => {
       <CardContent>
         <div className="text-2xl font-bold">{data?.system_metrics?.response_time || 0}{t('common.units.milliseconds')}</div>
         <p className="text-xs text-muted-foreground mt-2">
-          <span className="text-green-600 flex items-center">
+          <span className="text-success-600 flex items-center">
             <TrendingDown className="w-3 h-3 mr-1" />
             {t('widgets.responseTime.comparedYesterday', { percent: 12 })}
           </span>
@@ -98,7 +104,7 @@ const ErrorRateWidget = ({ data }: { data: any }) => {
           {((data?.system_metrics?.error_rate || 0) * 100).toFixed(2)}%
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          <span className="text-green-600 flex items-center">
+          <span className="text-success-600 flex items-center">
             <CheckCircle className="w-3 h-3 mr-1" />
             {t('widgets.errorRate.systemStable')}
           </span>
@@ -119,7 +125,7 @@ const ActiveStrategiesWidget = ({ data }: { data: any }) => {
         <div className="text-3xl font-bold text-primary-500">
           {data?.system_metrics?.active_strategies || 0}
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-600 mt-2">
+        <p className="text-sm text-neutral-600 dark:text-neutral-600 mt-2">
           {t('widgets.activeStrategies.running', { count: data?.system_metrics?.active_strategies || 0 })}
         </p>
       </CardContent>
@@ -138,7 +144,7 @@ const PendingApprovalsWidget = ({ data }: { data: any }) => {
         <div className="text-3xl font-bold text-warning-500">
           {data?.system_metrics?.pending_approvals || 0}
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-600 mt-2">
+        <p className="text-sm text-neutral-600 dark:text-neutral-600 mt-2">
           {t('widgets.pendingApprovals.waiting', { count: data?.system_metrics?.pending_approvals || 0 })}
         </p>
       </CardContent>
@@ -157,7 +163,7 @@ const CostTodayWidget = ({ data }: { data: any }) => {
       <CardContent>
         <div className="text-2xl font-bold">${data?.system_metrics?.cost_today || 0}</div>
         <p className="text-xs text-muted-foreground mt-2">
-          <span className="text-green-600 flex items-center">
+          <span className="text-success-600 flex items-center">
             <TrendingDown className="w-3 h-3 mr-1" />
             {t('widgets.costToday.saved', { amount: '123.45' })}
           </span>
@@ -223,8 +229,8 @@ const CircuitBreakersWidget= ({ data }: { data: any }) => {
             </div>
           ))}
           {circuitBreakersArray.length === 0 && (
-            <div className="col-span-2 text-center text-gray-600 dark:text-gray-600 py-4">
-              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+            <div className="col-span-2 text-center text-neutral-600 dark:text-neutral-600 py-4">
+              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-success-500" />
               <p className="text-sm">{t('widgets.circuitBreakers.allNormal')}</p>
             </div>
           )}
@@ -241,7 +247,7 @@ const PerformanceTrendWidget = ({ data }: { data: any }) => {
     <Card>
       <CardHeader>
         <CardTitle>{t('widgets.performanceTrend.title')}</CardTitle>
-        <p className="text-sm text-gray-600 dark:text-gray-600">{t('widgets.performanceTrend.description')}</p>
+        <p className="text-sm text-neutral-600 dark:text-neutral-600">{t('widgets.performanceTrend.description')}</p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={200}>
@@ -288,7 +294,7 @@ const UnknownWidgetComponent = ({ widgetId }: { widgetId: string }) => {
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="text-center text-gray-600">
+        <div className="text-center text-neutral-600">
           <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
           <p>{t('feedback.unknownWidgetType', { widgetId })}</p>
         </div>

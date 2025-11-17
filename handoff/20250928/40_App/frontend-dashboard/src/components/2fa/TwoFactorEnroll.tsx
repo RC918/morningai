@@ -112,7 +112,7 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }: Tw
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
                     isCompleted
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-success-500 text-white'
                       : isActive
                       ? 'bg-primary text-white'
                       : 'bg-accent text-muted-foreground'
@@ -129,7 +129,7 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }: Tw
               {index < steps.length - 1 && (
                 <div
                   className={`flex-1 h-0.5 mx-2 transition-colors ${
-                    index < currentIndex ? 'bg-green-500' : 'bg-accent'
+                    index < currentIndex ? 'bg-success-500' : 'bg-accent'
                   }`}
                 />
               )}
@@ -217,14 +217,14 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }: Tw
 
           {step === 'backup' && backupCodes.length > 0 && (
             <div className="space-y-4">
-              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <div className="p-4 bg-warning-500/10 border border-warning-500/20 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="w-5 h-5 text-warning-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm space-y-1">
-                    <p className="font-semibold text-amber-900 dark:text-amber-100">
+                    <p className="font-semibold text-warning-900 dark:text-warning-100">
                       {t('auth.2fa.enroll.backupCodesWarning', 'Save these backup codes!')}
                     </p>
-                    <p className="text-amber-800 dark:text-amber-200">
+                    <p className="text-warning-800 dark:text-warning-200">
                       {t('auth.2fa.enroll.backupCodesDescription', 'These codes can be used to access your account if you lose your authenticator device. Store them in a safe place.')}
                     </p>
                   </div>

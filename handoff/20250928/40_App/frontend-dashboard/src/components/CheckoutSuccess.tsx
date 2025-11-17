@@ -24,31 +24,31 @@ const CheckoutSuccess = () => {
   }, [sessionId])
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center pb-4">
           <div className="flex justify-center mb-4">
-            <CheckCircle className="w-16 h-16 text-green-500" aria-hidden="true" />
+            <CheckCircle className="w-16 h-16 text-success-500" aria-hidden="true" />
           </div>
-          <CardTitle className="text-2xl text-green-700">{t('checkoutSuccess.title')}</CardTitle>
+          <CardTitle className="text-2xl text-success-700">{t('checkoutSuccess.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 text-center">
           <div>
-            <p className="text-gray-600 mb-2">{t('checkoutSuccess.thankYou')}</p>
-            <Badge className="bg-blue-100 text-blue-800">
+            <p className="text-neutral-600 mb-2">{t('checkoutSuccess.thankYou')}</p>
+            <Badge className="bg-info-100 text-info-800">
               {t('checkoutSuccess.planActivated', { plan: planName })}
             </Badge>
           </div>
 
           {sessionId && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">{t('checkoutSuccess.orderId')}</p>
+            <div className="bg-neutral-50 p-4 rounded-lg">
+              <p className="text-sm text-neutral-600 mb-1">{t('checkoutSuccess.orderId')}</p>
               <p className="font-mono text-sm">{sessionId}</p>
             </div>
           )}
 
           <div className="space-y-3">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-neutral-600">
               {t('checkoutSuccess.emailSent')}
             </p>
             
@@ -74,7 +74,7 @@ const CheckoutSuccess = () => {
             </div>
           </div>
 
-          <div className="text-xs text-gray-600 pt-4 border-t">
+          <div className="text-xs text-neutral-600 pt-4 border-t">
             <Mail className="w-3 h-3 inline mr-1" aria-hidden="true" />
             {t('checkoutSuccess.support')}
           </div>

@@ -27,7 +27,7 @@ const appleInputVariants = cva(
       state: {
         default: "",
         error: "border-destructive focus:border-destructive focus:ring-destructive/20",
-        success: "border-green-500 focus:border-green-500 focus:ring-green-500/20",
+        success: "border-success-500 focus:border-success-500 focus:ring-success-500/20",
       },
     },
     defaultVariants: {
@@ -206,7 +206,7 @@ function AppleInput({
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={springConfig}
               >
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <CheckCircle2 className="w-4 h-4 text-success-500" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -251,7 +251,7 @@ function AppleInput({
             className={cn(
               "text-xs mt-1.5 ml-1",
               state === "error" && errorText && "text-destructive",
-              state === "success" && successText && "text-green-600 dark:text-green-500",
+              state === "success" && successText && "text-success-600 dark:text-success-500",
               !errorText && !successText && "text-muted-foreground"
             )}
             role={state === "error" ? "alert" : undefined}

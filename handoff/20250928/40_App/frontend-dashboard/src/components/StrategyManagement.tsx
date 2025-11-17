@@ -43,26 +43,26 @@ const StrategyManagement = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800'
+        return 'bg-success-100 text-success-800'
       case 'paused':
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-neutral-100 text-neutral-800'
       case 'error':
-        return 'bg-red-100 text-red-800'
+        return 'bg-error-100 text-error-800'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-neutral-100 text-neutral-800'
     }
   }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'active':
-        return <CheckCircle className="w-4 h-4 text-green-600" />
+        return <CheckCircle className="w-4 h-4 text-success-600" />
       case 'paused':
-        return <Clock className="w-4 h-4 text-gray-600" />
+        return <Clock className="w-4 h-4 text-neutral-600" />
       case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-600" />
+        return <AlertCircle className="w-4 h-4 text-error-600" />
       default:
-        return <Settings className="w-4 h-4 text-gray-600" />
+        return <Settings className="w-4 h-4 text-neutral-600" />
     }
   }
 
@@ -70,8 +70,8 @@ const StrategyManagement = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t('strategy.title')}</h1>
-          <p className="text-gray-600 mt-1">{t('strategy.description')}</p>
+          <h1 className="text-3xl font-bold text-neutral-900">{t('strategy.title')}</h1>
+          <p className="text-neutral-600 mt-1">{t('strategy.description')}</p>
         </div>
         <AppleButton className="flex items-center gap-2" variant="primary">
           <Plus className="w-4 h-4" />
@@ -84,25 +84,11 @@ const StrategyManagement = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">{t('strategy.activeStrategies')}</p>
-                <p className="text-2xl font-bold text-gray-900">2</p>
+                <p className="text-sm text-neutral-600">{t('strategy.activeStrategies')}</p>
+                <p className="text-2xl font-bold text-neutral-900">2</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">{t('strategy.totalTriggers')}</p>
-                <p className="text-2xl font-bold text-gray-900">11</p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Zap className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-success-100 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-success-600" />
               </div>
             </div>
           </CardContent>
@@ -112,11 +98,25 @@ const StrategyManagement = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">{t('strategy.pausedStrategies')}</p>
-                <p className="text-2xl font-bold text-gray-900">1</p>
+                <p className="text-sm text-neutral-600">{t('strategy.totalTriggers')}</p>
+                <p className="text-2xl font-bold text-neutral-900">11</p>
               </div>
-              <div className="p-3 bg-gray-100 rounded-lg">
-                <Clock className="w-6 h-6 text-gray-600" />
+              <div className="p-3 bg-info-100 rounded-lg">
+                <Zap className="w-6 h-6 text-info-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-neutral-600">{t('strategy.pausedStrategies')}</p>
+                <p className="text-2xl font-bold text-neutral-900">1</p>
+              </div>
+              <div className="p-3 bg-neutral-100 rounded-lg">
+                <Clock className="w-6 h-6 text-neutral-600" />
               </div>
             </div>
           </CardContent>
@@ -133,18 +133,18 @@ const StrategyManagement = () => {
             {mockStrategies.map((strategy) => (
               <div
                 key={strategy.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-neutral-50 transition-colors"
               >
                 <div className="flex items-center gap-4">
                   {getStatusIcon(strategy.status)}
                   <div>
-                    <h3 className="font-semibold text-gray-900">{strategy.name}</h3>
-                    <p className="text-sm text-gray-600">{strategy.description}</p>
+                    <h3 className="font-semibold text-neutral-900">{strategy.name}</h3>
+                    <p className="text-sm text-neutral-600">{strategy.description}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <Badge variant="outline" className="text-xs">
                         {t('strategy.triggeredTimes')} {strategy.triggers} {t('strategy.times')}
                       </Badge>
-                      <span className="text-xs text-gray-600">
+                      <span className="text-xs text-neutral-600">
                         {t('strategy.lastExecuted')}: {strategy.lastExecuted}
                       </span>
                     </div>
