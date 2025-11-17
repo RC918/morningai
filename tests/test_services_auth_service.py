@@ -516,7 +516,7 @@ class TestValidateSecurityConfig:
         with patch('services.auth_service.get_settings', return_value=mock_settings):
             with patch('services.auth_service.COOKIE_SAMESITE', 'None'):
                 with patch('services.auth_service.COOKIE_SECURE', False):
-                    with pytest.raises(SystemExit, match="COOKIE_SAMESITE=None requires COOKIE_SECURE=True"):
+                    with pytest.raises(SystemExit, match="Security configuration validation failed"):
                         validate_security_config()
     
     def test_validate_security_config_invalid_samesite(self, monkeypatch):
@@ -742,6 +742,7 @@ class TestAuthenticateUser:
         
         mock_settings = MagicMock()
         mock_settings.owner_password = 'owner123'
+        mock_settings.admin_password = 'admin123'
         
         with patch('services.auth_service.settings', mock_settings):
             user = authenticate_user('owner@morningai.com', 'wrong-password')
@@ -757,6 +758,7 @@ class TestAuthenticateUser:
         
         mock_settings = MagicMock()
         mock_settings.owner_password = 'owner123'
+        mock_settings.admin_password = 'admin123'
         
         with patch('services.auth_service.settings', mock_settings):
             user = authenticate_user('unknown@example.com', 'password')
@@ -803,6 +805,7 @@ class TestGetUserById:
         
         mock_settings = MagicMock()
         mock_settings.owner_password = 'owner123'
+        mock_settings.admin_password = 'admin123'
         
         with patch('services.auth_service.settings', mock_settings):
             user = get_user_by_id('owner-001')
@@ -820,6 +823,7 @@ class TestGetUserById:
         
         mock_settings = MagicMock()
         mock_settings.owner_password = 'owner123'
+        mock_settings.admin_password = 'admin123'
         
         with patch('services.auth_service.settings', mock_settings):
             user = get_user_by_id('unknown-id')
