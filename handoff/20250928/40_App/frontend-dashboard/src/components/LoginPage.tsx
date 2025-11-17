@@ -418,7 +418,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
 
               <div className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-300">
                 {t('auth.login.noAccount', '還沒有帳號？')}{' '}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium">
+                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-300 dark:hover:text-primary-200 font-medium">
                   {t('auth.login.signupLink', '註冊')}
                 </Link>
               </div>
