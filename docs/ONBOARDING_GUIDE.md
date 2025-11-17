@@ -857,6 +857,63 @@ curl https://morningai-backend-v2-stg.onrender.com/api/phase7/monitoring/dashboa
 
 ---
 
+## Testing
+
+MorningAI 採用**雙層測試架構**，將單元測試和 API 整合測試分離。
+
+### 測試架構概覽
+
+| 層級 | 位置 | 目的 | 覆蓋率 | CI Workflow |
+|------|------|------|--------|-------------|
+| **層級 1** | `/tests/` | 單元測試（業務邏輯） | 21% | test-apps.yml |
+| **層級 2** | `/handoff/.../api-backend/tests/` | API 整合測試 | 74% | backend.yml |
+
+**詳細說明**: 見 [TESTING_ARCHITECTURE.md](./TESTING_ARCHITECTURE.md)
+
+### 運行根目錄單元測試
+
+```bash
+# 在專案根目錄
+pytest tests/ -v
+
+# 帶覆蓋率
+pytest tests/ --cov=src --cov-report=html
+
+# 特定測試
+pytest tests/test_utils_redis_client.py -v
+```
+
+### 運行後端 API 測試
+
+```bash
+# 1. 進入後端目錄
+cd handoff/20250928/40_App/api-backend
+
+# 2. 安裝依賴（如果還沒安裝）
+pip install -r requirements.txt
+pip install pytest pytest-cov
+
+# 3. 設置環境變數
+export TESTING=true
+export JWT_SECRET_KEY=test-secret
+
+# 4. 運行測試
+python -m pytest tests/ -v
+
+# 5. 帶覆蓋率
+python -m pytest tests/ --cov=src --cov-report=html
+```
+
+### 為什麼測試分離？
+
+1. **依賴隔離**: 根目錄只需最小依賴，後端需要完整依賴（Flask, rq, numpy 等）
+2. **覆蓋率基準分離**: 21% 單元測試 vs 74% API 測試
+3. **測試速度**: 單元測試快速（< 1 秒），API 測試較慢（1-5 秒）
+
+**常見問題**: 見 [TESTING_ARCHITECTURE.md](./TESTING_ARCHITECTURE.md#常見問題)
+
+---
+
 ## Common Tasks
 
 ### Running Tests

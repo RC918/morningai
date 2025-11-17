@@ -1,13 +1,28 @@
 # P3 測試覆蓋率計劃總結
 
+## ⚠️ 重要說明：測試範圍
+
+**P3 計劃範圍**: 根目錄單元測試 (`/tests/`)
+- 測試業務邏輯、工具函數、服務層、中介軟體
+- **不包含**後端 API 端點測試
+
+**後端 API 測試**: 獨立測試套件 (`/handoff/.../api-backend/tests/`)
+- 1,225 個測試，21,035 行代碼
+- 74% 覆蓋率（CI 強制執行）
+- 在 `.github/workflows/backend.yml` 中運行
+- 詳見: [TESTING_ARCHITECTURE.md](./TESTING_ARCHITECTURE.md)
+
+---
+
 ## 最終成果
 
 **覆蓋率**: 3% → 21% (+18 percentage points)
 
 **測試統計**:
 - 測試文件: 27 個
-- 測試函數: 607 個
+- 測試函數: 696 個
 - 測試代碼行數: 11,088 行
+- 測試範圍: Utils, Services, Middleware, Models, Scripts
 
 ## Phase 1 + 1.5 (PR #1318) ✅
 
@@ -52,3 +67,11 @@
 ## 後續改進
 
 見 GitHub Issue: [#1324 - P3 後續改進建議](https://github.com/RC918/morningai/issues/1324)
+
+---
+
+## 📚 相關文檔
+
+- **[測試架構指南](./TESTING_ARCHITECTURE.md)** - 雙層測試架構說明
+- **[後端測試 README](../handoff/20250928/40_App/api-backend/tests/README.md)** - 後端 API 測試指南
+- **[測試最佳實踐](./TESTING.md)** - 測試編寫指南
