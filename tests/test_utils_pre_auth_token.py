@@ -40,29 +40,31 @@ class TestPreAuthTokenManagerInit:
     
     def test_init_production_without_secret(self, monkeypatch):
         """Should raise RuntimeError in production without proper secret"""
-        from utils.pre_auth_token import PreAuthTokenManager
-        
         monkeypatch.delenv('JWT_SECRET_KEY', raising=False)
         monkeypatch.setenv('ENVIRONMENT', 'production')
         
         mock_settings = MagicMock()
         mock_settings.jwt_secret_key = None
         
-        with patch('utils.pre_auth_token.settings', mock_settings):
-            with patch('utils.pre_auth_token.get_redis_client'):
-                with patch('services.auth_service.is_production', return_value=True):
+        # Patch is_production before importing PreAuthTokenManager
+        with patch('sys.modules', {**sys.modules, 'src.services.auth_service': MagicMock(is_production=MagicMock(return_value=True))}):
+            from utils.pre_auth_token import PreAuthTokenManager
+            
+            with patch('utils.pre_auth_token.settings', mock_settings):
+                with patch('utils.pre_auth_token.get_redis_client'):
                     with pytest.raises(RuntimeError, match="JWT_SECRET_KEY must be set"):
                         PreAuthTokenManager()
     
     def test_init_production_with_test_secret(self, monkeypatch):
         """Should raise RuntimeError in production with test secret"""
-        from utils.pre_auth_token import PreAuthTokenManager
-        
         monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         monkeypatch.setenv('ENVIRONMENT', 'production')
         
-        with patch('utils.pre_auth_token.get_redis_client'):
-            with patch('services.auth_service.is_production', return_value=True):
+        # Patch is_production before importing PreAuthTokenManager
+        with patch('sys.modules', {**sys.modules, 'src.services.auth_service': MagicMock(is_production=MagicMock(return_value=True))}):
+            from utils.pre_auth_token import PreAuthTokenManager
+            
+            with patch('utils.pre_auth_token.get_redis_client'):
                 with pytest.raises(RuntimeError, match="default test key is not allowed"):
                     PreAuthTokenManager()
     
@@ -78,8 +80,7 @@ class TestPreAuthTokenManagerInit:
         
         with patch('utils.pre_auth_token.settings', mock_settings):
             with patch('utils.pre_auth_token.get_redis_client'):
-                with patch('services.auth_service.is_production', return_value=False):
-                    manager = PreAuthTokenManager()
+                manager = PreAuthTokenManager()
         
         assert manager.jwt_secret == 'test-secret-key-for-testing'
     
