@@ -335,6 +335,24 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
         dict: {"pr_url": str, "trace_id": str, "state": str}
     """
     use_langgraph = settings.use_langgraph or False
+    use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
+    
+    if not use_langgraph and use_langgraph_percent > 0:
+        import hashlib
+        task_hash = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
+        task_percent = task_hash % 100
+        use_langgraph = task_percent < use_langgraph_percent
+        
+        logger.info(
+            f"Canary deployment: task_percent={task_percent}, threshold={use_langgraph_percent}, use_langgraph={use_langgraph}",
+            extra={
+                "operation": "canary_selection",
+                "task_id": task_id,
+                "task_percent": task_percent,
+                "use_langgraph_percent": use_langgraph_percent,
+                "use_langgraph": use_langgraph
+            }
+        )
     
     if use_langgraph:
         from langgraph_orchestrator import run_orchestrator
