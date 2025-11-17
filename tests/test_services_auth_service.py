@@ -407,8 +407,8 @@ class TestMockUsers:
             users = _get_mock_users()
         
         assert isinstance(users, dict)
-        if users:  # Only check if mock users are enabled
-            assert 'owner@morningai.com' in users or 'admin@morningai.com' in users
+        assert len(users) > 0, "_get_mock_users should return non-empty dict when enabled"
+        assert 'owner@morningai.com' in users or 'admin@morningai.com' in users
     
     def test_get_mock_users_when_disabled(self, monkeypatch):
         """Should return empty dict when disabled"""
@@ -731,9 +731,9 @@ class TestAuthenticateUser:
         with patch('services.auth_service.settings', mock_settings):
             user = authenticate_user('owner@morningai.com', 'owner123')
         
-        if user:
-            assert user['email'] == 'owner@morningai.com'
-            assert user['role'] == 'owner'
+        assert user is not None, "authenticate_user should return user dict for valid credentials"
+        assert user['email'] == 'owner@morningai.com'
+        assert user['role'] == 'owner'
     
     def test_authenticate_user_mock_wrong_password(self, monkeypatch):
         """Should reject wrong password"""
@@ -812,9 +812,9 @@ class TestGetUserById:
         with patch('services.auth_service.settings', mock_settings):
             user = get_user_by_id('owner-001')
         
-        if user:
-            assert user['id'] == 'owner-001'
-            assert user['email'] == 'owner@morningai.com'
+        assert user is not None, "get_user_by_id should return user dict for valid user ID"
+        assert user['id'] == 'owner-001'
+        assert user['email'] == 'owner@morningai.com'
     
     def test_get_user_by_id_mock_not_found(self, monkeypatch):
         """Should return None for unknown user ID"""
