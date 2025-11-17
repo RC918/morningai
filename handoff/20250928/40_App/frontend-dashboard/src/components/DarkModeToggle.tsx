@@ -39,14 +39,14 @@ export const DarkModeToggle = ({ variant = 'default' }: DarkModeToggleProps): Re
     return (
       <button
         onClick={toggleTheme}
-        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
+        className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-center"
         aria-label={isDark ? t('feedback.switchToLightMode') : t('feedback.switchToDarkMode')}
         style={{ width: '40px', height: '40px' }}
       >
         {isDark ? (
-          <Sun className="w-5 h-5 text-gray-600 dark:text-gray-300" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
+          <Sun className="w-5 h-5 text-neutral-600 dark:text-neutral-300" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
         ) : (
-          <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
+          <Moon className="w-5 h-5 text-neutral-600 dark:text-neutral-300" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
         )}
       </button>
     )

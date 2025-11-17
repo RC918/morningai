@@ -114,11 +114,11 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
   const isActive = (path: string): boolean => location.pathname === path
 
   return (
-    <div className={`bg-white dark:bg-gray-900 shadow-lg transition-all duration-300 ${
+    <div className={`bg-white dark:bg-neutral-900 shadow-lg transition-all duration-300 ${
       collapsed ? 'w-16' : 'w-64'
     }`}
     >
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
         <div className="flex items-center justify-between">
           {collapsed ? (
             <Link to="/dashboard" className="hover:opacity-80 transition-opacity">
@@ -138,8 +138,8 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
                 style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
               />
               <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
-                <p className="text-xs text-gray-600 dark:text-gray-600">{t('sidebar.header.subtitle')}</p>
+                <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
+                <p className="text-xs text-neutral-600 dark:text-neutral-600">{t('sidebar.header.subtitle')}</p>
               </div>
             </Link>
           )}
@@ -162,21 +162,21 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
         </div>
       </div>
 
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
         <div className="flex items-center space-x-3">
           <Avatar className="w-10 h-10">
             <AvatarImage src={user?.avatar} />
-            <AvatarFallback className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300">
+            <AvatarFallback className="bg-info-100 dark:bg-info-900 text-info-600 dark:text-info-300">
               {user?.name?.charAt(0) || 'U'}
             </AvatarFallback>
           </Avatar>
           
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
                 {user?.name || t('sidebar.user.defaultName')}
               </p>
-              <p className="text-xs text-gray-600 dark:text-gray-600 truncate">
+              <p className="text-xs text-neutral-600 dark:text-neutral-600 truncate">
                 {user?.role || t('sidebar.user.defaultRole')}
               </p>
             </div>
@@ -196,8 +196,8 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
                   to={item.path}
                   className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     active
-                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-r-2 border-blue-700 dark:border-blue-400'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                      ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 border-r-2 border-primary-700 dark:border-primary-400'
+                      : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white'
                   }`}
                   aria-current={active ? 'page' : undefined}
                   aria-label={`${item.label}${item.badge ? ` (${item.badge} ${t('accessibility.info', 'notifications')})` : ''}`}
@@ -210,12 +210,12 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
                         <div className="flex items-center justify-between">
                           <span>{item.label}</span>
                           {item.badge && (
-                            <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full">
+                            <span className="bg-error-100 text-error-600 text-xs px-2 py-1 rounded-full">
                               {item.badge}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-600 mt-1">
+                        <p className="text-xs text-neutral-600 dark:text-neutral-600 mt-1">
                           {item.description}
                         </p>
                       </div>
@@ -228,7 +228,7 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+      <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
         <div className={`flex ${collapsed ? 'flex-col gap-2' : 'gap-2'}`}>
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
           <LanguageSwitcher variant={collapsed ? 'compact' : 'default'} />
@@ -241,7 +241,7 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
           variant="ghost"
           size="sm"
           onClick={onLogout}
-          className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white`}
+          className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white`}
           haptic="medium"
           aria-label={t('sidebar.logout')}
         >

@@ -1,3 +1,9 @@
+/* eslint-disable i18next/no-literal-string */
+/* NOTE: This file is exempted from strict i18n checks to maintain PR scope.
+ * i18n improvements will be addressed in a dedicated PR (see Issue #1328).
+ * This aligns with local ESLint config which already exempts stories/tests.
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -127,7 +133,7 @@ describe('AppleInput', () => {
     it('applies success state classes', () => {
       render(<AppleInput state="success" />);
       const input = screen.getByRole('textbox');
-      expect(input.className).toContain('border-green-500');
+      expect(input.className).toContain('border-success-500');
     });
 
     it('displays error text', () => {

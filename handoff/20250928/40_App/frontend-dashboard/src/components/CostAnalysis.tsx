@@ -115,7 +115,7 @@ const CostAnalysis = (): React.ReactElement => {
   if (loading && !costData) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-info-600"></div>
       </div>
     )
   }
@@ -166,7 +166,7 @@ const CostAnalysis = (): React.ReactElement => {
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-neutral-600">{t('cost.currentMonth')}</p>
               <div className="p-2 bg-primary-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-primary-600" />
+                <DollarSign className="w-5 h-5 text-info-600" />
               </div>
             </div>
             <p className="text-3xl font-bold text-neutral-900">

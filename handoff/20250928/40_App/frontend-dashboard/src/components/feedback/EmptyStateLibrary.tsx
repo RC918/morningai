@@ -132,7 +132,7 @@ export const EmptyStateLibrary = ({
       bgColor: 'bg-primary-50',
       iconColor: 'text-primary-500',
       titleColor: 'text-primary-900',
-      descColor: 'text-primary-600'
+      descColor: 'text-info-600'
     },
     premium: {
       icon: CustomIcon || Zap,

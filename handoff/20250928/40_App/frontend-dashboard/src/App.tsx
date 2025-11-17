@@ -335,7 +335,7 @@ function AppContent() {
           </Routes>
         ) : (
           <TenantProvider>
-          <div className="flex h-screen bg-gray-100">
+          <div className="flex h-screen bg-neutral-100">
           <SkipToContent />
           <Sidebar user={user} onLogout={handleLogout} />
           

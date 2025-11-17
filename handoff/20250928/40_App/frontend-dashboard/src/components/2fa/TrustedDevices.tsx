@@ -164,7 +164,7 @@ export function TrustedDevices({ className }: TrustedDevicesProps) {
                         className={cn(
                           'text-xs mt-0.5',
                           isExpiringSoon(device.expires_at)
-                            ? 'text-yellow-600 dark:text-yellow-500'
+                            ? 'text-warning-600 dark:text-warning-500'
                             : 'text-muted-foreground'
                         )}
                       >

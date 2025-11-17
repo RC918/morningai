@@ -82,7 +82,7 @@ const TenantSettings = (): React.ReactElement => {
     return (
       <div className="flex items-center justify-center min-h-screen bg-neutral-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-info-600 mx-auto mb-4"></div>
           <p className="text-neutral-600">{t('tenant.loading')}</p>
         </div>
       </div>
@@ -202,7 +202,7 @@ const TenantSettings = (): React.ReactElement => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-600">
                       {updatingMember === member.id && (
-                        <span className="text-primary-600">{t('tenant.members.updating')}</span>
+                        <span className="text-info-600">{t('tenant.members.updating')}</span>
                       )}
                     </td>
                   </tr>

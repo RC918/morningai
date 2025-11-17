@@ -60,18 +60,18 @@ const WIPPage = ({
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-            <Clock className="w-8 h-8 text-blue-600" />
+          <div className="mx-auto w-16 h-16 bg-info-100 rounded-full flex items-center justify-center mb-4">
+            <Clock className="w-8 h-8 text-info-600" />
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">{title || t('wip.title')}</CardTitle>
-          <CardDescription className="text-lg text-gray-600 mt-2">
+          <CardTitle className="text-2xl font-bold text-neutral-900">{title || t('wip.title')}</CardTitle>
+          <CardDescription className="text-lg text-neutral-600 mt-2">
             {description || t('wip.description')}
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-6">
           <div className="text-center">
-            <div className="text-sm text-gray-600 mb-2">
+            <div className="text-sm text-neutral-600 mb-2">
               {t('wip.autoRedirect', { countdown })}
             </div>
             <Progress value={((redirectSeconds - countdown) / redirectSeconds) * 100} className="w-full" />
@@ -79,27 +79,27 @@ const WIPPage = ({
 
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-3">
-              <Target className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold text-gray-900">{t('wip.developmentProgress')}</h3>
+              <Target className="w-5 h-5 text-info-600" />
+              <h3 className="font-semibold text-neutral-900">{t('wip.developmentProgress')}</h3>
             </div>
             
             <div className="space-y-3">
               {displayMilestones.map((milestone, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={index} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${
-                      milestone.completed ? 'bg-success-500' : 'bg-gray-300'
+                      milestone.completed ? 'bg-success-500' : 'bg-neutral-300'
                     }`}
                     />
                     <span className={`font-medium ${
-                      milestone.completed ? 'text-gray-900' : 'text-gray-600'
+                      milestone.completed ? 'text-neutral-900' : 'text-neutral-600'
                     }`}
                     >
                       {milestone.name}
                     </span>
                   </div>
                   <span className={`text-sm ${
-                    milestone.completed ? 'text-success-600' : 'text-gray-600'
+                    milestone.completed ? 'text-success-600' : 'text-neutral-600'
                   }`}
                   >
                     {milestone.date}
@@ -109,7 +109,7 @@ const WIPPage = ({
             </div>
             
             <div className="mt-4">
-              <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <div className="flex justify-between text-sm text-neutral-600 mb-1">
                 <span>{t('wip.overallProgress')}</span>
                 <span>{Math.round(progressPercentage)}%</span>
               </div>

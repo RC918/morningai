@@ -112,7 +112,7 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }: Tw
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
                     isCompleted
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-success-500 text-white'
                       : isActive
                       ? 'bg-primary text-white'
                       : 'bg-accent text-muted-foreground'
@@ -129,7 +129,7 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }: Tw
               {index < steps.length - 1 && (
                 <div
                   className={`flex-1 h-0.5 mx-2 transition-colors ${
-                    index < currentIndex ? 'bg-green-500' : 'bg-accent'
+                    index < currentIndex ? 'bg-success-500' : 'bg-accent'
                   }`}
                 />
               )}

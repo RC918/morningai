@@ -86,13 +86,13 @@ export function TwoFAStatusCard({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-3 p-4 bg-info-50 dark:bg-info-900/20 rounded-lg border border-info-200 dark:border-info-800">
+            <AlertCircle className="w-5 h-5 text-info-600 dark:text-info-400 mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
-              <p className="font-medium text-blue-900 dark:text-blue-100">
+              <p className="font-medium text-info-900 dark:text-info-100">
                 {t('settings.2fa.featureDisabled.title')}
               </p>
-              <p className="text-sm text-blue-800 dark:text-blue-200">
+              <p className="text-sm text-info-800 dark:text-info-200">
                 {t('settings.2fa.featureDisabled.description')}
               </p>
             </div>
@@ -121,12 +121,12 @@ export function TwoFAStatusCard({
             <div className="flex items-center gap-2">
               <span className="font-medium">{t('settings.2fa.status.label')}</span>
               {isEnabled ? (
-                <Badge data-testid="2fa-status" variant="default" className="bg-green-500 flex items-center gap-1">
+                <Badge data-testid="2fa-status" variant="default" className="bg-success-500 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   {t('settings.2fa.status.enabled')}
                 </Badge>
               ) : (
-                <Badge data-testid="2fa-status" variant="outline" className="text-gray-600">
+                <Badge data-testid="2fa-status" variant="outline" className="text-neutral-600">
                   {t('settings.2fa.status.disabled')}
                 </Badge>
               )}

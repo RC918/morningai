@@ -43,8 +43,8 @@ export const SaveStatusIndicator = ({ status, lastSaved, error, onRetry }: SaveS
     saving: {
       icon: Loader2,
       text: t('dashboard.saveStatus.saving'),
-      className: 'text-gray-600',
-      iconClassName: 'text-gray-600 animate-spin'
+      className: 'text-neutral-600',
+      iconClassName: 'text-neutral-600 animate-spin'
     },
     unsaved: {
       icon: AlertCircle,

@@ -271,8 +271,8 @@ const DecisionApproval = (): React.ReactElement => {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">{t('approval.title')}</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-neutral-900">{t('approval.title')}</h1>
+        <p className="text-neutral-600 mt-2">
           {t('approval.description')}
         </p>
       </div>
@@ -282,7 +282,7 @@ const DecisionApproval = (): React.ReactElement => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">{t('approval.pendingDecisions')}</p>
+                <p className="text-sm text-neutral-600">{t('approval.pendingDecisions')}</p>
                 <p className="text-2xl font-bold">{pendingDecisions.length}</p>
               </div>
               <Clock className="w-8 h-8 text-warning-500" />
@@ -294,7 +294,7 @@ const DecisionApproval = (): React.ReactElement => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">{t('approval.criticalDecisions')}</p>
+                <p className="text-sm text-neutral-600">{t('approval.criticalDecisions')}</p>
                 <p className="text-2xl font-bold text-error-600">
                   {pendingDecisions.filter(d => d.priority === 'critical').length}
                 </p>
@@ -308,7 +308,7 @@ const DecisionApproval = (): React.ReactElement => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">{t('approval.avgConfidence')}</p>
+                <p className="text-sm text-neutral-600">{t('approval.avgConfidence')}</p>
                 <p className="text-2xl font-bold text-success-600">
                   {Math.round(pendingDecisions.reduce((acc, d) => acc + d.predicted_impact.confidence, 0) / pendingDecisions.length * 100)}%
                 </p>
@@ -322,8 +322,8 @@ const DecisionApproval = (): React.ReactElement => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">{t('approval.estimatedCost')}</p>
-                <p className="text-2xl font-bold text-primary-600">
+                <p className="text-sm text-neutral-600">{t('approval.estimatedCost')}</p>
+                <p className="text-2xl font-bold text-info-600">
                   ${pendingDecisions.reduce((acc, d) => acc + d.predicted_impact.cost_increase, 0).toFixed(2)}
                 </p>
               </div>
@@ -338,8 +338,8 @@ const DecisionApproval = (): React.ReactElement => {
           <Card>
             <CardContent className="p-8 text-center">
               <CheckCircle className="w-16 h-16 text-success-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('approval.noDecisions')}</h3>
-              <p className="text-gray-600">{t('approval.noDecisionsDescription')}</p>
+              <h3 className="text-lg font-medium text-neutral-900 mb-2">{t('approval.noDecisions')}</h3>
+              <p className="text-neutral-600">{t('approval.noDecisionsDescription')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -355,13 +355,13 @@ const DecisionApproval = (): React.ReactElement => {
                       </Badge>
                     </div>
                     <CardDescription>{decision.strategy.description}</CardDescription>
-                    <p className="text-sm text-gray-600 mt-2">
+                    <p className="text-sm text-neutral-600 mt-2">
                       {t('approval.triggerTime')}: {new Date(decision.timestamp).toLocaleString()}
                     </p>
                   </div>
                   
                   <div className="text-right">
-                    <div className="text-sm text-gray-600 mb-2">
+                    <div className="text-sm text-neutral-600 mb-2">
                       {t('approval.autoApproveCountdown')}
                     </div>
                     <div className="text-lg font-mono text-warning-600">
@@ -380,10 +380,10 @@ const DecisionApproval = (): React.ReactElement => {
                   <div>
                     <h4 className="font-medium mb-2">{t('approval.triggerCondition')}</h4>
                     <div className="text-sm space-y-1">
-                      <p><span className="text-gray-600">{t('approval.type')}:</span> {decision.trigger.type}</p>
-                      <p><span className="text-gray-600">{t('approval.currentValue')}:</span> {decision.trigger.value}</p>
-                      <p><span className="text-gray-600">{t('approval.threshold')}:</span> {decision.trigger.threshold}</p>
-                      <p><span className="text-gray-600">{t('approval.duration')}:</span> {decision.trigger.duration}</p>
+                      <p><span className="text-neutral-600">{t('approval.type')}:</span> {decision.trigger.type}</p>
+                      <p><span className="text-neutral-600">{t('approval.currentValue')}:</span> {decision.trigger.value}</p>
+                      <p><span className="text-neutral-600">{t('approval.threshold')}:</span> {decision.trigger.threshold}</p>
+                      <p><span className="text-neutral-600">{t('approval.duration')}:</span> {decision.trigger.duration}</p>
                     </div>
                   </div>
                   
@@ -392,7 +392,7 @@ const DecisionApproval = (): React.ReactElement => {
                     <div className="text-sm space-y-1">
                       {Object.entries(decision.predicted_impact).map(([key, value]) => (
                         <p key={key}>
-                          <span className="text-gray-600">
+                          <span className="text-neutral-600">
                             {key === 'confidence' ? t('approval.confidence') :
                              key === 'cost_increase' ? t('approval.costIncrease') :
                              key === 'cpu_reduction' ? t('approval.cpuReduction') :
@@ -411,14 +411,14 @@ const DecisionApproval = (): React.ReactElement => {
                     <h4 className="font-medium mb-2">{t('approval.riskAssessment')}</h4>
                     <div className="text-sm">
                       <p className="mb-2">
-                        <span className="text-gray-600">{t('approval.riskLevel')}:</span>{' '}
+                        <span className="text-neutral-600">{t('approval.riskLevel')}:</span>{' '}
                         <span className={getRiskColor(decision.risk_assessment.level)}>
                           {t(`approval.risk.${decision.risk_assessment.level.replace('_', '')}`)}
                         </span>
                       </p>
                       <div className="space-y-1">
                         {decision.risk_assessment.factors.map((factor, index) => (
-                          <p key={index} className="text-gray-600">• {factor}</p>
+                          <p key={index} className="text-neutral-600">• {factor}</p>
                         ))}
                       </div>
                     </div>
@@ -430,12 +430,12 @@ const DecisionApproval = (): React.ReactElement => {
                   <div className="space-y-2">
                     {decision.strategy.actions.map((action, index) => (
                       <div key={index} className="flex items-center space-x-3 p-2 bg-neutral-50 rounded">
-                        <div className="w-6 h-6 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-sm font-medium">
+                        <div className="w-6 h-6 bg-primary-100 text-info-600 rounded-full flex items-center justify-center text-sm font-medium">
                           {index + 1}
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium">{action.description}</p>
-                          <p className="text-xs text-gray-600">{t('approval.estimatedTime')}: {action.estimated_time}</p>
+                          <p className="text-xs text-neutral-600">{t('approval.estimatedTime')}: {action.estimated_time}</p>
                         </div>
                       </div>
                     ))}
