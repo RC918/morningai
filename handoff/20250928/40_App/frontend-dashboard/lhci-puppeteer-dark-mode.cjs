@@ -65,23 +65,79 @@ module.exports = async (browser, context) => {
       console.warn('⚠️ Failed to emulate prefers-color-scheme, continuing with class/localStorage only:', error?.message);
     }
     
+    // Set unique viewport to verify LHCI uses our page
+    await page.setViewport({ width: 1333, height: 777 });
+    console.log('🌙 Set unique viewport: 1333x777 (for verification)');
+    
     // Navigate to the URL Lighthouse wants to audit
     console.log('🌙 Navigating to', context.url);
     await page.goto(context.url, { waitUntil: 'networkidle0', timeout: 30000 });
     console.log('🌙 Navigation complete');
     
-    // Verify dark mode is active
+    // Wait a bit for app initialization
+    await page.waitForTimeout(1000);
+    
+    // Verify dark mode is active AFTER app initialization
     const darkModeStatus = await page.evaluate(() => {
       return {
         theme: localStorage.getItem('morningai-theme'),
         hasDarkClass: document.documentElement.classList.contains('dark'),
         dataTheme: document.documentElement.getAttribute('data-theme'),
         prefersDark: window.matchMedia('(prefers-color-scheme: dark)').matches,
-        colorScheme: document.documentElement.style.colorScheme
+        colorScheme: document.documentElement.style.colorScheme,
+        htmlClasses: document.documentElement.className
       };
     });
     
-    console.log('🌙 Dark mode status:', JSON.stringify(darkModeStatus));
+    console.log('🌙 Dark mode status (after app init):', JSON.stringify(darkModeStatus));
+    
+    // Inject axe-core to identify failing elements
+    try {
+      await page.setBypassCSP(true);
+      await page.addScriptTag({
+        url: 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js'
+      });
+      console.log('🌙 Injected axe-core');
+      
+      // Run color-contrast audit
+      const axeResults = await page.evaluate(async () => {
+        try {
+          const results = await axe.run({
+            runOnly: ['color-contrast']
+          });
+          return {
+            violations: results.violations.map(v => ({
+              id: v.id,
+              impact: v.impact,
+              description: v.description,
+              nodes: v.nodes.map(n => ({
+                target: n.target,
+                html: n.html.substring(0, 200),
+                failureSummary: n.failureSummary
+              }))
+            }))
+          };
+        } catch (error) {
+          return { error: error.message };
+        }
+      });
+      
+      if (axeResults.error) {
+        console.warn('⚠️ Axe-core error:', axeResults.error);
+      } else if (axeResults.violations && axeResults.violations.length > 0) {
+        console.log('🔍 Axe-core found', axeResults.violations.length, 'color-contrast violation(s):');
+        axeResults.violations.forEach((v, i) => {
+          console.log(`  ${i + 1}. ${v.id} (${v.impact}): ${v.nodes.length} element(s)`);
+          v.nodes.slice(0, 3).forEach((n, j) => {
+            console.log(`     - ${n.target}: ${n.html}`);
+          });
+        });
+      } else {
+        console.log('✅ Axe-core: No color-contrast violations found');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to run axe-core audit:', error.message);
+    }
     
     if (darkModeStatus.hasDarkClass && darkModeStatus.prefersDark) {
       console.log('✅ Dark mode verified: Page is ready for Lighthouse audit');
