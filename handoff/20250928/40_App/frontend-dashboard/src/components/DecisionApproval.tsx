@@ -243,22 +243,22 @@ const DecisionApproval = (): React.ReactElement => {
 
   const getPriorityColor = (priority: PriorityLevel): string => {
     switch (priority) {
-      case 'critical': return 'bg-red-100 text-red-800 border-red-200'
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200'
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'low': return 'bg-green-100 text-green-800 border-green-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+      case 'critical': return 'bg-error-100 text-error-800 border-error-200'
+      case 'high': return 'bg-warning-100 text-warning-800 border-warning-200'
+      case 'medium': return 'bg-warning-100 text-warning-800 border-warning-200'
+      case 'low': return 'bg-success-100 text-success-800 border-success-200'
+      default: return 'bg-neutral-100 text-neutral-800 border-neutral-200'
     }
   }
 
   const getRiskColor = (level: RiskLevel): string => {
     switch (level) {
-      case 'very_low': return 'text-green-600'
-      case 'low': return 'text-green-500'
-      case 'medium': return 'text-yellow-500'
-      case 'high': return 'text-red-500'
-      case 'very_high': return 'text-red-600'
-      default: return 'text-gray-600'
+      case 'very_low': return 'text-success-600'
+      case 'low': return 'text-success-500'
+      case 'medium': return 'text-warning-500'
+      case 'high': return 'text-error-500'
+      case 'very_high': return 'text-error-600'
+      default: return 'text-neutral-600'
     }
   }
 
@@ -285,7 +285,7 @@ const DecisionApproval = (): React.ReactElement => {
                 <p className="text-sm text-gray-600">{t('approval.pendingDecisions')}</p>
                 <p className="text-2xl font-bold">{pendingDecisions.length}</p>
               </div>
-              <Clock className="w-8 h-8 text-orange-500" />
+              <Clock className="w-8 h-8 text-warning-500" />
             </div>
           </CardContent>
         </Card>
@@ -295,11 +295,11 @@ const DecisionApproval = (): React.ReactElement => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">{t('approval.criticalDecisions')}</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-2xl font-bold text-error-600">
                   {pendingDecisions.filter(d => d.priority === 'critical').length}
                 </p>
               </div>
-              <AlertTriangle className="w-8 h-8 text-red-500" />
+              <AlertTriangle className="w-8 h-8 text-error-500" />
             </div>
           </CardContent>
         </Card>
@@ -309,11 +309,11 @@ const DecisionApproval = (): React.ReactElement => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">{t('approval.avgConfidence')}</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-success-600">
                   {Math.round(pendingDecisions.reduce((acc, d) => acc + d.predicted_impact.confidence, 0) / pendingDecisions.length * 100)}%
                 </p>
               </div>
-              <TrendingUp className="w-8 h-8 text-green-500" />
+              <TrendingUp className="w-8 h-8 text-success-500" />
             </div>
           </CardContent>
         </Card>
@@ -323,11 +323,11 @@ const DecisionApproval = (): React.ReactElement => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">{t('approval.estimatedCost')}</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-2xl font-bold text-primary-600">
                   ${pendingDecisions.reduce((acc, d) => acc + d.predicted_impact.cost_increase, 0).toFixed(2)}
                 </p>
               </div>
-              <DollarSign className="w-8 h-8 text-blue-500" />
+              <DollarSign className="w-8 h-8 text-primary-500" />
             </div>
           </CardContent>
         </Card>
@@ -337,14 +337,14 @@ const DecisionApproval = (): React.ReactElement => {
         {pendingDecisions.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <CheckCircle className="w-16 h-16 text-success-500 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">{t('approval.noDecisions')}</h3>
               <p className="text-gray-600">{t('approval.noDecisionsDescription')}</p>
             </CardContent>
           </Card>
         ) : (
           pendingDecisions.map((decision) => (
-            <Card key={decision.id} className="border-l-4 border-l-orange-400">
+            <Card key={decision.id} className="border-l-4 border-l-warning-400">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -364,7 +364,7 @@ const DecisionApproval = (): React.ReactElement => {
                     <div className="text-sm text-gray-600 mb-2">
                       {t('approval.autoApproveCountdown')}
                     </div>
-                    <div className="text-lg font-mono text-orange-600">
+                    <div className="text-lg font-mono text-warning-600">
                       {formatTimeRemaining(decision.auto_approve_in)}
                     </div>
                     <Progress 
@@ -429,8 +429,8 @@ const DecisionApproval = (): React.ReactElement => {
                   <h4 className="font-medium mb-2">{t('approval.executionSteps')}</h4>
                   <div className="space-y-2">
                     {decision.strategy.actions.map((action, index) => (
-                      <div key={index} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
-                        <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+                      <div key={index} className="flex items-center space-x-3 p-2 bg-neutral-50 rounded">
+                        <div className="w-6 h-6 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-sm font-medium">
                           {index + 1}
                         </div>
                         <div className="flex-1">
