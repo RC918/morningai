@@ -1,10 +1,12 @@
 # Frontend Dashboard E2E Tests
 
-This directory contains end-to-end (E2E) tests for the frontend-dashboard application using Playwright.
+This directory contains documentation for end-to-end (E2E) tests for the frontend-dashboard application using Playwright.
+
+**Note:** Test files are located in the `tests/` directory (per Playwright config). This directory contains documentation only.
 
 ## Test Suites
 
-### 1. Design Token Migration Tests (`design-tokens.spec.ts`)
+### 1. Design Token Migration Tests (`tests/design-tokens.spec.ts`)
 
 Comprehensive E2E test suite to ensure the design token migration is successful and maintains visual consistency.
 
@@ -20,11 +22,11 @@ Comprehensive E2E test suite to ensure the design token migration is successful 
 **Test Tags:**
 - `@vrt` - Visual regression tests (screenshot comparison)
 
-### 2. 2FA Flows Tests (`2fa-flows.spec.ts`)
+### 2. 2FA Flows Tests (`e2e/2fa-flows.spec.ts`)
 
 Complete user flow tests for Two-Factor Authentication functionality.
 
-### 3. Dashboard Widget Filtering Tests (`dashboard-widget-filtering.spec.ts`)
+### 3. Dashboard Widget Filtering Tests (`e2e/dashboard-widget-filtering.spec.ts`)
 
 Tests for dashboard widget filtering and interaction functionality.
 
@@ -43,7 +45,11 @@ pnpm run test:vrt
 
 ### Run Specific Test File
 ```bash
-pnpm exec playwright test e2e/design-tokens.spec.ts
+# Design token tests (in tests/ directory)
+pnpm exec playwright test tests/design-tokens.spec.ts
+
+# Other E2E tests (in e2e/ directory)
+pnpm exec playwright test e2e/2fa-flows.spec.ts
 ```
 
 ### Run Tests in UI Mode (Interactive)
@@ -69,14 +75,14 @@ When running visual regression tests for the first time or after intentional vis
 pnpm exec playwright test --update-snapshots
 
 # Update specific test baseline
-pnpm exec playwright test e2e/design-tokens.spec.ts --update-snapshots
+pnpm exec playwright test tests/design-tokens.spec.ts --update-snapshots
 ```
 
 ### Screenshot Storage
 
 Baseline screenshots are stored in:
 ```
-e2e/design-tokens.spec.ts-snapshots/
+tests/design-tokens.spec.ts-snapshots/
 ```
 
 These screenshots are committed to the repository and used for comparison in CI.
@@ -103,7 +109,7 @@ E2E tests run automatically on every pull request via GitHub Actions (`.github/w
 
 Test configuration is defined in `playwright.config.ts`:
 
-- **Test Directory:** `./tests` (for auth setup) and `./e2e` (for E2E tests)
+- **Test Directory:** `./tests` (for design token tests and auth setup), `./e2e` (for other E2E tests)
 - **Base URL:** `http://localhost:4173` (preview server)
 - **Timeout:** 30 seconds per test
 - **Retries:** 2 retries in CI, 0 locally
