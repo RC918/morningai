@@ -90,9 +90,9 @@ const TenantSettings = (): React.ReactElement => {
   if (tenantError || error) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-          <h2 className="text-red-800 font-semibold mb-2">Error Loading Tenant</h2>
-          <p className="text-red-600">{tenantError || error}</p>
+        <div className="bg-error-50 border border-error-200 rounded-lg p-6 max-w-md">
+          <h2 className="text-error-800 font-semibold mb-2">Error Loading Tenant</h2>
+          <p className="text-error-600">{tenantError || error}</p>
           <AppleButton
             onClick={fetchTenantData}
             variant="destructive"

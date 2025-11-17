@@ -28,9 +28,9 @@ const CheckoutSuccess = () => {
       <Card className="max-w-md w-full">
         <CardHeader className="text-center pb-4">
           <div className="flex justify-center mb-4">
-            <CheckCircle className="w-16 h-16 text-green-500" aria-hidden="true" />
+            <CheckCircle className="w-16 h-16 text-success-500" aria-hidden="true" />
           </div>
-          <CardTitle className="text-2xl text-green-700">{t('checkoutSuccess.title')}</CardTitle>
+          <CardTitle className="text-2xl text-success-700">{t('checkoutSuccess.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 text-center">
           <div>

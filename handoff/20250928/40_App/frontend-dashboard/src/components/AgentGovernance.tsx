@@ -135,13 +135,13 @@ const AgentGovernance = (): React.ReactElement => {
   const getEventTypeIcon = (eventType: EventType): React.ReactElement => {
     switch (eventType) {
       case 'task_success':
-        return <CheckCircle className="w-4 h-4 text-green-600" />
+        return <CheckCircle className="w-4 h-4 text-success-600" />
       case 'task_failure':
-        return <XCircle className="w-4 h-4 text-red-600" />
+        return <XCircle className="w-4 h-4 text-error-600" />
       case 'budget_exceeded':
-        return <AlertTriangle className="w-4 h-4 text-orange-600" />
+        return <AlertTriangle className="w-4 h-4 text-warning-600" />
       case 'permission_denied':
-        return <Shield className="w-4 h-4 text-red-600" />
+        return <Shield className="w-4 h-4 text-error-600" />
       default:
         return <Activity className="w-4 h-4 text-gray-600" />
     }
@@ -218,7 +218,7 @@ const AgentGovernance = (): React.ReactElement => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-gray-600">Violations</p>
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <AlertTriangle className="w-5 h-5 text-error-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
                 {violations.length}
@@ -327,25 +327,25 @@ const AgentGovernance = (): React.ReactElement => {
               <div className="space-y-2">
                 {violations.length === 0 ? (
                   <div className="text-center py-8">
-                    <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-2" />
+                    <CheckCircle className="w-12 h-12 text-success-600 mx-auto mb-2" />
                     <p className="text-gray-500">No violations detected</p>
                   </div>
                 ) : (
                   violations.map((violation) => (
-                    <div key={violation.violation_id} className="flex items-start gap-3 p-3 border border-red-200 bg-red-50 rounded-lg">
-                      <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                    <div key={violation.violation_id} className="flex items-start gap-3 p-3 border border-error-200 bg-error-50 rounded-lg">
+                      <AlertTriangle className="w-5 h-5 text-error-600 mt-0.5" />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-red-900">{violation.violation_type}</p>
-                          <span className="text-xs text-red-600">{formatTimestamp(violation.detected_at)}</span>
+                          <p className="font-medium text-error-900">{violation.violation_type}</p>
+                          <span className="text-xs text-error-600">{formatTimestamp(violation.detected_at)}</span>
                         </div>
-                        <p className="text-sm text-red-700 mt-1">{violation.description}</p>
+                        <p className="text-sm text-error-700 mt-1">{violation.description}</p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="destructive" className="text-xs">
                             Severity: {violation.severity}
                           </Badge>
                           {violation.resolved && (
-                            <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
+                            <Badge variant="outline" className="text-xs bg-success-100 text-success-800">
                               Resolved
                             </Badge>
                           )}

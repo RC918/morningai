@@ -88,7 +88,7 @@ const WIPPage = ({
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${
-                      milestone.completed ? 'bg-green-500' : 'bg-gray-300'
+                      milestone.completed ? 'bg-success-500' : 'bg-gray-300'
                     }`}
                     />
                     <span className={`font-medium ${
@@ -99,7 +99,7 @@ const WIPPage = ({
                     </span>
                   </div>
                   <span className={`text-sm ${
-                    milestone.completed ? 'text-green-600' : 'text-gray-600'
+                    milestone.completed ? 'text-success-600' : 'text-gray-600'
                   }`}
                   >
                     {milestone.date}
