@@ -17,8 +17,10 @@
 
 import { test, expect, Page } from '@playwright/test'
 
+test.use({ storageState: 'playwright/.auth/storageState.json' })
+
 /**
- * Helper function to set authentication token for protected pages
+ * Helper function to set authentication token for protected pages (fallback)
  */
 async function setAuthToken(page: Page) {
   await page.addInitScript(() => {
@@ -65,10 +67,6 @@ async function verifyNoHardcodedColors(page: Page) {
 }
 
 test.describe('Design Token Migration - Visual Regression Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    await setAuthToken(page)
-  })
-
   test('[@vrt] Agent Governance page - semantic tokens render correctly', async ({ page }) => {
     await page.goto('/agent-governance')
     
@@ -188,10 +186,6 @@ test.describe('Design Token Migration - Visual Regression Tests', () => {
 })
 
 test.describe('Design Token Migration - Semantic Color Validation', () => {
-  test.beforeEach(async ({ page }) => {
-    await setAuthToken(page)
-  })
-
   test('should use error tokens for error states', async ({ page }) => {
     await page.goto('/dashboard')
     await page.waitForLoadState('networkidle')
@@ -289,10 +283,6 @@ test.describe('Design Token Migration - Semantic Color Validation', () => {
 })
 
 test.describe('Design Token Migration - Functional Smoke Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    await setAuthToken(page)
-  })
-
   test('should navigate to all key pages without errors', async ({ page }) => {
     const pages = [
       { path: '/dashboard', title: /dashboard/i },
@@ -396,10 +386,6 @@ test.describe('Design Token Migration - Functional Smoke Tests', () => {
 })
 
 test.describe('Design Token Migration - Dark Mode Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    await setAuthToken(page)
-  })
-
   test('[@vrt] should render correctly in light mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/dashboard')
@@ -458,10 +444,6 @@ test.describe('Design Token Migration - Dark Mode Tests', () => {
 })
 
 test.describe('Design Token Migration - Accessibility Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    await setAuthToken(page)
-  })
-
   test('should maintain sufficient color contrast for text', async ({ page }) => {
     await page.goto('/dashboard')
     await page.waitForLoadState('networkidle')
