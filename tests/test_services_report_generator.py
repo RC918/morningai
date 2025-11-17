@@ -323,15 +323,17 @@ class TestExportPDF:
         )
         
         with patch('services.report_generator.REPORTLAB_AVAILABLE', True):
-            with patch('reportlab.platypus.SimpleDocTemplate') as mock_doc:
-                mock_doc_instance = MagicMock()
-                mock_doc.return_value = mock_doc_instance
-                
-                result = generator.export_pdf(report_data, 'performance')
-                
-                assert 'report_performance_' in result
-                assert result.endswith('.pdf')
-                mock_doc_instance.build.assert_called_once()
+            with patch('services.report_generator.SimpleDocTemplate') as mock_doc:
+                with patch('services.report_generator.getSampleStyleSheet') as mock_styles:
+                    mock_doc_instance = MagicMock()
+                    mock_doc.return_value = mock_doc_instance
+                    mock_styles.return_value = {'Title': Mock(), 'Normal': Mock(), 'Heading2': Mock()}
+                    
+                    result = generator.export_pdf(report_data, 'performance')
+                    
+                    assert 'report_performance_' in result
+                    assert result.endswith('.pdf')
+                    mock_doc_instance.build.assert_called_once()
 
 
 class TestParseTimeRange:
