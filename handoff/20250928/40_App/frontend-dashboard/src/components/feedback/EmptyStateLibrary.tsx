@@ -129,14 +129,14 @@ export const EmptyStateLibrary = ({
     },
     loading: {
       icon: CustomIcon || Clock,
-      bgColor: 'bg-indigo-50',
-      iconColor: 'text-indigo-500',
-      titleColor: 'text-indigo-900',
-      descColor: 'text-indigo-600'
+      bgColor: 'bg-primary-50',
+      iconColor: 'text-primary-500',
+      titleColor: 'text-primary-900',
+      descColor: 'text-info-600'
     },
     premium: {
       icon: CustomIcon || Zap,
-      bgColor: 'bg-gradient-to-br from-warning-50 to-warning-50',
+      bgColor: 'bg-gradient-to-br from-warning-50 to-warning-100',
       iconColor: 'text-warning-500',
       titleColor: 'text-warning-900',
       descColor: 'text-warning-600'
