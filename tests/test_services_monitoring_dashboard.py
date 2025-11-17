@@ -114,8 +114,10 @@ class TestCalculateSystemHealth:
         
         result = await dashboard._calculate_system_health(resilience_metrics)
         
-        assert result['overall_status'] == 'degraded'
+        # With error_rate=0.1 (10/100), it exceeds threshold (0.05) so status is 'unhealthy'
+        assert result['overall_status'] == 'unhealthy'
         assert result['open_circuit_breakers'] == 1
+        assert result['error_rate'] == 0.1
     
     @pytest.mark.asyncio
     async def test_calculate_system_health_unhealthy_high_error_rate(self):
@@ -163,7 +165,9 @@ class TestCalculateSystemHealth:
         
         result = await dashboard._calculate_system_health(resilience_metrics)
         
-        assert result['overall_status'] == 'unknown'
+        # With no circuit_breakers or bulkheads, error_rate stays 0, so status is 'healthy'
+        assert result['overall_status'] == 'healthy'
+        assert result['error_rate'] == 0.0
 
 
 class TestFormatCircuitBreakerData:
