@@ -420,3 +420,435 @@ class TestMockUsers:
         users = _get_mock_users()
         
         assert users == {}
+
+
+class TestValidateSecurityConfig:
+    """Test validate_security_config function"""
+    
+    def test_validate_security_config_production_no_jwt_secret(self, monkeypatch):
+        """Should raise RuntimeError in production without JWT secret"""
+        from services.auth_service import validate_security_config
+        
+        monkeypatch.setenv('ENVIRONMENT', 'production')
+        
+        mock_settings = MagicMock()
+        mock_settings.jwt_secret_key = None
+        mock_settings.is_production = True
+        mock_settings.environment = 'production'
+        
+        with patch('services.auth_service.get_settings', return_value=mock_settings):
+            with pytest.raises(RuntimeError, match="Invalid JWT secret"):
+                validate_security_config()
+    
+    def test_validate_security_config_production_weak_jwt_secret(self, monkeypatch):
+        """Should raise RuntimeError in production with weak JWT secret"""
+        from services.auth_service import validate_security_config
+        
+        monkeypatch.setenv('ENVIRONMENT', 'production')
+        
+        mock_settings = MagicMock()
+        mock_settings.jwt_secret_key = 'short'
+        mock_settings.is_production = True
+        mock_settings.environment = 'production'
+        mock_settings.cookie_secure = True
+        mock_settings.cookie_samesite = 'Lax'
+        mock_settings.cookie_domain = None
+        mock_settings.cookie_path = '/'
+        
+        with patch('services.auth_service.get_settings', return_value=mock_settings):
+            with pytest.raises(RuntimeError, match="at least 32 characters"):
+                validate_security_config()
+    
+    def test_validate_security_config_production_default_jwt_secret(self, monkeypatch):
+        """Should raise RuntimeError in production with default JWT secret"""
+        from services.auth_service import validate_security_config
+        
+        monkeypatch.setenv('ENVIRONMENT', 'production')
+        
+        mock_settings = MagicMock()
+        mock_settings.jwt_secret_key = 'test-secret-key-for-testing'
+        mock_settings.is_production = True
+        mock_settings.environment = 'production'
+        mock_settings.cookie_secure = True
+        mock_settings.cookie_samesite = 'Lax'
+        mock_settings.cookie_domain = None
+        mock_settings.cookie_path = '/'
+        
+        with patch('services.auth_service.get_settings', return_value=mock_settings):
+            with pytest.raises(RuntimeError, match="weak/default value"):
+                validate_security_config()
+    
+    def test_validate_security_config_production_mock_users_enabled(self, monkeypatch):
+        """Should raise SystemExit in production with mock users enabled"""
+        from services.auth_service import validate_security_config
+        
+        monkeypatch.setenv('ENVIRONMENT', 'production')
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'true')
+        
+        mock_settings = MagicMock()
+        mock_settings.jwt_secret_key = 'a' * 32
+        mock_settings.is_production = True
+        mock_settings.environment = 'production'
+        mock_settings.cookie_secure = True
+        mock_settings.cookie_samesite = 'Lax'
+        mock_settings.cookie_domain = None
+        mock_settings.cookie_path = '/'
+        
+        with patch('services.auth_service.get_settings', return_value=mock_settings):
+            with pytest.raises(SystemExit, match="Security configuration validation failed"):
+                validate_security_config()
+    
+    def test_validate_security_config_samesite_none_without_secure(self, monkeypatch):
+        """Should raise SystemExit when SameSite=None without Secure"""
+        from services.auth_service import validate_security_config
+        
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        
+        mock_settings = MagicMock()
+        mock_settings.jwt_secret_key = 'a' * 32
+        mock_settings.is_production = False
+        mock_settings.environment = 'development'
+        mock_settings.cookie_secure = False
+        mock_settings.cookie_samesite = 'None'
+        mock_settings.cookie_domain = None
+        mock_settings.cookie_path = '/'
+        
+        with patch('services.auth_service.get_settings', return_value=mock_settings):
+            with patch('services.auth_service.COOKIE_SAMESITE', 'None'):
+                with patch('services.auth_service.COOKIE_SECURE', False):
+                    with pytest.raises(SystemExit, match="COOKIE_SAMESITE=None requires COOKIE_SECURE=True"):
+                        validate_security_config()
+    
+    def test_validate_security_config_invalid_samesite(self, monkeypatch):
+        """Should raise SystemExit with invalid SameSite value"""
+        from services.auth_service import validate_security_config
+        
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        
+        mock_settings = MagicMock()
+        mock_settings.jwt_secret_key = 'a' * 32
+        mock_settings.is_production = False
+        mock_settings.environment = 'development'
+        mock_settings.cookie_secure = True
+        mock_settings.cookie_samesite = 'Invalid'
+        mock_settings.cookie_domain = None
+        mock_settings.cookie_path = '/'
+        
+        with patch('services.auth_service.get_settings', return_value=mock_settings):
+            with patch('services.auth_service.COOKIE_SAMESITE', 'Invalid'):
+                with pytest.raises(SystemExit, match="must be 'Strict', 'Lax', or 'None'"):
+                    validate_security_config()
+    
+    def test_validate_security_config_success(self, monkeypatch):
+        """Should pass validation with correct config"""
+        from services.auth_service import validate_security_config
+        
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'false')
+        
+        mock_settings = MagicMock()
+        mock_settings.jwt_secret_key = 'a' * 32
+        mock_settings.is_production = False
+        mock_settings.environment = 'development'
+        mock_settings.cookie_secure = True
+        mock_settings.cookie_samesite = 'Lax'
+        mock_settings.cookie_domain = None
+        mock_settings.cookie_path = '/'
+        
+        with patch('services.auth_service.get_settings', return_value=mock_settings):
+            validate_security_config()
+
+
+class TestTokenBlacklist:
+    """Test token blacklist functions"""
+    
+    def test_is_token_blacklisted_true(self):
+        """Should return True for blacklisted token"""
+        from services.auth_service import is_token_blacklisted
+        
+        mock_redis = MagicMock()
+        mock_redis.exists.return_value = 1
+        
+        with patch('services.auth_service.get_redis_client', return_value=mock_redis):
+            result = is_token_blacklisted('test-token')
+        
+        assert result is True
+    
+    def test_is_token_blacklisted_false(self):
+        """Should return False for non-blacklisted token"""
+        from services.auth_service import is_token_blacklisted
+        
+        mock_redis = MagicMock()
+        mock_redis.exists.return_value = 0
+        
+        with patch('services.auth_service.get_redis_client', return_value=mock_redis):
+            result = is_token_blacklisted('test-token')
+        
+        assert result is False
+    
+    def test_is_token_blacklisted_no_redis(self):
+        """Should return False when Redis unavailable"""
+        from services.auth_service import is_token_blacklisted
+        
+        with patch('services.auth_service.get_redis_client', return_value=None):
+            result = is_token_blacklisted('test-token')
+        
+        assert result is False
+    
+    def test_is_token_blacklisted_redis_error(self):
+        """Should return False on Redis error"""
+        from services.auth_service import is_token_blacklisted
+        
+        mock_redis = MagicMock()
+        mock_redis.exists.side_effect = Exception("Redis error")
+        
+        with patch('services.auth_service.get_redis_client', return_value=mock_redis):
+            result = is_token_blacklisted('test-token')
+        
+        assert result is False
+    
+    def test_blacklist_refresh_token_success(self):
+        """Should successfully blacklist token"""
+        from services.auth_service import blacklist_refresh_token
+        
+        mock_redis = MagicMock()
+        
+        with patch('services.auth_service.get_redis_client', return_value=mock_redis):
+            result = blacklist_refresh_token('test-token')
+        
+        assert result is True
+        mock_redis.setex.assert_called_once()
+    
+    def test_blacklist_refresh_token_no_redis(self):
+        """Should fail when Redis unavailable"""
+        from services.auth_service import blacklist_refresh_token
+        
+        with patch('services.auth_service.get_redis_client', return_value=None):
+            result = blacklist_refresh_token('test-token')
+        
+        assert result is False
+    
+    def test_blacklist_refresh_token_redis_error(self):
+        """Should fail on Redis error"""
+        from services.auth_service import blacklist_refresh_token
+        
+        mock_redis = MagicMock()
+        mock_redis.setex.side_effect = Exception("Redis error")
+        
+        with patch('services.auth_service.get_redis_client', return_value=mock_redis):
+            result = blacklist_refresh_token('test-token')
+        
+        assert result is False
+    
+    def test_rotate_refresh_token_success(self):
+        """Should successfully rotate token"""
+        from services.auth_service import rotate_refresh_token
+        
+        mock_redis = MagicMock()
+        
+        with patch('services.auth_service.get_redis_client', return_value=mock_redis):
+            new_token = rotate_refresh_token('old-token', 'user-123', 'test@example.com')
+        
+        assert new_token is not None
+        assert isinstance(new_token, str)
+        assert len(new_token) > 0
+    
+    def test_rotate_refresh_token_blacklist_failure(self):
+        """Should fail when blacklist fails"""
+        from services.auth_service import rotate_refresh_token
+        
+        with patch('services.auth_service.get_redis_client', return_value=None):
+            new_token = rotate_refresh_token('old-token', 'user-123', 'test@example.com')
+        
+        assert new_token is None
+
+
+class TestCookieManagement:
+    """Test cookie management functions"""
+    
+    def test_set_auth_cookies(self):
+        """Should set auth cookies on response"""
+        from services.auth_service import set_auth_cookies
+        
+        mock_response = MagicMock()
+        
+        set_auth_cookies(mock_response, 'access-token', 'refresh-token', 900000)
+        
+        assert mock_response.set_cookie.call_count >= 2
+    
+    def test_set_auth_cookies_with_csrf(self):
+        """Should set CSRF cookie when SameSite=None"""
+        from services.auth_service import set_auth_cookies
+        
+        mock_response = MagicMock()
+        
+        with patch('services.auth_service.COOKIE_SAMESITE', 'None'):
+            set_auth_cookies(mock_response, 'access-token', 'refresh-token', 900000)
+        
+        assert mock_response.set_cookie.call_count >= 3
+    
+    def test_set_auth_cookies_with_explicit_csrf(self):
+        """Should use provided CSRF token"""
+        from services.auth_service import set_auth_cookies
+        
+        mock_response = MagicMock()
+        
+        set_auth_cookies(mock_response, 'access-token', 'refresh-token', 900000, csrf_token='csrf-123')
+        
+        assert mock_response.set_cookie.call_count >= 3
+    
+    def test_clear_auth_cookies(self):
+        """Should clear all auth cookies"""
+        from services.auth_service import clear_auth_cookies
+        
+        mock_response = MagicMock()
+        
+        clear_auth_cookies(mock_response)
+        
+        assert mock_response.set_cookie.call_count == 3
+        calls = mock_response.set_cookie.call_args_list
+        assert any('access_token' in str(call) for call in calls)
+        assert any('refresh_token' in str(call) for call in calls)
+        assert any('csrf_token' in str(call) for call in calls)
+
+
+class TestAuthenticateUser:
+    """Test authenticate_user function"""
+    
+    def test_authenticate_user_mock_success(self, monkeypatch):
+        """Should authenticate with mock users"""
+        from services.auth_service import authenticate_user
+        
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'true')
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        
+        mock_settings = MagicMock()
+        mock_settings.owner_password = 'owner123'
+        mock_settings.admin_password = 'admin123'
+        
+        with patch('services.auth_service.settings', mock_settings):
+            user = authenticate_user('owner@morningai.com', 'owner123')
+        
+        if user:
+            assert user['email'] == 'owner@morningai.com'
+            assert user['role'] == 'owner'
+    
+    def test_authenticate_user_mock_wrong_password(self, monkeypatch):
+        """Should reject wrong password"""
+        from services.auth_service import authenticate_user
+        
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'true')
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        
+        mock_settings = MagicMock()
+        mock_settings.owner_password = 'owner123'
+        
+        with patch('services.auth_service.settings', mock_settings):
+            user = authenticate_user('owner@morningai.com', 'wrong-password')
+        
+        assert user is None
+    
+    def test_authenticate_user_mock_user_not_found(self, monkeypatch):
+        """Should return None for unknown user"""
+        from services.auth_service import authenticate_user
+        
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'true')
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        
+        mock_settings = MagicMock()
+        mock_settings.owner_password = 'owner123'
+        
+        with patch('services.auth_service.settings', mock_settings):
+            user = authenticate_user('unknown@example.com', 'password')
+        
+        assert user is None
+    
+    def test_authenticate_user_production_mock_enabled(self, monkeypatch):
+        """Should reject mock users in production"""
+        from services.auth_service import authenticate_user
+        
+        monkeypatch.setenv('ENVIRONMENT', 'production')
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'true')
+        
+        user = authenticate_user('owner@morningai.com', 'owner123')
+        
+        assert user is None
+    
+    def test_authenticate_user_supabase_missing_config(self, monkeypatch):
+        """Should return None when Supabase config missing"""
+        from services.auth_service import authenticate_user
+        
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'false')
+        monkeypatch.setenv('TESTING', 'false')
+        
+        mock_settings = MagicMock()
+        mock_settings.supabase_url = None
+        mock_settings.supabase_anon_key = None
+        
+        with patch('services.auth_service.get_settings', return_value=mock_settings):
+            user = authenticate_user('test@example.com', 'password')
+        
+        assert user is None
+
+
+class TestGetUserById:
+    """Test get_user_by_id function"""
+    
+    def test_get_user_by_id_mock_success(self, monkeypatch):
+        """Should get user by ID from mock users"""
+        from services.auth_service import get_user_by_id
+        
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'true')
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        
+        mock_settings = MagicMock()
+        mock_settings.owner_password = 'owner123'
+        
+        with patch('services.auth_service.settings', mock_settings):
+            user = get_user_by_id('owner-001')
+        
+        if user:
+            assert user['id'] == 'owner-001'
+            assert user['email'] == 'owner@morningai.com'
+    
+    def test_get_user_by_id_mock_not_found(self, monkeypatch):
+        """Should return None for unknown user ID"""
+        from services.auth_service import get_user_by_id
+        
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'true')
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        
+        mock_settings = MagicMock()
+        mock_settings.owner_password = 'owner123'
+        
+        with patch('services.auth_service.settings', mock_settings):
+            user = get_user_by_id('unknown-id')
+        
+        assert user is None
+    
+    def test_get_user_by_id_production_mock_enabled(self, monkeypatch):
+        """Should reject mock users in production"""
+        from services.auth_service import get_user_by_id
+        
+        monkeypatch.setenv('ENVIRONMENT', 'production')
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'true')
+        
+        user = get_user_by_id('owner-001')
+        
+        assert user is None
+    
+    def test_get_user_by_id_supabase_missing_config(self, monkeypatch):
+        """Should return None when Supabase config missing"""
+        from services.auth_service import get_user_by_id
+        
+        monkeypatch.setenv('ENABLE_MOCK_USERS', 'false')
+        monkeypatch.setenv('TESTING', 'false')
+        
+        mock_settings = MagicMock()
+        mock_settings.supabase_url = None
+        mock_settings.supabase_service_role_key = None
+        
+        with patch('services.auth_service.get_settings', return_value=mock_settings):
+            user = get_user_by_id('user-123')
+        
+        assert user is None
