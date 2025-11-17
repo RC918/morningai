@@ -124,7 +124,7 @@ class OrchestratorClient:
                 "trace_id": data.get("trace_id", task_id),
                 "job_id": data.get("job_id", ""),
                 "pr_url": data.get("pr_url", ""),
-                "ci_state": data.get("ci_state", "unknown"),
+                "ci_state": data.get("state") or data.get("ci_state", "unknown"),
                 "updated_at": data.get("updated_at", ""),
                 "error": data.get("error", "")
             }
@@ -214,7 +214,7 @@ class OrchestratorClient:
             "task_id": task_id,
             "status": status["status"],
             "pr_url": status.get("pr_url", ""),
-            "ci_state": status.get("ci_state", "unknown"),
+            "ci_state": status.get("state") or status.get("ci_state", "unknown"),
             "trace_id": status.get("trace_id", task_id),
             "error": status.get("error", "")
         }
