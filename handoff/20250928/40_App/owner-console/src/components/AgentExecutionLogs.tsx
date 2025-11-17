@@ -51,6 +51,7 @@ import {
 } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
 import { toast } from 'sonner'
+import { buildTraceUrl } from '@/lib/trace'
 
 const TRACE_VIEWER_URL = import.meta.env.VITE_TRACE_VIEWER_URL || ''
 
@@ -688,7 +689,7 @@ const AgentExecutionLogs = () => {
                                   </Button>
                                   {TRACE_VIEWER_URL && (
                                     <a
-                                      href={`${TRACE_VIEWER_URL}/trace/${log.trace_id}`}
+                                      href={buildTraceUrl(TRACE_VIEWER_URL, log.trace_id)}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
@@ -782,11 +783,12 @@ const AgentExecutionLogs = () => {
                                 </Button>
                                 {TRACE_VIEWER_URL && (
                                   <a
-                                    href={`${TRACE_VIEWER_URL}/trace/${log.trace_id}`}
+                                    href={buildTraceUrl(TRACE_VIEWER_URL, log.trace_id)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                                     aria-label={t('governance.executionLogs.viewTraceDetails')}
+                                    title={t('governance.executionLogs.viewTraceDetails')}
                                   >
                                     <ExternalLink className="h-3 w-3 text-primary-600 dark:text-primary-400" />
                                   </a>
@@ -988,7 +990,7 @@ const AgentExecutionLogs = () => {
                       </Button>
                       {TRACE_VIEWER_URL && (
                         <a
-                          href={`${TRACE_VIEWER_URL}/trace/${selectedLog.trace_id}`}
+                          href={buildTraceUrl(TRACE_VIEWER_URL, selectedLog.trace_id)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
