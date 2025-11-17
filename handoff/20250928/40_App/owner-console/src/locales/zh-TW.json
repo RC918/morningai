@@ -282,6 +282,12 @@
       "description": "此儀表板顯示的是僅供開發用途的模擬資料。一旦監控後端部署完成，將提供真實指標。",
       "warning": "請勿將此資料用於生產決策。"
     },
+    "devInfo": {
+      "title": "開發資訊",
+      "description": "指標儀表板需要後端 API 端點：",
+      "endpoint": "GET /phase7/monitoring/dashboard",
+      "hint": "請確保您的後端伺服器正在運行且端點已實作。"
+    },
     "autoRefresh": "自動重新整理：{{status}}",
     "autoRefreshOn": "開啟",
     "autoRefreshOff": "關閉",
