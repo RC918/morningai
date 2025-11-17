@@ -110,15 +110,15 @@ const AgentGovernance = (): React.ReactElement => {
   const getPermissionLevelColor = (level: PermissionLevel): string => {
     switch (level) {
       case 'prod_full_access':
-        return 'bg-green-100 text-green-800 border-green-300'
+        return 'bg-success-100 text-success-800 border-success-300'
       case 'prod_low_risk':
-        return 'bg-blue-100 text-blue-800 border-blue-300'
+        return 'bg-primary-100 text-primary-800 border-primary-300'
       case 'staging_access':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+        return 'bg-warning-100 text-warning-800 border-warning-300'
       case 'sandbox_only':
-        return 'bg-gray-100 text-gray-800 border-gray-300'
+        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300'
+        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
     }
   }
 
@@ -155,7 +155,7 @@ const AgentGovernance = (): React.ReactElement => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     )
   }
@@ -165,7 +165,7 @@ const AgentGovernance = (): React.ReactElement => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Shield className="w-8 h-8 text-blue-600" />
+            <Shield className="w-8 h-8 text-primary-600" />
             Agent Governance
           </h1>
           <p className="text-gray-600 mt-1">Monitor agent reputation, permissions, and compliance</p>
@@ -182,7 +182,7 @@ const AgentGovernance = (): React.ReactElement => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-gray-600">Total Agents</p>
-                <Shield className="w-5 h-5 text-blue-600" />
+                <Shield className="w-5 h-5 text-primary-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
                 {statistics.total_agents || 0}
@@ -194,7 +194,7 @@ const AgentGovernance = (): React.ReactElement => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-gray-600">Avg Reputation</p>
-                <TrendingUp className="w-5 h-5 text-green-600" />
+                <TrendingUp className="w-5 h-5 text-success-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
                 {statistics.average_score?.toFixed(0) || 100}
@@ -206,7 +206,7 @@ const AgentGovernance = (): React.ReactElement => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-gray-600">Daily Cost</p>
-                <DollarSign className="w-5 h-5 text-purple-600" />
+                <DollarSign className="w-5 h-5 text-accent-600" />
               </div>
               <p className="text-3xl font-bold text-gray-900">
                 ${statistics.costs?.daily?.usage?.usd?.toFixed(2) || '0.00'}
