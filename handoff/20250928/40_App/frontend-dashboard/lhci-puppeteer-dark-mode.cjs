@@ -1,108 +1,103 @@
 /**
  * Puppeteer script for Lighthouse CI - Dark Mode
  * 
- * This script runs before each Lighthouse test and:
- * 1. Hooks into Browser's targetcreated event to intercept pages LHCI creates
- * 2. Applies dark mode configuration to those pages before app code runs:
- *    - Enables dark mode via prefers-color-scheme media query (using CDP fallback)
- *    - Sets the theme to 'dark' in localStorage (for our app's theme system)
- *    - Adds 'dark' class to document root (for Tailwind dark mode)
+ * This script creates and prepares a page in dark mode, then returns it to Lighthouse for auditing.
  * 
- * This ensures Lighthouse tests run in dark mode to catch
- * color contrast issues specific to dark themes.
+ * Approach:
+ * 1. Create a new page ourselves (not relying on Lighthouse's page creation)
+ * 2. Apply dark mode configuration BEFORE navigating:
+ *    - Set evaluateOnNewDocument to configure localStorage, dark class, and data-theme
+ *    - Use CDP to emulate prefers-color-scheme: dark
+ * 3. Navigate to the URL Lighthouse wants to audit
+ * 4. Verify dark mode is active
+ * 5. Return the prepared page to Lighthouse for auditing
+ * 
+ * This ensures Lighthouse audits the page in dark mode, catching color contrast issues
+ * specific to dark themes.
  */
 
-// Module-scope guard to prevent duplicate listener registration
-let installed = false;
-
 module.exports = async (browser, context) => {
-  console.log('🌙 Dark mode: start');
-  
-  // Prevent duplicate listener registration across multiple runs
-  if (installed) {
-    console.log('🌙 Dark mode already installed, skipping');
-    return;
-  }
-  installed = true;
+  console.log('🌙 Dark mode: Creating and preparing page for', context.url);
   
   try {
-    // Helper function to apply dark mode configuration to a page
-    const applyDarkMode = async (page) => {
-      try {
-        // Set theme very early, before any app code runs
-        await page.evaluateOnNewDocument(() => {
-          try {
-            localStorage.setItem('morningai-theme', 'dark');
-            const root = document.documentElement;
-            root.classList.add('dark');
-            root.setAttribute('data-theme', 'dark');
-          } catch (_) {
-            // Ignore errors in case localStorage is not available
-          }
-        });
-        
-        // Emulate dark mode media feature using CDP fallback
-        // (page.emulateMediaFeatures may not exist in LHCI's Puppeteer version)
-        try {
-          if (typeof page.emulateMediaFeatures === 'function') {
-            await page.emulateMediaFeatures([
-              { name: 'prefers-color-scheme', value: 'dark' }
-            ]);
-            console.log('✨ Used page.emulateMediaFeatures');
-          } else {
-            // Use Chrome DevTools Protocol as fallback
-            const client = await page.target().createCDPSession();
-            await client.send('Emulation.setEmulatedMedia', {
-              features: [{ name: 'prefers-color-scheme', value: 'dark' }]
-            });
-            console.log('✨ Used CDP fallback for prefers-color-scheme');
-          }
-        } catch (e) {
-          console.warn('⚠️ Dark mode emulation failed, continuing with class/storage only:', e?.message);
-          // Don't throw - continue with class/localStorage fallback
-        }
-        
-        console.log('🌙 Applied dark mode to page');
-      } catch (error) {
-        console.warn('⚠️ Failed to apply dark mode to page:', error?.message);
-      }
-    };
+    // Create a new page that we will prepare and return to Lighthouse
+    const page = await browser.newPage();
+    console.log('🌙 Created new page');
     
-    // Apply dark mode to any existing pages
-    try {
-      const pages = await browser.pages();
-      console.log(`🌙 Found ${pages.length} existing page(s)`);
-      for (const page of pages) {
-        await applyDarkMode(page);
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to apply dark mode to existing pages:', error?.message);
-    }
-    
-    // Hook into targetcreated event to intercept pages LHCI creates for auditing
-    browser.on('targetcreated', async (target) => {
+    // Set up evaluateOnNewDocument to configure dark mode BEFORE any navigation
+    // This ensures localStorage and DOM are set up before the app initializes
+    await page.evaluateOnNewDocument(() => {
       try {
-        if (target.type() !== 'page') {
-          return;
-        }
+        // Set theme in localStorage (for ThemeProvider)
+        localStorage.setItem('morningai-theme', 'dark');
         
-        const page = await target.page();
-        if (!page) {
-          return;
-        }
+        // Add dark class and data-theme attribute (for Tailwind and app logic)
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
         
-        console.log('🌙 New page target created, applying dark mode');
-        await applyDarkMode(page);
-        console.log('✅ Dark mode applied to newly created target page');
+        // Set color-scheme CSS property for browser default styles
+        document.documentElement.style.colorScheme = 'dark';
+        
+        console.log('🌙 evaluateOnNewDocument: Dark mode configured');
       } catch (error) {
-        console.warn('⚠️ targetcreated handler error:', error?.message);
+        console.warn('⚠️ evaluateOnNewDocument error:', error?.message);
       }
     });
+    console.log('🌙 Installed evaluateOnNewDocument handler');
     
-    console.log('✅ Dark mode: setup complete');
+    // Emulate prefers-color-scheme: dark using CDP
+    // This makes window.matchMedia('(prefers-color-scheme: dark)').matches return true
+    try {
+      if (typeof page.emulateMediaFeatures === 'function') {
+        await page.emulateMediaFeatures([
+          { name: 'prefers-color-scheme', value: 'dark' }
+        ]);
+        console.log('✨ Used page.emulateMediaFeatures for prefers-color-scheme: dark');
+      } else {
+        // Use Chrome DevTools Protocol as fallback
+        const client = await page.target().createCDPSession();
+        await client.send('Emulation.setEmulatedMedia', {
+          features: [{ name: 'prefers-color-scheme', value: 'dark' }]
+        });
+        console.log('✨ Used CDP Emulation.setEmulatedMedia for prefers-color-scheme: dark');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to emulate prefers-color-scheme, continuing with class/localStorage only:', error?.message);
+    }
+    
+    // Navigate to the URL Lighthouse wants to audit
+    console.log('🌙 Navigating to', context.url);
+    await page.goto(context.url, { waitUntil: 'networkidle0', timeout: 30000 });
+    console.log('🌙 Navigation complete');
+    
+    // Verify dark mode is active
+    const darkModeStatus = await page.evaluate(() => {
+      return {
+        theme: localStorage.getItem('morningai-theme'),
+        hasDarkClass: document.documentElement.classList.contains('dark'),
+        dataTheme: document.documentElement.getAttribute('data-theme'),
+        prefersDark: window.matchMedia('(prefers-color-scheme: dark)').matches,
+        colorScheme: document.documentElement.style.colorScheme
+      };
+    });
+    
+    console.log('🌙 Dark mode status:', JSON.stringify(darkModeStatus));
+    
+    if (darkModeStatus.hasDarkClass && darkModeStatus.prefersDark) {
+      console.log('✅ Dark mode verified: Page is ready for Lighthouse audit');
+    } else {
+      console.warn('⚠️ Dark mode verification incomplete:', darkModeStatus);
+    }
+    
+    // Return the prepared page to Lighthouse for auditing
+    console.log('🌙 Returning prepared page to Lighthouse');
+    return page;
+    
   } catch (error) {
-    console.error('❌ Error setting up dark mode:', error.message);
+    console.error('❌ Error preparing dark mode page:', error.message);
+    console.error('   Stack:', error.stack);
     // Don't throw - allow LHCI to continue even if dark mode setup fails
-    console.warn('⚠️ Continuing without dark mode configuration');
+    console.warn('⚠️ Returning undefined - Lighthouse will create its own page');
+    return undefined;
   }
 };

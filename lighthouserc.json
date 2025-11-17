@@ -14,7 +14,8 @@
           "--disable-gpu",
           "--disable-software-rasterizer",
           "--disable-features=PaintHolding",
-          "--force-prefers-color-scheme=dark"
+          "--force-prefers-color-scheme=dark",
+          "--force-dark-mode"
         ]
       },
       "settings": {
