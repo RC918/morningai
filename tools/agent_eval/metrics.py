@@ -72,6 +72,55 @@ class MetricsCalculator:
         
         return sum(efficiencies) / len(efficiencies) if efficiencies else 0.0
     
+    def calculate_planner_accuracy(self) -> float:
+        """
+        Calculate planner accuracy (Phase 1 metric).
+        
+        Compares expected plan steps vs actual plan steps.
+        Target: 70% accuracy
+        
+        Returns:
+            float: Planner accuracy percentage (0-100)
+        """
+        results = self.data['results']
+        tasks_with_plan = [r for r in results if 'expected_plan_steps' in r and 'actual_plan_steps' in r]
+        
+        if not tasks_with_plan:
+            return 0.0
+        
+        accuracies = []
+        for r in tasks_with_plan:
+            expected = r.get('expected_plan_steps', [])
+            actual = r.get('actual_plan_steps', [])
+            
+            if not expected:
+                continue
+            
+            matched = sum(1 for step in expected if step in actual)
+            accuracy = (matched / len(expected)) * 100
+            accuracies.append(accuracy)
+        
+        return sum(accuracies) / len(accuracies) if accuracies else 0.0
+    
+    def calculate_self_healing_rate(self) -> float:
+        """
+        Calculate self-healing rate (Phase 1 metric).
+        
+        Tracks how often the agent successfully recovers from errors.
+        Target: 50% self-healing rate
+        
+        Returns:
+            float: Self-healing rate percentage (0-100)
+        """
+        results = self.data['results']
+        tasks_with_retries = [r for r in results if 'retry_attempts' in r and r.get('retry_attempts', 0) > 0]
+        
+        if not tasks_with_retries:
+            return 0.0
+        
+        self_healed = sum(1 for r in tasks_with_retries if r.get('self_healed', False))
+        return (self_healed / len(tasks_with_retries)) * 100
+    
     def calculate_overall_success_rate(self) -> float:
         """Calculate overall success rate (weighted combination)."""
         completion = self.calculate_completion_rate()
@@ -160,6 +209,27 @@ class MetricsCalculator:
         print(f"CI Pass Rate:            {self.calculate_ci_pass_rate():.1f}%")
         print(f"Time Efficiency:         {self.calculate_time_efficiency():.1f}%")
         print(f"Overall Success Rate:    {self.calculate_overall_success_rate():.1f}%")
+        
+        planner_accuracy = self.calculate_planner_accuracy()
+        self_healing_rate = self.calculate_self_healing_rate()
+        
+        if planner_accuracy > 0 or self_healing_rate > 0:
+            print(f"\nPHASE 1 METRICS")
+            print("-"*60)
+            
+            if planner_accuracy > 0:
+                print(f"Planner Accuracy:        {planner_accuracy:.1f}% (Target: 70%)")
+                if planner_accuracy >= 70:
+                    print("  ✓ Target achieved!")
+                else:
+                    print(f"  ⚠ Below target by {70 - planner_accuracy:.1f}%")
+            
+            if self_healing_rate > 0:
+                print(f"Self-Healing Rate:       {self_healing_rate:.1f}% (Target: 50%)")
+                if self_healing_rate >= 50:
+                    print("  ✓ Target achieved!")
+                else:
+                    print(f"  ⚠ Below target by {50 - self_healing_rate:.1f}%")
         
         print("\nMETRICS BY TASK TYPE")
         print("-"*60)
