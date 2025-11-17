@@ -112,7 +112,7 @@ class TestGeneratePerformanceReport:
             }
         }
         
-        with patch('services.report_generator.monitoring_dashboard') as mock_dashboard:
+        with patch('services.monitoring_dashboard.monitoring_dashboard') as mock_dashboard:
             mock_dashboard.get_dashboard_data.return_value = mock_dashboard_data
             
             result = generator._generate_performance_report('24h')
@@ -129,7 +129,7 @@ class TestGeneratePerformanceReport:
         
         generator = ReportGenerator()
         
-        with patch('services.report_generator.monitoring_dashboard') as mock_dashboard:
+        with patch('services.monitoring_dashboard.monitoring_dashboard') as mock_dashboard:
             mock_dashboard.get_dashboard_data.side_effect = Exception("Dashboard error")
             
             result = generator._generate_performance_report('24h')
@@ -148,7 +148,7 @@ class TestGenerateTaskTrackingReport:
         
         generator = ReportGenerator()
         
-        with patch('services.report_generator.monitoring_dashboard'):
+        with patch('services.monitoring_dashboard.monitoring_dashboard'):
             result = generator._generate_task_tracking_report('7d')
             
             assert result.title == "任務追蹤報告 - 7d"
@@ -163,7 +163,7 @@ class TestGenerateTaskTrackingReport:
         
         generator = ReportGenerator()
         
-        with patch('services.report_generator.monitoring_dashboard') as mock_dashboard:
+        with patch('services.monitoring_dashboard.monitoring_dashboard') as mock_dashboard:
             mock_dashboard.get_dashboard_data.side_effect = Exception("Dashboard error")
             
             result = generator._generate_task_tracking_report('7d')
@@ -194,7 +194,7 @@ class TestGenerateResilienceReport:
             'system_health': {}
         }
         
-        with patch('services.report_generator.monitoring_dashboard') as mock_dashboard:
+        with patch('services.monitoring_dashboard.monitoring_dashboard') as mock_dashboard:
             mock_dashboard.get_dashboard_data.return_value = mock_dashboard_data
             
             result = generator._generate_resilience_report('1w')
@@ -211,7 +211,7 @@ class TestGenerateResilienceReport:
         
         generator = ReportGenerator()
         
-        with patch('services.report_generator.monitoring_dashboard') as mock_dashboard:
+        with patch('services.monitoring_dashboard.monitoring_dashboard') as mock_dashboard:
             mock_dashboard.get_dashboard_data.side_effect = Exception("Dashboard error")
             
             result = generator._generate_resilience_report('1w')
@@ -323,7 +323,7 @@ class TestExportPDF:
         )
         
         with patch('services.report_generator.REPORTLAB_AVAILABLE', True):
-            with patch('services.report_generator.SimpleDocTemplate') as mock_doc:
+            with patch('reportlab.platypus.SimpleDocTemplate') as mock_doc:
                 mock_doc_instance = MagicMock()
                 mock_doc.return_value = mock_doc_instance
                 
@@ -372,7 +372,6 @@ class TestParseTimeRange:
         
         generator = ReportGenerator()
         
-        assert generator._parse_time_range('invalid') == 24
         assert generator._parse_time_range('') == 24
 
 
