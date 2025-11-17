@@ -44,3 +44,4 @@ pytest-playwright==0.5.2
 # System monitoring dependencies
 psutil==6.1.0
 
+PyGithub>=2.1.1

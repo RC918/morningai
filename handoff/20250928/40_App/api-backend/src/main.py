@@ -30,6 +30,7 @@ elif not os.path.exists(orchestrator_path):
 
 from src.routes.billing import bp as billing_bp
 from src.routes.agent import bp as agent_bp
+from src.routes.agent_evaluation import bp as agent_evaluation_bp
 from src.routes.tenant import bp as tenant_bp
 from src.routes.faq import bp as faq_bp
 from src.routes.vectors import bp as vectors_bp
@@ -289,6 +290,7 @@ app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
 app.register_blueprint(totp_bp, url_prefix="/api/auth/v2/totp")
 app.register_blueprint(billing_bp)
 app.register_blueprint(agent_bp)
+app.register_blueprint(agent_evaluation_bp)
 app.register_blueprint(agent_registry_bp)
 app.register_blueprint(tenant_bp)
 app.register_blueprint(faq_bp)
