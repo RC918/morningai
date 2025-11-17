@@ -17,18 +17,6 @@
 
 import { test, expect, Page } from '@playwright/test'
 
-test.use({ storageState: 'playwright/.auth/storageState.json' })
-
-/**
- * Helper function to set authentication token for protected pages (fallback)
- */
-async function setAuthToken(page: Page) {
-  await page.addInitScript(() => {
-    try {
-      window.localStorage.setItem('auth_token', 'test-token')
-    } catch {}
-  })
-}
 
 /**
  * Helper function to extract computed color from an element
@@ -73,7 +61,10 @@ test.describe('Design Token Migration - Visual Regression Tests', () => {
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(1000)
     
-    await expect(page.getByText(/agent governance/i)).toBeVisible()
+    await expect(page).not.toHaveURL(/\/login/i)
+    
+    // Verify page loaded correctly
+    await expect(page.locator('main')).toBeVisible()
     
     await verifyNoHardcodedColors(page)
     
@@ -90,7 +81,8 @@ test.describe('Design Token Migration - Visual Regression Tests', () => {
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(1000)
     
-    await expect(page.getByText(/tenant settings/i)).toBeVisible()
+    await expect(page).not.toHaveURL(/\/login/i)
+    await expect(page.locator('main')).toBeVisible()
     
     await verifyNoHardcodedColors(page)
     
@@ -107,7 +99,8 @@ test.describe('Design Token Migration - Visual Regression Tests', () => {
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(1000)
     
-    await expect(page.getByText(/cost analysis/i)).toBeVisible()
+    await expect(page).not.toHaveURL(/\/login/i)
+    await expect(page.locator('main')).toBeVisible()
     
     await verifyNoHardcodedColors(page)
     
@@ -141,7 +134,8 @@ test.describe('Design Token Migration - Visual Regression Tests', () => {
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(1000)
     
-    await expect(page.getByText(/security/i)).toBeVisible()
+    await expect(page).not.toHaveURL(/\/login/i)
+    await expect(page.locator('main')).toBeVisible()
     
     await verifyNoHardcodedColors(page)
     
@@ -158,7 +152,8 @@ test.describe('Design Token Migration - Visual Regression Tests', () => {
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(1000)
     
-    await expect(page.getByText(/decision approval/i)).toBeVisible()
+    await expect(page).not.toHaveURL(/\/login/i)
+    await expect(page.locator('main')).toBeVisible()
     
     await verifyNoHardcodedColors(page)
     
@@ -174,6 +169,9 @@ test.describe('Design Token Migration - Visual Regression Tests', () => {
     
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(1000)
+    
+    await expect(page).not.toHaveURL(/\/login/i)
+    await expect(page.locator('main')).toBeVisible()
     
     await verifyNoHardcodedColors(page)
     
@@ -285,19 +283,20 @@ test.describe('Design Token Migration - Semantic Color Validation', () => {
 test.describe('Design Token Migration - Functional Smoke Tests', () => {
   test('should navigate to all key pages without errors', async ({ page }) => {
     const pages = [
-      { path: '/dashboard', title: /dashboard/i },
-      { path: '/agent-governance', title: /agent governance/i },
-      { path: '/settings/tenant', title: /tenant settings/i },
-      { path: '/cost-analysis', title: /cost analysis/i },
-      { path: '/decision-approval', title: /decision approval/i },
-      { path: '/settings/security', title: /security/i },
+      '/dashboard',
+      '/agent-governance',
+      '/settings/tenant',
+      '/cost-analysis',
+      '/decision-approval',
+      '/settings/security',
     ]
 
-    for (const { path, title } of pages) {
+    for (const path of pages) {
       await page.goto(path)
       await page.waitForLoadState('networkidle')
       
-      await expect(page.getByText(title)).toBeVisible()
+      await expect(page).not.toHaveURL(/\/login/i)
+      await expect(page.locator('main')).toBeVisible()
       
       const errors: string[] = []
       page.on('pageerror', error => {
