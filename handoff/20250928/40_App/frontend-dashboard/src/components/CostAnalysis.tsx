@@ -133,9 +133,9 @@ const CostAnalysis = (): React.ReactElement => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="hourly">Hourly</SelectItem>
-              <SelectItem value="task">Per Task</SelectItem>
+              <SelectItem value="daily">{t('cost.periods.daily')}</SelectItem>
+              <SelectItem value="hourly">{t('cost.periods.hourly')}</SelectItem>
+              <SelectItem value="task">{t('cost.periods.task')}</SelectItem>
             </SelectContent>
           </Select>
           <AppleButton variant="outline" onClick={loadCostData}>
@@ -201,9 +201,12 @@ const CostAnalysis = (): React.ReactElement => {
               <p className="text-sm text-gray-600 mt-1">
                 {t('cost.usedPercentage')} {budgetUsagePercentage.toFixed(1)}%
               </p>
-              {costData && (
+              {costData && costData.usage?.tokens !== undefined && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Tokens: {costData.usage?.tokens?.toLocaleString() || 0} / {costData.limits?.tokens?.toLocaleString() || 0}
+                  {t('cost.tokensUsage', { 
+                    current: costData.usage?.tokens?.toLocaleString() || 0, 
+                    limit: costData.limits?.tokens?.toLocaleString() || 0 
+                  })}
                 </p>
               )}
             </div>
