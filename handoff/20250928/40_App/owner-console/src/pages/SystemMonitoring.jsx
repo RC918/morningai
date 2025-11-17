@@ -5,6 +5,8 @@ import { Activity, Server, Database, Zap, AlertTriangle, Cpu, HardDrive, Refresh
 import { getAdminSystemHealth, getAdminSystemMetrics } from '@/lib/generated/admin/admin'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
+
 const SystemMonitoring = () => {
   const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
@@ -283,9 +285,11 @@ const SystemMonitoring = () => {
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {t('monitoring.mockDataLabel')}
-                    </Badge>
+                    {USE_MOCK && (
+                      <Badge variant="outline" className="text-xs">
+                        {t('monitoring.mockDataLabel')}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>
@@ -329,9 +333,11 @@ const SystemMonitoring = () => {
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {t('monitoring.mockDataLabel')}
-                    </Badge>
+                    {USE_MOCK && (
+                      <Badge variant="outline" className="text-xs">
+                        {t('monitoring.mockDataLabel')}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>
@@ -375,9 +381,11 @@ const SystemMonitoring = () => {
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {t('monitoring.mockDataLabel')}
-                    </Badge>
+                    {USE_MOCK && (
+                      <Badge variant="outline" className="text-xs">
+                        {t('monitoring.mockDataLabel')}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>
