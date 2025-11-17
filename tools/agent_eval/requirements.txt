@@ -1,0 +1,11 @@
+# Agent Evaluation Framework Dependencies
+
+# Core dependencies
+redis>=4.5.0
+rq>=1.15.0
+
+# GitHub API integration
+PyGithub>=2.1.1
+
+# Optional: for future enhancements
+# requests>=2.31.0  # HTTP client for API calls
