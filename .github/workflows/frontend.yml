@@ -418,3 +418,65 @@ jobs:
           name: playwright-report-owner-console
           path: handoff/20250928/40_App/owner-console/playwright-report/
           retention-days: 30
+  
+  frontend-dashboard-e2e:
+    name: Frontend Dashboard E2E Tests (Design Tokens)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+      
+      - name: Build frontend-dashboard
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          echo "VITE_API_BASE_URL=http://localhost:5000" > .env.production
+          pnpm run build
+      
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+      
+      - name: Install Playwright browsers
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm exec playwright install --with-deps chromium
+      
+      - name: Run Playwright E2E tests
+        run: |
+          cd handoff/20250928/40_App/frontend-dashboard
+          pnpm run test:e2e
+      
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-frontend-dashboard
+          path: handoff/20250928/40_App/frontend-dashboard/playwright-report/
+          retention-days: 30
+      
+      - name: Upload Playwright screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots-frontend-dashboard
+          path: handoff/20250928/40_App/frontend-dashboard/test-results/
+          retention-days: 30
