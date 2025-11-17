@@ -44,7 +44,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
           <AppleButton 
             variant="outline" 
             size="sm" 
-            className={`${className} bg-white hover:bg-neutral-50 shadow-md flex items-center justify-center`}
+            className={`${className} bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700 shadow-md flex items-center justify-center`}
             style={{ width: '40px', height: '40px', padding: '0' }}
             aria-label={`Change language (current: ${currentLanguage.name})`}
           >
