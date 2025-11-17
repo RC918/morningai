@@ -15,6 +15,13 @@ from unittest.mock import MagicMock, patch, PropertyMock
 import jwt
 from datetime import datetime, timedelta, UTC
 import redis.exceptions
+import sys
+
+mock_auth_service = MagicMock()
+mock_auth_service.is_production = MagicMock(return_value=False)
+sys.modules['src'] = MagicMock()
+sys.modules['src.services'] = MagicMock()
+sys.modules['src.services.auth_service'] = mock_auth_service
 
 
 class TestPreAuthTokenManagerInit:
@@ -43,8 +50,9 @@ class TestPreAuthTokenManagerInit:
         
         with patch('utils.pre_auth_token.settings', mock_settings):
             with patch('utils.pre_auth_token.get_redis_client'):
-                with pytest.raises(RuntimeError, match="JWT_SECRET_KEY must be set"):
-                    PreAuthTokenManager()
+                with patch('services.auth_service.is_production', return_value=True):
+                    with pytest.raises(RuntimeError, match="JWT_SECRET_KEY must be set"):
+                        PreAuthTokenManager()
     
     def test_init_production_with_test_secret(self, monkeypatch):
         """Should raise RuntimeError in production with test secret"""
@@ -54,8 +62,9 @@ class TestPreAuthTokenManagerInit:
         monkeypatch.setenv('ENVIRONMENT', 'production')
         
         with patch('utils.pre_auth_token.get_redis_client'):
-            with pytest.raises(RuntimeError, match="default test key is not allowed"):
-                PreAuthTokenManager()
+            with patch('services.auth_service.is_production', return_value=True):
+                with pytest.raises(RuntimeError, match="default test key is not allowed"):
+                    PreAuthTokenManager()
     
     def test_init_development_with_fallback_secret(self, monkeypatch):
         """Should use fallback secret in development"""
@@ -69,7 +78,8 @@ class TestPreAuthTokenManagerInit:
         
         with patch('utils.pre_auth_token.settings', mock_settings):
             with patch('utils.pre_auth_token.get_redis_client'):
-                manager = PreAuthTokenManager()
+                with patch('services.auth_service.is_production', return_value=False):
+                    manager = PreAuthTokenManager()
         
         assert manager.jwt_secret == 'test-secret-key-for-testing'
     
@@ -82,14 +92,15 @@ class TestPreAuthTokenManagerInit:
         mock_redis = MagicMock()
         
         with patch('utils.pre_auth_token.get_redis_client', return_value=mock_redis):
-            manager = PreAuthTokenManager()
-            
-            assert manager._redis_client is None
-            
-            client = manager.redis_client
-            
-            assert client == mock_redis
-            assert manager._redis_client == mock_redis
+            with patch('services.auth_service.is_production', return_value=False):
+                manager = PreAuthTokenManager()
+                
+                assert manager._redis_client is None
+                
+                client = manager.redis_client
+                
+                assert client == mock_redis
+                assert manager._redis_client == mock_redis
 
 
 class TestGenerateToken:
