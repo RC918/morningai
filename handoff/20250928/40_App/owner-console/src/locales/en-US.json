@@ -120,6 +120,7 @@
       "copyTraceId": "Copy trace ID",
       "copyTaskId": "Copy task ID",
       "copyTenantId": "Copy tenant ID",
+      "viewTraceDetails": "View trace details in observability platform",
       "traceIdCopied": "Trace ID copied to clipboard",
       "traceIdCopyFailed": "Failed to copy trace ID",
       "taskIdCopied": "Task ID copied to clipboard",
@@ -215,7 +216,8 @@
     "usedTotal": "Used/Total",
     "gbFormat": "{{used}}GB / {{total}}GB",
     "noHealthData": "No system health data available",
-    "noMetricsData": "No metrics available yet"
+    "noMetricsData": "No metrics available yet",
+    "mockDataLabel": "Mock Data"
   },
   "uxMetrics": {
     "title": "UX Metrics Dashboard",

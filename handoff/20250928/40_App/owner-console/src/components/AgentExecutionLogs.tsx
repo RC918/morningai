@@ -51,6 +51,9 @@ import {
 } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
 import { toast } from 'sonner'
+import { buildTraceUrl } from '@/lib/trace'
+
+const TRACE_VIEWER_URL = import.meta.env.VITE_TRACE_VIEWER_URL || ''
 
 interface ExecutionLogAgent {
   agent_type?: string
@@ -673,16 +676,30 @@ const AgentExecutionLogs = () => {
                             <div className="flex items-center gap-2">
                               <span>{log.task_id?.substring(0, 12)}...</span>
                               {log.trace_id && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => handleCopy(log.trace_id!, 'traceId')}
-                                  aria-label={t('governance.executionLogs.copyTraceId')}
-                                  title={t('governance.executionLogs.copyTraceId')}
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => handleCopy(log.trace_id!, 'traceId')}
+                                    aria-label={t('governance.executionLogs.copyTraceId')}
+                                    title={t('governance.executionLogs.copyTraceId')}
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                  {TRACE_VIEWER_URL && (
+                                    <a
+                                      href={buildTraceUrl(TRACE_VIEWER_URL, log.trace_id)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                                      aria-label={t('governance.executionLogs.viewTraceDetails')}
+                                      title={t('governance.executionLogs.viewTraceDetails')}
+                                    >
+                                      <ExternalLink className="h-3 w-3 text-primary-600 dark:text-primary-400" />
+                                    </a>
+                                  )}
+                                </>
                               )}
                             </div>
                           </TableCell>
@@ -754,15 +771,29 @@ const AgentExecutionLogs = () => {
                               {log.task_id?.substring(0, 12)}...
                             </span>
                             {log.trace_id && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={() => handleCopy(log.trace_id!, 'traceId')}
-                                aria-label={t('governance.executionLogs.copyTraceId')}
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => handleCopy(log.trace_id!, 'traceId')}
+                                  aria-label={t('governance.executionLogs.copyTraceId')}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                                {TRACE_VIEWER_URL && (
+                                  <a
+                                    href={buildTraceUrl(TRACE_VIEWER_URL, log.trace_id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                                    aria-label={t('governance.executionLogs.viewTraceDetails')}
+                                    title={t('governance.executionLogs.viewTraceDetails')}
+                                  >
+                                    <ExternalLink className="h-3 w-3 text-primary-600 dark:text-primary-400" />
+                                  </a>
+                                )}
+                              </>
                             )}
                             {log.task_type && (
                               <Badge variant="outline" className="text-xs">
@@ -957,6 +988,18 @@ const AgentExecutionLogs = () => {
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
+                      {TRACE_VIEWER_URL && (
+                        <a
+                          href={buildTraceUrl(TRACE_VIEWER_URL, selectedLog.trace_id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                          aria-label={t('governance.executionLogs.viewTraceDetails')}
+                          title={t('governance.executionLogs.viewTraceDetails')}
+                        >
+                          <ExternalLink className="h-3 w-3 text-primary-600 dark:text-primary-400" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 )}

@@ -16,6 +16,7 @@ interface ImportMetaEnv {
   readonly VITE_FEATURE_OWNER_CONSOLE_SETTINGS: string
   readonly VITE_FEATURE_OWNER_CONSOLE_SECURITY: string
   readonly VITE_FEATURE_OWNER_CONSOLE_PWA: string
+  readonly VITE_TRACE_VIEWER_URL?: string
   readonly [key: `VITE_FEATURE_${string}`]: string | undefined
 }
 

@@ -134,6 +134,7 @@
       "copyTraceId": "複製 Trace ID",
       "copyTaskId": "複製任務 ID",
       "copyTenantId": "複製租戶 ID",
+      "viewTraceDetails": "在可觀測性平台中查看 Trace 詳情",
       "traceIdCopied": "Trace ID 已複製到剪貼簿",
       "traceIdCopyFailed": "複製 Trace ID 失敗",
       "taskIdCopied": "任務 ID 已複製到剪貼簿",
@@ -229,7 +230,8 @@
     "usedTotal": "已用/總量",
     "gbFormat": "{{used}}GB / {{total}}GB",
     "noHealthData": "目前沒有系統健康資料",
-    "noMetricsData": "目前沒有指標數據"
+    "noMetricsData": "目前沒有指標數據",
+    "mockDataLabel": "模擬數據"
   },
   "uxMetrics": {
     "title": "UX 指標儀表板",

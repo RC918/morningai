@@ -5,6 +5,8 @@ import { Activity, Server, Database, Zap, AlertTriangle, Cpu, HardDrive, Refresh
 import { getAdminSystemHealth, getAdminSystemMetrics } from '@/lib/generated/admin/admin'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
+
 const SystemMonitoring = () => {
   const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
@@ -268,19 +270,26 @@ const SystemMonitoring = () => {
                   </div>
                 </div>
                 {metrics.cpu?.usage_percent != null && (
-                  <div className="h-16" aria-label={t('monitoring.cpuTrend')}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={generateTrendData(metrics.cpu.usage_percent)}>
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="rgb(var(--color-primary-600))" 
-                          strokeWidth={2}
-                          dot={false}
-                          isAnimationActive={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div className="space-y-1">
+                    <div className="h-16" aria-label={t('monitoring.cpuTrend')}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={generateTrendData(metrics.cpu.usage_percent)}>
+                          <Line 
+                            type="monotone" 
+                            dataKey="value" 
+                            stroke="rgb(var(--color-primary-600))" 
+                            strokeWidth={2}
+                            dot={false}
+                            isAnimationActive={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {USE_MOCK && (
+                      <Badge variant="outline" className="text-xs">
+                        {t('monitoring.mockDataLabel')}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>
@@ -309,19 +318,26 @@ const SystemMonitoring = () => {
                   </div>
                 </div>
                 {metrics.memory?.usage_percent != null && (
-                  <div className="h-16" aria-label={t('monitoring.memoryTrend')}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={generateTrendData(metrics.memory.usage_percent)}>
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="rgb(var(--color-success-600))" 
-                          strokeWidth={2}
-                          dot={false}
-                          isAnimationActive={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div className="space-y-1">
+                    <div className="h-16" aria-label={t('monitoring.memoryTrend')}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={generateTrendData(metrics.memory.usage_percent)}>
+                          <Line 
+                            type="monotone" 
+                            dataKey="value" 
+                            stroke="rgb(var(--color-success-600))" 
+                            strokeWidth={2}
+                            dot={false}
+                            isAnimationActive={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {USE_MOCK && (
+                      <Badge variant="outline" className="text-xs">
+                        {t('monitoring.mockDataLabel')}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>
@@ -350,19 +366,26 @@ const SystemMonitoring = () => {
                   </div>
                 </div>
                 {metrics.disk?.usage_percent != null && (
-                  <div className="h-16" aria-label={t('monitoring.diskTrend')}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={generateTrendData(metrics.disk.usage_percent)}>
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="rgb(var(--color-warning-600))" 
-                          strokeWidth={2}
-                          dot={false}
-                          isAnimationActive={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div className="space-y-1">
+                    <div className="h-16" aria-label={t('monitoring.diskTrend')}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={generateTrendData(metrics.disk.usage_percent)}>
+                          <Line 
+                            type="monotone" 
+                            dataKey="value" 
+                            stroke="rgb(var(--color-warning-600))" 
+                            strokeWidth={2}
+                            dot={false}
+                            isAnimationActive={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {USE_MOCK && (
+                      <Badge variant="outline" className="text-xs">
+                        {t('monitoring.mockDataLabel')}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>

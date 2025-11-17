@@ -469,6 +469,44 @@ VITE_API_BASE_URL=https://morningai-backend-v2-stg.onrender.com/api
 
 **Schema:** See `config/env.schema.yaml` for complete definition.
 
+**VITE_TRACE_VIEWER_URL** (Frontend - Added Nov 2025):
+```bash
+# Optional: URL for observability platform trace viewer
+# Used to link trace IDs in Agent Execution Logs to detailed trace views
+# Leave empty or unset to disable trace links
+
+# Jaeger
+VITE_TRACE_VIEWER_URL=https://jaeger.gm365.me
+
+# Tempo (Grafana)
+VITE_TRACE_VIEWER_URL=https://tempo.gm365.me
+
+# Grafana Explore
+VITE_TRACE_VIEWER_URL=https://grafana.gm365.me/explore
+
+# For testing (any URL)
+VITE_TRACE_VIEWER_URL=https://example.com
+```
+
+**Behavior:**
+- When set: External link icon appears next to trace IDs in Agent Execution Logs
+- When unset or empty: Only copy button appears (no external link)
+- Link format: `{VITE_TRACE_VIEWER_URL}/trace/{encoded_trace_id}`
+- Security: Trace IDs are automatically URL-encoded using `encodeURIComponent()`
+
+**Usage Locations:**
+- Owner Console → Agent Governance → Agent Execution Logs (desktop table view)
+- Owner Console → Agent Governance → Agent Execution Logs (mobile card view)
+- Owner Console → Agent Governance → Agent Execution Logs (execution details drawer)
+
+**Testing:**
+1. Set `VITE_TRACE_VIEWER_URL` in `.env.local` or Vercel environment variables
+2. Navigate to Agent Governance page in Owner Console
+3. Verify external link icon appears next to trace IDs
+4. Click link to verify it opens in new tab with correct URL format
+
+**Schema:** See `config/env.schema.yaml` for complete definition.
+
 ### Setup Documentation
 
 For complete local development setup instructions, see:
