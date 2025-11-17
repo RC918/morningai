@@ -44,7 +44,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
           <AppleButton 
             variant="outline" 
             size="sm" 
-            className={`${className} bg-white hover:bg-neutral-50 shadow-md flex items-center justify-center`}
+            className={`${className} bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700 shadow-md flex items-center justify-center`}
             style={{ width: '40px', height: '40px', padding: '0' }}
             aria-label={`Change language (current: ${currentLanguage.name})`}
           >
@@ -54,7 +54,6 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
         <DropdownMenuContent 
           align="end" 
           className="w-48 !bg-white dark:!bg-neutral-800 border border-neutral-200 dark:border-neutral-700"
-          style={{ backgroundColor: 'white' }}
         >
           <AnimatePresence>
             {languages.map((lang) => (
@@ -67,7 +66,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
               >
                 <DropdownMenuItem
                   onClick={() => changeLanguage(lang.code)}
-                  className="flex items-center justify-between cursor-pointer"
+                  className="flex items-center justify-between cursor-pointer text-neutral-800 dark:text-neutral-200"
                 >
                   <span className="flex items-center space-x-2">
                     <span className="text-lg">{lang.flag}</span>
@@ -97,7 +96,6 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
       <DropdownMenuContent 
         align="end" 
         className="w-48 !bg-white dark:!bg-neutral-800 border border-neutral-200 dark:border-neutral-700"
-        style={{ backgroundColor: 'white' }}
       >
         <AnimatePresence>
           {languages.map((lang) => (
@@ -110,7 +108,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
             >
               <DropdownMenuItem
                 onClick={() => changeLanguage(lang.code)}
-                className="flex items-center justify-between cursor-pointer"
+                className="flex items-center justify-between cursor-pointer text-neutral-800 dark:text-neutral-200"
               >
                 <span className="flex items-center space-x-2">
                   <span className="text-lg">{lang.flag}</span>

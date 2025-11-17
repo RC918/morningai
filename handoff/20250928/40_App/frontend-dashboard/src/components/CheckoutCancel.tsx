@@ -28,9 +28,9 @@ const CheckoutCancel = () => {
       <Card className="max-w-md w-full">
         <CardHeader className="text-center pb-4">
           <div className="flex justify-center mb-4">
-            <XCircle className="w-16 h-16 text-orange-500" aria-hidden="true" />
+            <XCircle className="w-16 h-16 text-warning-500" aria-hidden="true" />
           </div>
-          <CardTitle className="text-2xl text-orange-700">{t('checkoutCancel.title')}</CardTitle>
+          <CardTitle className="text-2xl text-warning-700">{t('checkoutCancel.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 text-center">
           <div>

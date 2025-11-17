@@ -143,7 +143,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
           </motion.h1>
 
           <motion.p
-            className="text-xl sm:text-2xl text-neutral-600 dark:text-neutral-600 max-w-3xl mx-auto"
+            className="text-xl sm:text-2xl text-neutral-600 dark:text-neutral-300 max-w-3xl mx-auto"
             variants={prefersReducedMotion ? undefined : itemVariants}
           >
             {t('landing.hero.subtitle')}
@@ -205,7 +205,7 @@ const AppleHero = ({ onGetStarted, onLearnMore }: AppleHeroProps): React.ReactEl
                 <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">
                   {feature.title}
                 </h2>
-                <p className="text-neutral-600 dark:text-neutral-600 text-sm">
+                <p className="text-neutral-600 dark:text-neutral-300 text-sm">
                   {feature.description}
                 </p>
               </motion.div>

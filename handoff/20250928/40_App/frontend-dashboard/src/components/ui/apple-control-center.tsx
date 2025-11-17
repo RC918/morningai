@@ -142,8 +142,8 @@ const ControlCard: React.FC<{
       ? 'bg-success-500/90 border-success-400/30'
       : 'bg-success-500/20 border-success-400/20',
     warning: control.active
-      ? 'bg-orange-500/90 border-orange-400/30'
-      : 'bg-orange-500/20 border-orange-400/20',
+      ? 'bg-warning-500/90 border-warning-400/30'
+      : 'bg-warning-500/20 border-warning-400/20',
     danger: control.active
       ? 'bg-error-500/90 border-error-400/30'
       : 'bg-error-500/20 border-error-400/20'

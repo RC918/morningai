@@ -145,7 +145,7 @@ const AgentGovernance = (): React.ReactElement => {
       case 'task_failure':
         return <XCircle className="w-4 h-4 text-error-600" />
       case 'budget_exceeded':
-        return <AlertTriangle className="w-4 h-4 text-orange-600" />
+        return <AlertTriangle className="w-4 h-4 text-warning-600" />
       case 'permission_denied':
         return <Shield className="w-4 h-4 text-error-600" />
       default:

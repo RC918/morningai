@@ -9,6 +9,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import tseslint from 'typescript-eslint';
 import i18next from 'eslint-plugin-i18next';
+import customRules from './eslint-rules/index.js';
 
 export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.storybook', '**/*.stories.tsx', 'playwright-report'] }, {
   files: ['**/*.{js,jsx,ts,tsx}'],
@@ -29,6 +30,7 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     'react-refresh': reactRefresh,
     'jsx-a11y': jsxA11y,
     'i18next': i18next,
+    'custom': customRules,
   },
   rules: {
     ...reactHooks.configs.recommended.rules,
@@ -84,6 +86,7 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
         '^(true|false)$',
       ],
     }],
+    'custom/no-hardcoded-colors': 'error',
   },
 }, {
   files: ['**/*.{test,spec}.{ts,tsx,js,jsx}', '**/*.stories.{ts,tsx}', 'src/**/__tests__/**', 'scripts/**'],

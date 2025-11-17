@@ -136,10 +136,10 @@ export const EmptyStateLibrary = ({
     },
     premium: {
       icon: CustomIcon || Zap,
-      bgColor: 'bg-gradient-to-br from-yellow-50 to-orange-50',
-      iconColor: 'text-orange-500',
-      titleColor: 'text-orange-900',
-      descColor: 'text-orange-600'
+      bgColor: 'bg-gradient-to-br from-warning-50 to-warning-50',
+      iconColor: 'text-warning-500',
+      titleColor: 'text-warning-900',
+      descColor: 'text-warning-600'
     }
   }
 
