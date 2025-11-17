@@ -418,7 +418,9 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
 
               <div className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-300">
                 {t('auth.login.noAccount', '還沒有帳號？')}{' '}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-300 dark:hover:text-primary-200 font-medium">
+                {/* NOTE: Using primary-200 for CI color-contrast compliance. 
+                    If reverting to primary-300 for brand consistency, adjust .lighthouserc precision settings. */}
+                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-200 dark:hover:text-primary-100 font-medium">
                   {t('auth.login.signupLink', '註冊')}
                 </Link>
               </div>
