@@ -99,11 +99,11 @@ const CostAnalysis = (): React.ReactElement => {
   const getTrendIcon = (trend: TrendType): React.ReactElement => {
     switch (trend) {
       case 'up':
-        return <TrendingUp className="w-4 h-4 text-red-600" />
+        return <TrendingUp className="w-4 h-4 text-error-600" />
       case 'down':
-        return <TrendingDown className="w-4 h-4 text-green-600" />
+        return <TrendingDown className="w-4 h-4 text-success-600" />
       default:
-        return <span className="text-gray-600 text-sm">→</span>
+        return <span className="text-neutral-600 text-sm">→</span>
     }
   }
 
@@ -115,7 +115,7 @@ const CostAnalysis = (): React.ReactElement => {
   if (loading && !costData) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-info-600"></div>
       </div>
     )
   }
@@ -124,8 +124,8 @@ const CostAnalysis = (): React.ReactElement => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t('cost.title')}</h1>
-          <p className="text-gray-600 mt-1">{t('cost.description')}</p>
+          <h1 className="text-3xl font-bold text-neutral-900">{t('cost.title')}</h1>
+          <p className="text-neutral-600 mt-1">{t('cost.description')}</p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={period} onValueChange={(value) => setPeriod(value as PeriodType)}>
@@ -146,13 +146,13 @@ const CostAnalysis = (): React.ReactElement => {
       </div>
 
       {mockCostData.alerts && mockCostData.alerts.length > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50">
+        <Card className="border-warning-200 bg-warning-50">
           <CardContent className="pt-6">
             <div className="space-y-2">
               {mockCostData.alerts.map((alert, index) => (
                 <div key={index} className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                  <p className="text-sm text-yellow-800">{alert.message}</p>
+                  <AlertCircle className="w-5 h-5 text-warning-600 mt-0.5" />
+                  <p className="text-sm text-warning-800">{alert.message}</p>
                 </div>
               ))}
             </div>
@@ -164,12 +164,12 @@ const CostAnalysis = (): React.ReactElement => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600">{t('cost.currentMonth')}</p>
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-blue-600" />
+              <p className="text-sm text-neutral-600">{t('cost.currentMonth')}</p>
+              <div className="p-2 bg-info-100 rounded-lg">
+                <DollarSign className="w-5 h-5 text-info-600" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-3xl font-bold text-neutral-900">
               ${currentUsage.toFixed(2)}
             </p>
             <div className="flex items-center gap-2 mt-2">
@@ -188,21 +188,21 @@ const CostAnalysis = (): React.ReactElement => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600">{t('cost.monthlyBudget')}</p>
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Calendar className="w-5 h-5 text-green-600" />
+              <p className="text-sm text-neutral-600">{t('cost.monthlyBudget')}</p>
+              <div className="p-2 bg-success-100 rounded-lg">
+                <Calendar className="w-5 h-5 text-success-600" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-3xl font-bold text-neutral-900">
               ${budgetLimit.toFixed(2)}
             </p>
             <div className="mt-2">
               <Progress value={budgetUsagePercentage} className="h-2" />
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-neutral-600 mt-1">
                 {t('cost.usedPercentage')} {budgetUsagePercentage.toFixed(1)}%
               </p>
               {costData && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-neutral-500 mt-1">
                   Tokens: {costData.usage?.tokens?.toLocaleString() || 0} / {costData.limits?.tokens?.toLocaleString() || 0}
                 </p>
               )}
@@ -213,15 +213,15 @@ const CostAnalysis = (): React.ReactElement => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600">{t('cost.estimatedEndOfMonth')}</p>
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
+              <p className="text-sm text-neutral-600">{t('cost.estimatedEndOfMonth')}</p>
+              <div className="p-2 bg-accent-100 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-accent-600" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-3xl font-bold text-neutral-900">
               ${((mockCostData.currentMonth || 0) * 1.15).toFixed(2)}
             </p>
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-sm text-neutral-600 mt-2">
               {t('cost.basedOnCurrentTrend')}
             </p>
           </CardContent>
@@ -239,12 +239,12 @@ const CostAnalysis = (): React.ReactElement => {
               <div key={index}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <span className="font-medium text-gray-900">{item.category}</span>
+                    <span className="font-medium text-neutral-900">{item.category}</span>
                     {getTrendIcon(item.trend)}
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant="outline">{item.percentage.toFixed(1)}%</Badge>
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-neutral-900">
                       ${item.cost.toFixed(2)}
                     </span>
                   </div>
@@ -263,20 +263,20 @@ const CostAnalysis = (): React.ReactElement => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <TrendingDown className="w-5 h-5 text-green-600 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-success-50 border border-success-200 rounded-lg">
+              <TrendingDown className="w-5 h-5 text-success-600 mt-0.5" />
               <div>
-                <p className="font-medium text-green-900">{t('cost.suggestions.optimizeAiUsage')}</p>
-                <p className="text-sm text-green-700 mt-1">
+                <p className="font-medium text-success-900">{t('cost.suggestions.optimizeAiUsage')}</p>
+                <p className="text-sm text-success-700 mt-1">
                   {t('cost.suggestions.optimizeAiUsageDescription')}
                 </p>
               </div>
             </div>
-            <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <TrendingDown className="w-5 h-5 text-green-600 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-success-50 border border-success-200 rounded-lg">
+              <TrendingDown className="w-5 h-5 text-success-600 mt-0.5" />
               <div>
-                <p className="font-medium text-green-900">{t('cost.suggestions.adjustStorageStrategy')}</p>
-                <p className="text-sm text-green-700 mt-1">
+                <p className="font-medium text-success-900">{t('cost.suggestions.adjustStorageStrategy')}</p>
+                <p className="text-sm text-success-700 mt-1">
                   {t('cost.suggestions.adjustStorageStrategyDescription')}
                 </p>
               </div>

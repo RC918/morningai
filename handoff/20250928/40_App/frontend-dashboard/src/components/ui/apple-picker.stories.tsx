@@ -43,7 +43,7 @@ export const SingleColumn: Story = {
     return (
       <div className="space-y-4">
         <ApplePicker columns={columns} onChange={setValue} />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.fruit || 'None'}
         </div>
       </div>
@@ -85,7 +85,7 @@ export const TwoColumns: Story = {
     return (
       <div className="space-y-4">
         <ApplePicker columns={columns} onChange={setValue} />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.size} / {value.color}
         </div>
       </div>
@@ -127,7 +127,7 @@ export const ThreeColumns: Story = {
     return (
       <div className="space-y-4">
         <ApplePicker columns={columns} onChange={setValue} />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.hours}:{String(value.minutes).padStart(2, '0')} {value.period}
         </div>
       </div>
@@ -143,7 +143,7 @@ export const DatePicker: Story = {
     return (
       <div className="space-y-4">
         <ApplePicker columns={columns} onChange={setValue} />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.month !== undefined ? Number(value.month) + 1 : ''}/{value.day}/{value.year}
         </div>
       </div>
@@ -159,7 +159,7 @@ export const TimePicker: Story = {
     return (
       <div className="space-y-4">
         <ApplePicker columns={columns} onChange={setValue} />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {String(value.hour).padStart(2, '0')}:{String(value.minute).padStart(2, '0')}
         </div>
       </div>
@@ -185,7 +185,7 @@ export const NumberRange: Story = {
     return (
       <div className="space-y-4">
         <ApplePicker columns={columns} onChange={setValue} />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.number}
         </div>
       </div>
@@ -220,7 +220,7 @@ export const CustomHeight: Story = {
           itemHeight={50}
           visibleItems={5}
         />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.item}
         </div>
       </div>
@@ -254,7 +254,7 @@ export const CompactSize: Story = {
           itemHeight={32}
           visibleItems={3}
         />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.option}
         </div>
       </div>
@@ -288,7 +288,7 @@ export const CountrySelector: Story = {
     return (
       <div className="space-y-4">
         <ApplePicker columns={columns} onChange={setValue} />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.country}
         </div>
       </div>
@@ -322,7 +322,7 @@ export const HeightWeightPicker: Story = {
     return (
       <div className="space-y-4">
         <ApplePicker columns={columns} onChange={setValue} />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.feet} {value.inches}
         </div>
       </div>
@@ -353,7 +353,7 @@ export const Interactive: Story = {
         <div className="space-y-4">
           <button
             onClick={() => setShowPicker(!showPicker)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+            className="px-6 py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors"
           >
             {showPicker ? 'Hide' : 'Show'} Picker
           </button>
@@ -362,7 +362,7 @@ export const Interactive: Story = {
             <ApplePicker columns={columns} onChange={setValue} />
           )}
           
-          <div className="text-center text-sm text-gray-600">
+          <div className="text-center text-sm text-neutral-600">
             Selected: {value.category || 'None'}
           </div>
         </div>
@@ -407,7 +407,7 @@ export const MultiColumnComplex: Story = {
     return (
       <div className="space-y-4">
         <ApplePicker columns={columns} onChange={setValue} />
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-neutral-600">
           Selected: {value.day} {String(value.hour).padStart(2, '0')}:{String(value.minute).padStart(2, '0')}
         </div>
       </div>

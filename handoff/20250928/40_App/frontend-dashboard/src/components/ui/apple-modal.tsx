@@ -129,8 +129,8 @@ const Modal = ({
           mass: 1
         }}
         className={cn(
-          'relative z-10 w-full rounded-2xl bg-white dark:bg-gray-900',
-          'shadow-2xl border border-gray-200/20 dark:border-gray-700/20',
+          'relative z-10 w-full rounded-2xl bg-white dark:bg-neutral-900',
+          'shadow-2xl border border-neutral-200/20 dark:border-neutral-700/20',
           'flex flex-col max-h-[90vh]',
           modalSizes[size]
         )}
@@ -138,12 +138,12 @@ const Modal = ({
       >
         {/* Header */}
         {(title || showClose) && (
-          <div className="flex items-start justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50">
+          <div className="flex items-start justify-between p-6 border-b border-neutral-200/50 dark:border-neutral-700/50">
             <div className="flex-1 min-w-0">
               {title && (
                 <h2 
                   id={`modal-title-${id}`}
-                  className="text-xl font-semibold text-gray-900 dark:text-white leading-tight"
+                  className="text-xl font-semibold text-neutral-900 dark:text-white leading-tight"
                 >
                   {title}
                 </h2>
@@ -151,7 +151,7 @@ const Modal = ({
               {description && (
                 <p 
                   id={`modal-desc-${id}`}
-                  className="mt-1 text-sm text-gray-600 dark:text-gray-400"
+                  className="mt-1 text-sm text-neutral-600 dark:text-neutral-400"
                 >
                   {description}
                 </p>
@@ -164,10 +164,10 @@ const Modal = ({
                 onClick={handleClose}
                 className={cn(
                   'ml-4 flex-shrink-0 rounded-full p-2',
-                  'hover:bg-gray-100 dark:hover:bg-gray-800',
-                  'active:bg-gray-200 dark:active:bg-gray-700',
+                  'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+                  'active:bg-neutral-200 dark:active:bg-neutral-700',
                   'transition-colors duration-150',
-                  'text-gray-500 dark:text-gray-400'
+                  'text-neutral-500 dark:text-neutral-400'
                 )}
                 aria-label={t('modal.close', 'Close modal')}
               >

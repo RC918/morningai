@@ -127,7 +127,7 @@ describe('AppleInput', () => {
     it('applies success state classes', () => {
       render(<AppleInput state="success" />);
       const input = screen.getByRole('textbox');
-      expect(input.className).toContain('border-green-500');
+      expect(input.className).toContain('border-success-500');
     });
 
     it('displays error text', () => {

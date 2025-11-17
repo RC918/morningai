@@ -82,8 +82,8 @@ const ToggleSwitch: React.FC<{
         onClick={handleToggle}
         className={cn(
           'relative w-11 h-6 rounded-full transition-colors duration-200',
-          'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900',
-          checked ? 'bg-blue-500' : 'bg-white/20'
+          'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-900',
+          checked ? 'bg-primary-500' : 'bg-white/20'
         )}
       >
         <motion.div
@@ -144,9 +144,9 @@ const FontSizeSelector: React.FC<{
             onClick={() => handleChange(option.value)}
             className={cn(
               'px-4 py-2 rounded-lg text-sm font-medium transition-all',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500',
+              'focus:outline-none focus:ring-2 focus:ring-primary-500',
               value === option.value
-                ? 'bg-blue-500 text-white'
+                ? 'bg-primary-500 text-white'
                 : 'bg-white/10 text-white/70 hover:bg-white/20'
             )}
           >
@@ -211,9 +211,9 @@ const FocusIndicatorSelector: React.FC<{
             onClick={() => handleChange(option.value)}
             className={cn(
               'w-full px-4 py-3 rounded-lg text-left transition-all',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500',
+              'focus:outline-none focus:ring-2 focus:ring-primary-500',
               value === option.value
-                ? 'bg-blue-500/20 border border-blue-500/30'
+                ? 'bg-primary-500/20 border border-primary-500/30'
                 : 'bg-white/10 border border-transparent hover:bg-white/20'
             )}
           >
@@ -333,12 +333,12 @@ const AccessibilitySettingsPanel: React.FC = () => {
               damping: 30
             }}
           >
-            <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl overflow-hidden">
+            <div className="bg-neutral-900/95 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <Settings className="w-5 h-5 text-blue-400" />
+                  <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center">
+                    <Settings className="w-5 h-5 text-info-400" />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-white">
@@ -413,7 +413,7 @@ const AccessibilitySettingsPanel: React.FC = () => {
                 </button>
                 <button
                   onClick={close}
-                  className="px-6 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 transition-colors"
+                  className="px-6 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 transition-colors"
                 >
                   {t('accessibility.done', 'Done')}
                 </button>
@@ -517,11 +517,11 @@ export const AccessibilityTriggerButton: React.FC<{
         onClick={open}
         className={cn(
           'px-4 py-2 rounded-lg text-sm font-medium',
-          'text-gray-700 dark:text-gray-300',
-          'hover:bg-gray-100 dark:hover:bg-gray-800',
-          'active:bg-gray-200 dark:active:bg-gray-700',
+          'text-neutral-700 dark:text-neutral-300',
+          'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+          'active:bg-neutral-200 dark:active:bg-neutral-700',
           'transition-colors',
-          'focus:outline-none focus:ring-2 focus:ring-blue-500',
+          'focus:outline-none focus:ring-2 focus:ring-primary-500',
           className
         )}
         aria-label={t('accessibility.openSettings', 'Open accessibility settings')}
@@ -537,11 +537,11 @@ export const AccessibilityTriggerButton: React.FC<{
         onClick={open}
         className={cn(
           'flex items-center gap-3 px-4 py-3 rounded-lg',
-          'text-gray-700 dark:text-gray-300',
-          'hover:bg-gray-100 dark:hover:bg-gray-800',
-          'active:bg-gray-200 dark:active:bg-gray-700',
+          'text-neutral-700 dark:text-neutral-300',
+          'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+          'active:bg-neutral-200 dark:active:bg-neutral-700',
           'transition-colors',
-          'focus:outline-none focus:ring-2 focus:ring-blue-500',
+          'focus:outline-none focus:ring-2 focus:ring-primary-500',
           className
         )}
         aria-label={t('accessibility.openSettings', 'Open accessibility settings')}
@@ -559,11 +559,11 @@ export const AccessibilityTriggerButton: React.FC<{
       onClick={open}
       className={cn(
         'p-2 rounded-full',
-        'text-gray-700 dark:text-gray-300',
-        'hover:bg-gray-100 dark:hover:bg-gray-800',
-        'active:bg-gray-200 dark:active:bg-gray-700',
+        'text-neutral-700 dark:text-neutral-300',
+        'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+        'active:bg-neutral-200 dark:active:bg-neutral-700',
         'transition-colors',
-        'focus:outline-none focus:ring-2 focus:ring-blue-500',
+        'focus:outline-none focus:ring-2 focus:ring-primary-500',
         className
       )}
       aria-label={t('accessibility.openSettings', 'Open accessibility settings')}

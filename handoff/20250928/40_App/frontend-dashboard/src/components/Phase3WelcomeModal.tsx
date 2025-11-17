@@ -31,44 +31,44 @@ export function Phase3WelcomeModal({ isOpen, onClose }: Phase3WelcomeModalProps)
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="text-2xl">{t('phase3Welcome.title')}</DialogTitle>
-          <DialogDescription className="text-base font-semibold text-gray-900 pt-2">
+          <DialogDescription className="text-base font-semibold text-neutral-900 pt-2">
             {t('phase3Welcome.subtitle')}
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
           <div className="flex items-start gap-3">
-            <Users className="w-6 h-6 text-blue-500 mt-1" />
+            <Users className="w-6 h-6 text-info-500 mt-1" />
             <div className="space-y-1">
-              <p className="font-semibold text-gray-900">{t('phase3Welcome.teamManagement.title')}</p>
-              <p className="text-sm text-gray-600">
+              <p className="font-semibold text-neutral-900">{t('phase3Welcome.teamManagement.title')}</p>
+              <p className="text-sm text-neutral-600">
                 {t('phase3Welcome.teamManagement.description')}
               </p>
             </div>
           </div>
           
           <div className="flex items-start gap-3">
-            <Shield className="w-6 h-6 text-green-500 mt-1" />
+            <Shield className="w-6 h-6 text-success-500 mt-1" />
             <div className="space-y-1">
-              <p className="font-semibold text-gray-900">{t('phase3Welcome.enhancedSecurity.title')}</p>
-              <p className="text-sm text-gray-600">
+              <p className="font-semibold text-neutral-900">{t('phase3Welcome.enhancedSecurity.title')}</p>
+              <p className="text-sm text-neutral-600">
                 {t('phase3Welcome.enhancedSecurity.description')}
               </p>
             </div>
           </div>
           
           <div className="flex items-start gap-3">
-            <UserCog className="w-6 h-6 text-purple-500 mt-1" />
+            <UserCog className="w-6 h-6 text-accent-500 mt-1" />
             <div className="space-y-1">
-              <p className="font-semibold text-gray-900">{t('phase3Welcome.rolePermissions.title')}</p>
-              <p className="text-sm text-gray-600">
+              <p className="font-semibold text-neutral-900">{t('phase3Welcome.rolePermissions.title')}</p>
+              <p className="text-sm text-neutral-600">
                 {t('phase3Welcome.rolePermissions.description')}
               </p>
             </div>
           </div>
           
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
-            <p className="text-sm text-blue-900">
+          <div className="bg-info-50 border border-info-200 rounded-lg p-3 mt-4">
+            <p className="text-sm text-info-900">
               {t('phase3Welcome.migrationNotice')}
             </p>
           </div>

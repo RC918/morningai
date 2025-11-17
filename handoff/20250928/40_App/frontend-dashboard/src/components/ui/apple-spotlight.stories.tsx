@@ -381,7 +381,7 @@ const InteractiveDemo = () => {
         </p>
         <button
           onClick={toggle}
-          className="px-6 py-3 bg-white text-purple-600 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
+          className="px-6 py-3 bg-white text-accent-600 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
         >
           {isOpen ? 'Close' : 'Open'} Spotlight
         </button>

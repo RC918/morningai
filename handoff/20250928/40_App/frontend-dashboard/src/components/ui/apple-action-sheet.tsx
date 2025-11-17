@@ -172,14 +172,14 @@ const ActionSheet = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Actions Card */}
-        <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl border border-white/20 dark:border-gray-700/20">
+        <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl border border-white/20 dark:border-neutral-700/20">
           {/* Header */}
           {(options.title || options.message) && (
-            <div className="px-6 py-4 text-center border-b border-gray-200/50 dark:border-gray-700/50">
+            <div className="px-6 py-4 text-center border-b border-neutral-200/50 dark:border-neutral-700/50">
               {options.title && (
                 <h2 
                   id="action-sheet-title"
-                  className="text-base font-semibold text-gray-900 dark:text-white"
+                  className="text-base font-semibold text-neutral-900 dark:text-white"
                 >
                   {options.title}
                 </h2>
@@ -188,7 +188,7 @@ const ActionSheet = ({
                 <p 
                   id="action-sheet-message"
                   className={cn(
-                    'text-sm text-gray-600 dark:text-gray-400',
+                    'text-sm text-neutral-600 dark:text-neutral-400',
                     options.title && 'mt-1'
                   )}
                 >
@@ -215,12 +215,12 @@ const ActionSheet = ({
                 className={cn(
                   'w-full px-6 py-4 flex items-center justify-center gap-3',
                   'text-base font-medium transition-colors',
-                  'hover:bg-gray-100/50 dark:hover:bg-gray-800/50',
-                  'active:bg-gray-200/50 dark:active:bg-gray-700/50',
+                  'hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50',
+                  'active:bg-neutral-200/50 dark:active:bg-neutral-700/50',
                   'disabled:opacity-50 disabled:cursor-not-allowed',
                   action.destructive 
-                    ? 'text-red-600 dark:text-red-500' 
-                    : 'text-blue-600 dark:text-blue-500'
+                    ? 'text-error-600 dark:text-error-500' 
+                    : 'text-primary-600 dark:text-primary-500'
                 )}
               >
                 {action.icon && (
@@ -249,12 +249,12 @@ const ActionSheet = ({
           transition={{ delay: options.actions.length * 0.05 + 0.1 }}
           className={cn(
             'mt-2 w-full px-6 py-4 rounded-2xl',
-            'bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl',
-            'border border-white/20 dark:border-gray-700/20',
+            'bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl',
+            'border border-white/20 dark:border-neutral-700/20',
             'shadow-xl',
-            'text-base font-semibold text-blue-600 dark:text-blue-500',
-            'hover:bg-gray-100/50 dark:hover:bg-gray-800/50',
-            'active:bg-gray-200/50 dark:active:bg-gray-700/50',
+            'text-base font-semibold text-primary-600 dark:text-primary-500',
+            'hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50',
+            'active:bg-neutral-200/50 dark:active:bg-neutral-700/50',
             'transition-colors'
           )}
         >

@@ -230,7 +230,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
       <motion.div
         style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}
         initial={prefersReducedMotion ? {} : { opacity: 0, x: 20 }}
@@ -265,9 +265,9 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
             </motion.div>
           </Link>
           <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
+            <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
           </Link>
-          <p className="text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
+          <p className="text-neutral-600 dark:text-neutral-600 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? undefined : itemVariants}>
@@ -347,7 +347,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                     <Separator className="w-full" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">
+                    <span className="bg-white dark:bg-neutral-800 px-2 text-neutral-500">
                       {t('auth.login.orContinueWith')}
                     </span>
                   </div>
@@ -410,19 +410,19 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 </div>
               </div>
 
-              <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-600">
+              <div className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-600">
                 {t('auth.login.noAccount', '還沒有帳號？')}{' '}
-                <Link to="/signup" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium">
                   {t('auth.login.signupLink', '註冊')}
                 </Link>
               </div>
 
               {import.meta.env.DEV && (
-                <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <h2 className="text-sm font-medium text-gray-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
-                  <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                    <p>{t('auth.login.username')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
-                    <p>{t('auth.login.password')}: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
+                <div className="mt-6 p-4 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
+                  <h2 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
+                  <div className="text-sm text-neutral-700 dark:text-neutral-300 space-y-1">
+                    <p>{t('auth.login.username')}: <code className="bg-neutral-200 dark:bg-neutral-700 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
+                    <p>{t('auth.login.password')}: <code className="bg-neutral-200 dark:bg-neutral-700 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
                   </div>
                 </div>
               )}
@@ -431,7 +431,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
         </motion.div>
 
         <motion.div
-          className="text-center mt-8 text-sm text-gray-600 dark:text-gray-600"
+          className="text-center mt-8 text-sm text-neutral-600 dark:text-neutral-600"
           variants={prefersReducedMotion ? undefined : itemVariants}
         >
           <p>{t('app.copyright')}</p>

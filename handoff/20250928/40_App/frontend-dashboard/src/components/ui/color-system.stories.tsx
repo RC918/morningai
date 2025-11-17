@@ -39,7 +39,7 @@ export const PrimaryColors: Story = {
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-bold mb-4">主色系統</h2>
-        <p className="text-gray-600 mb-6">
+        <p className="text-neutral-600 mb-6">
           我們使用兩種藍色，分別用於不同場景以確保無障礙合規。
         </p>
       </div>
@@ -53,8 +53,8 @@ export const PrimaryColors: Story = {
             <div className="w-full h-32 rounded-lg mb-3" style={{ backgroundColor: '#007AFF' }}></div>
             <div className="space-y-1">
               <p className="font-mono text-sm">#007AFF</p>
-              <p className="text-sm text-gray-600">對比度: 4.02:1（白底）</p>
-              <p className="text-sm font-medium text-green-600">✅ 用於互動元素</p>
+              <p className="text-sm text-neutral-600">對比度: 4.02:1（白底）</p>
+              <p className="text-sm font-medium text-success-600">✅ 用於互動元素</p>
             </div>
           </div>
 
@@ -99,8 +99,8 @@ export const PrimaryColors: Story = {
             <div className="w-full h-32 rounded-lg mb-3" style={{ backgroundColor: '#0051D0' }}></div>
             <div className="space-y-1">
               <p className="font-mono text-sm">#0051D0</p>
-              <p className="text-sm text-gray-600">對比度: 6.12:1（白底）</p>
-              <p className="text-sm font-medium text-green-600">✅ WCAG AA 合格</p>
+              <p className="text-sm text-neutral-600">對比度: 6.12:1（白底）</p>
+              <p className="text-sm font-medium text-success-600">✅ WCAG AA 合格</p>
             </div>
           </div>
 
@@ -130,9 +130,9 @@ export const PrimaryColors: Story = {
       </div>
 
       {/* Comparison */}
-      <div className="border-2 border-red-200 rounded-lg p-4 bg-red-50">
-        <h4 className="font-medium text-red-800 mb-2">❌ 錯誤使用</h4>
-        <p className="text-sm text-red-700 mb-3">
+      <div className="border-2 border-error-200 rounded-lg p-4 bg-error-50">
+        <h4 className="font-medium text-error-800 mb-2">❌ 錯誤使用</h4>
+        <p className="text-sm text-error-700 mb-3">
           不要將 #007AFF 用於文字 - 對比度不足（4.02:1 &lt; 4.5:1）
         </p>
         <div className="bg-white p-3 rounded border">
@@ -167,7 +167,7 @@ export const EmotionColors: Story = {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold mb-2">情感色彩系統</h2>
-          <p className="text-gray-600">
+          <p className="text-neutral-600">
             用於傳達特定情緒和狀態，增強用戶體驗的情感連接。
           </p>
         </div>
@@ -178,7 +178,7 @@ export const EmotionColors: Story = {
               <div className="w-full h-24 rounded-lg" style={{ backgroundColor: item.color }}></div>
               <div>
                 <h3 className="font-semibold text-lg">{item.name}</h3>
-                <p className="font-mono text-sm text-gray-600">{item.color}</p>
+                <p className="font-mono text-sm text-neutral-600">{item.color}</p>
               </div>
               <div className="space-y-1 text-sm">
                 <p><strong>情感:</strong> {item.emotion}</p>
@@ -215,7 +215,7 @@ export const SemanticColors: Story = {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold mb-2">語義色彩</h2>
-          <p className="text-gray-600">
+          <p className="text-neutral-600">
             用於表示系統狀態的標準色彩，所有色彩均符合 WCAG AA 標準。
           </p>
         </div>
@@ -226,8 +226,8 @@ export const SemanticColors: Story = {
               <div className="w-full h-24 rounded-lg" style={{ backgroundColor: item.color }}></div>
               <div>
                 <h3 className="font-semibold text-lg">{item.name}</h3>
-                <p className="font-mono text-sm text-gray-600">{item.color}</p>
-                <p className="text-sm text-green-600">✅ {item.contrast} WCAG AA</p>
+                <p className="font-mono text-sm text-neutral-600">{item.color}</p>
+                <p className="text-sm text-success-600">✅ {item.contrast} WCAG AA</p>
               </div>
               <p className="text-sm">{item.usage}</p>
               <div 
@@ -262,7 +262,7 @@ export const ContrastTest: Story = {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold mb-2">對比度測試</h2>
-          <p className="text-gray-600 mb-4">
+          <p className="text-neutral-600 mb-4">
             WCAG AA 標準要求普通文字對比度 ≥ 4.5:1
           </p>
         </div>
@@ -273,11 +273,11 @@ export const ContrastTest: Story = {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="font-medium">{test.label}</h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-neutral-600">
                     對比度: {test.ratio} {test.pass ? '✅ 通過' : '❌ 未通過'} WCAG AA
                   </p>
                 </div>
-                <div className={`px-3 py-1 rounded text-sm font-medium ${test.pass ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                <div className={`px-3 py-1 rounded text-sm font-medium ${test.pass ? 'bg-success-100 text-success-800' : 'bg-error-100 text-error-800'}`}>
                   {test.pass ? '合格' : '不合格'}
                 </div>
               </div>
@@ -293,9 +293,9 @@ export const ContrastTest: Story = {
           ))}
         </div>
 
-        <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-          <h4 className="font-medium text-blue-800 mb-2">💡 提示</h4>
-          <p className="text-sm text-blue-700">
+        <div className="border-2 border-info-200 rounded-lg p-4 bg-info-50">
+          <h4 className="font-medium text-info-800 mb-2">💡 提示</h4>
+          <p className="text-sm text-info-700">
             使用 <a href="https://webaim.org/resources/contrastchecker/" target="_blank" rel="noopener noreferrer" className="underline">WebAIM Contrast Checker</a> 來測試你的色彩組合。
           </p>
         </div>
@@ -314,7 +314,7 @@ export const UsageExamples: Story = {
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-bold mb-2">實作範例</h2>
-        <p className="text-gray-600">
+        <p className="text-neutral-600">
           展示在實際組件中如何正確使用主色系統。
         </p>
       </div>
@@ -330,7 +330,7 @@ export const UsageExamples: Story = {
             Primary Button
           </button>
           <button 
-            className="px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition"
+            className="px-4 py-2 rounded-lg font-medium hover:bg-neutral-100 transition"
             style={{ border: '2px solid #007AFF', color: '#007AFF' }}
           >
             Outline Button
@@ -374,7 +374,7 @@ export const UsageExamples: Story = {
       {/* Code Example */}
       <div className="space-y-4">
         <h3 className="text-xl font-semibold">代碼範例</h3>
-        <div className="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+        <div className="bg-neutral-900 text-neutral-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
           <pre>{`// ✅ 正確：按鈕使用 primary
 <button className="bg-primary text-white">
   Click Me

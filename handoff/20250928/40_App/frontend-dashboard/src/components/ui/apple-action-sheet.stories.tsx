@@ -46,7 +46,7 @@ const ActionSheetDemo = ({
     <div className="p-8">
       <button
         onClick={handleShow}
-        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+        className="px-6 py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors"
       >
         Show Action Sheet
       </button>
@@ -432,11 +432,11 @@ export const Interactive: Story = {
         <div className="p-8 space-y-4">
           <button
             onClick={handleShow}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+            className="px-6 py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors"
           >
             Show Action Sheet
           </button>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-neutral-600">
             Status: {isVisible ? 'Visible' : 'Hidden'}
           </div>
         </div>

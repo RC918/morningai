@@ -44,7 +44,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
           <AppleButton 
             variant="outline" 
             size="sm" 
-            className={`${className} bg-white hover:bg-gray-50 shadow-md flex items-center justify-center`}
+            className={`${className} bg-white hover:bg-neutral-50 shadow-md flex items-center justify-center`}
             style={{ width: '40px', height: '40px', padding: '0' }}
             aria-label={`Change language (current: ${currentLanguage.name})`}
           >
@@ -53,7 +53,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
         </DropdownMenuTrigger>
         <DropdownMenuContent 
           align="end" 
-          className="w-48 !bg-white dark:!bg-gray-800 border border-gray-200 dark:border-gray-700"
+          className="w-48 !bg-white dark:!bg-neutral-800 border border-neutral-200 dark:border-neutral-700"
           style={{ backgroundColor: 'white' }}
         >
           <AnimatePresence>
@@ -74,7 +74,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
                     <span>{lang.name}</span>
                   </span>
                   {i18n.language === lang.code && (
-                    <Check className="w-4 h-4 text-green-600" />
+                    <Check className="w-4 h-4 text-success-600" />
                   )}
                 </DropdownMenuItem>
               </motion.div>
@@ -96,7 +96,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
-        className="w-48 !bg-white dark:!bg-gray-800 border border-gray-200 dark:border-gray-700"
+        className="w-48 !bg-white dark:!bg-neutral-800 border border-neutral-200 dark:border-neutral-700"
         style={{ backgroundColor: 'white' }}
       >
         <AnimatePresence>
@@ -122,7 +122,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   >
-                    <Check className="w-4 h-4 text-green-600" />
+                    <Check className="w-4 h-4 text-success-600" />
                   </motion.div>
                 )}
               </DropdownMenuItem>

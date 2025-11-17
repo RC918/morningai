@@ -606,7 +606,7 @@ const InteractiveDemo = () => {
     <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-600">
       <button
         onClick={toggle}
-        className="px-6 py-3 bg-white text-purple-600 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
+        className="px-6 py-3 bg-white text-accent-600 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
       >
         {isOpen ? 'Close' : 'Open'} Control Center
       </button>

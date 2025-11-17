@@ -80,7 +80,7 @@ export const BrandLoader = ({
             className="w-full h-full rounded-xl"
           />
         </motion.div>
-        <span className={`${currentSize.text} font-medium text-gray-700`}>
+        <span className={`${currentSize.text} font-medium text-neutral-700`}>
           {displayMessage}
         </span>
       </div>
@@ -104,7 +104,7 @@ export const BrandLoader = ({
             animate="animate"
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           >
-            <Sparkles className="w-4 h-4 text-yellow-400" />
+            <Sparkles className="w-4 h-4 text-warning-400" />
           </motion.div>
         ))}
 

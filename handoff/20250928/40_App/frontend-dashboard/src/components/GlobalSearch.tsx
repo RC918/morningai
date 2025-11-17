@@ -197,7 +197,7 @@ export const GlobalSearch = (): React.ReactElement => {
               autoFocus
               haptic="none"
             />
-            <div className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+            <div className="flex items-center gap-1 text-xs text-neutral-600 bg-neutral-100 px-2 py-1 rounded">
               <Command className="w-3 h-3" />
               <span>K</span>
             </div>
@@ -206,13 +206,13 @@ export const GlobalSearch = (): React.ReactElement => {
 
         <div className="max-h-96 overflow-y-auto p-2">
           {!query && recentSearches.length > 0 && (
-            <div className="px-2 py-1 text-xs font-medium text-gray-600 uppercase">
+            <div className="px-2 py-1 text-xs font-medium text-neutral-600 uppercase">
               {t('search.recentSearches')}
             </div>
           )}
 
           {displayResults.length === 0 && query && (
-            <div className="p-8 text-center text-gray-600">
+            <div className="p-8 text-center text-neutral-600">
               <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="text-sm">{t('search.noResults')}</p>
               <p className="text-xs mt-1">{t('search.tryDifferentKeywords')}</p>
@@ -229,11 +229,11 @@ export const GlobalSearch = (): React.ReactElement => {
                 onClick={() => handleSelect(item)}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors ${
-                  isSelected ? 'bg-primary-50 border-primary-200' : 'hover:bg-gray-50'
+                  isSelected ? 'bg-primary-50 border-primary-200' : 'hover:bg-neutral-50'
                 }`}
               >
-                <div className={`p-2 rounded-md ${isSelected ? 'bg-primary-100' : 'bg-gray-100'}`}>
-                  <Icon className={`w-4 h-4 ${isSelected ? 'text-primary-600' : 'text-gray-600'}`} />
+                <div className={`p-2 rounded-md ${isSelected ? 'bg-primary-100' : 'bg-neutral-100'}`}>
+                  <Icon className={`w-4 h-4 ${isSelected ? 'text-primary-600' : 'text-neutral-600'}`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -243,20 +243,20 @@ export const GlobalSearch = (): React.ReactElement => {
                     </Badge>
                   </div>
                   {item.description && (
-                    <p className="text-xs text-gray-600 truncate mt-0.5">
+                    <p className="text-xs text-neutral-600 truncate mt-0.5">
                       {item.description}
                     </p>
                   )}
                 </div>
                 {isSelected && (
-                  <ArrowRight className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                  <ArrowRight className="w-4 h-4 text-neutral-600 flex-shrink-0" />
                 )}
               </button>
             )
           })}
         </div>
 
-        <div className="border-t px-4 py-2 text-xs text-gray-600 flex items-center justify-between bg-gray-50">
+        <div className="border-t px-4 py-2 text-xs text-neutral-600 flex items-center justify-between bg-neutral-50">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 bg-white border rounded">↑↓</kbd>

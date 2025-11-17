@@ -25,10 +25,10 @@ const ModalDemo = ({ size = 'md' as ModalSize, showClose = true }) => {
       showClose,
       children: (
         <div className="space-y-4">
-          <p className="text-gray-700 dark:text-gray-300">
+          <p className="text-neutral-700 dark:text-neutral-300">
             This modal features:
           </p>
-          <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-400">
+          <ul className="list-disc list-inside space-y-2 text-neutral-600 dark:text-neutral-400">
             <li>Spring-based animations (stiffness: 500, damping: 30)</li>
             <li>Backdrop blur effect</li>
             <li>Rounded corners (iOS style)</li>
@@ -107,7 +107,7 @@ export const LongContent: Story = {
             children: (
               <div className="space-y-4">
                 {Array.from({ length: 20 }).map((_, i) => (
-                  <p key={i} className="text-gray-700 dark:text-gray-300">
+                  <p key={i} className="text-neutral-700 dark:text-neutral-300">
                     Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
                     Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                   </p>

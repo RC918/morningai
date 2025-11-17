@@ -339,9 +339,9 @@ export const PasswordStrength: Story = {
 
     const getStrengthColor = () => {
       switch (strength) {
-        case 'weak': return 'bg-red-500';
-        case 'medium': return 'bg-yellow-500';
-        case 'strong': return 'bg-green-500';
+        case 'weak': return 'bg-error-500';
+        case 'medium': return 'bg-warning-500';
+        case 'strong': return 'bg-success-500';
       }
     };
 
@@ -361,9 +361,9 @@ export const PasswordStrength: Story = {
           helperText={`Password strength: ${strength}`}
         />
         <div className="flex gap-1">
-          <div className={`h-1 flex-1 rounded-full ${password.length > 0 ? getStrengthColor() : 'bg-gray-200'}`} />
-          <div className={`h-1 flex-1 rounded-full ${strength !== 'weak' ? getStrengthColor() : 'bg-gray-200'}`} />
-          <div className={`h-1 flex-1 rounded-full ${strength === 'strong' ? getStrengthColor() : 'bg-gray-200'}`} />
+          <div className={`h-1 flex-1 rounded-full ${password.length > 0 ? getStrengthColor() : 'bg-neutral-200'}`} />
+          <div className={`h-1 flex-1 rounded-full ${strength !== 'weak' ? getStrengthColor() : 'bg-neutral-200'}`} />
+          <div className={`h-1 flex-1 rounded-full ${strength === 'strong' ? getStrengthColor() : 'bg-neutral-200'}`} />
         </div>
       </div>
     );

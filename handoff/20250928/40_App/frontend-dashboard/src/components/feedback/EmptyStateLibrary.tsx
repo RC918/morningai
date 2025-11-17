@@ -87,45 +87,45 @@ export const EmptyStateLibrary = ({
   const variants = {
     default: {
       icon: CustomIcon || Inbox,
-      bgColor: 'bg-gray-100',
-      iconColor: 'text-gray-600',
-      titleColor: 'text-gray-900',
-      descColor: 'text-gray-600'
+      bgColor: 'bg-neutral-100',
+      iconColor: 'text-neutral-600',
+      titleColor: 'text-neutral-900',
+      descColor: 'text-neutral-600'
     },
     search: {
       icon: CustomIcon || Search,
-      bgColor: 'bg-blue-50',
-      iconColor: 'text-blue-500',
-      titleColor: 'text-blue-900',
-      descColor: 'text-blue-600'
+      bgColor: 'bg-info-50',
+      iconColor: 'text-info-500',
+      titleColor: 'text-info-900',
+      descColor: 'text-info-600'
     },
     noData: {
       icon: CustomIcon || Database,
-      bgColor: 'bg-purple-50',
-      iconColor: 'text-purple-500',
-      titleColor: 'text-purple-900',
-      descColor: 'text-purple-600'
+      bgColor: 'bg-accent-50',
+      iconColor: 'text-accent-500',
+      titleColor: 'text-accent-900',
+      descColor: 'text-accent-600'
     },
     error: {
       icon: CustomIcon || XCircle,
-      bgColor: 'bg-red-50',
-      iconColor: 'text-red-500',
-      titleColor: 'text-red-900',
-      descColor: 'text-red-600'
+      bgColor: 'bg-error-50',
+      iconColor: 'text-error-500',
+      titleColor: 'text-error-900',
+      descColor: 'text-error-600'
     },
     success: {
       icon: CustomIcon || CheckCircle,
-      bgColor: 'bg-green-50',
-      iconColor: 'text-green-500',
-      titleColor: 'text-green-900',
-      descColor: 'text-green-600'
+      bgColor: 'bg-success-50',
+      iconColor: 'text-success-500',
+      titleColor: 'text-success-900',
+      descColor: 'text-success-600'
     },
     warning: {
       icon: CustomIcon || AlertCircle,
-      bgColor: 'bg-yellow-50',
-      iconColor: 'text-yellow-500',
-      titleColor: 'text-yellow-900',
-      descColor: 'text-yellow-600'
+      bgColor: 'bg-warning-50',
+      iconColor: 'text-warning-500',
+      titleColor: 'text-warning-900',
+      descColor: 'text-warning-600'
     },
     loading: {
       icon: CustomIcon || Clock,

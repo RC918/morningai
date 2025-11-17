@@ -18,7 +18,7 @@ export function Spinner({ className, size = 'md' }: SpinnerProps): React.ReactEl
   return (
     <div
       className={cn(
-        'spinner border-2 border-gray-200 border-t-primary rounded-full',
+        'spinner border-2 border-neutral-200 border-t-primary rounded-full',
         sizeClasses[size],
         className
       )}
@@ -50,7 +50,7 @@ export function Skeleton({ className, variant = 'default' }: SkeletonProps): Rea
   return (
     <div
       className={cn(
-        'skeleton rounded-md bg-gray-200 dark:bg-gray-700',
+        'skeleton rounded-md bg-neutral-200 dark:bg-neutral-700',
         variants[variant],
         className
       )}
@@ -83,7 +83,7 @@ interface ProgressBarProps {
 export function ProgressBar({ value = 0, className, showLabel = false }: ProgressBarProps): React.ReactElement {
   return (
     <div className={cn('w-full', className)}>
-      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+      <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 overflow-hidden">
         <div
           className="progress-fill bg-primary h-full rounded-full transition-all duration-500"
           style={{ width: `${Math.min(100, Math.max(0, value))}%` }}

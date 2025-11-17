@@ -56,8 +56,8 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+    <div className="min-h-screen bg-white dark:bg-neutral-900">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <LazyImage 
@@ -66,7 +66,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
               className="w-10 h-10 rounded-lg"
               style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
             />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">
+            <span className="text-xl font-bold text-neutral-900 dark:text-white">
               {t('app.name')}
             </span>
           </div>
@@ -77,12 +77,12 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
             <AppleButton
               variant="ghost"
               onClick={onNavigateToLogin}
-              className="text-gray-600 dark:text-gray-600"
+              className="text-neutral-600 dark:text-neutral-600"
             >
               {t('landing.nav.login')}
             </AppleButton>
             <AppleButton
-              className="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900"
+              className="bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900"
               onClick={handleGetStarted}
             >
               {t('landing.nav.getStarted')}
@@ -100,7 +100,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
         <section
           id="sso-login"
           ref={ssoRef}
-          className="py-20 bg-white dark:bg-gray-900"
+          className="py-20 bg-white dark:bg-neutral-900"
         >
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
@@ -109,10 +109,10 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
               animate={ssoInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             >
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white mb-4">
                 {t('landing.sso.title')}
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-600">
+              <p className="text-lg text-neutral-600 dark:text-neutral-600">
                 {t('landing.sso.subtitle')}
               </p>
             </motion.div>
@@ -122,7 +122,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
               animate={ssoInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
               transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Card className="border-gray-200 dark:border-gray-700">
+              <Card className="border-neutral-200 dark:border-neutral-700">
                 <CardContent className="p-8 space-y-4">
                   <motion.div
                     whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
@@ -171,10 +171,10 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
 
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+                      <div className="w-full border-t border-neutral-300 dark:border-neutral-600" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="px-4 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-600">
+                      <span className="px-4 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-600">
                         {t('landing.sso.or')}
                       </span>
                     </div>
@@ -196,7 +196,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
                 </CardContent>
               </Card>
 
-              <p className="text-center text-sm text-gray-600 dark:text-gray-600 mt-6">
+              <p className="text-center text-sm text-neutral-600 dark:text-neutral-600 mt-6">
                 {t('landing.sso.terms')}
               </p>
             </motion.div>
@@ -206,7 +206,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
         <section
           id="features"
           ref={featuresRef}
-          className="py-20 bg-gray-50 dark:bg-gray-800/50"
+          className="py-20 bg-neutral-50 dark:bg-neutral-800/50"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
@@ -215,10 +215,10 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
               animate={featuresInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             >
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white mb-4">
                 {t('landing.features.title')}
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-600 max-w-2xl mx-auto">
+              <p className="text-lg text-neutral-600 dark:text-neutral-600 max-w-2xl mx-auto">
                 {t('landing.features.subtitle')}
               </p>
             </motion.div>
@@ -250,19 +250,19 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
                   }}
                   whileHover={prefersReducedMotion ? {} : { y: -8 }}
                 >
-                  <Card className="h-full border-gray-200 dark:border-gray-700">
+                  <Card className="h-full border-neutral-200 dark:border-neutral-700">
                     <CardContent className="p-8">
                       <motion.div
-                        className="w-12 h-12 mx-auto rounded-lg bg-gray-900 dark:bg-white flex items-center justify-center mb-4"
+                        className="w-12 h-12 mx-auto rounded-lg bg-neutral-900 dark:bg-white flex items-center justify-center mb-4"
                         whileHover={prefersReducedMotion ? {} : { rotate: 360 }}
                         transition={{ duration: 0.6 }}
                       >
-                        <div className="w-6 h-6 bg-white dark:bg-gray-900 rounded-full" />
+                        <div className="w-6 h-6 bg-white dark:bg-neutral-900 rounded-full" />
                       </motion.div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                      <h3 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
                         {feature.title}
                       </h3>
-                      <p className="text-gray-600 dark:text-gray-600">
+                      <p className="text-neutral-600 dark:text-neutral-600">
                         {feature.description}
                       </p>
                     </CardContent>
@@ -273,7 +273,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
           </div>
         </section>
 
-        <footer className="py-12 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+        <footer className="py-12 bg-neutral-50 dark:bg-neutral-800/50 border-t border-neutral-200 dark:border-neutral-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex items-center gap-3">
@@ -283,16 +283,16 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
                   className="w-10 h-10 rounded-lg shadow-sm"
                   style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
                 />
-                <span className="text-lg font-bold text-gray-900 dark:text-white">
+                <span className="text-lg font-bold text-neutral-900 dark:text-white">
                   {t('app.name')}
                 </span>
               </div>
               
               <div className="text-center md:text-right">
-                <p className="text-sm text-gray-600 dark:text-gray-600">
+                <p className="text-sm text-neutral-600 dark:text-neutral-600">
                   {t('app.copyright')}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-600 mt-1">
+                <p className="text-sm text-neutral-600 dark:text-neutral-600 mt-1">
                   {t('app.motto')}
                 </p>
               </div>

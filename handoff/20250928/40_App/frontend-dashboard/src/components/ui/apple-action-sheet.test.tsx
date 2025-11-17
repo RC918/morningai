@@ -330,7 +330,7 @@ describe('AppleActionSheet', () => {
       await waitFor(() => {
         const deleteButton = screen.getByText('Delete').closest('button')
         expect(deleteButton).toBeInTheDocument()
-        expect(deleteButton).toHaveClass('text-red-600', 'dark:text-red-500')
+        expect(deleteButton).toHaveClass('text-error-600', 'dark:text-error-500')
       })
     })
 

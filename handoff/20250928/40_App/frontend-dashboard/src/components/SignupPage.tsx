@@ -136,7 +136,7 @@ const SignupPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
       <motion.div
         style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}
         initial={prefersReducedMotion ? {} : { opacity: 0, x: 20 }}
@@ -171,9 +171,9 @@ const SignupPage = () => {
             </motion.div>
           </Link>
           <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('app.name')}</h1>
+            <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
           </Link>
-          <p className="text-gray-600 dark:text-gray-600 mt-2">{t('app.tagline')}</p>
+          <p className="text-neutral-600 dark:text-neutral-600 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? undefined : itemVariants}>
@@ -191,14 +191,14 @@ const SignupPage = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   className="text-center py-8"
                 >
-                  <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  <CheckCircle className="w-16 h-16 text-success-500 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
                     {t('auth.signup.successTitle', '註冊成功！')}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-600 mb-4">
+                  <p className="text-neutral-600 dark:text-neutral-600 mb-4">
                     {t('auth.signup.successMessage', '請檢查您的電子郵件以驗證帳號。')}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-neutral-500">
                     {t('auth.signup.redirecting', '正在跳轉到登入頁面...')}
                   </p>
                 </motion.div>
@@ -301,7 +301,7 @@ const SignupPage = () => {
                         <Separator className="w-full" />
                       </div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">
+                        <span className="bg-white dark:bg-neutral-800 px-2 text-neutral-500">
                           {t('auth.signup.orSignupWith', '或使用以下方式註冊')}
                         </span>
                       </div>
@@ -364,9 +364,9 @@ const SignupPage = () => {
                     </div>
                   </div>
 
-                  <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-600">
+                  <div className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-600">
                     {t('auth.signup.alreadyHaveAccount', '已經有帳號了？')}{' '}
-                    <Link to="/login" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                    <Link to="/login" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium">
                       {t('auth.signup.loginLink', '登入')}
                     </Link>
                   </div>
@@ -377,7 +377,7 @@ const SignupPage = () => {
         </motion.div>
 
         <motion.div
-          className="text-center mt-8 text-sm text-gray-600 dark:text-gray-600"
+          className="text-center mt-8 text-sm text-neutral-600 dark:text-neutral-600"
           variants={prefersReducedMotion ? undefined : itemVariants}
         >
           <p>{t('app.copyright')}</p>

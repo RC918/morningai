@@ -99,7 +99,7 @@ export function SUSQuestionnaire({ onComplete, participantId, sessionId }: SUSQu
       <Card className="w-full max-w-4xl mx-auto">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-6 w-6 text-green-600" />
+            <CheckCircle2 className="h-6 w-6 text-success-600" />
             SUS Questionnaire Complete
           </CardTitle>
           <CardDescription>

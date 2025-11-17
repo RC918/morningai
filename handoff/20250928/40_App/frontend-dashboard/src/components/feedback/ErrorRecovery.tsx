@@ -25,8 +25,8 @@ export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }: Err
     >
       <Card className="max-w-md mx-auto">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Icon className="w-8 h-8 text-red-600" />
+          <div className="w-16 h-16 bg-error-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Icon className="w-8 h-8 text-error-600" />
           </div>
           <CardTitle>{errorInfo.title}</CardTitle>
           <CardDescription>{errorInfo.description}</CardDescription>
@@ -47,7 +47,7 @@ export const ErrorRecovery = ({ error, onRetry, onDismiss, className = '' }: Err
           </div>
           
           {error?.requestId && (
-            <p className="text-xs text-gray-600 mt-4 text-center">
+            <p className="text-xs text-neutral-600 mt-4 text-center">
               {t('feedback.errorId', { id: error.requestId })}
             </p>
           )}

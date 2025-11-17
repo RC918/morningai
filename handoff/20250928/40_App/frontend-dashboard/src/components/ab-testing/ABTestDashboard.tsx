@@ -233,18 +233,18 @@ export function ABTestDashboard() {
                       const isWinner = results.significance?.winner === variant.variant_id
                       
                       return (
-                        <Card key={variant.variant_id} className={isWinner ? 'border-green-500 border-2' : ''}>
+                        <Card key={variant.variant_id} className={isWinner ? 'border-success-500 border-2' : ''}>
                           <CardHeader>
                             <div className="flex justify-between items-start">
                               <div>
                                 <CardTitle className="text-base flex items-center gap-2">
                                   {variant.variant_name}
-                                  {isWinner && <Trophy className="h-4 w-4 text-yellow-500" />}
+                                  {isWinner && <Trophy className="h-4 w-4 text-warning-500" />}
                                 </CardTitle>
                                 <CardDescription>{variant.variant_id}</CardDescription>
                               </div>
                               {isWinner && (
-                                <Badge variant="default" className="bg-green-500">
+                                <Badge variant="default" className="bg-success-500">
                                   Winner
                                 </Badge>
                               )}
@@ -265,9 +265,9 @@ export function ABTestDashboard() {
                             <div>
                               <div className="text-sm text-muted-foreground mb-2">Conversion Rate</div>
                               <div className="flex items-center gap-2">
-                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div className="flex-1 bg-neutral-200 rounded-full h-2">
                                   <div 
-                                    className="bg-blue-500 h-2 rounded-full transition-all"
+                                    className="bg-primary-500 h-2 rounded-full transition-all"
                                     style={{ width: `${variant.conversion_rate}%` }}
                                   />
                                 </div>
@@ -278,9 +278,9 @@ export function ABTestDashboard() {
                             <div>
                               <div className="text-sm text-muted-foreground mb-2">Click Rate</div>
                               <div className="flex items-center gap-2">
-                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div className="flex-1 bg-neutral-200 rounded-full h-2">
                                   <div 
-                                    className="bg-green-500 h-2 rounded-full transition-all"
+                                    className="bg-success-500 h-2 rounded-full transition-all"
                                     style={{ width: `${variant.click_rate}%` }}
                                   />
                                 </div>
@@ -332,7 +332,7 @@ export function ABTestDashboard() {
                           </div>
                           <div>
                             <div className="text-sm text-muted-foreground">Lift</div>
-                            <div className="text-lg font-bold text-green-600">+{results.significance.lift}</div>
+                            <div className="text-lg font-bold text-success-600">+{results.significance.lift}</div>
                           </div>
                         </div>
 

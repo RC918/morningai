@@ -26,10 +26,10 @@ const SheetDemo = ({ size = 'md' as SheetSize, showClose = true, showHandle = tr
       showHandle,
       children: (
         <div className="space-y-4">
-          <p className="text-gray-700 dark:text-gray-300">
+          <p className="text-neutral-700 dark:text-neutral-300">
             This bottom sheet features:
           </p>
-          <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-400">
+          <ul className="list-disc list-inside space-y-2 text-neutral-600 dark:text-neutral-400">
             <li>Drag-to-dismiss gesture (swipe down)</li>
             <li>Spring-based animations</li>
             <li>Rounded top corners (iOS style)</li>
@@ -118,7 +118,7 @@ export const ScrollableContent: Story = {
             children: (
               <div className="space-y-4">
                 {Array.from({ length: 30 }).map((_, i) => (
-                  <p key={i} className="text-gray-700 dark:text-gray-300">
+                  <p key={i} className="text-neutral-700 dark:text-neutral-300">
                     Item {i + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
                   </p>
                 ))}
@@ -163,8 +163,8 @@ export const ActionSheet: Story = {
                     key={i}
                     className={`w-full p-4 rounded-xl text-left transition-colors ${
                       action.destructive
-                        ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                        ? 'hover:bg-error-50 dark:hover:bg-error-900/20 text-error-600 dark:text-error-400'
+                        : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
                     }`}
                     onClick={() => {
                       console.log(action.label)
