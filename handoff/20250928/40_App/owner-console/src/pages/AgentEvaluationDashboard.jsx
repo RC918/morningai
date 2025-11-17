@@ -141,15 +141,15 @@ const AgentEvaluationDashboard = () => {
         <div>
           <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
             <Activity className="w-8 h-8 text-primary-600" />
-            Agent Evaluation Dashboard
+            {t('agentEvaluation.title', 'Agent Evaluation Dashboard')}
           </h1>
           <p className="text-neutral-600 dark:text-neutral-400 mt-1">
-            Monitor AI agent performance metrics and evaluation results
+            {t('agentEvaluation.subtitle', 'Monitor AI agent performance metrics and evaluation results')}
           </p>
         </div>
         <Button onClick={loadEvaluationData} variant="outline" disabled={loading}>
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
+          {t('common.refresh', 'Refresh')}
         </Button>
       </div>
 
@@ -157,7 +157,7 @@ const AgentEvaluationDashboard = () => {
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('common.error', 'Error')}</AlertTitle>
           <AlertDescription>
             {error}
             <Button 
@@ -166,7 +166,7 @@ const AgentEvaluationDashboard = () => {
               size="sm" 
               className="ml-4"
             >
-              Retry
+              {t('common.retry', 'Retry')}
             </Button>
           </AlertDescription>
         </Alert>
@@ -178,7 +178,7 @@ const AgentEvaluationDashboard = () => {
           {/* Planner Accuracy */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Planner Accuracy</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.plannerAccuracy', 'Planner Accuracy')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -186,10 +186,10 @@ const AgentEvaluationDashboard = () => {
                 {formatPercentage(metrics.metrics.planner_accuracy)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Target: {formatPercentage(metrics.targets.planner_accuracy)}
+                {t('agentEvaluation.target', 'Target')}: {formatPercentage(metrics.targets.planner_accuracy)}
               </p>
               <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.planner_accuracy, metrics.targets.planner_accuracy)}`}>
-                {metrics.metrics.planner_accuracy >= metrics.targets.planner_accuracy ? 'On Target' : 'Below Target'}
+                {metrics.metrics.planner_accuracy >= metrics.targets.planner_accuracy ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
               </Badge>
             </CardContent>
           </Card>
@@ -197,7 +197,7 @@ const AgentEvaluationDashboard = () => {
           {/* Self-Healing Rate */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Self-Healing Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.selfHealingRate', 'Self-Healing Rate')}</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -205,10 +205,10 @@ const AgentEvaluationDashboard = () => {
                 {formatPercentage(metrics.metrics.self_healing_rate)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Target: {formatPercentage(metrics.targets.self_healing_rate)}
+                {t('agentEvaluation.target', 'Target')}: {formatPercentage(metrics.targets.self_healing_rate)}
               </p>
               <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.self_healing_rate, metrics.targets.self_healing_rate)}`}>
-                {metrics.metrics.self_healing_rate >= metrics.targets.self_healing_rate ? 'On Target' : 'Below Target'}
+                {metrics.metrics.self_healing_rate >= metrics.targets.self_healing_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
               </Badge>
             </CardContent>
           </Card>
@@ -216,7 +216,7 @@ const AgentEvaluationDashboard = () => {
           {/* Completion Rate */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.completionRate', 'Completion Rate')}</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -224,10 +224,10 @@ const AgentEvaluationDashboard = () => {
                 {formatPercentage(metrics.metrics.completion_rate)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Target: {formatPercentage(metrics.targets.completion_rate)}
+                {t('agentEvaluation.target', 'Target')}: {formatPercentage(metrics.targets.completion_rate)}
               </p>
               <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.completion_rate, metrics.targets.completion_rate)}`}>
-                {metrics.metrics.completion_rate >= metrics.targets.completion_rate ? 'On Target' : 'Below Target'}
+                {metrics.metrics.completion_rate >= metrics.targets.completion_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
               </Badge>
             </CardContent>
           </Card>
@@ -235,7 +235,7 @@ const AgentEvaluationDashboard = () => {
           {/* CI Pass Rate */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">CI Pass Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.ciPassRate', 'CI Pass Rate')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -243,10 +243,10 @@ const AgentEvaluationDashboard = () => {
                 {formatPercentage(metrics.metrics.ci_pass_rate)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Target: {formatPercentage(metrics.targets.ci_pass_rate)}
+                {t('agentEvaluation.target', 'Target')}: {formatPercentage(metrics.targets.ci_pass_rate)}
               </p>
               <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.ci_pass_rate, metrics.targets.ci_pass_rate)}`}>
-                {metrics.metrics.ci_pass_rate >= metrics.targets.ci_pass_rate ? 'On Target' : 'Below Target'}
+                {metrics.metrics.ci_pass_rate >= metrics.targets.ci_pass_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
               </Badge>
             </CardContent>
           </Card>
@@ -258,10 +258,10 @@ const AgentEvaluationDashboard = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Evaluation History
+            {t('agentEvaluation.history.title', 'Evaluation History')}
           </CardTitle>
           <CardDescription>
-            Recent agent evaluation runs from GitHub Actions
+            {t('agentEvaluation.history.subtitle', 'Recent agent evaluation runs from GitHub Actions')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -269,10 +269,10 @@ const AgentEvaluationDashboard = () => {
             <div className="py-12 text-center">
               <Activity className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
               <p className="text-neutral-600 dark:text-neutral-400">
-                No evaluation results available yet
+                {t('agentEvaluation.history.noResults', 'No evaluation results available yet')}
               </p>
               <p className="text-sm text-neutral-500 dark:text-neutral-500 mt-2">
-                Evaluations run weekly via GitHub Actions
+                {t('agentEvaluation.history.weeklyRuns', 'Evaluations run weekly via GitHub Actions')}
               </p>
             </div>
           ) : (
@@ -295,24 +295,24 @@ const AgentEvaluationDashboard = () => {
                         </span>
                       </div>
                       <Badge variant="outline" className="text-xs">
-                        Run #{evaluation.run_id}
+                        {t('agentEvaluation.history.runNumber', 'Run #{{id}}', { id: evaluation.run_id })}
                       </Badge>
                     </div>
                     <div className="mt-2 grid grid-cols-4 gap-4 text-sm">
                       <div>
-                        <span className="text-neutral-500">Tasks:</span>
+                        <span className="text-neutral-500">{t('agentEvaluation.history.tasks', 'Tasks')}:</span>
                         <span className="ml-1 font-medium">{evaluation.total_tasks}</span>
                       </div>
                       <div>
-                        <span className="text-neutral-500">Completed:</span>
+                        <span className="text-neutral-500">{t('agentEvaluation.history.completed', 'Completed')}:</span>
                         <span className="ml-1 font-medium">{evaluation.completed}</span>
                       </div>
                       <div>
-                        <span className="text-neutral-500">PRs:</span>
+                        <span className="text-neutral-500">{t('agentEvaluation.history.prs', 'PRs')}:</span>
                         <span className="ml-1 font-medium">{evaluation.pr_created}</span>
                       </div>
                       <div>
-                        <span className="text-neutral-500">CI Passed:</span>
+                        <span className="text-neutral-500">{t('agentEvaluation.history.ciPassed', 'CI Passed')}:</span>
                         <span className="ml-1 font-medium">{evaluation.ci_passed}</span>
                       </div>
                     </div>
@@ -339,7 +339,7 @@ const AgentEvaluationDashboard = () => {
           <CardContent className="py-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-neutral-600 dark:text-neutral-400">
-                Last evaluation:
+                {t('agentEvaluation.lastEvaluation', 'Last evaluation')}:
               </span>
               <span className="font-medium">
                 {formatDate(metrics.last_evaluation)}
