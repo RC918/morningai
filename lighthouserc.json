@@ -6,6 +6,7 @@
         "/login"
       ],
       "numberOfRuns": 3,
+      "puppeteerScript": "handoff/20250928/40_App/frontend-dashboard/lhci-puppeteer-dark-mode.js",
       "settings": {
         "preset": "desktop",
         "formFactor": "desktop",
