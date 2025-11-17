@@ -6,21 +6,27 @@ Validates that Row-Level Security (RLS) policies are correctly enforcing
 tenant isolation at runtime. This script performs actual database queries
 to verify that users can only access data from their own tenant.
 
+SAFETY: By default, this script runs in EPHEMERAL mode - all test data is
+created within a transaction that is rolled back at the end. No data is
+persisted unless you explicitly use --no-rollback with production override flags.
+
 Usage:
-    python scripts/verify_rls_runtime.py
-    python scripts/verify_rls_runtime.py --verbose
+    python scripts/verify_rls_runtime.py                    # Safe: ephemeral mode
+    python scripts/verify_rls_runtime.py --verbose          # Safe: ephemeral + verbose
+    python scripts/verify_rls_runtime.py --dry-run          # Safe: no writes at all
     python scripts/verify_rls_runtime.py --table agent_tasks
-    python scripts/verify_rls_runtime.py --all-tables
+    
+    python scripts/verify_rls_runtime.py --no-rollback --allow-production --confirm <dbname>
 
 Requirements:
     - DATABASE_URL environment variable set
     - PostgreSQL database with RLS policies enabled
-    - Test tenants and users created
 
 Exit Codes:
     0 - All RLS checks passed
     1 - One or more RLS checks failed
     2 - Configuration or connection error
+    3 - Production safety check failed
 """
 
 import os
@@ -31,6 +37,7 @@ from psycopg2.extras import RealDictCursor
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
+from urllib.parse import urlparse
 
 
 class TestResult(Enum):
@@ -75,15 +82,50 @@ class RLSVerifier:
         "embeddings",
     ]
     
-    def __init__(self, database_url: str, verbose: bool = False):
+    def __init__(self, database_url: str, verbose: bool = False, dry_run: bool = False, 
+                 no_rollback: bool = False, allow_production: bool = False, 
+                 confirm_dbname: Optional[str] = None):
         self.database_url = database_url
         self.verbose = verbose
+        self.dry_run = dry_run
+        self.no_rollback = no_rollback
+        self.allow_production = allow_production
+        self.confirm_dbname = confirm_dbname
         self.conn = None
         self.tests: List[RLSTest] = []
         self.passed = 0
         self.failed = 0
         self.skipped = 0
         self.errors = 0
+        self.is_production_like = False
+        self.current_database = None
+        self.current_user = None
+        self.current_host = None
+    
+    def detect_production_environment(self) -> Tuple[bool, str]:
+        """Detect if database appears to be production-like"""
+        try:
+            parsed = urlparse(self.database_url)
+            host = parsed.hostname or "unknown"
+            dbname = parsed.path.lstrip('/') if parsed.path else "unknown"
+            
+            self.current_host = host
+            self.current_database = dbname
+            
+            local_hosts = {'localhost', '127.0.0.1', '::1'}
+            dev_keywords = {'dev', 'local', 'staging', 'test'}
+            
+            is_local_host = host in local_hosts
+            has_dev_keyword = any(kw in host.lower() for kw in dev_keywords) or \
+                             any(kw in dbname.lower() for kw in dev_keywords)
+            
+            if is_local_host or has_dev_keyword:
+                return False, f"Detected development environment (host={host}, db={dbname})"
+            else:
+                return True, f"Detected PRODUCTION-LIKE environment (host={host}, db={dbname})"
+                
+        except Exception as e:
+            return True, f"Could not parse DATABASE_URL, assuming production for safety: {e}"
     
     def connect(self) -> bool:
         """Establish database connection"""
@@ -93,8 +135,15 @@ class RLSVerifier:
                 cursor_factory=RealDictCursor
             )
             self.conn.autocommit = False
+            
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT current_database(), current_user")
+                result = cur.fetchone()
+                self.current_database = result['current_database']
+                self.current_user = result['current_user']
+            
             if self.verbose:
-                print(f"✅ Connected to database")
+                print(f"✅ Connected to database: {self.current_database} as {self.current_user}")
             return True
         except Exception as e:
             print(f"❌ Failed to connect to database: {e}")
@@ -108,13 +157,13 @@ class RLSVerifier:
                 print(f"✅ Disconnected from database")
     
     def setup_test_data(self) -> bool:
-        """Create test tenants, users, and data"""
+        """Create test tenants, users, and data (within transaction, no commit unless no_rollback)"""
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
                     INSERT INTO tenants (id, name) VALUES 
-                        (%s, 'Test Tenant A'),
-                        (%s, 'Test Tenant B')
+                        (%s, 'Test Tenant A (RLS Verify)'),
+                        (%s, 'Test Tenant B (RLS Verify)')
                     ON CONFLICT (id) DO NOTHING
                 """, (self.TENANT_A_ID, self.TENANT_B_ID))
                 
@@ -132,10 +181,9 @@ class RLSVerifier:
                     ON CONFLICT (task_id) DO NOTHING
                 """, (self.TENANT_A_ID, self.TENANT_B_ID))
                 
-                self.conn.commit()
                 
                 if self.verbose:
-                    print(f"✅ Test data setup complete")
+                    print(f"✅ Test data setup complete (in transaction)")
                 return True
         except Exception as e:
             self.conn.rollback()
@@ -143,9 +191,15 @@ class RLSVerifier:
             return False
     
     def cleanup_test_data(self):
-        """Remove test data"""
+        """Remove test data (only if no_rollback was used, otherwise rely on rollback)"""
+        if not self.no_rollback:
+            if self.verbose:
+                print(f"ℹ️  Skipping explicit cleanup (will rollback transaction)")
+            return
+            
         try:
             with self.conn.cursor() as cur:
+                # Delete agent_tasks
                 cur.execute("""
                     DELETE FROM agent_tasks 
                     WHERE task_id IN (
@@ -154,11 +208,20 @@ class RLSVerifier:
                     )
                 """)
                 
+                cur.execute("""
+                    DELETE FROM users 
+                    WHERE email LIKE '%@rls-verify.test'
+                """)
+                
+                cur.execute("""
+                    DELETE FROM tenants 
+                    WHERE name LIKE '%RLS Verify%'
+                """)
                 
                 self.conn.commit()
                 
                 if self.verbose:
-                    print(f"✅ Test data cleanup complete")
+                    print(f"✅ Test data cleanup complete (persistent mode)")
         except Exception as e:
             self.conn.rollback()
             if self.verbose:
@@ -343,11 +406,37 @@ class RLSVerifier:
             ),
         ]
     
-    def run_all_tests(self, table: Optional[str] = None):
-        """Run all RLS verification tests"""
+    def print_banner(self):
+        """Print safety banner with database info"""
+        mode = "DRY-RUN" if self.dry_run else ("PERSISTENT" if self.no_rollback else "EPHEMERAL")
+        
         print("\n" + "="*70)
         print("RLS RUNTIME VERIFICATION")
         print("="*70)
+        print(f"Mode:     {mode}")
+        print(f"Database: {self.current_database}")
+        print(f"User:     {self.current_user}")
+        print(f"Host:     {self.current_host}")
+        
+        if self.is_production_like:
+            print(f"⚠️  WARNING: PRODUCTION-LIKE ENVIRONMENT DETECTED")
+            if not self.allow_production:
+                print(f"❌ BLOCKED: Use --allow-production --confirm {self.current_database} to override")
+        else:
+            print(f"✅ Development environment detected")
+        
+        if self.dry_run:
+            print(f"ℹ️  DRY-RUN: No test data will be created")
+        elif not self.no_rollback:
+            print(f"✅ SAFE: All changes will be rolled back (ephemeral mode)")
+        else:
+            print(f"⚠️  PERSISTENT: Changes will be committed to database")
+        
+        print("="*70)
+    
+    def run_all_tests(self, table: Optional[str] = None):
+        """Run all RLS verification tests"""
+        self.print_banner()
         
         tables_to_test = [table] if table else self.RLS_TABLES
         
@@ -423,7 +512,8 @@ class RLSVerifier:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Verify RLS policies are correctly enforcing tenant isolation at runtime"
+        description="Verify RLS policies are correctly enforcing tenant isolation at runtime",
+        epilog="SAFETY: By default, runs in ephemeral mode (transaction rollback). Use --no-rollback with production flags to persist data."
     )
     parser.add_argument(
         "--verbose", "-v",
@@ -444,6 +534,25 @@ def main():
         default=os.getenv("DATABASE_URL"),
         help="PostgreSQL connection URL (default: $DATABASE_URL)"
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Check RLS status and policies only, do not create test data"
+    )
+    parser.add_argument(
+        "--no-rollback",
+        action="store_true",
+        help="DANGEROUS: Commit test data instead of rolling back (requires --allow-production)"
+    )
+    parser.add_argument(
+        "--allow-production",
+        action="store_true",
+        help="Allow running against production-like databases (requires --confirm)"
+    )
+    parser.add_argument(
+        "--confirm",
+        help="Confirm database name to allow production override (required with --allow-production)"
+    )
     
     args = parser.parse_args()
     
@@ -452,29 +561,89 @@ def main():
         print("Set DATABASE_URL environment variable or use --database-url flag")
         return 2
     
-    verifier = RLSVerifier(args.database_url, verbose=args.verbose)
+    if args.no_rollback and not args.allow_production:
+        print("❌ ERROR: --no-rollback requires --allow-production and --confirm <dbname>")
+        print("This prevents accidental persistent writes to production databases")
+        return 3
+    
+    if args.allow_production and not args.confirm:
+        print("❌ ERROR: --allow-production requires --confirm <database_name>")
+        print("This double-confirmation prevents accidental production runs")
+        return 3
+    
+    verifier = RLSVerifier(
+        args.database_url, 
+        verbose=args.verbose,
+        dry_run=args.dry_run,
+        no_rollback=args.no_rollback,
+        allow_production=args.allow_production,
+        confirm_dbname=args.confirm
+    )
+    
+    is_prod, prod_message = verifier.detect_production_environment()
+    verifier.is_production_like = is_prod
+    
+    if is_prod and not args.allow_production:
+        print("\n" + "="*70)
+        print("🛑 PRODUCTION SAFETY CHECK FAILED")
+        print("="*70)
+        print(prod_message)
+        print("\nThis script is blocked from running against production-like databases")
+        print("to prevent accidental data modification.")
+        print("\nIf you REALLY need to run this against production:")
+        print(f"  1. Verify the database name: {verifier.current_database}")
+        print(f"  2. Run with: --allow-production --confirm {verifier.current_database}")
+        print(f"  3. Add --no-rollback only if you want to persist test data (NOT recommended)")
+        print("\n⚠️  RECOMMENDED: Run against a staging/dev database instead")
+        print("="*70)
+        return 3
     
     if not verifier.connect():
         return 2
     
+    if args.allow_production and args.confirm != verifier.current_database:
+        print(f"\n❌ ERROR: Confirmation mismatch")
+        print(f"   You confirmed: {args.confirm}")
+        print(f"   Actual database: {verifier.current_database}")
+        print(f"\nUse: --confirm {verifier.current_database}")
+        verifier.disconnect()
+        return 3
+    
     try:
+        if args.dry_run:
+            print("\n🔍 DRY-RUN MODE: Checking RLS status only\n")
+            table = args.table if args.table else None
+            success = verifier.run_all_tests(table=table)
+            return 0 if success else 1
+        
         if not verifier.setup_test_data():
             return 2
         
         table = args.table if args.table else None
         success = verifier.run_all_tests(table=table)
         
-        verifier.cleanup_test_data()
+        if args.no_rollback:
+            verifier.cleanup_test_data()
+            print("\n✅ Test data committed (persistent mode)")
+        else:
+            verifier.conn.rollback()
+            print("\n✅ All changes rolled back (ephemeral mode - no data persisted)")
         
         return 0 if success else 1
         
     except KeyboardInterrupt:
         print("\n\n⚠️  Verification interrupted by user")
+        if not args.no_rollback:
+            verifier.conn.rollback()
+            print("✅ Changes rolled back")
         return 2
     except Exception as e:
         print(f"\n\n🔥 Unexpected error: {e}")
         import traceback
         traceback.print_exc()
+        if not args.no_rollback:
+            verifier.conn.rollback()
+            print("✅ Changes rolled back")
         return 2
     finally:
         verifier.disconnect()
