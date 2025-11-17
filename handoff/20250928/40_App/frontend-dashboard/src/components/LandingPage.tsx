@@ -77,7 +77,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
             <AppleButton
               variant="ghost"
               onClick={onNavigateToLogin}
-              className="text-neutral-600 dark:text-neutral-600"
+              className="text-neutral-600 dark:text-neutral-300"
             >
               {t('landing.nav.login')}
             </AppleButton>
@@ -112,7 +112,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
               <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white mb-4">
                 {t('landing.sso.title')}
               </h2>
-              <p className="text-lg text-neutral-600 dark:text-neutral-600">
+              <p className="text-lg text-neutral-600 dark:text-neutral-300">
                 {t('landing.sso.subtitle')}
               </p>
             </motion.div>
@@ -174,7 +174,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
                       <div className="w-full border-t border-neutral-300 dark:border-neutral-600" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="px-4 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-600">
+                      <span className="px-4 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400">
                         {t('landing.sso.or')}
                       </span>
                     </div>
@@ -196,7 +196,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
                 </CardContent>
               </Card>
 
-              <p className="text-center text-sm text-neutral-600 dark:text-neutral-600 mt-6">
+              <p className="text-center text-sm text-neutral-600 dark:text-neutral-400 mt-6">
                 {t('landing.sso.terms')}
               </p>
             </motion.div>
@@ -218,7 +218,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
               <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white mb-4">
                 {t('landing.features.title')}
               </h2>
-              <p className="text-lg text-neutral-600 dark:text-neutral-600 max-w-2xl mx-auto">
+              <p className="text-lg text-neutral-600 dark:text-neutral-300 max-w-2xl mx-auto">
                 {t('landing.features.subtitle')}
               </p>
             </motion.div>
@@ -262,7 +262,7 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
                       <h3 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
                         {feature.title}
                       </h3>
-                      <p className="text-neutral-600 dark:text-neutral-600">
+                      <p className="text-neutral-600 dark:text-neutral-300">
                         {feature.description}
                       </p>
                     </CardContent>
@@ -289,10 +289,10 @@ const LandingPage = ({ onNavigateToLogin, onSSOLogin }: LandingPageProps) => {
               </div>
               
               <div className="text-center md:text-right">
-                <p className="text-sm text-neutral-600 dark:text-neutral-600">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">
                   {t('app.copyright')}
                 </p>
-                <p className="text-sm text-neutral-600 dark:text-neutral-600 mt-1">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
                   {t('app.motto')}
                 </p>
               </div>
