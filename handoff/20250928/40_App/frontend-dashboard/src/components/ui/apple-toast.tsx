@@ -61,9 +61,9 @@ const toastVariants: Record<ToastVariant, ToastVariantConfig> = {
   },
   warning: {
     icon: AlertTriangle,
-    bgColor: 'bg-orange-500/90 dark:bg-orange-600/90',
+    bgColor: 'bg-warning-500/90 dark:bg-warning-600/90',
     iconColor: 'text-white',
-    borderColor: 'border-orange-400/20'
+    borderColor: 'border-warning-400/20'
   },
   info: {
     icon: Info,
