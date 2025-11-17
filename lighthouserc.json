@@ -6,7 +6,7 @@
         "/login"
       ],
       "numberOfRuns": 3,
-      "puppeteerScript": "lhci-puppeteer-dark-mode.js",
+      "puppeteerScript": "lhci-puppeteer-dark-mode.cjs",
       "puppeteerLaunchOptions": {
         "args": [
           "--no-sandbox",
