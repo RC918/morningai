@@ -14,27 +14,19 @@ module.exports = async (browser, context) => {
   console.log('🌙 Dark mode: start');
   
   try {
-    // Resolve the page object - LHCI can pass either a Page or BrowserContext
-    const isPage = context && typeof context.goto === 'function';
-    let page;
+    // LHCI passes the Page object it will audit as the 'context' parameter
+    // We should use it directly without creating new pages
+    const page = context;
     
-    if (isPage) {
-      // LHCI gave us the Page it will audit - use it directly
-      page = context;
-      console.log('🌙 Using provided Page object');
-    } else if (context?.pages) {
-      // BrowserContext case - get existing pages
-      const pages = await context.pages();
-      page = pages[0] || await context.newPage();
-      console.log('🌙 Resolved Page from BrowserContext');
-    } else if (browser?.newPage) {
-      // Last resort - create new page
-      page = await browser.newPage();
-      console.log('⚠️ Created new Page (may not be audited by LHCI)');
-    } else {
-      console.warn('⚠️ Could not resolve Page from context; aborting dark-mode setup');
+    // Verify we have a valid Page object
+    if (!page || typeof page.goto !== 'function') {
+      console.error('❌ Invalid Page object received from LHCI');
+      console.error('   context type:', typeof context);
+      console.error('   context.goto:', typeof context?.goto);
       return;
     }
+    
+    console.log('🌙 Using LHCI-provided Page object');
     
     // Set theme very early, before any app code runs
     await page.evaluateOnNewDocument(() => {
