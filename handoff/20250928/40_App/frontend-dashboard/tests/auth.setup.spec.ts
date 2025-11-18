@@ -97,7 +97,9 @@ setup('authenticate', async ({ page }) => {
   await page.click('button[type="submit"]');
   console.log('   Submitted login form');
 
-  await page.waitForURL(/\/(dashboard|home|\/)/, { timeout: 15000 });
+  await expect(page).not.toHaveURL(/\/login(\?|$)/, { timeout: 15000 });
+  
+  await expect(page).toHaveURL(/\/(dashboard|home)(\?|$)/, { timeout: 5000 });
 
   const currentUrl = page.url();
   console.log(`✅ Authentication successful, current URL: ${currentUrl}`);
