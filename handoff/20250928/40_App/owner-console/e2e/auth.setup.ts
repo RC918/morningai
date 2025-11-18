@@ -31,6 +31,12 @@ setup('authenticate', async ({ page }) => {
   
   await expect(page).toHaveURL(/\/(dashboard|home)(\?|$)/, { timeout: 5000 });
   
+  await page.waitForFunction(() => {
+    const tokenExpiry = localStorage.getItem('morningai_token_expiry');
+    const user = localStorage.getItem('morningai_user');
+    return tokenExpiry !== null && user !== null;
+  }, { timeout: 10000 });
+  
   console.log('✅ Authentication successful');
   
   await page.context().storageState({ path: authFile });
