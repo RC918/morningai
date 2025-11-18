@@ -48,7 +48,7 @@ setup('authenticate', async ({ page }) => {
     console.log(`✅ Created auth directory: ${authDir}`);
   }
 
-  const username = process.env.TEST_EMAIL || 'admin';
+  const username = process.env.TEST_EMAIL || 'admin@morningai.com';
   const password = process.env.TEST_PASSWORD || 'admin123';
   console.log(`   Using credentials: ${username}/${password.replace(/./g, '*')}`);
 
