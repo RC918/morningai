@@ -52,8 +52,70 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: pnpm --filter @morningai/shared-ui build
 
+      - name: Setup Python for backend
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: ${{ github.workspace }}
+        run: |
+          cd handoff/20250928/40_App/api-backend
+          pip install -r requirements.txt
+
+      - name: Start backend API with mock users
+        working-directory: ${{ github.workspace }}
+        run: |
+          cd handoff/20250928/40_App/api-backend
+          export FLASK_APP=src.main:app
+          export ENABLE_MOCK_USERS=true
+          export ENABLE_ORCHESTRATOR=false
+          export JWT_SECRET_KEY=test-jwt-secret-for-lhci-ci
+          export FLASK_SECRET_KEY=test-flask-secret-for-lhci-ci
+          export ENVIRONMENT=development
+          export CORS_ORIGINS=http://localhost:4173,http://127.0.0.1:4173
+          export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${PYTHONPATH}"
+          
+          # Verify critical imports work before starting Flask
+          python - <<'PY'
+          import sys, importlib
+          print("PYTHONPATH OK, first 5:", sys.path[:5])
+          import common
+          importlib.import_module('src.services.auth_service')
+          print("✅ Import preflight: OK (orchestrator disabled for LHCI)")
+          PY
+          
+          # Log environment for debugging
+          echo "PYTHONPATH=$PYTHONPATH" > backend.log
+          python - <<'PY' >> backend.log
+          import sys
+          print("sys.path (first 10):", sys.path[:10])
+          PY
+          
+          nohup gunicorn -b 0.0.0.0:5000 'src.main:app' --workers=1 --threads=4 --timeout=120 >> backend.log 2>&1 &
+          echo $! > backend.pid
+          
+          # Wait for backend to be ready
+          for i in {1..30}; do
+            if curl -sf http://localhost:5000/health > /dev/null; then
+              echo "✅ Backend is ready"
+              curl -s http://localhost:5000/health | head -20
+              break
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 2
+          done
+          
+          if ! curl -sf http://localhost:5000/health > /dev/null; then
+            echo "❌ Backend failed to start"
+            cat backend.log
+            exit 1
+          fi
+
       - name: Build application
-        run: pnpm build
+        run: |
+          echo "VITE_API_BASE_URL=http://localhost:5000" > .env.production
+          pnpm build
 
       - name: Start preview server
         run: |
@@ -158,6 +220,22 @@ jobs:
         with:
           message: ${{ steps.read_comment.outputs.COMMENT }}
 
+      - name: Upload backend logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs-lhci-pr
+          path: handoff/20250928/40_App/api-backend/backend.log
+          retention-days: 14
+
+      - name: Stop backend
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ -f handoff/20250928/40_App/api-backend/backend.pid ]; then
+            kill $(cat handoff/20250928/40_App/api-backend/backend.pid) || true
+          fi
+
       - name: Stop preview server
         if: always()
         run: |
@@ -215,8 +293,70 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: pnpm --filter @morningai/shared-ui build
 
+      - name: Setup Python for backend
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: ${{ github.workspace }}
+        run: |
+          cd handoff/20250928/40_App/api-backend
+          pip install -r requirements.txt
+
+      - name: Start backend API with mock users
+        working-directory: ${{ github.workspace }}
+        run: |
+          cd handoff/20250928/40_App/api-backend
+          export FLASK_APP=src.main:app
+          export ENABLE_MOCK_USERS=true
+          export ENABLE_ORCHESTRATOR=false
+          export JWT_SECRET_KEY=test-jwt-secret-for-lhci-ci
+          export FLASK_SECRET_KEY=test-flask-secret-for-lhci-ci
+          export ENVIRONMENT=development
+          export CORS_ORIGINS=http://localhost:4173,http://127.0.0.1:4173
+          export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${PYTHONPATH}"
+          
+          # Verify critical imports work before starting Flask
+          python - <<'PY'
+          import sys, importlib
+          print("PYTHONPATH OK, first 5:", sys.path[:5])
+          import common
+          importlib.import_module('src.services.auth_service')
+          print("✅ Import preflight: OK (orchestrator disabled for LHCI)")
+          PY
+          
+          # Log environment for debugging
+          echo "PYTHONPATH=$PYTHONPATH" > backend.log
+          python - <<'PY' >> backend.log
+          import sys
+          print("sys.path (first 10):", sys.path[:10])
+          PY
+          
+          nohup gunicorn -b 0.0.0.0:5000 'src.main:app' --workers=1 --threads=4 --timeout=120 >> backend.log 2>&1 &
+          echo $! > backend.pid
+          
+          # Wait for backend to be ready
+          for i in {1..30}; do
+            if curl -sf http://localhost:5000/health > /dev/null; then
+              echo "✅ Backend is ready"
+              curl -s http://localhost:5000/health | head -20
+              break
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 2
+          done
+          
+          if ! curl -sf http://localhost:5000/health > /dev/null; then
+            echo "❌ Backend failed to start"
+            cat backend.log
+            exit 1
+          fi
+
       - name: Build application
-        run: pnpm build
+        run: |
+          echo "VITE_API_BASE_URL=http://localhost:5000" > .env.production
+          pnpm build
 
       - name: Start preview server
         run: |
@@ -329,6 +469,22 @@ jobs:
           commit_message: "chore(ci): update LHCI baseline & trend [skip ci]"
           file_pattern: ".lhci-baseline.json trend.csv"
           branch: ${{ github.ref_name }}
+
+      - name: Upload backend logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs-lhci-main
+          path: handoff/20250928/40_App/api-backend/backend.log
+          retention-days: 14
+
+      - name: Stop backend
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ -f handoff/20250928/40_App/api-backend/backend.pid ]; then
+            kill $(cat handoff/20250928/40_App/api-backend/backend.pid) || true
+          fi
 
       - name: Stop preview server
         if: always()
