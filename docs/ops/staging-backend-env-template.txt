@@ -55,6 +55,15 @@ TESTING=false
 # Feature Flags
 # HITL_APPROVAL_ENABLED=false
 
+# LangGraph Canary Rollout (Phase 1)
+USE_LANGGRAPH_PERCENT=5
+
+# LLM Planner (Phase 1 - requires USE_LANGGRAPH_PERCENT>0)
+USE_LLM_PLANNER=false
+
+# Code Generation Canary Rollout (Phase 2)
+USE_CODEGEN_WORKFLOW_PERCENT=0
+
 # ============================================
 # NOTES
 # ============================================
