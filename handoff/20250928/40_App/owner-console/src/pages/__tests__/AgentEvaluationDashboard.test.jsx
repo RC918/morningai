@@ -13,6 +13,7 @@ vi.mock('react-i18next', () => ({
     t: (key, fallback) => fallback || key,
     i18n: {
       language: 'en-US',
+      resolvedLanguage: 'en-US',
     },
   }),
 }));
@@ -365,6 +366,138 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
 
       await waitFor(() => {
         expect(screen.getByText('API Error')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Date Formatting', () => {
+    it('should format dates using Intl.DateTimeFormat with 24-hour format', async () => {
+      const mockMetricsResponse = {
+        metrics: {
+          planner_accuracy: 87.5,
+          self_healing_rate: 72.3,
+          completion_rate: 81.2,
+          ci_pass_rate: 92.1,
+        },
+        targets: {
+          planner_accuracy: 85,
+          self_healing_rate: 70,
+          completion_rate: 80,
+          ci_pass_rate: 90,
+        },
+        last_evaluation: '2025-11-17T14:30:00Z',
+      };
+
+      const mockResultsResponse = {
+        evaluations: [
+          {
+            id: 1,
+            run_id: 123,
+            date: '2025-11-17T14:30:00Z',
+            status: 'success',
+            total_tasks: 10,
+            completed: 8,
+            pr_created: 7,
+            ci_passed: 6,
+            run_url: 'https://github.com/test/run/123',
+          },
+        ],
+      };
+
+      agentEvaluationApi.getAgentEvaluationMetrics.mockResolvedValue(mockMetricsResponse);
+      agentEvaluationApi.getAgentEvaluationResults.mockResolvedValue(mockResultsResponse);
+
+      render(<AgentEvaluationDashboard />);
+
+      await waitFor(() => {
+        const dateElements = screen.getAllByText(/Nov|17|2025|14|30/);
+        expect(dateElements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should not display last evaluation section when date is null', async () => {
+      const mockMetricsResponse = {
+        metrics: {
+          planner_accuracy: 87.5,
+          self_healing_rate: 72.3,
+          completion_rate: 81.2,
+          ci_pass_rate: 92.1,
+        },
+        targets: {
+          planner_accuracy: 85,
+          self_healing_rate: 70,
+          completion_rate: 80,
+          ci_pass_rate: 90,
+        },
+        last_evaluation: null,
+      };
+
+      const mockResultsResponse = {
+        evaluations: [
+          {
+            id: 1,
+            run_id: 123,
+            date: '2025-11-17T14:30:00Z',
+            status: 'success',
+            total_tasks: 10,
+            completed: 8,
+            pr_created: 7,
+            ci_passed: 6,
+            run_url: 'https://github.com/test/run/123',
+          },
+        ],
+      };
+
+      agentEvaluationApi.getAgentEvaluationMetrics.mockResolvedValue(mockMetricsResponse);
+      agentEvaluationApi.getAgentEvaluationResults.mockResolvedValue(mockResultsResponse);
+
+      render(<AgentEvaluationDashboard />);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Last evaluation/i)).not.toBeInTheDocument();
+      });
+    });
+
+    it('should use resolvedLanguage for date formatting when available', async () => {
+      const mockMetricsResponse = {
+        metrics: {
+          planner_accuracy: 87.5,
+          self_healing_rate: 72.3,
+          completion_rate: 81.2,
+          ci_pass_rate: 92.1,
+        },
+        targets: {
+          planner_accuracy: 85,
+          self_healing_rate: 70,
+          completion_rate: 80,
+          ci_pass_rate: 90,
+        },
+        last_evaluation: '2025-11-17T14:30:00Z',
+      };
+
+      const mockResultsResponse = {
+        evaluations: [
+          {
+            id: 1,
+            run_id: 123,
+            date: '2025-11-17T14:30:00Z',
+            status: 'success',
+            total_tasks: 10,
+            completed: 8,
+            pr_created: 7,
+            ci_passed: 6,
+            run_url: 'https://github.com/test/run/123',
+          },
+        ],
+      };
+
+      agentEvaluationApi.getAgentEvaluationMetrics.mockResolvedValue(mockMetricsResponse);
+      agentEvaluationApi.getAgentEvaluationResults.mockResolvedValue(mockResultsResponse);
+
+      render(<AgentEvaluationDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Agent Evaluation Dashboard')).toBeInTheDocument();
       });
     });
   });

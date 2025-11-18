@@ -76,7 +76,7 @@ const AgentEvaluationDashboard = () => {
   const formatDate = (dateString) => {
     if (!dateString) return t('common.na', 'N/A')
     const date = new Date(dateString)
-    const formatter = new Intl.DateTimeFormat(i18n.language, {
+    const formatter = new Intl.DateTimeFormat(i18n.resolvedLanguage || i18n.language, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
