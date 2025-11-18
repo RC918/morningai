@@ -549,8 +549,8 @@
     "belowTarget": "未達標",
     "lastEvaluation": "最後評估時間",
     "metrics": {
-      "plannerAccuracy": "規劃器準確率",
-      "selfHealingRate": "自我修復率",
+      "plannerAccuracy": "規劃準確率",
+      "selfHealingRate": "自動修復率",
       "completionRate": "完成率",
       "ciPassRate": "CI 通過率"
     },
@@ -558,11 +558,11 @@
       "title": "評估歷史",
       "subtitle": "來自 GitHub Actions 的最近 agent 評估執行記錄",
       "noResults": "目前沒有可用的評估結果",
-      "weeklyRuns": "評估每週透過 GitHub Actions 執行",
-      "runNumber": "執行 #{{id}}",
+      "weeklyRuns": "評估每週由 GitHub Actions 執行",
+      "runNumber": "執行編號 #{{id}}",
       "tasks": "任務",
       "completed": "已完成",
-      "prs": "PR 數",
+      "prs": "PR 數量",
       "ciPassed": "CI 通過"
     }
   }
