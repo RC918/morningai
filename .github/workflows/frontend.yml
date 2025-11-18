@@ -460,15 +460,17 @@ jobs:
           export FLASK_SECRET_KEY=test-flask-secret-for-e2e-ci
           export ENVIRONMENT=development
           export CORS_ORIGINS=http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173
-          export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${PYTHONPATH}"
+          export ORCHESTRATOR_PATH="${GITHUB_WORKSPACE}/handoff/20250928/40_App/orchestrator"
+          export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${GITHUB_WORKSPACE}/handoff/20250928/40_App/orchestrator:${PYTHONPATH}"
           
-          # Verify imports work before starting Flask
+          # Verify critical imports work before starting Flask
           python - <<'PY'
-          import sys
-          print("PYTHONPATH OK, first 5 entries:", sys.path[:5])
+          import sys, importlib
+          print("PYTHONPATH OK, first 5:", sys.path[:5])
           import common
-          import src.main
-          print("✅ Import check: OK")
+          import redis_queue
+          importlib.import_module('src.services.auth_service')
+          print("✅ Import sanity check: OK")
           PY
           
           nohup python -m flask run --host=0.0.0.0 --port=5000 > backend.log 2>&1 &
