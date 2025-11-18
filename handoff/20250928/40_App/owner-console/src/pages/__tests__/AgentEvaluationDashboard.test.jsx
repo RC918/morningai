@@ -415,7 +415,7 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
       });
     });
 
-    it('should return N/A for null or undefined dates', async () => {
+    it('should not display last evaluation section when date is null', async () => {
       const mockMetricsResponse = {
         metrics: {
           planner_accuracy: 87.5,
@@ -429,7 +429,7 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
           completion_rate: 80,
           ci_pass_rate: 90,
         },
-        last_evaluation: null, // Null date
+        last_evaluation: null,
       };
 
       const mockResultsResponse = {
@@ -454,7 +454,7 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
       render(<AgentEvaluationDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText('Last Evaluation: N/A')).toBeInTheDocument();
+        expect(screen.queryByText(/Last evaluation/i)).not.toBeInTheDocument();
       });
     });
 
