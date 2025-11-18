@@ -45,26 +45,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('1. should render summary statistics and table', async ({ page }) => {
-    page.on('console', m => m.type() === 'error' && console.log('[console.error]', m.text()));
-    page.on('requestfailed', r => console.log('[requestfailed]', r.method(), r.url(), r.failure()?.errorText));
-    page.on('response', async r => { 
-      if (r.url().includes('/api/')) {
-        console.log('[api]', r.status(), r.request().method(), r.url());
-      }
-    });
-    
     await page.goto('/governance')
-    console.log('[diagnostic] Current URL after goto:', page.url());
-    
-    const localStorageState = await page.evaluate(() => {
-      return {
-        hasTokenExpiry: !!localStorage.getItem('morningai_token_expiry'),
-        hasUser: !!localStorage.getItem('morningai_user'),
-        tokenExpiry: localStorage.getItem('morningai_token_expiry'),
-      };
-    });
-    console.log('[diagnostic] localStorage state:', localStorageState);
-    
     await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })

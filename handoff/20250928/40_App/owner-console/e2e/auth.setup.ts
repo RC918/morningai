@@ -42,7 +42,13 @@ setup('authenticate', async ({ page }) => {
     return tokenExpiry !== null && user !== null;
   }, { timeout: 10000 });
   
+  const longLivedExpiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days from now
+  await page.evaluate((expiry) => {
+    localStorage.setItem('morningai_token_expiry', expiry.toString());
+  }, longLivedExpiry);
+  
   console.log('✅ Authentication successful');
+  console.log(`🔒 Set long-lived token expiry: ${new Date(longLivedExpiry).toISOString()} (7 days from now)`);
   
   const storageState = await page.context().storageState({ path: authFile });
   
@@ -56,6 +62,7 @@ setup('authenticate', async ({ page }) => {
       hasTokenExpiry: !!localStorage.getItem('morningai_token_expiry'),
       hasUser: !!localStorage.getItem('morningai_user'),
       tokenExpiry: localStorage.getItem('morningai_token_expiry'),
+      tokenExpiryDate: new Date(parseInt(localStorage.getItem('morningai_token_expiry') || '0')).toISOString(),
     };
   });
   console.log('📊 localStorage keys:', localStorageKeys);
