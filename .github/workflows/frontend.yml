@@ -460,6 +460,7 @@ jobs:
           export FLASK_SECRET_KEY=test-flask-secret-for-e2e-ci
           export ENVIRONMENT=development
           export CORS_ORIGINS=http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173
+          export REDIS_URL=redis://localhost:6379/0
           export ORCHESTRATOR_PATH="${GITHUB_WORKSPACE}/handoff/20250928/40_App/orchestrator"
           export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/orchestrator:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${PYTHONPATH}"
           
