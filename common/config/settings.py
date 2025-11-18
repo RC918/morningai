@@ -762,10 +762,22 @@ class Settings(BaseSettings):
         description="Percentage of tasks to use LangGraph mode (0-100)"
     )
     
+    use_llm_planner: bool = Field(
+        default=False,
+        description="Enable LLM-powered planner in LangGraph orchestrator (Phase 1)"
+    )
+    
     use_code_generation: bool = Field(
         default=False,
         alias="USE_CODE_GENERATION",
         description="Enable AI-powered code generation workflow (Phase 2)"
+    )
+    
+    use_codegen_workflow_percent: int = Field(
+        default=0,
+        ge=0,
+        le=100,
+        description="Percentage of tasks to use code generation workflow (0-100, for canary rollout)"
     )
     
     allow_governance_mock: bool = Field(

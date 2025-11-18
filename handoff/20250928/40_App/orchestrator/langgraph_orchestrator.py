@@ -57,15 +57,58 @@ class AgentState(TypedDict):
 def planner_node(state: AgentState) -> AgentState:
     """
     Planning node: Analyzes the goal and creates a plan
+    
+    Phase 1: Integrates LLM-powered dynamic planning when USE_LLM_PLANNER=true
     """
+    from common.config.settings import settings
+    
     goal = state["goal"]
+    repo = state.get("repo", "RC918/morningai")
     trace_id = state.get("trace_id", "unknown")
     
     logger.info(f"[Planner] Analyzing goal", extra={
         "operation": "planner",
         "trace_id": trace_id,
-        "goal": goal[:50]
+        "goal": goal[:50],
+        "use_llm_planner": settings.use_llm_planner
     })
+    
+    if settings.use_llm_planner:
+        try:
+            from llm_planner_adapter import generate_llm_plan
+            
+            logger.info(f"[Planner] Using LLM planner", extra={
+                "operation": "planner",
+                "trace_id": trace_id
+            })
+            
+            plan_data = generate_llm_plan(goal, repo, trace_id)
+            
+            state["plan"] = plan_data["plan"]
+            state["planner_type"] = plan_data["planner_type"]
+            state["task_type"] = plan_data.get("task_type")
+            state["planning_time_ms"] = plan_data.get("planning_time_ms", 0)
+            state["current_step"] = 0
+            state["messages"] = state.get("messages", []) + [
+                SystemMessage(content=f"Planned {len(plan_data['plan'])} steps using {plan_data['planner_type']} planner for goal: {goal}")
+            ]
+            
+            logger.info(f"[Planner] Created plan with {len(plan_data['plan'])} steps using {plan_data['planner_type']} planner", extra={
+                "operation": "planner",
+                "trace_id": trace_id,
+                "steps": plan_data["plan"],
+                "planner_type": plan_data["planner_type"],
+                "planning_time_ms": plan_data.get("planning_time_ms", 0)
+            })
+            
+            return state
+            
+        except Exception as e:
+            logger.error(f"[Planner] LLM planner failed, falling back to static: {e}", extra={
+                "operation": "planner",
+                "trace_id": trace_id,
+                "error": str(e)
+            })
     
     plan = [
         "Analyze codebase and requirements",
@@ -78,6 +121,7 @@ def planner_node(state: AgentState) -> AgentState:
     ]
     
     state["plan"] = plan
+    state["planner_type"] = "static"
     state["current_step"] = 0
     state["messages"] = state.get("messages", []) + [
         SystemMessage(content=f"Planned {len(plan)} steps for goal: {goal}")
@@ -86,7 +130,8 @@ def planner_node(state: AgentState) -> AgentState:
     logger.info(f"[Planner] Created plan with {len(plan)} steps", extra={
         "operation": "planner",
         "trace_id": trace_id,
-        "steps": plan
+        "steps": plan,
+        "planner_type": "static"
     })
     
     return state
