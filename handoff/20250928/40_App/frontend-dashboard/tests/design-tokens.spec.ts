@@ -3,14 +3,15 @@
  * 
  * This test suite ensures:
  * 1. All semantic token colors render correctly
- * 2. No visual regressions after design token migration
- * 3. Main user flows work correctly with new design tokens
+ * 2. Main user flows work correctly with new design tokens
  * 
  * Test Coverage:
- * - Visual regression tests for key pages (Agent Governance, Tenant Settings, Cost Analysis, Dashboard, 2FA)
  * - Functional smoke tests for navigation and interactions
  * - Color validation for semantic tokens (error, success, warning, info, neutral, primary, accent)
- * - Theme switching tests (if applicable)
+ * - Theme switching tests
+ * - Accessibility tests for color contrast and focus indicators
+ * 
+ * Note: Visual regression tests are handled by the dedicated VRT CI job
  * 
  * Related: Issue #1330 (P2)
  */
@@ -54,135 +55,6 @@ async function verifyNoHardcodedColors(page: Page) {
   }
 }
 
-test.describe('Design Token Migration - Visual Regression Tests', () => {
-  test('[@vrt] Agent Governance page - semantic tokens render correctly', async ({ page }) => {
-    await page.goto('/agent-governance')
-    
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(1000)
-    
-    await expect(page).not.toHaveURL(/\/login/i)
-    
-    // Verify page loaded correctly
-    await expect(page.locator('main')).toBeVisible()
-    
-    await verifyNoHardcodedColors(page)
-    
-    await expect(page).toHaveScreenshot('agent-governance-page.png', {
-      fullPage: true,
-      animations: 'disabled',
-      timeout: 10000,
-    })
-  })
-
-  test('[@vrt] Tenant Settings page - semantic tokens render correctly', async ({ page }) => {
-    await page.goto('/settings/tenant')
-    
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(1000)
-    
-    await expect(page).not.toHaveURL(/\/login/i)
-    await expect(page.locator('main')).toBeVisible()
-    
-    await verifyNoHardcodedColors(page)
-    
-    await expect(page).toHaveScreenshot('tenant-settings-page.png', {
-      fullPage: true,
-      animations: 'disabled',
-      timeout: 10000,
-    })
-  })
-
-  test('[@vrt] Cost Analysis page - semantic tokens render correctly', async ({ page }) => {
-    await page.goto('/cost-analysis')
-    
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(1000)
-    
-    await expect(page).not.toHaveURL(/\/login/i)
-    await expect(page.locator('main')).toBeVisible()
-    
-    await verifyNoHardcodedColors(page)
-    
-    await expect(page).toHaveScreenshot('cost-analysis-page.png', {
-      fullPage: true,
-      animations: 'disabled',
-      timeout: 10000,
-    })
-  })
-
-  test('[@vrt] Dashboard page - semantic tokens render correctly', async ({ page }) => {
-    await page.goto('/dashboard')
-    
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(1000)
-    
-    await expect(page.locator('main')).toBeVisible()
-    
-    await verifyNoHardcodedColors(page)
-    
-    await expect(page).toHaveScreenshot('dashboard-page.png', {
-      fullPage: true,
-      animations: 'disabled',
-      timeout: 10000,
-    })
-  })
-
-  test('[@vrt] 2FA Settings page - semantic tokens render correctly', async ({ page }) => {
-    await page.goto('/settings/security')
-    
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(1000)
-    
-    await expect(page).not.toHaveURL(/\/login/i)
-    await expect(page.locator('main')).toBeVisible()
-    
-    await verifyNoHardcodedColors(page)
-    
-    await expect(page).toHaveScreenshot('2fa-settings-page.png', {
-      fullPage: true,
-      animations: 'disabled',
-      timeout: 10000,
-    })
-  })
-
-  test('[@vrt] Decision Approval page - semantic tokens render correctly', async ({ page }) => {
-    await page.goto('/decision-approval')
-    
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(1000)
-    
-    await expect(page).not.toHaveURL(/\/login/i)
-    await expect(page.locator('main')).toBeVisible()
-    
-    await verifyNoHardcodedColors(page)
-    
-    await expect(page).toHaveScreenshot('decision-approval-page.png', {
-      fullPage: true,
-      animations: 'disabled',
-      timeout: 10000,
-    })
-  })
-
-  test('[@vrt] Empty State Library - semantic tokens render correctly', async ({ page }) => {
-    await page.goto('/empty-state-library')
-    
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(1000)
-    
-    await expect(page).not.toHaveURL(/\/login/i)
-    await expect(page.locator('main')).toBeVisible()
-    
-    await verifyNoHardcodedColors(page)
-    
-    await expect(page).toHaveScreenshot('empty-state-library-page.png', {
-      fullPage: true,
-      animations: 'disabled',
-      timeout: 10000,
-    })
-  })
-})
-
 test.describe('Design Token Migration - Semantic Color Validation', () => {
   test('should use error tokens for error states', async ({ page }) => {
     await page.goto('/dashboard')
@@ -223,7 +95,7 @@ test.describe('Design Token Migration - Semantic Color Validation', () => {
   })
 
   test('should use warning tokens for warning states', async ({ page }) => {
-    await page.goto('/cost-analysis')
+    await page.goto('/costs')
     await page.waitForLoadState('networkidle')
     
     const warningElements = await page.locator('[class*="warning"]').all()
@@ -284,11 +156,11 @@ test.describe('Design Token Migration - Functional Smoke Tests', () => {
   test('should navigate to all key pages without errors', async ({ page }) => {
     const pages = [
       '/dashboard',
-      '/agent-governance',
-      '/settings/tenant',
-      '/cost-analysis',
-      '/decision-approval',
-      '/settings/security',
+      '/governance',
+      '/tenant-settings',
+      '/costs',
+      '/approvals',
+      '/settings/2fa',
     ]
 
     for (const path of pages) {
@@ -338,7 +210,7 @@ test.describe('Design Token Migration - Functional Smoke Tests', () => {
   })
 
   test('should render warning states correctly', async ({ page }) => {
-    await page.goto('/cost-analysis')
+    await page.goto('/costs')
     await page.waitForLoadState('networkidle')
     
     const warningElements = await page.locator('[class*="warning"]').count()
@@ -349,7 +221,7 @@ test.describe('Design Token Migration - Functional Smoke Tests', () => {
   })
 
   test('should maintain layout consistency across pages', async ({ page }) => {
-    const pages = ['/dashboard', '/agent-governance', '/cost-analysis']
+    const pages = ['/dashboard', '/governance', '/costs']
     
     for (const path of pages) {
       await page.goto(path)
@@ -385,32 +257,6 @@ test.describe('Design Token Migration - Functional Smoke Tests', () => {
 })
 
 test.describe('Design Token Migration - Dark Mode Tests', () => {
-  test('[@vrt] should render correctly in light mode', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'light' })
-    await page.goto('/dashboard')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(1000)
-    
-    await expect(page).toHaveScreenshot('dashboard-light-mode.png', {
-      fullPage: true,
-      animations: 'disabled',
-      timeout: 10000,
-    })
-  })
-
-  test('[@vrt] should render correctly in dark mode', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'dark' })
-    await page.goto('/dashboard')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(1000)
-    
-    await expect(page).toHaveScreenshot('dashboard-dark-mode.png', {
-      fullPage: true,
-      animations: 'disabled',
-      timeout: 10000,
-    })
-  })
-
   test('should toggle between light and dark mode without errors', async ({ page }) => {
     await page.goto('/dashboard')
     await page.waitForLoadState('networkidle')
