@@ -99,10 +99,6 @@ test.describe('SystemMonitoring E2E Tests', () => {
     
     await page.goto('/monitoring')
     
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
-    
     const errorAlert = page.getByTestId('error-alert')
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
     
@@ -133,10 +129,6 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
     
     const errorAlert = page.getByTestId('error-alert')
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
@@ -199,10 +191,6 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     

@@ -163,10 +163,6 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     
     await page.goto('/governance')
     
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
-    
     await page.waitForSelector('[data-testid="execution-table"]')
     
     await page.waitForSelector('text=/Page.*of/')
