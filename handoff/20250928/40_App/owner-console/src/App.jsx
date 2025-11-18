@@ -11,6 +11,7 @@ const OwnerDashboard = lazy(() => import('@/pages/OwnerDashboard'))
 const AgentGovernance = lazy(() => import('@/pages/AgentGovernance'))
 const TenantManagement = lazy(() => import('@/pages/TenantManagement'))
 const SystemMonitoring = lazy(() => import('@/pages/SystemMonitoring'))
+const AgentEvaluationDashboard = lazy(() => import('@/pages/AgentEvaluationDashboard'))
 const PlatformSettings = lazy(() => import('@/pages/PlatformSettings'))
 const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 const UXMetrics = lazy(() => import('@/pages/UXMetrics'))
@@ -44,6 +45,7 @@ function AppContent() {
               <Route path="/governance" element={<AgentGovernance />} />
               <Route path="/tenants" element={<TenantManagement />} />
               <Route path="/monitoring" element={<SystemMonitoring />} />
+              <Route path="/agent-evaluation" element={<AgentEvaluationDashboard />} />
               <Route path="/ux-metrics" element={<UXMetrics />} />
               <Route path="/settings" element={<PlatformSettings />} />
               <Route path="/settings/2fa" element={<Settings2FA />} />

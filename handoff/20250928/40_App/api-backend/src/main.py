@@ -290,7 +290,9 @@ app.register_blueprint(billing_bp)
 
 if os.getenv('ENABLE_ORCHESTRATOR', 'true').lower() in ('true', '1', 'yes', 'on'):
     from src.routes.agent import bp as agent_bp
+    from src.routes.agent_evaluation import bp as agent_evaluation_bp
     app.register_blueprint(agent_bp)
+    app.register_blueprint(agent_evaluation_bp)
     logger.info("✅ Orchestrator/agent routes enabled")
 else:
     logger.info("⚠️ Orchestrator/agent routes disabled (ENABLE_ORCHESTRATOR=false)")
