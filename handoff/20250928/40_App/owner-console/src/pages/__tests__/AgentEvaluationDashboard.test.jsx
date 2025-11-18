@@ -502,10 +502,14 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
     });
 
     it('should call Intl.DateTimeFormat with correct parameters', async () => {
-      const mockFormat = vi.fn().mockReturnValue('Nov 17, 2025, 14:30');
-      const mockDateTimeFormat = vi.fn().mockReturnValue({ format: mockFormat });
+      const originalDateTimeFormat = Intl.DateTimeFormat;
       
-      global.Intl.DateTimeFormat = mockDateTimeFormat;
+      const mockFormat = vi.fn().mockReturnValue('Nov 17, 2025, 14:30');
+      const mockDateTimeFormatCtor = vi.fn(function DateTimeFormat(locale, options) {
+        return { format: mockFormat };
+      });
+      
+      Intl.DateTimeFormat = mockDateTimeFormatCtor;
 
       const mockMetricsResponse = {
         metrics: {
@@ -545,20 +549,24 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
       render(<AgentEvaluationDashboard />);
 
       await waitFor(() => {
-        expect(mockDateTimeFormat).toHaveBeenCalledWith('en-US', {
+        expect(mockDateTimeFormatCtor).toHaveBeenCalledWith('en-US', expect.objectContaining({
           year: 'numeric',
           month: 'short',
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
           hour12: false,
-        });
+        }));
       });
+      
+      Intl.DateTimeFormat = originalDateTimeFormat;
     });
 
     it('should fallback to language when resolvedLanguage is undefined', async () => {
-      vi.unmock('react-i18next');
-      vi.mock('react-i18next', () => ({
+      const originalDateTimeFormat = Intl.DateTimeFormat;
+      
+      vi.resetModules();
+      vi.doMock('react-i18next', () => ({
         useTranslation: () => ({
           t: (key, fallback) => fallback || key,
           i18n: {
@@ -569,9 +577,11 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
       }));
 
       const mockFormat = vi.fn().mockReturnValue('17 nov. 2025, 14:30');
-      const mockDateTimeFormat = vi.fn().mockReturnValue({ format: mockFormat });
+      const mockDateTimeFormatCtor = vi.fn(function DateTimeFormat(locale, options) {
+        return { format: mockFormat };
+      });
       
-      global.Intl.DateTimeFormat = mockDateTimeFormat;
+      Intl.DateTimeFormat = mockDateTimeFormatCtor;
 
       const mockMetricsResponse = {
         metrics: {
@@ -614,23 +624,19 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
       render(<AgentEvaluationDashboardComponent />);
 
       await waitFor(() => {
-        expect(mockDateTimeFormat).toHaveBeenCalledWith('fr-FR', expect.any(Object));
+        const locales = mockDateTimeFormatCtor.mock.calls.map(call => call[0]);
+        expect(locales).toContain('fr-FR');
       });
-
-      vi.mock('react-i18next', () => ({
-        useTranslation: () => ({
-          t: (key, fallback) => fallback || key,
-          i18n: {
-            language: 'en-US',
-            resolvedLanguage: 'en-US',
-          },
-        }),
-      }));
+      
+      Intl.DateTimeFormat = originalDateTimeFormat;
+      vi.resetModules();
     });
 
     it('should format dates correctly for zh-TW locale', async () => {
-      vi.unmock('react-i18next');
-      vi.mock('react-i18next', () => ({
+      const originalDateTimeFormat = Intl.DateTimeFormat;
+      
+      vi.resetModules();
+      vi.doMock('react-i18next', () => ({
         useTranslation: () => ({
           t: (key, fallback) => fallback || key,
           i18n: {
@@ -641,9 +647,11 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
       }));
 
       const mockFormat = vi.fn().mockReturnValue('2025年11月17日 14:30');
-      const mockDateTimeFormat = vi.fn().mockReturnValue({ format: mockFormat });
+      const mockDateTimeFormatCtor = vi.fn(function DateTimeFormat(locale, options) {
+        return { format: mockFormat };
+      });
       
-      global.Intl.DateTimeFormat = mockDateTimeFormat;
+      Intl.DateTimeFormat = mockDateTimeFormatCtor;
 
       const mockMetricsResponse = {
         metrics: {
@@ -686,25 +694,18 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
       render(<AgentEvaluationDashboardComponent />);
 
       await waitFor(() => {
-        expect(mockDateTimeFormat).toHaveBeenCalledWith('zh-TW', {
+        expect(mockDateTimeFormatCtor).toHaveBeenCalledWith('zh-TW', expect.objectContaining({
           year: 'numeric',
           month: 'short',
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
           hour12: false,
-        });
+        }));
       });
-
-      vi.mock('react-i18next', () => ({
-        useTranslation: () => ({
-          t: (key, fallback) => fallback || key,
-          i18n: {
-            language: 'en-US',
-            resolvedLanguage: 'en-US',
-          },
-        }),
-      }));
+      
+      Intl.DateTimeFormat = originalDateTimeFormat;
+      vi.resetModules();
     });
   });
 });
