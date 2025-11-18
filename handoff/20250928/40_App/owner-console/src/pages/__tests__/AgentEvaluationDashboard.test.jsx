@@ -500,5 +500,212 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
         expect(screen.getByText('Agent Evaluation Dashboard')).toBeInTheDocument();
       });
     });
+
+    it('should call Intl.DateTimeFormat with correct parameters', async () => {
+      const originalDateTimeFormat = Intl.DateTimeFormat;
+      
+      const mockFormat = vi.fn().mockReturnValue('Nov 17, 2025, 14:30');
+      const mockDateTimeFormatCtor = vi.fn(function DateTimeFormat(locale, options) {
+        return { format: mockFormat };
+      });
+      
+      Intl.DateTimeFormat = mockDateTimeFormatCtor;
+
+      const mockMetricsResponse = {
+        metrics: {
+          planner_accuracy: 87.5,
+          self_healing_rate: 72.3,
+          completion_rate: 81.2,
+          ci_pass_rate: 92.1,
+        },
+        targets: {
+          planner_accuracy: 85,
+          self_healing_rate: 70,
+          completion_rate: 80,
+          ci_pass_rate: 90,
+        },
+        last_evaluation: '2025-11-17T14:30:00Z',
+      };
+
+      const mockResultsResponse = {
+        evaluations: [
+          {
+            id: 1,
+            run_id: 123,
+            date: '2025-11-17T14:30:00Z',
+            status: 'success',
+            total_tasks: 10,
+            completed: 8,
+            pr_created: 7,
+            ci_passed: 6,
+            run_url: 'https://github.com/test/run/123',
+          },
+        ],
+      };
+
+      agentEvaluationApi.getAgentEvaluationMetrics.mockResolvedValue(mockMetricsResponse);
+      agentEvaluationApi.getAgentEvaluationResults.mockResolvedValue(mockResultsResponse);
+
+      render(<AgentEvaluationDashboard />);
+
+      await waitFor(() => {
+        expect(mockDateTimeFormatCtor).toHaveBeenCalledWith('en-US', expect.objectContaining({
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }));
+      });
+      
+      Intl.DateTimeFormat = originalDateTimeFormat;
+    });
+
+    it('should fallback to language when resolvedLanguage is undefined', async () => {
+      const originalDateTimeFormat = Intl.DateTimeFormat;
+      
+      vi.resetModules();
+      vi.doMock('react-i18next', () => ({
+        useTranslation: () => ({
+          t: (key, fallback) => fallback || key,
+          i18n: {
+            language: 'fr-FR',
+            resolvedLanguage: undefined,
+          },
+        }),
+      }));
+
+      const mockFormat = vi.fn().mockReturnValue('17 nov. 2025, 14:30');
+      const mockDateTimeFormatCtor = vi.fn(function DateTimeFormat(locale, options) {
+        return { format: mockFormat };
+      });
+      
+      Intl.DateTimeFormat = mockDateTimeFormatCtor;
+
+      const mockMetricsResponse = {
+        metrics: {
+          planner_accuracy: 87.5,
+          self_healing_rate: 72.3,
+          completion_rate: 81.2,
+          ci_pass_rate: 92.1,
+        },
+        targets: {
+          planner_accuracy: 85,
+          self_healing_rate: 70,
+          completion_rate: 80,
+          ci_pass_rate: 90,
+        },
+        last_evaluation: '2025-11-17T14:30:00Z',
+      };
+
+      const mockResultsResponse = {
+        evaluations: [
+          {
+            id: 1,
+            run_id: 123,
+            date: '2025-11-17T14:30:00Z',
+            status: 'success',
+            total_tasks: 10,
+            completed: 8,
+            pr_created: 7,
+            ci_passed: 6,
+            run_url: 'https://github.com/test/run/123',
+          },
+        ],
+      };
+
+      agentEvaluationApi.getAgentEvaluationMetrics.mockResolvedValue(mockMetricsResponse);
+      agentEvaluationApi.getAgentEvaluationResults.mockResolvedValue(mockResultsResponse);
+
+      const AgentEvaluationDashboardModule = await import('../AgentEvaluationDashboard');
+      const AgentEvaluationDashboardComponent = AgentEvaluationDashboardModule.default;
+
+      render(<AgentEvaluationDashboardComponent />);
+
+      await waitFor(() => {
+        const locales = mockDateTimeFormatCtor.mock.calls.map(call => call[0]);
+        expect(locales).toContain('fr-FR');
+      });
+      
+      Intl.DateTimeFormat = originalDateTimeFormat;
+      vi.resetModules();
+    });
+
+    it('should format dates correctly for zh-TW locale', async () => {
+      const originalDateTimeFormat = Intl.DateTimeFormat;
+      
+      vi.resetModules();
+      vi.doMock('react-i18next', () => ({
+        useTranslation: () => ({
+          t: (key, fallback) => fallback || key,
+          i18n: {
+            language: 'zh-TW',
+            resolvedLanguage: 'zh-TW',
+          },
+        }),
+      }));
+
+      const mockFormat = vi.fn().mockReturnValue('2025年11月17日 14:30');
+      const mockDateTimeFormatCtor = vi.fn(function DateTimeFormat(locale, options) {
+        return { format: mockFormat };
+      });
+      
+      Intl.DateTimeFormat = mockDateTimeFormatCtor;
+
+      const mockMetricsResponse = {
+        metrics: {
+          planner_accuracy: 87.5,
+          self_healing_rate: 72.3,
+          completion_rate: 81.2,
+          ci_pass_rate: 92.1,
+        },
+        targets: {
+          planner_accuracy: 85,
+          self_healing_rate: 70,
+          completion_rate: 80,
+          ci_pass_rate: 90,
+        },
+        last_evaluation: '2025-11-17T14:30:00Z',
+      };
+
+      const mockResultsResponse = {
+        evaluations: [
+          {
+            id: 1,
+            run_id: 123,
+            date: '2025-11-17T14:30:00Z',
+            status: 'success',
+            total_tasks: 10,
+            completed: 8,
+            pr_created: 7,
+            ci_passed: 6,
+            run_url: 'https://github.com/test/run/123',
+          },
+        ],
+      };
+
+      agentEvaluationApi.getAgentEvaluationMetrics.mockResolvedValue(mockMetricsResponse);
+      agentEvaluationApi.getAgentEvaluationResults.mockResolvedValue(mockResultsResponse);
+
+      const AgentEvaluationDashboardModule = await import('../AgentEvaluationDashboard');
+      const AgentEvaluationDashboardComponent = AgentEvaluationDashboardModule.default;
+
+      render(<AgentEvaluationDashboardComponent />);
+
+      await waitFor(() => {
+        expect(mockDateTimeFormatCtor).toHaveBeenCalledWith('zh-TW', expect.objectContaining({
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }));
+      });
+      
+      Intl.DateTimeFormat = originalDateTimeFormat;
+      vi.resetModules();
+    });
   });
 });
