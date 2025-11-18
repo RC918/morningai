@@ -9,6 +9,14 @@ on:
       - 'handoff/20250928/40_App/owner-console/**'
       - 'packages/shared-ui/**'
       - 'lighthouserc.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
+      - 'handoff/20250928/40_App/owner-console/**'
+      - 'packages/shared-ui/**'
+      - 'lighthouserc.json'
   schedule:
     - cron: '0 0 * * *'  # Daily at 00:00 UTC (non-blocking signal collection)
   workflow_dispatch:  # Manual trigger for testing
@@ -244,6 +252,7 @@ jobs:
           fi
 
   lhci-main:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
