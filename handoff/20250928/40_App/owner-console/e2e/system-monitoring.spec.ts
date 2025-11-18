@@ -36,6 +36,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
 
   test('1. should render health and metrics successfully', async ({ page }) => {
     await page.goto('/monitoring')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]', { timeout: 10000 })
     
@@ -65,6 +66,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
 
   test('2. should show mock badges when VITE_USE_MOCK=true', async ({ page }) => {
     await page.goto('/monitoring')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -98,6 +100,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
+    await page.waitForLoadState('networkidle')
     
     const errorAlert = page.getByTestId('error-alert')
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
@@ -129,6 +132,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
+    await page.waitForLoadState('networkidle')
     
     const errorAlert = page.getByTestId('error-alert')
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
@@ -146,6 +150,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
 
   test('5. should display trend charts for all metrics', async ({ page }) => {
     await page.goto('/monitoring')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -191,6 +196,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -221,6 +227,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -237,6 +244,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     

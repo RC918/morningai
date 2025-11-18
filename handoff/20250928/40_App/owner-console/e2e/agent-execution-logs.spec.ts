@@ -43,6 +43,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
 
   test('1. should render summary statistics and table', async ({ page }) => {
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })
     
@@ -69,6 +70,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
 
   test('2. should normalize execution log statuses correctly', async ({ page }) => {
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="execution-table"]')
     
@@ -87,6 +89,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
 
   test('3. should filter by status', async ({ page }) => {
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="execution-table"]')
     
@@ -110,6 +113,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
 
   test('4. should filter by agent type', async ({ page }) => {
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="execution-table"]')
     
@@ -127,6 +131,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
 
   test('5. should clear filters', async ({ page }) => {
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="execution-table"]')
     
@@ -162,6 +167,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     })
     
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="execution-table"]')
     
@@ -179,6 +185,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
 
   test('7. should display trace links when TRACE_VIEWER_URL is set', async ({ page }) => {
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="execution-table"]')
     
@@ -203,6 +210,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await grantClipboardPermissions(context)
     
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="execution-table"]')
     
@@ -217,6 +225,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
 
   test('9. should open details drawer and display full information', async ({ page }) => {
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="execution-table"]')
     
@@ -257,6 +266,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     })
     
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
     const errorAlert = page.getByTestId('error-alert')
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
