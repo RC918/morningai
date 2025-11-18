@@ -52,7 +52,6 @@ export default defineConfig({
   webServer: {
     command: 'npm run preview -- --host localhost --strict-port',
     url: 'http://localhost:4173',
-    port: 4173,
     reuseExistingServer: !process.env.CI,
   },
 });
