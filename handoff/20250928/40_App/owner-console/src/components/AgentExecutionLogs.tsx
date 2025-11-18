@@ -411,9 +411,9 @@ const AgentExecutionLogs = () => {
   }
 
   return (
-    <div className="space-y-6" aria-busy={loading}>
+    <div className="space-y-6" aria-busy={loading} data-testid="agent-execution-logs">
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" data-testid="error-alert">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>{t('common.error')}</AlertTitle>
           <AlertDescription>
@@ -424,6 +424,7 @@ const AgentExecutionLogs = () => {
               size="sm" 
               className="ml-4"
               aria-label={t('governance.executionLogs.retryLoad')}
+              data-testid="retry-button"
             >
               {t('common.retry')}
             </Button>
@@ -434,7 +435,7 @@ const AgentExecutionLogs = () => {
       {/* Summary Statistics */}
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
+          <Card data-testid="summary-total">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.totalExecutions')}</p>
@@ -446,7 +447,7 @@ const AgentExecutionLogs = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card data-testid="summary-success-rate">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.successRate')}</p>
@@ -458,7 +459,7 @@ const AgentExecutionLogs = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card data-testid="summary-avg-duration">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.avgDuration')}</p>
@@ -470,7 +471,7 @@ const AgentExecutionLogs = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card data-testid="summary-status-breakdown">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.statusBreakdown')}</p>
@@ -507,7 +508,7 @@ const AgentExecutionLogs = () => {
                 value={filters.status} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="filter-status">
                   <SelectValue placeholder={t('governance.executionLogs.filters.allStatuses')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -530,7 +531,7 @@ const AgentExecutionLogs = () => {
                 value={filters.agent_type} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value }))}
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="filter-agent-type">
                   <SelectValue placeholder={t('governance.executionLogs.filters.allAgentTypes')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -552,6 +553,7 @@ const AgentExecutionLogs = () => {
                 value={filters.agent_id}
                 onChange={(e) => setFilters(prev => ({ ...prev, agent_id: e.target.value }))}
                 placeholder={t('governance.executionLogs.filters.agentIdPlaceholder')}
+                data-testid="filter-agent-id"
               />
             </div>
 
@@ -563,6 +565,7 @@ const AgentExecutionLogs = () => {
                 value={filters.task_type}
                 onChange={(e) => setFilters(prev => ({ ...prev, task_type: e.target.value }))}
                 placeholder={t('governance.executionLogs.filters.taskTypePlaceholder')}
+                data-testid="filter-task-type"
               />
             </div>
 
@@ -574,7 +577,7 @@ const AgentExecutionLogs = () => {
                 value={filters.time_range} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value }))}
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="filter-time-range">
                   <SelectValue placeholder={t('governance.executionLogs.filters.selectTimeRange')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -596,6 +599,7 @@ const AgentExecutionLogs = () => {
                 value={filters.start_date}
                 onChange={(e) => setFilters(prev => ({ ...prev, start_date: e.target.value, time_range: 'custom' }))}
                 disabled={filters.time_range !== 'custom' && filters.time_range !== ''}
+                data-testid="filter-start-date"
               />
             </div>
 
@@ -608,14 +612,15 @@ const AgentExecutionLogs = () => {
                 value={filters.end_date}
                 onChange={(e) => setFilters(prev => ({ ...prev, end_date: e.target.value, time_range: 'custom' }))}
                 disabled={filters.time_range !== 'custom' && filters.time_range !== ''}
+                data-testid="filter-end-date"
               />
             </div>
 
             <div className="flex items-end gap-2">
-              <Button onClick={handleApplyFilters} className="flex-1">
+              <Button onClick={handleApplyFilters} className="flex-1" data-testid="apply-filters">
                 {t('governance.executionLogs.filters.applyFilters')}
               </Button>
-              <Button onClick={handleClearFilters} variant="outline">
+              <Button onClick={handleClearFilters} variant="outline" data-testid="clear-filters">
                 {t('governance.executionLogs.filters.clearFilters')}
               </Button>
             </div>
@@ -646,7 +651,7 @@ const AgentExecutionLogs = () => {
             <>
               {/* Desktop Table View (md and up) */}
               <div className="hidden md:block">
-                <Table>
+                <Table data-testid="execution-table">
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t('governance.executionLogs.columns.status')}</TableHead>
@@ -663,9 +668,16 @@ const AgentExecutionLogs = () => {
                     {logs.map((log) => {
                       const { normalized: normalizedStatus, isKnown } = normalizeExecutionLogStatus(log.status)
                       return (
-                        <TableRow key={log.task_id}>
+                        <TableRow 
+                          key={log.task_id}
+                          data-testid="execution-row"
+                          data-task-id={log.task_id}
+                          data-status={normalizedStatus}
+                          data-trace-id={log.trace_id || ''}
+                          data-tenant-id={log.tenant_id || ''}
+                        >
                           <TableCell>
-                            <StatusBadge status={normalizedStatus} showIcon>
+                            <StatusBadge status={normalizedStatus} showIcon data-status={normalizedStatus}>
                               {isKnown 
                                 ? t(`governance.executionLogs.statuses.${normalizedStatus}`)
                                 : t('governance.executionLogs.statuses.unknown')
@@ -684,6 +696,7 @@ const AgentExecutionLogs = () => {
                                     onClick={() => handleCopy(log.trace_id!, 'traceId')}
                                     aria-label={t('governance.executionLogs.copyTraceId')}
                                     title={t('governance.executionLogs.copyTraceId')}
+                                    data-testid="copy-trace-id"
                                   >
                                     <Copy className="h-3 w-3" />
                                   </Button>
@@ -695,6 +708,7 @@ const AgentExecutionLogs = () => {
                                       className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                                       aria-label={t('governance.executionLogs.viewTraceDetails')}
                                       title={t('governance.executionLogs.viewTraceDetails')}
+                                      data-testid="trace-link"
                                     >
                                       <ExternalLink className="h-3 w-3 text-primary-600 dark:text-primary-400" />
                                     </a>
@@ -741,6 +755,7 @@ const AgentExecutionLogs = () => {
                               size="sm"
                               onClick={() => handleViewDetails(log)}
                               aria-label={t('governance.executionLogs.viewDetails')}
+                              data-testid="view-details"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -927,7 +942,7 @@ const AgentExecutionLogs = () => {
 
       {/* Execution Log Details Sheet */}
       <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto" data-testid="details-drawer">
           <SheetHeader>
             <SheetTitle>{t('governance.executionLogs.details.title')}</SheetTitle>
             <SheetDescription>
@@ -936,7 +951,7 @@ const AgentExecutionLogs = () => {
           </SheetHeader>
 
           {selectedLog && (
-            <div className="mt-6 space-y-6">
+            <div className="mt-6 space-y-6" data-testid="details-content">
               {/* Status and Basic Info */}
               <div className="space-y-4">
                 <div>
@@ -964,6 +979,7 @@ const AgentExecutionLogs = () => {
                       className="h-7 w-7 p-0"
                       onClick={() => handleCopy(selectedLog.task_id, 'taskId')}
                       aria-label={t('governance.executionLogs.copyTaskId')}
+                      data-testid="copy-task-id"
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
@@ -985,6 +1001,7 @@ const AgentExecutionLogs = () => {
                         className="h-7 w-7 p-0"
                         onClick={() => handleCopy(selectedLog.trace_id!, 'traceId')}
                         aria-label={t('governance.executionLogs.copyTraceId')}
+                        data-testid="copy-trace-id-drawer"
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
@@ -996,6 +1013,7 @@ const AgentExecutionLogs = () => {
                           className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                           aria-label={t('governance.executionLogs.viewTraceDetails')}
                           title={t('governance.executionLogs.viewTraceDetails')}
+                          data-testid="trace-link-drawer"
                         >
                           <ExternalLink className="h-3 w-3 text-primary-600 dark:text-primary-400" />
                         </a>
@@ -1038,7 +1056,7 @@ const AgentExecutionLogs = () => {
 
               {/* Agent Info */}
               {selectedLog.agent && (
-                <div className="border-t pt-4">
+                <div className="border-t pt-4" data-testid="details-agent">
                   <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-3">
                     {t('governance.executionLogs.columns.agent')}
                   </h3>
@@ -1062,7 +1080,7 @@ const AgentExecutionLogs = () => {
               )}
 
               {/* Timing Info */}
-              <div className="border-t pt-4">
+              <div className="border-t pt-4" data-testid="details-timestamps">
                 <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-3">
                   {t('governance.executionLogs.details.timing')}
                 </h3>
@@ -1132,6 +1150,7 @@ const AgentExecutionLogs = () => {
                       className="h-7 w-7 p-0"
                       onClick={() => handleCopy(selectedLog.tenant_id!, 'tenantId')}
                       aria-label={t('governance.executionLogs.copyTenantId')}
+                      data-testid="copy-tenant-id"
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
