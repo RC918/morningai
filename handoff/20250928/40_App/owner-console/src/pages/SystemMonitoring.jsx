@@ -148,7 +148,7 @@ const SystemMonitoring = () => {
   }
 
   return (
-    <div className="p-8 space-y-6" aria-busy={loading}>
+    <div className="p-8 space-y-6" aria-busy={loading} data-testid="system-monitoring">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
@@ -157,14 +157,14 @@ const SystemMonitoring = () => {
           </h1>
           <p className="text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
         </div>
-        <Button onClick={loadSystemData} variant="outline" disabled={loading}>
+        <Button onClick={loadSystemData} variant="outline" disabled={loading} data-testid="refresh-metrics">
           <RefreshCw className="w-4 h-4 mr-2" />
           {t('common.refresh')}
         </Button>
       </div>
 
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" data-testid="error-alert">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>{t('common.error')}</AlertTitle>
           <AlertDescription>
@@ -174,6 +174,7 @@ const SystemMonitoring = () => {
               variant="outline" 
               size="sm" 
               className="ml-4"
+              data-testid="retry-button"
             >
               {t('common.refresh')}
             </Button>
@@ -199,7 +200,7 @@ const SystemMonitoring = () => {
       )}
 
       {health && (
-        <Card>
+        <Card data-testid="system-health">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="w-5 h-5" />
@@ -250,7 +251,7 @@ const SystemMonitoring = () => {
 
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
+          <Card data-testid="cpu-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cpu className="w-5 h-5" />
@@ -271,7 +272,7 @@ const SystemMonitoring = () => {
                 </div>
                 {metrics.cpu?.usage_percent != null && (
                   <div className="space-y-1">
-                    <div className="h-16" aria-label={t('monitoring.cpuTrend')}>
+                    <div className="h-16" aria-label={t('monitoring.cpuTrend')} data-testid="cpu-trend">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={generateTrendData(metrics.cpu.usage_percent)}>
                           <Line 
@@ -286,7 +287,7 @@ const SystemMonitoring = () => {
                       </ResponsiveContainer>
                     </div>
                     {USE_MOCK && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs" data-testid="mock-badge">
                         {t('monitoring.mockDataLabel')}
                       </Badge>
                     )}
@@ -296,7 +297,7 @@ const SystemMonitoring = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card data-testid="memory-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="w-5 h-5" />
@@ -319,7 +320,7 @@ const SystemMonitoring = () => {
                 </div>
                 {metrics.memory?.usage_percent != null && (
                   <div className="space-y-1">
-                    <div className="h-16" aria-label={t('monitoring.memoryTrend')}>
+                    <div className="h-16" aria-label={t('monitoring.memoryTrend')} data-testid="memory-trend">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={generateTrendData(metrics.memory.usage_percent)}>
                           <Line 
@@ -334,7 +335,7 @@ const SystemMonitoring = () => {
                       </ResponsiveContainer>
                     </div>
                     {USE_MOCK && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs" data-testid="mock-badge">
                         {t('monitoring.mockDataLabel')}
                       </Badge>
                     )}
@@ -344,7 +345,7 @@ const SystemMonitoring = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card data-testid="disk-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <HardDrive className="w-5 h-5" />
@@ -367,7 +368,7 @@ const SystemMonitoring = () => {
                 </div>
                 {metrics.disk?.usage_percent != null && (
                   <div className="space-y-1">
-                    <div className="h-16" aria-label={t('monitoring.diskTrend')}>
+                    <div className="h-16" aria-label={t('monitoring.diskTrend')} data-testid="disk-trend">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={generateTrendData(metrics.disk.usage_percent)}>
                           <Line 
@@ -382,7 +383,7 @@ const SystemMonitoring = () => {
                       </ResponsiveContainer>
                     </div>
                     {USE_MOCK && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs" data-testid="mock-badge">
                         {t('monitoring.mockDataLabel')}
                       </Badge>
                     )}
