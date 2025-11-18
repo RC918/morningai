@@ -500,5 +500,211 @@ describe('AgentEvaluationDashboard - Empty State Logic', () => {
         expect(screen.getByText('Agent Evaluation Dashboard')).toBeInTheDocument();
       });
     });
+
+    it('should call Intl.DateTimeFormat with correct parameters', async () => {
+      const mockFormat = vi.fn().mockReturnValue('Nov 17, 2025, 14:30');
+      const mockDateTimeFormat = vi.fn().mockReturnValue({ format: mockFormat });
+      
+      global.Intl.DateTimeFormat = mockDateTimeFormat;
+
+      const mockMetricsResponse = {
+        metrics: {
+          planner_accuracy: 87.5,
+          self_healing_rate: 72.3,
+          completion_rate: 81.2,
+          ci_pass_rate: 92.1,
+        },
+        targets: {
+          planner_accuracy: 85,
+          self_healing_rate: 70,
+          completion_rate: 80,
+          ci_pass_rate: 90,
+        },
+        last_evaluation: '2025-11-17T14:30:00Z',
+      };
+
+      const mockResultsResponse = {
+        evaluations: [
+          {
+            id: 1,
+            run_id: 123,
+            date: '2025-11-17T14:30:00Z',
+            status: 'success',
+            total_tasks: 10,
+            completed: 8,
+            pr_created: 7,
+            ci_passed: 6,
+            run_url: 'https://github.com/test/run/123',
+          },
+        ],
+      };
+
+      agentEvaluationApi.getAgentEvaluationMetrics.mockResolvedValue(mockMetricsResponse);
+      agentEvaluationApi.getAgentEvaluationResults.mockResolvedValue(mockResultsResponse);
+
+      render(<AgentEvaluationDashboard />);
+
+      await waitFor(() => {
+        expect(mockDateTimeFormat).toHaveBeenCalledWith('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+      });
+    });
+
+    it('should fallback to language when resolvedLanguage is undefined', async () => {
+      vi.unmock('react-i18next');
+      vi.mock('react-i18next', () => ({
+        useTranslation: () => ({
+          t: (key, fallback) => fallback || key,
+          i18n: {
+            language: 'fr-FR',
+            resolvedLanguage: undefined,
+          },
+        }),
+      }));
+
+      const mockFormat = vi.fn().mockReturnValue('17 nov. 2025, 14:30');
+      const mockDateTimeFormat = vi.fn().mockReturnValue({ format: mockFormat });
+      
+      global.Intl.DateTimeFormat = mockDateTimeFormat;
+
+      const mockMetricsResponse = {
+        metrics: {
+          planner_accuracy: 87.5,
+          self_healing_rate: 72.3,
+          completion_rate: 81.2,
+          ci_pass_rate: 92.1,
+        },
+        targets: {
+          planner_accuracy: 85,
+          self_healing_rate: 70,
+          completion_rate: 80,
+          ci_pass_rate: 90,
+        },
+        last_evaluation: '2025-11-17T14:30:00Z',
+      };
+
+      const mockResultsResponse = {
+        evaluations: [
+          {
+            id: 1,
+            run_id: 123,
+            date: '2025-11-17T14:30:00Z',
+            status: 'success',
+            total_tasks: 10,
+            completed: 8,
+            pr_created: 7,
+            ci_passed: 6,
+            run_url: 'https://github.com/test/run/123',
+          },
+        ],
+      };
+
+      agentEvaluationApi.getAgentEvaluationMetrics.mockResolvedValue(mockMetricsResponse);
+      agentEvaluationApi.getAgentEvaluationResults.mockResolvedValue(mockResultsResponse);
+
+      const AgentEvaluationDashboardModule = await import('../AgentEvaluationDashboard');
+      const AgentEvaluationDashboardComponent = AgentEvaluationDashboardModule.default;
+
+      render(<AgentEvaluationDashboardComponent />);
+
+      await waitFor(() => {
+        expect(mockDateTimeFormat).toHaveBeenCalledWith('fr-FR', expect.any(Object));
+      });
+
+      vi.mock('react-i18next', () => ({
+        useTranslation: () => ({
+          t: (key, fallback) => fallback || key,
+          i18n: {
+            language: 'en-US',
+            resolvedLanguage: 'en-US',
+          },
+        }),
+      }));
+    });
+
+    it('should format dates correctly for zh-TW locale', async () => {
+      vi.unmock('react-i18next');
+      vi.mock('react-i18next', () => ({
+        useTranslation: () => ({
+          t: (key, fallback) => fallback || key,
+          i18n: {
+            language: 'zh-TW',
+            resolvedLanguage: 'zh-TW',
+          },
+        }),
+      }));
+
+      const mockFormat = vi.fn().mockReturnValue('2025年11月17日 14:30');
+      const mockDateTimeFormat = vi.fn().mockReturnValue({ format: mockFormat });
+      
+      global.Intl.DateTimeFormat = mockDateTimeFormat;
+
+      const mockMetricsResponse = {
+        metrics: {
+          planner_accuracy: 87.5,
+          self_healing_rate: 72.3,
+          completion_rate: 81.2,
+          ci_pass_rate: 92.1,
+        },
+        targets: {
+          planner_accuracy: 85,
+          self_healing_rate: 70,
+          completion_rate: 80,
+          ci_pass_rate: 90,
+        },
+        last_evaluation: '2025-11-17T14:30:00Z',
+      };
+
+      const mockResultsResponse = {
+        evaluations: [
+          {
+            id: 1,
+            run_id: 123,
+            date: '2025-11-17T14:30:00Z',
+            status: 'success',
+            total_tasks: 10,
+            completed: 8,
+            pr_created: 7,
+            ci_passed: 6,
+            run_url: 'https://github.com/test/run/123',
+          },
+        ],
+      };
+
+      agentEvaluationApi.getAgentEvaluationMetrics.mockResolvedValue(mockMetricsResponse);
+      agentEvaluationApi.getAgentEvaluationResults.mockResolvedValue(mockResultsResponse);
+
+      const AgentEvaluationDashboardModule = await import('../AgentEvaluationDashboard');
+      const AgentEvaluationDashboardComponent = AgentEvaluationDashboardModule.default;
+
+      render(<AgentEvaluationDashboardComponent />);
+
+      await waitFor(() => {
+        expect(mockDateTimeFormat).toHaveBeenCalledWith('zh-TW', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+      });
+
+      vi.mock('react-i18next', () => ({
+        useTranslation: () => ({
+          t: (key, fallback) => fallback || key,
+          i18n: {
+            language: 'en-US',
+            resolvedLanguage: 'en-US',
+          },
+        }),
+      }));
+    });
   });
 });
