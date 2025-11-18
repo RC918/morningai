@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
 
 /**
  * Playwright configuration for owner-console E2E tests
@@ -30,6 +31,9 @@ export default defineConfig({
     
     /* Collect trace when retrying the failed test */
     trace: 'on-first-retry',
+    
+    /* Block service workers to prevent interference with mocked routes */
+    serviceWorkers: 'block',
   },
 
   /* Configure projects for major browsers */
@@ -42,7 +46,7 @@ export default defineConfig({
       name: 'chromium',
       use: { 
         ...devices['Desktop Chrome'],
-        storageState: 'playwright/.auth/user.json',
+        storageState: path.resolve(__dirname, 'playwright/.auth/user.json'),
       },
       dependencies: ['setup'],
     },
