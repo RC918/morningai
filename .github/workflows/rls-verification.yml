@@ -1,0 +1,93 @@
+name: RLS Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'migrations/**'
+      - 'scripts/verify_rls_runtime.py'
+      - '.github/workflows/rls-verification.yml'
+  workflow_dispatch:
+
+jobs:
+  verify-rls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: morningai_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install psycopg2-binary
+      
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
+        run: |
+          # Apply migrations in order
+          for migration in migrations/*.sql; do
+            echo "Applying $migration..."
+            psql $DATABASE_URL -f "$migration" || echo "Migration $migration failed (may be expected)"
+          done
+      
+      - name: Run RLS verification (ephemeral mode)
+        id: rls_verify
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
+        run: |
+          python scripts/verify_rls_runtime.py --verbose
+      
+      - name: Check RLS verification results
+        run: |
+          if [ "${{ steps.rls_verify.outcome }}" = "success" ]; then
+            echo "✅ RLS verification passed"
+            exit 0
+          else
+            echo "⚠️ RLS verification failed or had errors"
+            echo "This is a soft gate - PR can still be merged"
+            echo "Please review the RLS verification output above"
+            exit 0
+          fi
+      
+      - name: Create GitHub summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # RLS Verification Results
+          
+          ## Status
+          
+          - **Outcome**: ${{ steps.rls_verify.outcome }}
+          - **Mode**: Ephemeral (all changes rolled back)
+          - **Database**: PostgreSQL 15 (test instance)
+          
+          ## Details
+          
+          See the "Run RLS verification" step above for detailed results.
+          
+          ---
+          
+          **Note**: This is a soft gate. RLS verification failures do not block PR merges.
+          EOF

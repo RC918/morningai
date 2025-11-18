@@ -1,6 +1,12 @@
 name: Agent Evaluation
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/agent_eval/**'
+      - 'handoff/20250928/40_App/orchestrator/**'
+      - '.github/workflows/agent-evaluation.yml'
   schedule:
     # Run every Sunday at 00:00 UTC
     - cron: '0 0 * * 0'
