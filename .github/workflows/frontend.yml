@@ -461,19 +461,30 @@ jobs:
           export ENVIRONMENT=development
           export CORS_ORIGINS=http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173
           export ORCHESTRATOR_PATH="${GITHUB_WORKSPACE}/handoff/20250928/40_App/orchestrator"
-          export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${GITHUB_WORKSPACE}/handoff/20250928/40_App/orchestrator:${PYTHONPATH}"
+          export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/orchestrator:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${PYTHONPATH}"
           
           # Verify critical imports work before starting Flask
           python - <<'PY'
-          import sys, importlib
+          import sys, importlib, inspect
           print("PYTHONPATH OK, first 5:", sys.path[:5])
           import common
           import redis_queue
+          from persistence import db_writer
+          import persistence
+          print("persistence module:", persistence.__file__)
+          print("db_writer module:", inspect.getfile(db_writer))
           importlib.import_module('src.services.auth_service')
-          print("✅ Import sanity check: OK")
+          print("✅ Import preflight: OK")
           PY
           
-          nohup python -m flask run --host=0.0.0.0 --port=5000 > backend.log 2>&1 &
+          # Log environment for debugging
+          echo "PYTHONPATH=$PYTHONPATH" > backend.log
+          python - <<'PY' >> backend.log
+          import sys
+          print("sys.path (first 10):", sys.path[:10])
+          PY
+          
+          nohup gunicorn -b 0.0.0.0:5000 'src.main:app' --workers=1 --threads=4 --timeout=120 >> backend.log 2>&1 &
           echo $! > backend.pid
           
           # Wait for backend to be ready
