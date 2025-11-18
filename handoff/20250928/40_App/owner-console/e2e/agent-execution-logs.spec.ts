@@ -3,7 +3,8 @@ import {
   mockExecutionLogsResponse, 
   mockExecutionLogsResponsePage2,
   mockExecutionLogsFilteredByStatus,
-  grantClipboardPermissions 
+  grantClipboardPermissions,
+  stubGovernanceEndpoints
 } from './utils/fixtures'
 
 /**
@@ -26,6 +27,8 @@ import {
 
 test.describe('AgentExecutionLogs E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
+    await stubGovernanceEndpoints(page)
+    
     await page.route('**/admin/agent-execution-logs*', route => {
       const url = route.request().url()
       

@@ -4,7 +4,8 @@ import {
   mockHealthResponseDegraded,
   mockMetricsResponse,
   mockMetricsResponseHighUsage,
-  stubMathRandom 
+  stubMathRandom,
+  stubGovernanceEndpoints
 } from './utils/fixtures'
 
 /**
@@ -24,6 +25,7 @@ import {
 test.describe('SystemMonitoring E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     await stubMathRandom(page)
+    await stubGovernanceEndpoints(page)
     
     await page.route('**/admin/system-health', route => {
       route.fulfill({ json: mockHealthResponse })

@@ -252,3 +252,56 @@ export function disableAnimations(page: any) {
 export async function grantClipboardPermissions(context: any) {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
 }
+
+/**
+ * Mock data for governance endpoints
+ */
+export const mockGovernanceEvents = {
+  events: [],
+  count: 0
+}
+
+export const mockGovernanceViolations = {
+  violations: [],
+  count: 0
+}
+
+export const mockGovernanceStatistics = {
+  reputation: {},
+  costs: {
+    daily: {
+      usage: {}
+    }
+  },
+  timestamp: {}
+}
+
+/**
+ * Helper to stub governance API endpoints that return 503 in CI
+ * These endpoints lack ALLOW_GOVERNANCE_MOCK support, so we stub them at the test layer
+ */
+export async function stubGovernanceEndpoints(page: any) {
+  await page.route('**/api/governance/events?**', route =>
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify(mockGovernanceEvents) 
+    })
+  )
+  
+  await page.route('**/api/governance/violations?**', route =>
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify(mockGovernanceViolations) 
+    })
+  )
+  
+  await page.route('**/api/governance/statistics', route =>
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify(mockGovernanceStatistics) 
+    })
+  )
+}
