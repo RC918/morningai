@@ -26,11 +26,14 @@ def _fetch_evaluation_results_from_github(limit: int = 10) -> List[Dict]:
     """
     Fetch evaluation results from GitHub Actions artifacts.
     
+    This is a placeholder implementation that returns an empty list until
+    the actual artifact download and parsing logic is implemented.
+    
     Args:
         limit: Maximum number of evaluation runs to fetch
         
     Returns:
-        List of evaluation result dictionaries
+        List of evaluation result dictionaries (currently empty until artifacts are parsed)
     """
     try:
         from github import Github, GithubException
@@ -49,41 +52,14 @@ def _fetch_evaluation_results_from_github(limit: int = 10) -> List[Dict]:
         runs = workflow.get_runs(status='completed')
         
         results = []
-        count = 0
         
-        for run in runs:
-            if count >= limit:
-                break
-            
-            try:
-                artifacts = run.get_artifacts()
-                
-                for artifact in artifacts:
-                    if artifact.name == 'evaluation-results':
-                        
-                        result = {
-                            'id': f"{run.created_at.strftime('%Y-%m-%d')}-{run.id}",
-                            'date': run.created_at.isoformat(),
-                            'run_id': run.id,
-                            'run_url': run.html_url,
-                            'status': run.conclusion,
-                            'artifact_url': artifact.archive_download_url,
-                            'total_tasks': 0,
-                            'completed': 0,
-                            'pr_created': 0,
-                            'ci_passed': 0,
-                            'planner_accuracy': 0.0,
-                            'self_healing_rate': 0.0,
-                            'duration_seconds': 0
-                        }
-                        
-                        results.append(result)
-                        count += 1
-                        break
-                        
-            except GithubException as e:
-                logger.warning(f"Failed to fetch artifacts for run {run.id}: {e}")
-                continue
+        # TODO: Implement artifact download and JSON parsing
+        # 1. Download artifact using artifact.archive_download_url
+        # 2. Extract ZIP file and parse evaluation_results.json
+        # 3. Extract metrics and populate result dictionary
+        # Until implemented, return empty list to avoid misleading zero values
+        
+        logger.info(f"Found {runs.totalCount} completed workflow runs, but artifact parsing not yet implemented")
         
         return results
         
