@@ -30,7 +30,6 @@ elif not os.path.exists(orchestrator_path):
 
 from src.routes.billing import bp as billing_bp
 from src.routes.tenant import bp as tenant_bp
-from src.routes.faq import bp as faq_bp
 from src.routes.vectors import bp as vectors_bp
 from src.routes.governance import bp as governance_bp, admin_bp as admin_agents_bp
 from src.routes.agent_registry import bp as agent_registry_bp
@@ -291,15 +290,16 @@ app.register_blueprint(billing_bp)
 if os.getenv('ENABLE_ORCHESTRATOR', 'true').lower() in ('true', '1', 'yes', 'on'):
     from src.routes.agent import bp as agent_bp
     from src.routes.agent_evaluation import bp as agent_evaluation_bp
+    from src.routes.faq import bp as faq_bp
     app.register_blueprint(agent_bp)
     app.register_blueprint(agent_evaluation_bp)
+    app.register_blueprint(faq_bp)
     logger.info("✅ Orchestrator/agent routes enabled")
 else:
     logger.info("⚠️ Orchestrator/agent routes disabled (ENABLE_ORCHESTRATOR=false)")
 
 app.register_blueprint(agent_registry_bp)
 app.register_blueprint(tenant_bp)
-app.register_blueprint(faq_bp)
 app.register_blueprint(vectors_bp)
 app.register_blueprint(governance_bp)
 app.register_blueprint(admin_bp)
