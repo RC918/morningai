@@ -404,6 +404,7 @@ jobs:
           export FLASK_APP=src.main:app
           export ENABLE_MOCK_USERS=true
           export ENABLE_ORCHESTRATOR=false
+          export ALLOW_GOVERNANCE_MOCK=true
           export JWT_SECRET_KEY=test-jwt-secret-for-e2e-ci
           export FLASK_SECRET_KEY=test-flask-secret-for-e2e-ci
           export ENVIRONMENT=development
