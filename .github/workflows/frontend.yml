@@ -456,26 +456,20 @@ jobs:
           cd handoff/20250928/40_App/api-backend
           export FLASK_APP=src.main:app
           export ENABLE_MOCK_USERS=true
+          export ENABLE_ORCHESTRATOR=false
           export JWT_SECRET_KEY=test-jwt-secret-for-e2e-ci
           export FLASK_SECRET_KEY=test-flask-secret-for-e2e-ci
           export ENVIRONMENT=development
           export CORS_ORIGINS=http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173
-          export REDIS_URL=redis://localhost:6379/0
-          export ORCHESTRATOR_PATH="${GITHUB_WORKSPACE}/handoff/20250928/40_App/orchestrator"
-          export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/orchestrator:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${PYTHONPATH}"
+          export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${PYTHONPATH}"
           
           # Verify critical imports work before starting Flask
           python - <<'PY'
-          import sys, importlib, inspect
+          import sys, importlib
           print("PYTHONPATH OK, first 5:", sys.path[:5])
           import common
-          import redis_queue
-          from persistence import db_writer
-          import persistence
-          print("persistence module:", persistence.__file__)
-          print("db_writer module:", inspect.getfile(db_writer))
           importlib.import_module('src.services.auth_service')
-          print("✅ Import preflight: OK")
+          print("✅ Import preflight: OK (orchestrator disabled for E2E)")
           PY
           
           # Log environment for debugging

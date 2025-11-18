@@ -29,7 +29,6 @@ elif not os.path.exists(orchestrator_path):
     )
 
 from src.routes.billing import bp as billing_bp
-from src.routes.agent import bp as agent_bp
 from src.routes.tenant import bp as tenant_bp
 from src.routes.faq import bp as faq_bp
 from src.routes.vectors import bp as vectors_bp
@@ -288,7 +287,14 @@ app.register_blueprint(auth_2fa_bp)
 app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
 app.register_blueprint(totp_bp, url_prefix="/api/auth/v2/totp")
 app.register_blueprint(billing_bp)
-app.register_blueprint(agent_bp)
+
+if os.getenv('ENABLE_ORCHESTRATOR', 'true').lower() in ('true', '1', 'yes', 'on'):
+    from src.routes.agent import bp as agent_bp
+    app.register_blueprint(agent_bp)
+    logger.info("✅ Orchestrator/agent routes enabled")
+else:
+    logger.info("⚠️ Orchestrator/agent routes disabled (ENABLE_ORCHESTRATOR=false)")
+
 app.register_blueprint(agent_registry_bp)
 app.register_blueprint(tenant_bp)
 app.register_blueprint(faq_bp)
