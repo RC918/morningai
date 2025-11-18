@@ -519,5 +519,30 @@
     },
     "expand": "Expand sidebar",
     "collapse": "Collapse sidebar"
+  },
+  "agentEvaluation": {
+    "title": "Agent Evaluation Dashboard",
+    "subtitle": "Monitor AI agent performance metrics and evaluation results",
+    "target": "Target",
+    "onTarget": "On Target",
+    "belowTarget": "Below Target",
+    "lastEvaluation": "Last evaluation",
+    "metrics": {
+      "plannerAccuracy": "Planner Accuracy",
+      "selfHealingRate": "Self-Healing Rate",
+      "completionRate": "Completion Rate",
+      "ciPassRate": "CI Pass Rate"
+    },
+    "history": {
+      "title": "Evaluation History",
+      "subtitle": "Recent agent evaluation runs from GitHub Actions",
+      "noResults": "No evaluation results available yet",
+      "weeklyRuns": "Evaluations run weekly via GitHub Actions",
+      "runNumber": "Run #{{id}}",
+      "tasks": "Tasks",
+      "completed": "Completed",
+      "prs": "PRs",
+      "ciPassed": "CI Passed"
+    }
   }
 }
