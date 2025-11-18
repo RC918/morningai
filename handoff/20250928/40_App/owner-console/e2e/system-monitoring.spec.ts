@@ -11,7 +11,7 @@ import {
  * E2E tests for SystemMonitoring component
  * 
  * NOTE: These tests require authenticated access to /monitoring route.
- * In CI environments without authentication, these tests will be skipped automatically.
+ * Authentication is handled by the setup project (auth.setup.ts) which runs before these tests.
  * 
  * Tests verify:
  * 1. Happy path render (health and metrics)
@@ -20,18 +20,6 @@ import {
  * 4. Trend charts presence
  * 5. Refresh button flow
  */
-
-/**
- * Helper function to check if user is authenticated
- * Returns true if authenticated, false if on login page
- */
-async function isAuthenticated(page) {
-  // Check for common login page elements
-  const loginForm = await page.locator('input[type="email"], input[type="password"]').count()
-  const loginButton = await page.locator('button:has-text("Login"), button:has-text("Sign in")').count()
-  
-  return loginForm === 0 && loginButton === 0
-}
 
 test.describe('SystemMonitoring E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
@@ -48,10 +36,6 @@ test.describe('SystemMonitoring E2E Tests', () => {
 
   test('1. should render health and metrics successfully', async ({ page }) => {
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
     
     await page.waitForSelector('[data-testid="system-monitoring"]', { timeout: 10000 })
     
@@ -81,10 +65,6 @@ test.describe('SystemMonitoring E2E Tests', () => {
 
   test('2. should show mock badges when VITE_USE_MOCK=true', async ({ page }) => {
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -175,10 +155,6 @@ test.describe('SystemMonitoring E2E Tests', () => {
   test('5. should display trend charts for all metrics', async ({ page }) => {
     await page.goto('/monitoring')
     
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
-    
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
     const cpuTrend = page.getByTestId('cpu-trend')
@@ -258,10 +234,6 @@ test.describe('SystemMonitoring E2E Tests', () => {
     
     await page.goto('/monitoring')
     
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
-    
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
     const healthCard = page.getByTestId('system-health')
@@ -277,10 +249,6 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
