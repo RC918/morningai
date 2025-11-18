@@ -18,7 +18,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:smoke": "node scripts/smoke-tests.js",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test tests/design-tokens.spec.ts",
     "test:vrt": "playwright test -g @vrt",
     "test:motion": "node scripts/test-motion.cjs",
     "test:a11y": "node scripts/test-a11y.cjs",

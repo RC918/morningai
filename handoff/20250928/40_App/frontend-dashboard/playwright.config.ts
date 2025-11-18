@@ -30,11 +30,18 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'setup',
+      testMatch: /.*\.setup\.spec\.ts$/,
+    },
+    {
       name: 'chromium',
+      testIgnore: /.*\.setup\.spec\.ts$/,
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1280, height: 736 },
+        storageState: 'playwright/.auth/storageState.json',
       },
+      dependencies: ['setup'],
     },
   ],
 })
