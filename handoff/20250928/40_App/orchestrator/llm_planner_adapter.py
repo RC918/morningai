@@ -76,9 +76,22 @@ class LLMPlannerAdapter:
             })
             
             if not task_type:
-                from agents.dev_agent.workflows.task_classifier import classify_task
-                classification = classify_task(goal)
-                task_type = classification.get("task_type", "unknown")
+                try:
+                    from agents.dev_agent.workflows.task_classifier import classify_task
+                    classification = classify_task(goal)
+                    task_type = classification.get("task_type", "unknown")
+                except ImportError:
+                    try:
+                        from agents.dev_agent.workflows.task_classifier import TaskClassifier
+                        classifier = TaskClassifier()
+                        task_type_enum = classifier.classify(goal)
+                        task_type = task_type_enum.value if hasattr(task_type_enum, 'value') else str(task_type_enum)
+                    except Exception as e:
+                        logger.warning(f"[LLM Planner] Failed to classify task: {e}")
+                        task_type = "unknown"
+                except Exception as e:
+                    logger.warning(f"[LLM Planner] Failed to classify task: {e}")
+                    task_type = "unknown"
             
             if not code_context:
                 code_context = self._get_code_context(repo, goal)
@@ -252,13 +265,13 @@ Generate a 3-7 step plan to accomplish this goal."""
             Dict with static plan and metadata
         """
         plan = [
-            "Analyze codebase and requirements",
-            "Generate FAQ content with GPT-4",
-            "Create git branch",
-            "Commit changes to FAQ.md",
-            "Open pull request",
-            "Monitor CI checks",
-            "Auto-merge if CI passes"
+            "Analyze requirements and identify impacted files",
+            "Create a feature branch",
+            "Implement changes with unit tests",
+            "Run lint and unit tests locally",
+            "Commit and push changes",
+            "Open a pull request",
+            "Monitor CI and address failures"
         ]
         
         logger.info(f"[LLM Planner] Using static plan with {len(plan)} steps", extra={
@@ -283,16 +296,11 @@ Generate a 3-7 step plan to accomplish this goal."""
             trace_id: Trace ID
             planning_time_ms: Planning time in milliseconds
         """
-        try:
-            from tools.agent_eval.metrics import AgentEvalMetrics
-            
-            logger.info(f"[LLM Planner] Planning time: {planning_time_ms:.2f}ms", extra={
-                "operation": "llm_planner_metric",
-                "trace_id": trace_id,
-                "planning_time_ms": planning_time_ms
-            })
-        except Exception as e:
-            logger.warning(f"[LLM Planner] Failed to record planning time metric: {e}")
+        logger.info(f"[LLM Planner] Planning time: {planning_time_ms:.2f}ms", extra={
+            "operation": "llm_planner_metric",
+            "trace_id": trace_id,
+            "planning_time_ms": planning_time_ms
+        })
 
 
 def generate_llm_plan(

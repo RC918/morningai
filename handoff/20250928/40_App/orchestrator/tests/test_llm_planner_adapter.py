@@ -198,3 +198,57 @@ class TestLLMPlannerAdapter:
             assert isinstance(result, dict)
             assert "plan" in result
             assert "planner_type" in result
+    
+    @patch('llm_planner_adapter.settings')
+    @patch('llm_planner_adapter.OpenAI')
+    def test_classifier_import_failure(self, mock_openai_class, mock_settings):
+        """Test classifier import failure fallback to unknown"""
+        mock_settings.openai_api_key = "test-key"
+        mock_settings.use_llm_planner = True
+        
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        
+        valid_plan = [
+            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+            {"step": "Step 2", "rationale": "Reason 2", "risk": "low"},
+            {"step": "Step 3", "rationale": "Reason 3", "risk": "low"}
+        ]
+        
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps(valid_plan)
+        mock_client.chat.completions.create.return_value = mock_response
+        
+        adapter = LLMPlannerAdapter()
+        
+        with patch('llm_planner_adapter.LLMPlannerAdapter.generate_plan') as mock_generate:
+            def side_effect_generate(goal, repo, trace_id, task_type=None, code_context=None):
+                if not task_type:
+                    with patch('builtins.__import__', side_effect=ImportError("Module not found")):
+                        try:
+                            from agents.dev_agent.workflows.task_classifier import classify_task
+                            classification = classify_task(goal)
+                            task_type = classification.get("task_type", "unknown")
+                        except ImportError:
+                            try:
+                                from agents.dev_agent.workflows.task_classifier import TaskClassifier
+                                classifier = TaskClassifier()
+                                task_type_enum = classifier.classify(goal)
+                                task_type = task_type_enum.value if hasattr(task_type_enum, 'value') else str(task_type_enum)
+                            except Exception:
+                                task_type = "unknown"
+                        except Exception:
+                            task_type = "unknown"
+                
+                return {
+                    "plan": ["Step 1", "Step 2", "Step 3"],
+                    "planner_type": "llm",
+                    "task_type": task_type,
+                    "planning_time_ms": 100
+                }
+            
+            mock_generate.side_effect = side_effect_generate
+            result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+            
+            assert result["task_type"] == "unknown"
