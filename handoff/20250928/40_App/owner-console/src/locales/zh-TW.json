@@ -540,5 +540,30 @@
     },
     "expand": "展開側邊欄",
     "collapse": "收起側邊欄"
+  },
+  "agentEvaluation": {
+    "title": "Agent 評估儀表板",
+    "subtitle": "監控 AI agent 效能指標與評估結果",
+    "target": "目標",
+    "onTarget": "達標",
+    "belowTarget": "未達標",
+    "lastEvaluation": "最後評估時間",
+    "metrics": {
+      "plannerAccuracy": "規劃準確率",
+      "selfHealingRate": "自動修復率",
+      "completionRate": "完成率",
+      "ciPassRate": "CI 通過率"
+    },
+    "history": {
+      "title": "評估歷史",
+      "subtitle": "來自 GitHub Actions 的最近 agent 評估執行記錄",
+      "noResults": "目前沒有可用的評估結果",
+      "weeklyRuns": "評估每週由 GitHub Actions 執行",
+      "runNumber": "執行編號 #{{id}}",
+      "tasks": "任務",
+      "completed": "已完成",
+      "prs": "PR 數量",
+      "ciPassed": "CI 通過"
+    }
   }
 }

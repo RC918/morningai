@@ -27,11 +27,13 @@ import {
 import { getAgentEvaluationResults, getAgentEvaluationMetrics } from '@/lib/agent-evaluation-api'
 
 const AgentEvaluationDashboard = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [metrics, setMetrics] = useState(null)
   const [evaluations, setEvaluations] = useState([])
+  
+  const hasData = metrics && evaluations.length > 0
 
   useEffect(() => {
     loadEvaluationData()
@@ -72,15 +74,17 @@ const AgentEvaluationDashboard = () => {
   }
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A'
+    if (!dateString) return t('common.na', 'N/A')
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
+    const formatter = new Intl.DateTimeFormat(i18n.resolvedLanguage || i18n.language, {
+      year: 'numeric',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      hour12: false
     })
+    return formatter.format(date)
   }
 
   const formatPercentage = (value) => {
@@ -182,15 +186,19 @@ const AgentEvaluationDashboard = () => {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${getMetricColor(metrics.metrics.planner_accuracy, metrics.targets.planner_accuracy)}`}>
-                {formatPercentage(metrics.metrics.planner_accuracy)}
+              <div className={`text-2xl font-bold ${hasData ? getMetricColor(metrics.metrics.planner_accuracy, metrics.targets.planner_accuracy) : 'text-neutral-400'}`}>
+                {hasData ? formatPercentage(metrics.metrics.planner_accuracy) : t('common.na', 'N/A')}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {t('agentEvaluation.target', 'Target')}: {formatPercentage(metrics.targets.planner_accuracy)}
+                {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.planner_accuracy)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
-              <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.planner_accuracy, metrics.targets.planner_accuracy)}`}>
-                {metrics.metrics.planner_accuracy >= metrics.targets.planner_accuracy ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
-              </Badge>
+              <div className="mt-2 min-h-[24px]">
+                {hasData && (
+                  <Badge className={getMetricBadgeColor(metrics.metrics.planner_accuracy, metrics.targets.planner_accuracy)}>
+                    {metrics.metrics.planner_accuracy >= metrics.targets.planner_accuracy ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -201,15 +209,19 @@ const AgentEvaluationDashboard = () => {
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${getMetricColor(metrics.metrics.self_healing_rate, metrics.targets.self_healing_rate)}`}>
-                {formatPercentage(metrics.metrics.self_healing_rate)}
+              <div className={`text-2xl font-bold ${hasData ? getMetricColor(metrics.metrics.self_healing_rate, metrics.targets.self_healing_rate) : 'text-neutral-400'}`}>
+                {hasData ? formatPercentage(metrics.metrics.self_healing_rate) : t('common.na', 'N/A')}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {t('agentEvaluation.target', 'Target')}: {formatPercentage(metrics.targets.self_healing_rate)}
+                {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.self_healing_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
-              <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.self_healing_rate, metrics.targets.self_healing_rate)}`}>
-                {metrics.metrics.self_healing_rate >= metrics.targets.self_healing_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
-              </Badge>
+              <div className="mt-2 min-h-[24px]">
+                {hasData && (
+                  <Badge className={getMetricBadgeColor(metrics.metrics.self_healing_rate, metrics.targets.self_healing_rate)}>
+                    {metrics.metrics.self_healing_rate >= metrics.targets.self_healing_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -220,15 +232,19 @@ const AgentEvaluationDashboard = () => {
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${getMetricColor(metrics.metrics.completion_rate, metrics.targets.completion_rate)}`}>
-                {formatPercentage(metrics.metrics.completion_rate)}
+              <div className={`text-2xl font-bold ${hasData ? getMetricColor(metrics.metrics.completion_rate, metrics.targets.completion_rate) : 'text-neutral-400'}`}>
+                {hasData ? formatPercentage(metrics.metrics.completion_rate) : t('common.na', 'N/A')}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {t('agentEvaluation.target', 'Target')}: {formatPercentage(metrics.targets.completion_rate)}
+                {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.completion_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
-              <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.completion_rate, metrics.targets.completion_rate)}`}>
-                {metrics.metrics.completion_rate >= metrics.targets.completion_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
-              </Badge>
+              <div className="mt-2 min-h-[24px]">
+                {hasData && (
+                  <Badge className={getMetricBadgeColor(metrics.metrics.completion_rate, metrics.targets.completion_rate)}>
+                    {metrics.metrics.completion_rate >= metrics.targets.completion_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -239,15 +255,19 @@ const AgentEvaluationDashboard = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${getMetricColor(metrics.metrics.ci_pass_rate, metrics.targets.ci_pass_rate)}`}>
-                {formatPercentage(metrics.metrics.ci_pass_rate)}
+              <div className={`text-2xl font-bold ${hasData ? getMetricColor(metrics.metrics.ci_pass_rate, metrics.targets.ci_pass_rate) : 'text-neutral-400'}`}>
+                {hasData ? formatPercentage(metrics.metrics.ci_pass_rate) : t('common.na', 'N/A')}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {t('agentEvaluation.target', 'Target')}: {formatPercentage(metrics.targets.ci_pass_rate)}
+                {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.ci_pass_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
-              <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.ci_pass_rate, metrics.targets.ci_pass_rate)}`}>
-                {metrics.metrics.ci_pass_rate >= metrics.targets.ci_pass_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
-              </Badge>
+              <div className="mt-2 min-h-[24px]">
+                {hasData && (
+                  <Badge className={getMetricBadgeColor(metrics.metrics.ci_pass_rate, metrics.targets.ci_pass_rate)}>
+                    {metrics.metrics.ci_pass_rate >= metrics.targets.ci_pass_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
