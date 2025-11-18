@@ -44,7 +44,19 @@ setup('authenticate', async ({ page }) => {
   
   console.log('✅ Authentication successful');
   
-  await page.context().storageState({ path: authFile });
+  const storageState = await page.context().storageState({ path: authFile });
   
   console.log(`💾 Saved authentication state to ${authFile}`);
+  console.log('📊 StorageState origins:', storageState.origins.map(o => o.origin));
+  console.log('📊 Cookies count:', storageState.cookies.length);
+  console.log('📊 Cookies for localhost:4173:', storageState.cookies.filter(c => c.domain.includes('localhost')).map(c => c.name));
+  
+  const localStorageKeys = await page.evaluate(() => {
+    return {
+      hasTokenExpiry: !!localStorage.getItem('morningai_token_expiry'),
+      hasUser: !!localStorage.getItem('morningai_user'),
+      tokenExpiry: localStorage.getItem('morningai_token_expiry'),
+    };
+  });
+  console.log('📊 localStorage keys:', localStorageKeys);
 });
