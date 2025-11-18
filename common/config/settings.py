@@ -762,6 +762,12 @@ class Settings(BaseSettings):
         description="Percentage of tasks to use LangGraph mode (0-100)"
     )
     
+    use_code_generation: bool = Field(
+        default=False,
+        alias="USE_CODE_GENERATION",
+        description="Enable AI-powered code generation workflow (Phase 2)"
+    )
+    
     allow_governance_mock: bool = Field(
         default=False,
         description="Allow mock governance for testing"
