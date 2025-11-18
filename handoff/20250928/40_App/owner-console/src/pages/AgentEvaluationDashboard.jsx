@@ -76,13 +76,15 @@ const AgentEvaluationDashboard = () => {
   const formatDate = (dateString) => {
     if (!dateString) return t('common.na', 'N/A')
     const date = new Date(dateString)
-    return date.toLocaleDateString(i18n.language, { 
-      year: 'numeric', 
-      month: 'short', 
+    const formatter = new Intl.DateTimeFormat(i18n.language, {
+      year: 'numeric',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      hour12: false
     })
+    return formatter.format(date)
   }
 
   const formatPercentage = (value) => {
@@ -190,11 +192,13 @@ const AgentEvaluationDashboard = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.planner_accuracy)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
-              {hasData && (
-                <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.planner_accuracy, metrics.targets.planner_accuracy)}`}>
-                  {metrics.metrics.planner_accuracy >= metrics.targets.planner_accuracy ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
-                </Badge>
-              )}
+              <div className="mt-2 min-h-[24px]">
+                {hasData && (
+                  <Badge className={getMetricBadgeColor(metrics.metrics.planner_accuracy, metrics.targets.planner_accuracy)}>
+                    {metrics.metrics.planner_accuracy >= metrics.targets.planner_accuracy ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -211,11 +215,13 @@ const AgentEvaluationDashboard = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.self_healing_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
-              {hasData && (
-                <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.self_healing_rate, metrics.targets.self_healing_rate)}`}>
-                  {metrics.metrics.self_healing_rate >= metrics.targets.self_healing_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
-                </Badge>
-              )}
+              <div className="mt-2 min-h-[24px]">
+                {hasData && (
+                  <Badge className={getMetricBadgeColor(metrics.metrics.self_healing_rate, metrics.targets.self_healing_rate)}>
+                    {metrics.metrics.self_healing_rate >= metrics.targets.self_healing_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -232,11 +238,13 @@ const AgentEvaluationDashboard = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.completion_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
-              {hasData && (
-                <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.completion_rate, metrics.targets.completion_rate)}`}>
-                  {metrics.metrics.completion_rate >= metrics.targets.completion_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
-                </Badge>
-              )}
+              <div className="mt-2 min-h-[24px]">
+                {hasData && (
+                  <Badge className={getMetricBadgeColor(metrics.metrics.completion_rate, metrics.targets.completion_rate)}>
+                    {metrics.metrics.completion_rate >= metrics.targets.completion_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -253,11 +261,13 @@ const AgentEvaluationDashboard = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.ci_pass_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
-              {hasData && (
-                <Badge className={`mt-2 ${getMetricBadgeColor(metrics.metrics.ci_pass_rate, metrics.targets.ci_pass_rate)}`}>
-                  {metrics.metrics.ci_pass_rate >= metrics.targets.ci_pass_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
-                </Badge>
-              )}
+              <div className="mt-2 min-h-[24px]">
+                {hasData && (
+                  <Badge className={getMetricBadgeColor(metrics.metrics.ci_pass_rate, metrics.targets.ci_pass_rate)}>
+                    {metrics.metrics.ci_pass_rate >= metrics.targets.ci_pass_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')}
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
