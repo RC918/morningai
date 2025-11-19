@@ -1,42 +1,50 @@
-# Adding a Test Comment to `llm_planner_adapter.py` in MorningAI
+# Adding a Test Comment in `llm_planner_adapter.py`
 
-When working on the MorningAI platform, you may find the need to document or note specific behaviors, todo items, or important information directly within your code. This FAQ will guide you through the process of adding a test comment to the `llm_planner_adapter.py` file located in the `handoff/20250928/40_App/orchestrator/` directory of the RC918/morningai repository.
+This FAQ section is dedicated to guiding developers on how to add a test comment in the `llm_planner_adapter.py` file located within the `handoff/20250928/40_App/orchestrator` directory of the RC918/morningai repository. Understanding how to correctly add comments is crucial for code documentation and collaboration.
 
 ## Explanation
 
-Comments in Python are lines that are not executed by the interpreter. They're invaluable for providing context or explanations within your codebase, making it easier for you and others to understand the code's purpose at a glance. In Python, comments are preceded by a hash mark (`#`) and can be placed at the end of a line of code or on their own line.
+Comments in Python are lines that are not executed by the interpreter. They're used for explaining what a particular section of code does, making the codebase easier to understand and maintain. In Python, comments are preceded by a hash (`#`) symbol.
 
-### Adding a Comment
+Adding a comment to `llm_planner_adapter.py` involves editing the file to include your comment string preceded by `#`. This is particularly useful for testing purposes, code clarification, or leaving notes for future development.
 
-To add a comment to `llm_planner_adapter.py`, follow these steps:
+## Code Example
 
-1. Navigate to the specified directory: `handoff/20250928/40_App/orchestrator/`
-2. Open `llm_planner_adapter.py` with your preferred text editor or IDE.
-3. Decide where you want to place your comment. If it's meant to describe a block of code, it's good practice to place it directly above that block.
-4. Begin your comment with a `#` followed by a space for readability, then type your comment.
+To add a test comment in `llm_planner_adapter.py`, follow these steps:
 
-#### Example
-
-If you're adding a test comment to remind yourself or others to refactor a specific function in the future, your comment might look like this:
+1. Navigate to the file's location: `handoff/20250928/40_App/orchestrator/llm_planner_adapter.py`.
+2. Open `llm_planner_adapter.py` in your preferred code editor.
+3. Determine where you want to insert your test comment. It could be at the top of the file, inline with existing code, or at the bottom.
+4. Insert your comment by starting with the `#` symbol followed by your descriptive text. For example:
 
 ```python
-# TODO: Refactor this function for better efficiency
-def my_sample_function():
+# This is a test comment added for demonstration purposes
+```
+
+5. Save your changes.
+
+Here's an illustrative snippet showing how you might insert a comment within existing code:
+
+```python
+def some_function():
+    # TODO: Optimize this function for better performance
     pass
 ```
 
-### Related Documentation
+## Related Documentation
 
-- Python Comments: [Python.org Documentation](https://docs.python.org/3/tutorial/introduction.html#comments)
-- MorningAI Developer Guide (specifically the section on code standards and practices)
+For more information on Python comments and best practices, refer to:
 
-### Common Troubleshooting Tips
+- [Python Comments](https://docs.python.org/3/tutorial/introduction.html#comments)
+- [PEP 8 -- Style Guide for Python Code](https://www.python.org/dev/peps/pep-0008/#comments)
 
-- **Comment Not Being Recognized**: Ensure that there is no whitespace before the `#`; it should be the first character on the line unless it's an inline comment.
-- **Syntax Errors Near Comments**: While comments themselves cannot cause syntax errors, ensure that adding a comment has not inadvertently uncommented code or broken Python's indentation rules.
-- **Code Execution Changes**: Comments do not affect how your code runs. If you notice changes after adding comments, double-check that you haven't altered any actual code.
+## Common Troubleshooting Tips
 
-Remember, comments are an essential part of maintaining clean and understandable code, especially when working on complex systems like MorningAI. They help document decisions, clarify complex logic, and remind you and others of future improvements.
+- **Syntax Errors**: Ensure that your comment starts with `#` and does not interfere with other code lines or strings.
+- **Encoding Issues**: If your comment contains non-ASCII characters, make sure your Python file encoding supports them (e.g., by declaring `# -*- coding: utf-8 -*-` at the top of your file).
+- **Visibility**: Comments are ignored by Python interpreters, so if you place executable code within a comment, it will not run.
+
+Remember, while adding comments is straightforward, thoughtful commenting can significantly improve code readability and maintainability.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
