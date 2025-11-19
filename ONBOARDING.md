@@ -21,7 +21,8 @@
 - **技術棧**: React 19 + Vite 6 + Tailwind CSS 4 (前端), Flask 3 + SQLAlchemy 2 (後端), Redis 5 (快取)
 - **包管理器**: pnpm 9.15.1+ (Monorepo with Turbo)
 - **架構**: 三層分離（Owner Console, Tenant Dashboard, API Backend）
-- **當前階段**: Phase 8 → Phase 9 (MVP to World-Class 轉型)
+- **當前階段**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow)
+- **最新更新**: 2025-11-19 - Phase 1 LLM Planner 整合完成，113 commits 近一週
 
 ### 2. 設置開發環境 (30 分鐘)
 
@@ -41,6 +42,15 @@
 - **Engineering PR**: 只能改動 `**/api/**`, `**/src/**`, `handoff/**/30_API/openapi/**`
 - **API 變更**: 必須先提 RFC Issue，經 Owner 核准後才能提交 PR
 
+**近一週重要更新** (2025-11-12 至 2025-11-19):
+- ✅ Phase 1 (B): LLM Planner 整合與 ContextManager 實作 (#1353)
+- ✅ Phase 2: Code Generation Workflow with Security Validation (#1347)
+- ✅ Phase 1.5: Agent Evaluation Monitoring Dashboard (#1337)
+- ✅ Design Token Migration 完成 - Tailwind config + semantic tokens (#1323, #1331, #1332)
+- ✅ P3 測試覆蓋率提升: 3% → 21% (#1318, #1321)
+- ✅ Owner Console E2E 測試完成 (#1345, #1348)
+- ✅ Lighthouse CI 設置文檔與 workflow_dispatch 觸發器 (#1346)
+
 ---
 
 ## 🎨 設計師上手路徑
@@ -58,12 +68,14 @@
 - **設計令牌**: `packages/shared-ui/src/tokens.json` (單一真實來源)
 - **共享組件庫**: `packages/shared-ui/src/components/ui/` (52 個組件)
 - **應用層組件**: `handoff/20250928/40_App/frontend-dashboard/src/components/ui/`
+- **最新遷移**: Design Token Migration 完成 (2025-11-19) - Tailwind config 整合語義化 tokens
 
 ### 第二步：查看已完成工作 (20 分鐘)
 
 - [ ] 閱讀 [UI/UX Issue 狀態追蹤](docs/UI_UX_ISSUE_STATUS.md) - 18/18 Issues 完成狀態
 - [ ] 查看 [8-Week Roadmap 總結](docs/UX/8_WEEK_ROADMAP_FINAL_SUMMARY.md) - 完整進度追蹤
 - [ ] 瀏覽 [UI/UX 資源指南](docs/UI_UX_RESOURCES.md) - 完整資源索引
+- [ ] 查看 [Strategic Roadmap Reality Comparison](docs/STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) - 最新戰略路線圖對比 (2025-11-16)
 
 ### 第三步：熟悉工具與流程 (30 分鐘)
 
@@ -125,13 +137,15 @@
 - [ ] 了解 Design Tokens 使用方式（查看 `packages/shared-ui/src/tokens.json`）
 - [ ] 查看 Storybook 中的組件範例（26 個 stories）
 - [ ] 搜尋專案中的組件使用範例: `rg "import.*Button" --type tsx`
+- [ ] 查看 [Agent Evaluation Dashboard](handoff/20250928/40_App/owner-console/src/pages/AgentEvaluationDashboard.jsx) - Phase 1.5 新增功能
 
 ### 第四步：了解測試與 CI/CD (30 分鐘)
 
 - [ ] 閱讀 [CI 工作流矩陣](docs/ci_matrix.md) - GitHub Actions 工作流說明
 - [ ] 了解測試策略（單元測試、整合測試、E2E 測試）
-- [ ] 查看 [測試覆蓋率報告](TEST_COVERAGE_IMPROVEMENT_REPORT.md)
+- [ ] 查看 [測試覆蓋率報告](TEST_COVERAGE_IMPROVEMENT_REPORT.md) - 最新: 3% → 21% (P3 Phase 1-2)
 - [ ] 了解 Vercel 自動部署流程
+- [ ] 查看 Lighthouse CI 工作流程 (.github/workflows/lhci.yml) - 效能監控設置
 
 ### 第五步：開始第一個任務 (可選)
 

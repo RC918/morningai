@@ -155,21 +155,137 @@ class TestPlannerMetrics:
                         assert len(event["actual_plan_steps"]) == 3
 
     def test_record_planner_event_default_path(self):
-        """Test that record_planner_event uses default path when env var not set"""
+        """Test that record_planner_event uses default relative path when env var not set (Priority 1: CWD with .git)"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch('os.path.expanduser', return_value=tmpdir):
-                adapter = LLMPlannerAdapter()
+            mock_repo = os.path.join(tmpdir, 'morningai')
+            os.makedirs(os.path.join(mock_repo, '.git'))
+            
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(mock_repo)
+                
+                with patch.dict(os.environ, {}, clear=True):
+                    adapter = LLMPlannerAdapter()
+                    adapter.record_planner_event(
+                        trace_id="test-123",
+                        goal="Test goal",
+                        planner_type="llm",
+                        task_type="test_type",
+                        actual_plan_steps=["Step 1"],
+                        planning_time_ms=1000.0
+                    )
 
-                adapter.record_planner_event(
-                    trace_id="test-123",
-                    goal="Test goal",
-                    planner_type="llm",
-                    task_type="test_type",
-                    actual_plan_steps=["Step 1"],
-                    planning_time_ms=1000.0
-                )
+                    default_path = os.path.join(
+                        mock_repo, 'tools', 'agent_eval', 'data', 'planner_runs.jsonl'
+                    )
+                    assert os.path.exists(default_path)
+            finally:
+                os.chdir(original_cwd)
 
-                default_path = os.path.join(
-                    tmpdir, 'repos', 'morningai', 'tools', 'agent_eval', 'data', 'planner_runs.jsonl'
-                )
-                assert os.path.exists(default_path)
+    def test_record_planner_event_file_directory_fallback(self):
+        """Test path resolution Priority 2: __file__ directory with .git when CWD has no .git"""
+        import sys
+        import importlib.util
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_repo = os.path.join(tmpdir, 'repo_root')
+            mock_module_dir = os.path.join(mock_repo, 'handoff', '20250928', '40_App', 'orchestrator')
+            os.makedirs(os.path.join(mock_repo, '.git'))
+            os.makedirs(mock_module_dir)
+            
+            module_file = os.path.join(mock_module_dir, 'fake_adapter.py')
+            with open(module_file, 'w') as f:
+                f.write('# Fake module for testing\n')
+            
+            no_git_dir = os.path.join(tmpdir, 'no_git')
+            os.makedirs(no_git_dir)
+            
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(no_git_dir)
+                
+                with patch.dict(os.environ, {}, clear=True):
+                    spec = importlib.util.spec_from_file_location("fake_adapter", module_file)
+                    fake_module = importlib.util.module_from_spec(spec)
+                    
+                    with patch('llm_planner_adapter.__file__', module_file):
+                        adapter = LLMPlannerAdapter()
+                        adapter.record_planner_event(
+                            trace_id="test-priority-2",
+                            goal="Test __file__ fallback",
+                            planner_type="llm",
+                            task_type="test_type",
+                            actual_plan_steps=["Step 1"],
+                            planning_time_ms=1000.0
+                        )
+
+                        expected_path = os.path.join(
+                            mock_repo, 'tools', 'agent_eval', 'data', 'planner_runs.jsonl'
+                        )
+                        assert os.path.exists(expected_path)
+            finally:
+                os.chdir(original_cwd)
+
+    def test_record_planner_event_cwd_morningai_heuristic(self):
+        """Test path resolution Priority 3: CWD basename is 'morningai' (no .git anywhere)"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_repo = os.path.join(tmpdir, 'morningai')
+            os.makedirs(mock_repo)
+            
+            no_git_module = os.path.join(tmpdir, 'other', 'module')
+            os.makedirs(no_git_module)
+            
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(mock_repo)
+                
+                with patch.dict(os.environ, {}, clear=True):
+                    with patch('llm_planner_adapter.__file__', os.path.join(no_git_module, 'llm_planner_adapter.py')):
+                        adapter = LLMPlannerAdapter()
+                        adapter.record_planner_event(
+                            trace_id="test-priority-3",
+                            goal="Test morningai heuristic",
+                            planner_type="llm",
+                            task_type="test_type",
+                            actual_plan_steps=["Step 1"],
+                            planning_time_ms=1000.0
+                        )
+
+                        expected_path = os.path.join(
+                            mock_repo, 'tools', 'agent_eval', 'data', 'planner_runs.jsonl'
+                        )
+                        assert os.path.exists(expected_path)
+            finally:
+                os.chdir(original_cwd)
+
+    def test_record_planner_event_current_dir_fallback(self):
+        """Test path resolution Priority 4: Fallback to current_dir when no .git and CWD not morningai"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            no_git_cwd = os.path.join(tmpdir, 'random_dir')
+            os.makedirs(no_git_cwd)
+            
+            no_git_module = os.path.join(tmpdir, 'other', 'module')
+            os.makedirs(no_git_module)
+            
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(no_git_cwd)
+                
+                with patch.dict(os.environ, {}, clear=True):
+                    with patch('llm_planner_adapter.__file__', os.path.join(no_git_module, 'llm_planner_adapter.py')):
+                        adapter = LLMPlannerAdapter()
+                        adapter.record_planner_event(
+                            trace_id="test-priority-4",
+                            goal="Test current_dir fallback",
+                            planner_type="llm",
+                            task_type="test_type",
+                            actual_plan_steps=["Step 1"],
+                            planning_time_ms=1000.0
+                        )
+
+                        expected_path = os.path.join(
+                            no_git_module, 'tools', 'agent_eval', 'data', 'planner_runs.jsonl'
+                        )
+                        assert os.path.exists(expected_path)
+            finally:
+                os.chdir(original_cwd)

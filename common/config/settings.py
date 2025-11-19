@@ -752,6 +752,7 @@ class Settings(BaseSettings):
     
     use_langgraph: bool = Field(
         default=False,
+        alias="USE_LANGGRAPH",
         description="Enable LangGraph orchestrator mode"
     )
     
@@ -759,11 +760,13 @@ class Settings(BaseSettings):
         default=0,
         ge=0,
         le=100,
+        alias="USE_LANGGRAPH_PERCENT",
         description="Percentage of tasks to use LangGraph mode (0-100)"
     )
     
     use_llm_planner: bool = Field(
         default=False,
+        alias="USE_LLM_PLANNER",
         description="Enable LLM-powered planner in LangGraph orchestrator (Phase 1)"
     )
     
@@ -777,6 +780,7 @@ class Settings(BaseSettings):
         default=0,
         ge=0,
         le=100,
+        alias="USE_CODEGEN_WORKFLOW_PERCENT",
         description="Percentage of tasks to use code generation workflow (0-100, for canary rollout)"
     )
     
