@@ -31,7 +31,7 @@ export default defineConfig({
   /* Shared settings for all the projects below */
   use: {
     /* Base URL to use in actions like `await page.goto('/')` */
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: 'http://localhost:4173',
     
     /* Collect trace, screenshot, and video on failure for debugging */
     trace: 'retain-on-failure',
@@ -60,8 +60,9 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'pnpm run preview -- --host 127.0.0.1 --port 4173 --strict-port',
-    url: 'http://127.0.0.1:4173',
+    command: 'pnpm run preview -- --port 4173 --strict-port',
+    url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
+    timeout: 120000,
   },
 });

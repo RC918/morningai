@@ -459,10 +459,15 @@ jobs:
         working-directory: handoff/20250928/40_App/owner-console
         run: |
           echo "🔍 Verifying VITE_API_BASE_URL is baked into dist..."
-          if grep -r "http://localhost:5000" dist; then
+          echo "📁 Checking dist directory..."
+          ls -la dist/ || (echo "❌ dist directory not found!" && exit 1)
+          echo "🔎 Searching for VITE_API_BASE_URL in build..."
+          if grep -r "http://localhost:5000" dist/ 2>/dev/null | head -5; then
             echo "✅ VITE_API_BASE_URL successfully baked into build"
           else
             echo "❌ VITE_API_BASE_URL not found in dist - build may have failed to include env vars"
+            echo "📄 Showing first few files in dist:"
+            find dist -type f | head -10
             exit 1
           fi
       
