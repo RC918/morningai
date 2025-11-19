@@ -410,6 +410,7 @@ jobs:
           export ENVIRONMENT=development
           export CORS_ORIGINS=http://localhost:4173,http://127.0.0.1:4173
           export ACCESS_TOKEN_EXPIRY_MINUTES=60
+          export LOG_TOKEN_EXPIRY_ON_STARTUP=1
           export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${PYTHONPATH}"
           
           # Verify critical imports work before starting Flask

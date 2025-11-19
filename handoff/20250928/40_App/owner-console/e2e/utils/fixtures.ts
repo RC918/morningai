@@ -339,9 +339,20 @@ export async function addDiagnosticLogging(page: any) {
     console.log('[Request Failed]:', request.url(), request.failure()?.errorText)
   })
   
-  page.on('response', (response: any) => {
+  page.on('response', async (response: any) => {
     if (response.status() >= 400) {
-      console.log(`[API Error ${response.status()}]:`, response.url())
+      const url = response.url()
+      const status = response.status()
+      console.log(`[API Error ${status}]:`, url)
+      
+      if (status === 401 && url.includes('/api/')) {
+        try {
+          const body = await response.text()
+          console.log(`[401 Response Body]:`, body.substring(0, 500))
+        } catch (e) {
+          console.log('[401 Response Body]: <unable to read>')
+        }
+      }
     }
   })
 }
