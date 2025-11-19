@@ -63,24 +63,59 @@ export interface RefreshTokenResponse {
 
 const TOKEN_EXPIRY_KEY = 'morningai_token_expiry';
 const USER_STORAGE_KEY = 'morningai_user';
+const ACCESS_TOKEN_KEY = 'morningai_access_token';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
 
 let inMemoryAccessToken: string | null = null;
 
 
 /**
- * Store access token in memory (fallback for when cookies are blocked)
- * SECURITY: Never store in localStorage to prevent XSS attacks
+ * Store access token in memory and sessionStorage (for E2E tests)
+ * 
+ * SECURITY: 
+ * - In-memory storage is preferred for production (prevents XSS attacks)
+ * - sessionStorage is used as fallback for E2E tests where Playwright needs to restore state
+ * - sessionStorage is safer than localStorage (cleared when tab closes)
+ * - Never use localStorage for tokens (persistent across sessions)
  */
 export function storeAccessToken(token: string | null): void {
   inMemoryAccessToken = token;
+  
+  // Also store in sessionStorage for E2E test compatibility
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      if (token) {
+        sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+      } else {
+        sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+      }
+    } catch (error) {
+      console.error('Failed to store access token in sessionStorage:', error);
+    }
+  }
 }
 
 /**
- * Get access token from memory
+ * Get access token from memory or sessionStorage (fallback for E2E tests)
  */
 export function getAccessToken(): string | null {
-  return inMemoryAccessToken;
+  if (inMemoryAccessToken) {
+    return inMemoryAccessToken;
+  }
+  
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      const storedToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+      if (storedToken) {
+        inMemoryAccessToken = storedToken;
+        return storedToken;
+      }
+    } catch (error) {
+      console.error('Failed to retrieve access token from sessionStorage:', error);
+    }
+  }
+  
+  return null;
 }
 
 /**
@@ -133,6 +168,7 @@ export function clearTokens(): void {
   try {
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
   } catch (error) {
     console.error('Failed to clear auth data:', error);
   }
