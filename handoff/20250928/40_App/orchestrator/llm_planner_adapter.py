@@ -343,8 +343,16 @@ Generate a 3-7 step plan to accomplish this goal."""
         from datetime import datetime
 
         events_file = os.environ.get('PLANNER_EVENTS_FILE', 'tools/agent_eval/data/planner_runs.jsonl')
-        events_path = os.path.join(os.path.expanduser('~'), 'repos', 'morningai', events_file)
-
+        
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        repo_root = current_dir
+        while repo_root != '/' and not os.path.exists(os.path.join(repo_root, '.git')):
+            repo_root = os.path.dirname(repo_root)
+        
+        if not os.path.exists(os.path.join(repo_root, '.git')):
+            repo_root = current_dir
+        
+        events_path = os.path.join(repo_root, events_file)
         os.makedirs(os.path.dirname(events_path), exist_ok=True)
 
         event = {
