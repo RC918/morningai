@@ -1,21 +1,23 @@
 # MorningAI 專案深度解析報告
 
-**生成時間**: 2025-10-24  
+**生成時間**: 2025-11-19  
+**上次更新**: 2025-11-19  
 **分析範圍**: 完整專案結構、資源架構、技術棧、部署架構
 
 ---
 
 ## 📋 執行摘要
 
-MorningAI 是一個**世界級 AI Agent 編排平台**，目前處於 Phase 8 (v8.0.0)，正從 MVP 階段邁向生產級 SaaS 平台。專案採用**多租戶架構**，支援 Owner Console 和 Tenant Dashboard 雙前端，透過統一的 FastAPI 後端進行 AI agent 編排。
+MorningAI 是一個**世界級 AI Agent 編排平台**，目前處於 **Phase 1-2 實施階段** (LLM Planner + Code Generation Workflow)，正從 MVP 階段邁向生產級 SaaS 平台。專案採用**多租戶架構**，支援 Owner Console 和 Tenant Dashboard 雙前端，透過統一的 Flask/FastAPI 後端進行 AI agent 編排。
 
 ### 關鍵指標
-- **代碼庫規模**: ~50,000 行代碼
-- **CI/CD Workflows**: 28 個 GitHub Actions workflows
-- **Database Migrations**: 25 個 SQL migrations
-- **測試覆蓋率**: 41% (目標 80%)
-- **Backend Tests**: 36 個測試檔案
-- **部署環境**: 5 個 (Vercel x2, Render x1, Fly.io x2)
+- **代碼庫規模**: ~100,000+ 行代碼
+- **CI/CD Workflows**: 15+ 個 GitHub Actions workflows
+- **Database Migrations**: 25+ 個 SQL migrations (Supabase) + Alembic migrations (api-backend)
+- **測試覆蓋率**: 21% (前端), 74%+ (後端) - 目標 80%
+- **Backend Tests**: 36+ 個測試檔案
+- **部署環境**: 6 個 (Vercel x2, Render x3, Fly.io x2)
+- **近一週活動**: 113 commits (2025-11-12 至 2025-11-19)
 
 ---
 
@@ -144,7 +146,11 @@ frontend-dashboard/
 └── vite.config.js
 ```
 
-**最新功能** (剛合併):
+**最新功能** (2025-11-19):
+- ✅ **Phase 1 LLM Planner**: AI 驅動的任務規劃與 ContextManager (#1353)
+- ✅ **Phase 2 Code Generation**: 安全驗證的代碼生成工作流 (#1347)
+- ✅ **Agent Evaluation Dashboard**: 監控 AI agent 表現指標 (#1337)
+- ✅ **Design Token Migration**: Tailwind config 整合語義化 tokens (#1323, #1331, #1332)
 - ✅ **Global Search** (Cmd+K): 全域搜尋策略、決策、成本
 - ✅ **Undo/Redo**: 支援操作歷史管理
 - ✅ **Search Registry**: 可擴展的搜尋註冊系統
@@ -224,12 +230,16 @@ api-backend/
 /api/user/preferences           # 使用者偏好 (新增)
 ```
 
-**最近修復** (PR #661):
-- ✅ Redis 連線配置 (移除 hardcoded fallback)
-- ✅ Orchestrator import 錯誤 (ORCHESTRATOR_PATH 環境變數)
-- ✅ Report generator type error (datetime 序列化)
-- ✅ 新增 10 個單元測試
-- ✅ 部署驗證腳本
+**最近更新** (2025-11-12 至 2025-11-19):
+- ✅ Phase 1 (B): LLM Planner 整合與 ContextManager 實作 (#1353)
+- ✅ Phase 2: Code Generation Workflow with Security Validation (#1347)
+- ✅ Phase 1.5: Agent Evaluation Monitoring Dashboard (#1337)
+- ✅ Design Token Migration 完成 - Tailwind config + semantic tokens (#1323, #1331, #1332)
+- ✅ P3 測試覆蓋率提升: 3% → 21% (#1318, #1321)
+- ✅ Owner Console E2E 測試完成 (#1345, #1348)
+- ✅ Lighthouse CI 設置文檔與 workflow_dispatch 觸發器 (#1346)
+- ✅ Phase 0 Closeout: 測試發現修復與 CI jobs 新增 (#1351)
+- ✅ Phase 1-2 Cleanup: USE_LLM_PLANNER 和 USE_CODEGEN_WORKFLOW_PERCENT 功能標誌 (#1352)
 
 ---
 
@@ -269,9 +279,10 @@ migrations/
 - `daily_cost_summary` - 成本彙總 (materialized view)
 - `vector_visualization` - Vector 視覺化 (materialized view)
 
-**最近安全修復** (PR #686 - 待合併):
-- ✅ 為 materialized views 啟用 RLS
-- ✅ 建立 policies (service_role + authenticated)
+**資料庫安全**:
+- ✅ 所有 public tables 啟用 RLS
+- ✅ Materialized views RLS policies
+- ✅ Row Level Security 多租戶隔離
 - ⚠️ Leaked Password Protection (需手動啟用)
 
 #### Upstash Redis
@@ -303,12 +314,16 @@ def get_redis_client():
 **位置**: `handoff/20250928/40_App/orchestrator/`
 
 **核心功能**:
-- **Stateful workflows**: LangGraph state machine
-- **Task planning**: GPT-4 驅動的任務分解
+- **Dual Mode System**: Simple mode (production) vs LangGraph mode (optional)
+- **LLM Planner**: GPT-4 驅動的任務規劃與分解 (Phase 1)
+- **Code Generation**: 安全驗證的代碼生成工作流 (Phase 2)
+- **Context Manager**: 智能代碼上下文提取 (271 lines)
+- **Stateful workflows**: LangGraph state machine (422 lines)
 - **CI monitoring**: 自動監控 GitHub Actions
 - **Auto-fixing**: 自動修復 CI 失敗
 - **Cost tracking**: 追蹤 LLM API 成本
 - **Reputation engine**: Agent 表現評分
+- **Metric Recording**: JSONL 格式的指標記錄
 
 **目錄結構**:
 ```
@@ -321,17 +336,24 @@ orchestrator/
 ├── schemas/                    # 資料 schemas
 ├── task_queue/                 # Task queue 管理
 │   └── redis_queue.py          # Redis Queue (RQ)
+├── graph.py                    # Simple orchestrator (production)
+├── langgraph_orchestrator.py  # LangGraph orchestrator (optional, 422 lines)
+├── context_manager.py          # Code context extraction (271 lines) - NEW
 ├── tests/                      # Orchestrator 測試
 └── examples/                   # 使用範例
 ```
 
-**Workflow State Machine**:
+**Workflow State Machine** (LangGraph Mode):
 ```
-┌─────────┐     ┌──────────┐     ┌────────────┐     ┌─────────┐
-│ Planner │────▶│ Executor │────▶│ CI Monitor │────▶│ Fixer   │
-└─────────┘     └──────────┘     └────────────┘     └─────────┘
-     │               │                  │                 │
-     └───────────────┴──────────────────┴─────────────────┘
+┌─────────────┐     ┌──────────┐     ┌────────────┐     ┌─────────┐
+│ LLM Planner │────▶│ Executor │────▶│ CI Monitor │────▶│ Fixer   │
+│  (Phase 1)  │     │(Phase 2) │     │            │     │         │
+└─────────────┘     └──────────┘     └────────────┘     └─────────┘
+     │                   │                  │                 │
+     │              ┌────────────┐          │                 │
+     └──────────────│Context Mgr │──────────┴─────────────────┘
+                    │ (Phase 1)  │
+                    └────────────┘
                             │
                       ┌──────────┐
                       │Finalizer │
