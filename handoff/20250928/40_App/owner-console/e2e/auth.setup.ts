@@ -69,4 +69,12 @@ setup('authenticate', async ({ page }) => {
     };
   });
   console.log('📊 localStorage keys:', localStorageKeys);
+  
+  const sessionStorageKeys = await page.evaluate(() => {
+    return {
+      hasAccessToken: !!sessionStorage.getItem('morningai_access_token'),
+      accessTokenLength: sessionStorage.getItem('morningai_access_token')?.length || 0,
+    };
+  });
+  console.log('📊 sessionStorage keys:', sessionStorageKeys);
 });
