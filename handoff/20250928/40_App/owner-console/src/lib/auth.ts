@@ -105,22 +105,40 @@ export function storeAccessToken(token: string | null): void {
  * Get access token from memory or localStorage (fallback for E2E tests)
  */
 export function getAccessToken(): string | null {
+  const callStack = new Error().stack?.split('\n')[2]?.trim() || 'unknown';
+  console.log('[getAccessToken] Called from:', callStack);
+  
   if (inMemoryAccessToken) {
+    console.log('[getAccessToken] ✅ Returning from memory, length:', inMemoryAccessToken.length);
     return inMemoryAccessToken;
   }
+  
+  console.log('[getAccessToken] ⚠️ Memory token is null, checking localStorage...');
   
   if (typeof localStorage !== 'undefined') {
     try {
       const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+      console.log('[getAccessToken] localStorage check:', {
+        hasToken: !!storedToken,
+        tokenLength: storedToken?.length || 0,
+        key: ACCESS_TOKEN_KEY
+      });
+      
       if (storedToken) {
+        console.log('[getAccessToken] ✅ Found token in localStorage, restoring to memory');
         inMemoryAccessToken = storedToken;
         return storedToken;
+      } else {
+        console.log('[getAccessToken] ❌ No token in localStorage');
       }
     } catch (error) {
-      console.error('Failed to retrieve access token from localStorage:', error);
+      console.error('[getAccessToken] ❌ Failed to retrieve access token from localStorage:', error);
     }
+  } else {
+    console.log('[getAccessToken] ❌ localStorage is undefined');
   }
   
+  console.log('[getAccessToken] ❌ Returning null - no token found');
   return null;
 }
 

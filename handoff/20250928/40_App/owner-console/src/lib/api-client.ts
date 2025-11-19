@@ -55,8 +55,17 @@ export async function apiClient<T>(
   }
   
   const accessToken = getAccessToken();
+  console.log('[apiClient] getAccessToken result:', {
+    hasToken: !!accessToken,
+    tokenLength: accessToken?.length || 0,
+    url: finalUrl
+  });
+  
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
+    console.log('[apiClient] ✅ Authorization header set for:', finalUrl);
+  } else {
+    console.log('[apiClient] ❌ No Authorization header - token is null for:', finalUrl);
   }
   
   const res = await fetch(`${API_BASE_URL}${finalUrl}`, {
@@ -321,8 +330,17 @@ export async function apiClientWithMeta<T>(
   }
   
   const accessToken = getAccessToken();
+  console.log('[apiClientWithMeta] getAccessToken result:', {
+    hasToken: !!accessToken,
+    tokenLength: accessToken?.length || 0,
+    url: finalUrl
+  });
+  
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
+    console.log('[apiClientWithMeta] ✅ Authorization header set for:', finalUrl);
+  } else {
+    console.log('[apiClientWithMeta] ❌ No Authorization header - token is null for:', finalUrl);
   }
 
   const controller = new AbortController();
