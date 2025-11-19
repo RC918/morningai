@@ -46,19 +46,17 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     })
   })
 
-  test('1. should render summary statistics and table', async ({ page }) => {
+  const navigateToExecutionLogs = async (page: any) => {
     await page.goto('/governance')
     await page.waitForLoadState('networkidle')
     
-    const url = page.url()
-    const localStorageState = await page.evaluate(() => ({
-      path: window.location.pathname,
-      hasUser: !!localStorage.getItem('morningai_user'),
-      tokenExpiry: localStorage.getItem('morningai_token_expiry')
-    }))
-    console.log('[Diagnostic] After goto - URL:', url, 'localStorage:', localStorageState)
+    await page.click('button[value="executionLogs"]')
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })
+  }
+
+  test('1. should render summary statistics and table', async ({ page }) => {
+    await navigateToExecutionLogs(page)
     
     const summaryTotal = page.getByTestId('summary-total')
     await expect(summaryTotal).toBeVisible()
@@ -82,10 +80,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('2. should normalize execution log statuses correctly', async ({ page }) => {
-    await page.goto('/governance')
-    await page.waitForLoadState('networkidle')
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const rows = page.locator('[data-testid="execution-row"]')
     const rowCount = await rows.count()
@@ -101,10 +96,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('3. should filter by status', async ({ page }) => {
-    await page.goto('/governance')
-    await page.waitForLoadState('networkidle')
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const statusFilter = page.getByTestId('filter-status')
     await statusFilter.click()
@@ -125,10 +117,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('4. should filter by agent type', async ({ page }) => {
-    await page.goto('/governance')
-    await page.waitForLoadState('networkidle')
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const agentTypeFilter = page.getByTestId('filter-agent-type')
     await agentTypeFilter.click()
@@ -143,10 +132,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('5. should clear filters', async ({ page }) => {
-    await page.goto('/governance')
-    await page.waitForLoadState('networkidle')
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const statusFilter = page.getByTestId('filter-status')
     await statusFilter.click()
@@ -179,10 +165,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
       }
     })
     
-    await page.goto('/governance')
-    await page.waitForLoadState('networkidle')
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     await page.waitForSelector('text=/Page.*of/')
     
@@ -197,10 +180,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('7. should display trace links when TRACE_VIEWER_URL is set', async ({ page }) => {
-    await page.goto('/governance')
-    await page.waitForLoadState('networkidle')
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const traceLinks = page.locator('[data-testid="trace-link"]')
     const traceLinkCount = await traceLinks.count()
@@ -222,10 +202,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   test('8. should copy trace ID to clipboard', async ({ page, context }) => {
     await grantClipboardPermissions(context)
     
-    await page.goto('/governance')
-    await page.waitForLoadState('networkidle')
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const copyButton = page.getByTestId('copy-trace-id').first()
     await copyButton.click()
@@ -237,10 +214,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('9. should open details drawer and display full information', async ({ page }) => {
-    await page.goto('/governance')
-    await page.waitForLoadState('networkidle')
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const viewDetailsButton = page.getByTestId('view-details').first()
     await viewDetailsButton.click()
@@ -278,8 +252,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
       }
     })
     
-    await page.goto('/governance')
-    await page.waitForLoadState('networkidle')
+    await navigateToExecutionLogs(page)
     
     const errorAlert = page.getByTestId('error-alert')
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
