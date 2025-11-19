@@ -50,18 +50,9 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await page.goto('/governance')
     await page.waitForLoadState('networkidle')
     
-    const tabsListCount = await page.locator('[data-slot="tabs-list"]').count()
-    console.log(`[DEBUG] tabs-list count: ${tabsListCount}`)
-    
-    const tabsTriggerCount = await page.locator('[data-slot="tabs-trigger"]').count()
-    console.log(`[DEBUG] tabs-trigger count: ${tabsTriggerCount}`)
-    
-    const allTabTexts = await page.locator('[role="tab"]').allTextContents()
-    console.log(`[DEBUG] all tab texts:`, allTabTexts)
-    
     await page.locator('[data-slot="tabs-list"]').waitFor({ timeout: 30000 })
     
-    await page.click('[data-slot="tabs-trigger"][value="executionLogs"]')
+    await page.getByRole('tab', { name: /execution logs/i }).click()
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })
   }
