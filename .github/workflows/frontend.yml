@@ -448,12 +448,23 @@ jobs:
           fi
       
       - name: Build owner-console
+        working-directory: handoff/20250928/40_App/owner-console
+        env:
+          VITE_API_BASE_URL: http://localhost:5000
+          VITE_USE_MOCK: 'true'
+          VITE_TRACE_VIEWER_URL: https://trace.example.com
+        run: pnpm run build
+      
+      - name: Verify VITE_* baked into build
+        working-directory: handoff/20250928/40_App/owner-console
         run: |
-          cd handoff/20250928/40_App/owner-console
-          echo "VITE_API_BASE_URL=http://localhost:5000" > .env.production
-          echo "VITE_USE_MOCK=true" >> .env.production
-          echo "VITE_TRACE_VIEWER_URL=https://trace.example.com" >> .env.production
-          pnpm run build
+          echo "🔍 Verifying VITE_API_BASE_URL is baked into dist..."
+          if grep -r "http://localhost:5000" dist; then
+            echo "✅ VITE_API_BASE_URL successfully baked into build"
+          else
+            echo "❌ VITE_API_BASE_URL not found in dist - build may have failed to include env vars"
+            exit 1
+          fi
       
       - name: Cache Playwright browsers
         uses: actions/cache@v4
