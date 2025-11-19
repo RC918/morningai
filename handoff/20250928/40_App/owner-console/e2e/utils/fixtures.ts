@@ -277,6 +277,20 @@ export const mockGovernanceStatistics = {
 }
 
 /**
+ * Helper to stub CSRF endpoint
+ * Tests if CSRF token fetch is blocking app initialization
+ */
+export async function stubCsrfEndpoint(page: any) {
+  await page.route('**/api/auth/v2/csrf', route =>
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify({ csrf_token: 'test-csrf-token' }) 
+    })
+  )
+}
+
+/**
  * Helper to stub governance API endpoints that return 503 in CI
  * These endpoints lack ALLOW_GOVERNANCE_MOCK support, so we stub them at the test layer
  */
@@ -304,4 +318,30 @@ export async function stubGovernanceEndpoints(page: any) {
       body: JSON.stringify(mockGovernanceStatistics) 
     })
   )
+}
+
+/**
+ * Helper to add diagnostic logging for debugging E2E test failures
+ */
+export async function addDiagnosticLogging(page: any) {
+  page.on('console', (msg: any) => {
+    const type = msg.type()
+    if (type === 'error' || type === 'warning') {
+      console.log(`[Browser ${type}]:`, msg.text())
+    }
+  })
+  
+  page.on('pageerror', (error: any) => {
+    console.log('[Page Error]:', error.message)
+  })
+  
+  page.on('requestfailed', (request: any) => {
+    console.log('[Request Failed]:', request.url(), request.failure()?.errorText)
+  })
+  
+  page.on('response', (response: any) => {
+    if (response.status() >= 400) {
+      console.log(`[API Error ${response.status()}]:`, response.url())
+    }
+  })
 }

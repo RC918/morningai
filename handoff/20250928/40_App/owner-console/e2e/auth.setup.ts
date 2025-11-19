@@ -11,6 +11,7 @@
 import { test as setup, expect } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { addDiagnosticLogging } from './utils/fixtures';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,6 +23,8 @@ setup('authenticate', async ({ page }) => {
   const password = process.env.TEST_PASSWORD || 'admin123';
   
   console.log(`🔐 Authenticating as: ${username}`);
+  
+  await addDiagnosticLogging(page);
   
   await page.goto('/login');
   

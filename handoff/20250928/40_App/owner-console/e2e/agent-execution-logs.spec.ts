@@ -4,7 +4,8 @@ import {
   mockExecutionLogsResponsePage2,
   mockExecutionLogsFilteredByStatus,
   grantClipboardPermissions,
-  stubGovernanceEndpoints
+  stubGovernanceEndpoints,
+  addDiagnosticLogging
 } from './utils/fixtures'
 
 /**
@@ -27,6 +28,7 @@ import {
 
 test.describe('AgentExecutionLogs E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
+    await addDiagnosticLogging(page)
     await stubGovernanceEndpoints(page)
     
     await page.route('**/admin/agent-execution-logs*', route => {
@@ -47,6 +49,14 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   test('1. should render summary statistics and table', async ({ page }) => {
     await page.goto('/governance')
     await page.waitForLoadState('networkidle')
+    
+    const url = page.url()
+    const localStorageState = await page.evaluate(() => ({
+      path: window.location.pathname,
+      hasUser: !!localStorage.getItem('morningai_user'),
+      tokenExpiry: localStorage.getItem('morningai_token_expiry')
+    }))
+    console.log('[Diagnostic] After goto - URL:', url, 'localStorage:', localStorageState)
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })
     

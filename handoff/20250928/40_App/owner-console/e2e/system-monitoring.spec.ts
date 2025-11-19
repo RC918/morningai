@@ -5,7 +5,8 @@ import {
   mockMetricsResponse,
   mockMetricsResponseHighUsage,
   stubMathRandom,
-  stubGovernanceEndpoints
+  stubGovernanceEndpoints,
+  addDiagnosticLogging
 } from './utils/fixtures'
 
 /**
@@ -24,6 +25,7 @@ import {
 
 test.describe('SystemMonitoring E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
+    await addDiagnosticLogging(page)
     await stubMathRandom(page)
     await stubGovernanceEndpoints(page)
     
@@ -39,6 +41,14 @@ test.describe('SystemMonitoring E2E Tests', () => {
   test('1. should render health and metrics successfully', async ({ page }) => {
     await page.goto('/monitoring')
     await page.waitForLoadState('networkidle')
+    
+    const url = page.url()
+    const localStorageState = await page.evaluate(() => ({
+      path: window.location.pathname,
+      hasUser: !!localStorage.getItem('morningai_user'),
+      tokenExpiry: localStorage.getItem('morningai_token_expiry')
+    }))
+    console.log('[Diagnostic] After goto - URL:', url, 'localStorage:', localStorageState)
     
     await page.waitForSelector('[data-testid="system-monitoring"]', { timeout: 10000 })
     

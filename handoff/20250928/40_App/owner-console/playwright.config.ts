@@ -33,8 +33,10 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')` */
     baseURL: 'http://localhost:4173',
     
-    /* Collect trace when retrying the failed test */
-    trace: 'on-first-retry',
+    /* Collect trace, screenshot, and video on failure for debugging */
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
     
     /* Block service workers to prevent interference with mocked routes */
     serviceWorkers: 'block',
