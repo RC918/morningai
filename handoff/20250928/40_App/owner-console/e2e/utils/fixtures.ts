@@ -291,10 +291,26 @@ export async function stubCsrfEndpoint(page: any) {
 }
 
 /**
+ * Mock data for admin agents endpoint
+ */
+export const mockAdminAgents = {
+  agents: [],
+  count: 0
+}
+
+/**
  * Helper to stub governance API endpoints that return 503 in CI
  * These endpoints lack ALLOW_GOVERNANCE_MOCK support, so we stub them at the test layer
  */
 export async function stubGovernanceEndpoints(page: any) {
+  await page.route('**/api/admin/agents?**', route =>
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify(mockAdminAgents) 
+    })
+  )
+  
   await page.route('**/api/governance/events?**', route =>
     route.fulfill({ 
       status: 200, 
