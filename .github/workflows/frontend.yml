@@ -415,10 +415,11 @@ jobs:
           
           # Verify critical imports work before starting Flask
           python - <<'PY'
-          import sys, importlib
+          import sys, importlib, os
           print("PYTHONPATH OK, first 5:", sys.path[:5])
           import common
-          importlib.import_module('src.services.auth_service')
+          from src.services.auth_service import ACCESS_TOKEN_EXPIRY_MINUTES
+          print(f"[Preflight] ACCESS_TOKEN_EXPIRY_MINUTES={ACCESS_TOKEN_EXPIRY_MINUTES} (from env: {os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set')})", flush=True)
           print("✅ Import preflight: OK (orchestrator disabled for E2E)")
           PY
           
@@ -489,6 +490,8 @@ jobs:
       - name: Run Playwright E2E tests
         run: |
           cd handoff/20250928/40_App/owner-console
+          echo "📋 Backend startup logs (last 50 lines):"
+          tail -n 50 ../api-backend/backend.log || echo "No backend.log yet"
           pnpm run test:e2e
       
       - name: Upload backend logs
@@ -564,14 +567,17 @@ jobs:
           export FLASK_SECRET_KEY=test-flask-secret-for-e2e-ci
           export ENVIRONMENT=development
           export CORS_ORIGINS=http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173
+          export ACCESS_TOKEN_EXPIRY_MINUTES=60
+          export LOG_TOKEN_EXPIRY_ON_STARTUP=1
           export PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/handoff/20250928/40_App/api-backend/src:${PYTHONPATH}"
           
           # Verify critical imports work before starting Flask
           python - <<'PY'
-          import sys, importlib
+          import sys, importlib, os
           print("PYTHONPATH OK, first 5:", sys.path[:5])
           import common
-          importlib.import_module('src.services.auth_service')
+          from src.services.auth_service import ACCESS_TOKEN_EXPIRY_MINUTES
+          print(f"[Preflight] ACCESS_TOKEN_EXPIRY_MINUTES={ACCESS_TOKEN_EXPIRY_MINUTES} (from env: {os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set')})", flush=True)
           print("✅ Import preflight: OK (orchestrator disabled for E2E)")
           PY
           
@@ -624,6 +630,8 @@ jobs:
       - name: Run Playwright E2E tests
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
+          echo "📋 Backend startup logs (last 50 lines):"
+          tail -n 50 ../api-backend/backend.log || echo "No backend.log yet"
           pnpm run test:e2e
       
       - name: Upload backend logs

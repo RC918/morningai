@@ -27,7 +27,7 @@ REFRESH_TOKEN_EXPIRY_DAYS = 7
 JWT_ALGORITHM = 'HS256'
 
 if os.getenv('LOG_TOKEN_EXPIRY_ON_STARTUP'):
-    logger.info(f"🔧 JWT Token Configuration: ACCESS_TOKEN_EXPIRY_MINUTES={ACCESS_TOKEN_EXPIRY_MINUTES} (from env: {os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set, using default 15')})")
+    print(f"🔧 JWT Token Configuration: ACCESS_TOKEN_EXPIRY_MINUTES={ACCESS_TOKEN_EXPIRY_MINUTES} (from env: {os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set, using default 15')})", flush=True)
 
 def _as_bool(val):
     """Convert value to boolean"""
