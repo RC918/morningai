@@ -155,11 +155,16 @@ class TestPlannerMetrics:
                         assert len(event["actual_plan_steps"]) == 3
 
     def test_record_planner_event_default_path(self):
-        """Test that record_planner_event uses default path when env var not set"""
+        """Test that record_planner_event uses default relative path when env var not set"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch('os.path.expanduser', return_value=tmpdir):
+            mock_repo = os.path.join(tmpdir, 'morningai')
+            os.makedirs(os.path.join(mock_repo, '.git'))
+            
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(mock_repo)
+                
                 adapter = LLMPlannerAdapter()
-
                 adapter.record_planner_event(
                     trace_id="test-123",
                     goal="Test goal",
@@ -170,6 +175,8 @@ class TestPlannerMetrics:
                 )
 
                 default_path = os.path.join(
-                    tmpdir, 'repos', 'morningai', 'tools', 'agent_eval', 'data', 'planner_runs.jsonl'
+                    mock_repo, 'tools', 'agent_eval', 'data', 'planner_runs.jsonl'
                 )
                 assert os.path.exists(default_path)
+            finally:
+                os.chdir(original_cwd)

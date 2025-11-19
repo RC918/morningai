@@ -344,15 +344,30 @@ Generate a 3-7 step plan to accomplish this goal."""
 
         events_file = os.environ.get('PLANNER_EVENTS_FILE', 'tools/agent_eval/data/planner_runs.jsonl')
         
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        repo_root = current_dir
-        while repo_root != '/' and not os.path.exists(os.path.join(repo_root, '.git')):
-            repo_root = os.path.dirname(repo_root)
+        if os.path.isabs(events_file):
+            events_path = events_file
+        else:
+            def find_git_root(start_dir):
+                current = start_dir
+                while current != '/' and not os.path.exists(os.path.join(current, '.git')):
+                    current = os.path.dirname(current)
+                return current if os.path.exists(os.path.join(current, '.git')) else None
+            
+            cwd = os.getcwd()
+            repo_root = find_git_root(cwd)
+            
+            if not repo_root:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                repo_root = find_git_root(current_dir)
+                
+                if not repo_root:
+                    if os.path.basename(cwd) == 'morningai' or os.path.basename(os.path.dirname(cwd)) == 'morningai':
+                        repo_root = cwd if os.path.basename(cwd) == 'morningai' else os.path.dirname(cwd)
+                    else:
+                        repo_root = current_dir
+            
+            events_path = os.path.join(repo_root, events_file)
         
-        if not os.path.exists(os.path.join(repo_root, '.git')):
-            repo_root = current_dir
-        
-        events_path = os.path.join(repo_root, events_file)
         os.makedirs(os.path.dirname(events_path), exist_ok=True)
 
         event = {
