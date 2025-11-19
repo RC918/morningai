@@ -1,6 +1,13 @@
+/// <reference types="vite/client" />
 
 interface ImportMetaEnv {
+  readonly MODE: string
+  readonly BASE_URL: string
+  readonly PROD: boolean
+  readonly DEV: boolean
+  readonly SSR: boolean
   readonly VITE_API_BASE_URL: string
+  readonly VITE_PREVIEW_PUBLIC_METRICS?: string
   readonly VITE_FEATURES: string
   readonly VITE_FEATURE_OWNER_CONSOLE_API: string
   readonly VITE_FEATURE_OWNER_CONSOLE_GOVERNANCE: string
@@ -9,6 +16,7 @@ interface ImportMetaEnv {
   readonly VITE_FEATURE_OWNER_CONSOLE_SETTINGS: string
   readonly VITE_FEATURE_OWNER_CONSOLE_SECURITY: string
   readonly VITE_FEATURE_OWNER_CONSOLE_PWA: string
+  readonly VITE_TRACE_VIEWER_URL?: string
   readonly [key: `VITE_FEATURE_${string}`]: string | undefined
 }
 

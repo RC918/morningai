@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+from common.config.settings import settings
 from orchestrator import create_redis_queue, create_task
 from agents.ops_agent.worker import OpsAgentWorker
 
@@ -34,8 +35,8 @@ async def test_full_integration():
     print("=" * 70)
     print()
     
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-    vercel_token = os.getenv("VERCEL_TOKEN_NEW")
+    redis_url = settings.redis_url or "redis://localhost:6379"
+    vercel_token = settings.vercel_token_new
     
     if not vercel_token:
         print("⚠️  Warning: VERCEL_TOKEN_NEW not set. Deployment will fail.")

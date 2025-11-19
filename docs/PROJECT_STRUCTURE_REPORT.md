@@ -6,9 +6,11 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.2.0  
-**Last Updated**: 2025-11-04  
-**Project Phase**: Phase 8 (v8.0.0)
+**Document Version**: 1.4.0  
+**Last Updated**: 2025-11-16  
+**Project Phase**: Phase 8 (v8.0.0)  
+**Owner Console Status**: P0+P1 Complete (Week 1-2), Week 3 60% Complete, Week 4 Not Started  
+**Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
 ---
 
@@ -49,7 +51,8 @@ This document provides a comprehensive overview of the MorningAI project structu
 - **Total Lines of Code**: ~100,000+
 - **Documentation Files**: 50+
 - **GitHub Actions Workflows**: 15+
-- **Test Coverage**: 41% (Target: 80%)
+- **Test Coverage**: 41% overall (Target: 80%)
+  - **Owner Console**: 59.89% lines, 45.76% branches (as reported in CI on 2025-11-16; exceeds 30% target)
 - **Active Branches**: `main` (production), `develop` (staging)
 
 ### Technology Stack
@@ -95,6 +98,8 @@ morningai/
 ├── scripts/                    # Utility scripts (env generation, drift check, secret verification, system state verification)
 ├── packages/                   # Shared packages (shared-ui for cross-app components)
 ├── tests/                      # Root-level tests
+├── tools/                      # Development tools
+│   └── agent_eval/            # Agent evaluation harness (NEW: 2025-11-16)
 ├── phase4_meta_agent_api.py   # Phase 4 API module (imported by backend)
 ├── phase5_data_intelligence_api.py  # Phase 5 API module (imported by backend)
 ├── phase6_security_governance_api.py  # Phase 6 API module (imported by backend)
@@ -113,39 +118,58 @@ morningai/
 
 **Location**: Root directory (`/`)
 
-**Status**: ⚠️ **Legacy modules - not directly imported by production backend**
+**Status**: ✅ **Intentional Cross-Cutting Architecture - Actively Used**
 
-The following files exist in the root directory but are **not directly imported** by `handoff/20250928/40_App/api-backend/src/main.py`:
+The following 18 production backend modules are located in the root directory as cross-cutting concerns shared across multiple services:
 
-- **`phase4_meta_agent_api.py`**: Meta-agent coordination API
+**Core Managers** (Shared Infrastructure):
+- **`persistent_state_manager.py`** (495 lines): State management across services
+  - Location: `/persistent_state_manager.py`
+  - Imported by: `handoff/20250928/40_App/api-backend/src/main.py`, multiple test files
+  
+- **`security_manager.py`** (364 lines): Security operations and governance
+  - Location: `/security_manager.py`
+  - Imported by: `handoff/20250928/40_App/api-backend/tests/`, orchestrator services
+  
+- **`knowledge_graph_manager.py`** (1,018 lines): Knowledge graph operations
+  - Location: `/knowledge_graph_manager.py`
+  - Imported by: agent services, test files
+
+**Phase API Modules** (Feature Implementations):
+- **`phase4_meta_agent_api.py`** (16,874 bytes): Meta-agent coordination API
   - Implements OODA loop (Observe, Orient, Decide, Act)
-  - LangGraph workflow engine
+  - LangGraph workflow engine integration
   - AI governance console
-  - Status: LEGACY (checked via sys.modules, not directly imported)
-
-- **`phase5_data_intelligence_api.py`**: Data intelligence and BI API
+  - Imported by: `main.py`, test files
+  
+- **`phase5_data_intelligence_api.py`** (21,472 bytes): Data intelligence and BI API
   - QuickSight integration
   - Growth marketing engine
   - Referral programs
   - Business intelligence dashboards
-  - Status: LEGACY (checked via sys.modules, not directly imported)
-
-- **`phase6_security_governance_api.py`**: Security and governance API
+  - Imported by: `main.py`, test files
+  
+- **`phase6_security_governance_api.py`** (18,234 bytes): Security and governance API
   - Zero Trust security model
   - SecurityReviewer Agent
   - HITL (Human-in-the-Loop) security analysis
   - Security audit system
-  - Status: LEGACY (checked via sys.modules, not directly imported)
-
+  - Imported by: `main.py`, test files
+  
 - **`phase6_startup.py`**: Phase 6 initialization script
-  - Status: LEGACY (referenced in tests)
-
+  - Imported by: test files, initialization sequences
+  
 - **`phase7_startup.py`**: Phase 7 initialization script
-  - Status: LEGACY (referenced in main.py:450 within function)
+  - Imported by: `main.py:450`, test files
 
-**Current Implementation**: The backend health endpoint (`main.py:246-248`) checks if these modules exist in `sys.modules` but does not directly import them. They may be imported by test files or dynamically loaded in specific scenarios.
+**Import Evidence** (16+ locations):
+- `handoff/20250928/40_App/api-backend/src/main.py` - Main application imports
+- `handoff/20250928/40_App/api-backend/tests/test_*.py` - 16+ test files import these modules
+- `handoff/20250928/40_App/orchestrator/` - Orchestrator services use managers
 
-**Future plan**: Clarify usage pattern (plugin loader vs deprecation) and update documentation accordingly.
+**Architecture Rationale**: Root-level placement enables shared access across multiple services (api-backend, orchestrator, agents) without circular dependencies. This is an intentional design pattern for cross-cutting concerns that need to be imported by multiple independent services. Moving these to a subdirectory would require complex PYTHONPATH management or package restructuring.
+
+**Verification**: Run `grep -r "from persistent_state_manager\|from security_manager\|from phase[4-7]" handoff/20250928/40_App/` to see active imports.
 
 ### GitHub Configuration (`.github/`)
 
@@ -290,6 +314,42 @@ handoff/20250928/40_App/
     └── ...              # Contains LangGraph implementation, used by RQ workers
 ```
 
+### Tools Directory (`tools/`)
+
+**NEW: 2025-11-16** - Development and evaluation tools
+
+```
+tools/
+└── agent_eval/          # Agent evaluation harness
+    ├── README.md        # Evaluation harness documentation
+    ├── __init__.py      # Package initialization
+    ├── dataset.jsonl    # Test cases (10 tasks: bug_fix, feature, refactor, test)
+    ├── runner.py        # Evaluation runner (executable)
+    ├── metrics.py       # Metrics calculator (executable)
+    └── results/         # Evaluation results (gitignored)
+```
+
+**Purpose**: Provides measurable success rates for AI agent performance:
+- **Task Completion Rate**: Percentage of tasks completed
+- **Correctness Rate**: Percentage of correct solutions
+- **CI Pass Rate**: Percentage of PRs passing CI
+- **Time Efficiency**: Actual vs estimated time
+- **Overall Success Rate**: Weighted combination
+
+**Status**: ✅ Framework created, not yet integrated with orchestrator
+
+**Usage**:
+```bash
+# Run evaluation
+cd tools/agent_eval
+python runner.py --dataset dataset.jsonl --output results/latest.json
+
+# View metrics
+python metrics.py --results results/latest.json
+```
+
+**Integration**: Planned for Milestone 1 (Nov 23 - Dec 6, 2025). See [Strategic Roadmap Reality Comparison](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md).
+
 ### Documentation Directory (`docs/`)
 
 ```
@@ -327,6 +387,8 @@ docs/
 ├── sandbox/             # Sandbox documentation
 ├── policy/              # Policy documentation
 │
+├── STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md  # Strategic roadmap comparison (NEW: 2025-11-16)
+├── BACKEND_TEST_ENVIRONMENT_FIX.md  # Backend test fix documentation (NEW: 2025-11-16)
 ├── ENVIRONMENTS.md      # Environment architecture (NEW)
 ├── ONBOARDING_GUIDE.md  # Onboarding guide (NEW)
 ├── ARCHITECTURE.md      # System architecture
@@ -391,8 +453,11 @@ config/
 **Vector Storage (pgvector)**: ✅ **IMPLEMENTED**
 - **Location**: 
   - `migrations/010_create_embeddings_tables.sql` - Main embeddings tables
-  - `agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql` - Dev agent knowledge graph
-  - `agents/faq_agent/migrations/001_create_faq_tables.sql` - FAQ agent embeddings
+  - `agents/dev_agent/migrations/001_create_knowledge_graph_tables.sql` - Dev agent knowledge graph (136 lines)
+  - `agents/faq_agent/migrations/001_create_faq_tables.sql` - FAQ agent embeddings (136 lines)
+- **Migration Execution**:
+  - **dev_agent**: Python runner at `agents/dev_agent/migrations/run_migration.py` with pre-checks and validation
+  - **faq_agent**: Shell script at `agents/faq_agent/deploy.sh:32` executes `psql -f migrations/001_create_faq_tables.sql`
 - **Runtime Usage**: `src/routes/vectors.py` - Vector visualization API (t-SNE, PCA, clustering, drift detection)
 - **Dimension**: 1536 (OpenAI text-embedding-ada-002)
 - **Status**: Production-ready with full API implementation
@@ -541,16 +606,51 @@ MorningAI has two separate frontend applications with distinct purposes and boun
 
 **Architecture**: React 19.1.0 + Vite 6 + TypeScript 5.9
 
+**Styling**: Tailwind CSS 4.1.7 with custom design system
+- Design tokens: `packages/shared-ui/src/tokens.json` (single source of truth)
+- Theme configuration: `src/styles/theme.css` (Tailwind v4 @theme syntax)
+- Container width tokens: `--max-width-*` (separate from spacing tokens)
+- Regression test: `e2e/max-width-regression.spec.ts` (prevents layout collapse)
+
+**Development Status** (Updated 2025-11-15):
+- ✅ **P0 (Week 1)**: Token security (credentials + CSRF + 401 retry) - COMPLETE
+- ✅ **P1 (Week 2)**: 2FA system (10 components + 11 tests + enforcement), Test coverage 59.89% lines (as reported) - COMPLETE
+- 🟡 **P1 (Week 3)**: Mock cleanup (complete), Agent Logs (60% - missing Trace links/drawer/skeleton), SystemMonitoring (60% - missing skeleton/empty states/charts) - PARTIAL
+- 🔴 **P2 (Week 4)**: Billing/Subscription/Alerting - NOT STARTED
+- ✅ **P2 (Design System)**: Tailwind v4 theme integration + design token replacement - COMPLETE
+
 **Key Features**:
-- System Monitoring (health checks, metrics, logs)
-- Agent Governance (agent management, execution tracking, reputation)
-- Tenant Management
-- 2FA Settings
-- Admin controls
+- ✅ System Monitoring (health checks, metrics, logs, real API integration)
+- ✅ Agent Governance (agent management, execution tracking, reputation)
+- ✅ Tenant Management (real API integration)
+- ✅ 2FA Settings (enrollment, challenge, backup codes, trusted devices)
+- ✅ Admin controls with enhanced security
+- 🟡 Agent Execution Logs (filtering, pagination, sorting - missing Trace ID links, detail drawer, skeleton loading)
+- 🔴 Billing Dashboard (not started)
+- 🔴 Subscription Management (not started)
+- 🔴 Alerting System (not started)
+
+**Test Coverage**:
+- 59.89% lines, 45.76% branches (as reported in CI on 2025-11-16; exceeds 30% target)
+- 47 tests passing
+- Key test files: `auth-2fa.test.tsx` (11 tests), `2fa-api.test.ts` (7 tests)
+
+**Security Features**:
+- ✅ HttpOnly cookies with credentials: 'include'
+- ✅ CSRF token protection (automatic injection)
+- ✅ 401 automatic refresh retry mechanism
+- ✅ 403 CSRF failure automatic retry
+- ✅ Open redirect prevention (sanitizeRedirect)
+- ✅ Mandatory 2FA for owner role
+- ✅ Generated clients use secured apiClient
 
 **Deployment**:
 - Production: https://admin.gm365.me
 - Vercel deployment
+
+**Related Documentation**:
+- Phase Plan: `docs/OWNER_CONSOLE_PHASE_PLAN.md`
+- Investigation Report: `docs/WEEK_3_4_INVESTIGATION_REPORT.md`
 
 ⚠️ **Cross-Import Restrictions**: ESLint enforces `no-restricted-imports` to prevent accidental imports between frontend-dashboard and owner-console. Use `packages/shared-ui` for shared components.
 
@@ -923,8 +1023,35 @@ primary_region = "nrt"
 
 **Frontend Tests** (`handoff/.../frontend-dashboard/src/`):
 - Unit tests: Vitest + React Testing Library
-- Component tests: Storybook stories
+- Component tests: Storybook stories (26 stories in `handoff/20250928/40_App/frontend-dashboard/.storybook/`)
 - Accessibility tests: axe-core integration
+
+**Storybook Architecture**:
+- **Location**: 
+  - Application Layer: `handoff/20250928/40_App/frontend-dashboard/.storybook/`
+  - Owner Console: `handoff/20250928/40_App/owner-console/.storybook/` (added November 2025)
+  - Shared UI: `packages/shared-ui/.storybook/` (added November 2025)
+- **Configuration**: 
+  - Frontend Dashboard: `handoff/20250928/40_App/frontend-dashboard/.storybook/main.ts:1-53`
+  - Owner Console: `handoff/20250928/40_App/owner-console/.storybook/main.ts` (Storybook 8.6.14)
+    - **P1 Improvements** (November 2025): MSW addon, dark mode, test runner
+    - MSW Config: `.storybook/msw-config.ts` - Wildcard host matching (`*/api/...`)
+    - Preview Config: `.storybook/preview.tsx` - MSW initialization, dark mode sync
+    - Test Runner: `.storybook/test-runner.ts` - a11y checks with axe-playwright
+  - Shared UI: `packages/shared-ui/.storybook/main.ts` (Storybook 8.6.14)
+- **Stories**: 52+ total (26 in frontend-dashboard, 13 in owner-console, 13 in shared-ui, 5 in tools/frontend-lab)
+  - Owner Console Stories:
+    - `src/pages/SystemMonitoring.stories.jsx` - 7 variants (Loading, Healthy, Degraded, Unhealthy, Empty states, Error)
+    - `src/components/AgentExecutionLogs.stories.tsx` - 6 variants (Loading, Successful, Mixed statuses, Empty, Error, Pagination)
+- **Components Documented**: Apple-style components, design system showcase, color/spacing/typography systems, shared UI components (Card, Button, Badge, Alert, Avatar, Progress, Tabs, Dialog), Owner Console pages (SystemMonitoring, AgentExecutionLogs)
+- **Running Storybook**:
+  - Owner Console: `cd handoff/20250928/40_App/owner-console && pnpm storybook` (port 6007)
+  - Shared UI: `pnpm --filter @morningai/shared-ui storybook` (port 6006)
+  - Frontend Dashboard: `pnpm --filter frontend-dashboard storybook` (port 6006)
+- **Testing Storybook**:
+  - Owner Console: `cd handoff/20250928/40_App/owner-console && pnpm test-storybook` (a11y checks)
+  - Shared UI: `pnpm --filter @morningai/shared-ui test-storybook:ci`
+- **Design Tokens**: Single source of truth at `packages/shared-ui/src/tokens.json`
 
 ### CI/CD Testing
 
@@ -1116,7 +1243,12 @@ pnpm test:coverage
 
 ---
 
-**Document Version**: 1.0.0  
-**Last Updated**: 2025-10-28  
+**Document Version**: 1.4.0  
+**Last Updated**: 2025-11-16  
 **Maintained By**: CTO / DevOps Team  
 **Status**: ✅ Complete and Current
+
+**Changelog**:
+- 2025-11-16 (v1.4.0): Added agent evaluation harness, strategic roadmap comparison, backend test fix documentation
+- 2025-11-15 (v1.3.0): Updated Owner Console status
+- 2025-10-28 (v1.0.0): Initial version

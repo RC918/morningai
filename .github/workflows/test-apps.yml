@@ -45,6 +45,8 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           FLASK_ENV: testing
           TESTING: true
+          ENABLE_MOCK_USERS: true
+          RATE_LIMIT_REQUESTS: 60
   
   test-orchestrator:
     name: Orchestrator Tests

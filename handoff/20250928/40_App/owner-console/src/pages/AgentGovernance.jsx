@@ -10,7 +10,9 @@ import {
   DollarSign,
   Activity
 } from 'lucide-react'
-import { apiClient } from '@/lib/api'
+import { getAdminAgents } from '@/lib/generated/admin/admin'
+import { getGovernanceEvents, getGovernanceViolations, getGovernanceStatistics } from '@/lib/generated/governance/governance'
+import AgentExecutionLogs from '@/components/AgentExecutionLogs'
 
 const AgentGovernance = () => {
   const { t } = useTranslation()
@@ -31,17 +33,28 @@ const AgentGovernance = () => {
       setLoading(true)
       setError(null)
       
-      const [agentsData, eventsData, violationsData, statsData] = await Promise.all([
-        apiClient.getAgents({ status: 'all', limit: 100 }),
-        apiClient.getGovernanceEvents({ limit: 50 }),
-        apiClient.getGovernanceViolations({ limit: 50 }),
-        apiClient.getGovernanceStatistics()
+      const [agentsResponse, eventsResponse, violationsResponse, statsResponse] = await Promise.all([
+        getAdminAgents({ status: 'all', limit: 100 }),
+        getGovernanceEvents({ limit: 50 }),
+        getGovernanceViolations({ limit: 50 }),
+        getGovernanceStatistics()
       ])
 
-      setAgents(agentsData.agents || [])
-      setEvents(eventsData.events || [])
-      setViolations(violationsData.violations || [])
-      setStatistics(statsData)
+      if (agentsResponse.status === 200) {
+        setAgents(agentsResponse.data.agents || [])
+      }
+
+      if (eventsResponse.status === 200) {
+        setEvents(eventsResponse.data.events || [])
+      }
+
+      if (violationsResponse.status === 200) {
+        setViolations(violationsResponse.data.violations || [])
+      }
+
+      if (statsResponse.status === 200) {
+        setStatistics(statsResponse.data)
+      }
     } catch (error) {
       console.error('Failed to load governance data:', error)
       setError(error.message || 'Failed to load governance data')
@@ -53,28 +66,28 @@ const AgentGovernance = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800 border-green-300'
+        return 'bg-success-100 text-success-800 border-success-300'
       case 'paused':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+        return 'bg-warning-100 text-warning-800 border-warning-300'
       case 'error':
-        return 'bg-red-100 text-red-800 border-red-300'
+        return 'bg-error-100 text-error-800 border-error-300'
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300'
+        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
     }
   }
 
   const getPermissionLevelColor = (level) => {
     switch (level) {
       case 'prod_full_access':
-        return 'bg-green-100 text-green-800 border-green-300'
+        return 'bg-success-100 text-success-800 border-success-300'
       case 'prod_low_risk':
-        return 'bg-blue-100 text-blue-800 border-blue-300'
+        return 'bg-primary-100 text-primary-800 border-primary-300'
       case 'staging_access':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+        return 'bg-warning-100 text-warning-800 border-warning-300'
       case 'sandbox_only':
-        return 'bg-gray-100 text-gray-800 border-gray-300'
+        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300'
+        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
     }
   }
 
@@ -91,15 +104,15 @@ const AgentGovernance = () => {
   const getEventTypeIcon = (eventType) => {
     switch (eventType) {
       case 'task_success':
-        return <CheckCircle className="w-4 h-4 text-green-600" />
+        return <CheckCircle className="w-4 h-4 text-success-600" />
       case 'task_failure':
-        return <XCircle className="w-4 h-4 text-red-600" />
+        return <XCircle className="w-4 h-4 text-error-600" />
       case 'budget_exceeded':
-        return <AlertTriangle className="w-4 h-4 text-orange-600" />
+        return <AlertTriangle className="w-4 h-4 text-warning-600" />
       case 'permission_denied':
-        return <Shield className="w-4 h-4 text-red-600" />
+        return <Shield className="w-4 h-4 text-error-600" />
       default:
-        return <Activity className="w-4 h-4 text-gray-600" />
+        return <Activity className="w-4 h-4 text-neutral-600" />
     }
   }
 
@@ -111,7 +124,7 @@ const AgentGovernance = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     )
   }
@@ -120,11 +133,11 @@ const AgentGovernance = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Shield className="w-8 h-8 text-blue-600" />
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
+            <Shield className="w-8 h-8 text-primary-600" />
             {t('governance.title')}
           </h1>
-          <p className="text-gray-600 mt-1">{t('governance.subtitle')}</p>
+          <p className="text-neutral-600 dark:text-neutral-400 mt-1">{t('governance.subtitle')}</p>
         </div>
         <Button onClick={loadGovernanceData} variant="outline" disabled={loading}>
           <Activity className="w-4 h-4 mr-2" />
@@ -155,10 +168,10 @@ const AgentGovernance = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">{t('governance.stats.totalAgents')}</p>
-                <Shield className="w-5 h-5 text-blue-600" />
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.stats.totalAgents')}</p>
+                <Shield className="w-5 h-5 text-primary-600" />
               </div>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-neutral-900 dark:text-white">
                 {statistics.reputation?.total_agents || 0}
               </p>
             </CardContent>
@@ -167,10 +180,10 @@ const AgentGovernance = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">{t('governance.stats.avgReputation')}</p>
-                <TrendingUp className="w-5 h-5 text-green-600" />
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.stats.avgReputation')}</p>
+                <TrendingUp className="w-5 h-5 text-success-600" />
               </div>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-neutral-900 dark:text-white">
                 {statistics.reputation?.average_score?.toFixed(0) || 100}
               </p>
             </CardContent>
@@ -179,10 +192,10 @@ const AgentGovernance = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">{t('governance.stats.dailyCost')}</p>
-                <DollarSign className="w-5 h-5 text-purple-600" />
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.stats.dailyCost')}</p>
+                <DollarSign className="w-5 h-5 text-accent-600" />
               </div>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-neutral-900 dark:text-white">
                 ${statistics.costs?.daily?.usage?.usd?.toFixed(2) || '0.00'}
               </p>
             </CardContent>
@@ -191,10 +204,10 @@ const AgentGovernance = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">{t('governance.stats.violations')}</p>
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.stats.violations')}</p>
+                <AlertTriangle className="w-5 h-5 text-error-600" />
               </div>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-neutral-900 dark:text-white">
                 {violations.length}
               </p>
             </CardContent>
@@ -203,10 +216,11 @@ const AgentGovernance = () => {
       )}
 
       <Tabs defaultValue="agents" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="agents">{t('governance.tabs.agents')}</TabsTrigger>
           <TabsTrigger value="events">{t('governance.tabs.events')}</TabsTrigger>
           <TabsTrigger value="violations">{t('governance.tabs.violations')}</TabsTrigger>
+          <TabsTrigger value="executionLogs">{t('governance.tabs.executionLogs')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
@@ -218,25 +232,25 @@ const AgentGovernance = () => {
             <CardContent>
               <div className="space-y-3">
                 {agents.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">{t('governance.agents.noAgents')}</p>
+                  <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">{t('governance.agents.noAgents')}</p>
                 ) : (
                   agents.map((agent, index) => (
                     <button
                       key={agent.id} 
-                      className="w-full text-left flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="w-full text-left flex items-center justify-between p-4 border rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer transition-colors"
                       onClick={() => setSelectedAgent(agent)}
                     >
                       <div className="flex items-center gap-4">
-                        <div className="text-2xl font-bold text-gray-400">#{index + 1}</div>
+                        <div className="text-2xl font-bold text-neutral-400">#{index + 1}</div>
                         <div>
-                          <p className="font-semibold text-gray-900">{agent.name}</p>
-                          <p className="text-sm text-gray-600">ID: {agent.id?.substring(0, 8)}...</p>
+                          <p className="font-semibold text-neutral-900 dark:text-white">{agent.name}</p>
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('common.idShort', { id: agent.id?.substring(0, 8) + '...' })}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900">{agent.reputation_score || 0}</p>
-                          <p className="text-sm text-gray-600">{t('governance.agents.reputation')}</p>
+                          <p className="text-2xl font-bold text-neutral-900 dark:text-white">{agent.reputation_score || 0}</p>
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.agents.reputation')}</p>
                         </div>
                         <Badge className={getStatusColor(agent.status)}>
                           {agent.status?.toUpperCase()}
@@ -259,18 +273,18 @@ const AgentGovernance = () => {
             <CardContent>
               <div className="space-y-2">
                 {events.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">{t('governance.events.noEvents')}</p>
+                  <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">{t('governance.events.noEvents')}</p>
                 ) : (
                   events.map((event) => (
                     <div key={event.event_id} className="flex items-start gap-3 p-3 border rounded-lg">
                       {getEventTypeIcon(event.event_type)}
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-gray-900">{event.event_type}</p>
-                          <span className="text-xs text-gray-500">{formatTimestamp(event.created_at)}</span>
+                          <p className="font-medium text-neutral-900 dark:text-white">{event.event_type}</p>
+                          <span className="text-xs text-neutral-500 dark:text-neutral-400">{formatTimestamp(event.created_at)}</span>
                         </div>
                         {event.reason && (
-                          <p className="text-sm text-gray-600 mt-1">{event.reason}</p>
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">{event.reason}</p>
                         )}
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="outline" className="text-xs">
@@ -301,25 +315,25 @@ const AgentGovernance = () => {
               <div className="space-y-2">
                 {violations.length === 0 ? (
                   <div className="text-center py-8">
-                    <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-2" />
-                    <p className="text-gray-500">{t('governance.violations.noViolations')}</p>
+                    <CheckCircle className="w-12 h-12 text-success-600 mx-auto mb-2" />
+                    <p className="text-neutral-500 dark:text-neutral-400">{t('governance.violations.noViolations')}</p>
                   </div>
                 ) : (
                   violations.map((violation) => (
-                    <div key={violation.violation_id} className="flex items-start gap-3 p-3 border border-red-200 bg-red-50 rounded-lg">
-                      <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                    <div key={violation.violation_id} className="flex items-start gap-3 p-3 border border-error-200 bg-error-50 rounded-lg">
+                      <AlertTriangle className="w-5 h-5 text-error-600 mt-0.5" />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-red-900">{violation.violation_type}</p>
-                          <span className="text-xs text-red-600">{formatTimestamp(violation.detected_at)}</span>
+                          <p className="font-medium text-error-900">{violation.violation_type}</p>
+                          <span className="text-xs text-error-600">{formatTimestamp(violation.detected_at)}</span>
                         </div>
-                        <p className="text-sm text-red-700 mt-1">{violation.description}</p>
+                        <p className="text-sm text-error-700 mt-1">{violation.description}</p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="destructive" className="text-xs">
                             {t('governance.violations.severity')}: {violation.severity}
                           </Badge>
                           {violation.resolved && (
-                            <Badge variant="outline" className="text-xs bg-green-100 text-green-800">
+                            <Badge variant="outline" className="text-xs bg-success-100 text-success-800">
                               {t('governance.violations.resolved')}
                             </Badge>
                           )}
@@ -331,6 +345,10 @@ const AgentGovernance = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="executionLogs" className="space-y-4">
+          <AgentExecutionLogs />
         </TabsContent>
       </Tabs>
     </div>

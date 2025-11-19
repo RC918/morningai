@@ -5,11 +5,12 @@ Unit tests for Agent Sandbox Manager
 import pytest
 import asyncio
 import os
+from common.config.settings import settings
 from sandbox.manager import AgentSandboxManager, SandboxConfig, SandboxStatus
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(
-    os.getenv('SANDBOX_ENABLED', 'false').lower() == 'false',
+    (settings.sandbox_enabled or 'false').lower() == 'false',
     reason="Requires Docker and SANDBOX_ENABLED=true"
 )
 async def test_create_sandbox():

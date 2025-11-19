@@ -23,15 +23,62 @@ COST_ALERT_THRESHOLD=10.0          # Alert when LLM cost exceeds this amount
 LATENCY_ALERT_THRESHOLD=500.0      # Alert when latency exceeds this (ms)
 ```
 
+### Import Path Configuration
+
+The service uses a multi-tier fallback mechanism to locate the `common` module:
+
+1. **REPO_ROOT** (Priority 1): Explicit repository root path
+   - Set to `/app` in Docker containers
+   - Override in render.yaml if needed
+   - Example: `REPO_ROOT=/app`
+
+2. **PYTHONPATH** (Priority 2): Standard Python path mechanism
+   - Set to `/app` in Docker containers
+   - Supports multiple paths: `PYTHONPATH=/app:/other`
+   - Example: `PYTHONPATH=/app`
+
+3. **Marker Files** (Priority 3): Auto-discovery
+   - Searches for: `pyproject.toml`, `.git`, `env.schema.yaml` or `env_schema.yaml`, `common/` directory
+   - Walks up directory tree from script location
+
+4. **DEBUG_IMPORTS**: Enable import debugging
+   - Set to `true` to log which mechanism was used
+   - Example: `DEBUG_IMPORTS=true`
+
+**Docker Configuration**:
+```dockerfile
+ENV REPO_ROOT=/app
+ENV PYTHONPATH=/app
+```
+
+**Render Configuration**:
+```yaml
+envVars:
+  - key: REPO_ROOT
+    value: /app
+  - key: PYTHONPATH
+    value: /app
+  - key: DEBUG_IMPORTS
+    value: "false"  # Set to "true" for troubleshooting
+```
+
+**Local Development**:
+```bash
+export REPO_ROOT=/path/to/morningai
+export DEBUG_IMPORTS=true
+```
+
 ## Deployment Options
 
 ### Option 1: Docker (Recommended)
 
 #### Build the Docker image
 
+**IMPORTANT**: Build from the repository root (not from monitoring/) to include the common module:
+
 ```bash
-cd monitoring
-docker build -t braintrust-processor:latest .
+# Build from repository root
+docker build -f monitoring/Dockerfile -t braintrust-processor:latest .
 ```
 
 #### Run the container
@@ -196,11 +243,43 @@ curl https://your-braintrust-service.com/alerts/recent?limit=10
 
 ## Troubleshooting
 
+### ModuleNotFoundError: No module named 'common'
+
+**Symptom**: Service fails to start with import error
+
+**Solutions**:
+1. Enable debug logging: `DEBUG_IMPORTS=true`
+2. Verify REPO_ROOT is set: `echo $REPO_ROOT` (should be `/app`)
+3. Check common/ directory exists: `ls -la /app/common`
+4. Verify sys.path: `python -c "import sys; print(sys.path[:5])"`
+5. Ensure Docker build is from repo root: `docker build -f monitoring/Dockerfile -t braintrust-processor:latest .`
+
+**Debug Output**:
+```bash
+# Enable DEBUG_IMPORTS to see which mechanism was used
+docker run --rm -e DEBUG_IMPORTS=true braintrust-processor:latest python -c "from common.config.settings import settings"
+
+# Expected output:
+# ✅ sys.path bootstrap: REPO_ROOT=/app
+# Final sys.path (first 3): ['', '/app', '/usr/local/lib/python311.zip']
+```
+
+### Import works but settings are wrong
+
+**Symptom**: Service starts but uses incorrect configuration
+
+**Solutions**:
+1. Verify DATABASE_URL is set correctly
+2. Check environment variable precedence (container env vars override Dockerfile ENV)
+3. Review logs for configuration errors
+4. Verify common/config/settings.py is using correct environment variables
+
 ### Service won't start
 
 1. Check DATABASE_URL is correct
 2. Verify database has migrations 010-013 applied
 3. Check logs: `docker logs braintrust-processor`
+4. Enable DEBUG_IMPORTS to troubleshoot import issues
 
 ### Traces not being received
 
@@ -214,6 +293,34 @@ curl https://your-braintrust-service.com/alerts/recent?limit=10
 1. Reduce sampling rate in Vercel (e.g., 5% instead of 10%)
 2. Add database connection pooling
 3. Increase container memory limits
+
+### Debugging Import Path Issues
+
+**Check which fallback mechanism is being used**:
+```bash
+# In Docker container
+docker exec braintrust-processor python -c "
+import os
+import sys
+print('REPO_ROOT:', os.getenv('REPO_ROOT'))
+print('PYTHONPATH:', os.getenv('PYTHONPATH'))
+print('sys.path[:5]:', sys.path[:5])
+print('common location:', __import__('common').__file__)
+"
+```
+
+**Verify marker files exist**:
+```bash
+# In Docker container
+docker exec braintrust-processor ls -la /app/
+# Should show: common/, pyproject.toml, or env.schema.yaml
+```
+
+**Test import manually**:
+```bash
+# In Docker container
+docker exec braintrust-processor python -c "from common.config.settings import settings; print('✅ Import successful')"
+```
 
 ## Maintenance
 

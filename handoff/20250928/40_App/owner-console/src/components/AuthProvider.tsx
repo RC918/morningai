@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<any>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -47,6 +47,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const initialize = async () => {
+      if (typeof window !== 'undefined' &&
+          import.meta.env.VITE_PREVIEW_PUBLIC_METRICS === 'true' &&
+          window.location.pathname.startsWith('/ux-metrics')) {
+        setIsAuthenticated(true);
+        setUser({
+          id: 'preview-user',
+          email: 'preview@morningai.com',
+          role: 'owner',
+          tenantId: 'preview-tenant',
+          name: 'Preview User',
+        } as User);
+        setIsLoading(false);
+        return;
+      }
+
       const { isAuthenticated: authenticated, user: storedUser } = await initAuth();
       setIsAuthenticated(authenticated);
       setUser(storedUser);
@@ -63,8 +78,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (credentials: LoginCredentials) => {
     try {
       const response = await authLogin(credentials);
-      setUser(response.user);
-      setIsAuthenticated(true);
+      
+      if (response.next_step === 'session' || !response.next_step) {
+        setUser(response.user);
+        setIsAuthenticated(true);
+      }
+      
+      return response;
     } catch (error) {
       setUser(null);
       setIsAuthenticated(false);

@@ -50,9 +50,45 @@ export interface TwoFASetupRequest {
 }
 
 export interface TwoFALoginRequest {
+  email: string;
+  password: string;
   totp_code?: string;
   backup_code?: string;
   remember_device?: boolean;
+}
+
+export interface TwoFAChallengeRequest {
+  code?: string;
+  backup_code?: string;
+  remember_device?: boolean;
+}
+
+export interface TwoFAEnrollRequest {
+}
+
+export interface TwoFAEnrollResponse {
+  secret: string;
+  qr_code: string;
+}
+
+export interface TwoFAVerifyEnrollRequest {
+  code: string;
+}
+
+export interface TwoFAVerifyEnrollResponse {
+  success: boolean;
+  backup_codes: string[];
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    tenantId: string;
+    avatar?: string;
+  };
+  tokens: {
+    expiresAt: number;
+  };
 }
 
 export interface TwoFALoginResponse {
@@ -60,4 +96,30 @@ export interface TwoFALoginResponse {
   user_id: string;
   backup_codes_remaining?: number;
   device_trusted?: boolean;
+}
+
+export interface TwoFAChallengeResponse {
+  success: boolean;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    tenantId: string;
+    avatar?: string;
+  };
+  tokens: {
+    expiresAt: number;
+  };
+  backup_codes_remaining?: number;
+  device_trusted?: boolean;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  user?: any;
+  requires_2fa?: boolean;
+  message?: string;
+  next_step?: 'enroll_2fa' | 'challenge_2fa' | 'session';
+  tmp_login_token?: string;
 }

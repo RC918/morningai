@@ -14,6 +14,7 @@ from src.middleware.auth_middleware import analyst_required, jwt_required, roles
 from src.utils.redis_config import get_secure_redis_url
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from redis_queue.worker import run_orchestrator_task
+from common.config.settings import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
+SENTRY_DSN = settings.sentry_dsn
 if SENTRY_DSN and SENTRY_DSN.strip():
     import sentry_sdk
 else:
@@ -45,35 +46,87 @@ bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
 
-redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+def _is_testing_mode():
+    """Check if running in testing mode (dynamic check)"""
+    try:
+        from flask import current_app
+        if current_app:
+            v = current_app.config.get("TESTING")
+            if v is not None:
+                return bool(v)
+    except Exception:
+        pass
+    return (os.getenv("TESTING", "").lower() in ("1", "true", "yes", "on"))
 
-redis_kwargs = {
-    "decode_responses": True,
-    "socket_connect_timeout": 5,
-    "socket_timeout": 30,
-    "retry": retry,
-    "retry_on_timeout": True
-}
+AGENT_REDIS_URL = get_secure_redis_url(allow_local=_is_testing_mode())
 
-if redis_url.startswith("rediss://"):
-    redis_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+_UNSET = object()
 
-redis_client = Redis.from_url(redis_url, **redis_kwargs)
+_redis_client = None
+_redis_client_rq = None
+_queue = None
 
-redis_kwargs_rq = {
-    "socket_connect_timeout": 5,
-    "socket_timeout": 30,
-    "retry": retry,
-    "retry_on_timeout": True
-}
+# Module-level aliases for backward compatibility with tests that patch these attributes
+redis_client = _UNSET
+redis_client_rq = None
+q = None
 
-if redis_url.startswith("rediss://"):
-    redis_kwargs_rq["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+def get_agent_redis_client():
+    """Get or create Redis client for agent routes (lazy initialization)
+    
+    Returns None if redis_client is explicitly set to None (e.g., by tests).
+    Otherwise performs lazy initialization on first call.
+    
+    The sentinel pattern allows tests to:
+    - Patch redis_client to a mock → returns the mock
+    - Patch redis_client to None → returns None (simulates Redis unavailable)
+    - Leave redis_client unpatched → performs lazy initialization
+    """
+    global _redis_client, redis_client
+    
+    if redis_client is not _UNSET:
+        return redis_client
+    
+    if _redis_client is None:
+        redis_url = AGENT_REDIS_URL
+        redis_kwargs = {
+            "decode_responses": True,
+            "socket_connect_timeout": 5,
+            "socket_timeout": 30,
+            "retry": retry,
+            "retry_on_timeout": True
+        }
+        _redis_client = Redis.from_url(redis_url, **redis_kwargs)
+        redis_client = _redis_client
+    return _redis_client
 
-redis_client_rq = Redis.from_url(redis_url, **redis_kwargs_rq)
+def get_agent_redis_client_rq():
+    """Get or create Redis client for RQ (lazy initialization)"""
+    global _redis_client_rq, redis_client_rq
+    if redis_client_rq is not None:
+        return redis_client_rq
+    if _redis_client_rq is None:
+        redis_url = AGENT_REDIS_URL
+        redis_kwargs_rq = {
+            "socket_connect_timeout": 5,
+            "socket_timeout": 30,
+            "retry": retry,
+            "retry_on_timeout": True
+        }
+        _redis_client_rq = Redis.from_url(redis_url, **redis_kwargs_rq)
+        redis_client_rq = _redis_client_rq
+    return _redis_client_rq
 
-RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
-q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
+def get_agent_queue():
+    """Get or create RQ Queue (lazy initialization)"""
+    global _queue, q
+    if q is not None:
+        return q
+    if _queue is None:
+        queue_name = settings.rq_queue_name or "orchestrator"
+        _queue = Queue(queue_name, connection=get_agent_redis_client_rq(), serializer=JSONSerializer())
+        q = _queue
+    return _queue
 
 @bp.route("/faq", methods=["GET"])
 def faq_method_not_allowed():
@@ -102,7 +155,7 @@ def create_faq_task():
         }), 400
     
     try:
-        repo = os.getenv("GITHUB_REPO", "RC918/morningai")
+        repo = settings.github_repo or "RC918/morningai"
         task_id = str(uuid.uuid4())
         
         user_id = getattr(request, 'user_id', None)
@@ -158,7 +211,7 @@ def create_faq_task():
             sentry_sdk.set_tag("operation", "faq_create")
             sentry_sdk.set_tag("tenant_id", tenant_id)
         
-        job = q.enqueue(
+        job = get_agent_queue().enqueue(
             run_orchestrator_task,
             task_id,
             question,
@@ -169,7 +222,7 @@ def create_faq_task():
             failure_ttl=3600
         )
         
-        redis_client.hset(
+        get_agent_redis_client().hset(
             f"agent:task:{task_id}",
             mapping={
                 "status": "queued",
@@ -179,7 +232,7 @@ def create_faq_task():
                 "updated_at": datetime.utcnow().isoformat()
             }
         )
-        redis_client.expire(f"agent:task:{task_id}", 3600)
+        get_agent_redis_client().expire(f"agent:task:{task_id}", 3600)
         
         try:
             from orchestrator.persistence.db_writer import upsert_task_queued
@@ -286,12 +339,12 @@ def get_task_status(task_id):
     
     try:
         key = f"agent:task:{task_id}"
-        key_type = redis_client.type(key)
+        key_type = get_agent_redis_client().type(key)
         
         if key_type == "hash":
-            task_data = redis_client.hgetall(key)
+            task_data = get_agent_redis_client().hgetall(key)
         elif key_type == "string":
-            task_json = redis_client.get(key)
+            task_json = get_agent_redis_client().get(key)
             task_data = json.loads(task_json) if task_json else None
         else:
             task_data = None
@@ -311,7 +364,7 @@ def get_task_status(task_id):
 def debug_queue_status():
     """Debug endpoint showing queue and task status"""
     try:
-        if redis_client is None or redis_client_rq is None:
+        if get_agent_redis_client() is None or get_agent_redis_client_rq() is None:
             logger.error("Redis clients not initialized")
             return jsonify({
                 "error": "Redis connection not available",
@@ -322,8 +375,8 @@ def debug_queue_status():
             }), 503
         
         try:
-            redis_client.ping()
-            redis_client_rq.ping()
+            get_agent_redis_client().ping()
+            get_agent_redis_client_rq().ping()
         except (RedisConnectionError, AttributeError, Exception) as conn_err:
             logger.error(f"Redis connection test failed: {conn_err}")
             return jsonify({
@@ -334,21 +387,22 @@ def debug_queue_status():
                 "timestamp": datetime.utcnow().isoformat()
             }), 503
         
-        queue_length = redis_client_rq.llen(f"rq:queue:{RQ_QUEUE_NAME}")
+        queue_name = settings.rq_queue_name or "orchestrator"
+        queue_length = get_agent_redis_client_rq().llen(f"rq:queue:{queue_name}")
         
-        recent_jobs = redis_client_rq.lrange(f"rq:queue:{RQ_QUEUE_NAME}", 0, 4)
+        recent_jobs = get_agent_redis_client_rq().lrange(f"rq:queue:{queue_name}", 0, 4)
         
-        task_keys = list(redis_client.scan_iter("agent:task:*", count=100))
+        task_keys = list(get_agent_redis_client().scan_iter("agent:task:*", count=100))
         sample_task = None
         if task_keys:
             latest_key = sorted(task_keys)[-1] if task_keys else None
             if latest_key:
-                key_type = redis_client.type(latest_key)
+                key_type = get_agent_redis_client().type(latest_key)
                 
                 if key_type == "hash":
-                    task_data = redis_client.hgetall(latest_key)
+                    task_data = get_agent_redis_client().hgetall(latest_key)
                 elif key_type == "string":
-                    task_json = redis_client.get(latest_key)
+                    task_json = get_agent_redis_client().get(latest_key)
                     task_data = json.loads(task_json) if task_json else None
                 else:
                     task_data = None

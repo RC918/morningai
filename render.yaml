@@ -47,6 +47,8 @@ services:
         value: orchestrator
       - key: USE_LANGGRAPH
         value: false
+      - key: ENABLE_MOCK_USERS
+        value: false
       - key: APP_VERSION
         value: "8.0.0"
       - key: CORS_ORIGINS
@@ -91,6 +93,8 @@ services:
         value: false
       - key: ORCHESTRATOR_TEST_MODE
         value: false
+      - key: ENABLE_MOCK_USERS
+        value: false
 
   - type: web
     name: braintrust-processor
@@ -106,6 +110,12 @@ services:
         value: "10.0"
       - key: LATENCY_ALERT_THRESHOLD
         value: "500.0"
+      - key: REPO_ROOT
+        value: /app
+      - key: PYTHONPATH
+        value: /app
+      - key: DEBUG_IMPORTS
+        value: "false"
     autoDeploy: true
 
   - type: web

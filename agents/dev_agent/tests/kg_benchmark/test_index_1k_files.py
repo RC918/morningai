@@ -10,6 +10,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
+from common.config.settings import settings
 from knowledge_graph import (
     get_knowledge_graph_manager,
     create_code_indexer
@@ -56,7 +57,7 @@ class TestIndexLargeCodebaseBenchmark:
     """Benchmark test for indexing large codebase"""
 
     @pytest.mark.skipif(
-        not os.getenv('OPENAI_API_KEY'),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY required for indexing benchmark"
     )
     def test_index_1000_files_performance(self, large_codebase):

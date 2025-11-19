@@ -37,20 +37,33 @@ MorningAI is an intelligent agent orchestration platform that automates software
 
 Building the world's most advanced autonomous AI agent orchestration platform that seamlessly integrates development, operations, and business intelligence with human-in-the-loop governance.
 
-### Current Status
+### Current Status (Updated: 2025-11-16)
 
 - **Phase**: Phase 8 (v8.0.0) - MVP Foundation Complete
-- **Test Coverage**: 41% (Target: 80% by Q2 2026)
+- **Test Coverage**: 
+  - Owner Console: **59.89% lines, 45.76% branches** (as reported in CI on 2025-11-16; 218 tests passing)
+  - Backend: Pending (test environment fix required)
+  - Target: 80% by Q2 2026
 - **Uptime**: 90% (Target: 99.9% by Q2 2026)
 - **Transformation**: Q4 2025 - Q2 2026 (MVP to World-Class)
+- **Latest Roadmap**: [Strategic Roadmap Reality Comparison](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
 ### Key Features
 
-- **Dev_Agent**: Automated bug fixing and PR creation (>85% success rate)
-- **Ops_Agent**: Automated incident response and self-healing (>70% automation)
+**Infrastructure & Security (Completed):**
+- ✅ **RLS Implementation**: Row-level security with 70 policies across 6 migrations
+- ✅ **Secret Scanning**: Gitleaks + TruffleHog in CI, blocks PRs with secrets
+- ✅ **2FA**: Complete TOTP implementation with 10 components, enforced login
+- ✅ **Storybook**: Owner Console with MSW, dark mode, a11y checks
+
+**AI Agents (In Development):**
+- **Dev_Agent**: Automated bug fixing and PR creation (target: >85% success rate)
+- **Ops_Agent**: Automated incident response and self-healing (target: >70% automation)
 - **PM_Agent**: Project management and task tracking
 - **Growth_Strategist**: Business strategy and optimization
 - **Meta_Agent**: Agent orchestration and OODA loop coordination
+
+**Note**: Agent success rates are aspirational targets. Evaluation harness created but not yet integrated. See [Agent Evaluation Guide](../tools/agent_eval/README.md).
 
 ---
 
@@ -72,7 +85,12 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 | Component | Role | Maturity | Service | Path |
 |-----------|------|----------|---------|------|
 | **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` |
-| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+| **Worker Orchestrator** | Task Execution (RQ) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+
+**Dual Execution Modes**:
+- **Simple Mode** (Production): `handoff/20250928/40_App/orchestrator/graph.py` - Fast, stateless execution (currently enabled via `USE_LANGGRAPH=false` in `render.yaml:48-49`)
+- **LangGraph Mode** (Optional): `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py:1-422` - Full state machine with retry logic, CI monitoring (can be enabled via `USE_LANGGRAPH=true`)
+- **Runtime Selection**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:303-307` conditionally imports orchestrator based on environment flag
 
 **See**: [ADR-001](adr/001-dual-orchestrator-architecture.md), [ADR-002](adr/002-producer-consumer-architecture.md) • **Consolidation**: 2026 Q1
 
@@ -288,6 +306,56 @@ curl http://localhost:8001/health
 - Open http://localhost:5173 in browser
 - Should see MorningAI dashboard
 
+### Step 7: Run Storybook (Optional)
+
+**Owner Console**:
+```bash
+cd handoff/20250928/40_App/owner-console
+pnpm storybook
+# Access at http://localhost:6007
+```
+
+**Features**:
+- MSW addon for API mocking with wildcard host matching
+- Dark mode toggle in toolbar (synced with next-themes)
+- Test runner with a11y checks: `pnpm test-storybook`
+- 13 stories covering SystemMonitoring and AgentExecutionLogs
+
+**Adding MSW Handlers:**
+```typescript
+export const MyStory = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get('*/api/your-endpoint', () => {
+          return HttpResponse.json({ data: 'mock response' });
+        }),
+      ],
+    },
+  },
+};
+```
+
+**Shared UI Components**:
+```bash
+cd packages/shared-ui
+pnpm storybook
+# Access at http://localhost:6006
+```
+
+**What is Storybook?**
+- Interactive component documentation and testing environment
+- View and test UI components in isolation
+- Added November 2025 (Storybook 8.6.14)
+- Core components documented in `packages/shared-ui` (Card, Button, Badge, Alert, Avatar, Progress, Tabs, Dialog, Input, Form, Table, Pagination, Select, StatusBadge)
+
+**Adding New Stories:**
+1. Create `*.stories.tsx` file next to your component
+2. Follow existing patterns in `packages/shared-ui/src/components/ui/*.stories.tsx`
+3. Stories are automatically discovered by Storybook
+
+**Documentation:** See [Storybook Documentation](https://storybook.js.org/docs/react/get-started/introduction)
+
 ---
 
 ## Development Workflow
@@ -460,8 +528,19 @@ morningai/
 │   │   └── vite.config.ts        # Vite configuration
 │   │
 │   └── owner-console/             # Owner management console
+│       ├── src/components/AgentExecutionLogs.tsx  # Agent execution history (added Nov 2025)
+│       ├── src/pages/AgentGovernance.jsx          # Agent governance dashboard
 │       └── ...                    # Owner console files
 │
+**Owner Console Features** (Admin Interface):
+- **Agent Governance** (`/governance`) - Agent reputation, permissions, violations
+- **Agent Execution Logs** (`/governance` → Execution Logs tab) - **NEW Nov 2025**
+  - Detailed task execution history with status, timestamps, and trace IDs
+  - Filter by agent type, status, and time range
+  - API endpoint: `GET /api/admin/agent-execution-logs`
+- **Tenant Management** (`/tenants`) - Multi-tenant account management
+- **System Monitoring** (`/monitoring`) - System health and metrics
+
 ├── docs/                           # Documentation
 │   ├── ENVIRONMENTS.md            # Environment architecture
 │   ├── ops/
@@ -484,15 +563,27 @@ morningai/
 
 ### Phase API Modules (Root Directory)
 
-The following production backend modules are located in the root directory and imported by `handoff/20250928/40_App/api-backend/src/main.py`:
+**Status**: ✅ **Intentional Cross-Cutting Architecture**
 
-- **`phase4_meta_agent_api.py`**: Meta-agent coordination (OODA loop, LangGraph workflows, AI governance)
-- **`phase5_data_intelligence_api.py`**: Data intelligence (QuickSight, growth marketing, BI dashboards)
-- **`phase6_security_governance_api.py`**: Security & governance (Zero Trust, SecurityReviewer Agent, HITL analysis)
-- **`phase6_startup.py`**: Phase 6 initialization (monitoring, security, Meta-Agent hub)
-- **`phase7_startup.py`**: Phase 7 initialization (Ops_Agent, Growth_Strategist, PM_Agent, HITL system)
+The following 18 production backend modules are located in the root directory as cross-cutting concerns:
 
-**Note**: These files are in the root directory for historical reasons. They are production code imported by the backend. Future refactoring may move them to `handoff/20250928/40_App/api-backend/src/phases/`.
+**Core Managers**:
+- **`persistent_state_manager.py`** (495 lines): State management across services
+- **`security_manager.py`** (364 lines): Security operations and governance
+- **`knowledge_graph_manager.py`** (1,018 lines): Knowledge graph operations
+
+**Phase API Modules**:
+- **`phase4_meta_agent_api.py`** (16,874 bytes): Meta-agent coordination (OODA loop, AI governance)
+- **`phase5_data_intelligence_api.py`** (21,472 bytes): Data intelligence (QuickSight, growth marketing, BI dashboards)
+- **`phase6_security_governance_api.py`** (18,234 bytes): Security & governance (Zero Trust, SecurityReviewer Agent, HITL analysis)
+- **`phase6_startup.py`**, **`phase7_startup.py`**: Phase initialization
+
+**Import Evidence**: These modules are actively imported in:
+- `handoff/20250928/40_App/api-backend/src/main.py` (main application)
+- `handoff/20250928/40_App/api-backend/tests/` (16+ test files)
+- `handoff/20250928/40_App/orchestrator/` (orchestrator services)
+
+**Architecture Rationale**: Root-level placement enables shared access across multiple services (api-backend, orchestrator, agents) without circular dependencies. This is an intentional design pattern for cross-cutting concerns, not a code organization issue.
 
 ---
 
@@ -560,10 +651,42 @@ pnpm test:coverage
 - **[Redis Security](REDIS_SECURITY.md)** - Redis security requirements
 - **[RLS Implementation](RLS_IMPLEMENTATION_GUIDE.md)** - Row-level security
 - **[Secret Scanning](SECRET_SCANNING_GUIDE.md)** - Secret management
+- **[Authentication API](openapi.auth.yaml)** - 2FA/TOTP endpoints (OpenAPI 3.0.3)
 
 ### Testing
 - **[Testing Guide](TESTING.md)** - Comprehensive testing documentation
 - **[Phase 3 Testing](PHASE3_TESTING_GUIDE.md)** - Phase 3 testing guide
+
+#### Visual Regression Testing (VRT)
+
+**Status:** ✅ Re-enabled November 2025 (PR #1288; related: #1287 frontend tests, #1293 Storybook test-runner)
+
+**What is VRT?**
+- Automated visual comparison of UI screenshots
+- Detects unintended visual changes
+- Uses Playwright for browser automation
+
+**Running VRT Tests:**
+```bash
+cd handoff/20250928/40_App/frontend-dashboard
+
+# Run VRT tests
+pnpm test:vrt
+
+# Update snapshots (after intentional UI changes)
+pnpm test:vrt --update-snapshots
+```
+
+**CI Integration:**
+- VRT runs automatically on PRs via `.github/workflows/frontend.yml`
+- Snapshots stored in `tests/vrt.spec.ts-snapshots/`
+- Failures indicate visual regressions - review carefully before updating
+
+**Configuration:** `playwright.config.ts` - VRT-specific settings
+
+**Troubleshooting:**
+- If VRT fails after intentional UI changes, update snapshots locally and commit
+- Ensure consistent browser/OS for snapshot generation (CI uses Ubuntu + Chromium)
 
 ---
 
@@ -734,16 +857,122 @@ curl https://morningai-backend-v2-stg.onrender.com/api/phase7/monitoring/dashboa
 
 ---
 
+## Testing
+
+MorningAI 採用**雙層測試架構**，將單元測試和 API 整合測試分離。
+
+### 測試架構概覽
+
+| 層級 | 位置 | 目的 | 覆蓋率 | CI Workflow |
+|------|------|------|--------|-------------|
+| **層級 1** | `/tests/` | 單元測試（業務邏輯） | 21% | test-apps.yml |
+| **層級 2** | `/handoff/.../api-backend/tests/` | API 整合測試 | 74% | backend.yml |
+
+**詳細說明**: 見 [TESTING_ARCHITECTURE.md](./TESTING_ARCHITECTURE.md)
+
+### 運行根目錄單元測試
+
+```bash
+# 在專案根目錄
+pytest tests/ -v
+
+# 帶覆蓋率
+pytest tests/ --cov=src --cov-report=html
+
+# 特定測試
+pytest tests/test_utils_redis_client.py -v
+```
+
+### 運行後端 API 測試
+
+```bash
+# 1. 進入後端目錄
+cd handoff/20250928/40_App/api-backend
+
+# 2. 安裝依賴（如果還沒安裝）
+pip install -r requirements.txt
+pip install pytest pytest-cov
+
+# 3. 設置環境變數
+export TESTING=true
+export JWT_SECRET_KEY=test-secret
+
+# 4. 運行測試
+python -m pytest tests/ -v
+
+# 5. 帶覆蓋率
+python -m pytest tests/ --cov=src --cov-report=html
+```
+
+### 為什麼測試分離？
+
+1. **依賴隔離**: 根目錄只需最小依賴，後端需要完整依賴（Flask, rq, numpy 等）
+2. **覆蓋率基準分離**: 21% 單元測試 vs 74% API 測試
+3. **測試速度**: 單元測試快速（< 1 秒），API 測試較慢（1-5 秒）
+
+**常見問題**: 見 [TESTING_ARCHITECTURE.md](./TESTING_ARCHITECTURE.md#常見問題)
+
+---
+
 ## Common Tasks
 
 ### Running Tests
 
-**Backend Tests**:
+#### Backend Tests
+
+**Prerequisites**:
+
+The project uses **PyJWT** for JWT token handling. Make sure you have the correct package installed:
+
+```bash
+# Install PyJWT (NOT jwt==1.4.0)
+pip install PyJWT
+```
+
+**Important:** Do NOT install `jwt==1.4.0` as it conflicts with PyJWT. If you have `jwt` installed, uninstall it first:
+
+```bash
+pip uninstall jwt
+pip install PyJWT
+```
+
+**Running Unit Tests**:
+
 ```bash
 cd handoff/20250928/40_App/api-backend
 source ../../../../.venv/bin/activate
+
+# Run all unit tests
 pytest -v
+
+# Run specific test files
+pytest tests/test_middleware_auth.py -v
+pytest tests/test_middleware_auth_decorators.py -v
+
+# Run with coverage
+pytest tests/test_middleware_auth*.py --cov=handoff/20250928/40_App/api-backend/src/middleware/auth_middleware.py --cov-report=term
+
+# Run all unit tests with coverage
+pytest tests/test_middleware_auth*.py tests/test_scripts_*.py --cov=src --cov-report=term --cov-report=xml --cov-report=json
 ```
+
+**Test Environment Variables**:
+
+For unit tests, set:
+```bash
+export TESTING=true
+```
+
+For migration idempotency tests:
+```bash
+export IDEMPOTENCY_TESTS_ALLOWED=true
+```
+
+**Note:** RLS tests require Supabase credentials and should not be run by default. See [DATABASE_ARCHITECTURE.md](DATABASE_ARCHITECTURE.md) for details.
+
+**Coverage Targets**:
+- **Overall**: 74% (enforced by CI)
+- **Security-critical modules** (auth_middleware.py): ≥70%
 
 **Frontend Tests**:
 ```bash
@@ -952,6 +1181,79 @@ pytest tests/test_specific.py -v
 3. Check if tests pass locally
 4. Review recent commits for breaking changes
 
+### Issue: Tailwind v4 max-w-* utilities not working correctly
+
+**Symptoms**: 
+- Container widths collapse to 16px instead of expected rem values (e.g., max-w-md should be 28rem/448px but renders as 16px)
+- All `max-w-*` utilities affected (sm, md, lg, xl, 2xl, 3xl, 4xl, 5xl, 6xl, 7xl)
+- Layout appears vertically compressed and unusable
+- Issue only appears on Vercel preview deployments (not local dev due to different build optimizations)
+
+**Root Cause**: Tailwind v4's `@theme` syntax incorrectly maps `max-w-*` utilities to `--spacing-*` tokens which are intended for padding/margin, not container widths.
+
+**Technical Details**:
+In `theme.css`, we defined:
+```css
+--spacing-md: var(--space-md);  /* 16px from shared-ui */
+```
+
+Tailwind v4 then incorrectly generated:
+```css
+.max-w-md { max-width: var(--spacing-md); }  /* 16px - WRONG! */
+```
+
+But `max-w-md` should be:
+```css
+.max-w-md { max-width: 28rem; }  /* 448px - CORRECT */
+```
+
+**Solution**: The fix is already implemented in `owner-console/src/styles/theme.css`:
+- Separate `--max-width-*` tokens are defined (lines 24-35)
+- These tokens use correct rem values:
+  - `--max-width-sm: 24rem` (384px)
+  - `--max-width-md: 28rem` (448px)
+  - `--max-width-lg: 32rem` (512px)
+  - `--max-width-xl: 36rem` (576px)
+  - `--max-width-2xl: 42rem` (672px)
+  - `--max-width-3xl: 48rem` (768px)
+  - `--max-width-4xl: 56rem` (896px)
+  - `--max-width-5xl: 64rem` (1024px)
+  - `--max-width-6xl: 72rem` (1152px)
+  - `--max-width-7xl: 80rem` (1280px)
+- Tailwind v4 now uses these dedicated tokens instead of spacing tokens
+- Clean separation of concerns: spacing tokens (padding/margin) vs. container width tokens
+
+**Verification**:
+```bash
+# 1. Run the regression test
+cd handoff/20250928/40_App/owner-console
+npm run test:e2e -- max-width-regression.spec.ts
+
+# 2. Build and check compiled CSS
+npm run build
+grep "max-w-md" dist/assets/index-*.css
+# Should show: .max-w-md{max-width:var(--max-width-md)}
+
+# 3. Check computed styles in browser DevTools
+# Open login page, inspect element with max-w-md class
+# Computed maxWidth should be 448px (not 16px)
+```
+
+**If Issue Persists**:
+1. Clear build cache: `rm -rf dist node_modules/.vite`
+2. Reinstall dependencies: `pnpm install`
+3. Rebuild: `pnpm build`
+4. Check that `theme.css` contains `--max-width-*` tokens
+5. Verify no CSS overrides in `index.css` (hotfix was removed in PR #1308)
+
+**Related Documentation**:
+- **Detailed tracking doc**: `docs/TAILWIND_V4_MAX_WIDTH_ISSUE.md` (comprehensive 259-line analysis)
+- **PR #1303**: Initial hotfix with CSS overrides
+- **PR #1308**: Root cause fix with dedicated --max-width-* tokens
+- **Regression test**: `e2e/max-width-regression.spec.ts`
+
+**Risk Note**: Tailwind v4 token resolution behavior is based on observation, not official documentation. Future Tailwind v4 versions may change this behavior. Monitor for updates when upgrading Tailwind.
+
 ---
 
 ## Getting Help
@@ -1009,6 +1311,10 @@ After completing this onboarding guide, you should:
 
 ---
 
-**Last Updated**: 2025-11-03  
-**Version**: 1.1.0  
+**Last Updated**: 2025-11-16  
+**Version**: 1.2.0  
 **Maintained By**: CTO / DevOps Team
+
+**Changelog**:
+- 2025-11-16 (v1.2.0): Updated current status with test coverage numbers, added agent evaluation harness documentation, linked to strategic roadmap reality comparison
+- 2025-11-03 (v1.1.0): Previous update

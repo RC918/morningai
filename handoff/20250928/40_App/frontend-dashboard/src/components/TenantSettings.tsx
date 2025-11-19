@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTenant } from '../contexts/TenantContext';
 import { AppleButton } from './ui/apple-button';
 import { apiClient } from '../lib/api-client';
@@ -23,6 +24,7 @@ interface ApiErrorResponse {
 }
 
 const TenantSettings = (): React.ReactElement => {
+  const { t } = useTranslation();
   const { tenant, loading: tenantLoading, error: tenantError } = useTenant();
   const [members, setMembers] = useState<Member[]>([]);
   const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null);
@@ -78,10 +80,10 @@ const TenantSettings = (): React.ReactElement => {
 
   if (tenantLoading || loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-neutral-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading tenant information...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-info-600 mx-auto mb-4"></div>
+          <p className="text-neutral-600">{t('tenant.loading')}</p>
         </div>
       </div>
     );
@@ -89,17 +91,17 @@ const TenantSettings = (): React.ReactElement => {
 
   if (tenantError || error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-          <h2 className="text-red-800 font-semibold mb-2">Error Loading Tenant</h2>
-          <p className="text-red-600">{tenantError || error}</p>
+      <div className="flex items-center justify-center min-h-screen bg-neutral-50">
+        <div className="bg-error-50 border border-error-200 rounded-lg p-6 max-w-md">
+          <h2 className="text-error-800 font-semibold mb-2">{t('tenant.errorTitle')}</h2>
+          <p className="text-error-600">{tenantError || error}</p>
           <AppleButton
             onClick={fetchTenantData}
             variant="destructive"
             className="mt-4"
-            aria-label="Retry loading tenant information"
+            aria-label={t('tenant.retryAriaLabel')}
           >
-            Retry
+            {t('tenant.retry')}
           </AppleButton>
         </div>
       </div>
@@ -107,40 +109,40 @@ const TenantSettings = (): React.ReactElement => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-neutral-50 p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Tenant Settings</h1>
-          <p className="text-gray-600 mt-2">Manage your organization and team members</p>
+          <h1 className="text-3xl font-bold text-neutral-900">{t('tenant.title')}</h1>
+          <p className="text-neutral-600 mt-2">{t('tenant.description')}</p>
         </div>
 
         <div className="bg-white rounded-lg shadow mb-6 p-6">
-          <h2 className="text-xl font-semibold mb-4">Organization Information</h2>
+          <h2 className="text-xl font-semibold mb-4">{t('tenant.organization.title')}</h2>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Organization Name</p>
+              <p className="text-sm text-neutral-600">{t('tenant.organization.name')}</p>
               <p className="text-lg font-medium">{tenant?.name || 'N/A'}</p>
             </div>
             
             <div>
-              <p className="text-sm text-gray-600">Organization ID</p>
-              <p className="text-sm font-mono text-gray-700">{tenant?.id || 'N/A'}</p>
+              <p className="text-sm text-neutral-600">{t('tenant.organization.id')}</p>
+              <p className="text-sm font-mono text-neutral-700">{tenant?.id || 'N/A'}</p>
             </div>
             
             <div>
-              <p className="text-sm text-gray-600">Total Members</p>
+              <p className="text-sm text-neutral-600">{t('tenant.organization.totalMembers')}</p>
               <p className="text-lg font-medium">{tenantInfo?.member_count || 0}</p>
             </div>
             
             <div>
-              <p className="text-sm text-gray-600">Total Tasks</p>
+              <p className="text-sm text-neutral-600">{t('tenant.organization.totalTasks')}</p>
               <p className="text-lg font-medium">{tenantInfo?.task_count || 0}</p>
             </div>
             
             <div>
-              <p className="text-sm text-gray-600">Created</p>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-neutral-600">{t('tenant.organization.created')}</p>
+              <p className="text-sm text-neutral-700">
                 {tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : 'N/A'}
               </p>
             </div>
@@ -148,37 +150,37 @@ const TenantSettings = (): React.ReactElement => {
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Team Members</h2>
+          <h2 className="text-xl font-semibold mb-4">{t('tenant.members.title')}</h2>
           
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200" aria-label="Team members list">
-              <caption className="sr-only">Team members with their roles and join dates</caption>
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200" aria-label={t('tenant.members.title')}>
+              <caption className="sr-only">{t('tenant.members.tableCaption')}</caption>
+              <thead className="bg-neutral-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Email
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">
+                    {t('tenant.members.email')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Display Name
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">
+                    {t('tenant.members.displayName')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Role
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">
+                    {t('tenant.members.role')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Joined
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">
+                    {t('tenant.members.joined')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Actions
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">
+                    {t('tenant.members.actions')}
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {members.map((member) => (
                   <tr key={member.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                       {member.email || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                       {member.display_name || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -186,21 +188,21 @@ const TenantSettings = (): React.ReactElement => {
                         value={member.role}
                         onChange={(e) => updateMemberRole(member.id, e.target.value)}
                         disabled={updatingMember === member.id}
-                        className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        aria-label={`Change role for ${member.email || member.display_name}`}
+                        className="text-sm border-neutral-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                        aria-label={t('tenant.members.changeRoleAriaLabel', { email: member.email || member.display_name })}
                       >
-                        <option value="viewer">Viewer</option>
-                        <option value="member">Member</option>
-                        <option value="admin">Admin</option>
-                        <option value="owner">Owner</option>
+                        <option value="viewer">{t('tenant.members.roles.viewer')}</option>
+                        <option value="member">{t('tenant.members.roles.member')}</option>
+                        <option value="admin">{t('tenant.members.roles.admin')}</option>
+                        <option value="owner">{t('tenant.members.roles.owner')}</option>
                       </select>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-600">
                       {member.created_at ? new Date(member.created_at).toLocaleDateString() : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-600">
                       {updatingMember === member.id && (
-                        <span className="text-blue-600">Updating...</span>
+                        <span className="text-info-600">{t('tenant.members.updating')}</span>
                       )}
                     </td>
                   </tr>
@@ -209,8 +211,8 @@ const TenantSettings = (): React.ReactElement => {
             </table>
             
             {members.length === 0 && (
-              <div className="text-center py-8 text-gray-600">
-                No members found
+              <div className="text-center py-8 text-neutral-600">
+                {t('tenant.members.noMembers')}
               </div>
             )}
           </div>

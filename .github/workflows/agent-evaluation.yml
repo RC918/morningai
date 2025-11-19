@@ -1,0 +1,240 @@
+name: Agent Evaluation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/agent_eval/**'
+      - 'handoff/20250928/40_App/orchestrator/**'
+      - '.github/workflows/agent-evaluation.yml'
+  schedule:
+    # Run every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      max_tasks:
+        description: 'Maximum number of tasks to run (default: all)'
+        required: false
+        type: number
+      use_mock:
+        description: 'Use mock orchestrator (no real execution)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd tools/agent_eval
+          pip install -r requirements.txt
+      
+      - name: Run agent evaluation
+        id: evaluation
+        continue-on-error: true
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd tools/agent_eval
+          
+          # Ensure results directory exists
+          mkdir -p results
+          
+          # Determine if using mock mode
+          # On PRs, always use mock mode to avoid secrets/connection issues
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            MOCK_FLAG="--mock"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.use_mock }}" = "true" ]; then
+            MOCK_FLAG="--mock"
+          else
+            MOCK_FLAG=""
+          fi
+          
+          # Determine max tasks (only for workflow_dispatch)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.max_tasks }}" ]; then
+            MAX_TASKS="--max-tasks ${{ inputs.max_tasks }}"
+          else
+            MAX_TASKS=""
+          fi
+          
+          # Run evaluation
+          python runner.py \
+            --dataset dataset.jsonl \
+            --output results/ci-run-$(date +%Y%m%d-%H%M%S).json \
+            $MOCK_FLAG \
+            $MAX_TASKS
+      
+      - name: Calculate metrics
+        id: metrics
+        if: always()
+        continue-on-error: true
+        run: |
+          cd tools/agent_eval
+          
+          # Find latest results file
+          LATEST_RESULT=$(ls -t results/ci-run-*.json 2>/dev/null | head -1)
+          
+          if [ -z "$LATEST_RESULT" ]; then
+            echo "⚠️ No results file found - evaluation may have failed"
+            echo "completion_rate=N/A" >> $GITHUB_OUTPUT
+            echo "ci_pass_rate=N/A" >> $GITHUB_OUTPUT
+            echo "overall_success=N/A" >> $GITHUB_OUTPUT
+            echo "overall_success_num=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Calculate metrics
+          python metrics.py --results "$LATEST_RESULT" > metrics_output.txt
+          cat metrics_output.txt
+          
+          # Extract key metrics for GitHub summary
+          COMPLETION_RATE=$(grep "Task Completion Rate:" metrics_output.txt | awk '{print $4}')
+          CI_PASS_RATE=$(grep "CI Pass Rate:" metrics_output.txt | awk '{print $4}')
+          OVERALL_SUCCESS=$(grep "Overall Success Rate:" metrics_output.txt | awk '{print $4}')
+          
+          # Extract numeric value (strip %)
+          OVERALL_SUCCESS_NUM=$(echo $OVERALL_SUCCESS | sed 's/%//')
+          
+          echo "completion_rate=$COMPLETION_RATE" >> $GITHUB_OUTPUT
+          echo "ci_pass_rate=$CI_PASS_RATE" >> $GITHUB_OUTPUT
+          echo "overall_success=$OVERALL_SUCCESS" >> $GITHUB_OUTPUT
+          echo "overall_success_num=$OVERALL_SUCCESS_NUM" >> $GITHUB_OUTPUT
+      
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-results-${{ github.run_number }}
+          path: tools/agent_eval/results/ci-run-*.json
+          retention-days: 90
+      
+      - name: Check for performance regression
+        if: always()
+        continue-on-error: true
+        run: |
+          cd tools/agent_eval
+          
+          # Get current metrics
+          CURRENT_SUCCESS_NUM="${{ steps.metrics.outputs.overall_success_num }}"
+          
+          # Skip if no metrics available
+          if [ "$CURRENT_SUCCESS_NUM" = "0" ] || [ "$CURRENT_SUCCESS_NUM" = "" ]; then
+            echo "⚠️ No current metrics available, skipping regression check"
+            exit 0
+          fi
+          
+          # Get previous results (if exists)
+          PREVIOUS_RESULTS=$(ls -t results/ci-run-*.json 2>/dev/null | sed -n '2p')
+          
+          if [ -n "$PREVIOUS_RESULTS" ]; then
+            PREVIOUS_METRICS=$(python metrics.py --results "$PREVIOUS_RESULTS" 2>/dev/null || echo "")
+            
+            if [ -n "$PREVIOUS_METRICS" ]; then
+              PREVIOUS_SUCCESS=$(echo "$PREVIOUS_METRICS" | grep "Overall Success Rate:" | awk '{print $4}' | sed 's/%//')
+              
+              # Calculate difference
+              DIFF=$(echo "$CURRENT_SUCCESS_NUM - $PREVIOUS_SUCCESS" | bc)
+              
+              echo "Current success rate: ${CURRENT_SUCCESS_NUM}%"
+              echo "Previous success rate: ${PREVIOUS_SUCCESS}%"
+              echo "Difference: ${DIFF}%"
+              
+              # Alert if drop > 10%
+              if (( $(echo "$DIFF < -10" | bc -l) )); then
+                echo "⚠️ WARNING: Success rate dropped by more than 10%!"
+                echo "::warning::Agent evaluation success rate dropped from ${PREVIOUS_SUCCESS}% to ${CURRENT_SUCCESS_NUM}% (${DIFF}%)"
+              fi
+            fi
+          fi
+      
+      - name: Create GitHub summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # Agent Evaluation Results
+          
+          ## Summary Metrics
+          
+          | Metric | Value |
+          |--------|-------|
+          | Task Completion Rate | ${{ steps.metrics.outputs.completion_rate }} |
+          | CI Pass Rate | ${{ steps.metrics.outputs.ci_pass_rate }} |
+          | Overall Success Rate | ${{ steps.metrics.outputs.overall_success }} |
+          
+          ## Evaluation Details
+          
+          - **Run Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Workflow Run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - **Results Artifact**: evaluation-results-${{ github.run_number }}
+          
+          ## Phase 1 Metrics
+          
+          See full metrics output in the "Calculate metrics" step above.
+          
+          ---
+          
+          **Note**: This evaluation runs in non-blocking mode and does not affect CI status.
+          EOF
+      
+      - name: Comment on recent PRs (if regression detected)
+        if: always() && steps.metrics.outputs.overall_success_num != '' && fromJSON(steps.metrics.outputs.overall_success_num) < 70
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const successRate = '${{ steps.metrics.outputs.overall_success }}';
+            
+            // Get recent merged PRs (last 7 days)
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              sort: 'updated',
+              direction: 'desc',
+              per_page: 10
+            });
+            
+            const recentMergedPRs = prs.filter(pr => 
+              pr.merged_at && 
+              new Date(pr.merged_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+            );
+            
+            if (recentMergedPRs.length > 0) {
+              const comment = `## ⚠️ Agent Evaluation Alert
+              
+              The weekly agent evaluation detected a potential regression:
+              
+              - **Overall Success Rate**: ${successRate}
+              - **Threshold**: 70%
+              
+              This may be related to recent changes. Please review the [evaluation results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+              
+              Recent merged PRs:
+              ${recentMergedPRs.map(pr => `- #${pr.number}: ${pr.title}`).join('\n')}
+              `;
+              
+              // Comment on the most recent merged PR
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: recentMergedPRs[0].number,
+                body: comment
+              });
+            }
+
+# Non-blocking: Always succeed
+# This ensures the workflow doesn't fail CI checks
+# Metrics are informational only

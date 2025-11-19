@@ -128,11 +128,11 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
   }
 
   const variantStyles: Record<LiveActivityVariant, string> = {
-    default: 'bg-gray-900/90 dark:bg-gray-800/90 border-gray-700/20',
-    primary: 'bg-blue-500/90 dark:bg-blue-600/90 border-blue-400/20',
-    success: 'bg-green-500/90 dark:bg-green-600/90 border-green-400/20',
-    warning: 'bg-orange-500/90 dark:bg-orange-600/90 border-orange-400/20',
-    error: 'bg-red-500/90 dark:bg-red-600/90 border-red-400/20'
+    default: 'bg-neutral-900/90 dark:bg-neutral-800/90 border-neutral-700/20',
+    primary: 'bg-primary-500/90 dark:bg-primary-600/90 border-primary-400/20',
+    success: 'bg-success-500/90 dark:bg-success-600/90 border-success-400/20',
+    warning: 'bg-warning-500/90 dark:bg-warning-600/90 border-warning-400/20',
+    error: 'bg-error-500/90 dark:bg-error-600/90 border-error-400/20'
   }
 
   return (
@@ -323,7 +323,7 @@ const LiveActivity: React.FC<LiveActivityProps> = ({
                         'flex-1 px-4 py-2 rounded-xl font-medium text-sm',
                         'transition-colors duration-150',
                         action.variant === 'primary'
-                          ? 'bg-white text-gray-900 hover:bg-white/90 active:bg-white/80'
+                          ? 'bg-white text-neutral-900 hover:bg-white/90 active:bg-white/80'
                           : 'bg-white/10 text-white hover:bg-white/20 active:bg-white/30'
                       )}
                       aria-label={action.label}

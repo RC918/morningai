@@ -49,33 +49,33 @@ interface ToastVariantConfig {
 const toastVariants: Record<ToastVariant, ToastVariantConfig> = {
   success: {
     icon: CheckCircle2,
-    bgColor: 'bg-green-500/90 dark:bg-green-600/90',
+    bgColor: 'bg-success-500/90 dark:bg-success-600/90',
     iconColor: 'text-white',
-    borderColor: 'border-green-400/20'
+    borderColor: 'border-success-400/20'
   },
   error: {
     icon: AlertCircle,
-    bgColor: 'bg-red-500/90 dark:bg-red-600/90',
+    bgColor: 'bg-error-500/90 dark:bg-error-600/90',
     iconColor: 'text-white',
-    borderColor: 'border-red-400/20'
+    borderColor: 'border-error-400/20'
   },
   warning: {
     icon: AlertTriangle,
-    bgColor: 'bg-orange-500/90 dark:bg-orange-600/90',
+    bgColor: 'bg-warning-500/90 dark:bg-warning-600/90',
     iconColor: 'text-white',
-    borderColor: 'border-orange-400/20'
+    borderColor: 'border-warning-400/20'
   },
   info: {
     icon: Info,
-    bgColor: 'bg-blue-500/90 dark:bg-blue-600/90',
+    bgColor: 'bg-primary-500/90 dark:bg-primary-600/90',
     iconColor: 'text-white',
-    borderColor: 'border-blue-400/20'
+    borderColor: 'border-primary-400/20'
   },
   default: {
     icon: null,
-    bgColor: 'bg-gray-900/90 dark:bg-gray-800/90',
+    bgColor: 'bg-neutral-900/90 dark:bg-neutral-800/90',
     iconColor: 'text-white',
-    borderColor: 'border-gray-700/20'
+    borderColor: 'border-neutral-700/20'
   }
 }
 

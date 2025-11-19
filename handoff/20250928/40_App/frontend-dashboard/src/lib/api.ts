@@ -1,4 +1,35 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://morningai-backend-v2.onrender.com'
+/**
+ * Resolve API base URL with defensive normalization
+ * - Respects VITE_API_BASE_URL environment variable
+ * - Ensures /api suffix for backend URLs
+ * - Forces /api proxy on Vercel preview to avoid CORS issues
+ */
+function resolveApiBaseUrl(): string {
+  let raw = import.meta.env.VITE_API_BASE_URL || '/api'
+  
+  raw = raw.trim().replace(/\/+$/, '')
+  
+  const isAbsolute = /^https?:\/\//i.test(raw)
+  if (isAbsolute && !/\/api$/i.test(raw)) {
+    raw += '/api'
+  }
+  
+  const isVercelPreview = typeof window !== 'undefined' && /\.vercel\.app$/.test(window.location.hostname)
+  const allowCrossOrigin = import.meta.env.VITE_ALLOW_CROSS_ORIGIN_API === 'true'
+  
+  if (isVercelPreview && isAbsolute && !allowCrossOrigin) {
+    console.warn(
+      'Preview environment detected with cross-origin API URL. ' +
+      'Overriding to "/api" to use Vercel proxy and avoid CORS issues. ' +
+      'Set VITE_ALLOW_CROSS_ORIGIN_API=true to bypass (not recommended).'
+    )
+    return '/api'
+  }
+  
+  return raw || '/api'
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 interface RequestOptions extends RequestInit {
@@ -14,6 +45,7 @@ interface ApiError extends Error {
 class ApiClient {
   private baseURL: string
   private useMock: boolean
+  private csrfToken: string | null = null
 
   constructor() {
     this.baseURL = API_BASE_URL
@@ -21,17 +53,48 @@ class ApiClient {
   }
 
   private getCsrfToken(): string | null {
+    if (this.csrfToken) {
+      return this.csrfToken
+    }
+    
     if (typeof document === 'undefined') return null
     const match = document.cookie.match(/csrf_token=([^;]+)/)
-    return match ? match[1] : null
+    if (match) {
+      this.csrfToken = match[1]
+      return this.csrfToken
+    }
+    
+    return null
+  }
+
+  clearCsrfToken(): void {
+    this.csrfToken = null
   }
 
   private async refreshAccessToken(): Promise<void> {
     try {
-      const response = await fetch(`${this.baseURL}/api/auth/v2/refresh`, {
+      let csrfToken = this.getCsrfToken()
+      if (!csrfToken) {
+        const bootstrapped = await this.bootstrapCsrf()
+        if (!bootstrapped) {
+          const error = new Error('csrf_unavailable') as ApiError
+          error.status = 0
+          throw error
+        }
+        csrfToken = this.getCsrfToken()
+      }
+      
+      if (!csrfToken) {
+        const error = new Error('csrf_unavailable') as ApiError
+        error.status = 0
+        throw error
+      }
+      
+      const response = await fetch(`${this.baseURL}/auth/v2/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
         },
         credentials: 'include',
       })
@@ -47,7 +110,7 @@ class ApiClient {
 
   async request(endpoint: string, options: RequestOptions = {}): Promise<any> {
     const requestId = Math.random().toString(36).substr(2, 9)
-    const url = `${this.baseURL}/api${endpoint}`
+    const url = `${this.baseURL}${endpoint}`
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -83,6 +146,8 @@ class ApiClient {
           
           console.warn(`Authentication failed [${requestId}]: ${endpoint}`)
           
+          let authErrorDispatched = false
+          
           try {
             await this.refreshAccessToken()
             
@@ -107,13 +172,11 @@ class ApiClient {
             const retryResponse = await fetch(url, retryConfig)
             
             if (retryResponse.status === 401) {
-              window.dispatchEvent(new CustomEvent('auth-error', {
-                detail: { endpoint, requestId, message: 'Authentication required' }
-              }))
-              
-              if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
-                const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-                window.location.href = `/login?returnUrl=${returnUrl}`
+              if (!authErrorDispatched) {
+                window.dispatchEvent(new CustomEvent('auth-error', {
+                  detail: { endpoint, requestId, message: 'Authentication required' }
+                }))
+                authErrorDispatched = true
               }
               
               const retryErrorData = await retryResponse.json().catch(() => ({}))
@@ -135,13 +198,11 @@ class ApiClient {
             
             return await retryResponse.json()
           } catch (refreshError) {
-            window.dispatchEvent(new CustomEvent('auth-error', {
-              detail: { endpoint, requestId, message: 'Authentication required' }
-            }))
-            
-            if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
-              const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-              window.location.href = `/login?returnUrl=${returnUrl}`
+            if (!authErrorDispatched) {
+              window.dispatchEvent(new CustomEvent('auth-error', {
+                detail: { endpoint, requestId, message: 'Authentication required' }
+              }))
+              authErrorDispatched = true
             }
             
             throw refreshError
@@ -227,7 +288,7 @@ class ApiClient {
   }
 
   async verifyAuth(): Promise<any> {
-    return this.request('/auth/verify')
+    return this.getCurrentUser()
   }
 
   async login(credentials: any): Promise<any> {
@@ -237,14 +298,37 @@ class ApiClient {
     })
   }
 
-  async bootstrapCsrf(): Promise<void> {
-    try {
-      await fetch(`${this.baseURL}/api/auth/v2/csrf`, {
-        credentials: 'include',
-      })
-    } catch (error) {
-      console.warn('Failed to bootstrap CSRF token:', error)
+  async bootstrapCsrf(): Promise<boolean> {
+    const maxAttempts = 3
+    const delayMs = 150
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await fetch(`${this.baseURL}/auth/v2/csrf`, {
+          credentials: 'include',
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.csrf_token) {
+            this.csrfToken = data.csrf_token
+            console.log('CSRF token bootstrapped successfully')
+            return true
+          }
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+        
+        if (this.getCsrfToken()) {
+          return true
+        }
+      } catch (error) {
+        console.warn(`CSRF bootstrap attempt ${attempt + 1}/${maxAttempts} failed:`, error)
+      }
     }
+    
+    console.error('Failed to bootstrap CSRF token after all attempts')
+    return false
   }
 
   async getBillingPlans(): Promise<any[]> {

@@ -3,8 +3,64 @@ Braintrust Trace Processing Service
 
 Receives traces from Vercel and processes them for monitoring and cost analysis.
 """
+# Fix deployment import path: Add repo root to sys.path before importing common
+from pathlib import Path
+import sys
 import os
 import logging
+
+logging.basicConfig(level=logging.INFO)
+_bootstrap_logger = logging.getLogger(__name__)
+
+
+def _normalize_path(path):
+    """Normalize path to avoid duplicates from different representations"""
+    return os.path.realpath(os.path.abspath(path))
+
+
+def _add_to_sys_path(path, mechanism_name):
+    """Add normalized path to sys.path if not already present"""
+    normalized = _normalize_path(path)
+    normalized_sys_path = [_normalize_path(p) for p in sys.path if p]
+    if normalized not in normalized_sys_path:
+        sys.path.insert(0, normalized)
+        if os.getenv('DEBUG_IMPORTS'):
+            _bootstrap_logger.info(f"✅ sys.path bootstrap: {mechanism_name}={normalized}")
+        return True
+    return False
+
+
+processor_file_path = Path(__file__).resolve()
+for parent in [processor_file_path] + list(processor_file_path.parents):
+    if ((parent / 'pyproject.toml').exists() or 
+        (parent / '.git').exists() or 
+        (parent / 'env.schema.yaml').exists() or 
+        (parent / 'env_schema.yaml').exists() or 
+        (parent / 'common').is_dir()):
+        _add_to_sys_path(str(parent), f"marker file at {parent}")
+        break
+
+if 'PYTHONPATH' in os.environ:
+    pythonpath_entries = os.environ['PYTHONPATH'].split(os.pathsep)
+    for entry in reversed(pythonpath_entries):
+        if entry and os.path.isdir(entry):
+            _add_to_sys_path(entry, f"PYTHONPATH entry")
+
+if 'REPO_ROOT' in os.environ:
+    repo_root = os.environ['REPO_ROOT']
+    repo_path = Path(repo_root)
+    
+    if repo_path.name == 'common':
+        repo_root = str(repo_path.parent)
+        if os.getenv('DEBUG_IMPORTS'):
+            _bootstrap_logger.info(f"⚠️  REPO_ROOT misconfigured as common dir, corrected to: {repo_root}")
+    
+    if repo_root and os.path.isdir(repo_root):
+        _add_to_sys_path(repo_root, "REPO_ROOT")
+
+if os.getenv('DEBUG_IMPORTS'):
+    _bootstrap_logger.info(f"Final sys.path (first 5): {sys.path[:5]}")
+
 from datetime import datetime
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, Request, HTTPException
@@ -12,6 +68,7 @@ from fastapi.responses import JSONResponse
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import asyncio
+from common.config.settings import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,12 +80,12 @@ class TraceProcessor:
     """Process and store Vercel traces"""
     
     def __init__(self):
-        self.database_url = os.getenv("DATABASE_URL")
+        self.database_url = settings.database_url
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable required")
         
-        self.cost_alert_threshold = float(os.getenv("COST_ALERT_THRESHOLD", "10.0"))
-        self.latency_alert_threshold = float(os.getenv("LATENCY_ALERT_THRESHOLD", "500.0"))
+        self.cost_alert_threshold = settings.cost_alert_threshold or 10.0
+        self.latency_alert_threshold = settings.latency_alert_threshold or 500.0
     
     def get_connection(self):
         """Get database connection"""

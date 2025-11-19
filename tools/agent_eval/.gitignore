@@ -1,0 +1,3 @@
+# Ignore evaluation results but keep the directory structure
+results/*
+!results/.gitkeep

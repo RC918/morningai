@@ -36,14 +36,14 @@ export const PageLoader = ({ message }: PageLoaderProps): React.ReactElement => 
         transition={{ delay: 0.2 }}
         className="text-center"
       >
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+        <h2 className="text-xl font-semibold text-neutral-900 mb-2">
           {displayMessage}
         </h2>
         <div className="flex space-x-1 justify-center">
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              className="w-2 h-2 bg-blue-600 rounded-full"
+              className="w-2 h-2 bg-info-600 rounded-full"
               animate={{
                 y: [0, -10, 0],
                 opacity: [1, 0.5, 1]

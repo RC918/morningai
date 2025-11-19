@@ -26,6 +26,7 @@ from enum import Enum
 
 from redis import Redis
 from openai import OpenAI
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -482,11 +483,11 @@ def create_dev_agent_v2(redis_client: Redis) -> DevAgentV2:
     Returns:
         Configured DevAgentV2 instance
     """
-    openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    openai_client = OpenAI(api_key=settings.openai_api_key)
     session_store = SessionStore(redis_client)
     
     return DevAgentV2(
         openai_client=openai_client,
         session_store=session_store,
-        model=os.getenv("DEV_AGENT_MODEL", "gpt-4-turbo-preview")
+        model=settings.dev_agent_model or "gpt-4-turbo-preview"
     )

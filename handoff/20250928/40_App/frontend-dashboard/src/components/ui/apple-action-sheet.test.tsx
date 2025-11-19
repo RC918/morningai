@@ -1,3 +1,9 @@
+/* eslint-disable i18next/no-literal-string */
+/* NOTE: This file is exempted from strict i18n checks to maintain PR scope.
+ * i18n improvements will be addressed in a dedicated PR (see Issue #1328).
+ * This aligns with local ESLint config which already exempts stories/tests.
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -330,7 +336,7 @@ describe('AppleActionSheet', () => {
       await waitFor(() => {
         const deleteButton = screen.getByText('Delete').closest('button')
         expect(deleteButton).toBeInTheDocument()
-        expect(deleteButton).toHaveClass('text-red-600', 'dark:text-red-500')
+        expect(deleteButton).toHaveClass('text-error-600', 'dark:text-error-500')
       })
     })
 

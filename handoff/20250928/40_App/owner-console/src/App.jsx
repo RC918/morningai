@@ -4,18 +4,20 @@ import { ThemeProvider } from 'next-themes'
 import { AuthProvider, useAuth } from '@/components/AuthProvider'
 import Sidebar from '@/components/Sidebar'
 import LoginPage from '@/components/LoginPage'
-import { applyDesignTokens } from '@/lib/design-tokens'
+import { applyDesignTokens } from '@morningai/shared-ui'
 import './App.css'
 
 const OwnerDashboard = lazy(() => import('@/pages/OwnerDashboard'))
 const AgentGovernance = lazy(() => import('@/pages/AgentGovernance'))
 const TenantManagement = lazy(() => import('@/pages/TenantManagement'))
 const SystemMonitoring = lazy(() => import('@/pages/SystemMonitoring'))
+const AgentEvaluationDashboard = lazy(() => import('@/pages/AgentEvaluationDashboard'))
 const PlatformSettings = lazy(() => import('@/pages/PlatformSettings'))
 const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
+const UXMetrics = lazy(() => import('@/pages/UXMetrics'))
 
 function AppContent() {
-  const { isAuthenticated, isLoading, user, login, logout } = useAuth()
+  const { isAuthenticated, isLoading, user, login, logout, refreshUser } = useAuth()
 
   if (isLoading) {
     return (
@@ -26,7 +28,8 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage onLogin={login} />
+    const intendedPath = typeof window !== 'undefined' ? window.location.pathname : '/'
+    return <LoginPage onLogin={login} onRefreshUser={refreshUser} redirectPath={intendedPath} />
   }
 
   return (
@@ -42,6 +45,8 @@ function AppContent() {
               <Route path="/governance" element={<AgentGovernance />} />
               <Route path="/tenants" element={<TenantManagement />} />
               <Route path="/monitoring" element={<SystemMonitoring />} />
+              <Route path="/agent-evaluation" element={<AgentEvaluationDashboard />} />
+              <Route path="/ux-metrics" element={<UXMetrics />} />
               <Route path="/settings" element={<PlatformSettings />} />
               <Route path="/settings/2fa" element={<Settings2FA />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

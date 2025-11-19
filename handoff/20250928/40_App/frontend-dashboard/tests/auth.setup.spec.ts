@@ -48,7 +48,7 @@ setup('authenticate', async ({ page }) => {
     console.log(`✅ Created auth directory: ${authDir}`);
   }
 
-  const username = process.env.TEST_EMAIL || 'admin';
+  const username = process.env.TEST_EMAIL || 'admin@morningai.com';
   const password = process.env.TEST_PASSWORD || 'admin123';
   console.log(`   Using credentials: ${username}/${password.replace(/./g, '*')}`);
 
@@ -76,28 +76,30 @@ setup('authenticate', async ({ page }) => {
   });
   console.log('   Disabled animations');
 
-  const usernameCount = await page.locator('#username').count();
-  const passwordCount = await page.locator('#password').count();
+  const emailCount = await page.locator('input[name="email"]').count();
+  const passwordCount = await page.locator('input[name="password"]').count();
   const inputCount = await page.locator('input').count();
-  console.log(`   Found ${usernameCount} username input(s) and ${passwordCount} password input(s)`);
+  console.log(`   Found ${emailCount} email input(s) and ${passwordCount} password input(s)`);
   console.log(`   Total input elements: ${inputCount}`);
 
-  if (usernameCount === 0) {
+  if (emailCount === 0) {
     const bodyText = await page.evaluate(() => document.body.innerText.slice(0, 500));
     console.log(`   Page body text: ${bodyText}`);
   }
 
-  await page.waitForSelector('#username', { state: 'visible', timeout: 30000 });
-  console.log('   Username input is visible');
+  await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 30000 });
+  console.log('   Email input is visible');
 
-  await page.fill('#username', username);
-  await page.fill('#password', password);
+  await page.fill('input[name="email"]', username);
+  await page.fill('input[name="password"]', password);
   console.log('   Filled in credentials');
 
   await page.click('button[type="submit"]');
   console.log('   Submitted login form');
 
-  await page.waitForURL(/\/(dashboard|home|\/)/, { timeout: 15000 });
+  await expect(page).not.toHaveURL(/\/login(\?|$)/, { timeout: 15000 });
+  
+  await expect(page).toHaveURL(/\/(dashboard|home)(\?|$)/, { timeout: 5000 });
 
   const currentUrl = page.url();
   console.log(`✅ Authentication successful, current URL: ${currentUrl}`);

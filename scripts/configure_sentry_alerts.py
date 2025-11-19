@@ -31,7 +31,11 @@ except ImportError:
     )
     sys.exit(2)
 
+from repo_root_utils import get_repo_root
+sys.path.insert(0, str(get_repo_root()))
+
 import requests
+from common.config.settings import settings
 
 
 class SentryAlertConfigurator:
@@ -156,10 +160,10 @@ def main():
     parser.add_argument("--list", action="store_true", help="List existing alert rules")
     args = parser.parse_args()
     
-    auth_token = os.environ.get("SENTRY_AUTH_TOKEN")
-    org_slug = os.environ.get("SENTRY_ORG_SLUG")
-    project_slug = os.environ.get("SENTRY_PROJECT_SLUG", "morningai")
-    slack_webhook = os.environ.get("SLACK_WEBHOOK_URL")
+    auth_token = settings.sentry_auth_token
+    org_slug = settings.sentry_org
+    project_slug = settings.sentry_project or "morningai"
+    slack_webhook = settings.slack_webhook_url
     
     if not auth_token:
         print("ERROR: SENTRY_AUTH_TOKEN environment variable is required")

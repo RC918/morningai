@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TolgeeProvider } from '@tolgee/react'
@@ -22,7 +22,7 @@ import { NotificationProvider, useNotification } from '@/contexts/NotificationCo
 import { PageLoader } from '@/components/feedback/PageLoader'
 import { OfflineIndicator } from '@/components/feedback/OfflineIndicator'
 import { SkipToContent } from '@/components/SkipToContent'
-import { applyDesignTokens } from '@/lib/design-tokens'
+import { applyDesignTokens } from '@morningai/shared-ui'
 import { isFeatureEnabled, AVAILABLE_FEATURES } from '@/lib/feature-flags'
 import { reportWebVitals } from '@/lib/performance'
 import useAppStore from '@/stores/appStore'
@@ -55,9 +55,26 @@ const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 function AppContent() {
   const { t } = useTranslation()
   const location = useLocation()
+  const navigate = useNavigate()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [redirectToLogin, setRedirectToLogin] = useState<string | null>(null)
   const { user, setUser, addToast } = useAppStore()
+
+  useEffect(() => {
+    if (!isAuthenticated && redirectToLogin !== null) {
+      const returnUrl = encodeURIComponent(redirectToLogin)
+      navigate(`/login?returnUrl=${returnUrl}`, { replace: true })
+      setRedirectToLogin(null)
+    }
+  }, [isAuthenticated, redirectToLogin, navigate])
+
+  useEffect(() => {
+    const PUBLIC_ROUTES = new Set(['/', '/login', '/signup', '/pricing', '/auth/callback'])
+    if (isAuthenticated && PUBLIC_ROUTES.has(location.pathname)) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isAuthenticated, location.pathname, navigate])
 
   useEffect(() => {
     const handleApiError = (event: Event) => {
@@ -70,13 +87,62 @@ function AppContent() {
       })
     }
 
+    const handleAuthError = async (event: Event) => {
+      const customEvent = event as CustomEvent
+      const { endpoint, message } = customEvent.detail
+      console.warn('Auth error detected, logging out:', { endpoint, message })
+      
+      try {
+        await supabase.auth.signOut()
+      } catch (error) {
+        console.error('Supabase signOut error during auth-error:', error)
+      }
+      
+      document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+      apiClient.clearCsrfToken()
+      
+      setIsAuthenticated(false)
+      setUser({
+        id: null,
+        name: '',
+        email: '',
+        avatar: '',
+        role: '',
+        tenant_id: ''
+      })
+      
+      const isAuthRoute = ['/login', '/signup', '/auth'].some(p => window.location.pathname.startsWith(p))
+      if (isAuthRoute) {
+        setRedirectToLogin('/')
+      } else {
+        const returnUrl = window.location.pathname + window.location.search
+        setRedirectToLogin(returnUrl)
+      }
+      
+      addToast({
+        title: t('auth.sessionExpired'),
+        description: t('auth.pleaseSignInAgain'),
+        variant: "destructive"
+      })
+    }
+
     window.addEventListener('api-error', handleApiError as EventListener)
+    window.addEventListener('auth-error', handleAuthError as EventListener)
 
     const PUBLIC_ROUTES = new Set(['/', '/login', '/signup', '/pricing', '/auth/callback'])
     if (PUBLIC_ROUTES.has(location.pathname)) {
       setLoading(false)
       return () => {
         window.removeEventListener('api-error', handleApiError as EventListener)
+        window.removeEventListener('auth-error', handleAuthError as EventListener)
+      }
+    }
+
+    if (isAuthenticated) {
+      setLoading(false)
+      return () => {
+        window.removeEventListener('api-error', handleApiError as EventListener)
+        window.removeEventListener('auth-error', handleAuthError as EventListener)
       }
     }
 
@@ -85,7 +151,28 @@ function AppContent() {
         const { session, error: sessionError } = await getSession()
         
         if (session && !sessionError) {
-          await bootstrapCsrf()
+          const csrfBootstrapped = await bootstrapCsrf()
+          if (!csrfBootstrapped) {
+            console.error('CSRF bootstrap failed, clearing state and redirecting to login')
+            try {
+              await supabase.auth.signOut()
+            } catch (error) {
+              console.error('Supabase signOut error during CSRF failure:', error)
+            }
+            document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+            setUser({
+              id: null,
+              name: '',
+              email: '',
+              avatar: '',
+              role: '',
+              tenant_id: ''
+            })
+            setIsAuthenticated(false)
+            setRedirectToLogin(location.pathname + location.search)
+            setLoading(false)
+            return
+          }
           
           const supabaseUser = session.user
           setUser({
@@ -102,8 +189,25 @@ function AppContent() {
         }
         
         try {
-          await bootstrapCsrf()
-          const userData = await apiClient.verifyAuth()
+          const csrfBootstrapped = await bootstrapCsrf()
+          if (!csrfBootstrapped) {
+            console.error('CSRF bootstrap failed, clearing state and redirecting to login')
+            document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+            setUser({
+              id: null,
+              name: '',
+              email: '',
+              avatar: '',
+              role: '',
+              tenant_id: ''
+            })
+            setIsAuthenticated(false)
+            setRedirectToLogin(location.pathname + location.search)
+            setLoading(false)
+            return
+          }
+          
+          const userData = await apiClient.getCurrentUser()
           setUser(userData)
           setIsAuthenticated(true)
         } catch (authError) {
@@ -142,8 +246,9 @@ function AppContent() {
 
     return () => {
       window.removeEventListener('api-error', handleApiError as EventListener)
+      window.removeEventListener('auth-error', handleAuthError as EventListener)
     }
-  }, [addToast, setUser, location.pathname, t])
+  }, [addToast, setUser, t, isAuthenticated, location.pathname, location.search])
 
   const handleLogin = (userData: any) => {
     setUser(userData)
@@ -162,13 +267,16 @@ function AppContent() {
       console.error('Supabase signOut error:', error)
     }
     
+    document.cookie = 'csrf_token=; Max-Age=0; path=/; SameSite=None; Secure'
+    apiClient.clearCsrfToken()
+    
     setUser({
       id: null,
-      name: 'Ryan Chen',
-      email: 'ryan@morningai.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan',
-      role: 'Owner',
-      tenant_id: 'tenant_001'
+      name: '',
+      email: '',
+      avatar: '',
+      role: '',
+      tenant_id: ''
     })
     setIsAuthenticated(false)
     addToast({
@@ -177,7 +285,7 @@ function AppContent() {
       variant: "default"
     })
     
-    window.location.href = '/'
+    navigate('/', { replace: true })
   }
 
   if (loading) {
@@ -227,7 +335,7 @@ function AppContent() {
           </Routes>
         ) : (
           <TenantProvider>
-          <div className="flex h-screen bg-gray-100">
+          <div className="flex h-screen bg-neutral-100">
           <SkipToContent />
           <Sidebar user={user} onLogout={handleLogout} />
           
@@ -283,6 +391,9 @@ function AppContent() {
           {!isFeatureEnabled(AVAILABLE_FEATURES.DASHBOARD) && (
             <Route path="/dashboard" element={<WIPPage title={t('wip.dashboard')} />} />
           )}
+          
+          {/* Catch-all route for authenticated users */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>
           </main>
@@ -300,7 +411,10 @@ function AppContent() {
 function App() {
   useEffect(() => {
     const sentryDsn = import.meta.env.VITE_SENTRY_DSN
-    if (sentryDsn && !window.__SENTRY_INITIALIZED__) {
+    const isPreview = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+    const isCI = import.meta.env.MODE === 'test'
+    
+    if (sentryDsn && !window.__SENTRY_INITIALIZED__ && !isPreview && !isCI) {
       import('@sentry/react').then((Sentry) => {
         Sentry.init({
           dsn: sentryDsn,

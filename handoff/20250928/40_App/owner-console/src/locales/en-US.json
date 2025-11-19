@@ -4,8 +4,10 @@
     "governance": "Agent Governance",
     "tenants": "Tenant Management",
     "monitoring": "System Monitoring",
+    "uxMetrics": "UX Metrics",
     "settings": "Platform Settings",
-    "logout": "Logout"
+    "logout": "Logout",
+    "mainNavigation": "Main navigation"
   },
   "dashboard": {
     "title": "Platform Overview",
@@ -50,13 +52,113 @@
     "tabs": {
       "agents": "Agents",
       "events": "Events",
-      "violations": "Violations"
+      "violations": "Violations",
+      "executionLogs": "Execution Logs"
+    },
+    "executionLogs": {
+      "title": "Agent Execution Logs",
+      "subtitle": "Monitor agent task execution history and performance",
+      "noLogs": "No execution logs found",
+      "filters": {
+        "status": "Status",
+        "allStatuses": "All Statuses",
+        "agentType": "Agent Type",
+        "allAgentTypes": "All Agent Types",
+        "agentId": "Agent ID",
+        "agentIdPlaceholder": "Filter by agent ID",
+        "tenantId": "Tenant ID",
+        "tenantIdPlaceholder": "Filter by tenant ID",
+        "taskType": "Task Type",
+        "taskTypePlaceholder": "Filter by task type",
+        "timeRange": "Time Range",
+        "selectTimeRange": "Select time range",
+        "allTime": "All Time",
+        "last24Hours": "Last 24 Hours",
+        "last7Days": "Last 7 Days",
+        "last30Days": "Last 30 Days",
+        "customRange": "Custom Range",
+        "dateRange": "Date Range",
+        "startDate": "Start Date",
+        "endDate": "End Date",
+        "clearFilters": "Clear Filters",
+        "applyFilters": "Apply Filters"
+      },
+      "agentTypes": {
+        "devAgent": "Dev Agent",
+        "opsAgent": "Ops Agent",
+        "pmAgent": "PM Agent",
+        "growthStrategist": "Growth Strategist",
+        "metaAgent": "Meta Agent"
+      },
+      "statuses": {
+        "queued": "Queued",
+        "assigned": "Assigned",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "unknown": "Unknown"
+      },
+      "columns": {
+        "taskId": "Task ID",
+        "status": "Status",
+        "taskType": "Task Type",
+        "agent": "Agent",
+        "tenant": "Tenant",
+        "duration": "Duration",
+        "timestamps": "Timestamps",
+        "actions": "Actions"
+      },
+      "summary": {
+        "title": "Execution Summary",
+        "totalExecutions": "Total Executions",
+        "successRate": "Success Rate",
+        "avgDuration": "Avg Duration",
+        "statusBreakdown": "Status Breakdown"
+      },
+      "viewDetails": "View Details",
+      "copyTraceId": "Copy trace ID",
+      "copyTaskId": "Copy task ID",
+      "copyTenantId": "Copy tenant ID",
+      "viewTraceDetails": "View trace details in observability platform",
+      "traceIdCopied": "Trace ID copied to clipboard",
+      "traceIdCopyFailed": "Failed to copy trace ID",
+      "taskIdCopied": "Task ID copied to clipboard",
+      "taskIdCopyFailed": "Failed to copy task ID",
+      "tenantIdCopied": "Tenant ID copied to clipboard",
+      "tenantIdCopyFailed": "Failed to copy tenant ID",
+      "retryLoad": "Retry loading execution logs",
+      "details": {
+        "title": "Execution Log Details",
+        "subtitle": "Detailed information about this execution",
+        "taskDetails": "Task Details",
+        "agentInfo": "Agent Information",
+        "executionTime": "Execution Time",
+        "payload": "Payload",
+        "result": "Result",
+        "errorMessage": "Error Message",
+        "traceId": "Trace ID",
+        "prUrl": "Pull Request",
+        "timing": "Timing",
+        "createdAt": "Created",
+        "startedAt": "Started",
+        "completedAt": "Completed",
+        "updatedAt": "Updated"
+      },
+      "pagination": {
+        "showing": "Showing {{start}}-{{end}} of {{total}}",
+        "page": "Page {{current}} of {{total}}",
+        "previous": "Previous",
+        "next": "Next",
+        "pageSize": "Items per page"
+      }
     },
     "agents": {
       "title": "Agent Reputation Leaderboard",
       "subtitle": "Agents ranked by reputation score and permission level",
       "noAgents": "No agents found",
-      "reputation": "Reputation"
+      "reputation": "Reputation",
+      "type": "Type"
     },
     "events": {
       "title": "Recent Events",
@@ -101,7 +203,119 @@
     "connections": "Connections",
     "queryTime": "Query Time",
     "active": "Active",
-    "queueSize": "Queue Size"
+    "queueSize": "Queue Size",
+    "systemHealth": "System Health",
+    "overallStatus": "Overall Status",
+    "cpuUsage": "CPU Usage",
+    "cpuTrend": "CPU usage trend (last 24 hours)",
+    "cores": "Cores",
+    "memory": "Memory",
+    "memoryTrend": "Memory usage trend (last 24 hours)",
+    "disk": "Disk",
+    "diskTrend": "Disk usage trend (last 24 hours)",
+    "usedTotal": "Used/Total",
+    "gbFormat": "{{used}}GB / {{total}}GB",
+    "noHealthData": "No system health data available",
+    "noMetricsData": "No metrics available yet",
+    "mockDataLabel": "Mock Data"
+  },
+  "uxMetrics": {
+    "title": "UX Metrics Dashboard",
+    "subtitle": "Monitor UX quality metrics across recent PRs",
+    "errorLoading": "Error Loading Metrics",
+    "noData": "No metrics data available",
+    "lastUpdated": "Last updated: {{date}}",
+    "totalPRs": "Total PRs",
+    "avgFCP": "Avg FCP",
+    "avgLCP": "Avg LCP",
+    "target": "Target: ≤{{value}}{{unit}}",
+    "i18nCoverage": "i18n Coverage",
+    "prsWithData": "PRs with i18n data",
+    "qualityThresholds": "Quality Thresholds",
+    "i18n": "i18n",
+    "a11yCritical": "A11y Critical",
+    "motionP95": "Motion P95",
+    "vrtMismatch": "VRT Mismatch",
+    "lighthouseFCP": "Lighthouse FCP",
+    "recentPRs": "Recent PRs",
+    "pr": "PR",
+    "prTitle": "Title",
+    "author": "Author",
+    "merged": "Merged",
+    "i18nFD": "i18n (FD)",
+    "i18nOC": "i18n (OC)",
+    "available": "✓ Available",
+    "frontendDashboard": "Frontend Dashboard",
+    "ownerConsole": "Owner Console",
+    "a11yTests": "A11y Tests",
+    "motionTests": "Motion Tests",
+    "vrtTests": "VRT Tests",
+    "prCount": "{{available}}/{{total}} PRs",
+    "i18nTrend": "i18n Coverage Trend",
+    "lighthouseTrend": "Lighthouse Performance Trend",
+    "bundleSizeTrend": "Bundle Size Change Trend",
+    "avgBundleSize": "Avg Bundle Size",
+    "avgChange": "Avg Change",
+    "totalChange": "Total Change",
+    "critical": "C",
+    "serious": "S"
+  },
+  "metricsDashboard": {
+    "title": "Metrics Dashboard",
+    "subtitle": "Real-time system performance and agent monitoring",
+    "error": "Error",
+    "loadingMetrics": "Loading metrics...",
+    "devMode": {
+      "title": "Development Mode - Mock Data",
+      "description": "This dashboard is displaying simulated data for development purposes only. Real metrics will be available once the monitoring backend is deployed.",
+      "warning": "Do not use this data for production decisions."
+    },
+    "devInfo": {
+      "title": "Development Info",
+      "description": "The Metrics Dashboard requires the backend API endpoint:",
+      "endpoint": "GET /phase7/monitoring/dashboard",
+      "hint": "Ensure your backend server is running and the endpoint is implemented."
+    },
+    "autoRefresh": "Auto-refresh: {{status}}",
+    "autoRefreshOn": "ON",
+    "autoRefreshOff": "OFF",
+    "metrics": {
+      "apiRequestRate": "API Request Rate",
+      "apiRequestRateDesc": "Requests per minute",
+      "taskSuccessRate": "Task Success Rate",
+      "taskSuccessRateDesc": "Agent task completion rate",
+      "queueDepth": "Queue Depth",
+      "queueDepthDesc": "Tasks waiting in queue",
+      "activeAgents": "Active Agents",
+      "activeAgentsDesc": "Currently active agents"
+    },
+    "tabs": {
+      "agents": "Agents",
+      "systemHealth": "System Health",
+      "performance": "Performance"
+    },
+    "agent": {
+      "idLabel": "ID: {{id}}",
+      "reputationScore": "Reputation Score",
+      "successRate": "Success Rate",
+      "activeTasks": "Active Tasks"
+    },
+    "agents": {
+      "noData": "No agent data available. Agent metrics will be displayed here once the monitoring system collects data."
+    },
+    "systemHealth": {
+      "errorRate": "Error Rate",
+      "avgLatency": "Avg Latency",
+      "latencyValue": "{{value}}ms",
+      "latencyTarget": "Target: < 1000ms",
+      "circuitBreakers": "Circuit Breakers",
+      "openCircuitBreakers": "Open circuit breakers"
+    },
+    "performance": {
+      "title": "Performance Metrics",
+      "subtitle": "Detailed performance metrics and trends",
+      "description": "Performance charts and detailed metrics will be displayed here. Integration with monitoring backend in progress."
+    }
   },
   "settings": {
     "title": "Platform Settings",
@@ -227,7 +441,15 @@
     "search": "Search",
     "filter": "Filter",
     "export": "Export",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "usage": "Usage",
+    "idShort": "ID: {{id}}",
+    "changeLanguage": "Change language",
+    "na": "N/A",
+    "pass": "✓ Pass",
+    "fail": "✗ Fail",
+    "ms": "ms"
   },
   "auth": {
     "login": {
@@ -267,7 +489,21 @@
       "cancel": "Cancel",
       "invalidCode": "Invalid code. {{attempts}} attempts remaining.",
       "invalidBackupCode": "Invalid backup code. {{attempts}} attempts remaining.",
-      "tooManyAttempts": "Too many failed attempts. Please try again later."
+      "tooManyAttempts": "Too many failed attempts. Please try again later.",
+      "enroll": {
+        "title": "Set Up Two-Factor Authentication",
+        "description": "Secure your account with two-factor authentication",
+        "qrInstructions1": "Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)",
+        "qrInstructions2": "Or manually enter the secret key shown below.",
+        "qrScanned": "I've Scanned the QR Code",
+        "verifyPrompt": "Enter the 6-digit code from your authenticator app to verify setup",
+        "verificationCodeLabel": "Verification Code",
+        "back": "Back",
+        "verify": "Verify",
+        "verifying": "Verifying...",
+        "backupCodesWarning": "Save these backup codes!",
+        "backupCodesDescription": "These codes can be used to access your account if you lose your authenticator device. Store them in a safe place."
+      }
     }
   },
   "app": {
@@ -280,6 +516,33 @@
     "user": {
       "defaultName": "Owner",
       "defaultRole": "Platform Owner"
+    },
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar"
+  },
+  "agentEvaluation": {
+    "title": "Agent Evaluation Dashboard",
+    "subtitle": "Monitor AI agent performance metrics and evaluation results",
+    "target": "Target",
+    "onTarget": "On Target",
+    "belowTarget": "Below Target",
+    "lastEvaluation": "Last evaluation",
+    "metrics": {
+      "plannerAccuracy": "Planner Accuracy",
+      "selfHealingRate": "Self-Healing Rate",
+      "completionRate": "Completion Rate",
+      "ciPassRate": "CI Pass Rate"
+    },
+    "history": {
+      "title": "Evaluation History",
+      "subtitle": "Recent agent evaluation runs from GitHub Actions",
+      "noResults": "No evaluation results available yet",
+      "weeklyRuns": "Evaluations run weekly via GitHub Actions",
+      "runNumber": "Run #{{id}}",
+      "tasks": "Tasks",
+      "completed": "Completed",
+      "prs": "PRs",
+      "ciPassed": "CI Passed"
     }
   }
 }

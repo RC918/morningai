@@ -4,6 +4,7 @@ from src.middleware.auth_middleware import jwt_required
 import json
 import os
 import logging
+from common.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ def is_production():
     """Check if running in production (using Supabase)"""
     from flask import current_app
     is_testing = current_app.config.get('TESTING', False)
-    has_supabase_db = os.environ.get('DATABASE_URL') and 'supabase' in os.environ.get('DATABASE_URL', '')
+    has_supabase_db = get_settings().database_url and 'supabase' in (get_settings().database_url or '')
     return has_supabase_db and not is_testing
 
 @user_bp.route('/users', methods=['GET'])

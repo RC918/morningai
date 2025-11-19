@@ -1,0 +1,18 @@
+# Build outputs
+dist/
+dev-dist/
+build/
+coverage/
+storybook-static/
+
+# Generated files
+*.generated.*
+.storybook/manager-head.html
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local

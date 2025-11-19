@@ -37,7 +37,7 @@ export const OfflineIndicator = (): React.ReactElement => {
           animate={{ y: 0 }}
           exit={{ y: -100 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="fixed top-0 left-0 right-0 bg-red-500 text-white py-2 px-4 text-center z-50 shadow-lg"
+          className="fixed top-0 left-0 right-0 bg-error-500 text-white py-2 px-4 text-center z-50 shadow-lg"
           role="alert"
           aria-live="assertive"
         >
@@ -52,7 +52,7 @@ export const OfflineIndicator = (): React.ReactElement => {
           animate={{ y: 0 }}
           exit={{ y: -100 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="fixed top-0 left-0 right-0 bg-green-500 text-white py-2 px-4 text-center z-50 shadow-lg"
+          className="fixed top-0 left-0 right-0 bg-success-500 text-white py-2 px-4 text-center z-50 shadow-lg"
           role="alert"
           aria-live="polite"
         >

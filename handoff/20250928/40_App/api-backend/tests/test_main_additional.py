@@ -136,7 +136,7 @@ class TestDashboardData:
             assert 'error' in data
         elif response.status_code == 200:
             data = response.get_json()
-            assert 'cpu_usage' in data or 'task_execution' in data
+            assert 'cpu_usage' in data or 'memory_usage' in data
 
 
 class TestMonitoringEndpoints:

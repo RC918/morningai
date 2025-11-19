@@ -1,10 +1,11 @@
 import os
 from supabase import create_client
 from openai import OpenAI
+from common.config.settings import settings
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-TABLE = os.getenv("MEMORY_TABLE", "memory")
+SUPABASE_URL = settings.supabase_url
+SUPABASE_SERVICE_ROLE_KEY = settings.supabase_service_role_key
+TABLE = settings.memory_table or "memory"
 
 def get_client():
     """Get Supabase client, creating it only when needed"""
@@ -20,7 +21,7 @@ def get_client():
 
 def embed(text:str):
     try:
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = settings.openai_api_key
         if not api_key:
             return None
         cl = OpenAI(api_key=api_key)

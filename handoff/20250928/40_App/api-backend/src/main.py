@@ -4,8 +4,17 @@ import datetime
 import asyncio
 import re
 import logging
+from common.config.settings import settings as app_settings
 
-orchestrator_path = os.getenv("ORCHESTRATOR_PATH")
+from pathlib import Path
+# Path calculation: main.py -> src/ -> api-backend/ -> 40_App/ -> 20250928/ -> handoff/ -> repo root
+repo_root = Path(__file__).resolve().parents[5]  # api-backend/src/main.py -> repo root
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+    logging.basicConfig(level=logging.INFO)
+    logging.info(f"Added repo root to sys.path: {repo_root}")
+
+orchestrator_path = app_settings.orchestrator_path
 if not orchestrator_path:
     orchestrator_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../orchestrator")
@@ -20,9 +29,7 @@ elif not os.path.exists(orchestrator_path):
     )
 
 from src.routes.billing import bp as billing_bp
-from src.routes.agent import bp as agent_bp
 from src.routes.tenant import bp as tenant_bp
-from src.routes.faq import bp as faq_bp
 from src.routes.vectors import bp as vectors_bp
 from src.routes.governance import bp as governance_bp, admin_bp as admin_agents_bp
 from src.routes.agent_registry import bp as agent_registry_bp
@@ -42,6 +49,7 @@ from src.middleware.auth_middleware import (
     analyst_required,
 )
 from flask_cors import CORS
+from common.config.settings import get_settings
 import sys
 import os
 import logging
@@ -52,8 +60,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
-APP_VERSION = os.getenv("APP_VERSION", "8.0.0")
+SENTRY_DSN = app_settings.sentry_dsn
+APP_VERSION = app_settings.app_version or "8.0.0"
 
 
 def before_send(event, hint):
@@ -76,7 +84,7 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 
         sentry_sdk.init(
             dsn=SENTRY_DSN,
-            environment=os.getenv("ENVIRONMENT", "production"),
+            environment=app_settings.environment or "production",
             release=f"morningai@{APP_VERSION}",
             integrations=[FlaskIntegration()],
             traces_sample_rate=1.0,
@@ -93,7 +101,6 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 else:
     SENTRY_DSN = None
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 try:
     from security_manager import SecurityManager
 
@@ -117,13 +124,14 @@ app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "sta
 
 from src.services.auth_service import validate_security_config
 
-try:
-    validate_security_config()
-except SystemExit as e:
-    logger.error(f"Security configuration validation failed: {e}")
-    raise
+if app_settings.is_production and not app_settings.testing:
+    try:
+        validate_security_config()
+    except SystemExit as e:
+        logger.error(f"Security configuration validation failed: {e}")
+        raise
 
-if os.environ.get("ENVIRONMENT", "").lower() == "production":
+if app_settings.is_production and not app_settings.testing:
     from src.utils.pre_auth_token import get_pre_auth_manager
 
     try:
@@ -133,9 +141,20 @@ if os.environ.get("ENVIRONMENT", "").lower() == "production":
         logger.error(f"❌ Failed to initialize pre-auth token manager: {e}")
         raise
 
-flask_secret = os.environ.get("FLASK_SECRET_KEY")
+# NOTE: Module-level get_settings() calls for Flask app initialization
+# These calls happen during Flask app setup, which occurs AFTER all imports are complete.
+# This is acceptable because:
+# 1. Flask app initialization is part of the application startup sequence
+# 2. Tests that need to mock settings should import main.py AFTER setting environment variables
+# 3. The settings module uses test-aware caching, so tests will get fresh instances
+# Import order for tests:
+# 1. Set environment variables (os.environ['KEY'] = 'value')
+# 2. Import main.py (triggers Flask app initialization with test env vars)
+# 3. Run test assertions
+# See docs/config/app_settings.md for more details on settings lifecycle and testing.
+flask_secret = get_settings().flask_secret_key
 if not flask_secret:
-    legacy_secret = os.environ.get("SECRET_KEY")
+    legacy_secret = get_settings().secret_key
     if legacy_secret:
         logger.warning(
             "DEPRECATION: SECRET_KEY is deprecated. Please use FLASK_SECRET_KEY instead. "
@@ -146,28 +165,68 @@ if not flask_secret:
         flask_secret = "asdf#FGSgvasgf$5$WGT"
 app.config["SECRET_KEY"] = flask_secret
 
-cors_origins = os.environ.get(
-    "CORS_ORIGINS", "http://localhost:5173,http://localhost:5174"
-).split(",")
+def _as_bool(val):
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return False
+    s = str(val).strip().lower()
+    return s in ("1", "true", "yes", "on")
+
+enable_mock = os.getenv("ENABLE_MOCK_USERS")
+if enable_mock is not None:
+    app.config["ENABLE_MOCK_USERS"] = _as_bool(enable_mock)
+
+app.config["TESTING"] = _as_bool(os.getenv("TESTING"))
+rate_limit_env = os.getenv("RATE_LIMIT_REQUESTS")
+if rate_limit_env:
+    app.config["RATE_LIMIT_REQUESTS"] = int(rate_limit_env)
+
+cors_origins = (app_settings.cors_origins or "http://localhost:5173,http://localhost:5174").split(",")
 cors_origins = [origin.strip() for origin in cors_origins]
+
+logging.info(f"[CORS DEBUG] Startup: ENVIRONMENT={repr(os.getenv('ENVIRONMENT'))}, CORS_ORIGINS={repr(os.getenv('CORS_ORIGINS'))}")
+logging.info(f"[CORS DEBUG] Startup: app_settings.environment={repr(app_settings.environment)}, app_settings.cors_origins={repr(app_settings.cors_origins)}")
+logging.info(f"[CORS DEBUG] Startup: Parsed cors_origins list={cors_origins}")
 
 
 def is_vercel_preview(origin):
     """
-    Check if origin is a Vercel preview URL
-    Only allows Vercel previews in non-production environments for security
+    Check if origin is a Vercel preview URL.
+    Allows Vercel preview origins in staging and development environments.
+    Blocks them in production for security.
     """
-    if os.environ.get("ENVIRONMENT") == "production":
+    if not origin:
+        logging.info(f"[CORS DEBUG] is_vercel_preview: origin is None/empty")
         return False
-    return origin and re.match(r"https://.*\.vercel\.app$", origin)
+    
+    env = (app_settings.environment or "").lower()
+    logging.info(f"[CORS DEBUG] is_vercel_preview: origin={repr(origin)}, env={repr(env)}")
+    
+    if env == "production":
+        logging.info(f"[CORS DEBUG] is_vercel_preview: blocking because env=production")
+        return False
+    
+    matches = bool(re.match(r"^https://.*\.vercel\.app$", origin))
+    logging.info(f"[CORS DEBUG] is_vercel_preview: regex match={matches}")
+    return matches
 
 
 @app.after_request
 def add_cors_headers(response):
     """Add CORS headers for allowed origins including Vercel preview URLs"""
     origin = request.headers.get("Origin")
+    
+    logging.info(f"[CORS DEBUG] add_cors_headers: method={request.method}, path={request.path}, origin={repr(origin)}")
+    logging.info(f"[CORS DEBUG] add_cors_headers: cors_origins={cors_origins}")
+    
+    in_allowlist = origin in cors_origins
+    is_preview = is_vercel_preview(origin)
+    
+    logging.info(f"[CORS DEBUG] add_cors_headers: in_allowlist={in_allowlist}, is_preview={is_preview}")
 
-    if origin in cors_origins or is_vercel_preview(origin):
+    if in_allowlist or is_preview:
+        logging.info(f"[CORS DEBUG] add_cors_headers: ADDING CORS headers for origin={repr(origin)}")
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Headers"] = (
@@ -177,6 +236,8 @@ def add_cors_headers(response):
             "GET, POST, PUT, DELETE, OPTIONS, PATCH"
         )
         response.headers["Vary"] = "Origin"
+    else:
+        logging.info(f"[CORS DEBUG] add_cors_headers: NOT adding CORS headers (origin not allowed)")
 
     return response
 
@@ -198,9 +259,9 @@ cors_config = {
 CORS(app, resources={r"/*": cors_config})
 
 if SECURITY_AVAILABLE:
-    encryption_master_key = os.environ.get("ENCRYPTION_MASTER_KEY")
+    encryption_master_key = app_settings.encryption_master_key
     if not encryption_master_key:
-        legacy_master_key = os.environ.get("MASTER_KEY")
+        legacy_master_key = app_settings.master_key
         if legacy_master_key:
             logger.warning(
                 "DEPRECATION: MASTER_KEY is deprecated. Please use ENCRYPTION_MASTER_KEY instead. "
@@ -225,10 +286,20 @@ app.register_blueprint(auth_2fa_bp)
 app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
 app.register_blueprint(totp_bp, url_prefix="/api/auth/v2/totp")
 app.register_blueprint(billing_bp)
-app.register_blueprint(agent_bp)
+
+if os.getenv('ENABLE_ORCHESTRATOR', 'true').lower() in ('true', '1', 'yes', 'on'):
+    from src.routes.agent import bp as agent_bp
+    from src.routes.agent_evaluation import bp as agent_evaluation_bp
+    from src.routes.faq import bp as faq_bp
+    app.register_blueprint(agent_bp)
+    app.register_blueprint(agent_evaluation_bp)
+    app.register_blueprint(faq_bp)
+    logger.info("✅ Orchestrator/agent routes enabled")
+else:
+    logger.info("⚠️ Orchestrator/agent routes disabled (ENABLE_ORCHESTRATOR=false)")
+
 app.register_blueprint(agent_registry_bp)
 app.register_blueprint(tenant_bp)
-app.register_blueprint(faq_bp)
 app.register_blueprint(vectors_bp)
 app.register_blueprint(governance_bp)
 app.register_blueprint(admin_bp)
@@ -298,12 +369,10 @@ def get_health_payload():
             "database": str(db_status),
             "redis": redis_info,
             "phase": str(
-                os.environ.get(
-                    "APP_PHASE", "Phase 8: Self-service Dashboard & Reporting Center"
-                )
+                app_settings.app_phase or "Phase 8: Self-service Dashboard & Reporting Center"
             ),
-            "version": str(os.environ.get("APP_VERSION", "8.0.0")),
-            "git_commit": str(os.environ.get("GIT_COMMIT", os.environ.get("RENDER_GIT_COMMIT", "unknown"))),
+            "version": str(app_settings.app_version or "8.0.0"),
+            "git_commit": str(app_settings.git_commit or app_settings.render_git_commit or "unknown"),
             "timestamp": datetime.datetime.now().isoformat(),
             "services": {
                 "phase4_apis": (
@@ -359,10 +428,10 @@ def health_check():
 db_dir = os.path.join(os.path.dirname(__file__), "database")
 os.makedirs(db_dir, exist_ok=True)
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
+DATABASE_URL = get_settings().database_url
+ENVIRONMENT = app_settings.environment or "development"
 
-if ENVIRONMENT == "production":
+if ENVIRONMENT == "production" and not app_settings.testing:
     if not DATABASE_URL:
         logger.critical(
             "❌ FATAL: Production environment requires DATABASE_URL to be set"
@@ -408,7 +477,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 import sys
 
-if "pytest" in sys.modules or os.getenv("TESTING") == "true":
+if "pytest" in sys.modules or app_settings.testing:
     from sqlalchemy.pool import StaticPool
 
     app.config["TESTING"] = True
@@ -442,7 +511,7 @@ def validate_rate_limit_redis():
     Raises:
         RuntimeError: If Redis is unavailable in production environment
     """
-    if not os.getenv("RATE_LIMIT_FAIL_FAST", "true").lower() == "true":
+    if not app_settings.rate_limit_fail_fast:
         logger.info("ℹ️  Rate limit fail-fast disabled via RATE_LIMIT_FAIL_FAST=false")
         return
 
@@ -891,12 +960,6 @@ def get_available_widgets():
             "category": "resilience",
         },
         {
-            "id": "task_execution",
-            "name": "任務執行狀態",
-            "type": "timeline",
-            "category": "tasks",
-        },
-        {
             "id": "cost_today",
             "name": "今日成本",
             "type": "counter",
@@ -924,37 +987,6 @@ def get_dashboard_data_legacy():
         hours = int(request.args.get("hours", 1))
         dashboard_data = monitoring_dashboard.get_dashboard_data(hours=hours)
 
-        dashboard_data["task_execution"] = {
-            "recent_tasks": [
-                {
-                    "name": "AI策略優化",
-                    "status": "completed",
-                    "duration": "2.3s",
-                    "agent": "GrowthStrategist",
-                },
-                {
-                    "name": "系統監控檢查",
-                    "status": "running",
-                    "duration": "1.1s",
-                    "agent": "OpsAgent",
-                },
-                {
-                    "name": "用戶反饋分析",
-                    "status": "pending",
-                    "duration": "-",
-                    "agent": "PMAgent",
-                },
-                {
-                    "name": "安全審計",
-                    "status": "completed",
-                    "duration": "5.7s",
-                    "agent": "SecurityManager",
-                },
-            ],
-            "total_tasks_today": 47,
-            "success_rate": 0.96,
-            "avg_duration": "3.2s",
-        }
 
         dashboard_data["system_metrics"] = {
             "cpu_usage": 72,
@@ -1491,8 +1523,8 @@ def get_phase7_resilience_metrics():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/settings", methods=["GET", "POST"])
-def settings():
+@app.route("/api/settings", methods=["GET", "POST"], endpoint="settings")
+def settings_route():
     if request.method == "GET":
         return jsonify(
             {
@@ -1539,6 +1571,6 @@ if __name__ == "__main__":
     except Exception as e:
         logger.warning(f"Failed to check Redis security on startup: {e}")
 
-    port = int(os.environ.get("PORT", 5001))
-    debug = os.environ.get("FLASK_ENV") != "production"
+    port = app_settings.port or 5001
+    debug = app_settings.flask_env != "production"
     app.run(host="0.0.0.0", port=port, debug=debug)

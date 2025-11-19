@@ -1,15 +1,70 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MetricsDashboard } from '../MetricsDashboard';
 
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: any) => {
+      const translations: Record<string, string> = {
+        'metricsDashboard.title': 'Metrics Dashboard',
+        'metricsDashboard.subtitle': 'Real-time system performance and agent monitoring',
+        'metricsDashboard.loadingMetrics': 'Loading metrics...',
+        'metricsDashboard.error': 'Error',
+        'metricsDashboard.devMode.title': 'Development Mode - Mock Data',
+        'metricsDashboard.devMode.description': 'This dashboard is displaying simulated data for development purposes only. Real metrics will be available once the monitoring backend is deployed.',
+        'metricsDashboard.devMode.warning': 'Do not use this data for production decisions.',
+        'metricsDashboard.devInfo.title': 'Development Info',
+        'metricsDashboard.devInfo.description': 'The Metrics Dashboard requires the backend API endpoint:',
+        'metricsDashboard.devInfo.endpoint': 'GET /phase7/monitoring/dashboard',
+        'metricsDashboard.devInfo.hint': 'Ensure your backend server is running and the endpoint is implemented.',
+        'common.retry': 'Retry',
+        'metricsDashboard.autoRefresh': `Auto-refresh: ${params?.status || ''}`,
+        'metricsDashboard.autoRefreshOn': 'ON',
+        'metricsDashboard.autoRefreshOff': 'OFF',
+        'metricsDashboard.metrics.apiRequestRate': 'API Request Rate',
+        'metricsDashboard.metrics.apiRequestRateDesc': 'Requests per minute',
+        'metricsDashboard.metrics.taskSuccessRate': 'Task Success Rate',
+        'metricsDashboard.metrics.taskSuccessRateDesc': 'Agent task completion rate',
+        'metricsDashboard.metrics.queueDepth': 'Queue Depth',
+        'metricsDashboard.metrics.queueDepthDesc': 'Tasks waiting in queue',
+        'metricsDashboard.metrics.activeAgents': 'Active Agents',
+        'metricsDashboard.metrics.activeAgentsDesc': 'Currently active agents',
+        'metricsDashboard.tabs.agents': 'Agents',
+        'metricsDashboard.tabs.systemHealth': 'System Health',
+        'metricsDashboard.tabs.performance': 'Performance',
+        'metricsDashboard.agents.noData': 'No agent data available. Agent metrics will be displayed here once the monitoring system collects data.',
+        'metricsDashboard.agent.idLabel': `ID: ${params?.id || ''}`,
+        'metricsDashboard.agent.reputationScore': 'Reputation Score',
+        'metricsDashboard.agent.successRate': 'Success Rate',
+        'metricsDashboard.agent.activeTasks': 'Active Tasks',
+        'metricsDashboard.systemHealth.errorRate': 'Error Rate',
+        'metricsDashboard.systemHealth.avgLatency': 'Avg Latency',
+        'metricsDashboard.systemHealth.latencyValue': `${params?.value || ''}ms`,
+        'metricsDashboard.systemHealth.latencyTarget': 'Target: < 1000ms',
+        'metricsDashboard.systemHealth.circuitBreakers': 'Circuit Breakers',
+        'metricsDashboard.systemHealth.openCircuitBreakers': 'Open circuit breakers',
+        'metricsDashboard.performance.title': 'Performance Metrics',
+        'metricsDashboard.performance.subtitle': 'Detailed performance metrics and trends',
+        'metricsDashboard.performance.description': 'Performance charts and detailed metrics will be displayed here. Integration with monitoring backend in progress.',
+      };
+      return translations[key] || key;
+    },
+  }),
+}));
+
+vi.mock('../../lib/api-client', () => ({
+  apiClientWithMeta: vi.fn(),
+}));
+
+import { apiClientWithMeta } from '../../lib/api-client';
+
+const mockApiClientWithMeta = apiClientWithMeta as ReturnType<typeof vi.fn>;
 
 describe('MetricsDashboard Component (P1)', () => {
   beforeEach(() => {
-    mockFetch.mockClear();
-    vi.stubEnv('NODE_ENV', 'development');
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:5000');
+    mockApiClientWithMeta.mockClear();
+    vi.stubEnv('MODE', 'development');
   });
 
   afterEach(() => {
@@ -18,7 +73,7 @@ describe('MetricsDashboard Component (P1)', () => {
 
   describe('Loading State', () => {
     it('should display loading spinner initially', () => {
-      mockFetch.mockImplementation(() => new Promise(() => {}));
+      mockApiClientWithMeta.mockImplementation(() => new Promise(() => {}));
 
       render(<MetricsDashboard />);
 
@@ -27,147 +82,162 @@ describe('MetricsDashboard Component (P1)', () => {
   });
 
   describe('Error Handling', () => {
-    it('should fall back to mock data when fetch fails in development', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    it('should display error state when API call fails', async () => {
+      mockApiClientWithMeta.mockRejectedValueOnce(new Error('Network error'));
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Development Mode - Mock Data/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
       });
     });
 
-    it('should display error for production without API URL', async () => {
-      vi.stubEnv('NODE_ENV', 'production');
-      vi.stubEnv('VITE_API_BASE_URL', '');
+    it('should display error state when API endpoint not found', async () => {
+      mockApiClientWithMeta.mockResolvedValueOnce({ 
+        status: 404,
+        data: null,
+        headers: new Headers()
+      });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/CRITICAL.*must be configured/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
+        expect(screen.getByText(/API endpoint not found/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should display development info in error state when in development mode', async () => {
+      mockApiClientWithMeta.mockResolvedValueOnce({ 
+        status: 404,
+        data: null,
+        headers: new Headers()
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Development Info')).toBeInTheDocument();
+        expect(screen.getByText(/GET \/phase7\/monitoring\/dashboard/i)).toBeInTheDocument();
       });
     });
   });
 
   describe('Data Fetching', () => {
-    it('should fetch data from correct API endpoint', async () => {
+    it('should call apiClientWithMeta with correct endpoint', async () => {
       const mockData = {
+        timestamp: '2025-11-05T00:00:00Z',
         system_health: {
           overall_status: 'healthy',
           error_rate: 0.01,
           avg_latency: 0.1,
           open_circuit_breakers: 0,
         },
-        metrics: {
-          api_request_rate: { current: 1000, unit: 'req/min', trend: 'up' },
-          agent_task_success_rate: { current: 0.95, unit: '%', trend: 'stable' },
-          queue_depth: { current: 10, unit: 'tasks', trend: 'down' },
-          active_agents: { current: 5, unit: 'agents', trend: 'stable' },
-        },
-        agents: [],
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: { active_sagas: 5 },
+        storage: {},
+        trends: {},
         alerts: [],
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:5000/api/phase7/monitoring/dashboard',
+        expect(mockApiClientWithMeta).toHaveBeenCalledWith(
+          '/phase7/monitoring/dashboard',
           expect.objectContaining({
-            credentials: 'include',
+            method: 'GET',
           })
         );
       });
     });
 
-    it('should include credentials in API request', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+    it('should use apiClientWithMeta which includes credentials automatically', async () => {
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: {
+          timestamp: '2025-11-05T00:00:00Z',
           system_health: { overall_status: 'healthy', error_rate: 0, avg_latency: 0, open_circuit_breakers: 0 },
-          metrics: {
-            api_request_rate: { current: 1000, unit: 'req/min' },
-            agent_task_success_rate: { current: 0.95, unit: '%' },
-            queue_depth: { current: 10, unit: 'tasks' },
-            active_agents: { current: 5, unit: 'agents' },
-          },
-          agents: [],
+          circuit_breakers: {},
+          bulkheads: {},
+          saga_orchestrator: { active_sagas: 5 },
+          storage: {},
+          trends: {},
           alerts: [],
-        }),
+        },
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        const fetchCall = mockFetch.mock.calls[0];
-        expect(fetchCall[1].credentials).toBe('include');
+        expect(mockApiClientWithMeta).toHaveBeenCalledWith(
+          '/phase7/monitoring/dashboard',
+          { method: 'GET' }
+        );
       });
     });
   });
 
-  describe('Mock Data Fallback', () => {
-    it('should display mock data warning in development', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
+  describe('Error State Display', () => {
+    it('should display error message when API fails', async () => {
+      mockApiClientWithMeta.mockResolvedValueOnce({
         status: 404,
+        data: null,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Development Mode - Mock Data/i)).toBeInTheDocument();
-        expect(screen.getByText(/Do not use this data for production decisions/i)).toBeInTheDocument();
+        expect(screen.getByText('Error')).toBeInTheDocument();
+        expect(screen.getByText(/API endpoint not found/i)).toBeInTheDocument();
       });
     });
 
-    it('should use mock data when API is unavailable in development', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
+    it('should display retry button in error state', async () => {
+      mockApiClientWithMeta.mockResolvedValueOnce({
         status: 404,
+        data: null,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText('Metrics Dashboard')).toBeInTheDocument();
-        expect(screen.getByText(/Development Mode - Mock Data/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
       });
     });
   });
 
   describe('Dashboard Display', () => {
     const mockData = {
+      timestamp: '2025-11-05T00:00:00Z',
       system_health: {
         overall_status: 'healthy',
         error_rate: 0.02,
         avg_latency: 0.15,
         open_circuit_breakers: 0,
       },
-      metrics: {
-        api_request_rate: { current: 1250, unit: 'req/min', trend: 'up' },
-        agent_task_success_rate: { current: 0.96, unit: '%', trend: 'stable' },
-        queue_depth: { current: 12, unit: 'tasks', trend: 'down' },
-        active_agents: { current: 5, unit: 'agents', trend: 'stable' },
+      circuit_breakers: {},
+      bulkheads: {},
+      saga_orchestrator: {
+        active_sagas: 5,
+        completed_sagas: 100,
       },
-      agents: [
-        {
-          agent_id: 'agent-123',
-          agent_type: 'dev_agent',
-          status: 'active',
-          reputation_score: 750,
-          task_success_rate: 0.95,
-          active_tasks: 3,
-        },
-      ],
+      storage: {},
+      trends: {},
       alerts: [
         {
-          id: '1',
-          severity: 'warning',
+          level: 'warning',
           message: 'Test alert message',
           timestamp: new Date().toISOString(),
         },
@@ -175,9 +245,10 @@ describe('MetricsDashboard Component (P1)', () => {
     };
 
     it('should display dashboard title', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -188,9 +259,10 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should display system health status', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -201,9 +273,10 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should display key metrics', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -217,23 +290,25 @@ describe('MetricsDashboard Component (P1)', () => {
     });
 
     it('should display metric values correctly', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText(/1250\.00 req\/min/)).toBeInTheDocument();
-        expect(screen.getByText(/96\.00 %/)).toBeInTheDocument();
+        expect(screen.getByText(/98\.00 %/)).toBeInTheDocument();
+        expect(screen.getByText(/5\.00 agents/)).toBeInTheDocument();
       });
     });
 
     it('should display alerts when present', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -244,38 +319,45 @@ describe('MetricsDashboard Component (P1)', () => {
       });
     });
 
-    it('should display agent information', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockData,
+    it('should display empty agent state when no agents', async () => {
+      const user = userEvent.setup();
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
 
       await waitFor(() => {
-        expect(screen.getByText('DEV AGENT')).toBeInTheDocument();
-        expect(screen.getByText('active')).toBeInTheDocument();
+        expect(screen.getByText('HEALTHY')).toBeInTheDocument();
       });
+
+      const agentsTab = screen.getByRole('tab', { name: /agents/i });
+      await user.click(agentsTab);
+
+      const emptyStateText = await screen.findByText(/No agent data available/i, {}, { timeout: 3000 });
+      expect(emptyStateText).toBeInTheDocument();
     });
   });
 
   describe('Auto-refresh', () => {
     it('should set up auto-refresh interval', async () => {
       const mockData = {
+        timestamp: '2025-11-05T00:00:00Z',
         system_health: { overall_status: 'healthy', error_rate: 0, avg_latency: 0, open_circuit_breakers: 0 },
-        metrics: {
-          api_request_rate: { current: 1000, unit: 'req/min' },
-          agent_task_success_rate: { current: 0.95, unit: '%' },
-          queue_depth: { current: 10, unit: 'tasks' },
-          active_agents: { current: 5, unit: 'agents' },
-        },
-        agents: [],
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: { active_sagas: 5 },
+        storage: {},
+        trends: {},
         alerts: [],
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockData,
+      mockApiClientWithMeta.mockResolvedValue({
+        status: 200,
+        data: mockData,
+        headers: new Headers(),
       });
 
       render(<MetricsDashboard />);
@@ -283,6 +365,186 @@ describe('MetricsDashboard Component (P1)', () => {
       await waitFor(() => {
         expect(screen.getByText('Auto-refresh: ON')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Backend Response Normalization (P0 Fix)', () => {
+    it('should handle backend response with object system_health', async () => {
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: {
+          overall_status: 'healthy',
+          error_rate: 0.02,
+          avg_latency: 150,
+          open_circuit_breakers: 0,
+          rejected_requests: 5,
+          active_sagas: 3,
+        },
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: {
+          active_sagas: 3,
+          completed_sagas: 100,
+        },
+        storage: {},
+        trends: {},
+        alerts: [
+          {
+            level: 'warning',
+            message: 'High error rate detected',
+            timestamp: '2025-11-05T00:00:00Z',
+          },
+        ],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('HEALTHY')).toBeInTheDocument();
+        expect(screen.getByText(/98\.00 %/)).toBeInTheDocument();
+        expect(screen.getByText('High error rate detected')).toBeInTheDocument();
+      });
+    });
+
+    it('should handle backend response with string system_health (no metrics history)', async () => {
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: 'healthy',
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: {
+          active_sagas: 0,
+          completed_sagas: 0,
+        },
+        storage: { total_tables: 5 },
+        trends: {},
+        alerts: [],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('HEALTHY')).toBeInTheDocument();
+        expect(screen.getByText(/100\.00 %/)).toBeInTheDocument();
+      });
+    });
+
+    it('should map backend alert level to frontend severity', async () => {
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: 'healthy',
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: { active_sagas: 0 },
+        storage: {},
+        trends: {},
+        alerts: [
+          {
+            level: 'critical',
+            message: 'Critical system error',
+            timestamp: '2025-11-05T00:00:00Z',
+          },
+          {
+            level: 'warning',
+            message: 'Warning message',
+            timestamp: '2025-11-05T00:01:00Z',
+          },
+        ],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('CRITICAL')).toBeInTheDocument();
+        expect(screen.getByText('WARNING')).toBeInTheDocument();
+        expect(screen.getByText('Critical system error')).toBeInTheDocument();
+        expect(screen.getByText('Warning message')).toBeInTheDocument();
+      });
+    });
+
+    it('should synthesize metrics from backend data', async () => {
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: {
+          overall_status: 'degraded',
+          error_rate: 0.15,
+          avg_latency: 500,
+          open_circuit_breakers: 2,
+        },
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: {
+          active_sagas: 7,
+          completed_sagas: 50,
+        },
+        storage: {},
+        trends: {},
+        alerts: [],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('DEGRADED')).toBeInTheDocument();
+        expect(screen.getByText(/85\.00 %/)).toBeInTheDocument();
+        expect(screen.getByText(/7\.00 agents/)).toBeInTheDocument();
+      });
+    });
+
+    it('should handle empty agents array and show empty state', async () => {
+      const user = userEvent.setup();
+      const backendResponse = {
+        timestamp: '2025-11-05T00:00:00Z',
+        system_health: 'healthy',
+        circuit_breakers: {},
+        bulkheads: {},
+        saga_orchestrator: { active_sagas: 0 },
+        storage: {},
+        trends: {},
+        alerts: [],
+      };
+
+      mockApiClientWithMeta.mockResolvedValueOnce({
+        status: 200,
+        data: backendResponse,
+        headers: new Headers(),
+      });
+
+      render(<MetricsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('HEALTHY')).toBeInTheDocument();
+      });
+
+      const agentsTab = screen.getByRole('tab', { name: /agents/i });
+      await user.click(agentsTab);
+
+      const emptyStateText = await screen.findByText(/No agent data available/i, {}, { timeout: 3000 });
+      expect(emptyStateText).toBeInTheDocument();
     });
   });
 });

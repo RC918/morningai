@@ -63,7 +63,7 @@ const AuthCallback = () => {
   }, [navigate, t]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
       <div className="w-full max-w-md px-4">
         <Card>
           <CardHeader>
@@ -76,13 +76,13 @@ const AuthCallback = () => {
               )}
               {status === 'success' && (
                 <>
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <CheckCircle2 className="h-5 w-5 text-success-600" />
                   {t('auth.sso.success')}
                 </>
               )}
               {status === 'error' && (
                 <>
-                  <XCircle className="h-5 w-5 text-red-600" />
+                  <XCircle className="h-5 w-5 text-error-600" />
                   {t('auth.sso.error')}
                 </>
               )}
@@ -101,7 +101,7 @@ const AuthCallback = () => {
             )}
             {status === 'processing' && (
               <div className="flex justify-center py-4">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <Loader2 className="h-8 w-8 animate-spin text-info-600" />
               </div>
             )}
           </CardContent>

@@ -40,7 +40,14 @@ TABLES_AUTHENTICATED_ONLY = [
     'reputation_events'
 ]
 
-TABLES_WITH_RLS = TABLES_PUBLIC_ANON + TABLES_AUTHENTICATED_ONLY
+DEV_AGENT_TABLES = [
+    'code_embeddings',
+    'code_patterns',
+    'code_relationships',
+    'embedding_cache_stats'
+]
+
+TABLES_WITH_RLS = TABLES_PUBLIC_ANON + TABLES_AUTHENTICATED_ONLY + DEV_AGENT_TABLES
 
 
 def generate_authenticated_jwt():
@@ -198,18 +205,22 @@ class TestAnonRolePublicAccess:
 
 @pytest.mark.parametrize("table", TABLES_AUTHENTICATED_ONLY)
 class TestAnonRoleBlockedFromSensitive:
-    """Test that anon key is blocked from sensitive tables"""
+    """Test that anonymous users (no JWT) are blocked from authenticated-only tables
     
-    def test_anon_blocked_from_sensitive_tables(self, table):
-        """anon key should be BLOCKED from sensitive tables"""
-        headers = get_headers('anonymous')
+    Note: True anonymous access (anon key without JWT) should be blocked from
+    authenticated-only tables. This tests the actual anonymous role behavior.
+    """
+    
+    def test_anon_blocked_from_authenticated_tables(self, table):
+        """anonymous users (no JWT) should be blocked from authenticated-only tables"""
+        headers = get_anon_headers()
         response = requests.get(
             f'{SUPABASE_URL}/rest/v1/{table}?limit=1',
             headers=headers,
             timeout=10
         )
         assert response.status_code in [401, 403], \
-            f"anon key should be BLOCKED from {table}, got {response.status_code}"
+            f"anonymous (no JWT) should be BLOCKED from {table}, got {response.status_code}"
 
 
 @pytest.mark.parametrize("table", TABLES_WITH_RLS)
@@ -233,8 +244,8 @@ class TestRLSPolicySummary:
     
     def test_all_tables_have_rls_enabled(self):
         """Verify that all expected tables have RLS enabled"""
-        assert len(TABLES_WITH_RLS) == 9, \
-            f"Expected 9 tables with RLS, got {len(TABLES_WITH_RLS)}"
+        assert len(TABLES_WITH_RLS) == 13, \
+            f"Expected 13 tables with RLS (9 main + 4 dev_agent), got {len(TABLES_WITH_RLS)}"
     
     def test_service_role_key_is_set(self):
         """Verify that SUPABASE_SERVICE_ROLE_KEY is configured"""
@@ -268,6 +279,9 @@ def run_comprehensive_rls_tests():
     print("Testing all roles (service_role, authenticated, anonymous)")
     print("Testing critical operations (SELECT, INSERT)")
     print(f"Testing {len(TABLES_WITH_RLS)} tables with RLS enabled")
+    print(f"  - {len(TABLES_PUBLIC_ANON)} public tables (FAQs)")
+    print(f"  - {len(TABLES_AUTHENTICATED_ONLY)} authenticated-only tables")
+    print(f"  - {len(DEV_AGENT_TABLES)} dev_agent tables")
     print()
     
     total_tests = 0

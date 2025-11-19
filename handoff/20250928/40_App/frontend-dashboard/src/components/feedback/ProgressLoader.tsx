@@ -53,10 +53,10 @@ export const ProgressLoader = ({
           {steps[currentStep]?.title || t('feedback.processing')}
         </h3>
         <Progress value={progress} className="mb-2" />
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-neutral-600">
           {steps[currentStep]?.description}
         </p>
-        <div className="mt-4 text-xs text-gray-600">
+        <div className="mt-4 text-xs text-neutral-600">
           {t('feedback.stepCounter', { current: currentStep + 1, total: steps.length })}
         </div>
       </motion.div>

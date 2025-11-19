@@ -21,30 +21,58 @@ import jwt
 import redis.exceptions
 
 from .redis_client import get_redis_client
+from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 PRE_AUTH_TOKEN_EXPIRY_MINUTES = 5
 MAX_ATTEMPTS_PER_TOKEN = 5
-REDIS_KEY_PREFIX = os.getenv("REDIS_KEY_PREFIX", "morningai")
+REDIS_KEY_PREFIX = settings.redis_key_prefix or "morningai"
 
 
 class PreAuthTokenManager:
     """Manages pre-authentication tokens for 2FA flows"""
 
     def __init__(self):
-        self.redis_client = get_redis_client()
-        self.jwt_secret = os.environ.get(
-            "JWT_SECRET_KEY", "test-secret-key-for-testing"
-        )
+        self._redis_client = None  # Lazy initialization
+        
+        secret = self._resolve_jwt_secret()
+        self.jwt_secret = secret if secret is not None else "test-secret-key-for-testing"
 
-        env = os.environ.get("ENVIRONMENT", "").lower()
-        if env == "production":
+        from src.services.auth_service import is_production
+        if is_production():
             if not self.jwt_secret or self.jwt_secret == "test-secret-key-for-testing":
                 raise RuntimeError(
                     "JWT_SECRET_KEY must be set to a secure value in production environment. "
                     "The default test key is not allowed."
                 )
+    
+    def _resolve_jwt_secret(self) -> Optional[str]:
+        """Resolve JWT secret with proper precedence for test compatibility
+        
+        Precedence: os.environ → app.config → settings
+        This ensures pytest's monkeypatch.setenv() takes effect even when Flask app context exists.
+        """
+        if "JWT_SECRET_KEY" in os.environ:
+            return os.environ["JWT_SECRET_KEY"]
+        
+        try:
+            from flask import current_app
+            if current_app:
+                secret = current_app.config.get("JWT_SECRET_KEY")
+                if secret is not None:
+                    return secret
+        except Exception:
+            pass
+        
+        return settings.jwt_secret_key
+    
+    @property
+    def redis_client(self):
+        """Lazy initialization of Redis client"""
+        if self._redis_client is None:
+            self._redis_client = get_redis_client()
+        return self._redis_client
 
     def generate_token(
         self, user_id: str, email: str, scope: Literal["enroll", "challenge"]
@@ -229,13 +257,19 @@ class PreAuthTokenManager:
                     logger.warning(f"Token jti {jti} already consumed")
                     return False
 
+                ttl = pipeline.ttl(redis_key)
+                
                 pipeline.multi()
                 pipeline.hset(
                     redis_key, mapping={"consumed": "True", "consumed_at": now_iso}
                 )
+                
+                if ttl > 0:
+                    pipeline.expire(redis_key, ttl)
+                
                 pipeline.execute()
 
-                logger.info(f"Token jti {jti} consumed successfully (atomic)")
+                logger.info(f"Token jti {jti} consumed successfully (atomic), TTL preserved: {ttl}s")
                 return True
 
             except redis.exceptions.WatchError:

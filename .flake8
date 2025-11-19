@@ -1,0 +1,53 @@
+[flake8]
+# Flake8 configuration for MorningAI project
+
+# Exclude directories
+exclude =
+    .venv,
+    .git,
+    __pycache__,
+    dist,
+    build,
+    *.egg-info,
+    .pytest_cache,
+    .mypy_cache,
+    node_modules,
+    .next,
+    .vercel,
+    handoff/20250928/40_App/frontend-dashboard/node_modules,
+    handoff/20250928/40_App/frontend-dashboard/.next,
+    handoff/20250928/60_Design
+
+# Maximum line length
+max-line-length = 120
+
+# Maximum complexity
+max-complexity = 15
+
+# Ignore specific error codes
+ignore =
+    E203,  # whitespace before ':'
+    E501,  # line too long (handled by max-line-length)
+    W503,  # line break before binary operator
+    W504,  # line break after binary operator
+
+# Per-file ignores
+per-file-ignores =
+    __init__.py:F401,F403
+    */migrations/*.py:E501
+    */tests/*.py:E501
+
+# Enable specific plugins
+enable-extensions = G
+
+# Show source code for errors
+show-source = True
+
+# Show pep8 error name
+show-pep8 = True
+
+# Count errors
+count = True
+
+# Statistics
+statistics = True

@@ -1,7 +1,6 @@
-const API_BASE_URL =
-  (typeof window !== 'undefined' && (window as any).__VITE_API_BASE_URL__) ||
-  (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') ||
-  '';
+import { getAccessToken } from './auth.ts';
+
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || '';
 
 /**
  * CSRF token cache for cross-origin scenarios
@@ -36,6 +35,12 @@ export async function apiClient<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
+  let finalUrl = url;
+  
+  if (!url.startsWith('/api/') && (url.startsWith('/admin') || url.startsWith('/tenant') || url.startsWith('/governance'))) {
+    finalUrl = '/api' + url;
+  }
+  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
@@ -49,18 +54,24 @@ export async function apiClient<T>(
     }
   }
   
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
+  const res = await fetch(`${API_BASE_URL}${finalUrl}`, {
     ...options,
     credentials: 'include',  // P0-3: Always include credentials for HttpOnly cookies
     headers,
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
+    const text = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
+    const statusText = res.statusText || '';
+    throw new Error(`HTTP ${res.status} ${statusText} - ${text}`);
   }
-  const ct = res.headers.get('content-type') || '';
-  const data = ct.includes('application/json') ? await res.json() : await res.text();
+  const ct = res.headers && typeof res.headers.get === 'function' ? res.headers.get('content-type') || '' : '';
+  const data = ct.includes('application/json') ? await res.json() : (typeof res.text === 'function' ? await res.text() : '');
   
   return {
     data,
@@ -75,12 +86,38 @@ export async function apiClient<T>(
  * 
  * P0 Fix: Cache CSRF token from response body for cross-origin scenarios
  * Backend returns { csrf_token: "..." } in response body which we can read cross-origin
+ * 
+ * Preview Mode: Skip CSRF bootstrap for /ux-metrics route in preview environments
+ * when VITE_PREVIEW_PUBLIC_METRICS is enabled (static metrics JSON doesn't need auth)
  */
 export async function bootstrapCsrf(): Promise<void> {
+  if (typeof window !== 'undefined' && 
+      import.meta.env.VITE_PREVIEW_PUBLIC_METRICS === 'true' &&
+      window.location.pathname.startsWith('/ux-metrics')) {
+    console.debug('Skipping CSRF bootstrap for /ux-metrics in preview mode');
+    return;
+  }
+
+  if (!API_BASE_URL) {
+    console.warn('CSRF bootstrap skipped: VITE_API_BASE_URL not configured');
+    return;
+  }
+
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
+    const url = `${API_BASE_URL}/api/auth/v2/csrf`;
+    console.debug('Bootstrapping CSRF token from:', url);
+    
+    const response = await fetch(url, {
       credentials: 'include',
     });
+    
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('CSRF bootstrap failed: Expected JSON but got', contentType, 'Status:', response.status);
+      console.error('Response preview:', text.substring(0, 200));
+      return;
+    }
     
     if (response.ok) {
       const data = await response.json();
@@ -88,6 +125,8 @@ export async function bootstrapCsrf(): Promise<void> {
         csrfTokenCache = data.csrf_token;
         console.debug('CSRF token cached from response body');
       }
+    } else {
+      console.error('CSRF bootstrap failed with status:', response.status);
     }
   } catch (error) {
     console.warn('Failed to bootstrap CSRF token:', error);
@@ -198,3 +237,139 @@ const governanceApi = {
 (apiClient as any).getGovernanceEvents = governanceApi.getGovernanceEvents;
 (apiClient as any).getGovernanceViolations = governanceApi.getGovernanceViolations;
 (apiClient as any).getGovernanceStatistics = governanceApi.getGovernanceStatistics;
+
+/**
+ * Custom error types for better error handling
+ */
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public data?: unknown
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export class TimeoutError extends Error {
+  constructor(message: string = 'Request timeout') {
+    super(message);
+    this.name = 'TimeoutError';
+  }
+}
+
+/**
+ * API client with metadata (status, headers) for endpoints that need response metadata
+ * Used by components that need to check response status or headers
+ * 
+ * Features:
+ * - Returns response metadata (status, headers) in addition to data
+ * - Automatic CSRF token handling for unsafe methods (POST, PUT, PATCH, DELETE)
+ * - Configurable timeout with AbortController
+ * - Typed error handling (ApiError, TimeoutError)
+ * 
+ * @param url - API endpoint URL (e.g., '/phase7/monitoring/dashboard')
+ * @param options - Fetch options with optional timeout
+ * @returns Promise with data, status, and headers
+ * 
+ * @example
+ * ```typescript
+ * // GET request (no CSRF token)
+ * const result = await apiClientWithMeta<DashboardData>('/phase7/monitoring/dashboard', {
+ *   method: 'GET'
+ * });
+ * 
+ * // POST request (with CSRF token)
+ * const result = await apiClientWithMeta<CreateResponse>('/admin/agents', {
+ *   method: 'POST',
+ *   body: JSON.stringify({ name: 'agent-1' })
+ * });
+ * 
+ * // With custom timeout
+ * const result = await apiClientWithMeta<Data>('/api/endpoint', {
+ *   method: 'GET',
+ *   timeout: 5000 // 5 seconds
+ * });
+ * ```
+ */
+export async function apiClientWithMeta<T>(
+  url: string,
+  options: RequestInit & { timeout?: number } = {}
+): Promise<{ data: T; status: number; headers: Headers }> {
+  const { timeout = 10000, ...fetchOptions } = options;
+  
+  let finalUrl = url;
+  
+  if (!url.startsWith('/api/') && (url.startsWith('/admin') || url.startsWith('/tenant') || url.startsWith('/governance') || url.startsWith('/phase7'))) {
+    finalUrl = '/api' + url;
+  }
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((fetchOptions.headers as Record<string, string>) || {}),
+  };
+
+  const method = (fetchOptions.method || 'GET').toUpperCase();
+  const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  
+  if (unsafeMethods.includes(method)) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+  }
+  
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(API_BASE_URL + finalUrl, {
+      ...fetchOptions,
+      headers,
+      credentials: 'include',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.headers.get('X-CSRF-Token')) {
+      csrfTokenCache = response.headers.get('X-CSRF-Token');
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new ApiError(
+        response.status,
+        errorData.message || `HTTP ${response.status}`,
+        errorData
+      );
+    }
+
+    const data = await response.json();
+    return {
+      data,
+      status: response.status,
+      headers: response.headers
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new TimeoutError(`Request timeout after ${timeout}ms`);
+    }
+    
+    throw error;
+  }
+}
+
+export default apiClient;

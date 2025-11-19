@@ -4,12 +4,28 @@
     "governance": "Agent 治理",
     "tenants": "租戶管理",
     "monitoring": "系統監控",
+    "uxMetrics": "UX 指標",
     "settings": "平台設定",
-    "logout": "登出"
+    "logout": "登出",
+    "mainNavigation": "主導覽"
   },
   "dashboard": {
     "title": "平台概覽",
     "subtitle": "一目了然地監控您的 MorningAI 平台",
+    "2fa": {
+      "prompt": {
+        "title": "尚未啟用雙重驗證 (2FA)",
+        "description": "作為擁有者，我們強烈建議啟用 2FA 以保護您的帳戶和平台。",
+        "setupButton": "設定 2FA"
+      }
+    },
+    "recentActivity": {
+      "placeholder": {
+        "acme": "Acme Corp - 2 小時前",
+        "opsAgent": "ops_agent v2.1 - 5 小時前",
+        "maintenance": "明天凌晨 2:00 UTC"
+      }
+    },
     "stats": {
       "totalTenants": "總租戶數",
       "activeAgents": "活躍 Agents",
@@ -50,13 +66,113 @@
     "tabs": {
       "agents": "Agents 列表",
       "events": "事件",
-      "violations": "違規"
+      "violations": "違規",
+      "executionLogs": "執行日誌"
+    },
+    "executionLogs": {
+      "title": "Agent 執行日誌",
+      "subtitle": "監控 agent 任務執行歷史與效能",
+      "noLogs": "找不到執行日誌",
+      "filters": {
+        "status": "狀態",
+        "allStatuses": "所有狀態",
+        "agentType": "Agent 類型",
+        "allAgentTypes": "所有 Agent 類型",
+        "agentId": "Agent ID",
+        "agentIdPlaceholder": "依 agent ID 篩選",
+        "tenantId": "租戶 ID",
+        "tenantIdPlaceholder": "依租戶 ID 篩選",
+        "taskType": "任務類型",
+        "taskTypePlaceholder": "依任務類型篩選",
+        "timeRange": "時間範圍",
+        "selectTimeRange": "選擇時間範圍",
+        "allTime": "全部時間",
+        "last24Hours": "最近 24 小時",
+        "last7Days": "最近 7 天",
+        "last30Days": "最近 30 天",
+        "customRange": "自訂範圍",
+        "dateRange": "日期範圍",
+        "startDate": "開始日期",
+        "endDate": "結束日期",
+        "clearFilters": "清除篩選",
+        "applyFilters": "套用篩選"
+      },
+      "agentTypes": {
+        "devAgent": "開發 Agent",
+        "opsAgent": "維運 Agent",
+        "pmAgent": "專案管理 Agent",
+        "growthStrategist": "成長策略 Agent",
+        "metaAgent": "Meta Agent"
+      },
+      "statuses": {
+        "queued": "排隊中",
+        "assigned": "已分配",
+        "running": "執行中",
+        "completed": "已完成",
+        "failed": "失敗",
+        "cancelled": "已取消",
+        "unknown": "未知"
+      },
+      "columns": {
+        "taskId": "任務 ID",
+        "status": "狀態",
+        "taskType": "任務類型",
+        "agent": "Agent",
+        "tenant": "租戶",
+        "duration": "執行時長",
+        "timestamps": "時間戳記",
+        "actions": "操作"
+      },
+      "summary": {
+        "title": "執行摘要",
+        "totalExecutions": "總執行次數",
+        "successRate": "成功率",
+        "avgDuration": "平均執行時長",
+        "statusBreakdown": "狀態分布"
+      },
+      "viewDetails": "查看詳情",
+      "copyTraceId": "複製 Trace ID",
+      "copyTaskId": "複製任務 ID",
+      "copyTenantId": "複製租戶 ID",
+      "viewTraceDetails": "在可觀測性平台中查看 Trace 詳情",
+      "traceIdCopied": "Trace ID 已複製到剪貼簿",
+      "traceIdCopyFailed": "複製 Trace ID 失敗",
+      "taskIdCopied": "任務 ID 已複製到剪貼簿",
+      "taskIdCopyFailed": "複製任務 ID 失敗",
+      "tenantIdCopied": "租戶 ID 已複製到剪貼簿",
+      "tenantIdCopyFailed": "複製租戶 ID 失敗",
+      "retryLoad": "重新載入執行日誌",
+      "details": {
+        "title": "執行日誌詳情",
+        "subtitle": "此次執行的詳細資訊",
+        "taskDetails": "任務詳情",
+        "agentInfo": "Agent 資訊",
+        "executionTime": "執行時間",
+        "payload": "輸入資料",
+        "result": "執行結果",
+        "errorMessage": "錯誤訊息",
+        "traceId": "Trace ID",
+        "prUrl": "Pull Request",
+        "timing": "時間資訊",
+        "createdAt": "建立時間",
+        "startedAt": "開始時間",
+        "completedAt": "完成時間",
+        "updatedAt": "更新時間"
+      },
+      "pagination": {
+        "showing": "顯示 {{start}}-{{end}} / 共 {{total}} 筆",
+        "page": "第 {{current}} 頁 / 共 {{total}} 頁",
+        "previous": "上一頁",
+        "next": "下一頁",
+        "pageSize": "每頁顯示筆數"
+      }
     },
     "agents": {
       "title": "Agent 聲譽排行榜",
       "subtitle": "依聲譽分數與權限等級排序的 Agents",
       "noAgents": "找不到 agents",
-      "reputation": "聲譽"
+      "reputation": "聲譽",
+      "type": "類型"
     },
     "events": {
       "title": "最近事件",
@@ -101,7 +217,119 @@
     "connections": "連線數",
     "queryTime": "查詢時間",
     "active": "活躍",
-    "queueSize": "佇列大小"
+    "queueSize": "佇列大小",
+    "systemHealth": "系統健康",
+    "overallStatus": "整體狀態",
+    "cpuUsage": "CPU 使用率",
+    "cpuTrend": "CPU 使用率趨勢（最近 24 小時）",
+    "cores": "核心數",
+    "memory": "記憶體",
+    "memoryTrend": "記憶體使用率趨勢（最近 24 小時）",
+    "disk": "磁碟",
+    "diskTrend": "磁碟使用率趨勢（最近 24 小時）",
+    "usedTotal": "已用/總量",
+    "gbFormat": "{{used}}GB / {{total}}GB",
+    "noHealthData": "目前沒有系統健康資料",
+    "noMetricsData": "目前沒有指標數據",
+    "mockDataLabel": "模擬數據"
+  },
+  "uxMetrics": {
+    "title": "UX 指標儀表板",
+    "subtitle": "監控最近 PR 的 UX 品質指標",
+    "errorLoading": "載入指標時發生錯誤",
+    "noData": "沒有可用的指標資料",
+    "lastUpdated": "最後更新：{{date}}",
+    "totalPRs": "總 PR 數",
+    "avgFCP": "平均 FCP",
+    "avgLCP": "平均 LCP",
+    "target": "目標：≤{{value}}{{unit}}",
+    "i18nCoverage": "i18n 覆蓋率",
+    "prsWithData": "包含 i18n 資料的 PR",
+    "qualityThresholds": "品質閾值",
+    "i18n": "i18n",
+    "a11yCritical": "A11y 嚴重",
+    "motionP95": "Motion P95",
+    "vrtMismatch": "VRT 不匹配",
+    "lighthouseFCP": "Lighthouse FCP",
+    "recentPRs": "最近的 PR",
+    "pr": "PR",
+    "prTitle": "標題",
+    "author": "作者",
+    "merged": "已合併",
+    "i18nFD": "i18n (FD)",
+    "i18nOC": "i18n (OC)",
+    "available": "✓ 可用",
+    "frontendDashboard": "Frontend Dashboard",
+    "ownerConsole": "Owner Console",
+    "a11yTests": "A11y 測試",
+    "motionTests": "Motion 測試",
+    "vrtTests": "VRT 測試",
+    "prCount": "{{available}}/{{total}} 個 PR",
+    "i18nTrend": "i18n 覆蓋率趨勢",
+    "lighthouseTrend": "Lighthouse 效能趨勢",
+    "bundleSizeTrend": "Bundle 大小變化趨勢",
+    "avgBundleSize": "平均 Bundle 大小",
+    "avgChange": "平均變化",
+    "totalChange": "總變化",
+    "critical": "嚴重",
+    "serious": "重要"
+  },
+  "metricsDashboard": {
+    "title": "指標儀表板",
+    "subtitle": "即時系統效能與 agent 監控",
+    "error": "錯誤",
+    "loadingMetrics": "載入指標中...",
+    "devMode": {
+      "title": "開發模式 - 模擬資料",
+      "description": "此儀表板顯示的是僅供開發用途的模擬資料。一旦監控後端部署完成，將提供真實指標。",
+      "warning": "請勿將此資料用於生產決策。"
+    },
+    "devInfo": {
+      "title": "開發資訊",
+      "description": "指標儀表板需要後端 API 端點：",
+      "endpoint": "GET /phase7/monitoring/dashboard",
+      "hint": "請確保您的後端伺服器正在運行且端點已實作。"
+    },
+    "autoRefresh": "自動重新整理：{{status}}",
+    "autoRefreshOn": "開啟",
+    "autoRefreshOff": "關閉",
+    "metrics": {
+      "apiRequestRate": "API 請求率",
+      "apiRequestRateDesc": "每分鐘請求數",
+      "taskSuccessRate": "任務成功率",
+      "taskSuccessRateDesc": "Agent 任務完成率",
+      "queueDepth": "佇列深度",
+      "queueDepthDesc": "等待中的任務",
+      "activeAgents": "活躍 Agents",
+      "activeAgentsDesc": "目前活躍的 agents"
+    },
+    "tabs": {
+      "agents": "Agents",
+      "systemHealth": "系統健康度",
+      "performance": "效能"
+    },
+    "agent": {
+      "idLabel": "ID：{{id}}",
+      "reputationScore": "聲譽分數",
+      "successRate": "成功率",
+      "activeTasks": "活躍任務"
+    },
+    "agents": {
+      "noData": "目前沒有 agent 資料。一旦監控系統收集到資料，agent 指標將顯示在此處。"
+    },
+    "systemHealth": {
+      "errorRate": "錯誤率",
+      "avgLatency": "平均延遲",
+      "latencyValue": "{{value}}毫秒",
+      "latencyTarget": "目標：< 1000毫秒",
+      "circuitBreakers": "斷路器",
+      "openCircuitBreakers": "開啟的斷路器"
+    },
+    "performance": {
+      "title": "效能指標",
+      "subtitle": "詳細的效能指標與趨勢",
+      "description": "效能圖表與詳細指標將顯示在此處。正在整合監控後端。"
+    }
   },
   "settings": {
     "title": "平台設定",
@@ -128,6 +356,13 @@
       "title": "雙重驗證",
       "subtitle": "為您的帳戶增加額外的安全保護層",
       "loading": "載入中...",
+      "card": {
+        "title": "雙重驗證 (2FA)",
+        "description": "使用雙重驗證增強您的帳戶安全性",
+        "manage": "管理您的 2FA 設定",
+        "manageDescription": "設定、停用或重新產生雙重驗證的備用代碼",
+        "manageButton": "管理 2FA"
+      },
       "featureDisabled": {
         "title": "功能無法使用",
         "description": "此環境目前無法使用雙因素驗證。請聯絡您的系統管理員以獲取更多資訊。"
@@ -227,7 +462,15 @@
     "search": "搜尋",
     "filter": "篩選",
     "export": "匯出",
-    "refresh": "重新整理"
+    "refresh": "重新整理",
+    "retry": "重試",
+    "usage": "使用量",
+    "idShort": "ID：{{id}}",
+    "changeLanguage": "切換語言",
+    "na": "不適用",
+    "pass": "✓ 通過",
+    "fail": "✗ 失敗",
+    "ms": "毫秒"
   },
   "auth": {
     "login": {
@@ -267,7 +510,21 @@
       "cancel": "取消",
       "invalidCode": "代碼無效。剩餘 {{attempts}} 次嘗試。",
       "invalidBackupCode": "備用代碼無效。剩餘 {{attempts}} 次嘗試。",
-      "tooManyAttempts": "嘗試次數過多。請稍後再試。"
+      "tooManyAttempts": "嘗試次數過多。請稍後再試。",
+      "enroll": {
+        "title": "設定雙重驗證",
+        "description": "使用雙重驗證保護您的帳戶",
+        "qrInstructions1": "使用您的驗證器應用程式（Google Authenticator、Authy 等）掃描此 QR 碼",
+        "qrInstructions2": "或手動輸入下方顯示的密鑰。",
+        "qrScanned": "我已掃描 QR 碼",
+        "verifyPrompt": "輸入驗證器應用程式中的 6 位數代碼以驗證設定",
+        "verificationCodeLabel": "驗證碼",
+        "back": "返回",
+        "verify": "驗證",
+        "verifying": "驗證中...",
+        "backupCodesWarning": "請儲存這些備用代碼！",
+        "backupCodesDescription": "如果您遺失驗證器裝置，可以使用這些代碼存取您的帳戶。請將它們儲存在安全的地方。"
+      }
     }
   },
   "app": {
@@ -280,6 +537,33 @@
     "user": {
       "defaultName": "Owner",
       "defaultRole": "平台擁有者"
+    },
+    "expand": "展開側邊欄",
+    "collapse": "收起側邊欄"
+  },
+  "agentEvaluation": {
+    "title": "Agent 評估儀表板",
+    "subtitle": "監控 AI agent 效能指標與評估結果",
+    "target": "目標",
+    "onTarget": "達標",
+    "belowTarget": "未達標",
+    "lastEvaluation": "最後評估時間",
+    "metrics": {
+      "plannerAccuracy": "規劃準確率",
+      "selfHealingRate": "自動修復率",
+      "completionRate": "完成率",
+      "ciPassRate": "CI 通過率"
+    },
+    "history": {
+      "title": "評估歷史",
+      "subtitle": "來自 GitHub Actions 的最近 agent 評估執行記錄",
+      "noResults": "目前沒有可用的評估結果",
+      "weeklyRuns": "評估每週由 GitHub Actions 執行",
+      "runNumber": "執行編號 #{{id}}",
+      "tasks": "任務",
+      "completed": "已完成",
+      "prs": "PR 數量",
+      "ciPassed": "CI 通過"
     }
   }
 }

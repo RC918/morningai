@@ -6,13 +6,14 @@ import logging
 import os
 from typing import Dict, Any
 import aiohttp
+from common.config.settings import settings
 
 class SentryTool:
     """Sentry API interaction tool"""
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.auth_token = os.getenv('SENTRY_AUTH_TOKEN')
+        self.auth_token = settings.sentry_auth_token
         self.base_url = 'https://sentry.io/api/0'
     
     def requires_approval(self, arguments: Dict[str, Any]) -> bool:

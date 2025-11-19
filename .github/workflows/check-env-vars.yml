@@ -1,0 +1,56 @@
+name: Check Environment Variables
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  check-env-usage:
+    name: Check for direct os.getenv usage (AST-based)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install PyYAML
+        run: pip install pyyaml
+      
+      - name: Check for new os.getenv calls (AST-based)
+        run: |
+          echo "Running AST-based checker for os.getenv() calls..."
+          python3 .github/scripts/check_os_getenv.py
+          
+          # Note: Script exits with 0 in warning mode (current)
+          # After PR 1c is merged, change to: python3 .github/scripts/check_os_getenv.py --strict
+      
+      - name: Verify settings module exists
+        run: |
+          if [ ! -f "common/config/settings.py" ]; then
+            echo "❌ ERROR: common/config/settings.py not found!"
+            echo "The centralized settings module is required."
+            exit 1
+          fi
+          echo "✅ Settings module exists"
+      
+      - name: Verify env.schema.yaml is valid
+        run: |
+          if [ ! -f "config/env.schema.yaml" ]; then
+            echo "❌ ERROR: config/env.schema.yaml not found!"
+            exit 1
+          fi
+          
+          # Check if it's valid YAML (requires Python)
+          python3 -c "import yaml; yaml.safe_load(open('config/env.schema.yaml'))" || {
+            echo "❌ ERROR: config/env.schema.yaml is not valid YAML"
+            exit 1
+          }
+          
+          echo "✅ env.schema.yaml is valid"

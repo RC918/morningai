@@ -2,24 +2,78 @@
 
 ## Overview
 
-This document defines the testing strategy for the Morning AI project, implementing RFC #619 decision to separate unit tests and integration tests.
+MorningAI 採用**雙層測試架構**，將單元測試和 API 整合測試分離，以保持測試環境清潔、覆蓋率基準明確、並確保測試套件快速可靠。
+
+本文檔定義 MorningAI 專案的測試策略，實現 RFC #619 決策，並說明根目錄單元測試與後端 API 測試的分離架構。
+
+## 🏗️ 雙層測試架構
+
+### 層級 1: 根目錄單元測試 (`/tests/`)
+
+**目的**: 測試業務邏輯、工具函數、服務層、中介軟體
+
+**特性**:
+- ✅ 快速執行（< 1 秒/測試）
+- ✅ 使用 mocks 隔離外部依賴
+- ✅ 覆蓋率目標: 21%（已達成 P3 基準）
+- ✅ CI Workflow: `.github/workflows/test-apps.yml`
+
+**統計數據**:
+| 指標 | 數值 |
+|------|------|
+| 測試文件 | 27 個 |
+| 測試函數 | 696 個 |
+| 測試代碼 | 11,088 行 |
+| 覆蓋率 | 21% (4988/5796 statements) |
+
+**配置**: `pytest.ini` 明確排除後端測試：
+```ini
+norecursedirs = 
+    handoff/20250928/40_App/api-backend/tests  # 排除後端 API 測試
+```
+
+### 層級 2: 後端 API 整合測試 (`/handoff/.../api-backend/tests/`)
+
+**目的**: 測試 Flask API 端點、路由整合、HTTP 請求/響應
+
+**特性**:
+- ✅ 使用真實 Flask app
+- ✅ 使用真實 JWT tokens
+- ✅ 測試 HTTP endpoints
+- ✅ 覆蓋率目標: **74%**（CI 強制執行）
+- ✅ CI Workflow: `.github/workflows/backend.yml`
+
+**統計數據**:
+| 指標 | 數值 |
+|------|------|
+| 測試文件 | 85 個 |
+| 測試函數 | 1,225 個 |
+| 測試代碼 | 21,035 行 |
+| 覆蓋率 | 74% (CI 門檻) |
+
+**配置**: 獨立的 `handoff/.../api-backend/pytest.ini`
 
 ## Test Directory Structure
 
 ```
-tests/
-├── unit/                    # Unit tests (fast, isolated, use mocks)
-│   ├── routes/             # Route handler unit tests
-│   ├── services/           # Business logic unit tests
-│   └── middleware/         # Middleware unit tests
-├── integration/            # Integration tests (slower, real dependencies)
-│   ├── routes/            # Route integration tests
-│   └── e2e/               # End-to-end workflow tests
-├── fixtures/              # Shared test fixtures
-│   ├── auth.py           # Authentication fixtures
-│   └── database.py       # Database fixtures
-├── conftest.py           # Pytest configuration
-└── README.md             # Test documentation
+morningai/
+├── tests/                                    # 層級 1: 根目錄單元測試
+│   ├── test_utils_redis_client.py           # Utils 測試
+│   ├── test_services_auth_service.py        # Services 測試
+│   ├── test_middleware_auth.py              # Middleware 測試
+│   ├── conftest.py                          # 共用 fixtures
+│   └── _helpers/                            # 測試輔助工具
+│
+├── handoff/20250928/40_App/api-backend/
+│   ├── tests/                               # 層級 2: 後端 API 測試
+│   │   ├── test_auth_endpoints.py          # Auth API 測試
+│   │   ├── test_admin_routes.py            # Admin API 測試
+│   │   ├── conftest.py                     # 後端 fixtures
+│   │   └── README.md                       # 後端測試文檔
+│   ├── pytest.ini                          # 後端 pytest 配置
+│   └── requirements.txt                    # 後端依賴
+│
+└── pytest.ini                              # 根目錄 pytest 配置
 ```
 
 ## Test Types
@@ -332,15 +386,50 @@ def test_jwt_secret():
 - Ensure proper cleanup in fixtures
 - Use `pytest --lf` to run last failed tests
 
+## 🎯 為什麼要分離？
+
+### 1. 依賴隔離
+- 根目錄: 最小依賴（pytest, redis）
+- 後端: 完整依賴（Flask, rq, numpy, pandas, supabase 等）
+- **混合會污染單元測試環境**
+
+### 2. 覆蓋率基準分離
+- 根目錄: 21% 單元測試覆蓋率（P3 基準）
+- 後端: 74% API 整合測試覆蓋率（CI 門檻）
+- **混合會破壞覆蓋率追蹤**
+
+### 3. 測試性質不同
+- 根目錄: 快速單元測試（< 1 秒）
+- 後端: 整合測試（1-5 秒，需要 Flask app + Redis）
+- **分離保持測試套件快速可靠**
+
+## ❓ 常見問題
+
+### Q: 為什麼我在根目錄運行 pytest 看不到後端測試？
+
+**A**: 這是設計上的分離。根目錄 `pytest.ini` 明確排除後端測試。
+
+### Q: 後端測試在 CI 中運行嗎？
+
+**A**: ✅ 是的！在 `.github/workflows/backend.yml` 中運行，有獨立的 Redis service 和完整依賴。
+
+### Q: P3 的 21% 和後端的 74% 有什麼關係？
+
+**A**: **完全獨立**：
+- 21%: 根目錄單元測試覆蓋率
+- 74%: 後端 API 整合測試覆蓋率
+
 ## References
 
 - **RFC #619**: Testing Architecture Strategy
+- **P3 測試覆蓋率總結**: [docs/P3_TEST_COVERAGE_SUMMARY.md](./P3_TEST_COVERAGE_SUMMARY.md)
+- **後端測試 README**: [handoff/.../api-backend/tests/README.md](../handoff/20250928/40_App/api-backend/tests/README.md)
 - **pytest Documentation**: https://docs.pytest.org/
 - **Flask Testing**: https://flask.palletsprojects.com/en/latest/testing/
 - **Coverage.py**: https://coverage.readthedocs.io/
 
 ---
 
-**Last Updated**: 2025-10-31  
+**Last Updated**: 2025-11-17  
 **Status**: ✅ Active  
 **Owner**: CTO (Devin)

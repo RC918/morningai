@@ -7,9 +7,10 @@ Week 4: Session persistence, decision trace, error handling
 import pytest
 import os
 
+from common.config.settings import settings
 from dev_agent_ooda import create_dev_agent_ooda
 
-SANDBOX_ENDPOINT = os.getenv('DEV_AGENT_ENDPOINT', 'http://localhost:8080')
+SANDBOX_ENDPOINT = settings.dev_agent_endpoint or 'http://localhost:8080'
 TEST_TIMEOUT = 60
 
 

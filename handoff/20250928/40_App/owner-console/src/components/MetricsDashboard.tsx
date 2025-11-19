@@ -6,6 +6,7 @@
  * Displays real-time system metrics, agent performance, and alerts
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription, AlertTitle, Badge, Tabs, TabsContent, TabsList, TabsTrigger, Progress } from '@morningai/shared-ui';
 import { 
   Activity, 
@@ -19,6 +20,7 @@ import {
   Server,
   Users
 } from 'lucide-react';
+import { apiClientWithMeta } from '../lib/api-client';
 
 interface MetricValue {
   current: number;
@@ -60,6 +62,94 @@ interface DashboardData {
   alerts: AlertItem[];
 }
 
+interface BackendDashboardResponse {
+  timestamp: string;
+  system_health: string | {
+    overall_status: 'healthy' | 'degraded' | 'unhealthy';
+    error_rate: number;
+    avg_latency: number;
+    open_circuit_breakers: number;
+    rejected_requests?: number;
+    active_sagas?: number;
+  };
+  circuit_breakers: Record<string, unknown>;
+  bulkheads: Record<string, unknown>;
+  saga_orchestrator?: {
+    active_sagas?: number;
+    completed_sagas?: number;
+  };
+  storage?: Record<string, unknown>;
+  trends?: Record<string, unknown>;
+  alerts: Array<{
+    level: 'critical' | 'warning' | 'info';
+    message: string;
+    timestamp: string;
+  }>;
+}
+
+/**
+ * Normalize backend response to frontend DashboardData structure
+ * Handles both cases: with metrics history (system_health is object) and without (system_health is string)
+ */
+function normalizeDashboardData(backendData: BackendDashboardResponse): DashboardData {
+  const systemHealth = typeof backendData.system_health === 'string'
+    ? {
+        overall_status: backendData.system_health as 'healthy' | 'degraded' | 'unhealthy',
+        error_rate: 0,
+        avg_latency: 0,
+        open_circuit_breakers: 0,
+      }
+    : {
+        overall_status: backendData.system_health.overall_status,
+        error_rate: backendData.system_health.error_rate,
+        avg_latency: backendData.system_health.avg_latency,
+        open_circuit_breakers: backendData.system_health.open_circuit_breakers,
+      };
+
+  const alerts: AlertItem[] = backendData.alerts.map((alert, index) => ({
+    id: `${alert.timestamp}-${index}`,
+    severity: alert.level,
+    message: alert.message,
+    timestamp: alert.timestamp,
+  }));
+
+  const errorRate = systemHealth.error_rate;
+  const successRate = Math.max(0, Math.min(1, 1 - errorRate)); // Clamp to [0, 1]
+  const activeSagas = backendData.saga_orchestrator?.active_sagas ?? 0;
+
+  const metrics = {
+    api_request_rate: {
+      current: 0,
+      unit: 'req/min',
+      trend: 'stable' as const,
+    },
+    agent_task_success_rate: {
+      current: successRate,
+      unit: '%',
+      trend: 'stable' as const,
+    },
+    queue_depth: {
+      current: 0,
+      unit: 'tasks',
+      trend: 'stable' as const,
+    },
+    active_agents: {
+      current: activeSagas,
+      unit: 'agents',
+      trend: 'stable' as const,
+    },
+  };
+
+  const agents: AgentMetrics[] = [];
+
+  return {
+    system_health: systemHealth,
+    metrics,
+    agents,
+    alerts,
+  };
+}
+
 const MetricCard: React.FC<{
   title: string;
   value: number;
@@ -69,8 +159,8 @@ const MetricCard: React.FC<{
   description?: string;
 }> = ({ title, value, unit, trend, icon, description }) => {
   const getTrendIcon = () => {
-    if (trend === 'up') return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (trend === 'down') return <TrendingDown className="h-4 w-4 text-red-500" />;
+    if (trend === 'up') return <TrendingUp className="h-4 w-4 text-success-600" />;
+    if (trend === 'down') return <TrendingDown className="h-4 w-4 text-error-600" />;
     return null;
   };
 
@@ -138,14 +228,15 @@ const AlertCard: React.FC<{ alert: AlertItem }> = ({ alert }) => {
 };
 
 const AgentStatusCard: React.FC<{ agent: AgentMetrics }> = ({ agent }) => {
+  const { t } = useTranslation();
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'active': return 'bg-green-500';
-      case 'idle': return 'bg-blue-500';
-      case 'busy': return 'bg-yellow-500';
-      case 'offline': return 'bg-gray-500';
-      case 'error': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'active': return 'bg-success-600';
+      case 'idle': return 'bg-primary-600';
+      case 'busy': return 'bg-warning-600';
+      case 'offline': return 'bg-neutral-500';
+      case 'error': return 'bg-error-600';
+      default: return 'bg-neutral-500';
     }
   };
 
@@ -161,27 +252,27 @@ const AgentStatusCard: React.FC<{ agent: AgentMetrics }> = ({ agent }) => {
           </Badge>
         </div>
         <CardDescription className="text-xs">
-          ID: {agent.agent_id.substring(0, 8)}...
+          {t('metricsDashboard.agent.idLabel', { id: agent.agent_id.substring(0, 8) })}...
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span>Reputation Score</span>
+              <span>{t('metricsDashboard.agent.reputationScore')}</span>
               <span className="font-medium">{agent.reputation_score}/999</span>
             </div>
             <Progress value={(agent.reputation_score / 999) * 100} />
           </div>
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span>Success Rate</span>
+              <span>{t('metricsDashboard.agent.successRate')}</span>
               <span className="font-medium">{(agent.task_success_rate * 100).toFixed(1)}%</span>
             </div>
             <Progress value={agent.task_success_rate * 100} />
           </div>
           <div className="flex justify-between text-xs pt-2 border-t">
-            <span>Active Tasks</span>
+            <span>{t('metricsDashboard.agent.activeTasks')}</span>
             <span className="font-medium">{agent.active_tasks}</span>
           </div>
         </div>
@@ -191,118 +282,40 @@ const AgentStatusCard: React.FC<{ agent: AgentMetrics }> = ({ agent }) => {
 };
 
 export const MetricsDashboard: React.FC = () => {
+  const { t } = useTranslation();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const isProduction = process.env.NODE_ENV === 'production';
-        const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || process.env.VITE_API_BASE_URL;
+        setLoading(true);
+        setError(null);
         
-        if (isProduction && !apiBaseUrl) {
+        const result = await apiClientWithMeta<BackendDashboardResponse>('/phase7/monitoring/dashboard', {
+          method: 'GET'
+        });
+
+        if (result.status === 200 && result.data) {
+          const normalizedData = normalizeDashboardData(result.data);
+          setDashboardData(normalizedData);
+          setLoading(false);
+          return;
+        } else if (result.status === 404) {
           throw new Error(
-            'CRITICAL: Metrics Dashboard cannot use mock data in production. ' +
-            'REACT_APP_API_BASE_URL or VITE_API_BASE_URL must be configured.'
+            'Metrics Dashboard API endpoint not found. ' +
+            'Please ensure the backend /phase7/monitoring/dashboard endpoint is implemented.'
           );
+        } else {
+          throw new Error(`API returned status ${result.status}`);
         }
-
-        if (apiBaseUrl) {
-          try {
-            const response = await fetch(`${apiBaseUrl}/api/phase7/monitoring/dashboard`, {
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              setDashboardData(data);
-              setUsingMockData(false);
-              setLoading(false);
-              return;
-            } else if (response.status === 404) {
-              if (isProduction) {
-                throw new Error(
-                  'CRITICAL: Metrics Dashboard API endpoint not implemented. ' +
-                  'Cannot display metrics in production without real data.'
-                );
-              }
-            } else {
-              throw new Error(`API error: ${response.status} ${response.statusText}`);
-            }
-          } catch (apiError) {
-            if (isProduction) {
-              throw apiError;
-            }
-            console.warn('Failed to fetch real metrics data, using mock data:', apiError);
-          }
-        }
-
-        console.warn(
-          '⚠️ DEVELOPMENT MODE: Using mock data for Metrics Dashboard. ' +
-          'This data is NOT real and should not be used for production decisions.'
-        );
-        
-        const mockData: DashboardData = {
-          system_health: {
-            overall_status: 'healthy',
-            error_rate: 0.02,
-            avg_latency: 0.15,
-            open_circuit_breakers: 0
-          },
-          metrics: {
-            api_request_rate: { current: 1250, unit: 'req/min', trend: 'up' },
-            agent_task_success_rate: { current: 0.96, unit: '%', trend: 'stable' },
-            queue_depth: { current: 12, unit: 'tasks', trend: 'down' },
-            active_agents: { current: 5, unit: 'agents', trend: 'stable' }
-          },
-          agents: [
-            {
-              agent_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-              agent_type: 'dev_agent',
-              status: 'active',
-              reputation_score: 750,
-              task_success_rate: 0.95,
-              active_tasks: 3
-            },
-            {
-              agent_id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-              agent_type: 'ops_agent',
-              status: 'busy',
-              reputation_score: 820,
-              task_success_rate: 0.98,
-              active_tasks: 5
-            },
-            {
-              agent_id: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
-              agent_type: 'pm_agent',
-              status: 'idle',
-              reputation_score: 680,
-              task_success_rate: 0.92,
-              active_tasks: 0
-            }
-          ],
-          alerts: [
-            {
-              id: '1',
-              severity: 'warning',
-              message: 'Queue depth elevated above normal levels',
-              timestamp: new Date().toISOString()
-            }
-          ]
-        };
-
-        setDashboardData(mockData);
-        setUsingMockData(true);
-        setLoading(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch dashboard data';
+        setError(errorMessage);
         setLoading(false);
+        setDashboardData(null);
       }
     };
 
@@ -320,7 +333,7 @@ export const MetricsDashboard: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Activity className="h-8 w-8 animate-spin mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Loading metrics...</p>
+          <p className="text-sm text-muted-foreground">{t('metricsDashboard.loadingMetrics')}</p>
         </div>
       </div>
     );
@@ -328,11 +341,36 @@ export const MetricsDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <div className="space-y-4 p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{t('metricsDashboard.error')}</AlertTitle>
+          <AlertDescription>
+            {error}
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-2 text-sm underline hover:no-underline"
+            >
+              {t('common.retry')}
+            </button>
+          </AlertDescription>
+        </Alert>
+        {import.meta.env.DEV && (
+          <Alert variant="default" className="border-blue-600 bg-blue-50">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800">{t('metricsDashboard.devInfo.title')}</AlertTitle>
+            <AlertDescription className="text-blue-700">
+              <p className="mb-2">{t('metricsDashboard.devInfo.description')}</p>
+              <code className="block bg-blue-100 p-2 rounded text-sm">
+                {t('metricsDashboard.devInfo.endpoint')}
+              </code>
+              <p className="mt-2 text-xs">
+                {t('metricsDashboard.devInfo.hint')}
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
     );
   }
 
@@ -342,34 +380,21 @@ export const MetricsDashboard: React.FC = () => {
 
   const getHealthStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy': return 'text-green-500';
-      case 'degraded': return 'text-yellow-500';
-      case 'unhealthy': return 'text-red-500';
-      default: return 'text-gray-500';
+      case 'healthy': return 'text-success-600';
+      case 'degraded': return 'text-warning-600';
+      case 'unhealthy': return 'text-error-600';
+      default: return 'text-neutral-500';
     }
   };
 
   return (
     <div className="space-y-6 p-6">
-      {/* Mock Data Warning */}
-      {usingMockData && (
-        <Alert variant="default" className="border-yellow-500 bg-yellow-50">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertTitle className="text-yellow-800">Development Mode - Mock Data</AlertTitle>
-          <AlertDescription className="text-yellow-700">
-            This dashboard is displaying simulated data for development purposes only.
-            Real metrics will be available once the monitoring backend is deployed.
-            <strong className="block mt-1">Do not use this data for production decisions.</strong>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Metrics Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('metricsDashboard.title')}</h1>
           <p className="text-muted-foreground">
-            Real-time system performance and agent monitoring
+            {t('metricsDashboard.subtitle')}
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -384,7 +409,9 @@ export const MetricsDashboard: React.FC = () => {
             onClick={() => setAutoRefresh(!autoRefresh)}
             className="text-sm text-muted-foreground hover:text-foreground"
           >
-            Auto-refresh: {autoRefresh ? 'ON' : 'OFF'}
+            {t('metricsDashboard.autoRefresh', { 
+              status: autoRefresh ? t('metricsDashboard.autoRefreshOn') : t('metricsDashboard.autoRefreshOff') 
+            })}
           </button>
         </div>
       </div>
@@ -401,60 +428,70 @@ export const MetricsDashboard: React.FC = () => {
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
-          title="API Request Rate"
+          title={t('metricsDashboard.metrics.apiRequestRate')}
           value={dashboardData.metrics.api_request_rate.current}
           unit={dashboardData.metrics.api_request_rate.unit}
           trend={dashboardData.metrics.api_request_rate.trend}
           icon={<Zap className="h-4 w-4 text-muted-foreground" />}
-          description="Requests per minute"
+          description={t('metricsDashboard.metrics.apiRequestRateDesc')}
         />
         <MetricCard
-          title="Task Success Rate"
+          title={t('metricsDashboard.metrics.taskSuccessRate')}
           value={dashboardData.metrics.agent_task_success_rate.current * 100}
           unit="%"
           trend={dashboardData.metrics.agent_task_success_rate.trend}
           icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />}
-          description="Agent task completion rate"
+          description={t('metricsDashboard.metrics.taskSuccessRateDesc')}
         />
         <MetricCard
-          title="Queue Depth"
+          title={t('metricsDashboard.metrics.queueDepth')}
           value={dashboardData.metrics.queue_depth.current}
           unit={dashboardData.metrics.queue_depth.unit}
           trend={dashboardData.metrics.queue_depth.trend}
           icon={<Clock className="h-4 w-4 text-muted-foreground" />}
-          description="Tasks waiting in queue"
+          description={t('metricsDashboard.metrics.queueDepthDesc')}
         />
         <MetricCard
-          title="Active Agents"
+          title={t('metricsDashboard.metrics.activeAgents')}
           value={dashboardData.metrics.active_agents.current}
           unit={dashboardData.metrics.active_agents.unit}
           trend={dashboardData.metrics.active_agents.trend}
           icon={<Users className="h-4 w-4 text-muted-foreground" />}
-          description="Currently active agents"
+          description={t('metricsDashboard.metrics.activeAgentsDesc')}
         />
       </div>
 
       {/* Detailed Tabs */}
       <Tabs defaultValue="agents" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="agents">Agents</TabsTrigger>
-          <TabsTrigger value="system">System Health</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="agents">{t('metricsDashboard.tabs.agents')}</TabsTrigger>
+          <TabsTrigger value="system">{t('metricsDashboard.tabs.systemHealth')}</TabsTrigger>
+          <TabsTrigger value="performance">{t('metricsDashboard.tabs.performance')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {dashboardData.agents.map((agent) => (
-              <AgentStatusCard key={agent.agent_id} agent={agent} />
-            ))}
-          </div>
+          {dashboardData.agents.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {dashboardData.agents.map((agent) => (
+                <AgentStatusCard key={agent.agent_id} agent={agent} />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground text-center">
+                  {t('metricsDashboard.agents.noData')}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="system" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('metricsDashboard.systemHealth.errorRate')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
@@ -468,27 +505,29 @@ export const MetricsDashboard: React.FC = () => {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Avg Latency</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('metricsDashboard.systemHealth.avgLatency')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {(dashboardData.system_health.avg_latency * 1000).toFixed(0)}ms
+                  {t('metricsDashboard.systemHealth.latencyValue', { 
+                    value: (dashboardData.system_health.avg_latency * 1000).toFixed(0) 
+                  })}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Target: &lt; 1000ms
+                  {t('metricsDashboard.systemHealth.latencyTarget')}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Circuit Breakers</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('metricsDashboard.systemHealth.circuitBreakers')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {dashboardData.system_health.open_circuit_breakers}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Open circuit breakers
+                  {t('metricsDashboard.systemHealth.openCircuitBreakers')}
                 </p>
               </CardContent>
             </Card>
@@ -498,15 +537,14 @@ export const MetricsDashboard: React.FC = () => {
         <TabsContent value="performance" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Performance Metrics</CardTitle>
+              <CardTitle>{t('metricsDashboard.performance.title')}</CardTitle>
               <CardDescription>
-                Detailed performance metrics and trends
+                {t('metricsDashboard.performance.subtitle')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Performance charts and detailed metrics will be displayed here.
-                Integration with monitoring backend in progress.
+                {t('metricsDashboard.performance.description')}
               </p>
             </CardContent>
           </Card>

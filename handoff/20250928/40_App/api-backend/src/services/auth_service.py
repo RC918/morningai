@@ -17,68 +17,201 @@ import logging
 import secrets
 from typing import Optional, Dict, Tuple
 from werkzeug.security import check_password_hash, generate_password_hash
+from common.config.settings import get_settings, settings
 
 logger = logging.getLogger(__name__)
-
-ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
-IS_PRODUCTION = ENVIRONMENT == 'production'
 
 # Token Configuration
 ACCESS_TOKEN_EXPIRY_MINUTES = 15
 REFRESH_TOKEN_EXPIRY_DAYS = 7
-JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')  # No default - must be set
 JWT_ALGORITHM = 'HS256'
 
-# Cookie Configuration
-COOKIE_SECURE = IS_PRODUCTION  # Always secure in production
-COOKIE_SAMESITE = os.environ.get('COOKIE_SAMESITE', 'Strict')  # Configurable: 'Strict', 'Lax', or 'None'
-COOKIE_HTTPONLY = True
-COOKIE_DOMAIN = os.environ.get('COOKIE_DOMAIN', None)  # Optional: restrict to specific domain
-COOKIE_PATH = os.environ.get('COOKIE_PATH', '/')  # Optional: restrict to specific path
+def _as_bool(val):
+    """Convert value to boolean"""
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return False
+    s = str(val).strip().lower()
+    return s in ("1", "true", "yes", "on")
 
-ENABLE_MOCK_USERS = os.environ.get('ENABLE_MOCK_USERS', 'true').lower() == 'true'
+def is_testing_mode():
+    """Check if running in testing mode (dynamic check)"""
+    try:
+        from flask import current_app
+        if current_app:
+            v = current_app.config.get("TESTING")
+            if v is not None:
+                return _as_bool(v)
+    except Exception:
+        pass
+    return _as_bool(os.getenv("TESTING"))
+
+def is_production():
+    """Check if running in production mode (dynamic check)
+    
+    Priority order:
+    1. os.environ ENVIRONMENT (explicit production setting - highest priority for tests)
+    2. os.environ FLASK_ENV (fallback if ENVIRONMENT not set)
+    3. Flask app.config ENVIRONMENT (explicit production setting)
+    4. Flask app.config FLASK_ENV (fallback if ENVIRONMENT not set)
+    5. Flask app.config TESTING (if True and no explicit env, return False)
+    6. settings.is_production (fallback)
+    
+    This ensures tests can explicitly set ENVIRONMENT=production to test production
+    behavior, even when FLASK_ENV=development or TESTING=True.
+    """
+    env = os.environ.get("ENVIRONMENT")
+    if env:
+        return env.lower() in ("production", "prod")
+    
+    flask_env = os.environ.get("FLASK_ENV")
+    if flask_env:
+        return flask_env.lower() in ("production", "prod")
+    
+    try:
+        from flask import current_app
+        if current_app:
+            env = current_app.config.get("ENVIRONMENT")
+            if env:
+                return str(env).lower() in ("production", "prod")
+            
+            flask_env = current_app.config.get("FLASK_ENV")
+            if flask_env:
+                return str(flask_env).lower() in ("production", "prod")
+    except Exception:
+        pass
+    
+    try:
+        from flask import current_app
+        if current_app and _as_bool(current_app.config.get("TESTING")):
+            return False
+    except Exception:
+        pass
+    
+    try:
+        return bool(get_settings().is_production)
+    except Exception:
+        return False
+
+def is_mock_users_enabled():
+    """Check if mock users are enabled (dynamic check)
+    
+    Test mode: Default to True unless explicitly overridden
+    Non-test mode: Default to False unless explicitly enabled
+    
+    Priority order in test mode:
+    1. os.environ ENABLE_MOCK_USERS (explicit override)
+    2. Flask app.config ENABLE_MOCK_USERS (explicit override)
+    3. Default to True (test mode default)
+    
+    Priority order in non-test mode:
+    1. Flask app.config ENABLE_MOCK_USERS (explicit override)
+    2. os.environ ENABLE_MOCK_USERS (explicit override)
+    3. settings.enable_mock_users (fallback)
+    4. Default to False
+    """
+    if is_testing_mode():
+        env_v = os.getenv("ENABLE_MOCK_USERS")
+        if env_v is not None:
+            return _as_bool(env_v)
+        
+        try:
+            from flask import current_app
+            if current_app and "ENABLE_MOCK_USERS" in current_app.config:
+                v = current_app.config.get("ENABLE_MOCK_USERS")
+                if v is not None:
+                    return _as_bool(v)
+        except Exception:
+            pass
+        
+        return True
+    
+    try:
+        from flask import current_app
+        if current_app and "ENABLE_MOCK_USERS" in current_app.config:
+            v = current_app.config.get("ENABLE_MOCK_USERS")
+            if v is not None:
+                return _as_bool(v)
+    except Exception:
+        pass
+    
+    env_v = os.getenv("ENABLE_MOCK_USERS")
+    if env_v is not None:
+        return _as_bool(env_v)
+    
+    try:
+        v = getattr(get_settings(), "enable_mock_users", None)
+        if v is not None:
+            return _as_bool(v)
+    except Exception:
+        pass
+    
+    return False
+
+def _get_jwt_secret():
+    """Get JWT secret key from settings at runtime"""
+    return get_settings().jwt_secret_key or 'test-secret-key-for-testing'
+
+# Cookie Configuration (read from settings at module load - these are less critical for tests)
+COOKIE_SECURE = settings.cookie_secure if settings.cookie_secure is not None else (True if settings.is_production else False)
+COOKIE_SAMESITE = settings.cookie_samesite or 'Lax'  # Configurable: 'Strict', 'Lax', or 'None'
+COOKIE_HTTPONLY = True
+COOKIE_DOMAIN = settings.cookie_domain  # Optional: restrict to specific domain
+COOKIE_PATH = settings.cookie_path or '/'  # Optional: restrict to specific path
 
 # CSRF Configuration
 CSRF_TOKEN_LENGTH = 32  # bytes
+
+FEATURE_2FA_PREAUTH = settings.feature_2fa_preauth if settings.feature_2fa_preauth is not None else False
+PREAUTH_TOKEN_TTL = settings.preauth_token_ttl or 300  # 5 minutes default
 
 
 def validate_security_config():
     """
     Validate security configuration at startup
     Fails fast in production if configuration is insecure
-    In non-production, auto-generates a secure test secret if missing
+    In non-production, logs warning if secret is missing (fallback used)
     """
-    global JWT_SECRET_KEY
     errors = []
     warnings = []
+    jwt_errors = []
     
-    if not JWT_SECRET_KEY:
-        if IS_PRODUCTION:
-            errors.append("JWT_SECRET_KEY environment variable is not set")
+    prod = is_production()
+    mock_users = is_mock_users_enabled()
+    
+    jwt_secret = _get_jwt_secret()
+    if not jwt_secret:
+        if prod:
+            jwt_errors.append("JWT_SECRET_KEY environment variable is not set")
         else:
-            JWT_SECRET_KEY = secrets.token_hex(32)
             logger.warning(
                 "JWT_SECRET_KEY not set in non-production environment. "
-                "Using auto-generated test secret. DO NOT USE IN PRODUCTION."
+                "Using fallback test secret. DO NOT USE IN PRODUCTION."
             )
-    elif IS_PRODUCTION:
-        if len(JWT_SECRET_KEY) < 32:
-            errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(JWT_SECRET_KEY)})")
-        if JWT_SECRET_KEY in ['your-secret-key', 'secret', 'changeme', 'test']:
-            errors.append("JWT_SECRET_KEY is using a known weak/default value")
+    elif prod:
+        if len(jwt_secret) < 32:
+            jwt_errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(jwt_secret)})")
+        if jwt_secret in ['your-secret-key', 'secret', 'changeme', 'test', 'test-secret-key-for-testing']:
+            jwt_errors.append("JWT_SECRET_KEY is using a known weak/default value")
     
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    if prod and mock_users:
         errors.append("ENABLE_MOCK_USERS must be false in production (current: true)")
     
     # P0-3: Validate Cookie Configuration
     if COOKIE_SAMESITE == 'None' and not COOKIE_SECURE:
         errors.append("COOKIE_SAMESITE=None requires COOKIE_SECURE=True (browsers will reject)")
     
-    if IS_PRODUCTION and not COOKIE_SECURE:
+    if prod and not COOKIE_SECURE:
         warnings.append("COOKIE_SECURE should be True in production")
     
     if COOKIE_SAMESITE not in ['Strict', 'Lax', 'None']:
         errors.append(f"COOKIE_SAMESITE must be 'Strict', 'Lax', or 'None' (current: {COOKIE_SAMESITE})")
+    
+    if jwt_errors:
+        for error in jwt_errors:
+            logger.error(f"Security configuration error: {error}")
+        raise RuntimeError(f"Invalid JWT secret in production: {'; '.join(jwt_errors)}")
     
     if errors:
         for error in errors:
@@ -90,10 +223,11 @@ def validate_security_config():
             logger.warning(f"Security configuration warning: {warning}")
     
     logger.info("Security configuration validated successfully")
-    logger.info(f"Environment: {ENVIRONMENT}")
+    env_name = settings.environment or 'development'
+    logger.info(f"Environment: {env_name}")
     logger.info(f"Cookie SameSite: {COOKIE_SAMESITE}")
     logger.info(f"Cookie Secure: {COOKIE_SECURE}")
-    logger.info(f"Mock Users Enabled: {ENABLE_MOCK_USERS}")
+    logger.info(f"Mock Users Enabled: {is_mock_users_enabled()}")
 
 
 def get_redis_client():
@@ -131,7 +265,7 @@ def generate_access_token(user_id: str, email: str, role: str) -> Tuple[str, int
         'exp': expiry
     }
     
-    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
     return token, expiry_timestamp
 
 
@@ -155,7 +289,7 @@ def generate_refresh_token(user_id: str, email: str) -> str:
         'exp': expiry
     }
     
-    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
     return token
 
 
@@ -167,7 +301,7 @@ def verify_access_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid
     """
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[JWT_ALGORITHM])
         
         if payload.get('type') != 'access':
             logger.warning("Token is not an access token")
@@ -190,7 +324,7 @@ def verify_refresh_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid/blacklisted
     """
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[JWT_ALGORITHM])
         
         if payload.get('type') != 'refresh':
             logger.warning("Token is not a refresh token")
@@ -371,14 +505,14 @@ def _get_mock_users() -> Dict:
     WARNING: Only available when ENABLE_MOCK_USERS=true
     In production, this returns empty dict
     """
-    if not ENABLE_MOCK_USERS:
+    if not is_mock_users_enabled():
         return {}
     
     return {
         'owner@morningai.com': {
             'id': 'owner-001',
             'email': 'owner@morningai.com',
-            'hashed_password': generate_password_hash(os.environ.get('OWNER_PASSWORD', 'owner123')),
+            'hashed_password': generate_password_hash(settings.owner_password or 'owner123'),
             'name': 'Platform Owner',
             'role': 'owner',
             'tenant_id': 'platform',
@@ -387,7 +521,7 @@ def _get_mock_users() -> Dict:
         'admin@morningai.com': {
             'id': 'admin-001',
             'email': 'admin@morningai.com',
-            'hashed_password': generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'admin123')),
+            'hashed_password': generate_password_hash(settings.admin_password or 'admin123'),
             'name': 'System Admin',
             'role': 'admin',
             'tenant_id': 'tenant-001',
@@ -400,62 +534,161 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     """
     Authenticate user with email and password
     
-    In production: Should integrate with real user database
-    In development: Uses mock users if ENABLE_MOCK_USERS=true
+    In production: Uses Supabase Auth
+    In development: Uses mock users if ENABLE_MOCK_USERS=true, otherwise Supabase Auth
     
     Returns:
         User dict or None if authentication failed
     """
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    if is_production() and is_mock_users_enabled():
         logger.error("Mock users should not be enabled in production")
         return None
     
-    mock_users = _get_mock_users()
+    if is_mock_users_enabled():
+        mock_users = _get_mock_users()
+        
+        user = mock_users.get(email)
+        if not user:
+            logger.warning(f"User not found: {email}")
+            return None
+        
+        if not check_password_hash(user['hashed_password'], password):
+            logger.warning(f"Invalid password for user: {email}")
+            return None
+        
+        return {
+            'id': user['id'],
+            'email': user['email'],
+            'name': user['name'],
+            'role': user['role'],
+            'tenant_id': user['tenant_id'],
+            'avatar': user['avatar']
+        }
     
-    user = mock_users.get(email)
-    if not user:
-        logger.warning(f"User not found: {email}")
+    import requests
+    
+    supabase_url = get_settings().supabase_url
+    supabase_anon_key = get_settings().supabase_anon_key
+    
+    if not supabase_url or not supabase_anon_key:
+        logger.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set when ENABLE_MOCK_USERS=false")
         return None
     
-    if not check_password_hash(user['hashed_password'], password):
-        logger.warning(f"Invalid password for user: {email}")
+    try:
+        auth_url = f"{supabase_url}/auth/v1/token?grant_type=password"
+        headers = {
+            'apikey': supabase_anon_key,
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            'email': email,
+            'password': password
+        }
+        
+        response = requests.post(auth_url, headers=headers, json=payload, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            user_data = data.get('user', {})
+            user_metadata = user_data.get('user_metadata', {}) or user_data.get('raw_user_meta_data', {})
+            
+            user_id = user_data.get('id')
+            user_email = user_data.get('email', email)
+            user_name = user_metadata.get('name', user_email.split('@')[0])
+            user_role = user_metadata.get('role', 'member')
+            tenant_id = user_metadata.get('tenant_id', user_metadata.get('tenantId'))
+            avatar = user_metadata.get('avatar')
+            
+            logger.info(f"User authenticated via Supabase: {user_email} (role: {user_role})")
+            
+            return {
+                'id': user_id,
+                'email': user_email,
+                'name': user_name,
+                'role': user_role,
+                'tenant_id': tenant_id,
+                'avatar': avatar
+            }
+        else:
+            logger.warning(f"Supabase Auth failed for {email}: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        logger.exception(f"Supabase Auth error for {email}: {e}")
         return None
-    
-    return {
-        'id': user['id'],
-        'email': user['email'],
-        'name': user['name'],
-        'role': user['role'],
-        'tenant_id': user['tenant_id'],
-        'avatar': user['avatar']
-    }
 
 
 def get_user_by_id(user_id: str) -> Optional[Dict]:
     """
     Get user by ID
     
-    In production: Should integrate with real user database
-    In development: Uses mock users if ENABLE_MOCK_USERS=true
+    In production: Uses Supabase Auth
+    In development: Uses mock users if ENABLE_MOCK_USERS=true, otherwise Supabase Auth
     
     Returns:
         User dict or None if not found
     """
-    if IS_PRODUCTION and ENABLE_MOCK_USERS:
+    if is_production() and is_mock_users_enabled():
         logger.error("Mock users should not be enabled in production")
         return None
     
-    mock_users = _get_mock_users()
+    if is_mock_users_enabled():
+        mock_users = _get_mock_users()
+        
+        for user in mock_users.values():
+            if user['id'] == user_id:
+                return {
+                    'id': user['id'],
+                    'email': user['email'],
+                    'name': user['name'],
+                    'role': user['role'],
+                    'tenant_id': user['tenant_id'],
+                    'avatar': user['avatar'],
+                    'hashed_password': user['hashed_password']
+                }
+        return None
     
-    for user in mock_users.values():
-        if user['id'] == user_id:
+    import requests
+    
+    supabase_url = get_settings().supabase_url
+    supabase_service_key = get_settings().supabase_service_role_key
+    
+    if not supabase_url or not supabase_service_key:
+        logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set when ENABLE_MOCK_USERS=false")
+        return None
+    
+    try:
+        admin_url = f"{supabase_url}/auth/v1/admin/users/{user_id}"
+        headers = {
+            'apikey': supabase_service_key,
+            'Authorization': f'Bearer {supabase_service_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.get(admin_url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            user_data = response.json()
+            user_metadata = user_data.get('user_metadata', {}) or user_data.get('raw_user_meta_data', {})
+            
+            user_email = user_data.get('email')
+            user_name = user_metadata.get('name', user_email.split('@')[0] if user_email else 'User')
+            user_role = user_metadata.get('role', 'member')
+            tenant_id = user_metadata.get('tenant_id', user_metadata.get('tenantId'))
+            avatar = user_metadata.get('avatar')
+            
             return {
-                'id': user['id'],
-                'email': user['email'],
-                'name': user['name'],
-                'role': user['role'],
-                'tenant_id': user['tenant_id'],
-                'avatar': user['avatar'],
-                'hashed_password': user['hashed_password']
+                'id': user_id,
+                'email': user_email,
+                'name': user_name,
+                'role': user_role,
+                'tenant_id': tenant_id,
+                'avatar': avatar
             }
-    return None
+        else:
+            logger.warning(f"Supabase get user failed for {user_id}: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        logger.exception(f"Supabase get user error for {user_id}: {e}")
+        return None

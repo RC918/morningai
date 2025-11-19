@@ -158,13 +158,13 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
     switch (status) {
       case 'good':
       case 'excellent':
-        return <CheckCircle2 className="h-4 w-4 text-green-600" />
+        return <CheckCircle2 className="h-4 w-4 text-success-600" />
       case 'needs_improvement':
-        return <AlertCircle className="h-4 w-4 text-yellow-600" />
+        return <AlertCircle className="h-4 w-4 text-warning-600" />
       case 'poor':
-        return <XCircle className="h-4 w-4 text-red-600" />
+        return <XCircle className="h-4 w-4 text-error-600" />
       default:
-        return <Activity className="h-4 w-4 text-gray-600" />
+        return <Activity className="h-4 w-4 text-neutral-600" />
     }
   }
 
@@ -482,7 +482,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                         <CardTitle className="text-sm">{t('metrics.analysis.taskPerformance.successRate')}</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold text-green-600">
+                        <div className="text-2xl font-bold text-success-600">
                           {report.task_performance.success_rate.toFixed(1)}%
                         </div>
                       </CardContent>
@@ -517,9 +517,9 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                       <div className="flex justify-between items-center">
                         <span className="text-sm">{t('metrics.analysis.taskPerformance.successfulTasks')}</span>
                         <div className="flex items-center gap-2">
-                          <div className="w-32 bg-gray-200 rounded-full h-2">
+                          <div className="w-32 bg-neutral-200 rounded-full h-2">
                             <div 
-                              className="bg-green-500 h-2 rounded-full"
+                              className="bg-success-500 h-2 rounded-full"
                               style={{ 
                                 width: `${(report.task_performance.successful_tasks / report.task_performance.total_tasks * 100)}%` 
                               }}
@@ -533,9 +533,9 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                       <div className="flex justify-between items-center">
                         <span className="text-sm">{t('metrics.analysis.taskPerformance.failedTasks')}</span>
                         <div className="flex items-center gap-2">
-                          <div className="w-32 bg-gray-200 rounded-full h-2">
+                          <div className="w-32 bg-neutral-200 rounded-full h-2">
                             <div 
-                              className="bg-red-500 h-2 rounded-full"
+                              className="bg-error-500 h-2 rounded-full"
                               style={{ 
                                 width: `${(report.task_performance.failed_tasks / report.task_performance.total_tasks * 100)}%` 
                               }}
@@ -579,11 +579,11 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                             </div>
                             <div className="flex items-center gap-2">
                               {data.improved ? (
-                                <TrendingDown className="h-4 w-4 text-green-600" />
+                                <TrendingDown className="h-4 w-4 text-success-600" />
                               ) : (
-                                <TrendingUp className="h-4 w-4 text-red-600" />
+                                <TrendingUp className="h-4 w-4 text-error-600" />
                               )}
-                              <span className={data.improved ? 'text-green-600' : 'text-red-600'}>
+                              <span className={data.improved ? 'text-success-600' : 'text-error-600'}>
                                 {data.change_percent > 0 ? '+' : ''}{data.change_percent}%
                               </span>
                             </div>
@@ -608,11 +608,11 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                         </div>
                         <div className="flex items-center gap-2">
                           {report.regression.task_success_rate.improved ? (
-                            <TrendingUp className="h-4 w-4 text-green-600" />
+                            <TrendingUp className="h-4 w-4 text-success-600" />
                           ) : (
-                            <TrendingDown className="h-4 w-4 text-red-600" />
+                            <TrendingDown className="h-4 w-4 text-error-600" />
                           )}
-                          <span className={report.regression.task_success_rate.improved ? 'text-green-600' : 'text-red-600'}>
+                          <span className={report.regression.task_success_rate.improved ? 'text-success-600' : 'text-error-600'}>
                             {report.regression.task_success_rate.change_percent > 0 ? '+' : ''}{report.regression.task_success_rate.change_percent}%
                           </span>
                         </div>
@@ -660,7 +660,7 @@ export function MetricsAnalysisDashboard(): React.ReactElement {
                 </div>
               ) : (
                 <Alert>
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <CheckCircle2 className="h-4 w-4 text-success-600" />
                   <AlertDescription>
                     <strong>{t('metrics.analysis.recommendations.greatJob')}</strong> {t('metrics.analysis.recommendations.allGood')}
                   </AlertDescription>

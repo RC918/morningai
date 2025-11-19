@@ -10,6 +10,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from common.config.settings import settings
 from tools.notification_service import NotificationService, create_notification_service
 
 
@@ -180,14 +181,14 @@ class TestNotificationServiceIntegration:
     """Integration tests with real services"""
     
     @pytest.mark.skipif(
-        not os.getenv('Mailtrap_API_TOKEN'),
+        not settings.mailtrap_api_token,
         reason="Mailtrap_API_TOKEN not set - skipping integration test"
     )
     @pytest.mark.asyncio
     async def test_send_email_mailtrap_real(self):
         """Test real Mailtrap email sending"""
         service = NotificationService(
-            mailtrap_token=os.getenv('Mailtrap_API_TOKEN')
+            mailtrap_token=settings.mailtrap_api_token
         )
         
         result = await service.send_email_mailtrap(

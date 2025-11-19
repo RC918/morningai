@@ -406,8 +406,7 @@ def get_dashboard_layout():
                 {'id': 'response_time', 'position': {'x': 0, 'y': 4, 'w': 6, 'h': 4}},
                 {'id': 'error_rate', 'position': {'x': 6, 'y': 4, 'w': 6, 'h': 4}},
                 {'id': 'active_strategies', 'position': {'x': 0, 'y': 8, 'w': 4, 'h': 3}},
-                {'id': 'pending_approvals', 'position': {'x': 4, 'y': 8, 'w': 4, 'h': 3}},
-                {'id': 'task_execution', 'position': {'x': 8, 'y': 8, 'w': 4, 'h': 6}}
+                {'id': 'pending_approvals', 'position': {'x': 4, 'y': 8, 'w': 4, 'h': 3}}
             ],
             'updated_at': datetime.datetime.now().isoformat()
         }
@@ -516,14 +515,6 @@ def get_available_widgets():
                 'category': 'cost',
                 'icon': 'trending-down',
                 'size': {'w': 4, 'h': 3}
-            },
-            {
-                'id': 'task_execution',
-                'name': '任務執行',
-                'description': '任務執行狀態與統計',
-                'category': 'workflow',
-                'icon': 'activity',
-                'size': {'w': 4, 'h': 6}
             }
         ]
         

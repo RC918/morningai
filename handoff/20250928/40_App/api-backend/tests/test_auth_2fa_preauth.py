@@ -63,10 +63,14 @@ def mock_redis():
 
 @pytest.fixture
 def mock_supabase():
-    """Mock Supabase client"""
-    with patch("supabase.create_client") as mock_create, patch(
-        "src.routes.auth_2fa.create_client"
-    ) as mock_create_2fa:
+    """Mock Supabase client with environment variables set"""
+    import os
+    with patch.dict(os.environ, {
+        "SUPABASE_URL": "http://test.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "test-service-role-key"
+    }, clear=False), \
+         patch("supabase.create_client") as mock_create, \
+         patch("src.routes.auth_2fa.create_client") as mock_create_2fa:
         supabase_mock = MagicMock()
 
         user_2fa_mock = MagicMock()
@@ -789,6 +793,65 @@ class TestAtomicTokenConsumption:
         assert len(results) == 2
         assert results.count(True) == 1
         assert results.count(False) == 1
+
+    def test_ttl_preserved_after_consumption(self, mock_redis):
+        """Test that TTL is preserved when a token is consumed atomically (Issue #1176)"""
+        from src.utils.pre_auth_token import get_pre_auth_manager, REDIS_KEY_PREFIX
+        import time
+
+        manager = get_pre_auth_manager()
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
+
+        payload = manager.verify_token(token)
+        assert payload is not None
+        jti = payload["jti"]
+
+        redis_key = f"{REDIS_KEY_PREFIX}:pre_auth:jti:{jti}"
+        
+        ttl_before = mock_redis.ttl(redis_key)
+        assert ttl_before > 0, "Token should have a positive TTL before consumption"
+        
+        time.sleep(0.1)
+        
+        result = manager.consume_token_atomic(jti)
+        assert result is True, "Token consumption should succeed"
+        
+        ttl_after = mock_redis.ttl(redis_key)
+        assert ttl_after > 0, "Token should still have a positive TTL after consumption"
+        
+        assert ttl_after <= ttl_before, "TTL should not increase after consumption"
+        assert ttl_after > 0, "TTL should be preserved, not removed"
+        
+        token_data = mock_redis.hgetall(redis_key)
+        assert token_data.get("consumed") == "True", "Token should be marked as consumed"
+        assert "consumed_at" in token_data, "consumed_at timestamp should be set"
+
+    def test_consumed_token_expires_automatically(self, mock_redis):
+        """Test that consumed tokens expire and are cleaned up automatically"""
+        from src.utils.pre_auth_token import get_pre_auth_manager, REDIS_KEY_PREFIX
+
+        manager = get_pre_auth_manager()
+        token = manager.generate_token("user-001", "test@example.com", "enroll")
+
+        payload = manager.verify_token(token)
+        assert payload is not None
+        jti = payload["jti"]
+
+        redis_key = f"{REDIS_KEY_PREFIX}:pre_auth:jti:{jti}"
+        
+        result = manager.consume_token_atomic(jti)
+        assert result is True
+        
+        assert mock_redis.exists(redis_key) == 1
+        token_data = mock_redis.hgetall(redis_key)
+        assert token_data.get("consumed") == "True"
+        
+        mock_redis.delete(redis_key)
+        
+        assert mock_redis.exists(redis_key) == 0
+        
+        result = manager.consume_token_atomic(jti)
+        assert result is False
 
 
 class TestProductionJWTSecretValidation:

@@ -7,6 +7,7 @@ import pytest
 import os
 from unittest.mock import Mock, AsyncMock
 
+from common.config.settings import settings
 from workflows.bug_fix_workflow import (
     BugFixWorkflow, BugFixState
 )
@@ -15,7 +16,7 @@ from dev_agent_wrapper import DevAgent
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(
-    not os.getenv('OPENAI_API_KEY') or not os.getenv('SUPABASE_URL'),
+    not settings.openai_api_key or not settings.supabase_url,
     reason="Requires OPENAI_API_KEY and SUPABASE_URL for full E2E test"
 )
 async def test_bug_fix_workflow_full_e2e():

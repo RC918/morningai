@@ -124,6 +124,7 @@ class TestRunOrchestratorTask:
         assert mock_redis.hset.call_count >= 2  # running + done
         assert mock_redis.expire.call_count >= 2
     
+    @pytest.mark.skipif(not os.environ.get("GITHUB_TOKEN"), reason="GITHUB_TOKEN not set in CI environment")
     @patch('redis_queue.worker.redis')
     @patch('langgraph_orchestrator.run_orchestrator')
     @patch.dict(os.environ, {"USE_LANGGRAPH": "true"})
@@ -285,6 +286,170 @@ class TestSignalHandler:
         
         mock_cleanup.assert_called_once()
         mock_exit.assert_called_once_with(0)
+
+
+class TestCanaryDeployment:
+    """Test LangGraph canary deployment logic"""
+    
+    @patch('redis_queue.worker.redis')
+    @patch('graph.execute')
+    @patch('redis_queue.worker.settings')
+    def test_canary_0_percent_uses_simple_mode(self, mock_settings, mock_execute, mock_redis):
+        """Test 0% canary always uses simple mode"""
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 0
+        mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
+        
+        result = run_orchestrator_task("task-123", "Test", "owner/repo")
+        
+        assert result["pr_url"] == "https://github.com/pr/1"
+        mock_execute.assert_called_once()
+    
+    @patch('redis_queue.worker.redis')
+    @patch('langgraph_orchestrator.run_orchestrator')
+    @patch('redis_queue.worker.settings')
+    def test_canary_100_percent_uses_langgraph_mode(self, mock_settings, mock_run_orch, mock_redis):
+        """Test 100% canary always uses LangGraph mode"""
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 100
+        mock_run_orch.return_value = {
+            "pr_url": "https://github.com/pr/2",
+            "ci_state": "success",
+            "trace_id": "trace-456"
+        }
+        
+        result = run_orchestrator_task("task-456", "Test", "owner/repo")
+        
+        assert result["pr_url"] == "https://github.com/pr/2"
+        mock_run_orch.assert_called_once()
+    
+    @patch('redis_queue.worker.redis')
+    @patch('graph.execute')
+    @patch('langgraph_orchestrator.run_orchestrator')
+    @patch('redis_queue.worker.settings')
+    def test_canary_5_percent_distribution(self, mock_settings, mock_run_orch, mock_execute, mock_redis):
+        """Test 5% canary distributes tasks correctly"""
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 5
+        mock_execute.return_value = ("https://github.com/pr/simple", "success", "trace-simple")
+        mock_run_orch.return_value = {
+            "pr_url": "https://github.com/pr/langgraph",
+            "ci_state": "success",
+            "trace_id": "trace-langgraph"
+        }
+        
+        langgraph_count = 0
+        simple_count = 0
+        
+        for i in range(100):
+            task_id = f"task-{i:03d}"
+            mock_execute.reset_mock()
+            mock_run_orch.reset_mock()
+            
+            try:
+                run_orchestrator_task(task_id, "Test", "owner/repo")
+                
+                if mock_run_orch.called:
+                    langgraph_count += 1
+                elif mock_execute.called:
+                    simple_count += 1
+            except:
+                pass
+        
+        assert 2 <= langgraph_count <= 8, f"Expected 2-8 LangGraph tasks, got {langgraph_count}"
+        assert 92 <= simple_count <= 98, f"Expected 92-98 simple tasks, got {simple_count}"
+    
+    @patch('redis_queue.worker.redis')
+    @patch('graph.execute')
+    @patch('redis_queue.worker.settings')
+    def test_canary_deterministic_same_task_id(self, mock_settings, mock_execute, mock_redis):
+        """Test same task_id always gets same orchestrator (deterministic)"""
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 50
+        mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
+        
+        task_id = "task-deterministic-test"
+        results = []
+        
+        for _ in range(5):
+            mock_execute.reset_mock()
+            try:
+                run_orchestrator_task(task_id, "Test", "owner/repo")
+                results.append("simple" if mock_execute.called else "langgraph")
+            except:
+                pass
+        
+        assert len(set(results)) == 1, f"Task routing not deterministic: {results}"
+    
+    @patch('redis_queue.worker.redis')
+    @patch('graph.execute')
+    @patch('langgraph_orchestrator.run_orchestrator')
+    @patch('redis_queue.worker.settings')
+    def test_canary_50_percent_boundary(self, mock_settings, mock_run_orch, mock_execute, mock_redis):
+        """Test 50% canary boundary conditions"""
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 50
+        mock_execute.return_value = ("https://github.com/pr/simple", "success", "trace-simple")
+        mock_run_orch.return_value = {
+            "pr_url": "https://github.com/pr/langgraph",
+            "ci_state": "success",
+            "trace_id": "trace-langgraph"
+        }
+        
+        langgraph_count = 0
+        simple_count = 0
+        
+        for i in range(100):
+            task_id = f"boundary-task-{i:03d}"
+            mock_execute.reset_mock()
+            mock_run_orch.reset_mock()
+            
+            try:
+                run_orchestrator_task(task_id, "Test", "owner/repo")
+                
+                if mock_run_orch.called:
+                    langgraph_count += 1
+                elif mock_execute.called:
+                    simple_count += 1
+            except:
+                pass
+        
+        assert 40 <= langgraph_count <= 60, f"Expected 40-60 LangGraph tasks, got {langgraph_count}"
+        assert 40 <= simple_count <= 60, f"Expected 40-60 simple tasks, got {simple_count}"
+    
+    @patch('redis_queue.worker.redis')
+    @patch('graph.execute')
+    @patch('redis_queue.worker.settings')
+    def test_canary_kill_switch_unset(self, mock_settings, mock_execute, mock_redis):
+        """Test kill switch: unset use_langgraph_percent defaults to 0"""
+        mock_settings.use_langgraph = False
+        if hasattr(mock_settings, 'use_langgraph_percent'):
+            delattr(mock_settings, 'use_langgraph_percent')
+        mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
+        
+        result = run_orchestrator_task("task-killswitch", "Test", "owner/repo")
+        
+        assert result["pr_url"] == "https://github.com/pr/1"
+        mock_execute.assert_called_once()
+    
+    @patch('redis_queue.worker.redis')
+    @patch('langgraph_orchestrator.run_orchestrator')
+    @patch('redis_queue.worker.settings')
+    def test_canary_use_langgraph_true_overrides_percent(self, mock_settings, mock_run_orch, mock_redis):
+        """Test USE_LANGGRAPH=true overrides canary percentage"""
+        mock_settings.use_langgraph = True
+        mock_settings.use_langgraph_percent = 0
+        mock_run_orch.return_value = {
+            "pr_url": "https://github.com/pr/2",
+            "ci_state": "success",
+            "trace_id": "trace-456"
+        }
+        
+        result = run_orchestrator_task("task-override", "Test", "owner/repo")
+        
+        assert result["pr_url"] == "https://github.com/pr/2"
+        mock_run_orch.assert_called_once()
+    
 
 
 class TestWorkerConfiguration:

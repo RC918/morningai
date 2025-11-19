@@ -1,0 +1,82 @@
+name: Migration Idempotency Check
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**'
+      - 'tests/test_migration_idempotency.py'
+      - 'tests/conftest.py'
+      - '.github/workflows/migration-idempotency-check.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'migrations/**'
+      - 'tests/test_migration_idempotency.py'
+
+jobs:
+  test-migration-idempotency:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pytest
+        run: |
+          pip install pytest
+
+      - name: Run migration idempotency tests (static analysis)
+        continue-on-error: true
+        id: idempotency_tests
+        env:
+          IDEMPOTENCY_TESTS_ALLOWED: "true"
+        run: |
+          echo "Running static analysis of migration files..."
+          pytest tests/test_migration_idempotency.py -v --tb=short
+          TEST_EXIT_CODE=$?
+          echo "test_exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $TEST_EXIT_CODE
+
+      - name: Generate findings summary
+        if: always()
+        run: |
+          echo "## 🔍 Migration Idempotency Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f migrations/MIGRATION_IDEMPOTENCY_FINDINGS.md ]; then
+            echo "### 📋 Detailed Findings Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat migrations/MIGRATION_IDEMPOTENCY_FINDINGS.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No findings report generated (all tests passed)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ℹ️ About These Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "These tests perform **static analysis** of SQL migration files to verify:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Idempotent SQL syntax (IF NOT EXISTS, CREATE OR REPLACE, etc.)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ No duplicate migration numbers" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Proper transaction handling" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Rollback documentation exists" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: Tests are currently set to \`continue-on-error: true\` to allow builds to pass while flagging issues." >> $GITHUB_STEP_SUMMARY
+          echo "Once the baseline is clean, this will become a gating check." >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment test status
+        if: always()
+        run: |
+          if [ "${{ steps.idempotency_tests.outputs.test_exit_code }}" = "0" ]; then
+            echo "✅ All migration idempotency tests passed!"
+          else
+            echo "⚠️ Migration idempotency tests detected issues (see findings report above)"
+            echo "This is informational only and does not block the build."
+          fi

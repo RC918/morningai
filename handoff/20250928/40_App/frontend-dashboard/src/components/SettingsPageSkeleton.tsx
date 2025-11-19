@@ -23,7 +23,7 @@ import {
   AlertTriangle,
   Check
 } from 'lucide-react'
-import { colors, spacing, typography } from '@/lib/design-tokens'
+import { colors, spacing, typography } from '@morningai/shared-ui'
 import apiClient from '@/lib/api'
 
 interface UserPreferences {
@@ -143,8 +143,8 @@ const SettingsPageSkeleton = (): React.ReactElement => {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('settings.title')}</h1>
-          <p className="text-gray-600">{t('settings.description')}</p>
+          <h1 className="text-3xl font-bold text-neutral-900 mb-2">{t('settings.title')}</h1>
+          <p className="text-neutral-600">{t('settings.description')}</p>
         </div>
         {hasChanges && (
           <AppleButton onClick={saveSettings} disabled={saving}>
@@ -272,7 +272,7 @@ const SettingsPageSkeleton = (): React.ReactElement => {
                     <Label htmlFor={key} className="text-sm font-medium">
                       {t(`settings.notifications.${key}`)}
                     </Label>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-neutral-600">
                       {t(`settings.notifications.${key}Description`)}
                     </p>
                   </div>
@@ -300,11 +300,11 @@ const SettingsPageSkeleton = (): React.ReactElement => {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">{t('settings.security.twoFactor')}</Label>
-                  <p className="text-sm text-gray-600">{t('settings.security.twoFactorDescription')}</p>
+                  <p className="text-sm text-neutral-600">{t('settings.security.twoFactorDescription')}</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   {settings?.security_settings?.two_factor_enabled && (
-                    <Badge variant="secondary" className="text-green-600">
+                    <Badge variant="secondary" className="text-success-600">
                       <Check className="w-3 h-3 mr-1" />
                       {t('settings.security.twoFactorEnabled')}
                     </Badge>
@@ -330,7 +330,7 @@ const SettingsPageSkeleton = (): React.ReactElement => {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">{t('settings.security.auditLogging')}</Label>
-                  <p className="text-sm text-gray-600">{t('settings.security.auditLoggingDescription')}</p>
+                  <p className="text-sm text-neutral-600">{t('settings.security.auditLoggingDescription')}</p>
                 </div>
                 <Switch
                   checked={settings?.security_settings?.audit_logging}
@@ -354,7 +354,7 @@ const SettingsPageSkeleton = (): React.ReactElement => {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">{t('settings.system.autoApproval')}</Label>
-                  <p className="text-sm text-gray-600">{t('settings.system.autoApprovalDescription')}</p>
+                  <p className="text-sm text-neutral-600">{t('settings.system.autoApprovalDescription')}</p>
                 </div>
                 <Switch
                   checked={settings?.system_config?.auto_approval}
@@ -409,14 +409,14 @@ const SettingsPageSkeleton = (): React.ReactElement => {
                 <div>
                   <Label className="text-sm font-medium">{t('settings.billing.currentPlan')}</Label>
                   <div className="flex items-center mt-1">
-                    <Badge variant="secondary" className="text-blue-600">
+                    <Badge variant="secondary" className="text-info-600">
                       {settings?.billing_info?.current_plan?.toUpperCase()}
                     </Badge>
                   </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">{t('settings.billing.billingCycle')}</Label>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-neutral-600 mt-1">
                     {settings?.billing_info?.billing_cycle === 'monthly' ? t('settings.billing.billingCycleMonthly') : t('settings.billing.billingCycleYearly')}
                   </p>
                 </div>
@@ -426,14 +426,14 @@ const SettingsPageSkeleton = (): React.ReactElement => {
 
               <div>
                 <Label className="text-sm font-medium">{t('settings.billing.nextBillingDate')}</Label>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-neutral-600 mt-1">
                   {settings?.billing_info?.next_billing_date}
                 </p>
               </div>
 
               <div>
                 <Label className="text-sm font-medium">{t('settings.billing.paymentMethod')}</Label>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-neutral-600 mt-1">
                   {settings?.billing_info?.payment_method}
                 </p>
               </div>

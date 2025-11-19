@@ -1,5 +1,15 @@
 # MorningAI Environment Architecture
 
+---
+
+⚠️ **SECURITY NOTICE**: This document contains references to sensitive environment variables.
+- 🔒 Variables marked with lock icon are **SECRETS** - never log, commit, or share
+- All example values are placeholders - generate unique secrets for each environment
+- Rotate secrets immediately if exposed
+- Use `python -c "import secrets; print(secrets.token_urlsafe(64))"` to generate secure secrets
+
+---
+
 ## Overview
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
@@ -45,9 +55,18 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 | Component | Role | Maturity | Service | Path |
 |-----------|------|----------|---------|------|
 | **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` |
-| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+| **Worker Orchestrator** | Task Execution (RQ) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
 
-**Architecture**: Producer (API) receives HTTP requests and enqueues tasks to Redis. Consumer (Worker) polls Redis and executes tasks using LangGraph workflows.
+**Dual Execution Modes**:
+- **Simple Mode** (Production): `handoff/20250928/40_App/orchestrator/graph.py` - Fast, stateless execution
+  - Currently enabled via `USE_LANGGRAPH=false` in `render.yaml:48-49`
+  - Direct sequential execution without state machine overhead
+- **LangGraph Mode** (Optional): `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py:1-422` - Full state machine
+  - Complete implementation with retry logic, CI monitoring, and state persistence
+  - Can be enabled via `USE_LANGGRAPH=true` environment variable
+  - Runtime selection at `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:303-307`
+
+**Architecture**: Producer (API) receives HTTP requests and enqueues tasks to Redis. Consumer (Worker) polls Redis and executes tasks using either simple mode or LangGraph workflows based on configuration.
 
 **Documentation**: [ADR-001: Dual Orchestrator Architecture](adr/001-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](adr/002-producer-consumer-architecture.md)
 
@@ -64,9 +83,13 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 
 #### Database
 - **Provider**: Supabase PostgreSQL
+- **Project Name**: `morningai` (production)
+- **Project ID**: `qevmlbsunnwgrsdibdoi`
+- **URL**: https://qevmlbsunnwgrsdibdoi.supabase.co
 - **Type**: Production instance
 - **Connection**: Pooler (port 6543)
 - **Backups**: Automatic daily backups
+- **Schema**: Full production schema with all tables
 
 #### Redis
 - **Provider**: Upstash
@@ -81,21 +104,65 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 
 ### Environment Variables
 
+**Schema Definition**: `config/env.schema.yaml` (Single Source of Truth)
+- **Total Defined**: 121 variables (20 required, 101 optional)
+- **Schema Version**: 1.1 (Phase 11 + Missing Variables)
+- **Auto-Generated**: `.env.example` is generated from schema via `scripts/generate-env-examples.py`
+- **CI Validation**: `tests/lint/test_env_vars_defined.py` validates all `os.getenv()` calls against schema
+- **Deprecation**: Root `env_schema.yaml` is deprecated; use `config/env.schema.yaml` only
+
+**Phase 11 New Variables** (Added 2025-11):
+- **2FA/Authentication**: 
+  - `FEATURE_2FA_PREAUTH` (boolean, safe to log)
+  - `PREAUTH_TOKEN_TTL` (integer seconds, safe to log)
+  - 🔒 `TOTP_ENCRYPTION_KEY` (**SECRET** - DO NOT LOG/COMMIT - 32 bytes base64 encoded)
+- **Rate Limiting**: `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_BY_USER`, `RATE_LIMIT_FAIL_FAST`, `RATE_LIMIT_REDIS_MAX_RETRIES`, `RATE_LIMIT_REDIS_RETRY_DELAY`
+- **Testing** (⚠️ **TEST ENVIRONMENTS ONLY** - NEVER SET IN PRODUCTION):
+  - `TESTING` (boolean) - Enables test mode behaviors
+  - 🚫 `FORCE_ENABLE_2FA_IN_TESTS` (boolean) - **DANGEROUS** - Can bypass security controls
+    - ⚠️ **CRITICAL**: This flag MUST ONLY be set in test environments
+    - ⚠️ Setting in production/staging can disable 2FA enforcement
+    - ⚠️ CI should fail if this is set in production/staging environments
+- **Database**: `DB_POOL_MAX`, `DB_POOL_SIZE`, `DB_POOL_RECYCLE`, `DB_POOL_PRE_PING`
+- **Redis**: `REDIS_KEY_PREFIX`, `RQ_QUEUE_NAME`
+- **Security**: `COOKIE_DOMAIN`, `COOKIE_PATH`, `FEATURE_COOKIE_AUTH`
+- **Operations**: `DEBUG`, `FAQ_CACHE_TTL`, `ORCHESTRATOR_PATH`, `OPENAI_MAX_DAILY_COST`
+- **Deployment**: `GIT_COMMIT`, `RENDER_GIT_COMMIT`, `SENTRY_ENVIRONMENT`
+- **Governance**: `ALLOW_GOVERNANCE_MOCK`, `ENABLE_MOCK_USERS`
+
+**Redis Requirements**:
+- **Minimum Version**: Redis 2.6+ (required for Lua EVAL support used in atomic pre-auth token consumption)
+- **Recommended**: Upstash Redis or self-hosted Redis 8.2.2+ with TLS (`rediss://`)
+- **Security**: CVE-2025-49844 protection requires TLS-enabled connections
+
 **Critical Variables**:
 ```bash
+# ⚠️ EXAMPLE CONFIGURATION - NEVER USE THESE PLACEHOLDER VALUES IN PRODUCTION
+# Generate secure secrets: python -c "import secrets; print(secrets.token_urlsafe(64))"
+
 ENVIRONMENT=production
 DATABASE_URL=postgresql://...
 REDIS_URL=rediss://...
-JWT_SECRET_KEY=<production-secret>
-SECRET_KEY=<production-secret>
-MASTER_ENCRYPTION_KEY=<production-secret>
-ORCHESTRATOR_JWT_SECRET=<production-secret>
+
+# 🔒 SECRETS - Minimum 64 characters, cryptographically random
+JWT_SECRET_KEY=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING           # 🔒 SECRET - DO NOT LOG
+SECRET_KEY=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING               # 🔒 SECRET - DO NOT LOG
+MASTER_ENCRYPTION_KEY=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING    # 🔒 SECRET - DO NOT LOG
+ENCRYPTION_MASTER_KEY=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING    # 🔒 SECRET - Alias for MASTER_ENCRYPTION_KEY
+TOTP_ENCRYPTION_KEY=CHANGEME_GENERATE_RANDOM_32_BYTES_BASE64     # 🔒 SECRET - 32 bytes base64 - Required for 2FA
+ORCHESTRATOR_JWT_SECRET=CHANGEME_GENERATE_RANDOM_64_CHAR_STRING  # 🔒 SECRET - DO NOT LOG
 ```
 
 **Monitoring**:
 ```bash
 SENTRY_DSN=<production-dsn>
 SENTRY_ENVIRONMENT=production
+```
+
+**Orchestrator Configuration**:
+```bash
+USE_LANGGRAPH=false  # Production uses simple mode (set in render.yaml:48-49)
+# Set to 'true' to enable LangGraph mode with full state machine
 ```
 
 **Rate Limiting**:
@@ -204,6 +271,10 @@ RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (expo
 - **URL**: https://dckisglnlemvpvmyvnut.supabase.co
 - **Connection**: Pooler (port 6543)
 - **Data**: Separate from production
+- **Schema**: Minimal test schema (tenants, user_profiles, agent_tasks)
+- **Purpose**: RLS testing and security validation
+
+⚠️ **Important**: Staging database has a minimal schema for security testing. Not all production tables exist in staging. This is intentional to keep the staging environment lightweight and focused on P0 security testing.
 
 #### Redis
 - **Provider**: Upstash (shared with production)
@@ -356,6 +427,22 @@ RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempt
 RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
 ```
 
+**Testing Flags** (⚠️ **DEVELOPMENT/TEST ONLY** - Added Nov 2025):
+```bash
+# Enable rate limiting in test environment (default: false)
+ENABLE_RATE_LIMIT_IN_TESTS=false
+
+# Enable Playwright browser E2E tests (requires staging credentials)
+RUN_PY_BROWSER_E2E=false
+
+# Flask environment mode (now accepts 'testing' for test environments)
+FLASK_ENV=testing  # Options: development, staging, production, testing (default: development)
+```
+
+**⚠️ CRITICAL:** These flags MUST ONLY be set in test/development environments. Never set in production/staging.
+
+**Schema:** See `config/env.schema.yaml` for complete definitions and constraints.
+
 **Frontend `.env.local`**:
 ```bash
 VITE_API_URL=http://localhost:8000
@@ -367,10 +454,209 @@ VITE_API_URL=https://morningai-backend-v2-stg.onrender.com
 VITE_ORCHESTRATOR_URL=https://morningai-orchestrator-api-stg.onrender.com
 ```
 
+**VITE_API_BASE_URL** (Frontend - Added/Updated Nov 2025):
+```bash
+# For Vercel preview/production deployments (uses Vercel proxy)
+VITE_API_BASE_URL=/api
+
+# For local development or direct backend access
+VITE_API_BASE_URL=http://localhost:8000/api
+# or
+VITE_API_BASE_URL=https://morningai-backend-v2-stg.onrender.com/api
+```
+
+**Important:** The value must include the `/api` suffix. For Vercel deployments, use `/api` (relative path) to leverage Vercel's proxy. For direct backend access, use the full URL with `/api` suffix.
+
+**Schema:** See `config/env.schema.yaml` for complete definition.
+
+**VITE_TRACE_VIEWER_URL** (Frontend - Added Nov 2025):
+```bash
+# Optional: URL for observability platform trace viewer
+# Used to link trace IDs in Agent Execution Logs to detailed trace views
+# Leave empty or unset to disable trace links
+
+# Jaeger
+VITE_TRACE_VIEWER_URL=https://jaeger.gm365.me
+
+# Tempo (Grafana)
+VITE_TRACE_VIEWER_URL=https://tempo.gm365.me
+
+# Grafana Explore
+VITE_TRACE_VIEWER_URL=https://grafana.gm365.me/explore
+
+# For testing (any URL)
+VITE_TRACE_VIEWER_URL=https://example.com
+```
+
+**Behavior:**
+- When set: External link icon appears next to trace IDs in Agent Execution Logs
+- When unset or empty: Only copy button appears (no external link)
+- Link format: `{VITE_TRACE_VIEWER_URL}/trace/{encoded_trace_id}`
+- Security: Trace IDs are automatically URL-encoded using `encodeURIComponent()`
+
+**Usage Locations:**
+- Owner Console → Agent Governance → Agent Execution Logs (desktop table view)
+- Owner Console → Agent Governance → Agent Execution Logs (mobile card view)
+- Owner Console → Agent Governance → Agent Execution Logs (execution details drawer)
+
+**Testing:**
+1. Set `VITE_TRACE_VIEWER_URL` in `.env.local` or Vercel environment variables
+2. Navigate to Agent Governance page in Owner Console
+3. Verify external link icon appears next to trace IDs
+4. Click link to verify it opens in new tab with correct URL format
+
+**Schema:** See `config/env.schema.yaml` for complete definition.
+
 ### Setup Documentation
 
 For complete local development setup instructions, see:
 - **[Local Development Setup](setup_local.md)** - Quick start guide and troubleshooting
+
+---
+
+## 🔔 Monitor Orchestrator Behavior
+
+The monitor orchestrator (`scripts/monitor_orchestrator.py`) performs health checks and queue monitoring for the Orchestrator API.
+
+### Slack Notifications
+
+**Graceful Degradation** (Default Behavior):
+- **Optional**: If `SLACK_WEBHOOK_URL` is not configured, the monitor will continue to run
+- **Console Fallback**: Alerts are printed to console instead of sent to Slack
+- **Use Case**: Allows CI/CD workflows (GitHub Actions) to succeed even without Slack integration
+- **Exit Code**: Monitor exit code reflects health/queue check results, not Slack notification status
+
+**Production Recommendations**:
+- ✅ **Recommended**: Configure `SLACK_WEBHOOK_URL` in GitHub Secrets for real-time alerts
+- ✅ Monitor GitHub Actions logs for console output when Slack is not configured
+- ⚠️ **Warning**: If Slack webhook is accidentally removed, alerts will only appear in logs
+
+**Configuration**:
+```bash
+# Optional - enables Slack notifications
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+
+# Optional - override default Orchestrator API URL
+ORCHESTRATOR_API_URL=https://morningai-orchestrator-api.onrender.com
+```
+
+**Behavior Examples**:
+
+*With Slack configured*:
+```bash
+$ python scripts/monitor_orchestrator.py
+Checking health: https://morningai-orchestrator-api.onrender.com/health
+✓ Health check passed (response time: 0.23s)
+✓ Queue stats: pending=5, processing=2, total=7
+✓ All checks passed
+# Slack alert sent to channel
+```
+
+*Without Slack configured*:
+```bash
+$ python scripts/monitor_orchestrator.py
+[WARNING] SLACK_WEBHOOK_URL not configured - Slack alerts disabled
+[INFO] Continuing with health checks only (no Slack notifications)
+Checking health: https://morningai-orchestrator-api.onrender.com/health
+✓ Health check passed (response time: 0.23s)
+✓ Queue stats: pending=5, processing=2, total=7
+✓ All checks passed
+# No Slack alert sent - alerts printed to console only
+```
+
+*When critical issues detected (without Slack)*:
+```bash
+$ python scripts/monitor_orchestrator.py
+[WARNING] SLACK_WEBHOOK_URL not configured - Slack alerts disabled
+[INFO] Continuing with health checks only (no Slack notifications)
+Checking health: https://morningai-orchestrator-api.onrender.com/health
+[CRITICAL] Health Check Failed - Connection Error
+Unable to connect to the API.
+URL: https://morningai-orchestrator-api.onrender.com/health
+Possible causes: Service is down, network issue, or DNS problem
+✗ Some checks failed
+# Exit code: 1 (failure)
+```
+
+**GitHub Actions Integration**:
+
+The monitor runs every 5 minutes via GitHub Actions workflow (`.github/workflows/monitor-orchestrator.yml`). The workflow will:
+- ✅ **Succeed** if health checks pass (even without Slack configured)
+- ❌ **Fail** if health checks fail (alerts visible in workflow logs)
+- 📊 Alerts are visible in GitHub Actions logs regardless of Slack configuration
+
+---
+
+## 🔧 Import Path Configuration
+
+Services that import the `common` module use a multi-tier fallback mechanism to ensure imports work across all environments.
+
+### Priority Order
+
+| Priority | Mechanism | Use Case | Example |
+|----------|-----------|----------|---------|
+| 1 | REPO_ROOT | Explicit control | `REPO_ROOT=/app` |
+| 2 | PYTHONPATH | Standard Python | `PYTHONPATH=/app:/other` |
+| 3 | Marker files | Auto-discovery | `.git`, `pyproject.toml`, `env.schema.yaml` or `env_schema.yaml` |
+
+### Configuration by Environment
+
+**Docker Containers**:
+```dockerfile
+ENV REPO_ROOT=/app
+ENV PYTHONPATH=/app
+```
+
+**Render Services**:
+```yaml
+envVars:
+  - key: REPO_ROOT
+    value: /app
+  - key: PYTHONPATH
+    value: /app
+  - key: DEBUG_IMPORTS
+    value: "false"  # Set to "true" for troubleshooting
+```
+
+**Local Development**:
+```bash
+export REPO_ROOT=/path/to/morningai
+export DEBUG_IMPORTS=true
+```
+
+### Debugging Import Issues
+
+**Enable import debugging**:
+```bash
+DEBUG_IMPORTS=true python monitoring/braintrust_processor.py
+```
+
+**Expected output**:
+```
+✅ sys.path bootstrap: REPO_ROOT=/app
+Final sys.path (first 3): ['', '/app', '/usr/local/lib/python311.zip']
+```
+
+**Verify configuration in Docker**:
+```bash
+# Check environment variables
+docker exec <container> env | grep -E 'REPO_ROOT|PYTHONPATH'
+
+# Check sys.path
+docker exec <container> python -c "import sys; print(sys.path[:5])"
+
+# Test import
+docker exec <container> python -c "from common.config.settings import settings; print('✅ Import successful')"
+```
+
+### Affected Services
+
+- **Braintrust Processor** (`monitoring/braintrust_processor.py`)
+- **API Backend** (`handoff/20250928/40_App/api-backend/gunicorn.conf.py`)
+
+### Troubleshooting
+
+See [monitoring/DEPLOYMENT.md](../monitoring/DEPLOYMENT.md#troubleshooting) for detailed troubleshooting steps.
 
 ---
 
@@ -755,6 +1041,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 - **Contributing**: [docs/CONTRIBUTING.md](CONTRIBUTING.md)
 - **CI/CD**: [docs/ci_matrix.md](ci_matrix.md)
 - **Architecture**: [docs/ARCHITECTURE.md](ARCHITECTURE.md)
+- **Authentication API**: [docs/openapi.auth.yaml](openapi.auth.yaml) - 2FA/TOTP endpoints (OpenAPI 3.0.3)
 
 ---
 

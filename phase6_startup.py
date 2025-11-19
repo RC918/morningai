@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import Dict, Any
 import subprocess
 import threading
+from common.config.settings import settings
 
 # 配置日誌
 logging.basicConfig(
@@ -48,7 +49,7 @@ class Phase6SystemManager:
             logger.info("Starting monitoring system...")
             
             os.environ['MONITOR_BASE_URL'] = 'https://morningai-backend-v2.onrender.com'
-            os.environ['SLACK_WEBHOOK_URL'] = os.environ.get('SLACK_WEBHOOK_URL', '')
+            os.environ['SLACK_WEBHOOK_URL'] = settings.slack_webhook_url or ''
             
             def run_monitoring():
                 try:
@@ -81,8 +82,8 @@ class Phase6SystemManager:
             from security_manager import SecurityManager
             
             security_config = {
-                'master_key': os.environ.get('MASTER_KEY', 'default-master-key'),
-                'secret_key': os.environ.get('SECRET_KEY', 'default-secret-key'),
+                'master_key': settings.master_key or 'default-master-key',
+                'secret_key': settings.secret_key or 'default-secret-key',
                 'audit_log_file': 'security_audit.log'
             }
             
@@ -108,7 +109,7 @@ class Phase6SystemManager:
             
             from meta_agent_decision_hub import MetaAgentDecisionHub
             
-            redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+            redis_url = settings.redis_url or 'redis://localhost:6379'
             
             hub = MetaAgentDecisionHub(redis_url=redis_url)
             

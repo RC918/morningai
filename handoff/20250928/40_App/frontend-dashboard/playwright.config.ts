@@ -16,6 +16,11 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    viewport: { width: 1280, height: 736 },
+    deviceScaleFactor: 1,
+    locale: 'en-US',
+    timezoneId: 'America/New_York',
+    colorScheme: 'light',
   },
   webServer: {
     command: 'pnpm preview --port 4173',
@@ -25,8 +30,18 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'setup',
+      testMatch: /.*\.setup\.spec\.ts$/,
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /.*\.setup\.spec\.ts$/,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 736 },
+        storageState: 'playwright/.auth/storageState.json',
+      },
+      dependencies: ['setup'],
     },
   ],
 })

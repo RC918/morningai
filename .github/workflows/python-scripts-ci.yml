@@ -1,0 +1,522 @@
+# =============================================================================
+# Python Scripts CI Workflow
+# =============================================================================
+#
+# PURPOSE:
+#   Validates Python scripts in the scripts/ directory to ensure code quality
+#   and prevent breaking changes from being merged to main. This workflow runs
+#   on every PR that modifies Python scripts, requirements, or this workflow.
+#
+# JOBS OVERVIEW:
+#   1. syntax-check: Validates Python syntax for all scripts in scripts/
+#   2. monitor-tests: Runs unit tests for monitor orchestrator
+#   3. integration-check: Dry-run test of monitor_orchestrator.py with graceful degradation
+#
+# 5-TIER ERROR DETECTION LOGIC (integration-check job):
+#   The integration-check job uses a sophisticated 5-tier error detection system
+#   to distinguish between critical errors (syntax/import) and tolerated errors
+#   (network issues, timeouts). This prevents false negatives in CI.
+#
+#   Tier 1: Critical Syntax/Import Errors → FAIL
+#     - SyntaxError, IndentationError, ImportError, ModuleNotFoundError
+#     - These indicate broken code that must be fixed
+#
+#   Tier 2: Timeout (Expected in CI) → PASS
+#     - Exit code 124 from timeout command
+#     - Monitor scripts run indefinitely, so timeout is expected behavior
+#
+#   Tier 3: Network Errors (Tolerated) → PASS
+#     - Connection errors from requests, urllib3, httpx, aiohttp, socket
+#     - Builtin exceptions: ConnectionRefusedError, TimeoutError, OSError
+#     - Error codes: ECONNREFUSED, ECONNRESET, ETIMEDOUT, EHOSTUNREACH, etc.
+#     - These are expected in CI where external services aren't available
+#
+#   Tier 4: Success → PASS
+#     - Exit code 0
+#     - Script executed successfully (rare in CI due to missing services)
+#
+#   Tier 5: Unknown Non-Network Errors → FAIL
+#     - Any other non-zero exit code not matching Tiers 1-3
+#     - Indicates unexpected errors that need investigation
+#
+# ENVIRONMENT CONSISTENCY:
+#   All jobs set PYTHONPATH to ensure consistent imports:
+#     PYTHONPATH=${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/scripts
+#
+#   This matches production/staging requirements. See scripts/README.md for
+#   detailed environment setup instructions.
+#
+# MAINTENANCE GUIDE:
+#
+#   Adding New Scripts:
+#     - New scripts in scripts/*.py are automatically checked
+#     - If a script has legacy syntax issues, add to DENYLIST in syntax-check job
+#     - Remove from DENYLIST once issues are fixed
+#
+#   Expanding Network Error Patterns:
+#     - Edit the regex pattern in integration-check job (Tier 3)
+#     - Pattern supports: requests, urllib3, httpx, aiohttp, socket
+#     - Test pattern locally before pushing (see Issue #1268 for examples)
+#
+#   Modifying Error Detection Logic:
+#     - The 5-tier logic is tested by the self-test job
+#     - If you modify Tiers 1-5, update self-test job accordingly
+#     - Self-test prevents regressions in error detection
+#
+#   Adding New Jobs:
+#     - Follow existing job structure (checkout, setup-python, etc.)
+#     - Set PYTHONPATH if job needs to import Python modules
+#     - Add job to branch protection rules if it's required for merge
+#
+#   Python Version Updates:
+#     - CI uses Python 3.11 (see setup-python steps)
+#     - Update all setup-python@v5 steps if changing version
+#     - Check DENYLIST for scripts requiring newer Python versions
+#
+# TROUBLESHOOTING:
+#
+#   Syntax Check Failures:
+#     - Check if script uses Python 3.12+ syntax (CI uses 3.11)
+#     - Add to DENYLIST if legacy issue, document reason
+#     - Fix syntax errors before removing from DENYLIST
+#
+#   Integration Check Failures:
+#     - Review Tier 1-5 logic to understand which tier failed
+#     - Check job logs for actual error message
+#     - Verify PYTHONPATH is set correctly
+#     - Ensure error patterns in Tier 3 are comprehensive
+#
+#   Import Errors:
+#     - Verify PYTHONPATH includes both workspace root and scripts/
+#     - Check that required packages are in scripts/requirements.txt
+#     - Ensure production environment matches CI PYTHONPATH
+#
+#   False Negatives (CI passes but code is broken):
+#     - Review Tier 3 network patterns - may be too broad
+#     - Check if new error types need to be added to Tier 1
+#     - Consider adding more specific tests to monitor-tests job
+#
+#   False Positives (CI fails but code is correct):
+#     - Review Tier 3 network patterns - may be too narrow
+#     - Check if legitimate network errors are being caught
+#     - Verify timeout duration (10s) is appropriate
+#
+# RELATED RESOURCES:
+#   - scripts/README.md: Environment setup and troubleshooting
+#   - Issue #1264: Original PR that added this workflow
+#   - Issue #1266: Self-test job implementation
+#   - Issue #1267: Expanded syntax check scope
+#   - Issue #1268: Extended network error patterns
+#   - Issue #1269: This maintenance documentation
+#   - Issue #1270: Environment consistency documentation
+#
+# BRANCH PROTECTION:
+#   The following checks should be required on main branch:
+#     - Python Syntax Validation
+#     - Monitor Orchestrator Tests
+#     - Monitor Integration Check
+#
+# =============================================================================
+
+name: Python Scripts CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**/*.py'
+      - 'scripts/requirements.txt'
+      - '.github/workflows/python-scripts-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/**/*.py'
+      - 'scripts/requirements.txt'
+      - '.github/workflows/python-scripts-ci.yml'
+
+jobs:
+  syntax-check:
+    name: Python Syntax Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Compile all Python scripts
+        id: compile
+        run: |
+          echo "## Python Syntax Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          FAILED_FILES=()
+          PASSED_COUNT=0
+          SKIPPED_COUNT=0
+          
+          # Denylist: scripts with known legacy issues (temporary)
+          # Remove from this list as issues are fixed
+          # kg_cost_report.py: Multi-line f-string syntax requires Python 3.12+ (CI uses 3.11)
+          DENYLIST=(
+            "scripts/kg_cost_report.py"
+          )
+          
+          # Check all Python scripts in scripts/ (recursive, excluding __pycache__)
+          while IFS= read -r -d '' file; do
+            # Normalize path for denylist comparison
+            file="${file#./}"
+            
+            # Skip if in denylist
+            SKIP=false
+            for denied in "${DENYLIST[@]}"; do
+              if [ "$file" = "$denied" ]; then
+                SKIP=true
+                break
+              fi
+            done
+            
+            if [ "$SKIP" = true ]; then
+              echo "⏭️ Skipping $file (in denylist)"
+              echo "⏭️ $file (legacy issue)" >> $GITHUB_STEP_SUMMARY
+              SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+              continue
+            fi
+            
+            # Check syntax
+            echo "Checking $file..."
+            if ERROR_OUTPUT=$(python -m py_compile "$file" 2>&1); then
+              echo "✅ $file"
+              echo "✅ $file" >> $GITHUB_STEP_SUMMARY
+              PASSED_COUNT=$((PASSED_COUNT + 1))
+            else
+              echo "❌ $file - FAILED"
+              echo "$ERROR_OUTPUT"
+              echo "❌ $file" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$ERROR_OUTPUT" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              FAILED_FILES+=("$file")
+            fi
+          done < <(find scripts -name "*.py" -not -path "*/__pycache__/*" -type f -print0)
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Summary**: $PASSED_COUNT passed, $SKIPPED_COUNT skipped (legacy)" >> $GITHUB_STEP_SUMMARY
+          
+          if [ ${#FAILED_FILES[@]} -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Syntax Errors Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The following files have syntax errors:" >> $GITHUB_STEP_SUMMARY
+            for file in "${FAILED_FILES[@]}"; do
+              echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please fix syntax errors before merging." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ All checked scripts have valid syntax" >> $GITHUB_STEP_SUMMARY
+            if [ $SKIPPED_COUNT -gt 0 ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ $SKIPPED_COUNT scripts skipped due to known legacy issues" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+      
+      - name: Test CI Output Classifier
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## CI Output Classifier Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if python .github/scripts/test_classify_ci_output.py -v; then
+            echo "✅ All 28 classifier tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Classifier tests failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  monitor-tests:
+    name: Monitor Orchestrator Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+      
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/scripts" >> $GITHUB_ENV
+      
+      - name: Verify PYTHONPATH
+        run: python -c "import sys; print('sys.path:', sys.path)"
+      
+      - name: Run monitor tests
+        id: test
+        run: |
+          echo "## Monitor Orchestrator Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run tests with verbose output
+          if pytest scripts/test_monitor_graceful_degradation.py -v --tb=short 2>&1 | tee test_output.txt; then
+            echo "### ✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+      
+      - name: Test monitor script imports
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Import Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Test that monitor_orchestrator.py can be imported
+          if python -c "import scripts.monitor_orchestrator" 2>&1; then
+            echo "✅ monitor_orchestrator.py imports successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ monitor_orchestrator.py failed to import" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  self-test:
+    name: CI Logic Self-Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install requests
+      
+      - name: Test Tier 1 - SyntaxError detection
+        run: |
+          echo "Testing Tier 1: SyntaxError detection"
+          
+          # Create temp file with syntax error
+          echo "def foo(" > /tmp/test_syntax.py
+          
+          # Run detection logic
+          set +e
+          OUTPUT=$(python /tmp/test_syntax.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Use centralized classifier (wrap with set +e since classifier exits 1 for FAIL)
+          set +e
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          CLASSIFIER_EXIT=$?
+          set -e
+          
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          
+          if [ "$TIER" = "1" ] && [ "$STATUS" = "FAIL" ]; then
+            echo "✅ Tier 1 correctly detected SyntaxError"
+          else
+            echo "❌ Tier 1 failed (got Tier $TIER, Status $STATUS)"
+            exit 1
+          fi
+      
+      - name: Test Tier 2 - Timeout detection
+        run: |
+          echo "Testing Tier 2: Timeout detection"
+          
+          # Create script that sleeps
+          echo "import time; time.sleep(100)" > /tmp/test_timeout.py
+          
+          # Run with timeout
+          set +e
+          OUTPUT=$(timeout 1s python /tmp/test_timeout.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Should detect timeout (exit 124)
+          if [ "$EXIT_CODE" -eq 124 ]; then
+            echo "✅ Tier 2 correctly detected timeout"
+          else
+            echo "❌ Tier 2 failed to detect timeout (exit code: $EXIT_CODE)"
+            exit 1
+          fi
+      
+      - name: Test Tier 3 - Network error detection
+        run: |
+          echo "Testing Tier 3: Network error detection"
+          
+          # Create script that raises network error (using 127.0.0.1:9 for deterministic ConnectionRefused)
+          cat > /tmp/test_network.py << 'PYEOF'
+          import requests
+          try:
+              requests.get("http://127.0.0.1:9", timeout=1)
+          except Exception as e:
+              print(f"Error: {e}")
+              exit(1)
+          PYEOF
+          
+          # Run script
+          set +e
+          OUTPUT=$(python /tmp/test_network.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Use centralized classifier (classifier exits 0 for PASS, so no need for set +e wrapper)
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          
+          if [ "$TIER" = "3" ] && [ "$STATUS" = "PASS" ]; then
+            echo "✅ Tier 3 correctly detected network error"
+          else
+            echo "❌ Tier 3 failed (got Tier $TIER, Status $STATUS)"
+            exit 1
+          fi
+      
+      - name: Test Tier 5 - Non-network error detection
+        run: |
+          echo "Testing Tier 5: Non-network error detection"
+          
+          # Create script that raises ValueError
+          cat > /tmp/test_value_error.py << 'PYEOF'
+          raise ValueError("This is a test error")
+          PYEOF
+          
+          # Run script
+          set +e
+          OUTPUT=$(python /tmp/test_value_error.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Use centralized classifier (wrap with set +e since classifier exits 1 for FAIL)
+          set +e
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          CLASSIFIER_EXIT=$?
+          set -e
+          
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          
+          if [ "$TIER" = "5" ] && [ "$STATUS" = "FAIL" ]; then
+            echo "✅ Tier 5 correctly detected non-network error"
+          else
+            echo "❌ Tier 5 failed (got Tier $TIER, Status $STATUS)"
+            exit 1
+          fi
+
+  integration-check:
+    name: Monitor Integration Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [syntax-check, monitor-tests, self-test]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+      
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/scripts" >> $GITHUB_ENV
+      
+      - name: Verify monitor script runs (dry run)
+        run: |
+          set -o pipefail  # Ensure pipeline failures are caught
+          
+          echo "## Monitor Script Dry Run" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Capture output and exit code without aborting the step
+          set +e
+          OUTPUT=$(timeout 10s python scripts/monitor_orchestrator.py 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          # Print full output to job logs
+          echo "$OUTPUT"
+          
+          append_summary() {
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            printf "%s\n" "$1" | tail -n 200 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          }
+          
+          # Use centralized classifier (allow exit 0 or 1, both are normal)
+          set +e
+          CLASSIFICATION=$(echo "$OUTPUT" | python .github/scripts/classify_ci_output.py "$EXIT_CODE")
+          CLASSIFIER_EXIT=$?
+          set -e
+          
+          # Only treat exit code > 1 as a crash (2 = usage error)
+          if [ $CLASSIFIER_EXIT -gt 1 ]; then
+            echo "❌ Classifier crashed with exit code $CLASSIFIER_EXIT" >> $GITHUB_STEP_SUMMARY
+            echo "This indicates a bug in the classifier script" >> $GITHUB_STEP_SUMMARY
+            echo "Raw output:" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 1
+          fi
+          
+          # Parse output with validation
+          TIER=$(echo "$CLASSIFICATION" | grep "^TIER=" | cut -d= -f2)
+          STATUS=$(echo "$CLASSIFICATION" | grep "^STATUS=" | cut -d= -f2)
+          REASON=$(echo "$CLASSIFICATION" | grep "^REASON=" | cut -d= -f2-)
+          
+          # Validate parsed values
+          if [ -z "$TIER" ] || [ -z "$STATUS" ] || [ -z "$REASON" ]; then
+            echo "❌ Failed to parse classifier output" >> $GITHUB_STEP_SUMMARY
+            echo "Raw classifier output:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$CLASSIFICATION" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "Classification: Tier $TIER - $STATUS - $REASON"
+          
+          if [ "$STATUS" = "PASS" ]; then
+            echo "✅ $REASON" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 0
+          else
+            echo "❌ $REASON" >> $GITHUB_STEP_SUMMARY
+            append_summary "$OUTPUT"
+            exit 1
+          fi
+        env:
+          ORCHESTRATOR_API_URL: https://test-api.example.com
+          # No SLACK_WEBHOOK_URL - test graceful degradation

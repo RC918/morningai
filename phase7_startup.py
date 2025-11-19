@@ -25,6 +25,7 @@ from ops_agent import OpsAgent
 from growth_strategist import GrowthStrategist
 from pm_agent import PMAgent
 from hitl_approval_system import HITLApprovalSystem
+from common.config.settings import settings
 
 try:
     from meta_agent_decision_hub import MetaAgentDecisionHub
@@ -71,7 +72,7 @@ class Phase7System:
         def expand_value(value):
             if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
                 env_var = value[2:-1]
-                return os.environ.get(env_var, value)
+                return getattr(settings, env_var.lower(), value)
             elif isinstance(value, dict):
                 return {k: expand_value(v) for k, v in value.items()}
             elif isinstance(value, list):
@@ -140,8 +141,8 @@ class Phase7System:
         if PHASE6_AVAILABLE and self.config.get('integration', {}).get('phase6_security'):
             try:
                 security_config = {
-                    'master_key': os.environ.get('MASTER_KEY', 'default-master-key'),
-                    'secret_key': os.environ.get('SECRET_KEY', 'default-secret-key'),
+                    'master_key': settings.master_key or 'default-master-key',
+                    'secret_key': settings.secret_key or 'default-secret-key',
                     'audit_log_file': 'phase7_security_audit.log'
                 }
                 self.security_manager = SecurityManager(security_config)

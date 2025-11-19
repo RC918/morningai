@@ -51,6 +51,7 @@ from persistence.db_writer import (
     upsert_task_done,
     upsert_task_error
 )
+from common.config.settings import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,8 +59,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = os.getenv("SENTRY_DSN")
-APP_VERSION = os.getenv("APP_VERSION", "8.0.0")
+SENTRY_DSN = settings.sentry_dsn
+APP_VERSION = settings.app_version or "8.0.0"
 
 if SENTRY_DSN and SENTRY_DSN.strip():
     try:
@@ -68,7 +69,7 @@ if SENTRY_DSN and SENTRY_DSN.strip():
         
         sentry_sdk.init(
             dsn=SENTRY_DSN,
-            environment=os.getenv("ENVIRONMENT", "production"),
+            environment=settings.environment or "production",
             release=f"morningai@{APP_VERSION}",
             integrations=[RqIntegration()],
             traces_sample_rate=1.0,
@@ -80,7 +81,7 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 else:
     SENTRY_DSN = None
 
-redis_url = os.getenv("REDIS_URL")
+redis_url = settings.redis_url
 if not redis_url:
     import sys
     _api_backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../api-backend/src'))
@@ -89,14 +90,14 @@ if not redis_url:
     
     try:
         from utils.redis_config import get_secure_redis_url
-        redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
+        redis_url = get_secure_redis_url(allow_local=settings.testing)
     except (ImportError, ValueError) as e:
         redis_url = "redis://localhost:6379/0"
         logger.warning(f"⚠️ Failed to get secure Redis URL: {e}, using fallback: {redis_url}")
 else:
     if not redis_url.startswith("rediss://") and not redis_url.startswith("redis://localhost"):
         logger.warning(f"⚠️ Redis URL does not use TLS: {redis_url[:30]}...")
-RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "orchestrator")
+RQ_QUEUE_NAME = settings.rq_queue_name or "orchestrator"
 
 redis_retry = RedisRetry(ExponentialBackoff(base=1, cap=10), retries=5)
 redis = Redis.from_url(
@@ -127,24 +128,52 @@ redis_client_rq = Redis.from_url(
 )
 q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
-WORKER_ID = os.getenv("RENDER_INSTANCE_ID", os.getenv("HOSTNAME", "worker-local"))
+HEARTBEAT_ID = (
+    os.getenv('RENDER_INSTANCE_ID') or 
+    os.getenv('HOSTNAME') or 
+    socket.gethostname() or 
+    'worker'
+)
+
+RQ_WORKER_NAME = f"{HEARTBEAT_ID}-{os.getpid()}"
+
+# Backward compatibility alias for tests and monitoring
+WORKER_ID = RQ_WORKER_NAME
+
+LEGACY_WORKER_NAME = "worker-local"
+
 shutdown_event = threading.Event()
 shutting_down = False
 cleanup_started = False
 heartbeat_thread = None
+
+logger.info(
+    f"Worker identity computed",
+    extra={
+        "operation": "startup",
+        "worker_id": WORKER_ID,
+        "heartbeat_id": HEARTBEAT_ID,
+        "rq_worker_name": RQ_WORKER_NAME,
+        "render_instance_id": os.getenv('RENDER_INSTANCE_ID'),
+        "hostname_env": os.getenv('HOSTNAME'),
+        "hostname_socket": socket.gethostname(),
+        "pid": os.getpid()
+    }
+)
 
 def update_worker_heartbeat():
     """
     Background thread to update worker heartbeat in Redis with TTL.
     Runs until shutdown_event is set.
     Updates state to 'shutting_down' when shutdown is initiated.
+    Uses HEARTBEAT_ID for stable monitoring identity.
     """
-    logger.info(f"Heartbeat thread started", extra={"operation": "heartbeat", "worker_id": WORKER_ID})
+    logger.info(f"Heartbeat thread started", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
     
     while not shutdown_event.is_set():
         try:
             if redis:
-                heartbeat_key = f"worker:heartbeat:{WORKER_ID}"
+                heartbeat_key = f"worker:heartbeat:{HEARTBEAT_ID}"
                 state = "shutting_down" if shutting_down else "running"
                 redis.setex(
                     heartbeat_key,
@@ -153,44 +182,47 @@ def update_worker_heartbeat():
                         "state": state,
                         "last_heartbeat": datetime.now(timezone.utc).isoformat() + "Z",
                         "worker_id": WORKER_ID,
+                        "heartbeat_id": HEARTBEAT_ID,
+                        "rq_worker_name": RQ_WORKER_NAME,
                         "timestamp": int(time.time())
                     })
                 )
-                logger.debug(f"Heartbeat updated", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "state": state})
+                logger.debug(f"Heartbeat updated", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME, "state": state})
             
             shutdown_event.wait(30)
         except RedisConnectionError as e:
-            logger.error(f"Heartbeat Redis connection error: {e}", extra={"operation": "heartbeat", "worker_id": WORKER_ID})
+            logger.error(f"Heartbeat Redis connection error: {e}", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
             if SENTRY_DSN:
                 sentry_sdk.capture_exception(e)
             shutdown_event.wait(30)
         except Exception as e:
-            logger.exception(f"Heartbeat update failed", extra={"operation": "heartbeat", "worker_id": WORKER_ID})
+            logger.exception(f"Heartbeat update failed", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
             if SENTRY_DSN:
                 sentry_sdk.capture_exception(e)
             shutdown_event.wait(30)
     
-    logger.info(f"Heartbeat thread stopped", extra={"operation": "heartbeat", "worker_id": WORKER_ID})
+    logger.info(f"Heartbeat thread stopped", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
 
 def cleanup_heartbeat():
     """
     Cleanup function to gracefully shutdown heartbeat thread.
     Called on worker shutdown or exit.
-    Sets shutting_down flag, updates heartbeat state, and cleans up Redis key.
+    Sets shutting_down flag, updates heartbeat state, and cleans up Redis keys.
+    Uses RQ_WORKER_NAME for RQ cleanup and HEARTBEAT_ID for heartbeat cleanup.
     Idempotent: safe to call multiple times.
     """
     global heartbeat_thread, shutting_down, cleanup_started
     
     if cleanup_started:
-        logger.debug(f"Cleanup already in progress, skipping duplicate call", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        logger.debug(f"Cleanup already in progress, skipping duplicate call", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
         return
     
     cleanup_started = True
-    logger.info(f"Initiating graceful shutdown", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+    logger.info(f"Initiating graceful shutdown", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
     shutting_down = True
     
     try:
-        heartbeat_key = f"worker:heartbeat:{WORKER_ID}"
+        heartbeat_key = f"worker:heartbeat:{HEARTBEAT_ID}"
         redis.setex(
             heartbeat_key,
             120,
@@ -198,12 +230,14 @@ def cleanup_heartbeat():
                 "state": "shutting_down",
                 "last_heartbeat": datetime.now(timezone.utc).isoformat() + "Z",
                 "worker_id": WORKER_ID,
+                "heartbeat_id": HEARTBEAT_ID,
+                "rq_worker_name": RQ_WORKER_NAME,
                 "timestamp": int(time.time())
             })
         )
-        logger.info(f"Updated heartbeat state to shutting_down", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        logger.info(f"Updated heartbeat state to shutting_down", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
     except Exception as e:
-        logger.exception(f"Failed to update heartbeat state during shutdown", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        logger.exception(f"Failed to update heartbeat state during shutdown", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
         if SENTRY_DSN:
             sentry_sdk.capture_exception(e)
     
@@ -212,9 +246,9 @@ def cleanup_heartbeat():
     if heartbeat_thread and heartbeat_thread.is_alive():
         heartbeat_thread.join(timeout=5)
         if heartbeat_thread.is_alive():
-            logger.warning(f"Heartbeat thread did not stop within timeout", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+            logger.warning(f"Heartbeat thread did not stop within timeout", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
         else:
-            logger.info(f"Heartbeat thread stopped successfully", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+            logger.info(f"Heartbeat thread stopped successfully", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
     
     try:
         if redis_client_rq:
@@ -222,17 +256,17 @@ def cleanup_heartbeat():
             logger.info(f"Removed worker from rq:workers set", extra={"operation": "shutdown", "worker_id": WORKER_ID})
         
         if redis:
-            heartbeat_key = f"worker:heartbeat:{WORKER_ID}"
+            heartbeat_key = f"worker:heartbeat:{HEARTBEAT_ID}"
             redis.delete(heartbeat_key)
-            logger.info(f"Cleaned up heartbeat key", extra={"operation": "shutdown", "worker_id": WORKER_ID, "key": heartbeat_key})
+            logger.info(f"Cleaned up heartbeat key", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "key": heartbeat_key})
     except Exception as e:
-        logger.exception(f"Failed to cleanup Redis keys", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+        logger.exception(f"Failed to cleanup Redis keys", extra={"operation": "shutdown", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
         if SENTRY_DSN:
             sentry_sdk.capture_exception(e)
 
 def signal_handler(signum, frame):
     """Handle termination signals gracefully (SIGTERM from container orchestrator, SIGINT from Ctrl+C)"""
-    logger.info(f"Received signal {signum}, initiating graceful shutdown", extra={"operation": "signal_handler", "signal": signum, "worker_id": WORKER_ID})
+    logger.info(f"Received signal {signum}, initiating graceful shutdown", extra={"operation": "signal_handler", "signal": signum, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
     cleanup_heartbeat()
     sys.exit(0)
 
@@ -300,7 +334,25 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     Returns:
         dict: {"pr_url": str, "trace_id": str, "state": str}
     """
-    use_langgraph = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
+    use_langgraph = settings.use_langgraph or False
+    use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
+    
+    if not use_langgraph and use_langgraph_percent > 0:
+        import hashlib
+        task_hash = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
+        task_percent = task_hash % 100
+        use_langgraph = task_percent < use_langgraph_percent
+        
+        logger.info(
+            f"Canary deployment: task_percent={task_percent}, threshold={use_langgraph_percent}, use_langgraph={use_langgraph}",
+            extra={
+                "operation": "canary_selection",
+                "task_id": task_id,
+                "task_percent": task_percent,
+                "use_langgraph_percent": use_langgraph_percent,
+                "use_langgraph": use_langgraph
+            }
+        )
     
     if use_langgraph:
         from langgraph_orchestrator import run_orchestrator
@@ -469,6 +521,53 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
         
         raise
 
+def cleanup_stale_legacy_worker():
+    """
+    Defensive cleanup for stale legacy 'worker-local' registrations.
+    Only cleans up if:
+    1. The legacy worker name exists in rq:workers
+    2. The heartbeat key for legacy worker is missing or expired
+    This prevents nuking a live worker while recovering from stale registrations.
+    """
+    try:
+        if redis_client_rq and redis:
+            is_registered = redis_client_rq.sismember('rq:workers', LEGACY_WORKER_NAME)
+            
+            if is_registered:
+                heartbeat_key = f"worker:heartbeat:{LEGACY_WORKER_NAME}"
+                heartbeat_exists = redis.exists(heartbeat_key)
+                
+                if not heartbeat_exists:
+                    logger.warning(
+                        f"Detected stale legacy worker registration without heartbeat, cleaning up",
+                        extra={
+                            "operation": "startup",
+                            "legacy_worker_name": LEGACY_WORKER_NAME,
+                            "heartbeat_key": heartbeat_key
+                        }
+                    )
+                    redis_client_rq.srem('rq:workers', LEGACY_WORKER_NAME)
+                    logger.info(
+                        f"Removed stale legacy worker from rq:workers",
+                        extra={"operation": "startup", "legacy_worker_name": LEGACY_WORKER_NAME}
+                    )
+                else:
+                    logger.info(
+                        f"Legacy worker has active heartbeat, skipping cleanup",
+                        extra={
+                            "operation": "startup",
+                            "legacy_worker_name": LEGACY_WORKER_NAME,
+                            "heartbeat_key": heartbeat_key
+                        }
+                    )
+    except Exception as e:
+        logger.warning(
+            f"Failed to cleanup stale legacy worker (non-fatal): {e}",
+            extra={"operation": "startup", "legacy_worker_name": LEGACY_WORKER_NAME}
+        )
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
+
 if __name__ == "__main__":
     from rq import Worker
     
@@ -476,30 +575,92 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     atexit.register(cleanup_heartbeat)
     
-    logger.info(f"Starting RQ worker", extra={"operation": "startup", "worker_id": WORKER_ID, "queue": RQ_QUEUE_NAME, "redis_url": redis_url})
+    logger.info(
+        f"Starting RQ worker",
+        extra={
+            "operation": "startup",
+            "heartbeat_id": HEARTBEAT_ID,
+            "rq_worker_name": RQ_WORKER_NAME,
+            "queue": RQ_QUEUE_NAME,
+            "redis_url": redis_url[:30] + "..." if len(redis_url) > 30 else redis_url
+        }
+    )
+    
+    cleanup_stale_legacy_worker()
     
     heartbeat_thread = threading.Thread(target=update_worker_heartbeat, daemon=False, name="HeartbeatThread")
     heartbeat_thread.start()
-    logger.info(f"Heartbeat monitoring enabled", extra={"operation": "startup", "worker_id": WORKER_ID, "ttl": 120, "interval": 30})
+    logger.info(
+        f"Heartbeat monitoring enabled",
+        extra={
+            "operation": "startup",
+            "heartbeat_id": HEARTBEAT_ID,
+            "rq_worker_name": RQ_WORKER_NAME,
+            "ttl": 120,
+            "interval": 30
+        }
+    )
     
-    try:
-        worker = Worker(
-            [q],
-            connection=redis_client_rq,
-            name=WORKER_ID,
-            default_worker_ttl=600,
-            default_result_ttl=86400,
-            serializer=JSONSerializer()
-        )
-        logger.info(f"Worker configuration complete", extra={"operation": "startup", "worker_id": WORKER_ID, "worker_ttl": 600, "result_ttl": 86400, "serializer": "JSONSerializer"})
-        worker.work()
-    except KeyboardInterrupt:
-        logger.info(f"KeyboardInterrupt received", extra={"operation": "shutdown", "worker_id": WORKER_ID})
-    except Exception as e:
-        logger.exception(f"Unexpected worker error", extra={"operation": "shutdown", "worker_id": WORKER_ID})
-        if SENTRY_DSN:
-            sentry_sdk.capture_exception(e)
-        raise
-    finally:
-        cleanup_heartbeat()
-        logger.info(f"Worker shutdown complete", extra={"operation": "shutdown", "worker_id": WORKER_ID})
+    max_retries = 1
+    for attempt in range(max_retries + 1):
+        try:
+            worker = Worker(
+                [q],
+                connection=redis_client_rq,
+                name=RQ_WORKER_NAME,
+                default_worker_ttl=600,
+                default_result_ttl=86400,
+                serializer=JSONSerializer()
+            )
+            logger.info(
+                f"Worker configuration complete",
+                extra={
+                    "operation": "startup",
+                    "heartbeat_id": HEARTBEAT_ID,
+                    "rq_worker_name": RQ_WORKER_NAME,
+                    "worker_ttl": 600,
+                    "result_ttl": 86400,
+                    "serializer": "JSONSerializer"
+                }
+            )
+            worker.work()
+            break  # Success, exit retry loop
+        except ValueError as e:
+            if "exists an active worker" in str(e) and attempt < max_retries:
+                import random
+                suffix = f"{int(time.time())}-{random.randint(1000, 9999)}"
+                RQ_WORKER_NAME = f"{HEARTBEAT_ID}-{os.getpid()}-{suffix}"
+                WORKER_ID = RQ_WORKER_NAME  # Sync WORKER_ID for cleanup compatibility
+                logger.warning(
+                    f"Worker name collision detected, retrying with new name",
+                    extra={
+                        "operation": "startup",
+                        "error": str(e),
+                        "new_rq_worker_name": RQ_WORKER_NAME,
+                        "worker_id": WORKER_ID,
+                        "attempt": attempt + 1
+                    }
+                )
+                continue
+            else:
+                raise
+        except KeyboardInterrupt:
+            logger.info(
+                f"KeyboardInterrupt received",
+                extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME}
+            )
+            break
+        except Exception as e:
+            logger.exception(
+                f"Unexpected worker error",
+                extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME}
+            )
+            if SENTRY_DSN:
+                sentry_sdk.capture_exception(e)
+            raise
+    
+    cleanup_heartbeat()
+    logger.info(
+        f"Worker shutdown complete",
+        extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME}
+    )

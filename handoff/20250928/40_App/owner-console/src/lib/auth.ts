@@ -22,10 +22,11 @@
  * @see docs/TASK_1_ENHANCED_TOKEN_SECURITY.md
  */
 
-import { isFeatureEnabled } from './feature-flags';
+import { isFeatureEnabled } from './feature-flags.ts';
 
 
 export interface AuthTokens {
+  accessToken?: string; // Access token (for fallback when cookies are blocked)
   expiresAt: number; // Unix timestamp in milliseconds
 }
 
@@ -44,12 +45,17 @@ export interface LoginCredentials {
 }
 
 export interface LoginResponse {
-  user: User;
-  tokens: AuthTokens;
+  user?: User;
+  tokens?: AuthTokens;
+  next_step?: 'enroll_2fa' | 'challenge_2fa' | 'session';
+  tmp_login_token?: string;
+  requires_2fa?: boolean;
+  message?: string;
 }
 
 export interface RefreshTokenResponse {
   tokens: {
+    accessToken?: string;
     expiresAt: number;
   };
 }
@@ -59,6 +65,23 @@ const TOKEN_EXPIRY_KEY = 'morningai_token_expiry';
 const USER_STORAGE_KEY = 'morningai_user';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
 
+let inMemoryAccessToken: string | null = null;
+
+
+/**
+ * Store access token in memory (fallback for when cookies are blocked)
+ * SECURITY: Never store in localStorage to prevent XSS attacks
+ */
+export function storeAccessToken(token: string | null): void {
+  inMemoryAccessToken = token;
+}
+
+/**
+ * Get access token from memory
+ */
+export function getAccessToken(): string | null {
+  return inMemoryAccessToken;
+}
 
 /**
  * Store token expiry time
@@ -105,12 +128,16 @@ export function getStoredTokenExpiry(): number | null {
 export function clearTokens(): void {
   if (typeof window === 'undefined') return;
   
+  inMemoryAccessToken = null;
+  
   try {
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
   } catch (error) {
     console.error('Failed to clear auth data:', error);
   }
+  
+  clearCsrfToken();
 }
 
 /**
@@ -163,7 +190,16 @@ export function isAuthenticated(): boolean {
 }
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || 
+  (import.meta.env.MODE === 'development' ? 'http://localhost:5000' : '');
+
+if (import.meta.env.PROD && !API_BASE_URL) {
+  console.error(
+    '[Auth] API Base URL is not configured. ' +
+    'Set VITE_API_BASE_URL in environment variables. ' +
+    'Expected: https://morningai-backend-v2-stg.onrender.com (staging) or production URL'
+  );
+}
 
 /**
  * CSRF token storage
@@ -187,9 +223,28 @@ if (typeof sessionStorage !== 'undefined') {
 }
 
 /**
- * Get CSRF token from in-memory storage
+ * Get CSRF token from cookie (preferred) or in-memory storage (fallback)
+ * Tests set csrf_token cookie, so we must read from there first
  */
 function getCsrfToken(): string | null {
+  if (typeof document !== 'undefined') {
+    const cookieToken = getCookie('csrf_token');
+    if (cookieToken) {
+      return cookieToken;
+    }
+  }
+  
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      const sessionToken = sessionStorage.getItem('csrf_token');
+      if (sessionToken) {
+        return sessionToken;
+      }
+    } catch (error) {
+      console.error('Failed to read CSRF token from sessionStorage:', error);
+    }
+  }
+  
   return csrfToken;
 }
 
@@ -232,12 +287,39 @@ function clearCsrfToken(): void {
  * 
  * P1 Enhancement: Single-flight promise pattern
  * Prevents concurrent requests from fetching the same token multiple times
+ * 
+ * Preview Mode: Skip for /ux-metrics in preview when VITE_PREVIEW_PUBLIC_METRICS is enabled
  */
 async function ensureCsrfToken(): Promise<void> {
   if (typeof window === 'undefined') return;
   
-  const existingToken = getCsrfToken();
-  if (existingToken) return;
+  if (import.meta.env.VITE_PREVIEW_PUBLIC_METRICS === 'true' &&
+      window.location.pathname.startsWith('/ux-metrics')) {
+    return;
+  }
+  
+  if (!API_BASE_URL) {
+    console.warn('CSRF token fetch skipped: VITE_API_BASE_URL not configured');
+    return;
+  }
+  
+  const cookieToken = typeof document !== 'undefined' ? getCookie('csrf_token') : null;
+  let sessionToken = null;
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionToken = sessionStorage.getItem('csrf_token');
+    } catch (error) {
+      console.error('Failed to read CSRF token from sessionStorage:', error);
+    }
+  }
+  
+  if (cookieToken || sessionToken) {
+    return;
+  }
+  
+  if (csrfToken) {
+    clearCsrfToken();
+  }
   
   if (csrfTokenPromise) {
     return csrfTokenPromise;
@@ -245,10 +327,19 @@ async function ensureCsrfToken(): Promise<void> {
   
   csrfTokenPromise = (async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/v2/csrf`, {
+      const url = `${API_BASE_URL}/api/auth/v2/csrf`;
+      const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
       });
+      
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('CSRF fetch failed: Expected JSON but got', contentType, 'from', url);
+        console.error('Response preview:', text.substring(0, 200));
+        return;
+      }
       
       if (response.ok) {
         const data = await response.json();
@@ -309,6 +400,10 @@ function shouldIncludeCSRF(method?: string): boolean {
  * @returns Promise<boolean> - True if this is a CSRF failure, false otherwise
  */
 async function isCsrfFailure(response: Response): Promise<boolean> {
+  if (!response.headers || typeof response.headers.get !== 'function') {
+    return false;
+  }
+  
   const contentType = response.headers.get('Content-Type') || '';
   if (!contentType.includes('application/json')) {
     return false;
@@ -375,6 +470,11 @@ async function authenticatedFetch(
     }
   }
   
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+  
   const response = await fetch(url, {
     ...options,
     headers,
@@ -398,6 +498,11 @@ async function authenticatedFetch(
         if (csrfToken) {
           retryHeaders.set('X-CSRF-Token', csrfToken);
         }
+      }
+      
+      const accessToken = getAccessToken();
+      if (accessToken) {
+        retryHeaders.set('Authorization', `Bearer ${accessToken}`);
       }
       
       const retryResponse = await fetch(url, {
@@ -436,6 +541,11 @@ async function authenticatedFetch(
         }
       }
       
+      const accessToken = getAccessToken();
+      if (accessToken) {
+        retryHeaders.set('Authorization', `Bearer ${accessToken}`);
+      }
+      
       const retryResponse = await fetch(url, {
         ...options,
         headers: retryHeaders,
@@ -472,6 +582,17 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   await ensureCsrfToken();
   
   if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
+    if (import.meta.env.PROD) {
+      throw new Error(
+        'Backend API is not configured. Please contact your system administrator. ' +
+        '(OWNER_CONSOLE_API feature flag is disabled in production)'
+      );
+    }
+    
+    console.warn(
+      '[Auth] Mock authentication is active. Using fake user data instead of real backend. ' +
+      'Set VITE_FEATURE_OWNER_CONSOLE_API=true to enable real authentication.'
+    );
     const mockTokens = {
       expiresAt: Date.now() + 60 * 60 * 1000,
     };
@@ -485,6 +606,14 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
       },
       tokens: mockTokens,
     };
+  }
+  
+  if (!API_BASE_URL) {
+    throw new Error(
+      'API Base URL is not configured. ' +
+      'Please set VITE_API_BASE_URL environment variable. ' +
+      'Contact your system administrator for the correct backend URL.'
+    );
   }
   
   const response = await fetch(`${API_BASE_URL}/api/auth/v2/login`, {
@@ -503,8 +632,14 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   
   const data: LoginResponse = await response.json();
   
-  storeTokenExpiry(data.tokens.expiresAt);
-  storeUser(data.user);
+  if (data.tokens && data.user) {
+    storeTokenExpiry(data.tokens.expiresAt);
+    storeUser(data.user);
+    
+    if (data.tokens.accessToken) {
+      storeAccessToken(data.tokens.accessToken);
+    }
+  }
   
   return data;
 }
@@ -568,10 +703,15 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
   const data: RefreshTokenResponse = await response.json();
   
   const newTokens: AuthTokens = {
+    accessToken: data.tokens.accessToken,
     expiresAt: data.tokens.expiresAt,
   };
   
   storeTokenExpiry(newTokens.expiresAt);
+  
+  if (data.tokens.accessToken) {
+    storeAccessToken(data.tokens.accessToken);
+  }
   
   return newTokens;
 }

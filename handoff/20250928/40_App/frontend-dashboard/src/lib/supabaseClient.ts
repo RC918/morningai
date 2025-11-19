@@ -9,33 +9,79 @@
  * - Automatic token refresh
  * - Built-in refresh token rotation
  * - PKCE support for OAuth flows
+ * 
+ * Graceful Degradation:
+ * - If VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY are missing, a no-op client
+ *   is used that returns errors instead of crashing
+ * - This allows the app to load and function in non-auth scenarios
  */
 
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const NOOP_MSG = 'Supabase not configured (VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY missing)';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
+/**
+ * Create a no-op Supabase client that returns errors instead of crashing
+ * Used when Supabase credentials are not configured
+ */
+function createNoopClient(): any {
+  const error = new Error(NOOP_MSG);
+  
+  return {
+    auth: {
+      signUp: async () => ({ data: { user: null, session: null }, error }),
+      signInWithOAuth: async () => ({ data: { provider: null, url: null }, error }),
+      getSession: async () => ({ data: { session: null }, error }),
+      getUser: async () => ({ data: { user: null }, error }),
+      signOut: async () => ({ error }),
+      onAuthStateChange: (_callback: any) => {
+        // Return a subscription object with unsubscribe method
+        return {
+          data: { subscription: { unsubscribe: () => {} } },
+          unsubscribe: () => {}
+        };
+      },
+      refreshSession: async () => ({ data: { session: null, user: null }, error }),
+    },
+  };
+}
+
+/**
+ * Create the real Supabase client with proper configuration
+ */
+function createRealClient() {
+  return createClient(supabaseUrl as string, supabaseAnonKey as string, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+  });
+}
+
+// Check if we have valid Supabase configuration
+const hasConfig = Boolean(supabaseUrl && supabaseAnonKey);
+
+if (!hasConfig) {
+  console.warn(NOOP_MSG + ' - Auth features will be disabled');
 }
 
 /**
  * Supabase client instance
  * 
- * Configuration:
+ * This will be either:
+ * - A real Supabase client if credentials are configured
+ * - A no-op client that returns errors if credentials are missing
+ * 
+ * Configuration (when using real client):
  * - auth.autoRefreshToken: Automatically refresh tokens before expiry
  * - auth.persistSession: Persist session in localStorage (will be upgraded to cookies in production)
  * - auth.detectSessionInUrl: Automatically detect OAuth callback parameters
  * - auth.storage: Custom storage implementation (can be upgraded to cookies)
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  }
-});
+export const supabase = hasConfig ? createRealClient() : createNoopClient();
 
 /**
  * Get the current user session

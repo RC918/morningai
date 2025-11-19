@@ -8,6 +8,7 @@ import os
 import time
 import statistics
 
+from common.config.settings import settings
 from knowledge_graph import get_knowledge_graph_manager
 
 pytestmark = pytest.mark.benchmark
@@ -23,7 +24,7 @@ class TestSearchSpeedBenchmark:
     """Benchmark tests for vector search speed"""
 
     @pytest.mark.skipif(
-        not os.getenv('SUPABASE_URL'),
+        not settings.supabase_url,
         reason="SUPABASE_URL required for search benchmark"
     )
     def test_vector_search_speed(self, kg_manager):

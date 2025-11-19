@@ -26,6 +26,7 @@ import qrcode
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from cryptography.fernet import Fernet
+from common.config.settings import get_settings
 
 
 ARGON2_HASHER = PasswordHasher(
@@ -49,7 +50,7 @@ class TOTPManager:
                           If None, reads from TOTP_ENCRYPTION_KEY environment variable.
         """
         if encryption_key is None:
-            encryption_key = os.getenv('TOTP_ENCRYPTION_KEY')
+            encryption_key = get_settings().totp_encryption_key
             if not encryption_key:
                 raise ValueError(
                     "TOTP_ENCRYPTION_KEY environment variable not set. "

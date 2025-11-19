@@ -4,10 +4,40 @@
 用於驗證 OODA Loop 的各項功能
 """
 import asyncio
+import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
+def _find_repo_root() -> Path:
+    """Find repository root using git or sentinel files."""
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False
+        )
+        if result.returncode == 0:
+            return Path(result.stdout.strip())
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        pass
+    
+    current = Path(__file__).resolve().parent
+    for _ in range(10):
+        if (current / '.git').exists() or (current / 'config' / 'env.schema.yaml').exists():
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    
+    raise RuntimeError("Could not find repository root")
+
+
+_repo_root = _find_repo_root()
+sys.path.insert(0, str(_repo_root))
 
 from dev_agent_ooda import create_dev_agent_ooda, DevAgentState
 

@@ -1,13 +1,25 @@
 from logging.config import fileConfig
 import os
 import sys
+from pathlib import Path
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
 
+repo_root = Path(__file__).resolve().parent
+for _ in range(8):
+    if (repo_root / 'common').exists():
+        break
+    repo_root = repo_root.parent
+
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from common.config.settings import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -16,7 +28,7 @@ config = context.config
 if not config.get_main_option("sqlalchemy.url"):
     config.set_main_option(
         "sqlalchemy.url",
-        os.environ.get("DATABASE_URL", "sqlite:///phase7_state.db")
+        settings.database_url or "sqlite:///phase7_state.db"
     )
 
 # Interpret the config file for Python logging.

@@ -7,6 +7,7 @@ import {
   Shield,
   Users,
   Activity,
+  BarChart3,
   LogOut,
   ChevronLeft,
   ChevronRight
@@ -46,6 +47,12 @@ const Sidebar = ({ user, onLogout }) => {
       descriptionKey: 'monitoring.subtitle'
     },
     {
+      path: '/ux-metrics',
+      icon: BarChart3,
+      labelKey: 'nav.uxMetrics',
+      descriptionKey: 'uxMetrics.subtitle'
+    },
+    {
       path: '/settings',
       icon: Settings,
       labelKey: 'nav.settings',
@@ -56,10 +63,10 @@ const Sidebar = ({ user, onLogout }) => {
   const isActive = (path) => location.pathname === path
 
   return (
-    <div className={`bg-white dark:bg-gray-900 shadow-lg transition-all duration-300 ${
+    <div className={`bg-white dark:bg-neutral-900 shadow-lg transition-all duration-300 ${
       collapsed ? 'w-16' : 'w-64'
     }`}>
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
         <div className="flex items-center justify-between">
           {collapsed ? (
             <Link to="/dashboard" className="hover:opacity-80 transition-opacity">
@@ -79,8 +86,8 @@ const Sidebar = ({ user, onLogout }) => {
                 style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
               />
               <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t('app.tagline')}</h1>
-                <p className="text-xs text-gray-600 dark:text-gray-600">{t('tenants.subtitle')}</p>
+                <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{t('app.tagline')}</h1>
+                <p className="text-xs text-neutral-600 dark:text-neutral-400">{t('tenants.subtitle')}</p>
               </div>
             </Link>
           )}
@@ -90,7 +97,7 @@ const Sidebar = ({ user, onLogout }) => {
             size="sm"
             onClick={() => setCollapsed(!collapsed)}
             className="p-1"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
             aria-expanded={!collapsed}
           >
             {collapsed ? (
@@ -102,21 +109,21 @@ const Sidebar = ({ user, onLogout }) => {
         </div>
       </div>
 
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
         <div className="flex items-center space-x-3">
           <Avatar className="w-10 h-10">
             <AvatarImage src={user?.avatar} />
-            <AvatarFallback className="bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300">
+            <AvatarFallback className="bg-accent-100 dark:bg-accent-900 text-accent-600 dark:text-accent-300">
               {user?.name?.charAt(0) || 'O'}
             </AvatarFallback>
           </Avatar>
           
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
                 {user?.name || t('sidebar.user.defaultName')}
               </p>
-              <p className="text-xs text-purple-600 dark:text-purple-400 truncate font-semibold">
+              <p className="text-xs text-accent-600 dark:text-accent-400 truncate font-semibold">
                 {user?.role || t('sidebar.user.defaultRole')}
               </p>
             </div>
@@ -124,7 +131,7 @@ const Sidebar = ({ user, onLogout }) => {
         </div>
       </div>
 
-      <nav className="flex-1 p-4" aria-label="Main navigation">
+      <nav className="flex-1 p-4" aria-label={t('nav.mainNavigation')}>
         <ul className="space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon
@@ -136,8 +143,8 @@ const Sidebar = ({ user, onLogout }) => {
                   to={item.path}
                   className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     active
-                      ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-r-2 border-purple-700 dark:border-purple-400'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                      ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 border-r-2 border-accent-700 dark:border-accent-400'
+                      : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white'
                   }`}
                   aria-current={active ? 'page' : undefined}
                 >
@@ -148,7 +155,7 @@ const Sidebar = ({ user, onLogout }) => {
                       <div className="flex items-center justify-between">
                         <span>{t(item.labelKey)}</span>
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-600 mt-1">
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
                         {t(item.descriptionKey)}
                       </p>
                     </div>
@@ -160,7 +167,7 @@ const Sidebar = ({ user, onLogout }) => {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+      <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
         <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
         </div>
@@ -171,7 +178,7 @@ const Sidebar = ({ user, onLogout }) => {
           variant="ghost"
           size="sm"
           onClick={onLogout}
-          className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white`}
+          className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white`}
           aria-label={t('nav.logout')}
         >
           <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />

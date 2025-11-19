@@ -9,6 +9,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import tseslint from 'typescript-eslint';
 import i18next from 'eslint-plugin-i18next';
+import customRules from './eslint-rules/index.js';
 
 export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.storybook', '**/*.stories.tsx', 'playwright-report'] }, {
   files: ['**/*.{js,jsx,ts,tsx}'],
@@ -29,6 +30,7 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     'react-refresh': reactRefresh,
     'jsx-a11y': jsxA11y,
     'i18next': i18next,
+    'custom': customRules,
   },
   rules: {
     ...reactHooks.configs.recommended.rules,
@@ -49,7 +51,6 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
       },
     ],
     'no-unused-vars': 'off',
-    'no-undef': 'off',
     'react/jsx-no-undef': 'error',
     'react/jsx-uses-react': 'error',
     'react/jsx-uses-vars': 'error',
@@ -85,6 +86,7 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
         '^(true|false)$',
       ],
     }],
+    'custom/no-hardcoded-colors': 'error',
   },
 }, {
   files: ['**/*.{test,spec}.{ts,tsx,js,jsx}', '**/*.stories.{ts,tsx}', 'src/**/__tests__/**', 'scripts/**'],
@@ -104,15 +106,12 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
     'src/components/CheckoutPage.tsx',
     'src/components/CostAnalysis.tsx',
     'src/components/Dashboard.tsx',
-    'src/components/DarkModeToggle.tsx',
     'src/components/ErrorBoundary.tsx',
     'src/components/GlobalSearch.tsx',
     'src/components/HistoryAnalysis.tsx',
-    'src/components/LanguageSwitcher.tsx',
     'src/components/LiveRegion.tsx',
     'src/components/LoginPage.tsx',
     'src/components/ReportCenter.tsx',
-    'src/components/Sidebar.tsx',
     'src/components/SystemSettings.tsx',
     'src/components/TenantSettings.tsx',
     'src/components/WidgetLibrary.tsx',

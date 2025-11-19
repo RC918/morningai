@@ -82,4 +82,10 @@ export default [
       'i18next/no-literal-string': 'off',
     },
   },
+  {
+    files: ['**/*.{js,jsx}'],
+    rules: {
+      'no-undef': 'off',
+    },
+  },
 ];
