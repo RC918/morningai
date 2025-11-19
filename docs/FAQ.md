@@ -1,42 +1,45 @@
-# Adding a Test Comment to `llm_planner_adapter.py` in MorningAI
+# Adding a Test Comment in `llm_planner_adapter.py`
 
-When working on the MorningAI platform, you may find the need to document or note specific behaviors, todo items, or important information directly within your code. This FAQ will guide you through the process of adding a test comment to the `llm_planner_adapter.py` file located in the `handoff/20250928/40_App/orchestrator/` directory of the RC918/morningai repository.
+When working on enhancing or maintaining the MorningAI platform, it's often necessary to add comments to your code for clarity, documentation, or testing purposes. This FAQ entry guides you through adding a test comment to the `llm_planner_adapter.py` file within the MorningAI project structure.
 
 ## Explanation
 
-Comments in Python are lines that are not executed by the interpreter. They're invaluable for providing context or explanations within your codebase, making it easier for you and others to understand the code's purpose at a glance. In Python, comments are preceded by a hash mark (`#`) and can be placed at the end of a line of code or on their own line.
+Comments in Python start with a hash mark (`#`) and extend to the end of the physical line. They are intended for explaining code or marking temporary placeholders for later review. In this context, adding a test comment can help developers indicate areas of the code that are under testing or require further attention.
 
-### Adding a Comment
+## Code Example
 
-To add a comment to `llm_planner_adapter.py`, follow these steps:
+To add a test comment to the `llm_planner_adapter.py` file located at `handoff/20250928/40_App/orchestrator`, follow these steps:
 
-1. Navigate to the specified directory: `handoff/20250928/40_App/orchestrator/`
-2. Open `llm_planner_adapter.py` with your preferred text editor or IDE.
-3. Decide where you want to place your comment. If it's meant to describe a block of code, it's good practice to place it directly above that block.
-4. Begin your comment with a `#` followed by a space for readability, then type your comment.
+1. Navigate to the correct directory within the MorningAI repository:
+   ```plaintext
+   RC918/morningai/handoff/20250928/40_App/orchestrator/
+   ```
 
-#### Example
+2. Open the `llm_planner_adapter.py` file in your preferred text editor or IDE.
 
-If you're adding a test comment to remind yourself or others to refactor a specific function in the future, your comment might look like this:
+3. Decide on the location within the file where your comment should be added. For example, if you want to mark a section of code for future review, you might add your comment above that section.
 
-```python
-# TODO: Refactor this function for better efficiency
-def my_sample_function():
-    pass
-```
+4. Insert your test comment by typing `#` followed by your comment text. For example:
+   ```python
+   # TODO: Review this method for optimization possibilities
+   def some_method():
+       pass
+   ```
 
-### Related Documentation
+5. Save your changes.
 
-- Python Comments: [Python.org Documentation](https://docs.python.org/3/tutorial/introduction.html#comments)
-- MorningAI Developer Guide (specifically the section on code standards and practices)
+## Related Documentation Links
 
-### Common Troubleshooting Tips
+- Python Comments Guide: [https://docs.python.org/3/tutorial/introduction.html#comments](https://docs.python.org/3/tutorial/introduction.html#comments)
+- MorningAI Repository Structure and Guidelines: This would typically link to internal documentation detailing repository structures, naming conventions, and contribution guidelines specific to MorningAI.
 
-- **Comment Not Being Recognized**: Ensure that there is no whitespace before the `#`; it should be the first character on the line unless it's an inline comment.
-- **Syntax Errors Near Comments**: While comments themselves cannot cause syntax errors, ensure that adding a comment has not inadvertently uncommented code or broken Python's indentation rules.
-- **Code Execution Changes**: Comments do not affect how your code runs. If you notice changes after adding comments, double-check that you haven't altered any actual code.
+## Common Troubleshooting Tips
 
-Remember, comments are an essential part of maintaining clean and understandable code, especially when working on complex systems like MorningAI. They help document decisions, clarify complex logic, and remind you and others of future improvements.
+- **Comment Not Visible**: Ensure you've saved the changes after adding your comment and that you're viewing the latest version of the file.
+- **Syntax Errors**: Remember that Python comments should not interfere with code execution unless they are mistakenly inserted within string literals or other critical parts of your code.
+- **Access Denied**: If you encounter permissions issues when attempting to modify `llm_planner_adapter.py`, ensure you have appropriate access rights within the `RC918/morningai` repository. You may need to consult with your team's repository administrator.
+
+Adding comments is a straightforward task, but its importance in maintaining clear and understandable code should not be underestimated. Always consider how your comments can aid others (and yourself) in understanding and working with the MorningAI codebase more effectively.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
