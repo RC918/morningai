@@ -1,84 +1,38 @@
-# System Architecture of MorningAI
+# Adding a Test Comment in `llm_planner_adapter.py`
 
-MorningAI is designed as a scalable, multi-tenant Software as a Service (SaaS) platform, leveraging modern technologies across its stack to deliver autonomous code generation, documentation management, and multi-platform integration capabilities. This document outlines the core components of MorningAI's system architecture, providing developers with insights into its operational structure and interaction models.
+When working on the MorningAI platform, specifically within the orchestrator module, you might need to add comments for testing or documentation purposes. This FAQ provides guidance on adding a test comment in the `llm_planner_adapter.py` file located in the `handoff/20250928/40_App/orchestrator/` directory.
 
-## Overview
+## Comprehensive Explanation
 
-At its core, MorningAI is structured around a microservices architecture pattern, enabling modular development, scalability, and ease of maintenance. The system integrates various technologies including React, Flask, PostgreSQL (Supabase), Redis Queue (RQ), and OpenAI's GPT-4 for AI-driven functionalities.
+Comments in Python are lines that are not executed by the interpreter. They're used for explaining code or annotating it for future reference. In Python, comments start with a `#` symbol. Adding a test comment involves editing the `llm_planner_adapter.py` file to include a line or lines preceded by `#`.
 
-### Frontend
+### Code Example
 
-- **Technology Stack**: React with Vite and TailwindCSS
-- **Functionality**: Provides the user interface for documentation management, task orchestration, and viewing generated content.
-- **Location in Repository**: `/frontend`
+To add a test comment in the `llm_planner_adapter.py`, follow these steps:
 
-**Code Example**: Initializing the React app with Vite:
-```javascript
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-);
-```
-
-### Backend
-
-- **Technology Stack**: Python with Flask and Gunicorn for multi-worker support
-- **Database**: PostgreSQL through Supabase with Row Level Security for data integrity and multi-tenancy support
-- **Queue System**: Redis Queue (RQ) is utilized for managing background tasks with worker heartbeat monitoring to ensure reliability.
-- **Orchestration**: LangGraph is used for defining and managing agent workflows within the system.
-- **AI Integration**: OpenAI GPT-4 powers the content generation capabilities of MorningAI.
-- **Location in Repository**: `/backend`
-
-**Code Example**: Flask application initialization:
+1. Navigate to the file path: `handoff/20250928/40_App/orchestrator/llm_planner_adapter.py` within the RC918/morningai repository.
+2. Open `llm_planner_adapter.py` in your preferred code editor.
+3. Decide where you want to place your comment. It could be above a specific method or block of code where you want to clarify functionality or note something important for testing.
+4. Insert your comment starting with the `#` symbol. For instance:
+   
 ```python
-from flask import Flask
-app = Flask(__name__)
-
-@app.route('/')
-def hello_world():
-    return 'Hello, World!'
-
-if __name__ == '__main__':
-    app.run()
+# This is a test comment for demonstration purposes
+def some_function():
+    pass
 ```
 
-### Deployment
+### Related Documentation Links
 
-- Hosted on Render.com with continuous integration and deployment (CI/CD) pipelines set up for seamless updates.
-- Configuration files for Render are located in the root directory of the repository.
+- Python Comments: [Python Official Documentation](https://docs.python.org/3/tutorial/introduction.html#comments)
+- MorningAI Repository Guidelines: Ensure to review any contributing guidelines specified in the repository's README file or in a CONTRIBUTING.md file if available.
 
-### Documentation & FAQ Management
+### Common Troubleshooting Tips
 
-MorningAI leverages its own capabilities to autonomously generate FAQ content and manage documentation. This meta approach ensures that documentation is always up-to-date and relevant.
+- **Syntax Errors**: Ensure that your comment does not inadvertently uncomment code, leading to syntax errors.
+- **Merge Conflicts**: If working with a team, ensure that adding comments does not create merge conflicts with ongoing work. Always pull the latest changes before making modifications.
+- **Visibility**: Remember that while comments can be helpful, excessive commenting can clutter code. Aim for clarity and simplicity.
 
-## Related Documentation Links
-
-- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
-- [React Official Documentation](https://reactjs.org/docs/getting-started.html)
-- [Supabase Documentation](https://supabase.io/docs)
-- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
-- [OpenAI API Documentation](https://beta.openai.com/docs/)
-
-## Common Troubleshooting Tips
-
-**Issue: Backend services not responding**
-1. Ensure Gunicorn is running with the correct number of workers: `gunicorn -w 4 app:app`
-2. Check Redis Queue workers are active: `rq info`
-3. Verify database connections in Supabase are correctly configured.
-
-**Issue: Frontend build fails**
-1. Ensure all npm packages are up-to-date: `npm update`
-2. Run `npm run build` to identify any compilation errors.
-3. Check Vite configuration for any misconfigurations.
-
-For more detailed troubleshooting guides, refer to each technology's specific documentation or the issues section of the RC918/morningai repository.
+For more information on best practices when contributing to MorningAI, please refer to our documentation on coding standards and review processes.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -86,7 +40,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `b45dd6db-dc63-4ae9-91ad-fd584e3cee47`
+- Task: 請幫我在 handoff/20250928/40_App/orchestrator/llm_planner_adapter.py 中新增一個測試用的註解
+- Trace ID: `0db2de65-9608-43bb-9347-02749499fc0c`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
