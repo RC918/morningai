@@ -780,6 +780,7 @@ class Settings(BaseSettings):
         default=0,
         ge=0,
         le=100,
+        alias="USE_CODEGEN_WORKFLOW_PERCENT",
         description="Percentage of tasks to use code generation workflow (0-100, for canary rollout)"
     )
     

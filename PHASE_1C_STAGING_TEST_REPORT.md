@@ -232,6 +232,138 @@ With these fixes, the Phase 1 LLM Planner is ready for production canary deploym
 
 ---
 
+## Technical Documentation
+
+### Environment Variable Alias Behavior
+
+**Why Aliases Are Required:**
+
+Pydantic's `BaseSettings` class with `case_sensitive=True` (the default) expects environment variable names to match the field names exactly. Without explicit `alias=` parameters, Pydantic looks for lowercase environment variable names.
+
+**Problem:**
+- Render staging uses UPPERCASE environment variables: `USE_LANGGRAPH`, `USE_LANGGRAPH_PERCENT`, `USE_LLM_PLANNER`, `USE_CODEGEN_WORKFLOW_PERCENT`
+- Pydantic fields without aliases expect lowercase: `use_langgraph`, `use_langgraph_percent`, `use_llm_planner`, `use_codegen_workflow_percent`
+- Result: Environment variables not read, defaults used instead
+
+**Solution:**
+
+Add explicit `alias=` parameters to Field definitions:
+
+```python
+use_langgraph: bool = Field(
+    default=False,
+    alias="USE_LANGGRAPH",  # Maps UPPERCASE env var to lowercase field
+    description="Enable LangGraph orchestrator mode"
+)
+
+use_langgraph_percent: int = Field(
+    default=0,
+    ge=0,
+    le=100,
+    alias="USE_LANGGRAPH_PERCENT",  # Maps UPPERCASE env var to lowercase field
+    description="Percentage of tasks to use LangGraph mode (0-100)"
+)
+
+use_llm_planner: bool = Field(
+    default=False,
+    alias="USE_LLM_PLANNER",  # Maps UPPERCASE env var to lowercase field
+    description="Enable LLM-powered planner in LangGraph orchestrator (Phase 1)"
+)
+
+use_codegen_workflow_percent: int = Field(
+    default=0,
+    ge=0,
+    le=100,
+    alias="USE_CODEGEN_WORKFLOW_PERCENT",  # Maps UPPERCASE env var to lowercase field
+    description="Percentage of tasks to use code generation workflow (0-100, for canary rollout)"
+)
+```
+
+**Environment Variables Requiring Aliases:**
+- `USE_LANGGRAPH` → `use_langgraph`
+- `USE_LANGGRAPH_PERCENT` → `use_langgraph_percent`
+- `USE_LLM_PLANNER` → `use_llm_planner`
+- `USE_CODEGEN_WORKFLOW_PERCENT` → `use_codegen_workflow_percent`
+
+---
+
+### JSONL Path Resolution Logic
+
+**Overview:**
+
+The `record_planner_event()` function uses a 4-priority fallback system to locate the repository root and construct the JSONL file path. This ensures the function works correctly across different environments (local development, Render staging, test environments).
+
+**Priority Order:**
+
+1. **Priority 1: CWD with .git directory**
+   - Check if current working directory (CWD) contains a `.git` directory
+   - Walk up parent directories until `.git` is found or root is reached
+   - **Use case:** Normal production/staging execution where worker runs from repo root
+   - **Example:** `/opt/render/project/src/.git` → repo root = `/opt/render/project/src`
+
+2. **Priority 2: __file__ directory with .git**
+   - If CWD has no `.git`, check the directory containing `llm_planner_adapter.py`
+   - Walk up parent directories from `__file__` location until `.git` is found
+   - **Use case:** Execution from outside repo directory (e.g., system cron jobs)
+   - **Example:** `/opt/render/project/src/handoff/.../orchestrator/llm_planner_adapter.py` → repo root = `/opt/render/project/src`
+
+3. **Priority 3: CWD basename is "morningai" (heuristic)**
+   - If no `.git` found anywhere, check if CWD or parent directory is named "morningai"
+   - **Use case:** Test environments or CI where `.git` is not available
+   - **Example:** `/tmp/test_env/morningai` → repo root = `/tmp/test_env/morningai`
+
+4. **Priority 4: Fallback to current_dir**
+   - If all else fails, use the directory containing `llm_planner_adapter.py`
+   - **Use case:** Last resort for unusual execution contexts
+   - **Example:** `/some/random/path/orchestrator` → repo root = `/some/random/path/orchestrator`
+
+**Environment Variable Override:**
+
+The `PLANNER_EVENTS_FILE` environment variable can override the default relative path:
+- If set to an **absolute path**: Use that path directly (no repo root detection)
+- If set to a **relative path**: Resolve relative to detected repo root
+- If not set: Use default `tools/agent_eval/data/planner_runs.jsonl` relative to repo root
+
+**Code Implementation:**
+
+```python
+def record_planner_event(...):
+    events_file = os.environ.get('PLANNER_EVENTS_FILE', 'tools/agent_eval/data/planner_runs.jsonl')
+    
+    if os.path.isabs(events_file):
+        events_path = events_file  # Absolute path: use directly
+    else:
+        # Priority 1: CWD with .git
+        cwd = os.getcwd()
+        repo_root = find_git_root(cwd)
+        
+        # Priority 2: __file__ directory with .git
+        if not repo_root:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            repo_root = find_git_root(current_dir)
+        
+        # Priority 3: CWD basename is "morningai"
+        if not repo_root:
+            if os.path.basename(cwd) == 'morningai' or os.path.basename(os.path.dirname(cwd)) == 'morningai':
+                repo_root = cwd if os.path.basename(cwd) == 'morningai' else os.path.dirname(cwd)
+        
+        # Priority 4: Fallback to current_dir
+        if not repo_root:
+            repo_root = current_dir
+        
+        events_path = os.path.join(repo_root, events_file)
+```
+
+**Logging:**
+
+The function logs the **absolute path** (not relative path) for clarity:
+- Success: `logger.info(f"[LLM Planner] Recorded planner event to {events_path}")`
+- Failure: `logger.warning(f"[LLM Planner] Failed to record planner event at {events_path}: {e}")`
+
+This makes it easy to verify the file location in logs without ambiguity.
+
+---
+
 ## Appendix: Test Logs
 
 ### Successful LLM Planner Execution (Web Shell)

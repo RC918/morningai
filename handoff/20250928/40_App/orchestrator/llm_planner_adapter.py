@@ -384,9 +384,9 @@ Generate a 3-7 step plan to accomplish this goal."""
         try:
             with open(events_path, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(event) + '\n')
-            logger.info(f"[LLM Planner] Recorded planner event to {events_file}")
+            logger.info(f"[LLM Planner] Recorded planner event to {events_path}")
         except Exception as e:
-            logger.warning(f"[LLM Planner] Failed to record planner event: {e}")
+            logger.warning(f"[LLM Planner] Failed to record planner event at {events_path}: {e}")
 
 
 def generate_llm_plan(
