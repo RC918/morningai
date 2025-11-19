@@ -41,7 +41,11 @@ async function navigateToExecutionLogs(page) {
   
   await page.locator('[data-slot="tabs-list"]').waitFor({ timeout: 30000 })
   
-  await page.getByRole('tab', { name: /execution logs/i }).click()
+  const executionLogsTab = page.getByRole('tab', { name: /execution logs/i })
+  await executionLogsTab.waitFor({ state: 'visible', timeout: 10000 })
+  await executionLogsTab.click()
+  
+  await page.waitForTimeout(1000)
   
   const logsContainer = page.locator('[data-testid="agent-execution-logs"]')
   await logsContainer.waitFor({ state: 'visible', timeout: 10000 })
