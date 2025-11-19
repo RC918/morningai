@@ -39,7 +39,7 @@ async function navigateToExecutionLogs(page) {
     return false
   }
   
-  await page.click('button[value="executionLogs"]')
+  await page.click('[data-slot="tabs-trigger"][value="executionLogs"]')
   
   const logsContainer = page.locator('[data-testid="agent-execution-logs"]')
   await logsContainer.waitFor({ state: 'visible', timeout: 10000 })

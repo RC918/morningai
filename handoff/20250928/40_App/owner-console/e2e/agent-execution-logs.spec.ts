@@ -50,7 +50,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await page.goto('/governance')
     await page.waitForLoadState('networkidle')
     
-    await page.click('button[value="executionLogs"]')
+    await page.click('[data-slot="tabs-trigger"][value="executionLogs"]')
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })
   }
