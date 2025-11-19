@@ -1,5 +1,12 @@
 # MorningAI Environment Architecture
 
+**Last Updated**: 2025-11-19  
+**Document Version**: 2.0  
+**Related Documents**: 
+- [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
+- [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
+- [ONBOARDING.md](../ONBOARDING.md) - 新人上手指南
+
 ---
 
 ⚠️ **SECURITY NOTICE**: This document contains references to sensitive environment variables.
@@ -13,6 +20,14 @@
 ## Overview
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
+
+**近一週重要更新** (2025-11-12 至 2025-11-19):
+- ✅ Phase 1 (B): LLM Planner 整合與 ContextManager 實作 (#1353)
+- ✅ Phase 2: Code Generation Workflow with Security Validation (#1347)
+- ✅ Phase 1.5: Agent Evaluation Monitoring Dashboard (#1337)
+- ✅ 測試覆蓋率提升: 3% → 21% (P3 Phase 1-2)
+- ✅ Owner Console E2E 測試完成 (#1345, #1348)
+- ✅ Lighthouse CI 設置文檔與 workflow_dispatch 觸發器 (#1346)
 
 ---
 
@@ -106,16 +121,22 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 
 **Schema Definition**: `config/env.schema.yaml` (Single Source of Truth)
 - **Total Defined**: 121 variables (20 required, 101 optional)
-- **Schema Version**: 1.1 (Phase 11 + Missing Variables)
+- **Schema Version**: 1.2 (Phase 1-2 + Feature Flags)
 - **Auto-Generated**: `.env.example` is generated from schema via `scripts/generate-env-examples.py`
 - **CI Validation**: `tests/lint/test_env_vars_defined.py` validates all `os.getenv()` calls against schema
 - **Deprecation**: Root `env_schema.yaml` is deprecated; use `config/env.schema.yaml` only
+- **Path**: `/home/ubuntu/repos/morningai/config/env.schema.yaml`
 
-**Phase 11 New Variables** (Added 2025-11):
+**Phase 1-2 New Variables** (Added 2025-11):
 - **2FA/Authentication**: 
   - `FEATURE_2FA_PREAUTH` (boolean, safe to log)
   - `PREAUTH_TOKEN_TTL` (integer seconds, safe to log)
   - 🔒 `TOTP_ENCRYPTION_KEY` (**SECRET** - DO NOT LOG/COMMIT - 32 bytes base64 encoded)
+- **AI Orchestration** (Phase 1-2):
+  - `USE_LLM_PLANNER` (boolean) - Enable LLM-based task planning (Phase 1)
+  - `USE_CODEGEN_WORKFLOW_PERCENT` (integer 0-100) - Percentage rollout for code generation workflow (Phase 2)
+  - `USE_LANGGRAPH` (boolean) - Enable LangGraph orchestrator mode
+  - `USE_LANGGRAPH_PERCENT` (integer 0-100) - Percentage rollout for LangGraph
 - **Rate Limiting**: `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_BY_USER`, `RATE_LIMIT_FAIL_FAST`, `RATE_LIMIT_REDIS_MAX_RETRIES`, `RATE_LIMIT_REDIS_RETRY_DELAY`
 - **Testing** (⚠️ **TEST ENVIRONMENTS ONLY** - NEVER SET IN PRODUCTION):
   - `TESTING` (boolean) - Enables test mode behaviors
@@ -159,10 +180,14 @@ SENTRY_DSN=<production-dsn>
 SENTRY_ENVIRONMENT=production
 ```
 
-**Orchestrator Configuration**:
+**Orchestrator Configuration** (Phase 1-2):
 ```bash
 USE_LANGGRAPH=false  # Production uses simple mode (set in render.yaml:48-49)
 # Set to 'true' to enable LangGraph mode with full state machine
+
+# Phase 1-2 Feature Flags
+USE_LLM_PLANNER=true                    # Enable LLM-based task planning (Phase 1)
+USE_CODEGEN_WORKFLOW_PERCENT=0          # Percentage rollout for code generation (Phase 2, 0-100)
 ```
 
 **Rate Limiting**:
