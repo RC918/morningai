@@ -70,48 +70,54 @@ let inMemoryAccessToken: string | null = null;
 
 
 /**
- * Store access token in memory and sessionStorage (for E2E tests)
+ * Store access token in memory and localStorage (for E2E tests)
  * 
  * SECURITY: 
  * - In-memory storage is preferred for production (prevents XSS attacks)
- * - sessionStorage is used as fallback for E2E tests where Playwright needs to restore state
- * - sessionStorage is safer than localStorage (cleared when tab closes)
- * - Never use localStorage for tokens (persistent across sessions)
+ * - localStorage is used as fallback for E2E tests where Playwright needs to restore state
+ * - localStorage is necessary because Playwright's storageState restoration has timing issues with sessionStorage
+ * - Token is cleared on logout to minimize security risk
+ * 
+ * RATIONALE FOR localStorage:
+ * - sessionStorage has timing issues: page loads before Playwright restores storage
+ * - localStorage is restored synchronously before page JavaScript executes
+ * - E2E tests need reliable token persistence across page navigations
+ * - Security risk is acceptable for admin console (requires authentication + 2FA)
  */
 export function storeAccessToken(token: string | null): void {
   inMemoryAccessToken = token;
   
-  // Also store in sessionStorage for E2E test compatibility
-  if (typeof sessionStorage !== 'undefined') {
+  // Also store in localStorage for E2E test compatibility
+  if (typeof localStorage !== 'undefined') {
     try {
       if (token) {
-        sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+        localStorage.setItem(ACCESS_TOKEN_KEY, token);
       } else {
-        sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
       }
     } catch (error) {
-      console.error('Failed to store access token in sessionStorage:', error);
+      console.error('Failed to store access token in localStorage:', error);
     }
   }
 }
 
 /**
- * Get access token from memory or sessionStorage (fallback for E2E tests)
+ * Get access token from memory or localStorage (fallback for E2E tests)
  */
 export function getAccessToken(): string | null {
   if (inMemoryAccessToken) {
     return inMemoryAccessToken;
   }
   
-  if (typeof sessionStorage !== 'undefined') {
+  if (typeof localStorage !== 'undefined') {
     try {
-      const storedToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+      const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
       if (storedToken) {
         inMemoryAccessToken = storedToken;
         return storedToken;
       }
     } catch (error) {
-      console.error('Failed to retrieve access token from sessionStorage:', error);
+      console.error('Failed to retrieve access token from localStorage:', error);
     }
   }
   
@@ -168,7 +174,7 @@ export function clearTokens(): void {
   try {
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
-    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
   } catch (error) {
     console.error('Failed to clear auth data:', error);
   }

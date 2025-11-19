@@ -64,17 +64,10 @@ setup('authenticate', async ({ page }) => {
     return {
       hasTokenExpiry: !!localStorage.getItem('morningai_token_expiry'),
       hasUser: !!localStorage.getItem('morningai_user'),
+      hasAccessToken: !!localStorage.getItem('morningai_access_token'),
       tokenExpiry: localStorage.getItem('morningai_token_expiry'),
       tokenExpiryDate: new Date(parseInt(localStorage.getItem('morningai_token_expiry') || '0')).toISOString(),
     };
   });
   console.log('📊 localStorage keys:', localStorageKeys);
-  
-  const sessionStorageKeys = await page.evaluate(() => {
-    return {
-      hasAccessToken: !!sessionStorage.getItem('morningai_access_token'),
-      accessTokenLength: sessionStorage.getItem('morningai_access_token')?.length || 0,
-    };
-  });
-  console.log('📊 sessionStorage keys:', sessionStorageKeys);
 });
