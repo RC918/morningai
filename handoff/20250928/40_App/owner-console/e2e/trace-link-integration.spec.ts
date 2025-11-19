@@ -23,11 +23,28 @@ import { test, expect } from '@playwright/test'
  * Returns true if authenticated, false if on login page
  */
 async function isAuthenticated(page) {
-  // Check for common login page elements
   const loginForm = await page.locator('input[type="email"], input[type="password"]').count()
   const loginButton = await page.locator('button:has-text("Login"), button:has-text("Sign in")').count()
   
   return loginForm === 0 && loginButton === 0
+}
+
+/**
+ * Helper function to navigate to execution logs tab
+ */
+async function navigateToExecutionLogs(page) {
+  await page.goto('/governance')
+  
+  if (!(await isAuthenticated(page))) {
+    return false
+  }
+  
+  await page.click('button[value="executionLogs"]')
+  
+  const logsContainer = page.locator('[data-testid="agent-execution-logs"]')
+  await logsContainer.waitFor({ state: 'visible', timeout: 10000 })
+  
+  return true
 }
 
 test.describe('Trace Link Integration', () => {
@@ -40,16 +57,11 @@ test.describe('Trace Link Integration', () => {
     })
 
     test('should display external link icon next to trace IDs in desktop table view', async ({ page }) => {
-      await page.goto('/governance')
+      const authenticated = await navigateToExecutionLogs(page)
       
-      // Check if authenticated
-      if (!(await isAuthenticated(page))) {
+      if (!authenticated) {
         test.skip(true, 'Not authenticated - skipping test that requires /governance access')
       }
-      
-      // Wait for Agent Execution Logs to load using stable selector
-      const logsContainer = page.locator('[data-testid="agent-execution-logs"]')
-      await logsContainer.waitFor({ state: 'visible', timeout: 10000 })
       
       // Find trace link using stable selector
       const traceLink = page.locator('a[target="_blank"][href*="/trace/"]').first()
@@ -71,14 +83,12 @@ test.describe('Trace Link Integration', () => {
 
     test('should display external link icon in mobile card view', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 })
-      await page.goto('/governance')
       
-      if (!(await isAuthenticated(page))) {
+      const authenticated = await navigateToExecutionLogs(page)
+      
+      if (!authenticated) {
         test.skip(true, 'Not authenticated - skipping test that requires /governance access')
       }
-      
-      const logsContainer = page.locator('[data-testid="agent-execution-logs"]')
-      await logsContainer.waitFor({ state: 'visible', timeout: 10000 })
       
       const traceLink = page.locator('a[target="_blank"][href*="/trace/"]').first()
       
@@ -90,14 +100,11 @@ test.describe('Trace Link Integration', () => {
     })
 
     test('should encode special characters in trace IDs', async ({ page }) => {
-      await page.goto('/governance')
+      const authenticated = await navigateToExecutionLogs(page)
       
-      if (!(await isAuthenticated(page))) {
+      if (!authenticated) {
         test.skip(true, 'Not authenticated - skipping test that requires /governance access')
       }
-      
-      const logsContainer = page.locator('[data-testid="agent-execution-logs"]')
-      await logsContainer.waitFor({ state: 'visible', timeout: 10000 })
       
       const traceLink = page.locator('a[target="_blank"][href*="/trace/"]').first()
       
@@ -122,14 +129,11 @@ test.describe('Trace Link Integration', () => {
     })
 
     test('should NOT display external link icon when VITE_TRACE_VIEWER_URL is unset', async ({ page }) => {
-      await page.goto('/governance')
+      const authenticated = await navigateToExecutionLogs(page)
       
-      if (!(await isAuthenticated(page))) {
+      if (!authenticated) {
         test.skip(true, 'Not authenticated - skipping test that requires /governance access')
       }
-      
-      const logsContainer = page.locator('[data-testid="agent-execution-logs"]')
-      await logsContainer.waitFor({ state: 'visible', timeout: 10000 })
       
       // Verify external link does NOT exist
       const traceLink = page.locator('a[target="_blank"][href*="/trace/"]')
@@ -144,14 +148,12 @@ test.describe('Trace Link Integration', () => {
 
     test('should only show copy button in mobile view when VITE_TRACE_VIEWER_URL is unset', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 })
-      await page.goto('/governance')
       
-      if (!(await isAuthenticated(page))) {
+      const authenticated = await navigateToExecutionLogs(page)
+      
+      if (!authenticated) {
         test.skip(true, 'Not authenticated - skipping test that requires /governance access')
       }
-      
-      const logsContainer = page.locator('[data-testid="agent-execution-logs"]')
-      await logsContainer.waitFor({ state: 'visible', timeout: 10000 })
       
       // Verify external link does NOT exist
       const traceLink = page.locator('a[target="_blank"][href*="/trace/"]')
