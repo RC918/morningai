@@ -22,7 +22,7 @@ from common.config.settings import get_settings, settings
 logger = logging.getLogger(__name__)
 
 # Token Configuration
-ACCESS_TOKEN_EXPIRY_MINUTES = 15
+ACCESS_TOKEN_EXPIRY_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', '15'))
 REFRESH_TOKEN_EXPIRY_DAYS = 7
 JWT_ALGORITHM = 'HS256'
 
