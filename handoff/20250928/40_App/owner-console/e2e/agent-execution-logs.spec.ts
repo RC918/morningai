@@ -65,10 +65,15 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     } else {
       console.log(`🔗 Tab aria-controls: ${panelId}`)
       
-      await Promise.all([
-        page.locator(`#${panelId}`).waitFor({ state: 'visible', timeout: 10000 }),
-        executionLogsTab.click()
-      ])
+      await executionLogsTab.click()
+      
+      // Wait for tab to be selected
+      await expect(executionLogsTab).toHaveAttribute('aria-selected', 'true', { timeout: 5000 })
+      
+      // Wait for panel to become active
+      const panel = page.locator(`#${panelId}`)
+      await expect(panel).toHaveAttribute('data-state', 'active', { timeout: 5000 })
+      await panel.waitFor({ state: 'visible', timeout: 10000 })
     }
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })

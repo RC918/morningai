@@ -1,4 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { 
+  stubGovernanceEndpoints,
+  addDiagnosticLogging
+} from './utils/fixtures'
 
 /**
  * E2E tests for trace link integration in Agent Execution Logs
@@ -57,10 +61,15 @@ async function navigateToExecutionLogs(page) {
   } else {
     console.log(`🔗 Tab aria-controls: ${panelId}`)
     
-    await Promise.all([
-      page.locator(`#${panelId}`).waitFor({ state: 'visible', timeout: 10000 }),
-      executionLogsTab.click()
-    ])
+    await executionLogsTab.click()
+    
+    // Wait for tab to be selected
+    await expect(executionLogsTab).toHaveAttribute('aria-selected', 'true', { timeout: 5000 })
+    
+    // Wait for panel to become active
+    const panel = page.locator(`#${panelId}`)
+    await expect(panel).toHaveAttribute('data-state', 'active', { timeout: 5000 })
+    await panel.waitFor({ state: 'visible', timeout: 10000 })
   }
   
   // Wait for the actual content to load
@@ -73,6 +82,9 @@ async function navigateToExecutionLogs(page) {
 test.describe('Trace Link Integration', () => {
   test.describe('With VITE_TRACE_VIEWER_URL set', () => {
     test.beforeEach(async ({ page }) => {
+      await addDiagnosticLogging(page)
+      await stubGovernanceEndpoints(page)
+      
       // Skip if E2E_TRACE_VIEWER_URL is not set (default CI behavior)
       if (!process.env.E2E_TRACE_VIEWER_URL) {
         test.skip(true, 'E2E_TRACE_VIEWER_URL not set - skipping trace link presence tests')
@@ -145,6 +157,9 @@ test.describe('Trace Link Integration', () => {
 
   test.describe('Without VITE_TRACE_VIEWER_URL set (default)', () => {
     test.beforeEach(async ({ page }) => {
+      await addDiagnosticLogging(page)
+      await stubGovernanceEndpoints(page)
+      
       // Skip if E2E_TRACE_VIEWER_URL IS set (these tests verify absence)
       if (process.env.E2E_TRACE_VIEWER_URL) {
         test.skip(true, 'E2E_TRACE_VIEWER_URL is set - skipping trace link absence tests')
