@@ -45,13 +45,14 @@ setup('authenticate', async ({ page }) => {
     return tokenExpiry !== null && user !== null;
   }, { timeout: 10000 });
   
-  const longLivedExpiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days from now
+  const expiryMinutes = parseInt(process.env.ACCESS_TOKEN_EXPIRY_MINUTES || '60');
+  const longLivedExpiry = Date.now() + (expiryMinutes * 60 * 1000);
   await page.evaluate((expiry) => {
     localStorage.setItem('morningai_token_expiry', expiry.toString());
   }, longLivedExpiry);
   
   console.log('✅ Authentication successful');
-  console.log(`🔒 Set long-lived token expiry: ${new Date(longLivedExpiry).toISOString()} (7 days from now)`);
+  console.log(`🔒 Set token expiry: ${new Date(longLivedExpiry).toISOString()} (${expiryMinutes} minutes from now, aligned with ACCESS_TOKEN_EXPIRY_MINUTES)`);
   
   const storageState = await page.context().storageState({ path: authFile });
   

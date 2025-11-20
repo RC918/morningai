@@ -31,30 +31,39 @@ async function isAuthenticated(page) {
 
 /**
  * Helper function to navigate to execution logs tab
+ * Uses aria-controls to establish stable connection between tab and panel
  */
 async function navigateToExecutionLogs(page) {
-  const { stubGovernanceEndpoints, addDiagnosticLogging } = await import('./utils/fixtures')
-  
-  await addDiagnosticLogging(page)
-  await stubGovernanceEndpoints(page)
-  
   await page.goto('/governance')
   
   if (!(await isAuthenticated(page))) {
     return false
   }
   
+  // Wait for tabs to be rendered
   await page.locator('[data-slot="tabs-list"]').waitFor({ timeout: 30000 })
   
-  const executionLogsTab = page.locator('[data-slot="tabs-list"] [data-slot="tabs-trigger"]').nth(3)
+  // Find the execution logs tab
+  const executionLogsTab = page.getByRole('tab', { name: /execution logs/i })
   await executionLogsTab.waitFor({ state: 'visible', timeout: 10000 })
-  await executionLogsTab.click()
   
-  const { expect } = await import('@playwright/test')
-  await expect(page.locator('[data-slot="tabs-trigger"][data-state="active"]').nth(0)).toBeVisible({ timeout: 5000 })
+  const panelId = await executionLogsTab.getAttribute('aria-controls')
   
-  await expect(page.locator('[data-slot="tabs-content"][data-state="active"]')).toBeVisible({ timeout: 10000 })
+  if (!panelId) {
+    console.warn('⚠️ Tab does not have aria-controls attribute, falling back to text-based panel selector')
+    await executionLogsTab.click()
+    const tabPanel = page.getByRole('tabpanel', { name: /execution logs/i })
+    await tabPanel.waitFor({ state: 'visible', timeout: 10000 })
+  } else {
+    console.log(`🔗 Tab aria-controls: ${panelId}`)
+    
+    await Promise.all([
+      page.locator(`#${panelId}`).waitFor({ state: 'visible', timeout: 10000 }),
+      executionLogsTab.click()
+    ])
+  }
   
+  // Wait for the actual content to load
   const logsContainer = page.locator('[data-testid="agent-execution-logs"]')
   await logsContainer.waitFor({ state: 'visible', timeout: 10000 })
   

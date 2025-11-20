@@ -29,8 +29,21 @@ import {
 test.describe('AgentExecutionLogs E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     await addDiagnosticLogging(page)
-    // stubGovernanceEndpoints now includes agent-execution-logs mock
     await stubGovernanceEndpoints(page)
+    
+    await page.route('**/admin/agent-execution-logs*', route => {
+      const url = route.request().url()
+      
+      if (url.includes('page=2')) {
+        route.fulfill({ json: mockExecutionLogsResponsePage2 })
+      }
+      else if (url.includes('status=completed')) {
+        route.fulfill({ json: mockExecutionLogsFilteredByStatus })
+      }
+      else {
+        route.fulfill({ json: mockExecutionLogsResponse })
+      }
+    })
   })
 
   const navigateToExecutionLogs = async (page: any) => {
@@ -39,13 +52,24 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     
     await page.locator('[data-slot="tabs-list"]').waitFor({ timeout: 30000 })
     
-    const executionLogsTab = page.locator('[data-slot="tabs-list"] [data-slot="tabs-trigger"]').nth(3)
+    const executionLogsTab = page.getByRole('tab', { name: /execution logs/i })
     await executionLogsTab.waitFor({ state: 'visible', timeout: 10000 })
-    await executionLogsTab.click()
     
-    await expect(page.locator('[data-slot="tabs-trigger"][data-state="active"]').nth(0)).toBeVisible({ timeout: 5000 })
+    const panelId = await executionLogsTab.getAttribute('aria-controls')
     
-    await expect(page.locator('[data-slot="tabs-content"][data-state="active"]')).toBeVisible({ timeout: 10000 })
+    if (!panelId) {
+      console.warn('⚠️ Tab does not have aria-controls attribute, falling back to text-based panel selector')
+      await executionLogsTab.click()
+      const tabPanel = page.getByRole('tabpanel', { name: /execution logs/i })
+      await tabPanel.waitFor({ state: 'visible', timeout: 10000 })
+    } else {
+      console.log(`🔗 Tab aria-controls: ${panelId}`)
+      
+      await Promise.all([
+        page.locator(`#${panelId}`).waitFor({ state: 'visible', timeout: 10000 }),
+        executionLogsTab.click()
+      ])
+    }
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })
   }
@@ -101,7 +125,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await page.getByTestId('apply-filters').click()
     
     const request = await page.waitForRequest(req => 
-      req.url().includes('api/admin/agent-execution-logs') && req.url().includes('status=completed')
+      req.url().includes('admin/agent-execution-logs') && req.url().includes('status=completed')
     )
     
     expect(request.url()).toContain('status=completed')
@@ -122,7 +146,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await page.getByTestId('apply-filters').click()
     
     await page.waitForRequest(req => 
-      req.url().includes('api/admin/agent-execution-logs') && req.url().includes('agent_type=dev_agent')
+      req.url().includes('admin/agent-execution-logs') && req.url().includes('agent_type=dev_agent')
     )
   })
 
@@ -136,31 +160,26 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await page.getByTestId('clear-filters').click()
     
     await page.waitForRequest(req => 
-      req.url().includes('api/admin/agent-execution-logs') && !req.url().includes('status=')
+      req.url().includes('admin/agent-execution-logs') && !req.url().includes('status=')
     )
   })
 
   test('6. should handle pagination', async ({ page }) => {
-    await page.route(/\/api\/admin\/agent-execution-logs(\?.*)?$/, route => {
+    await page.route('**/admin/agent-execution-logs*', route => {
       const url = route.request().url()
-      console.log('[MOCK OVERRIDE] Pagination test intercepted:', url)
       if (url.includes('page=2')) {
         route.fulfill({ 
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
+          json: {
             ...mockExecutionLogsResponsePage2,
             pagination: { total_items: 100, total_pages: 2 }
-          })
+          }
         })
       } else {
         route.fulfill({ 
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
+          json: {
             ...mockExecutionLogsResponse,
             pagination: { total_items: 100, total_pages: 2 }
-          })
+          }
         })
       }
     })
@@ -174,7 +193,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
       await nextButton.first().click()
       
       await page.waitForRequest(req => 
-        req.url().includes('api/admin/agent-execution-logs') && req.url().includes('page=2')
+        req.url().includes('admin/agent-execution-logs') && req.url().includes('page=2')
       )
     }
   })
@@ -240,21 +259,15 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   test('10. should handle error state and retry', async ({ page }) => {
     let callCount = 0
     
-    await page.route(/\/api\/admin\/agent-execution-logs(\?.*)?$/, route => {
+    await page.route('**/admin/agent-execution-logs*', route => {
       callCount++
-      console.log('[MOCK OVERRIDE] Error test intercepted, call count:', callCount)
       if (callCount === 1) {
         route.fulfill({ 
-          status: 500,
-          contentType: 'application/json',
-          body: JSON.stringify({ error: 'Internal server error' })
+          status: 500, 
+          json: { error: 'Internal server error' } 
         })
       } else {
-        route.fulfill({ 
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(mockExecutionLogsResponse) 
-        })
+        route.fulfill({ json: mockExecutionLogsResponse })
       }
     })
     
