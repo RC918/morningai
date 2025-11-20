@@ -303,18 +303,17 @@ export const mockAdminAgents = {
  * These endpoints lack ALLOW_GOVERNANCE_MOCK support, so we stub them at the test layer
  */
 export async function stubGovernanceEndpoints(page: any) {
-  await page.route(/\/api\/admin\/agents(\?.*)?$/, route => {
-    console.log('[MOCK] Intercepted /api/admin/agents')
-    route.fulfill({ 
-      status: 200, 
-      contentType: 'application/json', 
-      body: JSON.stringify(mockAdminAgents) 
-    })
+  await page.route('**/*', route => {
+    const url = route.request().url()
+    if (url.includes('agent-execution-logs')) {
+      console.log('[CATCH-ALL HIT] agent-execution-logs:', url)
+    }
+    route.continue()
   })
   
-  await page.route(/\/api\/admin\/agent-execution-logs(\?.*)?$/, route => {
+  await page.route('**/api/admin/agent-execution-logs*', route => {
     const url = route.request().url()
-    console.log('[MOCK] Intercepted /api/admin/agent-execution-logs:', url)
+    console.log('[MOCK GLOB] Intercepted agent-execution-logs:', url)
     
     if (url.includes('page=2')) {
       route.fulfill({ 
@@ -335,6 +334,15 @@ export async function stubGovernanceEndpoints(page: any) {
         body: JSON.stringify(mockExecutionLogsResponse) 
       })
     }
+  })
+  
+  await page.route(/\/api\/admin\/agents(\?.*)?$/, route => {
+    console.log('[MOCK] Intercepted /api/admin/agents')
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify(mockAdminAgents) 
+    })
   })
   
   await page.route(/\/api\/governance\/events(\?.*)?$/, route => {
@@ -369,6 +377,13 @@ export async function stubGovernanceEndpoints(page: any) {
  * Helper to add diagnostic logging for debugging E2E test failures
  */
 export async function addDiagnosticLogging(page: any) {
+  page.on('request', (request: any) => {
+    const url = request.url()
+    if (url.includes('/agent-execution-logs')) {
+      console.log('[REQ]', request.method(), url)
+    }
+  })
+  
   page.on('console', (msg: any) => {
     const type = msg.type()
     if (type === 'error' || type === 'warning') {
