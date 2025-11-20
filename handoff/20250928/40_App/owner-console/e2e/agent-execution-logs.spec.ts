@@ -31,7 +31,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await addDiagnosticLogging(page)
     await stubGovernanceEndpoints(page)
     
-    await page.route('**/admin/agent-execution-logs*', route => {
+    await page.route('**/api/admin/agent-execution-logs*', route => {
       const url = route.request().url()
       
       if (url.includes('page=2')) {
@@ -114,7 +114,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await page.getByTestId('apply-filters').click()
     
     const request = await page.waitForRequest(req => 
-      req.url().includes('admin/agent-execution-logs') && req.url().includes('status=completed')
+      req.url().includes('api/admin/agent-execution-logs') && req.url().includes('status=completed')
     )
     
     expect(request.url()).toContain('status=completed')
@@ -135,7 +135,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await page.getByTestId('apply-filters').click()
     
     await page.waitForRequest(req => 
-      req.url().includes('admin/agent-execution-logs') && req.url().includes('agent_type=dev_agent')
+      req.url().includes('api/admin/agent-execution-logs') && req.url().includes('agent_type=dev_agent')
     )
   })
 
@@ -149,12 +149,12 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await page.getByTestId('clear-filters').click()
     
     await page.waitForRequest(req => 
-      req.url().includes('admin/agent-execution-logs') && !req.url().includes('status=')
+      req.url().includes('api/admin/agent-execution-logs') && !req.url().includes('status=')
     )
   })
 
   test('6. should handle pagination', async ({ page }) => {
-    await page.route('**/admin/agent-execution-logs*', route => {
+    await page.route('**/api/admin/agent-execution-logs*', route => {
       const url = route.request().url()
       if (url.includes('page=2')) {
         route.fulfill({ 
@@ -182,7 +182,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
       await nextButton.first().click()
       
       await page.waitForRequest(req => 
-        req.url().includes('admin/agent-execution-logs') && req.url().includes('page=2')
+        req.url().includes('api/admin/agent-execution-logs') && req.url().includes('page=2')
       )
     }
   })
@@ -248,7 +248,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   test('10. should handle error state and retry', async ({ page }) => {
     let callCount = 0
     
-    await page.route('**/admin/agent-execution-logs*', route => {
+    await page.route('**/api/admin/agent-execution-logs*', route => {
       callCount++
       if (callCount === 1) {
         route.fulfill({ 
