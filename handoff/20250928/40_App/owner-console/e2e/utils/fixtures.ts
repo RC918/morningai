@@ -103,6 +103,8 @@ export const mockExecutionLogsResponse = {
   pagination: {
     total_items: 42,
     total_pages: 2,
+    page: 1,
+    page_size: 50,
   },
 }
 
@@ -138,6 +140,8 @@ export const mockExecutionLogsResponsePage2 = {
   pagination: {
     total_items: 42,
     total_pages: 2,
+    page: 2,
+    page_size: 50,
   },
 }
 
@@ -171,6 +175,8 @@ export const mockExecutionLogsFilteredByStatus = {
   pagination: {
     total_items: 36,
     total_pages: 2,
+    page: 1,
+    page_size: 50,
   },
 }
 
@@ -221,6 +227,8 @@ export const mockExecutionLogsFilteredByAgentType = {
   pagination: {
     total_items: 12,
     total_pages: 2,
+    page: 1,
+    page_size: 50,
   },
 }
 
