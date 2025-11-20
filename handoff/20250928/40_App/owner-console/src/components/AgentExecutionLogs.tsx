@@ -877,7 +877,7 @@ const AgentExecutionLogs = () => {
 
           {/* Pagination */}
           {pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            <div className="flex items-center justify-between mt-6 pt-4 border-t" data-testid="pagination">
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 {t('governance.executionLogs.pagination.showing', {
                   start: (pagination.page - 1) * pagination.page_size + 1,
@@ -904,10 +904,16 @@ const AgentExecutionLogs = () => {
                       aria-disabled={pagination.page === 1}
                       tabIndex={pagination.page === 1 ? -1 : 0}
                       className={pagination.page === 1 ? 'pointer-events-none opacity-50' : ''}
+                      data-testid="pagination-prev"
                     />
                   </PaginationItem>
                   <PaginationItem>
-                    <span className="text-sm text-neutral-600 dark:text-neutral-400 px-4">
+                    <span 
+                      className="text-sm text-neutral-600 dark:text-neutral-400 px-4"
+                      data-testid="pagination-page"
+                      data-current={pagination.page}
+                      data-total={pagination.total_pages}
+                    >
                       {t('governance.executionLogs.pagination.page', {
                         current: pagination.page,
                         total: pagination.total_pages
@@ -931,6 +937,7 @@ const AgentExecutionLogs = () => {
                       aria-disabled={pagination.page === pagination.total_pages}
                       tabIndex={pagination.page === pagination.total_pages ? -1 : 0}
                       className={pagination.page === pagination.total_pages ? 'pointer-events-none opacity-50' : ''}
+                      data-testid="pagination-next"
                     />
                   </PaginationItem>
                 </PaginationContent>

@@ -163,14 +163,14 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
         route.fulfill({ 
           json: {
             ...mockExecutionLogsResponsePage2,
-            pagination: { total_items: 100, total_pages: 2 }
+            pagination: { total_items: 100, total_pages: 2, page: 2, page_size: 10 }
           }
         })
       } else {
         route.fulfill({ 
           json: {
             ...mockExecutionLogsResponse,
-            pagination: { total_items: 100, total_pages: 2 }
+            pagination: { total_items: 100, total_pages: 2, page: 1, page_size: 10 }
           }
         })
       }
@@ -178,26 +178,41 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     
     await navigateToExecutionLogs(page)
     
-    await page.waitForSelector('text=/Page.*of/')
+    // Wait for pagination to be visible using stable data-testid
+    await page.getByTestId('pagination').waitFor({ state: 'visible', timeout: 10000 })
     
-    const nextButton = page.locator('a[aria-label*="next" i], button:has-text("Next")')
-    if (await nextButton.count() > 0) {
-      await nextButton.first().click()
-      
-      await page.waitForRequest(req => 
-        req.url().includes('admin/agent-execution-logs') && req.url().includes('page=2')
-      )
-    }
+    // Verify pagination page indicator
+    const pageIndicator = page.getByTestId('pagination-page')
+    await expect(pageIndicator).toBeVisible()
+    await expect(pageIndicator).toHaveAttribute('data-current', '1')
+    await expect(pageIndicator).toHaveAttribute('data-total', '2')
+    
+    const nextButton = page.getByTestId('pagination-next')
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/admin/agent-execution-logs') && r.url().includes('page=2') && r.status() === 200),
+      nextButton.click()
+    ])
+    
+    // Verify we're on page 2
+    await expect(pageIndicator).toHaveAttribute('data-current', '2')
   })
 
   test('7. should display trace links when TRACE_VIEWER_URL is set', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.TRACE_VIEWER_URL = 'https://trace.example.com'
+    })
+    
     await navigateToExecutionLogs(page)
     
-    const traceLinks = page.locator('[data-testid="trace-link"]')
+    // Wait for table to be visible
+    await page.getByTestId('execution-table').waitFor({ state: 'visible', timeout: 10000 })
+    
+    const traceLinks = page.getByTestId('trace-link')
     const traceLinkCount = await traceLinks.count()
     
     if (traceLinkCount > 0) {
       const firstTraceLink = traceLinks.first()
+      await expect(firstTraceLink).toBeVisible({ timeout: 10000 })
       await expect(firstTraceLink).toHaveAttribute('target', '_blank')
       await expect(firstTraceLink).toHaveAttribute('rel', 'noopener noreferrer')
       
@@ -205,8 +220,8 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
       const href = await firstTraceLink.getAttribute('href')
       expect(href).toMatch(/\/trace\//)
     } else {
-      const copyButtons = page.locator('[data-testid="copy-trace-id"]')
-      await expect(copyButtons.first()).toBeVisible()
+      const copyButtons = page.getByTestId('copy-trace-id')
+      await expect(copyButtons.first()).toBeVisible({ timeout: 10000 })
     }
   })
 
@@ -215,7 +230,11 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     
     await navigateToExecutionLogs(page)
     
+    // Wait for table to be visible
+    await page.getByTestId('execution-table').waitFor({ state: 'visible', timeout: 10000 })
+    
     const copyButton = page.getByTestId('copy-trace-id').first()
+    await expect(copyButton).toBeVisible({ timeout: 10000 })
     await copyButton.click()
     
     await page.waitForTimeout(500)
@@ -227,14 +246,18 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   test('9. should open details drawer and display full information', async ({ page }) => {
     await navigateToExecutionLogs(page)
     
+    // Wait for table to be visible
+    await page.getByTestId('execution-table').waitFor({ state: 'visible', timeout: 10000 })
+    
     const viewDetailsButton = page.getByTestId('view-details').first()
+    await expect(viewDetailsButton).toBeVisible({ timeout: 10000 })
     await viewDetailsButton.click()
     
     const drawer = page.getByTestId('details-drawer')
-    await expect(drawer).toBeVisible()
+    await expect(drawer).toBeVisible({ timeout: 10000 })
     
     const detailsContent = page.getByTestId('details-content')
-    await expect(detailsContent).toBeVisible()
+    await expect(detailsContent).toBeVisible({ timeout: 10000 })
     
     const agentSection = page.getByTestId('details-agent')
     if (await agentSection.count() > 0) {
@@ -260,7 +283,10 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
           json: { error: 'Internal server error' } 
         })
       } else {
-        route.fulfill({ json: mockExecutionLogsResponse })
+        route.fulfill({ 
+          status: 200,
+          json: mockExecutionLogsResponse 
+        })
       }
     })
     
@@ -270,12 +296,16 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
     
     const retryButton = page.getByTestId('retry-button')
-    await expect(retryButton).toBeVisible()
-    await retryButton.click()
+    await expect(retryButton).toBeVisible({ timeout: 10000 })
     
-    await page.waitForSelector('[data-testid="execution-table"]', { timeout: 10000 })
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/admin/agent-execution-logs') && r.status() === 200),
+      retryButton.click()
+    ])
+    
+    // Wait for table to appear
     const table = page.getByTestId('execution-table')
-    await expect(table).toBeVisible()
+    await expect(table).toBeVisible({ timeout: 10000 })
     
     await expect(errorAlert).not.toBeVisible()
   })
