@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { stubGovernanceEndpoints, stubCsrfEndpoint } from './utils/fixtures';
 
 /**
  * Regression test for Tailwind v4 max-w-* utilities
@@ -16,6 +17,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
   test.beforeEach(async ({ page }) => {
+    await stubGovernanceEndpoints(page);
+    await stubCsrfEndpoint(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
   });
