@@ -174,6 +174,56 @@ export const mockExecutionLogsFilteredByStatus = {
   },
 }
 
+export const mockExecutionLogsFilteredByAgentType = {
+  execution_logs: [
+    {
+      task_id: '223e4567-e89b-12d3-a456-426614174001',
+      status: 'running',
+      task_type: 'code_review',
+      agent: { 
+        agent_type: 'dev_agent', 
+        reputation_score: 820 
+      },
+      tenant_id: '00000000-0000-0000-0000-000000000001',
+      duration_ms: null,
+      timestamps: {
+        created_at: '2025-11-18T10:05:00Z',
+        started_at: '2025-11-18T10:05:10Z',
+      },
+      trace_id: 'trace-223e4567-e89b-12d3-a456-426614174001',
+    },
+    {
+      task_id: '623e4567-e89b-12d3-a456-426614174005',
+      status: 'completed',
+      task_type: 'testing',
+      agent: { 
+        agent_type: 'dev_agent', 
+        reputation_score: 800 
+      },
+      tenant_id: '00000000-0000-0000-0000-000000000001',
+      duration_ms: 32000,
+      timestamps: {
+        created_at: '2025-11-18T09:30:00Z',
+        completed_at: '2025-11-18T09:30:32Z',
+      },
+      trace_id: 'trace-623e4567-e89b-12d3-a456-426614174005',
+    },
+  ],
+  summary: {
+    total_executions: 12,
+    success_rate: 0.917,
+    avg_duration_ms: 35000,
+    status_counts: {
+      completed: 11,
+      running: 1,
+    },
+  },
+  pagination: {
+    total_items: 12,
+    total_pages: 1,
+  },
+}
+
 export const mockHealthResponse = {
   status: 'healthy',
   uptime_hours: 72.5,
@@ -313,11 +363,23 @@ export async function stubGovernanceEndpoints(page: any) {
         contentType: 'application/json',
         body: JSON.stringify(mockExecutionLogsResponsePage2) 
       })
+    } else if (url.includes('agent_type=dev_agent')) {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsFilteredByAgentType) 
+      })
     } else if (url.includes('status=completed')) {
       route.fulfill({ 
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(mockExecutionLogsFilteredByStatus) 
+      })
+    } else if (url.includes('status=') || url.includes('agent_type=') || url.includes('time_range=')) {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsResponse) 
       })
     } else {
       route.fulfill({ 

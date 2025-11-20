@@ -219,12 +219,14 @@ test.describe('SystemMonitoring E2E Tests', () => {
     await expect(cpuCard).toContainText('45.2%')
     
     const refreshButton = page.getByTestId('refresh-metrics')
-    await refreshButton.click()
     
-    await page.waitForRequest(req => req.url().includes('/api/admin/system/health'))
-    await page.waitForRequest(req => req.url().includes('/api/admin/system/metrics'))
+    const [healthResponse, metricsResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/admin/system/health') && r.status() === 200),
+      page.waitForResponse(r => r.url().includes('/api/admin/system/metrics') && r.status() === 200),
+      refreshButton.click()
+    ])
     
-    await page.waitForTimeout(500)
+    console.log('[Test] Refresh responses received:', healthResponse.status(), metricsResponse.status())
     
     await expect(healthCard).toContainText('degraded')
     await expect(cpuCard).toContainText('89.5%')
