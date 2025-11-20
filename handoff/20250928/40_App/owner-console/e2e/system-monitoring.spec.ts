@@ -29,11 +29,11 @@ test.describe('SystemMonitoring E2E Tests', () => {
     await stubMathRandom(page)
     await stubGovernanceEndpoints(page)
     
-    await page.route('**/admin/system-health', route => {
+    await page.route('**/api/admin/system/health*', route => {
       route.fulfill({ json: mockHealthResponse })
     })
     
-    await page.route('**/admin/system-metrics', route => {
+    await page.route('**/api/admin/system/metrics*', route => {
       route.fulfill({ json: mockMetricsResponse })
     })
   })
@@ -99,7 +99,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
   test('3. should handle health check error and retry', async ({ page }) => {
     let healthCallCount = 0
     
-    await page.route('**/admin/system-health', route => {
+    await page.route('**/api/admin/system/health*', route => {
       healthCallCount++
       if (healthCallCount === 1) {
         route.fulfill({ 
@@ -131,7 +131,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
   test('4. should handle metrics error and retry', async ({ page }) => {
     let metricsCallCount = 0
     
-    await page.route('**/admin/system-metrics', route => {
+    await page.route('**/api/admin/system/metrics*', route => {
       metricsCallCount++
       if (metricsCallCount === 1) {
         route.fulfill({ 
@@ -189,7 +189,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     let healthCallCount = 0
     let metricsCallCount = 0
     
-    await page.route('**/admin/system-health', route => {
+    await page.route('**/api/admin/system/health*', route => {
       healthCallCount++
       if (healthCallCount === 1) {
         route.fulfill({ json: mockHealthResponse })
@@ -198,7 +198,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
       }
     })
     
-    await page.route('**/admin/system-metrics', route => {
+    await page.route('**/api/admin/system/metrics*', route => {
       metricsCallCount++
       if (metricsCallCount === 1) {
         route.fulfill({ json: mockMetricsResponse })
@@ -221,8 +221,8 @@ test.describe('SystemMonitoring E2E Tests', () => {
     const refreshButton = page.getByTestId('refresh-metrics')
     await refreshButton.click()
     
-    await page.waitForRequest(req => req.url().includes('admin/system-health'))
-    await page.waitForRequest(req => req.url().includes('admin/system-metrics'))
+    await page.waitForRequest(req => req.url().includes('/api/admin/system/health'))
+    await page.waitForRequest(req => req.url().includes('/api/admin/system/metrics'))
     
     await page.waitForTimeout(500)
     
@@ -234,7 +234,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
   })
 
   test('7. should display different health statuses correctly', async ({ page }) => {
-    await page.route('**/admin/system-health', route => {
+    await page.route('**/api/admin/system/health*', route => {
       route.fulfill({ json: mockHealthResponseDegraded })
     })
     
@@ -251,7 +251,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
   })
 
   test('8. should handle high usage metrics', async ({ page }) => {
-    await page.route('**/admin/system-metrics', route => {
+    await page.route('**/api/admin/system/metrics*', route => {
       route.fulfill({ json: mockMetricsResponseHighUsage })
     })
     
