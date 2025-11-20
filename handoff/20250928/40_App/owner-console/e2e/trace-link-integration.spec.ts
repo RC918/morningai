@@ -33,6 +33,11 @@ async function isAuthenticated(page) {
  * Helper function to navigate to execution logs tab
  */
 async function navigateToExecutionLogs(page) {
+  const { stubGovernanceEndpoints, addDiagnosticLogging } = await import('./utils/fixtures')
+  
+  await addDiagnosticLogging(page)
+  await stubGovernanceEndpoints(page)
+  
   await page.goto('/governance')
   
   if (!(await isAuthenticated(page))) {

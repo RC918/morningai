@@ -303,37 +303,66 @@ export const mockAdminAgents = {
  * These endpoints lack ALLOW_GOVERNANCE_MOCK support, so we stub them at the test layer
  */
 export async function stubGovernanceEndpoints(page: any) {
-  await page.route('**/api/admin/agents?**', route =>
+  await page.route(/\/api\/admin\/agents(\?.*)?$/, route => {
+    console.log('[MOCK] Intercepted /api/admin/agents')
     route.fulfill({ 
       status: 200, 
       contentType: 'application/json', 
       body: JSON.stringify(mockAdminAgents) 
     })
-  )
+  })
   
-  await page.route('**/api/governance/events?**', route =>
+  await page.route(/\/api\/admin\/agent-execution-logs(\?.*)?$/, route => {
+    const url = route.request().url()
+    console.log('[MOCK] Intercepted /api/admin/agent-execution-logs:', url)
+    
+    if (url.includes('page=2')) {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsResponsePage2) 
+      })
+    } else if (url.includes('status=completed')) {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsFilteredByStatus) 
+      })
+    } else {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsResponse) 
+      })
+    }
+  })
+  
+  await page.route(/\/api\/governance\/events(\?.*)?$/, route => {
+    console.log('[MOCK] Intercepted /api/governance/events')
     route.fulfill({ 
       status: 200, 
       contentType: 'application/json', 
       body: JSON.stringify(mockGovernanceEvents) 
     })
-  )
+  })
   
-  await page.route('**/api/governance/violations?**', route =>
+  await page.route(/\/api\/governance\/violations(\?.*)?$/, route => {
+    console.log('[MOCK] Intercepted /api/governance/violations')
     route.fulfill({ 
       status: 200, 
       contentType: 'application/json', 
       body: JSON.stringify(mockGovernanceViolations) 
     })
-  )
+  })
   
-  await page.route('**/api/governance/statistics', route =>
+  await page.route(/\/api\/governance\/statistics(\?.*)?$/, route => {
+    console.log('[MOCK] Intercepted /api/governance/statistics')
     route.fulfill({ 
       status: 200, 
       contentType: 'application/json', 
       body: JSON.stringify(mockGovernanceStatistics) 
     })
-  )
+  })
 }
 
 /**

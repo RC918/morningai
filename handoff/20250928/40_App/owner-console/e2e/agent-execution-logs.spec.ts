@@ -29,21 +29,8 @@ import {
 test.describe('AgentExecutionLogs E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     await addDiagnosticLogging(page)
+    // stubGovernanceEndpoints now includes agent-execution-logs mock
     await stubGovernanceEndpoints(page)
-    
-    await page.route('**/api/admin/agent-execution-logs*', route => {
-      const url = route.request().url()
-      
-      if (url.includes('page=2')) {
-        route.fulfill({ json: mockExecutionLogsResponsePage2 })
-      }
-      else if (url.includes('status=completed')) {
-        route.fulfill({ json: mockExecutionLogsFilteredByStatus })
-      }
-      else {
-        route.fulfill({ json: mockExecutionLogsResponse })
-      }
-    })
   })
 
   const navigateToExecutionLogs = async (page: any) => {
@@ -154,21 +141,26 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('6. should handle pagination', async ({ page }) => {
-    await page.route('**/api/admin/agent-execution-logs*', route => {
+    await page.route(/\/api\/admin\/agent-execution-logs(\?.*)?$/, route => {
       const url = route.request().url()
+      console.log('[MOCK OVERRIDE] Pagination test intercepted:', url)
       if (url.includes('page=2')) {
         route.fulfill({ 
-          json: {
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
             ...mockExecutionLogsResponsePage2,
             pagination: { total_items: 100, total_pages: 2 }
-          }
+          })
         })
       } else {
         route.fulfill({ 
-          json: {
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
             ...mockExecutionLogsResponse,
             pagination: { total_items: 100, total_pages: 2 }
-          }
+          })
         })
       }
     })
@@ -248,15 +240,21 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   test('10. should handle error state and retry', async ({ page }) => {
     let callCount = 0
     
-    await page.route('**/api/admin/agent-execution-logs*', route => {
+    await page.route(/\/api\/admin\/agent-execution-logs(\?.*)?$/, route => {
       callCount++
+      console.log('[MOCK OVERRIDE] Error test intercepted, call count:', callCount)
       if (callCount === 1) {
         route.fulfill({ 
-          status: 500, 
-          json: { error: 'Internal server error' } 
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Internal server error' })
         })
       } else {
-        route.fulfill({ json: mockExecutionLogsResponse })
+        route.fulfill({ 
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockExecutionLogsResponse) 
+        })
       }
     })
     
