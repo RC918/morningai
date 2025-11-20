@@ -45,13 +45,20 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     
     if (!panelId) {
       console.warn('⚠️ Tab does not have aria-controls attribute, falling back to text-based panel selector')
-      await executionLogsTab.click()
+      await Promise.all([
+        page.waitForResponse(r => r.url().includes('/api/admin/agent-execution-logs') && (r.status() === 200 || r.status() === 500)),
+        executionLogsTab.click()
+      ])
       const tabPanel = page.getByRole('tabpanel', { name: /execution logs/i })
       await tabPanel.waitFor({ state: 'visible', timeout: 10000 })
     } else {
       console.log(`🔗 Tab aria-controls: ${panelId}`)
       
-      await executionLogsTab.click()
+      // Wait for API response and tab click concurrently
+      await Promise.all([
+        page.waitForResponse(r => r.url().includes('/api/admin/agent-execution-logs') && (r.status() === 200 || r.status() === 500)),
+        executionLogsTab.click()
+      ])
       
       // Wait for tab to be selected
       await expect(executionLogsTab).toHaveAttribute('aria-selected', 'true', { timeout: 5000 })
@@ -156,6 +163,8 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('6. should handle pagination', async ({ page }) => {
+    await page.unroute('**/api/admin/agent-execution-logs*')
+    
     await page.route('**/api/admin/agent-execution-logs*', route => {
       const url = route.request().url()
       console.log('[MOCK] Pagination test intercepted:', url)
@@ -273,6 +282,8 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
 
   test('10. should handle error state and retry', async ({ page }) => {
     let callCount = 0
+    
+    await page.unroute('**/api/admin/agent-execution-logs*')
     
     await page.route('**/api/admin/agent-execution-logs*', route => {
       callCount++
