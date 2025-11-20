@@ -30,20 +30,6 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     await addDiagnosticLogging(page)
     await stubGovernanceEndpoints(page)
-    
-    await page.route('**/admin/agent-execution-logs*', route => {
-      const url = route.request().url()
-      
-      if (url.includes('page=2')) {
-        route.fulfill({ json: mockExecutionLogsResponsePage2 })
-      }
-      else if (url.includes('status=completed')) {
-        route.fulfill({ json: mockExecutionLogsFilteredByStatus })
-      }
-      else {
-        route.fulfill({ json: mockExecutionLogsResponse })
-      }
-    })
   })
 
   const navigateToExecutionLogs = async (page: any) => {
@@ -170,8 +156,9 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('6. should handle pagination', async ({ page }) => {
-    await page.route('**/admin/agent-execution-logs*', route => {
+    await page.route('**/api/admin/agent-execution-logs*', route => {
       const url = route.request().url()
+      console.log('[MOCK] Pagination test intercepted:', url)
       if (url.includes('page=2')) {
         route.fulfill({ 
           json: {
@@ -264,8 +251,9 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   test('10. should handle error state and retry', async ({ page }) => {
     let callCount = 0
     
-    await page.route('**/admin/agent-execution-logs*', route => {
+    await page.route('**/api/admin/agent-execution-logs*', route => {
       callCount++
+      console.log('[MOCK] Error test intercepted, call count:', callCount)
       if (callCount === 1) {
         route.fulfill({ 
           status: 500, 
