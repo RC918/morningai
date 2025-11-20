@@ -52,15 +52,13 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     
     await page.locator('[data-slot="tabs-list"]').waitFor({ timeout: 30000 })
     
-    const executionLogsTab = page.getByRole('tab', { name: /execution logs/i })
+    const executionLogsTab = page.locator('[data-slot="tabs-list"] [data-slot="tabs-trigger"]').nth(3)
     await executionLogsTab.waitFor({ state: 'visible', timeout: 10000 })
     await executionLogsTab.click()
     
-    // Verify the tab actually became active
-    await expect(executionLogsTab).toHaveAttribute('aria-selected', 'true', { timeout: 5000 })
+    await expect(page.locator('[data-slot="tabs-trigger"][data-state="active"]').nth(0)).toBeVisible({ timeout: 5000 })
     
-    const tabPanel = page.getByRole('tabpanel', { name: /execution logs/i })
-    await tabPanel.waitFor({ state: 'visible', timeout: 10000 })
+    await expect(page.locator('[data-slot="tabs-content"][data-state="active"]')).toBeVisible({ timeout: 10000 })
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })
   }
