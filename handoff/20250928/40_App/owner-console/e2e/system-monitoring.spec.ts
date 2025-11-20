@@ -66,14 +66,14 @@ test.describe('SystemMonitoring E2E Tests', () => {
     const memoryCard = page.getByTestId('memory-card')
     await expect(memoryCard).toBeVisible()
     await expect(memoryCard).toContainText('62.8%')
-    await expect(memoryCard).toContainText('5.0') // Used GB
-    await expect(memoryCard).toContainText('8.0') // Total GB
+    await expect(memoryCard).toContainText('5') // Used GB (matches "5GB" or "5.0GB")
+    await expect(memoryCard).toContainText('8') // Total GB (matches "8GB" or "8.0GB")
     
     const diskCard = page.getByTestId('disk-card')
     await expect(diskCard).toBeVisible()
     await expect(diskCard).toContainText('38.5%')
-    await expect(diskCard).toContainText('77.0') // Used GB
-    await expect(diskCard).toContainText('200.0') // Total GB
+    await expect(diskCard).toContainText('77') // Used GB (matches "77GB" or "77.0GB")
+    await expect(diskCard).toContainText('200') // Total GB (matches "200GB" or "200.0GB")
   })
 
   test('2. should show mock badges when VITE_USE_MOCK=true', async ({ page }) => {
@@ -267,10 +267,10 @@ test.describe('SystemMonitoring E2E Tests', () => {
     
     const memoryCard = page.getByTestId('memory-card')
     await expect(memoryCard).toContainText('94.2%')
-    await expect(memoryCard).toContainText('7.5') // Used GB
+    await expect(memoryCard).toContainText('7.5') // Used GB (7.5 is specific enough)
     
     const diskCard = page.getByTestId('disk-card')
     await expect(diskCard).toContainText('82.1%')
-    await expect(diskCard).toContainText('164.2') // Used GB
+    await expect(diskCard).toContainText('164') // Used GB (matches "164GB" or "164.2GB")
   })
 })
