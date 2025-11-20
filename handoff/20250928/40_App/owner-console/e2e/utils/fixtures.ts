@@ -303,17 +303,9 @@ export const mockAdminAgents = {
  * These endpoints lack ALLOW_GOVERNANCE_MOCK support, so we stub them at the test layer
  */
 export async function stubGovernanceEndpoints(page: any) {
-  await page.route('**/*', route => {
-    const url = route.request().url()
-    if (url.includes('agent-execution-logs')) {
-      console.log('[CATCH-ALL HIT] agent-execution-logs:', url)
-    }
-    route.continue()
-  })
-  
   await page.route('**/api/admin/agent-execution-logs*', route => {
     const url = route.request().url()
-    console.log('[MOCK GLOB] Intercepted agent-execution-logs:', url)
+    console.log('[MOCK] Intercepted agent-execution-logs:', url)
     
     if (url.includes('page=2')) {
       route.fulfill({ 
@@ -336,7 +328,7 @@ export async function stubGovernanceEndpoints(page: any) {
     }
   })
   
-  await page.route(/\/api\/admin\/agents(\?.*)?$/, route => {
+  await page.route('**/api/admin/agents*', route => {
     console.log('[MOCK] Intercepted /api/admin/agents')
     route.fulfill({ 
       status: 200, 
