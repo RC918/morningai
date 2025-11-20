@@ -1,96 +1,56 @@
-# 如何在 AWS 上部署容器化應用？
+# Implementing Radix Sort in Python
 
-部署容器化應用到 AWS 是一個涉及多個步驟的過程，旨在確保應用的平滑運行與高可用性。AWS 提供了多種服務來支持容器部署，其中最常見的是 Amazon Elastic Container Service (ECS) 和 Amazon Elastic Kubernetes Service (EKS)。以下指南將以 Amazon ECS 為例，引導您如何將 MorningAI 容器化應用部署到 AWS。
+This FAQ aims to guide developers through the process of implementing radix sort in Python. Radix sort is a non-comparative sorting algorithm that sorts data with integer keys by grouping keys by the individual digits which share the same significant position and value. It processes integer representations at each significant digit from least significant to most significant. This implementation guide provides a step-by-step plan encapsulated in a JSON object format.
 
-## 前提條件
+## Comprehensive Explanation
 
-- 已安裝 AWS CLI
-- 已設定 AWS CLI 與相關權限
-- Docker 容器映像已推送至 Amazon ECR (Elastic Container Registry)
+Radix sort operates by sorting the input numbers digit by digit, starting from the least significant digit (LSD) to the most significant digit (MSD). Unlike other sorting methods, radix sort examines the entire integer to operate. This makes it particularly efficient for sorting large sets of data. The algorithm utilizes counting sort as a subroutine to sort the digits in each position.
 
-## 步驟 1: 建立 ECS Cluster
-
-1. 開啟 AWS 管理控制台。
-2. 導航至 ECS 服務並選擇 “Clusters”。
-3. 點擊 “Create Cluster” 並選擇一個模板（例如：EC2 Linux + Networking）。
-4. 設定集群名稱並配置網絡和安全設置。
-5. 點擊 “Create” 完成集群建立。
-
-```bash
-# 使用 AWS CLI 建立 ECS Cluster
-aws ecs create-cluster --cluster-name morningai-cluster
-```
-
-## 步驟 2: 建立任務定義
-
-任務定義是一個 JSON 文件，描述了容器的運行參數。
-
-1. 在 ECS 控制台中，選擇 “Task Definitions” > “Create new Task Definition”。
-2. 選擇 “Fargate” 或 “EC2” 啟動類型。
-3. 設定任務和容器配置（包括使用的 Docker 映像、CPU 和記憶體分配等）。
+Here's a simplified plan to implement radix sort in Python, broken down into actionable steps:
 
 ```json
 {
-  "family": "morningai-task",
-  "containerDefinitions": [
+  "goal": "Implement Radix Sort in Python",
+  "steps": [
     {
-      "name": "morningai-container",
-      "image": "account-id.dkr.ecr.region.amazonaws.com/morningai:latest",
-      "essential": true,
-      "memory": 500,
-      "cpu": 256,
-      "portMappings": [
-        {
-          "containerPort": 80,
-          "hostPort": 80
-        }
-      ]
+      "step": 1,
+      "description": "Define a function to get the maximum number in the list to know the number of digits."
+    },
+    {
+      "step": 2,
+      "description": "Implement counting sort as a subroutine that will be used by the main radix sort function to sort numbers based on their digit and position."
+    },
+    {
+      "step": 3,
+      "description": "Define the main radix sort function that iterates over each digit position. Use the counting sort subroutine to sort based on each digit from least significant to most significant."
+    },
+    {
+      "step": 4,
+      "description": "Inside the radix sort function, handle negative numbers separately if your dataset includes them, since this algorithm typically handles non-negative integers."
+    },
+    {
+      "step": 5,
+      "description": "Test your radix sort implementation with various lists of integers to ensure it sorts correctly under different scenarios."
     }
-  ],
-  "requiresCompatibilities": ["FARGATE"],
-  "networkMode": "awsvpc",
-  "memory": "1024",
-  "cpu": "512"
+  ]
 }
 ```
 
-## 步驟 3: 配置服務
+## Related Documentation Links
 
-服務定義了任務的執行方式和規模。
+For more information on implementing sorting algorithms and understanding their complexities, refer to:
 
-1. 在集群內創建一個新服務。
-2. 選擇先前創建的任務定義版本。
-3. 設定所需的實例數量和網絡設置。
-4. 完成配置並啟動服務。
+- Python official documentation: [https://docs.python.org/3/](https://docs.python.org/3/)
+- Detailed explanation of Radix Sort: [https://en.wikipedia.org/wiki/Radix_sort](https://en.wikipedia.org/wiki/Radix_sort)
 
-```bash
-# 使用 AWS CLI 創建 ECS Service
-aws ecs create-service --cluster morningai-cluster --service-name morningai-service --task-definition morningai-task --desired-count 1 --launch-type FARGATE --network-configuration '{
-    "awsvpcConfiguration":{
-        "subnets":["subnet-id"],
-        "securityGroups":["sg-id"],
-        "assignPublicIp":"ENABLED"
-    }
-}'
-```
+## Common Troubleshooting Tips
 
-## 相關文檔鏈接
+1. **Accuracy of Counting Sort**: Ensure that your counting sort subroutine is accurately sorting numbers based on their digits. Errors here can propagate through your radix sort implementation.
+2. **Handling Negative Numbers**: Since radix sort typically deals with non-negative integers, make sure you have a clear strategy for negative numbers if they are present in your dataset.
+3. **Maximum Number Calculation**: Incorrect calculation of the maximum number (to determine the number of digits) can lead to incomplete sorting. Verify this logic carefully.
+4. **Digit Extraction Logic**: Pay attention to how you're extracting digits from numbers at various positions; incorrect extraction can lead to faulty sorting.
 
-- [AWS CLI](https://aws.amazon.com/cli/)
-- [Amazon ECS Documentation](https://docs.aws.amazon.com/ecs/index.html)
-- [Amazon ECR Documentation](https://docs.aws.amazon.com/ecr/index.html)
-
-## 故障排除
-
-### 問題：無法推送 Docker 映像到 ECR
-
-- 確認是否已透過 `aws ecr get-login-password` 登入 ECR。
-- 檢查是否有足夠的權限對 ECR 倉庫進行操作。
-
-### 問題：服務無法啟動新任務
-
-- 檢查任務定義中 CPU 和記憶體分配是否符合 Fargate 的要求。
-- 確認安全組設置允許進出流量至您的容器端口。
+By following these steps and considerations, developers should be able to implement an efficient radix sort algorithm in Python within their projects or contribute effectively to MorningAI's autonomous agent system for code generation.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -98,7 +58,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: 批次4任務3: 如何在 AWS 上部署容器化應用？
-- Trace ID: `3485fa50-b391-4b9e-aa70-23f9a1e1cafa`
+- Task: Batch4 Task10: Return ONLY a JSON object with keys 'goal' and 'steps'. Generate a 5-step plan to implement radix sort in Python. No markdown, no code fences, pure JSON only.
+- Trace ID: `1ce8c9aa-0455-4659-8056-cb89333b00cc`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
