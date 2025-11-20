@@ -505,14 +505,14 @@ const AgentExecutionLogs = () => {
                 {t('governance.executionLogs.filters.status')}
               </label>
               <Select 
-                value={filters.status} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+                value={filters.status || 'all'} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}
               >
                 <SelectTrigger data-testid="filter-status">
                   <SelectValue placeholder={t('governance.executionLogs.filters.allStatuses')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('governance.executionLogs.filters.allStatuses')}</SelectItem>
+                  <SelectItem value="all">{t('governance.executionLogs.filters.allStatuses')}</SelectItem>
                   <SelectItem value="queued">{t('governance.executionLogs.statuses.queued')}</SelectItem>
                   <SelectItem value="assigned">{t('governance.executionLogs.statuses.assigned')}</SelectItem>
                   <SelectItem value="running">{t('governance.executionLogs.statuses.running')}</SelectItem>
@@ -528,14 +528,14 @@ const AgentExecutionLogs = () => {
                 {t('governance.executionLogs.filters.agentType')}
               </label>
               <Select 
-                value={filters.agent_type} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value }))}
+                value={filters.agent_type || 'all'} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value === 'all' ? '' : value }))}
               >
                 <SelectTrigger data-testid="filter-agent-type">
                   <SelectValue placeholder={t('governance.executionLogs.filters.allAgentTypes')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('governance.executionLogs.filters.allAgentTypes')}</SelectItem>
+                  <SelectItem value="all">{t('governance.executionLogs.filters.allAgentTypes')}</SelectItem>
                   <SelectItem value="dev_agent">{t('governance.executionLogs.agentTypes.devAgent')}</SelectItem>
                   <SelectItem value="ops_agent">{t('governance.executionLogs.agentTypes.opsAgent')}</SelectItem>
                   <SelectItem value="pm_agent">{t('governance.executionLogs.agentTypes.pmAgent')}</SelectItem>
@@ -574,14 +574,14 @@ const AgentExecutionLogs = () => {
                 {t('governance.executionLogs.filters.timeRange')}
               </label>
               <Select 
-                value={filters.time_range} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value }))}
+                value={filters.time_range || 'all'} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value === 'all' ? '' : value }))}
               >
                 <SelectTrigger data-testid="filter-time-range">
                   <SelectValue placeholder={t('governance.executionLogs.filters.selectTimeRange')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('governance.executionLogs.filters.allTime')}</SelectItem>
+                  <SelectItem value="all">{t('governance.executionLogs.filters.allTime')}</SelectItem>
                   <SelectItem value="24h">{t('governance.executionLogs.filters.last24Hours')}</SelectItem>
                   <SelectItem value="7d">{t('governance.executionLogs.filters.last7Days')}</SelectItem>
                   <SelectItem value="30d">{t('governance.executionLogs.filters.last30Days')}</SelectItem>
