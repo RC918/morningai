@@ -55,6 +55,14 @@ export default defineConfig({
         storageState: path.resolve(__dirname, 'playwright/.auth/user.json'),
       },
       dependencies: ['setup'],
+      testIgnore: /.*max-width-regression\.spec\.ts/,
+    },
+    {
+      name: 'chromium-unauthenticated',
+      use: { 
+        ...devices['Desktop Chrome'],
+      },
+      testMatch: /.*max-width-regression\.spec\.ts/,
     },
   ],
 
