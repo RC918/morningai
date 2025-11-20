@@ -24,9 +24,11 @@ test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
   });
 
   test('max-w-md should resolve to 28rem (448px), not 16px', async ({ page }) => {
+    await page.waitForSelector('body', { state: 'attached' });
+    
     const container = page.locator('.max-w-md').first();
     
-    await expect(container).toBeVisible();
+    await expect(container).toBeVisible({ timeout: 10000 });
     
     const maxWidth = await container.evaluate((el) => {
       const styles = window.getComputedStyle(el);
@@ -42,7 +44,11 @@ test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
   });
 
   test('max-w-md container should have proper width, not collapsed', async ({ page }) => {
+    await page.waitForSelector('body', { state: 'attached' });
+    
     const container = page.locator('.max-w-md').first();
+    
+    await expect(container).toBeVisible({ timeout: 10000 });
     
     const boundingBox = await container.boundingBox();
     
@@ -56,7 +62,11 @@ test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
   });
 
   test('login form should be horizontally centered and properly sized', async ({ page }) => {
+    await page.waitForSelector('body', { state: 'attached' });
+    
     const container = page.locator('.max-w-md').first();
+    
+    await expect(container).toBeVisible({ timeout: 10000 });
     
     const viewportSize = page.viewportSize();
     expect(viewportSize).not.toBeNull();
@@ -77,7 +87,11 @@ test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
   });
 
   test('max-w-md utility class should use correct token value', async ({ page }) => {
+    await page.waitForSelector('body', { state: 'attached' });
+    
     const container = page.locator('.max-w-md').first();
+    
+    await expect(container).toBeVisible({ timeout: 10000 });
     
     const computedMaxWidth = await container.evaluate((el) => {
       return window.getComputedStyle(el).maxWidth;
