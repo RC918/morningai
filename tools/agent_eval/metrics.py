@@ -121,6 +121,94 @@ class MetricsCalculator:
         self_healed = sum(1 for r in tasks_with_retries if r.get('self_healed', False))
         return (self_healed / len(tasks_with_retries)) * 100
     
+    def calculate_code_generation_success_rate(self) -> float:
+        """
+        Calculate code generation success rate (Phase 2 metric).
+        
+        Tracks how often the agent successfully generates code for tasks.
+        Target: 60% success rate for 3-5 task types
+        
+        Returns:
+            float: Code generation success rate percentage (0-100)
+        """
+        results = self.data['results']
+        code_gen_tasks = [r for r in results if r.get('task_category') == 'code_generation']
+        
+        if not code_gen_tasks:
+            return 0.0
+        
+        successful = sum(1 for r in code_gen_tasks if r.get('code_generated', False))
+        return (successful / len(code_gen_tasks)) * 100
+    
+    def calculate_generated_code_ci_pass_rate(self) -> float:
+        """
+        Calculate CI pass rate for generated code (Phase 2 metric).
+        
+        Tracks how often generated code passes CI checks.
+        Target: 80% CI pass rate
+        
+        Returns:
+            float: Generated code CI pass rate percentage (0-100)
+        """
+        results = self.data['results']
+        generated_code_tasks = [r for r in results if r.get('code_generated', False) and r.get('pr_created', False)]
+        
+        if not generated_code_tasks:
+            return 0.0
+        
+        ci_passed = sum(1 for r in generated_code_tasks if r.get('ci_passed', False))
+        return (ci_passed / len(generated_code_tasks)) * 100
+    
+    def calculate_reviewer_adoption_rate(self) -> float:
+        """
+        Calculate reviewer agent suggestion adoption rate (Phase 2 metric).
+        
+        Tracks how often reviewer agent suggestions are accepted.
+        Target: 40% adoption rate
+        
+        Returns:
+            float: Reviewer adoption rate percentage (0-100)
+        """
+        results = self.data['results']
+        tasks_with_review = [r for r in results if r.get('reviewer_suggestions_count', 0) > 0]
+        
+        if not tasks_with_review:
+            return 0.0
+        
+        total_suggestions = sum(r.get('reviewer_suggestions_count', 0) for r in tasks_with_review)
+        adopted_suggestions = sum(r.get('reviewer_suggestions_adopted', 0) for r in tasks_with_review)
+        
+        if total_suggestions == 0:
+            return 0.0
+        
+        return (adopted_suggestions / total_suggestions) * 100
+    
+    def calculate_test_generation_coverage_improvement(self) -> float:
+        """
+        Calculate test coverage improvement from generated tests (Phase 2 metric).
+        
+        Tracks test coverage improvement from LLM-generated tests.
+        Target: 5-10% improvement
+        
+        Returns:
+            float: Average coverage improvement percentage
+        """
+        results = self.data['results']
+        test_gen_tasks = [r for r in results if r.get('task_type') == 'test_generation']
+        
+        if not test_gen_tasks:
+            return 0.0
+        
+        improvements = []
+        for r in test_gen_tasks:
+            before = r.get('coverage_before', 0)
+            after = r.get('coverage_after', 0)
+            if before > 0:
+                improvement = after - before
+                improvements.append(improvement)
+        
+        return sum(improvements) / len(improvements) if improvements else 0.0
+    
     def calculate_overall_success_rate(self) -> float:
         """Calculate overall success rate (weighted combination)."""
         completion = self.calculate_completion_rate()
@@ -230,6 +318,45 @@ class MetricsCalculator:
                     print("  ✓ Target achieved!")
                 else:
                     print(f"  ⚠ Below target by {50 - self_healing_rate:.1f}%")
+        
+        code_gen_success = self.calculate_code_generation_success_rate()
+        gen_code_ci_pass = self.calculate_generated_code_ci_pass_rate()
+        reviewer_adoption = self.calculate_reviewer_adoption_rate()
+        test_cov_improvement = self.calculate_test_generation_coverage_improvement()
+        
+        if code_gen_success > 0 or gen_code_ci_pass > 0 or reviewer_adoption > 0 or test_cov_improvement > 0:
+            print(f"\nPHASE 2 METRICS (CODE GENERATION QUALITY)")
+            print("-"*60)
+            
+            if code_gen_success > 0:
+                print(f"Code Generation Success: {code_gen_success:.1f}% (Target: 60%)")
+                if code_gen_success >= 60:
+                    print("  ✓ Target achieved!")
+                else:
+                    print(f"  ⚠ Below target by {60 - code_gen_success:.1f}%")
+            
+            if gen_code_ci_pass > 0:
+                print(f"Generated Code CI Pass:  {gen_code_ci_pass:.1f}% (Target: 80%)")
+                if gen_code_ci_pass >= 80:
+                    print("  ✓ Target achieved!")
+                else:
+                    print(f"  ⚠ Below target by {80 - gen_code_ci_pass:.1f}%")
+            
+            if reviewer_adoption > 0:
+                print(f"Reviewer Adoption Rate:  {reviewer_adoption:.1f}% (Target: 40%)")
+                if reviewer_adoption >= 40:
+                    print("  ✓ Target achieved!")
+                else:
+                    print(f"  ⚠ Below target by {40 - reviewer_adoption:.1f}%")
+            
+            if test_cov_improvement > 0:
+                print(f"Test Coverage Improvement: {test_cov_improvement:.1f}% (Target: 5-10%)")
+                if 5 <= test_cov_improvement <= 10:
+                    print("  ✓ Target achieved!")
+                elif test_cov_improvement > 10:
+                    print(f"  ✓ Exceeded target by {test_cov_improvement - 10:.1f}%!")
+                else:
+                    print(f"  ⚠ Below target by {5 - test_cov_improvement:.1f}%")
         
         print("\nMETRICS BY TASK TYPE")
         print("-"*60)

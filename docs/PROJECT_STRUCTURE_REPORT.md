@@ -6,10 +6,11 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.4.0  
-**Last Updated**: 2025-11-16  
-**Project Phase**: Phase 8 (v8.0.0)  
-**Owner Console Status**: P0+P1 Complete (Week 1-2), Week 3 60% Complete, Week 4 Not Started  
+**Document Version**: 1.5.0  
+**Last Updated**: 2025-11-19  
+**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow)  
+**Test Coverage**: 21% (前端), 74%+ (後端)  
+**Recent Activity**: 113 commits (2025-11-12 至 2025-11-19)  
 **Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
 ---
@@ -51,9 +52,12 @@ This document provides a comprehensive overview of the MorningAI project structu
 - **Total Lines of Code**: ~100,000+
 - **Documentation Files**: 50+
 - **GitHub Actions Workflows**: 15+
-- **Test Coverage**: 41% overall (Target: 80%)
-  - **Owner Console**: 59.89% lines, 45.76% branches (as reported in CI on 2025-11-16; exceeds 30% target)
+- **Test Coverage**: 
+  - **Frontend**: 21% (P3 Phase 1-2 完成，目標 80%)
+  - **Backend**: 74%+ (超過目標)
+  - **Owner Console**: 59.89% lines, 45.76% branches (超過 30% 目標)
 - **Active Branches**: `main` (production), `develop` (staging)
+- **Recent Activity**: 113 commits in past week (2025-11-12 至 2025-11-19)
 
 ### Technology Stack
 
@@ -336,7 +340,9 @@ tools/
 - **Time Efficiency**: Actual vs estimated time
 - **Overall Success Rate**: Weighted combination
 
-**Status**: ✅ Framework created, not yet integrated with orchestrator
+**Status**: ✅ Framework created, ✅ Dashboard integrated (Phase 1.5 #1337)
+**Path**: `/home/ubuntu/repos/morningai/tools/agent_eval/`
+**Dashboard**: `handoff/20250928/40_App/owner-console/src/pages/AgentEvaluationDashboard.jsx`
 
 **Usage**:
 ```bash
@@ -387,10 +393,12 @@ docs/
 ├── sandbox/             # Sandbox documentation
 ├── policy/              # Policy documentation
 │
-├── STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md  # Strategic roadmap comparison (NEW: 2025-11-16)
-├── BACKEND_TEST_ENVIRONMENT_FIX.md  # Backend test fix documentation (NEW: 2025-11-16)
-├── ENVIRONMENTS.md      # Environment architecture (NEW)
-├── ONBOARDING_GUIDE.md  # Onboarding guide (NEW)
+├── STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md  # Strategic roadmap comparison (2025-11-16)
+├── BACKEND_TEST_ENVIRONMENT_FIX.md  # Backend test fix documentation (2025-11-16)
+├── ENVIRONMENTS.md      # Environment architecture (Updated: 2025-11-19)
+├── PROJECT_STRUCTURE_REPORT.md  # Project structure report (Updated: 2025-11-19)
+├── PROJECT_DEEP_ANALYSIS.md  # Deep analysis report (Updated: 2025-11-19)
+├── ONBOARDING_GUIDE.md  # Onboarding guide (Updated: 2025-11-19)
 ├── ARCHITECTURE.md      # System architecture
 ├── CONTRIBUTING.md      # Contribution guidelines
 ├── GOVERNANCE_FRAMEWORK.md  # Agent governance

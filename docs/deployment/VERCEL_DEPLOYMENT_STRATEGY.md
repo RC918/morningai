@@ -1,5 +1,12 @@
 # Vercel Deployment Strategy
 
+**Document Version**: 2.0  
+**Last Updated**: 2025-11-19  
+**Related Documents**:
+- [ENVIRONMENTS.md](../ENVIRONMENTS.md) - 環境架構文件
+- [PROJECT_STRUCTURE_REPORT.md](../PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
+- [ONBOARDING.md](../../ONBOARDING.md) - 新人上手指南
+
 ## Overview
 
 This document describes the deployment strategy for the MorningAI monorepo on Vercel, including branch policies, environment configuration, and best practices.
@@ -380,6 +387,14 @@ All deployments send errors and performance data to Sentry:
 
 ---
 
-**Last Updated**: 2025-11-04
+**Last Updated**: 2025-11-19
 **Owner**: CTO + DevOps Team
 **Status**: Active
+
+**近一週重要更新** (2025-11-12 至 2025-11-19):
+- ✅ Phase 1 (B): LLM Planner 整合與 ContextManager 實作 (#1353)
+- ✅ Phase 2: Code Generation Workflow with Security Validation (#1347)
+- ✅ Phase 1.5: Agent Evaluation Monitoring Dashboard (#1337)
+- ✅ Design Token Migration 完成 - Tailwind config + semantic tokens (#1323, #1331, #1332)
+- ✅ Owner Console E2E 測試完成 (#1345, #1348)
+- ✅ Lighthouse CI 設置文檔與 workflow_dispatch 觸發器 (#1346)

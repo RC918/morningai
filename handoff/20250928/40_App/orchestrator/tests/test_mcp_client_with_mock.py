@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mcp.client import MCPClient
-from mock_mcp_server import MockMCPServer
+from tests.mock_mcp_server import MockMCPServer
 from exceptions import MCPConnectionError, MCPTimeoutError
 
 
