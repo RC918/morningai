@@ -42,12 +42,22 @@ EXCLUDE_PATTERNS=(
 JSON_OUTPUT_DIR=".github/artifacts"
 JSON_OUTPUT_FILE="$JSON_OUTPUT_DIR/design-system-violations.json"
 
-echo -e "${BLUE}🔍 Auditing shared-ui import compliance...${NC}"
+DIFF_ONLY="${DIFF_ONLY:-false}"
+CHANGED_FILES="${CHANGED_FILES:-}"
+
+if [ "$DIFF_ONLY" = "true" ] && [ -n "$CHANGED_FILES" ]; then
+  echo -e "${BLUE}🔍 Auditing shared-ui import compliance (Stage 2: diff-only mode)...${NC}"
+  echo -e "${BLUE}📝 Only checking changed files in this PR${NC}"
+else
+  echo -e "${BLUE}🔍 Auditing shared-ui import compliance...${NC}"
+fi
 echo ""
 
 VIOLATIONS_FOUND=0
 TOTAL_FILES_SCANNED=0
 VIOLATIONS_JSON="[]"
+
+CHANGED_FILES_LIST=$(mktemp)
 
 should_exclude() {
   local file=$1
@@ -99,6 +109,24 @@ suggest_fix() {
   fi
 }
 
+should_scan_file() {
+  local file=$1
+  
+  if [ "$DIFF_ONLY" != "true" ] || [ -z "$CHANGED_FILES" ]; then
+    return 0
+  fi
+  
+  grep -Fxq "$file" "$CHANGED_FILES_LIST" 2>/dev/null
+  return $?
+}
+
+if [ "$DIFF_ONLY" = "true" ] && [ -n "$CHANGED_FILES" ]; then
+  echo "$CHANGED_FILES" > "$CHANGED_FILES_LIST"
+  CHANGED_COUNT=$(echo "$CHANGED_FILES" | grep -c '^' || echo "0")
+  echo -e "${BLUE}📋 Changed files to audit: $CHANGED_COUNT${NC}"
+  echo ""
+fi
+
 for dir in "${SCAN_DIRS[@]}"; do
   if [ ! -d "$dir" ]; then
     echo -e "${YELLOW}⚠️  Directory not found: $dir${NC}"
@@ -109,6 +137,10 @@ for dir in "${SCAN_DIRS[@]}"; do
   
   while IFS= read -r -d '' file; do
     if should_exclude "$file"; then
+      continue
+    fi
+    
+    if ! should_scan_file "$file"; then
       continue
     fi
     
@@ -178,6 +210,16 @@ GIT_PR="${GIT_PR:-${GITHUB_PR_NUMBER:-unknown}}"
 GIT_COMMIT="${GIT_COMMIT:-${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo 'unknown')}}"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+if [ "$DIFF_ONLY" = "true" ]; then
+  STAGE_NUM=2
+  STAGE_NAME="diff-only-enforcement"
+  IS_BLOCKING=true
+else
+  STAGE_NUM=1
+  STAGE_NAME="warn"
+  IS_BLOCKING=false
+fi
+
 cat > "$JSON_OUTPUT_FILE" <<EOF
 {
   "version": "1.0",
@@ -185,13 +227,14 @@ cat > "$JSON_OUTPUT_FILE" <<EOF
   "repo": "$GIT_REPO",
   "pr": "$GIT_PR",
   "commit": "$GIT_COMMIT",
-  "stage": 1,
-  "stageName": "warn",
+  "stage": $STAGE_NUM,
+  "stageName": "$STAGE_NAME",
   "timestamp": "$TIMESTAMP",
   "summary": {
     "filesScanned": $TOTAL_FILES_SCANNED,
     "violationsFound": $VIOLATIONS_FOUND,
-    "blocking": false
+    "blocking": $IS_BLOCKING,
+    "diffOnly": $([ "$DIFF_ONLY" = "true" ] && echo "true" || echo "false")
   },
   "violations": $VIOLATIONS_JSON,
   "quickFixGuide": "docs/DESIGN_SYSTEM_QUICKSTART.md",
@@ -214,18 +257,32 @@ echo -e "${GREEN}📄 JSON artifact generated: $JSON_OUTPUT_FILE${NC}"
 echo ""
 
 if [ $VIOLATIONS_FOUND -gt 0 ]; then
-  echo -e "${YELLOW}⚠️  Stage 1 (Warn Mode): Violations detected but not blocking${NC}"
-  echo ""
-  echo -e "${BLUE}📝 Recommended Actions:${NC}"
-  echo "1. Replace direct UI library imports with @morningai/shared-ui components"
-  echo "2. If component doesn't exist in shared-ui, consider adding it"
-  echo "3. Allowed exceptions: lucide-react (icons), recharts (charts), date-fns (dates)"
-  echo ""
-  echo -e "${BLUE}📚 Documentation:${NC}"
-  echo "See docs/DESIGN_SYSTEM_ENFORCEMENT.md for details"
-  echo "See docs/DESIGN_SYSTEM_QUICKSTART.md for quick fixes (2-minute guide)"
-  echo ""
-  echo -e "${YELLOW}⏰ Timeline: Stage 1 (warn) runs for 1 week, then Stage 2 (diff-only block)${NC}"
+  if [ "$DIFF_ONLY" = "true" ]; then
+    echo -e "${RED}❌ Stage 2 (Diff-Only Enforcement): Violations detected - BLOCKING${NC}"
+    echo ""
+    echo -e "${BLUE}📝 Required Actions:${NC}"
+    echo "1. Replace direct UI library imports with @morningai/shared-ui components"
+    echo "2. If component doesn't exist in shared-ui, add it to shared-ui first"
+    echo "3. Allowed exceptions: lucide-react (icons), recharts (charts), date-fns (dates)"
+    echo ""
+    echo -e "${BLUE}📚 Documentation:${NC}"
+    echo "See docs/DESIGN_SYSTEM_ENFORCEMENT.md for details"
+    echo "See docs/DESIGN_SYSTEM_QUICKSTART.md for quick fixes (2-minute guide)"
+    echo ""
+    echo -e "${RED}🚨 This PR cannot be merged until violations are resolved${NC}"
+    echo -e "${YELLOW}Emergency override: Contact @RC918 for admin approval${NC}"
+  else
+    echo -e "${YELLOW}⚠️  Stage 1 (Warn Mode): Violations detected but not blocking${NC}"
+    echo ""
+    echo -e "${BLUE}📝 Recommended Actions:${NC}"
+    echo "1. Replace direct UI library imports with @morningai/shared-ui components"
+    echo "2. If component doesn't exist in shared-ui, consider adding it"
+    echo "3. Allowed exceptions: lucide-react (icons), recharts (charts), date-fns (dates)"
+    echo ""
+    echo -e "${BLUE}📚 Documentation:${NC}"
+    echo "See docs/DESIGN_SYSTEM_ENFORCEMENT.md for details"
+    echo "See docs/DESIGN_SYSTEM_QUICKSTART.md for quick fixes (2-minute guide)"
+  fi
   
   if [ -n "$GITHUB_OUTPUT" ]; then
     echo "violations_count=$VIOLATIONS_FOUND" >> "$GITHUB_OUTPUT"
@@ -233,9 +290,19 @@ if [ $VIOLATIONS_FOUND -gt 0 ]; then
     echo "json_artifact=$JSON_OUTPUT_FILE" >> "$GITHUB_OUTPUT"
   fi
   
-  exit 0
+  if [ "$DIFF_ONLY" = "true" ]; then
+    rm -f "$VIOLATIONS_FILE" "$VIOLATIONS_DETAILS" "$CHANGED_FILES_LIST"
+    exit 1
+  else
+    rm -f "$VIOLATIONS_FILE" "$VIOLATIONS_DETAILS" "$CHANGED_FILES_LIST"
+    exit 0
+  fi
 else
-  echo -e "${GREEN}✅ No violations found - all imports comply with shared-ui policy${NC}"
+  if [ "$DIFF_ONLY" = "true" ]; then
+    echo -e "${GREEN}✅ Stage 2: No violations found in changed files - all imports comply${NC}"
+  else
+    echo -e "${GREEN}✅ No violations found - all imports comply with shared-ui policy${NC}"
+  fi
   
   if [ -n "$GITHUB_OUTPUT" ]; then
     echo "violations_count=0" >> "$GITHUB_OUTPUT"
@@ -243,7 +310,6 @@ else
     echo "json_artifact=$JSON_OUTPUT_FILE" >> "$GITHUB_OUTPUT"
   fi
   
+  rm -f "$VIOLATIONS_FILE" "$VIOLATIONS_DETAILS" "$CHANGED_FILES_LIST"
   exit 0
 fi
-
-rm -f "$VIOLATIONS_FILE" "$VIOLATIONS_DETAILS"

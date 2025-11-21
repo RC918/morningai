@@ -10,6 +10,14 @@ on:
       - 'scripts/audit-shared-ui-imports.sh'
       - '.github/workflows/enforce-shared-ui.yml'
 
+concurrency:
+  group: audit-shared-ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   audit-imports:
     name: Audit UI Library Imports
@@ -22,22 +30,53 @@ jobs:
         with:
           fetch-depth: 0
       
+      - name: List changed files (diff-only mode)
+        if: github.event_name == 'pull_request'
+        id: list_files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            const changedFiles = files
+              .map(f => f.filename)
+              .filter(f => 
+                f.startsWith('handoff/20250928/40_App/frontend-dashboard/') ||
+                f.startsWith('handoff/20250928/40_App/owner-console/')
+              )
+              .join('\n');
+            
+            core.setOutput('files', changedFiles);
+            core.setOutput('count', files.length);
+            
+            console.log(`Found ${files.length} changed files in PR`);
+            if (changedFiles) {
+              console.log('Relevant files for audit:');
+              console.log(changedFiles);
+            }
+      
       - name: Make audit script executable
         run: chmod +x ./scripts/audit-shared-ui-imports.sh
       
       - name: Run import audit
         id: audit
+        continue-on-error: true
         run: |
-          echo "Running shared-ui import audit (Stage 1: warn mode)..."
+          echo "Running shared-ui import audit (Stage 2: diff-only enforcement)..."
           ./scripts/audit-shared-ui-imports.sh 2>&1 | tee audit-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          echo "✅ Audit completed (warn mode - non-blocking)"
-          exit 0
+          echo "✅ Audit completed"
         env:
           GIT_REPO: ${{ github.repository }}
           GIT_PR: ${{ github.event.pull_request.number }}
           GIT_COMMIT: ${{ github.sha }}
+          CHANGED_FILES: ${{ steps.list_files.outputs.files }}
+          DIFF_ONLY: 'true'
       
       - name: Upload audit report
         if: always()
@@ -70,7 +109,7 @@ jobs:
           fi
       
       - name: Comment on PR (violations detected)
-        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.violations != '0'
+        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.violations != '0' && github.event.pull_request.head.repo.fork == false
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -78,19 +117,20 @@ jobs:
           body: |
             ## 🎨 Shared-UI Import Compliance Audit
             
-            **Stage**: 1 (Warn Mode - Non-blocking)
-            **Status**: ✅ Audit completed
+            **Stage**: 2 (Diff-Only Enforcement - Blocking)
+            **Status**: ❌ Violations detected - PR blocked
             
             **Summary**:
             - 📁 Files scanned: ${{ steps.parse.outputs.files_scanned }}
             - ⚠️ Violations found: ${{ steps.parse.outputs.violations }}
             
-            ### ⚠️ Violations Detected
+            ### ❌ Violations Detected - PR Cannot Be Merged
             
-            Direct imports of UI component libraries were found. Please consider:
+            Direct imports of UI component libraries were found in your changes. This PR is **blocked** until violations are resolved.
             
+            **Required Actions**:
             1. **Replace with @morningai/shared-ui**: Use centralized components instead of direct imports
-            2. **Add to shared-ui**: If component doesn't exist, consider adding it to shared-ui
+            2. **Add to shared-ui**: If component doesn't exist, add it to shared-ui first
             3. **Allowed exceptions**: lucide-react (icons), recharts (charts), date-fns (dates)
             
             📎 [View detailed audit report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
@@ -100,10 +140,16 @@ jobs:
             - **Quick Fix Guide** (2 min): `docs/DESIGN_SYSTEM_QUICKSTART.md`
             - **Full Documentation**: `docs/DESIGN_SYSTEM_ENFORCEMENT.md`
             
-            ### ⏰ Timeline
-            - **Current (Stage 1)**: Warn mode - violations reported but not blocking (1 week)
-            - **Stage 2**: Diff-only enforcement - new code must comply
-            - **Stage 3**: Full enforcement - all code must comply
+            ### 🚨 Emergency Override
+            
+            If you have a legitimate emergency that requires bypassing this check:
+            1. Contact @RC918 for approval
+            2. Admin must temporarily remove "Audit UI Library Imports" from branch protection
+            3. Merge the PR
+            4. Re-enable the check immediately
+            5. Create a follow-up issue to fix the violation
+            
+            **Note**: There is no automatic bypass mechanism. All exceptions require explicit admin approval.
             
             ---
             
@@ -111,10 +157,10 @@ jobs:
             
             ---
             
-            ℹ️ **Stage 1 (Warn Mode)**: This audit is currently non-blocking to allow teams to migrate gradually. After 1 week of observation, we will move to Stage 2 (diff-only enforcement).
+            ℹ️ **Stage 2 (Diff-Only Enforcement)**: Only changed files in this PR are checked. Existing violations in unchanged files are not blocking.
       
       - name: Comment on PR (no violations)
-        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.violations == '0'
+        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.violations == '0' && github.event.pull_request.head.repo.fork == false
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -122,8 +168,8 @@ jobs:
           body: |
             ## 🎨 Shared-UI Import Compliance Audit
             
-            **Stage**: 1 (Warn Mode - Non-blocking)
-            **Status**: ✅ Audit completed
+            **Stage**: 2 (Diff-Only Enforcement - Blocking)
+            **Status**: ✅ Audit passed
             
             **Summary**:
             - 📁 Files scanned: ${{ steps.parse.outputs.files_scanned }}
@@ -131,7 +177,13 @@ jobs:
             
             ### ✅ No Violations
             
-            All imports comply with shared-ui policy. Great work!
+            All imports in your changes comply with shared-ui policy. Great work!
+            
+            **Allowed libraries**:
+            - ✅ @morningai/shared-ui (preferred)
+            - ✅ lucide-react (icons)
+            - ✅ recharts (charts)
+            - ✅ date-fns (dates)
             
             📎 [View detailed audit report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             
@@ -141,14 +193,14 @@ jobs:
             
             ---
             
-            ℹ️ **Stage 1 (Warn Mode)**: This audit is currently non-blocking to allow teams to migrate gradually. After 1 week of observation, we will move to Stage 2 (diff-only enforcement).
+            ℹ️ **Stage 2 (Diff-Only Enforcement)**: Only changed files in this PR are checked. Existing violations in unchanged files are not blocking.
       
       - name: Add job summary
         if: always()
         run: |
           echo "## 🎨 Shared-UI Import Compliance Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Stage**: 1 (Warn Mode - Non-blocking)" >> $GITHUB_STEP_SUMMARY
+          echo "**Stage**: 2 (Diff-Only Enforcement - Blocking)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Results" >> $GITHUB_STEP_SUMMARY
           echo "- 📁 Files scanned: ${{ steps.parse.outputs.files_scanned }}" >> $GITHUB_STEP_SUMMARY
@@ -156,12 +208,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ steps.parse.outputs.violations }}" -gt 0 ]; then
-            echo "⚠️ **Violations detected** - See audit report for details" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Violations detected - PR BLOCKED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Recommended Actions**:" >> $GITHUB_STEP_SUMMARY
+            echo "**Required Actions**:" >> $GITHUB_STEP_SUMMARY
             echo "1. Replace direct UI library imports with @morningai/shared-ui" >> $GITHUB_STEP_SUMMARY
             echo "2. Add missing components to shared-ui if needed" >> $GITHUB_STEP_SUMMARY
             echo "3. Use allowed exceptions: lucide-react, recharts, date-fns" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Emergency Override**: Contact @RC918 for admin approval to temporarily disable check" >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ **No violations** - All imports comply with shared-ui policy" >> $GITHUB_STEP_SUMMARY
           fi
@@ -169,4 +223,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "ℹ️ **Timeline**: Stage 1 (warn) → 1 week → Stage 2 (diff-only block) → Stage 3 (full block)" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ **Stage 2**: Only changed files are checked. Existing violations in unchanged files are not blocking." >> $GITHUB_STEP_SUMMARY
+      
+      - name: Fail if violations exist (Stage 2 enforcement)
+        if: steps.parse.outputs.violations != '0'
+        run: |
+          echo "❌ Design system violations detected in changed files."
+          echo "This PR cannot be merged until violations are resolved."
+          echo ""
+          echo "See the PR comment for details and quick fix guide."
+          exit 1
