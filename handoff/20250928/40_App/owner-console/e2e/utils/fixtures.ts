@@ -102,7 +102,9 @@ export const mockExecutionLogsResponse = {
   },
   pagination: {
     total_items: 42,
-    total_pages: 1,
+    total_pages: 2,
+    page: 1,
+    page_size: 50,
   },
 }
 
@@ -138,6 +140,8 @@ export const mockExecutionLogsResponsePage2 = {
   pagination: {
     total_items: 42,
     total_pages: 2,
+    page: 2,
+    page_size: 50,
   },
 }
 
@@ -170,7 +174,61 @@ export const mockExecutionLogsFilteredByStatus = {
   },
   pagination: {
     total_items: 36,
-    total_pages: 1,
+    total_pages: 2,
+    page: 1,
+    page_size: 50,
+  },
+}
+
+export const mockExecutionLogsFilteredByAgentType = {
+  execution_logs: [
+    {
+      task_id: '223e4567-e89b-12d3-a456-426614174001',
+      status: 'running',
+      task_type: 'code_review',
+      agent: { 
+        agent_type: 'dev_agent', 
+        reputation_score: 820 
+      },
+      tenant_id: '00000000-0000-0000-0000-000000000001',
+      duration_ms: null,
+      timestamps: {
+        created_at: '2025-11-18T10:05:00Z',
+        started_at: '2025-11-18T10:05:10Z',
+      },
+      trace_id: 'trace-223e4567-e89b-12d3-a456-426614174001',
+    },
+    {
+      task_id: '623e4567-e89b-12d3-a456-426614174005',
+      status: 'completed',
+      task_type: 'testing',
+      agent: { 
+        agent_type: 'dev_agent', 
+        reputation_score: 800 
+      },
+      tenant_id: '00000000-0000-0000-0000-000000000001',
+      duration_ms: 32000,
+      timestamps: {
+        created_at: '2025-11-18T09:30:00Z',
+        completed_at: '2025-11-18T09:30:32Z',
+      },
+      trace_id: 'trace-623e4567-e89b-12d3-a456-426614174005',
+    },
+  ],
+  summary: {
+    total_executions: 12,
+    success_rate: 0.917,
+    avg_duration_ms: 35000,
+    status_counts: {
+      completed: 11,
+      running: 1,
+    },
+  },
+  pagination: {
+    total_items: 12,
+    total_pages: 2,
+    page: 1,
+    page_size: 50,
   },
 }
 
@@ -251,4 +309,204 @@ export function disableAnimations(page: any) {
  */
 export async function grantClipboardPermissions(context: any) {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+}
+
+/**
+ * Mock data for governance endpoints
+ */
+export const mockGovernanceEvents = {
+  events: [],
+  count: 0
+}
+
+export const mockGovernanceViolations = {
+  violations: [],
+  count: 0
+}
+
+export const mockGovernanceStatistics = {
+  reputation: {},
+  costs: {
+    daily: {
+      usage: {}
+    }
+  },
+  timestamp: {}
+}
+
+/**
+ * Helper to stub CSRF endpoint
+ * Tests if CSRF token fetch is blocking app initialization
+ */
+export async function stubCsrfEndpoint(page: any) {
+  await page.route('**/api/auth/v2/csrf', route =>
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify({ csrf_token: 'test-csrf-token' }) 
+    })
+  )
+}
+
+/**
+ * Mock data for admin agents endpoint
+ */
+export const mockAdminAgents = {
+  agents: [],
+  count: 0
+}
+
+/**
+ * Helper to stub governance API endpoints that return 503 in CI
+ * These endpoints lack ALLOW_GOVERNANCE_MOCK support, so we stub them at the test layer
+ */
+export async function stubGovernanceEndpoints(page: any) {
+  await page.unroute('**/api/auth/v2/csrf').catch(() => {})
+  await page.unroute('**/api/admin/system/health*').catch(() => {})
+  await page.unroute('**/api/admin/system/metrics*').catch(() => {})
+  await page.unroute('**/api/admin/agent-execution-logs*').catch(() => {})
+  await page.unroute('**/api/admin/agents*').catch(() => {})
+  await page.unroute(/\/api\/governance\/events(\?.*)?$/).catch(() => {})
+  await page.unroute(/\/api\/governance\/violations(\?.*)?$/).catch(() => {})
+  await page.unroute(/\/api\/governance\/statistics(\?.*)?$/).catch(() => {})
+  
+  await stubCsrfEndpoint(page)
+  
+  // Use regex patterns to catch all variants of system endpoints
+  await page.route(/\/api\/admin\/system\/health/, route => {
+    const url = route.request().url()
+    console.log('[MOCK-DEFAULT] Intercepted system health:', url)
+    route.fulfill({ 
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(mockHealthResponse)
+    })
+  })
+
+  await page.route(/\/api\/admin\/system\/metrics/, route => {
+    const url = route.request().url()
+    console.log('[MOCK-DEFAULT] Intercepted system metrics:', url)
+    route.fulfill({ 
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(mockMetricsResponse)
+    })
+  })
+  
+  await page.route('**/api/admin/agent-execution-logs*', route => {
+    const url = route.request().url()
+    console.log('[MOCK-DEFAULT] Intercepted agent-execution-logs:', url)
+    
+    if (url.includes('page=2')) {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsResponsePage2) 
+      })
+    } else if (url.includes('agent_type=dev_agent')) {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsFilteredByAgentType) 
+      })
+    } else if (url.includes('status=completed')) {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsFilteredByStatus) 
+      })
+    } else if (url.includes('status=') || url.includes('agent_type=') || url.includes('time_range=')) {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsResponse) 
+      })
+    } else {
+      route.fulfill({ 
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockExecutionLogsResponse) 
+      })
+    }
+  })
+  
+  await page.route('**/api/admin/agents*', route => {
+    console.log('[MOCK] Intercepted /api/admin/agents')
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify(mockAdminAgents) 
+    })
+  })
+  
+  await page.route(/\/api\/governance\/events(\?.*)?$/, route => {
+    console.log('[MOCK] Intercepted /api/governance/events')
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify(mockGovernanceEvents) 
+    })
+  })
+  
+  await page.route(/\/api\/governance\/violations(\?.*)?$/, route => {
+    console.log('[MOCK] Intercepted /api/governance/violations')
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify(mockGovernanceViolations) 
+    })
+  })
+  
+  await page.route(/\/api\/governance\/statistics(\?.*)?$/, route => {
+    console.log('[MOCK] Intercepted /api/governance/statistics')
+    route.fulfill({ 
+      status: 200, 
+      contentType: 'application/json', 
+      body: JSON.stringify(mockGovernanceStatistics) 
+    })
+  })
+}
+
+/**
+ * Helper to add diagnostic logging for debugging E2E test failures
+ */
+export async function addDiagnosticLogging(page: any) {
+  page.on('request', (request: any) => {
+    const url = request.url()
+    if (url.includes('/agent-execution-logs')) {
+      console.log('[REQ]', request.method(), url)
+    }
+  })
+  
+  page.on('console', (msg: any) => {
+    const type = msg.type()
+    if (type === 'error' || type === 'warning') {
+      console.log(`[Browser ${type}]:`, msg.text())
+    }
+  })
+  
+  page.on('pageerror', (error: any) => {
+    console.log('[Page Error]:', error.message)
+  })
+  
+  page.on('requestfailed', (request: any) => {
+    console.log('[Request Failed]:', request.url(), request.failure()?.errorText)
+  })
+  
+  page.on('response', async (response: any) => {
+    if (response.status() >= 400) {
+      const url = response.url()
+      const status = response.status()
+      console.log(`[API Error ${status}]:`, url)
+      
+      if (status === 401 && url.includes('/api/')) {
+        try {
+          const body = await response.text()
+          console.log(`[401 Response Body]:`, body.substring(0, 500))
+        } catch (e) {
+          console.log('[401 Response Body]: <unable to read>')
+        }
+      }
+    }
+  })
 }

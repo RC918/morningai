@@ -3,14 +3,16 @@ import {
   mockExecutionLogsResponse, 
   mockExecutionLogsResponsePage2,
   mockExecutionLogsFilteredByStatus,
-  grantClipboardPermissions 
+  grantClipboardPermissions,
+  stubGovernanceEndpoints,
+  addDiagnosticLogging
 } from './utils/fixtures'
 
 /**
  * E2E tests for AgentExecutionLogs component
  * 
  * NOTE: These tests require authenticated access to /governance route.
- * In CI environments without authentication, these tests will be skipped automatically.
+ * Authentication is handled by the setup project (auth.setup.ts) which runs before these tests.
  * 
  * Tests verify:
  * 1. Rendering and summary statistics
@@ -24,44 +26,56 @@ import {
  * 9. Error state and retry
  */
 
-/**
- * Helper function to check if user is authenticated
- * Returns true if authenticated, false if on login page
- */
-async function isAuthenticated(page) {
-  // Check for common login page elements
-  const loginForm = await page.locator('input[type="email"], input[type="password"]').count()
-  const loginButton = await page.locator('button:has-text("Login"), button:has-text("Sign in")').count()
-  
-  return loginForm === 0 && loginButton === 0
-}
-
 test.describe('AgentExecutionLogs E2E Tests', () => {
+  test.describe.configure({ mode: 'serial' })
+  
   test.beforeEach(async ({ page }) => {
-    await page.route('**/admin/agent-execution-logs*', route => {
-      const url = route.request().url()
-      
-      if (url.includes('page=2')) {
-        route.fulfill({ json: mockExecutionLogsResponsePage2 })
-      }
-      else if (url.includes('status=completed')) {
-        route.fulfill({ json: mockExecutionLogsFilteredByStatus })
-      }
-      else {
-        route.fulfill({ json: mockExecutionLogsResponse })
-      }
-    })
+    await addDiagnosticLogging(page)
+    await stubGovernanceEndpoints(page)
   })
 
-  test('1. should render summary statistics and table', async ({ page }) => {
+  const navigateToExecutionLogs = async (page: any) => {
     await page.goto('/governance')
+    await page.waitForLoadState('networkidle')
     
-    // Check if authenticated
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
+    await page.locator('[data-slot="tabs-list"]').waitFor({ timeout: 30000 })
+    
+    const executionLogsTab = page.getByRole('tab', { name: /execution logs/i })
+    await executionLogsTab.waitFor({ state: 'visible', timeout: 10000 })
+    
+    const panelId = await executionLogsTab.getAttribute('aria-controls')
+    
+    if (!panelId) {
+      console.warn('⚠️ Tab does not have aria-controls attribute, falling back to text-based panel selector')
+      await Promise.all([
+        page.waitForResponse(r => r.url().includes('/api/admin/agent-execution-logs') && (r.status() === 200 || r.status() === 500)),
+        executionLogsTab.click()
+      ])
+      const tabPanel = page.getByRole('tabpanel', { name: /execution logs/i })
+      await tabPanel.waitFor({ state: 'visible', timeout: 10000 })
+    } else {
+      console.log(`🔗 Tab aria-controls: ${panelId}`)
+      
+      // Wait for API response and tab click concurrently
+      await Promise.all([
+        page.waitForResponse(r => r.url().includes('/api/admin/agent-execution-logs') && (r.status() === 200 || r.status() === 500)),
+        executionLogsTab.click()
+      ])
+      
+      // Wait for tab to be selected
+      await expect(executionLogsTab).toHaveAttribute('aria-selected', 'true', { timeout: 5000 })
+      
+      // Wait for panel to become active
+      const panel = page.locator(`#${panelId}`)
+      await expect(panel).toHaveAttribute('data-state', 'active', { timeout: 5000 })
+      await panel.waitFor({ state: 'visible', timeout: 10000 })
     }
     
     await page.waitForSelector('[data-testid="agent-execution-logs"]', { timeout: 10000 })
+  }
+
+  test('1. should render summary statistics and table', async ({ page }) => {
+    await navigateToExecutionLogs(page)
     
     const summaryTotal = page.getByTestId('summary-total')
     await expect(summaryTotal).toBeVisible()
@@ -85,13 +99,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('2. should normalize execution log statuses correctly', async ({ page }) => {
-    await page.goto('/governance')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const rows = page.locator('[data-testid="execution-row"]')
     const rowCount = await rows.count()
@@ -107,24 +115,29 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('3. should filter by status', async ({ page }) => {
-    await page.goto('/governance')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const statusFilter = page.getByTestId('filter-status')
     await statusFilter.click()
     
-    await page.locator('text=Completed').first().click()
+    // Wait for dropdown to be fully open and visible
+    await page.waitForTimeout(500)
     
-    await page.getByTestId('apply-filters').click()
+    const completedOption = page.getByRole('option', { name: /completed/i })
+    await completedOption.waitFor({ state: 'visible', timeout: 5000 })
+    await completedOption.click()
     
-    const request = await page.waitForRequest(req => 
-      req.url().includes('admin/agent-execution-logs') && req.url().includes('status=completed')
-    )
+    // Wait for dropdown to close and state to update
+    await page.waitForTimeout(300)
+    
+    // Click apply filters and wait for the request concurrently
+    const [request] = await Promise.all([
+      page.waitForRequest(req => 
+        req.url().includes('admin/agent-execution-logs') && req.url().includes('status=completed'),
+        { timeout: 10000 }
+      ),
+      page.getByTestId('apply-filters').click()
+    ])
     
     expect(request.url()).toContain('status=completed')
     
@@ -134,100 +147,117 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('4. should filter by agent type', async ({ page }) => {
-    await page.goto('/governance')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const agentTypeFilter = page.getByTestId('filter-agent-type')
     await agentTypeFilter.click()
     
-    await page.locator('text=Dev Agent').first().click()
+    // Wait for dropdown to be fully open
+    await page.waitForTimeout(500)
     
-    await page.getByTestId('apply-filters').click()
+    const devAgentOption = page.getByRole('option', { name: /dev agent/i })
+    await devAgentOption.waitFor({ state: 'visible', timeout: 5000 })
+    await devAgentOption.click()
     
-    await page.waitForRequest(req => 
-      req.url().includes('admin/agent-execution-logs') && req.url().includes('agent_type=dev_agent')
-    )
+    // Wait for dropdown to close and state to update
+    await page.waitForTimeout(300)
+    
+    // Click apply filters and wait for the request concurrently
+    await Promise.all([
+      page.waitForRequest(req => 
+        req.url().includes('admin/agent-execution-logs') && req.url().includes('agent_type=dev_agent'),
+        { timeout: 10000 }
+      ),
+      page.getByTestId('apply-filters').click()
+    ])
   })
 
   test('5. should clear filters', async ({ page }) => {
-    await page.goto('/governance')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    await navigateToExecutionLogs(page)
     
     const statusFilter = page.getByTestId('filter-status')
     await statusFilter.click()
-    await page.locator('text=Completed').first().click()
     
-    await page.getByTestId('clear-filters').click()
+    // Wait for dropdown to be fully open
+    await page.waitForTimeout(500)
     
-    await page.waitForRequest(req => 
-      req.url().includes('admin/agent-execution-logs') && !req.url().includes('status=')
-    )
+    const completedOption = page.getByRole('option', { name: /completed/i })
+    await completedOption.waitFor({ state: 'visible', timeout: 5000 })
+    await completedOption.click()
+    
+    // Wait for dropdown to close and state to update
+    await page.waitForTimeout(300)
+    
+    // Click clear filters and wait for the request concurrently
+    await Promise.all([
+      page.waitForRequest(req => 
+        req.url().includes('admin/agent-execution-logs') && !req.url().includes('status='),
+        { timeout: 10000 }
+      ),
+      page.getByTestId('clear-filters').click()
+    ])
   })
 
   test('6. should handle pagination', async ({ page }) => {
-    await page.route('**/admin/agent-execution-logs*', route => {
+    await page.unroute('**/api/admin/agent-execution-logs*')
+    
+    await page.route('**/api/admin/agent-execution-logs*', route => {
       const url = route.request().url()
+      console.log('[MOCK-TEST6] Pagination test intercepted:', url)
       if (url.includes('page=2')) {
         route.fulfill({ 
           json: {
             ...mockExecutionLogsResponsePage2,
-            pagination: { total_items: 100, total_pages: 2 }
+            pagination: { total_items: 100, total_pages: 2, page: 2, page_size: 10 }
           }
         })
       } else {
         route.fulfill({ 
           json: {
             ...mockExecutionLogsResponse,
-            pagination: { total_items: 100, total_pages: 2 }
+            pagination: { total_items: 100, total_pages: 2, page: 1, page_size: 10 }
           }
         })
       }
     })
     
-    await page.goto('/governance')
+    await navigateToExecutionLogs(page)
     
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
+    // Wait for pagination to be visible using stable data-testid
+    await page.getByTestId('pagination').waitFor({ state: 'visible', timeout: 10000 })
     
-    await page.waitForSelector('[data-testid="execution-table"]')
+    // Verify pagination page indicator
+    const pageIndicator = page.getByTestId('pagination-page')
+    await expect(pageIndicator).toBeVisible()
+    await expect(pageIndicator).toHaveAttribute('data-current', '1')
+    await expect(pageIndicator).toHaveAttribute('data-total', '2')
     
-    await page.waitForSelector('text=/Page.*of/')
+    const nextButton = page.getByTestId('pagination-next')
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/admin/agent-execution-logs') && r.url().includes('page=2') && r.status() === 200),
+      nextButton.click()
+    ])
     
-    const nextButton = page.locator('a[aria-label*="next" i], button:has-text("Next")')
-    if (await nextButton.count() > 0) {
-      await nextButton.first().click()
-      
-      await page.waitForRequest(req => 
-        req.url().includes('admin/agent-execution-logs') && req.url().includes('page=2')
-      )
-    }
+    // Verify we're on page 2
+    await expect(pageIndicator).toHaveAttribute('data-current', '2')
   })
 
   test('7. should display trace links when TRACE_VIEWER_URL is set', async ({ page }) => {
-    await page.goto('/governance')
+    await page.addInitScript(() => {
+      window.TRACE_VIEWER_URL = 'https://trace.example.com'
+    })
     
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
+    await navigateToExecutionLogs(page)
     
-    await page.waitForSelector('[data-testid="execution-table"]')
+    // Wait for table to be visible
+    await page.getByTestId('execution-table').waitFor({ state: 'visible', timeout: 10000 })
     
-    const traceLinks = page.locator('[data-testid="trace-link"]')
+    const traceLinks = page.getByTestId('trace-link')
     const traceLinkCount = await traceLinks.count()
     
     if (traceLinkCount > 0) {
       const firstTraceLink = traceLinks.first()
+      await expect(firstTraceLink).toBeVisible({ timeout: 10000 })
       await expect(firstTraceLink).toHaveAttribute('target', '_blank')
       await expect(firstTraceLink).toHaveAttribute('rel', 'noopener noreferrer')
       
@@ -235,23 +265,21 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
       const href = await firstTraceLink.getAttribute('href')
       expect(href).toMatch(/\/trace\//)
     } else {
-      const copyButtons = page.locator('[data-testid="copy-trace-id"]')
-      await expect(copyButtons.first()).toBeVisible()
+      const copyButtons = page.getByTestId('copy-trace-id')
+      await expect(copyButtons.first()).toBeVisible({ timeout: 10000 })
     }
   })
 
   test('8. should copy trace ID to clipboard', async ({ page, context }) => {
     await grantClipboardPermissions(context)
     
-    await page.goto('/governance')
+    await navigateToExecutionLogs(page)
     
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    // Wait for table to be visible
+    await page.getByTestId('execution-table').waitFor({ state: 'visible', timeout: 10000 })
     
     const copyButton = page.getByTestId('copy-trace-id').first()
+    await expect(copyButton).toBeVisible({ timeout: 10000 })
     await copyButton.click()
     
     await page.waitForTimeout(500)
@@ -261,22 +289,20 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   })
 
   test('9. should open details drawer and display full information', async ({ page }) => {
-    await page.goto('/governance')
+    await navigateToExecutionLogs(page)
     
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
-    
-    await page.waitForSelector('[data-testid="execution-table"]')
+    // Wait for table to be visible
+    await page.getByTestId('execution-table').waitFor({ state: 'visible', timeout: 10000 })
     
     const viewDetailsButton = page.getByTestId('view-details').first()
+    await expect(viewDetailsButton).toBeVisible({ timeout: 10000 })
     await viewDetailsButton.click()
     
     const drawer = page.getByTestId('details-drawer')
-    await expect(drawer).toBeVisible()
+    await expect(drawer).toBeVisible({ timeout: 10000 })
     
     const detailsContent = page.getByTestId('details-content')
-    await expect(detailsContent).toBeVisible()
+    await expect(detailsContent).toBeVisible({ timeout: 10000 })
     
     const agentSection = page.getByTestId('details-agent')
     if (await agentSection.count() > 0) {
@@ -293,34 +319,40 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
   test('10. should handle error state and retry', async ({ page }) => {
     let callCount = 0
     
-    await page.route('**/admin/agent-execution-logs*', route => {
+    await page.unroute('**/api/admin/agent-execution-logs*')
+    
+    await page.route('**/api/admin/agent-execution-logs*', route => {
       callCount++
+      console.log('[MOCK-TEST10] Error test intercepted, call count:', callCount)
       if (callCount === 1) {
         route.fulfill({ 
           status: 500, 
           json: { error: 'Internal server error' } 
         })
       } else {
-        route.fulfill({ json: mockExecutionLogsResponse })
+        route.fulfill({ 
+          status: 200,
+          json: mockExecutionLogsResponse 
+        })
       }
     })
     
-    await page.goto('/governance')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /governance access')
-    }
+    await navigateToExecutionLogs(page)
     
     const errorAlert = page.getByTestId('error-alert')
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
     
     const retryButton = page.getByTestId('retry-button')
-    await expect(retryButton).toBeVisible()
-    await retryButton.click()
+    await expect(retryButton).toBeVisible({ timeout: 10000 })
     
-    await page.waitForSelector('[data-testid="execution-table"]', { timeout: 10000 })
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/admin/agent-execution-logs') && r.status() === 200),
+      retryButton.click()
+    ])
+    
+    // Wait for table to appear
     const table = page.getByTestId('execution-table')
-    await expect(table).toBeVisible()
+    await expect(table).toBeVisible({ timeout: 10000 })
     
     await expect(errorAlert).not.toBeVisible()
   })

@@ -49,7 +49,7 @@ import {
   ExternalLink,
   Eye
 } from 'lucide-react'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, apiClientWithMeta } from '@/lib/api-client'
 import { toast } from 'sonner'
 import { buildTraceUrl } from '@/lib/trace'
 
@@ -239,35 +239,37 @@ const AgentExecutionLogs = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, filters.sort_by, filters.sort_order])
 
-  const loadExecutionLogs = async () => {
+  const loadExecutionLogs = async (overrideFilters?: Partial<typeof filters>) => {
     try {
       setLoading(true)
       setError(null)
       
+      const activeFilters = overrideFilters ? { ...filters, ...overrideFilters } : filters
+      
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         page_size: pagination.page_size.toString(),
-        sort_by: filters.sort_by,
-        sort_order: filters.sort_order
+        sort_by: activeFilters.sort_by,
+        sort_order: activeFilters.sort_order
       })
       
-      if (filters.status) params.append('status', filters.status)
-      if (filters.agent_id) params.append('agent_id', filters.agent_id)
-      if (filters.agent_type) params.append('agent_type', filters.agent_type)
-      if (filters.tenant_id) params.append('tenant_id', filters.tenant_id)
-      if (filters.task_type) params.append('task_type', filters.task_type)
-      if (filters.start_date) params.append('start_date', filters.start_date)
-      if (filters.end_date) params.append('end_date', filters.end_date)
+      if (activeFilters.status) params.append('status', activeFilters.status)
+      if (activeFilters.agent_id) params.append('agent_id', activeFilters.agent_id)
+      if (activeFilters.agent_type) params.append('agent_type', activeFilters.agent_type)
+      if (activeFilters.tenant_id) params.append('tenant_id', activeFilters.tenant_id)
+      if (activeFilters.task_type) params.append('task_type', activeFilters.task_type)
+      if (activeFilters.start_date) params.append('start_date', activeFilters.start_date)
+      if (activeFilters.end_date) params.append('end_date', activeFilters.end_date)
 
-      const response = await apiClient(`/admin/agent-execution-logs?${params.toString()}`) as ExecutionLogsResponse
+      const { data: response } = await apiClientWithMeta<ExecutionLogsResponse>(`/admin/agent-execution-logs?${params.toString()}`)
       
-      if (response.execution_logs) {
+      if (response?.execution_logs) {
         setLogs(response.execution_logs)
         setSummary(response.summary)
         setPagination(prev => ({
           ...prev,
-          total_items: response.pagination.total_items,
-          total_pages: response.pagination.total_pages
+          total_items: response.pagination?.total_items || 0,
+          total_pages: response.pagination?.total_pages || 0
         }))
       }
     } catch (err) {
@@ -284,7 +286,7 @@ const AgentExecutionLogs = () => {
   }
 
   const handleClearFilters = () => {
-    setFilters({
+    const clearedFilters = {
       status: '',
       agent_id: '',
       agent_type: '',
@@ -295,8 +297,10 @@ const AgentExecutionLogs = () => {
       time_range: '',
       sort_by: 'created_at',
       sort_order: 'desc'
-    })
+    }
+    setFilters(clearedFilters)
     setPagination(prev => ({ ...prev, page: 1 }))
+    loadExecutionLogs(clearedFilters)
   }
 
   const formatDuration = (durationMs: number | undefined): string => {
@@ -349,69 +353,67 @@ const AgentExecutionLogs = () => {
 
   const showSkeleton = loading && logs.length === 0
 
-  if (showSkeleton) {
-    return (
-      <div className="space-y-6" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
-        {/* Summary Statistics Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <Skeleton className="h-4 w-24" aria-hidden="true" />
-                  <Skeleton className="h-5 w-5 rounded-full" aria-hidden="true" />
-                </div>
-                <Skeleton className="h-9 w-20" aria-hidden="true" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Filters Skeleton */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" aria-hidden="true" />
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i}>
-                  <Skeleton className="h-4 w-20 mb-2" aria-hidden="true" />
-                  <Skeleton className="h-10 w-full" aria-hidden="true" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Table Skeleton */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-48" aria-hidden="true" />
-            <Skeleton className="h-4 w-64 mt-2" aria-hidden="true" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-6 w-20" aria-hidden="true" />
-                  <Skeleton className="h-4 w-32" aria-hidden="true" />
-                  <Skeleton className="h-4 w-24" aria-hidden="true" />
-                  <Skeleton className="h-4 w-28" aria-hidden="true" />
-                  <Skeleton className="h-4 w-32" aria-hidden="true" />
-                  <Skeleton className="h-4 w-16" aria-hidden="true" />
-                  <Skeleton className="h-4 w-36" aria-hidden="true" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6" aria-busy={loading} data-testid="agent-execution-logs">
+      {showSkeleton ? (
+        <>
+          {/* Summary Statistics Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4" role="status" aria-live="polite" aria-label={t('common.loading')}>
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <Skeleton className="h-4 w-24" aria-hidden="true" />
+                    <Skeleton className="h-5 w-5 rounded-full" aria-hidden="true" />
+                  </div>
+                  <Skeleton className="h-9 w-20" aria-hidden="true" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Filters Skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" aria-hidden="true" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i}>
+                    <Skeleton className="h-4 w-20 mb-2" aria-hidden="true" />
+                    <Skeleton className="h-10 w-full" aria-hidden="true" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Table Skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-48" aria-hidden="true" />
+              <Skeleton className="h-4 w-64 mt-2" aria-hidden="true" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-6 w-20" aria-hidden="true" />
+                    <Skeleton className="h-4 w-32" aria-hidden="true" />
+                    <Skeleton className="h-4 w-24" aria-hidden="true" />
+                    <Skeleton className="h-4 w-28" aria-hidden="true" />
+                    <Skeleton className="h-4 w-32" aria-hidden="true" />
+                    <Skeleton className="h-4 w-16" aria-hidden="true" />
+                    <Skeleton className="h-4 w-36" aria-hidden="true" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <>
       {error && (
         <Alert variant="destructive" data-testid="error-alert">
           <AlertTriangle className="h-4 w-4" />
@@ -419,7 +421,7 @@ const AgentExecutionLogs = () => {
           <AlertDescription>
             {error}
             <Button 
-              onClick={loadExecutionLogs} 
+              onClick={() => loadExecutionLogs()} 
               variant="outline" 
               size="sm" 
               className="ml-4"
@@ -505,14 +507,14 @@ const AgentExecutionLogs = () => {
                 {t('governance.executionLogs.filters.status')}
               </label>
               <Select 
-                value={filters.status} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+                value={filters.status || 'all'} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}
               >
                 <SelectTrigger data-testid="filter-status">
                   <SelectValue placeholder={t('governance.executionLogs.filters.allStatuses')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('governance.executionLogs.filters.allStatuses')}</SelectItem>
+                  <SelectItem value="all">{t('governance.executionLogs.filters.allStatuses')}</SelectItem>
                   <SelectItem value="queued">{t('governance.executionLogs.statuses.queued')}</SelectItem>
                   <SelectItem value="assigned">{t('governance.executionLogs.statuses.assigned')}</SelectItem>
                   <SelectItem value="running">{t('governance.executionLogs.statuses.running')}</SelectItem>
@@ -528,14 +530,14 @@ const AgentExecutionLogs = () => {
                 {t('governance.executionLogs.filters.agentType')}
               </label>
               <Select 
-                value={filters.agent_type} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value }))}
+                value={filters.agent_type || 'all'} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value === 'all' ? '' : value }))}
               >
                 <SelectTrigger data-testid="filter-agent-type">
                   <SelectValue placeholder={t('governance.executionLogs.filters.allAgentTypes')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('governance.executionLogs.filters.allAgentTypes')}</SelectItem>
+                  <SelectItem value="all">{t('governance.executionLogs.filters.allAgentTypes')}</SelectItem>
                   <SelectItem value="dev_agent">{t('governance.executionLogs.agentTypes.devAgent')}</SelectItem>
                   <SelectItem value="ops_agent">{t('governance.executionLogs.agentTypes.opsAgent')}</SelectItem>
                   <SelectItem value="pm_agent">{t('governance.executionLogs.agentTypes.pmAgent')}</SelectItem>
@@ -574,14 +576,14 @@ const AgentExecutionLogs = () => {
                 {t('governance.executionLogs.filters.timeRange')}
               </label>
               <Select 
-                value={filters.time_range} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value }))}
+                value={filters.time_range || 'all'} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value === 'all' ? '' : value }))}
               >
                 <SelectTrigger data-testid="filter-time-range">
                   <SelectValue placeholder={t('governance.executionLogs.filters.selectTimeRange')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('governance.executionLogs.filters.allTime')}</SelectItem>
+                  <SelectItem value="all">{t('governance.executionLogs.filters.allTime')}</SelectItem>
                   <SelectItem value="24h">{t('governance.executionLogs.filters.last24Hours')}</SelectItem>
                   <SelectItem value="7d">{t('governance.executionLogs.filters.last7Days')}</SelectItem>
                   <SelectItem value="30d">{t('governance.executionLogs.filters.last30Days')}</SelectItem>
@@ -636,7 +638,7 @@ const AgentExecutionLogs = () => {
               <CardTitle>{t('governance.executionLogs.title')}</CardTitle>
               <CardDescription>{t('governance.executionLogs.subtitle')}</CardDescription>
             </div>
-            <Button onClick={loadExecutionLogs} variant="outline" size="sm" disabled={loading}>
+            <Button onClick={() => loadExecutionLogs()} variant="outline" size="sm" disabled={loading}>
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               {t('governance.refresh')}
             </Button>
@@ -877,7 +879,7 @@ const AgentExecutionLogs = () => {
 
           {/* Pagination */}
           {pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            <div className="flex items-center justify-between mt-6 pt-4 border-t" data-testid="pagination">
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 {t('governance.executionLogs.pagination.showing', {
                   start: (pagination.page - 1) * pagination.page_size + 1,
@@ -904,10 +906,16 @@ const AgentExecutionLogs = () => {
                       aria-disabled={pagination.page === 1}
                       tabIndex={pagination.page === 1 ? -1 : 0}
                       className={pagination.page === 1 ? 'pointer-events-none opacity-50' : ''}
+                      data-testid="pagination-prev"
                     />
                   </PaginationItem>
                   <PaginationItem>
-                    <span className="text-sm text-neutral-600 dark:text-neutral-400 px-4">
+                    <span 
+                      className="text-sm text-neutral-600 dark:text-neutral-400 px-4"
+                      data-testid="pagination-page"
+                      data-current={pagination.page}
+                      data-total={pagination.total_pages}
+                    >
                       {t('governance.executionLogs.pagination.page', {
                         current: pagination.page,
                         total: pagination.total_pages
@@ -931,6 +939,7 @@ const AgentExecutionLogs = () => {
                       aria-disabled={pagination.page === pagination.total_pages}
                       tabIndex={pagination.page === pagination.total_pages ? -1 : 0}
                       className={pagination.page === pagination.total_pages ? 'pointer-events-none opacity-50' : ''}
+                      data-testid="pagination-next"
                     />
                   </PaginationItem>
                 </PaginationContent>
@@ -1161,6 +1170,8 @@ const AgentExecutionLogs = () => {
           )}
         </SheetContent>
       </Sheet>
+        </>
+      )}
     </div>
   )
 }

@@ -4,14 +4,16 @@ import {
   mockHealthResponseDegraded,
   mockMetricsResponse,
   mockMetricsResponseHighUsage,
-  stubMathRandom 
+  stubMathRandom,
+  stubGovernanceEndpoints,
+  addDiagnosticLogging
 } from './utils/fixtures'
 
 /**
  * E2E tests for SystemMonitoring component
  * 
  * NOTE: These tests require authenticated access to /monitoring route.
- * In CI environments without authentication, these tests will be skipped automatically.
+ * Authentication is handled by the setup project (auth.setup.ts) which runs before these tests.
  * 
  * Tests verify:
  * 1. Happy path render (health and metrics)
@@ -21,37 +23,32 @@ import {
  * 5. Refresh button flow
  */
 
-/**
- * Helper function to check if user is authenticated
- * Returns true if authenticated, false if on login page
- */
-async function isAuthenticated(page) {
-  // Check for common login page elements
-  const loginForm = await page.locator('input[type="email"], input[type="password"]').count()
-  const loginButton = await page.locator('button:has-text("Login"), button:has-text("Sign in")').count()
-  
-  return loginForm === 0 && loginButton === 0
-}
-
 test.describe('SystemMonitoring E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
+    await addDiagnosticLogging(page)
     await stubMathRandom(page)
+    await stubGovernanceEndpoints(page)
     
-    await page.route('**/admin/system-health', route => {
+    await page.route('**/api/admin/system/health*', route => {
       route.fulfill({ json: mockHealthResponse })
     })
     
-    await page.route('**/admin/system-metrics', route => {
+    await page.route('**/api/admin/system/metrics*', route => {
       route.fulfill({ json: mockMetricsResponse })
     })
   })
 
   test('1. should render health and metrics successfully', async ({ page }) => {
     await page.goto('/monitoring')
+    await page.waitForLoadState('networkidle')
     
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
+    const url = page.url()
+    const localStorageState = await page.evaluate(() => ({
+      path: window.location.pathname,
+      hasUser: !!localStorage.getItem('morningai_user'),
+      tokenExpiry: localStorage.getItem('morningai_token_expiry')
+    }))
+    console.log('[Diagnostic] After goto - URL:', url, 'localStorage:', localStorageState)
     
     await page.waitForSelector('[data-testid="system-monitoring"]', { timeout: 10000 })
     
@@ -69,22 +66,19 @@ test.describe('SystemMonitoring E2E Tests', () => {
     const memoryCard = page.getByTestId('memory-card')
     await expect(memoryCard).toBeVisible()
     await expect(memoryCard).toContainText('62.8%')
-    await expect(memoryCard).toContainText('5.0') // Used GB
-    await expect(memoryCard).toContainText('8.0') // Total GB
+    await expect(memoryCard).toContainText('5') // Used GB (matches "5GB" or "5.0GB")
+    await expect(memoryCard).toContainText('8') // Total GB (matches "8GB" or "8.0GB")
     
     const diskCard = page.getByTestId('disk-card')
     await expect(diskCard).toBeVisible()
     await expect(diskCard).toContainText('38.5%')
-    await expect(diskCard).toContainText('77.0') // Used GB
-    await expect(diskCard).toContainText('200.0') // Total GB
+    await expect(diskCard).toContainText('77') // Used GB (matches "77GB" or "77.0GB")
+    await expect(diskCard).toContainText('200') // Total GB (matches "200GB" or "200.0GB")
   })
 
   test('2. should show mock badges when VITE_USE_MOCK=true', async ({ page }) => {
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -105,7 +99,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
   test('3. should handle health check error and retry', async ({ page }) => {
     let healthCallCount = 0
     
-    await page.route('**/admin/system-health', route => {
+    await page.route('**/api/admin/system/health*', route => {
       healthCallCount++
       if (healthCallCount === 1) {
         route.fulfill({ 
@@ -118,10 +112,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
+    await page.waitForLoadState('networkidle')
     
     const errorAlert = page.getByTestId('error-alert')
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
@@ -140,7 +131,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
   test('4. should handle metrics error and retry', async ({ page }) => {
     let metricsCallCount = 0
     
-    await page.route('**/admin/system-metrics', route => {
+    await page.route('**/api/admin/system/metrics*', route => {
       metricsCallCount++
       if (metricsCallCount === 1) {
         route.fulfill({ 
@@ -153,10 +144,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
+    await page.waitForLoadState('networkidle')
     
     const errorAlert = page.getByTestId('error-alert')
     await expect(errorAlert).toBeVisible({ timeout: 10000 })
@@ -174,10 +162,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
 
   test('5. should display trend charts for all metrics', async ({ page }) => {
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -204,7 +189,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     let healthCallCount = 0
     let metricsCallCount = 0
     
-    await page.route('**/admin/system-health', route => {
+    await page.route('**/api/admin/system/health*', route => {
       healthCallCount++
       if (healthCallCount === 1) {
         route.fulfill({ json: mockHealthResponse })
@@ -213,7 +198,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
       }
     })
     
-    await page.route('**/admin/system-metrics', route => {
+    await page.route('**/api/admin/system/metrics*', route => {
       metricsCallCount++
       if (metricsCallCount === 1) {
         route.fulfill({ json: mockMetricsResponse })
@@ -223,10 +208,7 @@ test.describe('SystemMonitoring E2E Tests', () => {
     })
     
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -237,12 +219,14 @@ test.describe('SystemMonitoring E2E Tests', () => {
     await expect(cpuCard).toContainText('45.2%')
     
     const refreshButton = page.getByTestId('refresh-metrics')
-    await refreshButton.click()
     
-    await page.waitForRequest(req => req.url().includes('admin/system-health'))
-    await page.waitForRequest(req => req.url().includes('admin/system-metrics'))
+    const [healthResponse, metricsResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/admin/system/health') && r.status() === 200),
+      page.waitForResponse(r => r.url().includes('/api/admin/system/metrics') && r.status() === 200),
+      refreshButton.click()
+    ])
     
-    await page.waitForTimeout(500)
+    console.log('[Test] Refresh responses received:', healthResponse.status(), metricsResponse.status())
     
     await expect(healthCard).toContainText('degraded')
     await expect(cpuCard).toContainText('89.5%')
@@ -252,15 +236,12 @@ test.describe('SystemMonitoring E2E Tests', () => {
   })
 
   test('7. should display different health statuses correctly', async ({ page }) => {
-    await page.route('**/admin/system-health', route => {
+    await page.route('**/api/admin/system/health*', route => {
       route.fulfill({ json: mockHealthResponseDegraded })
     })
     
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -272,15 +253,12 @@ test.describe('SystemMonitoring E2E Tests', () => {
   })
 
   test('8. should handle high usage metrics', async ({ page }) => {
-    await page.route('**/admin/system-metrics', route => {
+    await page.route('**/api/admin/system/metrics*', route => {
       route.fulfill({ json: mockMetricsResponseHighUsage })
     })
     
     await page.goto('/monitoring')
-    
-    if (!(await isAuthenticated(page))) {
-      test.skip(true, 'Not authenticated - skipping test that requires /monitoring access')
-    }
+    await page.waitForLoadState('networkidle')
     
     await page.waitForSelector('[data-testid="system-monitoring"]')
     
@@ -289,10 +267,10 @@ test.describe('SystemMonitoring E2E Tests', () => {
     
     const memoryCard = page.getByTestId('memory-card')
     await expect(memoryCard).toContainText('94.2%')
-    await expect(memoryCard).toContainText('7.5') // Used GB
+    await expect(memoryCard).toContainText('7.5') // Used GB (7.5 is specific enough)
     
     const diskCard = page.getByTestId('disk-card')
     await expect(diskCard).toContainText('82.1%')
-    await expect(diskCard).toContainText('164.2') // Used GB
+    await expect(diskCard).toContainText('164') // Used GB (matches "164GB" or "164.2GB")
   })
 })

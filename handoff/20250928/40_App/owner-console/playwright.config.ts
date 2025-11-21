@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Playwright configuration for owner-console E2E tests
@@ -28,22 +33,44 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')` */
     baseURL: 'http://localhost:4173',
     
-    /* Collect trace when retrying the failed test */
-    trace: 'on-first-retry',
+    /* Collect trace, screenshot, and video on failure for debugging */
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    
+    /* Block service workers to prevent interference with mocked routes */
+    serviceWorkers: 'block',
   },
 
   /* Configure projects for major browsers */
   projects: [
     {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: path.resolve(__dirname, 'playwright/.auth/user.json'),
+      },
+      dependencies: ['setup'],
+      testIgnore: /.*max-width-regression\.spec\.ts/,
+    },
+    {
+      name: 'chromium-unauthenticated',
+      use: { 
+        ...devices['Desktop Chrome'],
+      },
+      testMatch: /.*max-width-regression\.spec\.ts/,
     },
   ],
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run preview',
-    port: 4173,
+    command: 'pnpm run preview -- --port 4173 --strict-port',
+    url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
+    timeout: 120000,
   },
 });

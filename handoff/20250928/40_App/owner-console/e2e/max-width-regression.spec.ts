@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { stubGovernanceEndpoints, stubCsrfEndpoint } from './utils/fixtures';
 
 /**
  * Regression test for Tailwind v4 max-w-* utilities
@@ -16,14 +17,16 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
   test.beforeEach(async ({ page }) => {
+    await stubGovernanceEndpoints(page);
+    await stubCsrfEndpoint(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
   });
 
   test('max-w-md should resolve to 28rem (448px), not 16px', async ({ page }) => {
-    const container = page.locator('.max-w-md').first();
+    await page.locator('[data-testid="login-card"]').waitFor({ state: 'visible', timeout: 10000 });
     
-    await expect(container).toBeVisible();
+    const container = page.locator('[data-testid="login-card"]');
     
     const maxWidth = await container.evaluate((el) => {
       const styles = window.getComputedStyle(el);
@@ -39,7 +42,9 @@ test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
   });
 
   test('max-w-md container should have proper width, not collapsed', async ({ page }) => {
-    const container = page.locator('.max-w-md').first();
+    await page.locator('[data-testid="login-card"]').waitFor({ state: 'visible', timeout: 10000 });
+    
+    const container = page.locator('[data-testid="login-card"]');
     
     const boundingBox = await container.boundingBox();
     
@@ -53,7 +58,9 @@ test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
   });
 
   test('login form should be horizontally centered and properly sized', async ({ page }) => {
-    const container = page.locator('.max-w-md').first();
+    await page.locator('[data-testid="login-card"]').waitFor({ state: 'visible', timeout: 10000 });
+    
+    const container = page.locator('[data-testid="login-card"]');
     
     const viewportSize = page.viewportSize();
     expect(viewportSize).not.toBeNull();
@@ -74,7 +81,9 @@ test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
   });
 
   test('max-w-md utility class should use correct token value', async ({ page }) => {
-    const container = page.locator('.max-w-md').first();
+    await page.locator('[data-testid="login-card"]').waitFor({ state: 'visible', timeout: 10000 });
+    
+    const container = page.locator('[data-testid="login-card"]');
     
     const computedMaxWidth = await container.evaluate((el) => {
       return window.getComputedStyle(el).maxWidth;

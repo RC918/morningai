@@ -792,6 +792,7 @@ class Settings(BaseSettings):
 
     allow_governance_mock: bool = Field(
         default=False,
+        alias="ALLOW_GOVERNANCE_MOCK",
         description="Allow mock governance for testing"
     )
 

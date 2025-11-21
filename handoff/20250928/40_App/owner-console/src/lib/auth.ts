@@ -24,6 +24,12 @@
 
 import { isFeatureEnabled } from './feature-flags.ts';
 
+/**
+ * E2E Test Environment Flag
+ * Only enable localStorage token persistence in E2E test environment
+ * to prevent XSS attacks in production
+ */
+const IS_E2E = import.meta.env.VITE_E2E === 'true';
 
 export interface AuthTokens {
   accessToken?: string; // Access token (for fallback when cookies are blocked)
@@ -63,24 +69,70 @@ export interface RefreshTokenResponse {
 
 const TOKEN_EXPIRY_KEY = 'morningai_token_expiry';
 const USER_STORAGE_KEY = 'morningai_user';
+const ACCESS_TOKEN_KEY = 'morningai_access_token';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
 
 let inMemoryAccessToken: string | null = null;
 
 
 /**
- * Store access token in memory (fallback for when cookies are blocked)
- * SECURITY: Never store in localStorage to prevent XSS attacks
+ * Store access token in memory and localStorage (for E2E tests only)
+ * 
+ * SECURITY: 
+ * - In-memory storage is preferred for production (prevents XSS attacks)
+ * - localStorage is ONLY used in E2E test environment (VITE_E2E=true)
+ * - Production builds never store tokens in localStorage to prevent XSS attacks
+ * - localStorage is necessary for E2E tests because Playwright's storageState restoration has timing issues with sessionStorage
+ * - Token is cleared on logout to minimize security risk
+ * 
+ * RATIONALE FOR localStorage IN E2E ONLY:
+ * - sessionStorage has timing issues: page loads before Playwright restores storage
+ * - localStorage is restored synchronously before page JavaScript executes
+ * - E2E tests need reliable token persistence across page navigations
+ * - Production builds are protected by IS_E2E gate (VITE_E2E defaults to false)
  */
 export function storeAccessToken(token: string | null): void {
   inMemoryAccessToken = token;
+  
+  if (IS_E2E && typeof localStorage !== 'undefined') {
+    try {
+      if (token) {
+        localStorage.setItem(ACCESS_TOKEN_KEY, token);
+      } else {
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+      }
+    } catch (error) {
+      console.error('Failed to store access token in localStorage:', error);
+    }
+  }
 }
 
 /**
- * Get access token from memory
+ * Get access token from memory or localStorage (E2E tests only)
+ * 
+ * SECURITY:
+ * - Always prefer in-memory token first
+ * - Only read from localStorage in E2E test environment (VITE_E2E=true)
+ * - Production builds never read tokens from localStorage to prevent XSS attacks
  */
 export function getAccessToken(): string | null {
-  return inMemoryAccessToken;
+  if (inMemoryAccessToken) {
+    return inMemoryAccessToken;
+  }
+  
+  if (IS_E2E && typeof localStorage !== 'undefined') {
+    try {
+      const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+      if (storedToken) {
+        inMemoryAccessToken = storedToken;
+        return storedToken;
+      }
+    } catch (error) {
+      console.error('Failed to retrieve access token from localStorage:', error);
+    }
+  }
+  
+  return null;
 }
 
 /**
@@ -133,6 +185,7 @@ export function clearTokens(): void {
   try {
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
   } catch (error) {
     console.error('Failed to clear auth data:', error);
   }

@@ -118,6 +118,7 @@ export default defineConfig(({ mode, command }) => {
     }) : null
 
   return {
+    appType: 'spa',
     base: '/',
     plugins: [
       react(),
