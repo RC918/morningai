@@ -165,6 +165,16 @@ pnpm run build-storybook
 pnpm run type-check
 ```
 
+### Linting
+
+```bash
+# Run ESLint
+pnpm run lint
+
+# Note: ESLint is configured with flat config (eslint.config.js)
+# Formatting rules are set to 'warn' to avoid blocking CI on pre-existing issues
+```
+
 ### Testing
 
 ```bash
@@ -176,6 +186,34 @@ pnpm run test:watch
 
 # Run tests with coverage
 pnpm run test:coverage
+```
+
+#### Coverage Thresholds
+
+This package enforces the following coverage thresholds:
+
+- **Global minimum**: 60% (lines, statements, functions, branches)
+- **UI Components**: 70% (lines, statements, functions), 65% (branches)
+
+Coverage reports are generated in `coverage/` directory:
+- `coverage/index.html` - Interactive HTML report
+- `coverage/coverage-summary.json` - Machine-readable summary
+- `coverage/lcov.info` - LCOV format for CI integration
+
+#### CI Coverage Checks
+
+The GitHub Actions workflow `.github/workflows/shared-ui-coverage.yml` automatically:
+- Runs coverage tests on every PR affecting `packages/shared-ui/**`
+- Checks coverage against thresholds (fails if below 60%)
+- Posts coverage report as PR comment
+- Uploads coverage artifacts for 30 days
+
+To view coverage locally:
+```bash
+cd packages/shared-ui
+pnpm test:coverage
+open coverage/index.html  # macOS
+xdg-open coverage/index.html  # Linux
 ```
 
 ## Animation System
