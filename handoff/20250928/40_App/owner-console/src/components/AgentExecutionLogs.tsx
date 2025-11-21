@@ -298,6 +298,7 @@ const AgentExecutionLogs = () => {
       sort_order: 'desc'
     })
     setPagination(prev => ({ ...prev, page: 1 }))
+    loadExecutionLogs()
   }
 
   const formatDuration = (durationMs: number | undefined): string => {
