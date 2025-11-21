@@ -147,7 +147,7 @@ class CanaryAlerting:
             rates = canary_summary.get('rates', {})
             counts = canary_summary.get('counts', {})
             
-            p95_ms = latency.get('p95_ms', 0)
+            p95_ms = latency.get('p95_ms')
             error_5xx_rate = rates.get('error_5xx_rate', 0)
             failure_rate = rates.get('failure_rate', 0)
             total_planner = counts.get('total_planner', 0)
@@ -157,7 +157,25 @@ class CanaryAlerting:
                 return
             
             p95_threshold = thresholds.get('p95_ms', 2500)
-            if p95_ms > p95_threshold:
+            
+            if p95_ms is None:
+                alert_type = "p95_latency_unbounded"
+                if not self._is_in_cooldown(alert_type):
+                    message = f"Canary p95 latency is unbounded (exceeds max bucket {max(getattr(self, 'buckets_ms', [3200]))}ms)"
+                    data = {
+                        "p95_ms": None,
+                        "threshold_ms": p95_threshold,
+                        "window_minutes": canary_summary.get('window_minutes', 15),
+                        "total_tasks": total_planner,
+                        "severity": "critical"
+                    }
+                    
+                    self._send_sentry_alert(alert_type, message, data)
+                    self._send_webhook_alert(alert_type, message, data)
+                    self._set_cooldown(alert_type)
+                    
+                    logger.warning(f"SLO breach: {message}", extra=data)
+            elif p95_ms > p95_threshold:
                 alert_type = "p95_latency_breach"
                 if not self._is_in_cooldown(alert_type):
                     message = f"Canary p95 latency exceeded: {p95_ms}ms > {p95_threshold}ms"

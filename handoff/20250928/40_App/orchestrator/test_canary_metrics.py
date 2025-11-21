@@ -218,6 +218,63 @@ class TestCanaryAlerting:
         
         alerting.evaluate_slos(canary_summary, thresholds)
         assert not alerting.sentry_sdk.capture_message.called
+    
+    def test_none_p95_triggers_unbounded_alert(self):
+        """p95_ms=None (unbounded tail) should trigger critical alert"""
+        from canary_alerting import CanaryAlerting
+        
+        redis_mock = Mock()
+        redis_mock.exists.return_value = 0
+        redis_mock.setex = Mock()
+        
+        alerting = CanaryAlerting(redis_mock, enabled=True, sentry_dsn="test")
+        alerting.sentry_sdk = Mock()
+        
+        canary_summary = {
+            'enabled': True,
+            'counts': {'total_planner': 10},
+            'latency': {'p95_ms': None, 'p90_ms': None, 'p50_ms': None, 'p99_ms': None},
+            'rates': {'error_5xx_rate': 0, 'failure_rate': 0},
+            'window_minutes': 15
+        }
+        
+        thresholds = {'p95_ms': 2500, 'error_5xx_rate': 1.0, 'failure_rate': 5.0}
+        
+        alerting.evaluate_slos(canary_summary, thresholds)
+        
+        assert alerting.sentry_sdk.capture_message.called
+        call_args = alerting.sentry_sdk.capture_message.call_args
+        assert "unbounded" in call_args[0][0].lower()
+        assert call_args[1]['level'] == 'error'
+        
+        assert redis_mock.setex.called
+    
+    def test_none_p95_does_not_trigger_normal_threshold_alert(self):
+        """p95_ms=None should only trigger unbounded alert, not threshold alert"""
+        from canary_alerting import CanaryAlerting
+        
+        redis_mock = Mock()
+        redis_mock.exists.return_value = 0
+        redis_mock.setex = Mock()
+        
+        alerting = CanaryAlerting(redis_mock, enabled=True, sentry_dsn="test")
+        alerting.sentry_sdk = Mock()
+        
+        canary_summary = {
+            'enabled': True,
+            'counts': {'total_planner': 10},
+            'latency': {'p95_ms': None},
+            'rates': {'error_5xx_rate': 0, 'failure_rate': 0},
+            'window_minutes': 15
+        }
+        
+        thresholds = {'p95_ms': 2500, 'error_5xx_rate': 1.0, 'failure_rate': 5.0}
+        
+        alerting.evaluate_slos(canary_summary, thresholds)
+        
+        assert alerting.sentry_sdk.capture_message.call_count == 1
+        call_args = alerting.sentry_sdk.capture_message.call_args
+        assert "unbounded" in call_args[0][0].lower()
 
 
 if __name__ == '__main__':

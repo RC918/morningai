@@ -262,10 +262,10 @@ class CanaryMetrics:
                     "error_5xx_rate": round(error_5xx_rate, 2)
                 },
                 "latency": {
-                    "p50_ms": latency["p50"] if latency["p50"] is not None else 0,
-                    "p90_ms": latency["p90"] if latency["p90"] is not None else 0,
-                    "p95_ms": latency["p95"] if latency["p95"] is not None else 0,
-                    "p99_ms": latency["p99"] if latency["p99"] is not None else 0
+                    "p50_ms": latency["p50"],
+                    "p90_ms": latency["p90"],
+                    "p95_ms": latency["p95"],
+                    "p99_ms": latency["p99"]
                 }
             }
         except Exception as e:

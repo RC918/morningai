@@ -353,7 +353,8 @@ class MonitoringDashboard:
             latency = summary.get('latency', {})
             rates = summary.get('rates', {})
             
-            p95_ok = latency.get('p95_ms', 0) <= canary_p95_threshold
+            p95_ms = latency.get('p95_ms')
+            p95_ok = (p95_ms is not None) and (p95_ms <= canary_p95_threshold)
             error_5xx_ok = rates.get('error_5xx_rate', 0) <= canary_5xx_threshold
             failure_ok = rates.get('failure_rate', 0) <= canary_failure_threshold
             
