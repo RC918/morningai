@@ -127,11 +127,17 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await completedOption.waitFor({ state: 'visible', timeout: 5000 })
     await completedOption.click()
     
-    await page.getByTestId('apply-filters').click()
+    // Wait for dropdown to close and state to update
+    await page.waitForTimeout(300)
     
-    const request = await page.waitForRequest(req => 
-      req.url().includes('admin/agent-execution-logs') && req.url().includes('status=completed')
-    )
+    // Click apply filters and wait for the request concurrently
+    const [request] = await Promise.all([
+      page.waitForRequest(req => 
+        req.url().includes('admin/agent-execution-logs') && req.url().includes('status=completed'),
+        { timeout: 10000 }
+      ),
+      page.getByTestId('apply-filters').click()
+    ])
     
     expect(request.url()).toContain('status=completed')
     
@@ -153,11 +159,17 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await devAgentOption.waitFor({ state: 'visible', timeout: 5000 })
     await devAgentOption.click()
     
-    await page.getByTestId('apply-filters').click()
+    // Wait for dropdown to close and state to update
+    await page.waitForTimeout(300)
     
-    await page.waitForRequest(req => 
-      req.url().includes('admin/agent-execution-logs') && req.url().includes('agent_type=dev_agent')
-    )
+    // Click apply filters and wait for the request concurrently
+    await Promise.all([
+      page.waitForRequest(req => 
+        req.url().includes('admin/agent-execution-logs') && req.url().includes('agent_type=dev_agent'),
+        { timeout: 10000 }
+      ),
+      page.getByTestId('apply-filters').click()
+    ])
   })
 
   test('5. should clear filters', async ({ page }) => {
@@ -173,11 +185,17 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await completedOption.waitFor({ state: 'visible', timeout: 5000 })
     await completedOption.click()
     
-    await page.getByTestId('clear-filters').click()
+    // Wait for dropdown to close and state to update
+    await page.waitForTimeout(300)
     
-    await page.waitForRequest(req => 
-      req.url().includes('admin/agent-execution-logs') && !req.url().includes('status=')
-    )
+    // Click clear filters and wait for the request concurrently
+    await Promise.all([
+      page.waitForRequest(req => 
+        req.url().includes('admin/agent-execution-logs') && !req.url().includes('status='),
+        { timeout: 10000 }
+      ),
+      page.getByTestId('clear-filters').click()
+    ])
   })
 
   test('6. should handle pagination', async ({ page }) => {
