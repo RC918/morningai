@@ -173,9 +173,9 @@ else
   VIOLATIONS_JSON="[]"
 fi
 
-GIT_REPO="${GITHUB_REPOSITORY:-RC918/morningai}"
-GIT_PR="${GITHUB_PR_NUMBER:-unknown}"
-GIT_COMMIT="${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo 'unknown')}"
+GIT_REPO="${GIT_REPO:-${GITHUB_REPOSITORY:-RC918/morningai}}"
+GIT_PR="${GIT_PR:-${GITHUB_PR_NUMBER:-unknown}}"
+GIT_COMMIT="${GIT_COMMIT:-${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo 'unknown')}}"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 cat > "$JSON_OUTPUT_FILE" <<EOF
