@@ -239,25 +239,27 @@ const AgentExecutionLogs = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, filters.sort_by, filters.sort_order])
 
-  const loadExecutionLogs = async () => {
+  const loadExecutionLogs = async (overrideFilters?: Partial<typeof filters>) => {
     try {
       setLoading(true)
       setError(null)
       
+      const activeFilters = overrideFilters ? { ...filters, ...overrideFilters } : filters
+      
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         page_size: pagination.page_size.toString(),
-        sort_by: filters.sort_by,
-        sort_order: filters.sort_order
+        sort_by: activeFilters.sort_by,
+        sort_order: activeFilters.sort_order
       })
       
-      if (filters.status) params.append('status', filters.status)
-      if (filters.agent_id) params.append('agent_id', filters.agent_id)
-      if (filters.agent_type) params.append('agent_type', filters.agent_type)
-      if (filters.tenant_id) params.append('tenant_id', filters.tenant_id)
-      if (filters.task_type) params.append('task_type', filters.task_type)
-      if (filters.start_date) params.append('start_date', filters.start_date)
-      if (filters.end_date) params.append('end_date', filters.end_date)
+      if (activeFilters.status) params.append('status', activeFilters.status)
+      if (activeFilters.agent_id) params.append('agent_id', activeFilters.agent_id)
+      if (activeFilters.agent_type) params.append('agent_type', activeFilters.agent_type)
+      if (activeFilters.tenant_id) params.append('tenant_id', activeFilters.tenant_id)
+      if (activeFilters.task_type) params.append('task_type', activeFilters.task_type)
+      if (activeFilters.start_date) params.append('start_date', activeFilters.start_date)
+      if (activeFilters.end_date) params.append('end_date', activeFilters.end_date)
 
       const result = await apiClient<{ data: ExecutionLogsResponse }>(`/admin/agent-execution-logs?${params.toString()}`)
       const response = (result as any).data as ExecutionLogsResponse
@@ -285,7 +287,7 @@ const AgentExecutionLogs = () => {
   }
 
   const handleClearFilters = () => {
-    setFilters({
+    const clearedFilters = {
       status: '',
       agent_id: '',
       agent_type: '',
@@ -296,9 +298,10 @@ const AgentExecutionLogs = () => {
       time_range: '',
       sort_by: 'created_at',
       sort_order: 'desc'
-    })
+    }
+    setFilters(clearedFilters)
     setPagination(prev => ({ ...prev, page: 1 }))
-    loadExecutionLogs()
+    loadExecutionLogs(clearedFilters)
   }
 
   const formatDuration = (durationMs: number | undefined): string => {
