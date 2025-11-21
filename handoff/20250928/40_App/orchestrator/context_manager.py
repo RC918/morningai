@@ -295,16 +295,8 @@ def get_code_context(
     repo_path = discover_repo_root()
 
     if not repo_path or not os.path.exists(repo_path):
-        error_msg = (
-            f"Repository path not found. Tried:\n"
-            f"  1. MORNINGAI_REPO_PATH env var\n"
-            f"  2. REPO_ROOT_PATH env var\n"
-            f"  3. git rev-parse --show-toplevel\n"
-            f"  4. Project root detection via markers\n"
-            f"Please set MORNINGAI_REPO_PATH environment variable."
-        )
-        logger.error(f"[ContextManager] {error_msg}")
-        return f"Repository: {repo}\nGoal: {goal}\n\nError: {error_msg}"
+        logger.warning(f"Repository path not found: {repo_path}")
+        return f"Repository: {repo}\nGoal: {goal}\n\nNote: Repository not found locally"
 
     logger.info(f"[ContextManager] Extracting context for goal: {goal[:50]}...")
 
