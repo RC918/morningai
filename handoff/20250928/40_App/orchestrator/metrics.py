@@ -66,8 +66,10 @@ class CanaryMetrics:
             
         try:
             key = self._get_minute_key(metric_name)
-            self.redis.incrby(key, value)
-            self.redis.expire(key, self.ttl_seconds)
+            with self.redis.pipeline(transaction=True) as pipe:
+                pipe.set(key, 0, ex=self.ttl_seconds, nx=True)
+                pipe.incrby(key, value)
+                pipe.execute()
         except Exception as e:
             logger.warning(f"Failed to increment counter {metric_name}: {e}")
     
@@ -99,8 +101,8 @@ class CanaryMetrics:
             key = self._get_minute_key(f"latency.bucket_{bucket_label}")
             
             with self.redis.pipeline(transaction=True) as pipe:
+                pipe.set(key, 0, ex=self.ttl_seconds, nx=True)
                 pipe.incr(key)
-                pipe.expire(key, self.ttl_seconds, nx=True)
                 pipe.execute()
         except Exception as e:
             logger.warning(f"Failed to observe latency {latency_ms}ms: {e}")
@@ -265,7 +267,8 @@ class CanaryMetrics:
                     "p50_ms": latency["p50"],
                     "p90_ms": latency["p90"],
                     "p95_ms": latency["p95"],
-                    "p99_ms": latency["p99"]
+                    "p99_ms": latency["p99"],
+                    "max_bucket_ms": float(max(self.buckets_ms))
                 }
             }
         except Exception as e:

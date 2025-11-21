@@ -15,6 +15,7 @@ import time
 from typing import Dict, Optional
 import redis
 import requests
+from metrics import DEFAULT_BUCKETS_MS
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +162,8 @@ class CanaryAlerting:
             if p95_ms is None:
                 alert_type = "p95_latency_unbounded"
                 if not self._is_in_cooldown(alert_type):
-                    message = f"Canary p95 latency is unbounded (exceeds max bucket {max(getattr(self, 'buckets_ms', [3200]))}ms)"
+                    max_bucket = canary_summary.get('latency', {}).get('max_bucket_ms', max(DEFAULT_BUCKETS_MS))
+                    message = f"Canary p95 latency is unbounded (exceeds max bucket {max_bucket}ms)"
                     data = {
                         "p95_ms": None,
                         "threshold_ms": p95_threshold,

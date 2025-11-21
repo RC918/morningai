@@ -69,16 +69,17 @@ class TestHistogramLogic:
         redis_mock = Mock()
         redis_mock.pipeline.return_value.__enter__ = Mock(return_value=redis_mock)
         redis_mock.pipeline.return_value.__exit__ = Mock(return_value=False)
+        redis_mock.set = Mock()
         redis_mock.incr = Mock()
-        redis_mock.expire = Mock()
         redis_mock.execute = Mock()
         
         metrics = CanaryMetrics(redis_mock, enabled=True)
         metrics.observe_latency_ms(100.0)
         
-        assert redis_mock.expire.call_count == 1
-        call_args = redis_mock.expire.call_args
+        assert redis_mock.set.call_count == 1
+        call_args = redis_mock.set.call_args
         assert call_args[1]['nx'] is True
+        assert call_args[1]['ex'] == 7200
 
 
 class TestPercentileCalculation:
