@@ -127,7 +127,7 @@ class MonitoringDashboard:
         
         if not recent_metrics:
             # Return default dashboard structure when no metrics available
-            return {
+            dashboard_data = {
                 'timestamp': datetime.now().isoformat(),
                 'system_health': 'healthy',
                 'circuit_breakers': {},
@@ -137,21 +137,26 @@ class MonitoringDashboard:
                 'trends': {},
                 'alerts': []
             }
+        else:
+            latest_metrics = recent_metrics[-1]
+            trends = self._calculate_trends(recent_metrics)
             
-        latest_metrics = recent_metrics[-1]
+            dashboard_data = {
+                'timestamp': latest_metrics.timestamp.isoformat(),
+                'system_health': latest_metrics.system_health,
+                'circuit_breakers': self._format_circuit_breaker_data(latest_metrics.circuit_breakers),
+                'bulkheads': self._format_bulkhead_data(latest_metrics.bulkheads),
+                'saga_orchestrator': latest_metrics.saga_orchestrator,
+                'storage': latest_metrics.storage_stats,
+                'trends': trends,
+                'alerts': self._generate_alerts(latest_metrics)
+            }
         
-        trends = self._calculate_trends(recent_metrics)
+        canary_data = self._get_canary_metrics()
+        if canary_data:
+            dashboard_data['canary'] = canary_data
         
-        return {
-            'timestamp': latest_metrics.timestamp.isoformat(),
-            'system_health': latest_metrics.system_health,
-            'circuit_breakers': self._format_circuit_breaker_data(latest_metrics.circuit_breakers),
-            'bulkheads': self._format_bulkhead_data(latest_metrics.bulkheads),
-            'saga_orchestrator': latest_metrics.saga_orchestrator,
-            'storage': latest_metrics.storage_stats,
-            'trends': trends,
-            'alerts': self._generate_alerts(latest_metrics)
-        }
+        return dashboard_data
         
     def _format_circuit_breaker_data(self, circuit_breakers: Dict) -> List[Dict]:
         """Format circuit breaker data for dashboard display"""
@@ -310,5 +315,70 @@ class MonitoringDashboard:
         lines.append(f'system_open_circuit_breakers {metrics.system_health.get("open_circuit_breakers", 0)} {timestamp}')
         
         return '\n'.join(lines)
+    
+    def _get_canary_metrics(self) -> Optional[Dict]:
+        """
+        Get canary deployment metrics from Redis
+        
+        Returns:
+            Dict with canary metrics summary or None if unavailable
+        """
+        try:
+            import os
+            import redis
+            from datetime import datetime
+            
+            redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+            redis_client = redis.from_url(redis_url, decode_responses=True)
+            
+            import sys
+            orchestrator_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../orchestrator'))
+            if orchestrator_path not in sys.path:
+                sys.path.insert(0, orchestrator_path)
+            
+            from metrics import create_canary_metrics
+            
+            canary_window_minutes = int(os.environ.get('CANARY_WINDOW_MINUTES', 15))
+            canary_p95_threshold = int(os.environ.get('CANARY_P95_MS_THRESHOLD', 2500))
+            canary_5xx_threshold = float(os.environ.get('CANARY_5XX_RATE_THRESHOLD', 1.0))
+            canary_failure_threshold = float(os.environ.get('CANARY_FAILURE_RATE_THRESHOLD', 5.0))
+            use_langgraph_percent = int(os.environ.get('USE_LANGGRAPH_PERCENT', 0))
+            
+            canary_metrics = create_canary_metrics(redis_client, enabled=True)
+            summary = canary_metrics.get_canary_summary(window_minutes=canary_window_minutes)
+            
+            if not summary.get('enabled'):
+                return None
+            
+            latency = summary.get('latency', {})
+            rates = summary.get('rates', {})
+            
+            p95_ok = latency.get('p95_ms', 0) <= canary_p95_threshold
+            error_5xx_ok = rates.get('error_5xx_rate', 0) <= canary_5xx_threshold
+            failure_ok = rates.get('failure_rate', 0) <= canary_failure_threshold
+            
+            summary['slo_compliance'] = {
+                'p95_ok': p95_ok,
+                'error_5xx_ok': error_5xx_ok,
+                'failure_ok': failure_ok,
+                'all_ok': p95_ok and error_5xx_ok and failure_ok
+            }
+            
+            summary['thresholds'] = {
+                'p95_ms': canary_p95_threshold,
+                'error_5xx_rate': canary_5xx_threshold,
+                'failure_rate': canary_failure_threshold
+            }
+            
+            summary['flags'] = {
+                'use_langgraph_percent': use_langgraph_percent,
+                'window_minutes': canary_window_minutes
+            }
+            
+            return summary
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to get canary metrics: {e}")
+            return None
 
 monitoring_dashboard = MonitoringDashboard()
