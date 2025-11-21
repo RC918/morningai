@@ -120,7 +120,12 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     const statusFilter = page.getByTestId('filter-status')
     await statusFilter.click()
     
-    await page.locator('text=Completed').first().click()
+    // Wait for dropdown to be fully open and visible
+    await page.waitForTimeout(500)
+    
+    const completedOption = page.getByRole('option', { name: /completed/i })
+    await completedOption.waitFor({ state: 'visible', timeout: 5000 })
+    await completedOption.click()
     
     await page.getByTestId('apply-filters').click()
     
@@ -141,7 +146,12 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     const agentTypeFilter = page.getByTestId('filter-agent-type')
     await agentTypeFilter.click()
     
-    await page.locator('text=Dev Agent').first().click()
+    // Wait for dropdown to be fully open
+    await page.waitForTimeout(500)
+    
+    const devAgentOption = page.getByRole('option', { name: /dev agent/i })
+    await devAgentOption.waitFor({ state: 'visible', timeout: 5000 })
+    await devAgentOption.click()
     
     await page.getByTestId('apply-filters').click()
     
@@ -155,7 +165,13 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     
     const statusFilter = page.getByTestId('filter-status')
     await statusFilter.click()
-    await page.locator('text=Completed').first().click()
+    
+    // Wait for dropdown to be fully open
+    await page.waitForTimeout(500)
+    
+    const completedOption = page.getByRole('option', { name: /completed/i })
+    await completedOption.waitFor({ state: 'visible', timeout: 5000 })
+    await completedOption.click()
     
     await page.getByTestId('clear-filters').click()
     
