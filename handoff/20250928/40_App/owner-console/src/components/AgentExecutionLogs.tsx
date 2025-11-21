@@ -49,7 +49,7 @@ import {
   ExternalLink,
   Eye
 } from 'lucide-react'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, apiClientWithMeta } from '@/lib/api-client'
 import { toast } from 'sonner'
 import { buildTraceUrl } from '@/lib/trace'
 
@@ -261,8 +261,7 @@ const AgentExecutionLogs = () => {
       if (activeFilters.start_date) params.append('start_date', activeFilters.start_date)
       if (activeFilters.end_date) params.append('end_date', activeFilters.end_date)
 
-      const result = await apiClient<{ data: ExecutionLogsResponse }>(`/admin/agent-execution-logs?${params.toString()}`)
-      const response = (result as any).data as ExecutionLogsResponse
+      const { data: response } = await apiClientWithMeta<ExecutionLogsResponse>(`/admin/agent-execution-logs?${params.toString()}`)
       
       if (response?.execution_logs) {
         setLogs(response.execution_logs)

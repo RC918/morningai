@@ -458,6 +458,7 @@ jobs:
           VITE_FEATURE_OWNER_CONSOLE_API: 'true'
           VITE_USE_LLM_PLANNER: 'false'
           VITE_LANGGRAPH_PERCENT: '0'
+          VITE_E2E: 'true'
         run: pnpm run build
       
       - name: Verify VITE_* baked into build
