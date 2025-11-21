@@ -96,12 +96,12 @@ def main():
     backend_categories = {
         'Authentication', 'Security', 'Database', 'Cloud Services',
         'Infrastructure', 'Monitoring', 'Integration', 'Worker',
-        'Application', 'Feature Flags', 'Testing'
+        'Application', 'Feature Flags', 'Deployment', 'Testing'
     }
     
     frontend_categories = {'Frontend', 'Application', 'Feature Flags'}
     
-    orchestrator_categories = {'Database', 'Application', 'Integration', 'Worker', 'Feature Flags'}
+    orchestrator_categories = {'Database', 'Application', 'Integration', 'Worker', 'Feature Flags', 'Deployment'}
     
     all_ok = True
     
