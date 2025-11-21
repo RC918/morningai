@@ -259,15 +259,16 @@ const AgentExecutionLogs = () => {
       if (filters.start_date) params.append('start_date', filters.start_date)
       if (filters.end_date) params.append('end_date', filters.end_date)
 
-      const response = await apiClient(`/admin/agent-execution-logs?${params.toString()}`) as ExecutionLogsResponse
+      const result = await apiClient<{ data: ExecutionLogsResponse }>(`/admin/agent-execution-logs?${params.toString()}`)
+      const response = (result as any).data as ExecutionLogsResponse
       
-      if (response.execution_logs) {
+      if (response?.execution_logs) {
         setLogs(response.execution_logs)
         setSummary(response.summary)
         setPagination(prev => ({
           ...prev,
-          total_items: response.pagination.total_items,
-          total_pages: response.pagination.total_pages
+          total_items: response.pagination?.total_items || 0,
+          total_pages: response.pagination?.total_pages || 0
         }))
       }
     } catch (err) {
@@ -349,69 +350,67 @@ const AgentExecutionLogs = () => {
 
   const showSkeleton = loading && logs.length === 0
 
-  if (showSkeleton) {
-    return (
-      <div className="space-y-6" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
-        {/* Summary Statistics Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <Skeleton className="h-4 w-24" aria-hidden="true" />
-                  <Skeleton className="h-5 w-5 rounded-full" aria-hidden="true" />
-                </div>
-                <Skeleton className="h-9 w-20" aria-hidden="true" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Filters Skeleton */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" aria-hidden="true" />
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i}>
-                  <Skeleton className="h-4 w-20 mb-2" aria-hidden="true" />
-                  <Skeleton className="h-10 w-full" aria-hidden="true" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Table Skeleton */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-48" aria-hidden="true" />
-            <Skeleton className="h-4 w-64 mt-2" aria-hidden="true" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-6 w-20" aria-hidden="true" />
-                  <Skeleton className="h-4 w-32" aria-hidden="true" />
-                  <Skeleton className="h-4 w-24" aria-hidden="true" />
-                  <Skeleton className="h-4 w-28" aria-hidden="true" />
-                  <Skeleton className="h-4 w-32" aria-hidden="true" />
-                  <Skeleton className="h-4 w-16" aria-hidden="true" />
-                  <Skeleton className="h-4 w-36" aria-hidden="true" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6" aria-busy={loading} data-testid="agent-execution-logs">
+      {showSkeleton ? (
+        <>
+          {/* Summary Statistics Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4" role="status" aria-live="polite" aria-label={t('common.loading')}>
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <Skeleton className="h-4 w-24" aria-hidden="true" />
+                    <Skeleton className="h-5 w-5 rounded-full" aria-hidden="true" />
+                  </div>
+                  <Skeleton className="h-9 w-20" aria-hidden="true" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Filters Skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" aria-hidden="true" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i}>
+                    <Skeleton className="h-4 w-20 mb-2" aria-hidden="true" />
+                    <Skeleton className="h-10 w-full" aria-hidden="true" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Table Skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-48" aria-hidden="true" />
+              <Skeleton className="h-4 w-64 mt-2" aria-hidden="true" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-6 w-20" aria-hidden="true" />
+                    <Skeleton className="h-4 w-32" aria-hidden="true" />
+                    <Skeleton className="h-4 w-24" aria-hidden="true" />
+                    <Skeleton className="h-4 w-28" aria-hidden="true" />
+                    <Skeleton className="h-4 w-32" aria-hidden="true" />
+                    <Skeleton className="h-4 w-16" aria-hidden="true" />
+                    <Skeleton className="h-4 w-36" aria-hidden="true" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <>
       {error && (
         <Alert variant="destructive" data-testid="error-alert">
           <AlertTriangle className="h-4 w-4" />
@@ -1168,6 +1167,8 @@ const AgentExecutionLogs = () => {
           )}
         </SheetContent>
       </Sheet>
+        </>
+      )}
     </div>
   )
 }

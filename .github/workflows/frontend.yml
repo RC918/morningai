@@ -456,6 +456,9 @@ jobs:
           VITE_API_BASE_URL: http://localhost:5000
           VITE_USE_MOCK: 'true'
           VITE_TRACE_VIEWER_URL: https://trace.example.com
+          VITE_FEATURE_OWNER_CONSOLE_API: 'true'
+          VITE_USE_LLM_PLANNER: 'false'
+          VITE_LANGGRAPH_PERCENT: '0'
         run: pnpm run build
       
       - name: Verify VITE_* baked into build

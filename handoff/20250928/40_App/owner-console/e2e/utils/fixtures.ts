@@ -361,6 +361,26 @@ export const mockAdminAgents = {
  * These endpoints lack ALLOW_GOVERNANCE_MOCK support, so we stub them at the test layer
  */
 export async function stubGovernanceEndpoints(page: any) {
+  await stubCsrfEndpoint(page)
+  
+  await page.route('**/api/admin/system/health*', route => {
+    console.log('[MOCK] Intercepted /api/admin/system/health')
+    route.fulfill({ 
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(mockHealthResponse)
+    })
+  })
+
+  await page.route('**/api/admin/system/metrics*', route => {
+    console.log('[MOCK] Intercepted /api/admin/system/metrics')
+    route.fulfill({ 
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(mockMetricsResponse)
+    })
+  })
+  
   await page.route('**/api/admin/agent-execution-logs*', route => {
     const url = route.request().url()
     console.log('[MOCK] Intercepted agent-execution-logs:', url)
