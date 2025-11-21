@@ -545,6 +545,7 @@ class Settings(BaseSettings):
 
     rq_queue_name: str = Field(
         default="orchestrator",
+        alias="RQ_QUEUE_NAME",
         description="Redis Queue name for task processing"
     )
 
