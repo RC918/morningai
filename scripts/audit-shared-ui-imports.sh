@@ -39,11 +39,15 @@ EXCLUDE_PATTERNS=(
   "examples"
 )
 
+JSON_OUTPUT_DIR=".github/artifacts"
+JSON_OUTPUT_FILE="$JSON_OUTPUT_DIR/design-system-violations.json"
+
 echo -e "${BLUE}🔍 Auditing shared-ui import compliance...${NC}"
 echo ""
 
 VIOLATIONS_FOUND=0
 TOTAL_FILES_SCANNED=0
+VIOLATIONS_JSON="[]"
 
 should_exclude() {
   local file=$1
@@ -66,6 +70,34 @@ is_allowed() {
 }
 
 VIOLATIONS_FILE=$(mktemp)
+VIOLATIONS_DETAILS=$(mktemp)
+
+json_escape() {
+  echo "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/g' | tr -d '\n' | sed 's/\\n$//'
+}
+
+extract_package() {
+  local import_line="$1"
+  echo "$import_line" | grep -oP "from ['\"](\K[^'\"]+)" || echo "unknown"
+}
+
+suggest_fix() {
+  local package="$1"
+  local file="$2"
+  
+  if [[ "$package" == *"@radix-ui/react-"* ]]; then
+    local component=$(echo "$package" | sed 's/@radix-ui\/react-//')
+    echo "Replace with: import { ... } from '@morningai/shared-ui'. If component doesn't exist, add it to shared-ui first."
+  elif [[ "$package" == *"@mui/"* ]]; then
+    echo "Replace with equivalent @morningai/shared-ui component. MUI is not allowed due to design inconsistency."
+  elif [[ "$package" == *"@headlessui/"* ]]; then
+    echo "Replace with @morningai/shared-ui (based on Radix UI). Headless UI overlaps with our Radix-based components."
+  elif [[ "$package" == *"@chakra-ui/"* ]]; then
+    echo "Replace with @morningai/shared-ui component. Chakra UI is not allowed due to design inconsistency."
+  else
+    echo "Replace with @morningai/shared-ui equivalent component."
+  fi
+}
 
 for dir in "${SCAN_DIRS[@]}"; do
   if [ ! -d "$dir" ]; then
@@ -90,8 +122,32 @@ for dir in "${SCAN_DIRS[@]}"; do
           VIOLATIONS_FOUND=$((VIOLATIONS_FOUND + 1))
           echo "$file" >> "$VIOLATIONS_FILE"
           echo -e "${YELLOW}⚠️  $file${NC}"
+          
           echo "$matches" | while IFS= read -r line; do
             echo -e "   ${RED}→${NC} $line"
+            
+            line_num=$(echo "$line" | cut -d: -f1)
+            import_statement=$(echo "$line" | cut -d: -f2-)
+            package=$(extract_package "$import_statement")
+            suggested_fix=$(suggest_fix "$package" "$file")
+            
+            code_snippet=$(sed -n "$((line_num-1)),$((line_num+1))p" "$file" 2>/dev/null | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+            
+            cat >> "$VIOLATIONS_DETAILS" <<EOF
+{
+  "file": "$(json_escape "$file")",
+  "line": $line_num,
+  "import": "$(json_escape "$import_statement")",
+  "package": "$(json_escape "$package")",
+  "rule": "no-direct-ui-library-imports",
+  "severity": "warning",
+  "suggestedFix": "$(json_escape "$suggested_fix")",
+  "componentMapping": "See docs/DESIGN_SYSTEM_ENFORCEMENT.md",
+  "autofixable": false,
+  "confidence": "high",
+  "codeSnippet": "$(json_escape "$code_snippet")"
+},
+EOF
           done
           echo ""
         fi
@@ -108,6 +164,55 @@ echo -e "Files scanned: ${TOTAL_FILES_SCANNED}"
 echo -e "Violations found: ${VIOLATIONS_FOUND}"
 echo ""
 
+mkdir -p "$JSON_OUTPUT_DIR"
+
+if [ -f "$VIOLATIONS_DETAILS" ] && [ -s "$VIOLATIONS_DETAILS" ]; then
+  VIOLATIONS_JSON=$(cat "$VIOLATIONS_DETAILS" | sed '$ s/,$//')
+  VIOLATIONS_JSON="[$VIOLATIONS_JSON]"
+else
+  VIOLATIONS_JSON="[]"
+fi
+
+GIT_REPO="${GITHUB_REPOSITORY:-RC918/morningai}"
+GIT_PR="${GITHUB_PR_NUMBER:-unknown}"
+GIT_COMMIT="${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo 'unknown')}"
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+cat > "$JSON_OUTPUT_FILE" <<EOF
+{
+  "version": "1.0",
+  "gateId": "design-system-enforcement",
+  "repo": "$GIT_REPO",
+  "pr": "$GIT_PR",
+  "commit": "$GIT_COMMIT",
+  "stage": 1,
+  "stageName": "warn",
+  "timestamp": "$TIMESTAMP",
+  "summary": {
+    "filesScanned": $TOTAL_FILES_SCANNED,
+    "violationsFound": $VIOLATIONS_FOUND,
+    "blocking": false
+  },
+  "violations": $VIOLATIONS_JSON,
+  "quickFixGuide": "docs/DESIGN_SYSTEM_QUICKSTART.md",
+  "documentation": "docs/DESIGN_SYSTEM_ENFORCEMENT.md",
+  "allowedExceptions": [
+    "lucide-react (icons)",
+    "recharts (charts)",
+    "date-fns (date utilities)"
+  ],
+  "restrictedPackages": [
+    "@radix-ui/react-*",
+    "@mui/*",
+    "@headlessui/*",
+    "@chakra-ui/*"
+  ]
+}
+EOF
+
+echo -e "${GREEN}📄 JSON artifact generated: $JSON_OUTPUT_FILE${NC}"
+echo ""
+
 if [ $VIOLATIONS_FOUND -gt 0 ]; then
   echo -e "${YELLOW}⚠️  Stage 1 (Warn Mode): Violations detected but not blocking${NC}"
   echo ""
@@ -118,12 +223,14 @@ if [ $VIOLATIONS_FOUND -gt 0 ]; then
   echo ""
   echo -e "${BLUE}📚 Documentation:${NC}"
   echo "See docs/DESIGN_SYSTEM_ENFORCEMENT.md for details"
+  echo "See docs/DESIGN_SYSTEM_QUICKSTART.md for quick fixes (2-minute guide)"
   echo ""
   echo -e "${YELLOW}⏰ Timeline: Stage 1 (warn) runs for 1 week, then Stage 2 (diff-only block)${NC}"
   
   if [ -n "$GITHUB_OUTPUT" ]; then
     echo "violations_count=$VIOLATIONS_FOUND" >> "$GITHUB_OUTPUT"
     echo "files_scanned=$TOTAL_FILES_SCANNED" >> "$GITHUB_OUTPUT"
+    echo "json_artifact=$JSON_OUTPUT_FILE" >> "$GITHUB_OUTPUT"
   fi
   
   exit 0
@@ -133,9 +240,10 @@ else
   if [ -n "$GITHUB_OUTPUT" ]; then
     echo "violations_count=0" >> "$GITHUB_OUTPUT"
     echo "files_scanned=$TOTAL_FILES_SCANNED" >> "$GITHUB_OUTPUT"
+    echo "json_artifact=$JSON_OUTPUT_FILE" >> "$GITHUB_OUTPUT"
   fi
   
   exit 0
 fi
 
-rm -f "$VIOLATIONS_FILE"
+rm -f "$VIOLATIONS_FILE" "$VIOLATIONS_DETAILS"
