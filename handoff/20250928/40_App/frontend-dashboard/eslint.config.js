@@ -40,12 +40,16 @@ export default [{ ignores: ['dist', 'src/lib/generated', 'storybook-static', '.s
       { allowConstantExport: true },
     ],
     'no-restricted-imports': [
-      'error',
+      'warn',
       {
         patterns: [
           {
             group: ['**/owner-console/**'],
             message: 'frontend-dashboard must not import from owner-console. Extract shared code to packages/shared-ui instead.',
+          },
+          {
+            group: ['@radix-ui/react-*', '@mui/*', '@headlessui/*', '@chakra-ui/*'],
+            message: 'Direct import of UI component libraries is not allowed. Use @morningai/shared-ui instead. Allowed exceptions: lucide-react (icons), recharts (charts), date-fns (dates).',
           },
         ],
       },

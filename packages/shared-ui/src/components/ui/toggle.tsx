@@ -44,6 +44,5 @@ function Toggle({
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export { Toggle, toggleVariants }
 export type { ToggleProps }
