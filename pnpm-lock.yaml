@@ -278,7 +278,7 @@ importers:
         version: 8.6.14(@storybook/test@8.6.14(storybook@8.6.14))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(storybook@8.6.14)(typescript@5.9.3)
       '@storybook/react-vite':
         specifier: ^8.6.14
-        version: 8.6.14(@storybook/test@8.6.14(storybook@8.6.14))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(rollup@4.52.5)(storybook@8.6.14)(typescript@5.9.3)(vite@6.4.1(@types/node@24.9.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)(yaml@2.8.1))
+        version: 8.6.14(@storybook/test@8.6.14(storybook@8.6.14))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(rollup@2.79.2)(storybook@8.6.14)(typescript@5.9.3)(vite@6.4.1(@types/node@24.9.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)(yaml@2.8.1))
       '@storybook/test':
         specifier: ^8.6.14
         version: 8.6.14(storybook@8.6.14)
@@ -600,7 +600,7 @@ importers:
         version: 8.6.14(@storybook/test@8.6.14(storybook@8.6.14))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(storybook@8.6.14)(typescript@5.9.3)
       '@storybook/react-vite':
         specifier: ^8.6.14
-        version: 8.6.14(@storybook/test@8.6.14(storybook@8.6.14))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(rollup@2.79.2)(storybook@8.6.14)(typescript@5.9.3)(vite@6.4.1(@types/node@24.9.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)(yaml@2.8.1))
+        version: 8.6.14(@storybook/test@8.6.14(storybook@8.6.14))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(rollup@4.52.5)(storybook@8.6.14)(typescript@5.9.3)(vite@6.4.1(@types/node@24.9.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)(yaml@2.8.1))
       '@storybook/test':
         specifier: ^8.6.14
         version: 8.6.14(storybook@8.6.14)
@@ -896,12 +896,18 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.0(@testing-library/dom@10.4.0)(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@testing-library/user-event':
+        specifier: ^14.6.1
+        version: 14.6.1(@testing-library/dom@10.4.0)
       '@types/react':
         specifier: ^19.1.2
         version: 19.2.2
       '@types/react-dom':
         specifier: ^19.1.2
         version: 19.2.2(@types/react@19.2.2)
+      '@vitest/coverage-v8':
+        specifier: ^4.0.3
+        version: 4.0.3(vitest@4.0.3)
       '@vitest/ui':
         specifier: ^4.0.3
         version: 4.0.3(vitest@4.0.3)
