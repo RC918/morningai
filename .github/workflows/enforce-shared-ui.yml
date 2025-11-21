@@ -1,0 +1,114 @@
+name: Enforce Shared-UI Usage
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
+      - 'handoff/20250928/40_App/owner-console/**'
+      - 'scripts/audit-shared-ui-imports.sh'
+      - '.github/workflows/enforce-shared-ui.yml'
+
+jobs:
+  audit-imports:
+    name: Audit UI Library Imports
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Make audit script executable
+        run: chmod +x ./scripts/audit-shared-ui-imports.sh
+      
+      - name: Run import audit
+        id: audit
+        run: |
+          echo "Running shared-ui import audit (Stage 1: warn mode)..."
+          ./scripts/audit-shared-ui-imports.sh 2>&1 | tee audit-output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "✅ Audit completed (warn mode - non-blocking)"
+          exit 0
+      
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-ui-import-audit
+          path: audit-output.txt
+          retention-days: 30
+      
+      - name: Parse audit results
+        if: always()
+        id: parse
+        run: |
+          if [ -f audit-output.txt ]; then
+            VIOLATIONS=$(grep -oP "Violations found: \K\d+" audit-output.txt || echo "0")
+            FILES_SCANNED=$(grep -oP "Files scanned: \K\d+" audit-output.txt || echo "0")
+            
+            echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+            echo "files_scanned=$FILES_SCANNED" >> $GITHUB_OUTPUT
+            
+            echo "📊 Audit Results:"
+            echo "  Files scanned: $FILES_SCANNED"
+            echo "  Violations found: $VIOLATIONS"
+          else
+            echo "⚠️ No audit output found"
+            echo "violations=0" >> $GITHUB_OUTPUT
+            echo "files_scanned=0" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Comment on PR with audit results
+        if: github.event_name == 'pull_request' && always()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: enforce-shared-ui
+          body: |
+            ## 🎨 Shared-UI Import Compliance Audit
+            
+            **Stage**: 1 (Warn Mode - Non-blocking)
+            **Status**: ✅ Audit completed
+            
+            **Summary**:
+            - 📁 Files scanned: ${{ steps.parse.outputs.files_scanned }}
+            - ⚠️ Violations found: ${{ steps.parse.outputs.violations }}
+            
+            ${{ steps.parse.outputs.violations > 0 && '### ⚠️ Violations Detected\n\nDirect imports of UI component libraries were found. Please consider:\n\n1. **Replace with @morningai/shared-ui**: Use centralized components instead of direct imports\n2. **Add to shared-ui**: If component doesn''t exist, consider adding it to shared-ui\n3. **Allowed exceptions**: lucide-react (icons), recharts (charts), date-fns (dates)\n\n📎 [View detailed audit report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n### 📚 Documentation\nSee `docs/DESIGN_SYSTEM_ENFORCEMENT.md` for implementation guide and rationale.\n\n### ⏰ Timeline\n- **Current (Stage 1)**: Warn mode - violations reported but not blocking (1 week)\n- **Stage 2**: Diff-only enforcement - new code must comply\n- **Stage 3**: Full enforcement - all code must comply' || '### ✅ No Violations\n\nAll imports comply with shared-ui policy. Great work!' }}
+            
+            ---
+            
+            ℹ️ **Stage 1 (Warn Mode)**: This audit is currently non-blocking to allow teams to migrate gradually. After 1 week of observation, we will move to Stage 2 (diff-only enforcement).
+      
+      - name: Add job summary
+        if: always()
+        run: |
+          echo "## 🎨 Shared-UI Import Compliance Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Stage**: 1 (Warn Mode - Non-blocking)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Results" >> $GITHUB_STEP_SUMMARY
+          echo "- 📁 Files scanned: ${{ steps.parse.outputs.files_scanned }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚠️ Violations found: ${{ steps.parse.outputs.violations }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.parse.outputs.violations }}" -gt 0 ]; then
+            echo "⚠️ **Violations detected** - See audit report for details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Recommended Actions**:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Replace direct UI library imports with @morningai/shared-ui" >> $GITHUB_STEP_SUMMARY
+            echo "2. Add missing components to shared-ui if needed" >> $GITHUB_STEP_SUMMARY
+            echo "3. Use allowed exceptions: lucide-react, recharts, date-fns" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No violations** - All imports comply with shared-ui policy" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ **Timeline**: Stage 1 (warn) → 1 week → Stage 2 (diff-only block) → Stage 3 (full block)" >> $GITHUB_STEP_SUMMARY
