@@ -197,10 +197,11 @@ const formattedDate = format(new Date(), 'PPP', { locale: zhTW });
 
 ### Stage 1: Warn Mode (當前階段)
 
-**時程**: 2025-11-21 至 2025-11-28 (1 週)
+**時程**: 合併後運行 1 週
 
 **行為**:
-- ESLint 規則設為 `warn`（警告但不阻擋）
+- 跨應用 import 限制維持 `error`（嚴格執行）
+- UI 元件庫限制由 CI 審計腳本以 `warn` 模式處理（警告但不阻擋）
 - CI 審計腳本執行但不阻擋 PR 合併
 - 在 PR 中發布違規報告和修復建議
 - 收集反饋並調整規則
@@ -212,7 +213,7 @@ const formattedDate = format(new Date(), 'PPP', { locale: zhTW });
 
 ### Stage 2: Diff-Only Enforcement (計劃中)
 
-**時程**: 2025-11-28 開始
+**時程**: Stage 1 結束後（合併後約 1 週）
 
 **行為**:
 - 僅檢查 PR 中新增/修改的程式碼
@@ -380,7 +381,7 @@ A: 可以，但需要：
 
 ### Q5: Stage 1 (warn mode) 會持續多久？
 
-A: 預計 1 週（2025-11-21 至 2025-11-28）。期間會：
+A: 預計合併後運行 1 週。期間會：
 - 收集團隊反饋
 - 識別和修復誤報
 - 提供遷移支援
