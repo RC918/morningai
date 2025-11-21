@@ -361,10 +361,21 @@ export const mockAdminAgents = {
  * These endpoints lack ALLOW_GOVERNANCE_MOCK support, so we stub them at the test layer
  */
 export async function stubGovernanceEndpoints(page: any) {
+  await page.unroute('**/api/auth/v2/csrf').catch(() => {})
+  await page.unroute('**/api/admin/system/health*').catch(() => {})
+  await page.unroute('**/api/admin/system/metrics*').catch(() => {})
+  await page.unroute('**/api/admin/agent-execution-logs*').catch(() => {})
+  await page.unroute('**/api/admin/agents*').catch(() => {})
+  await page.unroute(/\/api\/governance\/events(\?.*)?$/).catch(() => {})
+  await page.unroute(/\/api\/governance\/violations(\?.*)?$/).catch(() => {})
+  await page.unroute(/\/api\/governance\/statistics(\?.*)?$/).catch(() => {})
+  
   await stubCsrfEndpoint(page)
   
-  await page.route('**/api/admin/system/health*', route => {
-    console.log('[MOCK] Intercepted /api/admin/system/health')
+  // Use regex patterns to catch all variants of system endpoints
+  await page.route(/\/api\/admin\/system\/health/, route => {
+    const url = route.request().url()
+    console.log('[MOCK-DEFAULT] Intercepted system health:', url)
     route.fulfill({ 
       status: 200,
       contentType: 'application/json',
@@ -372,8 +383,9 @@ export async function stubGovernanceEndpoints(page: any) {
     })
   })
 
-  await page.route('**/api/admin/system/metrics*', route => {
-    console.log('[MOCK] Intercepted /api/admin/system/metrics')
+  await page.route(/\/api\/admin\/system\/metrics/, route => {
+    const url = route.request().url()
+    console.log('[MOCK-DEFAULT] Intercepted system metrics:', url)
     route.fulfill({ 
       status: 200,
       contentType: 'application/json',
@@ -383,7 +395,7 @@ export async function stubGovernanceEndpoints(page: any) {
   
   await page.route('**/api/admin/agent-execution-logs*', route => {
     const url = route.request().url()
-    console.log('[MOCK] Intercepted agent-execution-logs:', url)
+    console.log('[MOCK-DEFAULT] Intercepted agent-execution-logs:', url)
     
     if (url.includes('page=2')) {
       route.fulfill({ 
