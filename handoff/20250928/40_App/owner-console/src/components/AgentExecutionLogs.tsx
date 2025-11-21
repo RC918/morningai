@@ -422,7 +422,7 @@ const AgentExecutionLogs = () => {
           <AlertDescription>
             {error}
             <Button 
-              onClick={loadExecutionLogs} 
+              onClick={() => loadExecutionLogs()} 
               variant="outline" 
               size="sm" 
               className="ml-4"
@@ -639,7 +639,7 @@ const AgentExecutionLogs = () => {
               <CardTitle>{t('governance.executionLogs.title')}</CardTitle>
               <CardDescription>{t('governance.executionLogs.subtitle')}</CardDescription>
             </div>
-            <Button onClick={loadExecutionLogs} variant="outline" size="sm" disabled={loading}>
+            <Button onClick={() => loadExecutionLogs()} variant="outline" size="sm" disabled={loading}>
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               {t('governance.refresh')}
             </Button>
