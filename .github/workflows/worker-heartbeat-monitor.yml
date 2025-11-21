@@ -2,6 +2,9 @@ name: Worker Heartbeat Monitor
 on:
   schedule: [{ cron: '*/15 * * * *' }]
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
   issues: write
@@ -24,3 +27,52 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           title: "⚠️ Worker Heartbeat Alert: Missing heartbeats detected"
           body: "Auto-opened by monitor. See run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          labels: "monitor:heartbeat"
+      - if: success()
+        name: Auto-close resolved heartbeat issues
+        env:
+          ALLOWED_HEARTBEAT_CREATORS: github-actions[bot]
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const {owner, repo} = context.repo
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              { owner, repo, state: 'open', labels: 'monitor:heartbeat', per_page: 100 }
+            )
+
+            const allowedCreators = (process.env.ALLOWED_HEARTBEAT_CREATORS ?? 'github-actions[bot]')
+              .split(',')
+              .map(s => s.trim())
+              .filter(Boolean)
+
+            const toClose = issues
+              // do not touch PRs
+              .filter(i => !i.pull_request)
+              // ensure created by our automation
+              .filter(i => allowedCreators.includes(i.user?.login))
+              // belt-and-suspenders identity checks
+              .filter(i => (i.title || '').startsWith('⚠️ Worker Heartbeat Alert'))
+              .filter(i => (i.body || '').includes('Auto-opened by monitor.'))
+
+            if (!toClose.length) {
+              core.info('No open heartbeat issues to close')
+              return
+            }
+
+            core.info(`Closing ${toClose.length} heartbeat issue(s): ` + toClose.map(i => `#${i.number}`).join(', '))
+            for (const issue of toClose) {
+              try {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issue.number,
+                  body: `Resolved by successful run ${context.runId} at ${new Date().toISOString()}`
+                })
+                await github.rest.issues.update({
+                  owner, repo, issue_number: issue.number, state: 'closed'
+                })
+                core.info(`Successfully closed #${issue.number}`)
+              } catch (e) {
+                core.warning(`Failed to close #${issue.number}: ${e.message}`)
+              }
+            }
