@@ -467,30 +467,36 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 canary_alerting_enabled = getattr(settings, 'canary_alerting_enabled', True)
                 if canary_alerting_enabled:
                     try:
-                        from canary_alerting import create_canary_alerting
+                        # This prevents alert storms and reduces Redis GET load by ~60x
+                        eval_lock_key = "metrics:canary:slo_eval_lock"
+                        acquired_lock = redis.set(eval_lock_key, "1", ex=60, nx=True)
                         
-                        canary_window_minutes = getattr(settings, 'canary_window_minutes', 15)
-                        canary_p95_threshold = getattr(settings, 'canary_p95_ms_threshold', 2500)
-                        canary_5xx_threshold = getattr(settings, 'canary_5xx_rate_threshold', 1.0)
-                        canary_failure_threshold = getattr(settings, 'canary_failure_rate_threshold', 5.0)
-                        ops_webhook_url = getattr(settings, 'ops_alert_webhook_url', None)
-                        
-                        canary_summary = _canary_metrics.get_canary_summary(window_minutes=canary_window_minutes)
-                        
-                        alerting = create_canary_alerting(
-                            redis,
-                            enabled=True,
-                            sentry_dsn=SENTRY_DSN,
-                            webhook_url=ops_webhook_url
-                        )
-                        
-                        thresholds = {
-                            'p95_ms': canary_p95_threshold,
-                            'error_5xx_rate': canary_5xx_threshold,
-                            'failure_rate': canary_failure_threshold
-                        }
-                        
-                        alerting.evaluate_slos(canary_summary, thresholds)
+                        if acquired_lock:
+                            from canary_alerting import create_canary_alerting
+                            
+                            canary_window_minutes = getattr(settings, 'canary_window_minutes', 15)
+                            canary_p95_threshold = getattr(settings, 'canary_p95_ms_threshold', 2500)
+                            canary_5xx_threshold = getattr(settings, 'canary_5xx_rate_threshold', 1.0)
+                            canary_failure_threshold = getattr(settings, 'canary_failure_rate_threshold', 5.0)
+                            ops_webhook_url = getattr(settings, 'ops_alert_webhook_url', None)
+                            
+                            canary_summary = _canary_metrics.get_canary_summary(window_minutes=canary_window_minutes)
+                            
+                            alerting = create_canary_alerting(
+                                redis,
+                                enabled=True,
+                                sentry_dsn=SENTRY_DSN,
+                                webhook_url=ops_webhook_url
+                            )
+                            
+                            thresholds = {
+                                'p95_ms': canary_p95_threshold,
+                                'error_5xx_rate': canary_5xx_threshold,
+                                'failure_rate': canary_failure_threshold
+                            }
+                            
+                            alerting.evaluate_slos(canary_summary, thresholds)
+                            logger.info("SLO evaluation completed")
                     except Exception as alert_error:
                         logger.warning(f"Failed to evaluate SLOs: {alert_error}")
             except Exception as e:

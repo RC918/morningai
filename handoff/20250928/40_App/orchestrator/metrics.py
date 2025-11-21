@@ -75,6 +75,9 @@ class CanaryMetrics:
         """
         Record a latency observation in histogram buckets
         
+        Increments exactly one bucket: the first bucket where latency_ms <= bucket,
+        or the 'inf' bucket if latency exceeds all finite buckets.
+        
         Args:
             latency_ms: Latency in milliseconds
         """
@@ -82,15 +85,23 @@ class CanaryMetrics:
             return
             
         try:
+            target_bucket = None
             for bucket in self.buckets_ms:
                 if latency_ms <= bucket:
-                    key = self._get_minute_key(f"latency.bucket_{bucket}")
-                    self.redis.incrby(key, 1)
-                    self.redis.expire(key, self.ttl_seconds)
+                    target_bucket = bucket
+                    break
             
-            key = self._get_minute_key("latency.bucket_inf")
-            self.redis.incrby(key, 1)
-            self.redis.expire(key, self.ttl_seconds)
+            if target_bucket is not None:
+                bucket_label = str(target_bucket)
+            else:
+                bucket_label = "inf"
+            
+            key = self._get_minute_key(f"latency.bucket_{bucket_label}")
+            
+            with self.redis.pipeline(transaction=True) as pipe:
+                pipe.incr(key)
+                pipe.expire(key, self.ttl_seconds, nx=True)
+                pipe.execute()
         except Exception as e:
             logger.warning(f"Failed to observe latency {latency_ms}ms: {e}")
     
@@ -124,50 +135,82 @@ class CanaryMetrics:
             logger.warning(f"Failed to get window counts for {metric_name}: {e}")
             return 0
     
-    def get_latency_percentiles(self, window_minutes: int = 15) -> Dict[str, float]:
+    def get_latency_percentiles(self, window_minutes: int = 15) -> Dict[str, Optional[float]]:
         """
         Calculate approximate latency percentiles from histogram buckets
+        
+        Uses cumulative distribution: walks buckets from smallest to largest,
+        accumulating counts until reaching the target percentile threshold.
         
         Args:
             window_minutes: Time window in minutes (default: 15)
             
         Returns:
-            Dict with p50, p90, p95, p99 in milliseconds
+            Dict with p50, p90, p95, p99 in milliseconds (None if no data or unbounded tail)
         """
         if not self.enabled:
-            return {"p50": 0, "p90": 0, "p95": 0, "p99": 0}
+            return {"p50": None, "p90": None, "p95": None, "p99": None}
             
         try:
-            bucket_counts = []
-            for bucket in self.buckets_ms + [float('inf')]:
-                bucket_name = f"latency.bucket_{bucket}" if bucket != float('inf') else "latency.bucket_inf"
-                count = self.get_window_counts(bucket_name, window_minutes)
-                bucket_counts.append((bucket, count))
+            now = datetime.utcnow()
+            minute_keys = [now - timedelta(minutes=i) for i in range(window_minutes)]
             
-            total = bucket_counts[-1][1] if bucket_counts else 0
+            bucket_counts = {}
+            with self.redis.pipeline(transaction=False) as pipe:
+                for bucket in self.buckets_ms:
+                    for mk in minute_keys:
+                        key = self._get_minute_key(f"latency.bucket_{bucket}", mk)
+                        pipe.get(key)
+                
+                for mk in minute_keys:
+                    key = self._get_minute_key("latency.bucket_inf", mk)
+                    pipe.get(key)
+                
+                results = pipe.execute()
+            
+            idx = 0
+            for bucket in self.buckets_ms:
+                count = 0
+                for _ in minute_keys:
+                    val = results[idx]
+                    idx += 1
+                    count += int(val) if val is not None else 0
+                bucket_counts[bucket] = count
+            
+            inf_count = 0
+            for _ in minute_keys:
+                val = results[idx]
+                idx += 1
+                inf_count += int(val) if val is not None else 0
+            
+            # Calculate total observations
+            total = sum(bucket_counts.values()) + inf_count
             if total == 0:
-                return {"p50": 0, "p90": 0, "p95": 0, "p99": 0}
+                return {"p50": None, "p90": None, "p95": None, "p99": None}
             
-            percentiles = {"p50": 0, "p90": 0, "p95": 0, "p99": 0}
+            # Calculate percentiles by walking cumulative distribution
+            percentiles = {"p50": None, "p90": None, "p95": None, "p99": None}
+            targets = [50, 90, 95, 99]
+            target_idx = 0
             cumulative = 0
             
-            for bucket, count in bucket_counts:
-                cumulative = count
-                cumulative_pct = (cumulative / total) * 100
+            for bucket in sorted(self.buckets_ms):
+                cumulative += bucket_counts[bucket]
+                cumulative_pct = (cumulative / total) * 100.0
                 
-                if cumulative_pct >= 50 and percentiles["p50"] == 0:
-                    percentiles["p50"] = bucket if bucket != float('inf') else self.buckets_ms[-1]
-                if cumulative_pct >= 90 and percentiles["p90"] == 0:
-                    percentiles["p90"] = bucket if bucket != float('inf') else self.buckets_ms[-1]
-                if cumulative_pct >= 95 and percentiles["p95"] == 0:
-                    percentiles["p95"] = bucket if bucket != float('inf') else self.buckets_ms[-1]
-                if cumulative_pct >= 99 and percentiles["p99"] == 0:
-                    percentiles["p99"] = bucket if bucket != float('inf') else self.buckets_ms[-1]
+                # Check if we've reached any target percentiles
+                while target_idx < len(targets) and cumulative_pct >= targets[target_idx]:
+                    percentiles[f"p{targets[target_idx]}"] = float(bucket)
+                    target_idx += 1
+                
+                if target_idx >= len(targets):
+                    break
+            
             
             return percentiles
         except Exception as e:
             logger.warning(f"Failed to calculate latency percentiles: {e}")
-            return {"p50": 0, "p90": 0, "p95": 0, "p99": 0}
+            return {"p50": None, "p90": None, "p95": None, "p99": None}
     
     def get_canary_summary(self, window_minutes: int = 15) -> Dict:
         """
@@ -219,10 +262,10 @@ class CanaryMetrics:
                     "error_5xx_rate": round(error_5xx_rate, 2)
                 },
                 "latency": {
-                    "p50_ms": latency["p50"],
-                    "p90_ms": latency["p90"],
-                    "p95_ms": latency["p95"],
-                    "p99_ms": latency["p99"]
+                    "p50_ms": latency["p50"] if latency["p50"] is not None else 0,
+                    "p90_ms": latency["p90"] if latency["p90"] is not None else 0,
+                    "p95_ms": latency["p95"] if latency["p95"] is not None else 0,
+                    "p99_ms": latency["p99"] if latency["p99"] is not None else 0
                 }
             }
         except Exception as e:
