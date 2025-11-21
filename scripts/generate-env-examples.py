@@ -120,6 +120,7 @@ def main():
         'Worker',
         'Application',
         'Feature Flags',
+        'Deployment',
         'Testing',
     ]
     
@@ -148,7 +149,7 @@ def main():
         repo_root / 'handoff' / '20250928' / '40_App' / 'owner-console' / '.env.example'
     )
     
-    orchestrator_categories = ['Database', 'Application', 'Integration', 'Worker', 'Feature Flags']
+    orchestrator_categories = ['Database', 'Application', 'Integration', 'Worker', 'Feature Flags', 'Deployment']
     generate_env_example(
         schema,
         orchestrator_categories,
