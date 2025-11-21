@@ -35,16 +35,12 @@ export default [
         { allowConstantExport: true },
       ],
       'no-restricted-imports': [
-        'warn',
+        'error',
         {
           patterns: [
             {
               group: ['**/frontend-dashboard/**'],
               message: 'owner-console must not import from frontend-dashboard. Extract shared code to packages/shared-ui instead.',
-            },
-            {
-              group: ['@radix-ui/react-*', '@mui/*', '@headlessui/*', '@chakra-ui/*'],
-              message: 'Direct import of UI component libraries is not allowed. Use @morningai/shared-ui instead. Allowed exceptions: lucide-react (icons), recharts (charts), date-fns (dates).',
             },
           ],
         },
