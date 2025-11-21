@@ -255,3 +255,212 @@ class TestLLMPlannerAdapter:
             result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
 
             assert result["task_type"] == "unknown"
+
+    def test_clean_json_response_markdown_blocks(self):
+        """Test cleaning JSON response with markdown code blocks"""
+        adapter = LLMPlannerAdapter()
+
+        content_with_markdown = '''```json
+[
+  {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+  {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"}
+]
+```'''
+
+        cleaned = adapter._clean_json_response(content_with_markdown)
+        parsed = json.loads(cleaned)
+
+        assert isinstance(parsed, list)
+        assert len(parsed) == 2
+        assert parsed[0]["step"] == "Step 1"
+
+    def test_clean_json_response_explanatory_text(self):
+        """Test cleaning JSON response with explanatory text"""
+        adapter = LLMPlannerAdapter()
+
+        content_with_text = '''Here is the plan:
+[
+  {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+  {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"}
+]
+This should work well.'''
+
+        cleaned = adapter._clean_json_response(content_with_text)
+        parsed = json.loads(cleaned)
+
+        assert isinstance(parsed, list)
+        assert len(parsed) == 2
+
+    def test_clean_json_response_both_issues(self):
+        """Test cleaning JSON response with both markdown and explanatory text"""
+        adapter = LLMPlannerAdapter()
+
+        content_with_both = '''Here is your plan:
+```json
+[
+  {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+  {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"},
+  {"step": "Step 3", "rationale": "Reason 3", "risk": "high"}
+]
+```
+Hope this helps!'''
+
+        cleaned = adapter._clean_json_response(content_with_both)
+        parsed = json.loads(cleaned)
+
+        assert isinstance(parsed, list)
+        assert len(parsed) == 3
+
+    @patch('llm_planner_adapter.settings')
+    @patch('llm_planner_adapter.OpenAI')
+    def test_json_mode_enabled(self, mock_openai_class, mock_settings):
+        """Test LLM plan generation with JSON mode enabled"""
+        mock_settings.openai_api_key = "test-key"
+        mock_settings.use_llm_planner = True
+        mock_settings.planner_json_mode = True
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        valid_plan = [
+            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+            {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"},
+            {"step": "Step 3", "rationale": "Reason 3", "risk": "high"}
+        ]
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps({"plan": valid_plan})
+        mock_client.chat.completions.create.return_value = mock_response
+
+        adapter = LLMPlannerAdapter()
+        result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+
+        assert result["planner_type"] == "llm"
+        assert len(result["plan"]) == 3
+
+        call_args = mock_client.chat.completions.create.call_args
+        assert call_args[1]["response_format"] == {"type": "json_object"}
+
+    @patch('llm_planner_adapter.settings')
+    @patch('llm_planner_adapter.OpenAI')
+    def test_json_mode_disabled(self, mock_openai_class, mock_settings):
+        """Test LLM plan generation with JSON mode disabled"""
+        mock_settings.openai_api_key = "test-key"
+        mock_settings.use_llm_planner = True
+        mock_settings.planner_json_mode = False
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        valid_plan = [
+            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+            {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"},
+            {"step": "Step 3", "rationale": "Reason 3", "risk": "high"}
+        ]
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps(valid_plan)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        adapter = LLMPlannerAdapter()
+        result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+
+        assert result["planner_type"] == "llm"
+        assert len(result["plan"]) == 3
+
+        call_args = mock_client.chat.completions.create.call_args
+        assert "response_format" not in call_args[1]
+
+    @patch('llm_planner_adapter.settings')
+    @patch('llm_planner_adapter.OpenAI')
+    def test_parse_json_with_retry_success_first_attempt(self, mock_openai_class, mock_settings):
+        """Test JSON parsing succeeds on first attempt"""
+        mock_settings.openai_api_key = "test-key"
+        mock_settings.use_llm_planner = True
+        mock_settings.planner_json_mode = False
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        valid_plan = [
+            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+            {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"},
+            {"step": "Step 3", "rationale": "Reason 3", "risk": "high"}
+        ]
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps(valid_plan)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        adapter = LLMPlannerAdapter()
+        result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+
+        assert result["planner_type"] == "llm"
+        assert len(result["plan"]) == 3
+
+    @patch('llm_planner_adapter.settings')
+    @patch('llm_planner_adapter.OpenAI')
+    def test_parse_json_with_retry_success_second_attempt(self, mock_openai_class, mock_settings):
+        """Test JSON parsing succeeds on second attempt after cleaning"""
+        mock_settings.openai_api_key = "test-key"
+        mock_settings.use_llm_planner = True
+        mock_settings.planner_json_mode = False
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        valid_plan = [
+            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+            {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"},
+            {"step": "Step 3", "rationale": "Reason 3", "risk": "high"}
+        ]
+
+        markdown_wrapped = f'''```json
+{json.dumps(valid_plan)}
+```'''
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = markdown_wrapped
+        mock_client.chat.completions.create.return_value = mock_response
+
+        adapter = LLMPlannerAdapter()
+        result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+
+        assert result["planner_type"] == "llm"
+        assert len(result["plan"]) == 3
+
+    @patch('llm_planner_adapter.settings')
+    @patch('llm_planner_adapter.OpenAI')
+    def test_parse_json_mode_with_retry(self, mock_openai_class, mock_settings):
+        """Test JSON mode parsing with retry logic"""
+        mock_settings.openai_api_key = "test-key"
+        mock_settings.use_llm_planner = True
+        mock_settings.planner_json_mode = True
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        valid_plan = [
+            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+            {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"},
+            {"step": "Step 3", "rationale": "Reason 3", "risk": "high"}
+        ]
+
+        markdown_wrapped = f'''```json
+{json.dumps({"plan": valid_plan})}
+```'''
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = markdown_wrapped
+        mock_client.chat.completions.create.return_value = mock_response
+
+        adapter = LLMPlannerAdapter()
+        result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+
+        assert result["planner_type"] == "llm"
+        assert len(result["plan"]) == 3

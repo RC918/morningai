@@ -136,6 +136,35 @@ class LLMPlannerAdapter:
             })
             return self._get_static_plan(task_type)
 
+    def _clean_json_response(self, content: str) -> str:
+        """
+        Clean and repair JSON response from LLM
+
+        Handles common issues:
+        - Markdown code blocks (```json ... ```)
+        - Explanatory text before/after JSON
+        - Extra whitespace
+
+        Args:
+            content: Raw LLM response
+
+        Returns:
+            Cleaned JSON string
+        """
+        import re
+
+        content = re.sub(r'^```json\s*', '', content, flags=re.MULTILINE)
+        content = re.sub(r'^```\s*$', '', content, flags=re.MULTILINE)
+        content = re.sub(r'```$', '', content)
+
+        match = re.search(r'\[.*\]', content, flags=re.DOTALL)
+        if match:
+            content = match.group(0)
+
+        content = content.strip()
+
+        return content
+
     def _call_llm(
         self,
         goal: str,
@@ -159,7 +188,9 @@ class LLMPlannerAdapter:
 
 Generate a plan with 3-7 steps that are specific, actionable, and ordered correctly.
 
-Output format (strict JSON):
+IMPORTANT: Return ONLY a valid JSON array. Do not include any explanatory text, markdown formatting, or code blocks.
+
+Output format (strict JSON array):
 [
   {"step": "Step description", "rationale": "Why this step", "risk": "low|medium|high"},
   ...
@@ -170,6 +201,7 @@ Requirements:
 - Each step must have: step, rationale, risk
 - Steps must be specific and actionable
 - Risk must be one of: low, medium, high
+- Return ONLY the JSON array, nothing else
 """
 
         user_prompt = f"""**Goal**: {goal}
@@ -179,26 +211,55 @@ Requirements:
 **Code Context** (relevant files/functions):
 {code_context[:1000] if code_context else "No context available"}
 
-Generate a 3-7 step plan to accomplish this goal."""
+Generate a 3-7 step plan to accomplish this goal. Return ONLY the JSON array."""
 
         start_time = time.time()
 
+        use_json_mode = settings.planner_json_mode
+
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4-turbo-preview",
-                messages=[
+            api_params = {
+                "model": "gpt-4-turbo-preview",
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.7,
-                max_tokens=1000,
-                timeout=25  # 25 second timeout (leave 5 sec buffer for 30 sec target)
-            )
+                "temperature": 0.7,
+                "max_tokens": 1000,
+                "timeout": 25  # 25 second timeout (leave 5 sec buffer for 30 sec target)
+            }
+
+            if use_json_mode:
+                api_params["response_format"] = {"type": "json_object"}
+                api_params["messages"][0]["content"] = """You are a senior software engineer creating executable plans for code tasks.
+
+Generate a plan with 3-7 steps that are specific, actionable, and ordered correctly.
+
+Return a JSON object with a "plan" key containing an array of steps.
+
+Output format (strict JSON):
+{
+  "plan": [
+    {"step": "Step description", "rationale": "Why this step", "risk": "low|medium|high"},
+    ...
+  ]
+}
+
+Requirements:
+- 3-7 steps only
+- Each step must have: step, rationale, risk
+- Steps must be specific and actionable
+- Risk must be one of: low, medium, high
+"""
+                logger.info(f"[LLM Planner] Using JSON mode for trace_id={trace_id}")
+
+            response = self.client.chat.completions.create(**api_params)
 
             planning_time_ms = (time.time() - start_time) * 1000
 
             content = response.choices[0].message.content
-            plan = json.loads(content)
+
+            plan = self._parse_json_with_retry(content, use_json_mode, trace_id)
 
             self._record_planning_time(trace_id, planning_time_ms)
 
@@ -213,6 +274,59 @@ Generate a 3-7 step plan to accomplish this goal."""
         except Exception as e:
             logger.error(f"[LLM Planner] LLM API call failed: {e}")
             raise
+
+    def _parse_json_with_retry(self, content: str, use_json_mode: bool, trace_id: str) -> List[Dict[str, Any]]:
+        """
+        Parse JSON with retry and repair logic
+
+        Args:
+            content: Raw LLM response
+            use_json_mode: Whether JSON mode was used
+            trace_id: Trace ID for logging
+
+        Returns:
+            Parsed plan array
+
+        Raises:
+            json.JSONDecodeError: If parsing fails after retry
+        """
+        try:
+            if use_json_mode:
+                parsed = json.loads(content)
+                if isinstance(parsed, dict) and "plan" in parsed:
+                    return parsed["plan"]
+                elif isinstance(parsed, list):
+                    return parsed
+                else:
+                    raise json.JSONDecodeError(f"Unexpected JSON structure: {type(parsed)}", content, 0)
+            else:
+                return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.warning(f"[LLM Planner] First parse attempt failed: {e}, attempting repair")
+
+            try:
+                cleaned_content = self._clean_json_response(content)
+                logger.info(f"[LLM Planner] Cleaned content for trace_id={trace_id}")
+
+                if use_json_mode:
+                    parsed = json.loads(cleaned_content)
+                    if isinstance(parsed, dict) and "plan" in parsed:
+                        logger.info("[LLM Planner] Successfully parsed after cleaning (JSON mode)")
+                        return parsed["plan"]
+                    elif isinstance(parsed, list):
+                        logger.info("[LLM Planner] Successfully parsed after cleaning (array fallback)")
+                        return parsed
+                    else:
+                        raise json.JSONDecodeError(f"Unexpected JSON structure after cleaning: {type(parsed)}", cleaned_content, 0)
+                else:
+                    plan = json.loads(cleaned_content)
+                    logger.info("[LLM Planner] Successfully parsed after cleaning")
+                    return plan
+            except json.JSONDecodeError as e2:
+                logger.error(f"[LLM Planner] Failed to parse even after cleaning: {e2}")
+                logger.error(f"[LLM Planner] Original content: {content[:200]}...")
+                logger.error(f"[LLM Planner] Cleaned content: {cleaned_content[:200]}...")
+                raise e2
 
     def _validate_plan(self, plan: List[Dict[str, Any]]) -> bool:
         """
@@ -343,7 +457,7 @@ Generate a 3-7 step plan to accomplish this goal."""
         from datetime import datetime
 
         events_file = os.environ.get('PLANNER_EVENTS_FILE', 'tools/agent_eval/data/planner_runs.jsonl')
-        
+
         if os.path.isabs(events_file):
             events_path = events_file
         else:
@@ -352,22 +466,22 @@ Generate a 3-7 step plan to accomplish this goal."""
                 while current != '/' and not os.path.exists(os.path.join(current, '.git')):
                     current = os.path.dirname(current)
                 return current if os.path.exists(os.path.join(current, '.git')) else None
-            
+
             cwd = os.getcwd()
             repo_root = find_git_root(cwd)
-            
+
             if not repo_root:
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 repo_root = find_git_root(current_dir)
-                
+
                 if not repo_root:
                     if os.path.basename(cwd) == 'morningai' or os.path.basename(os.path.dirname(cwd)) == 'morningai':
                         repo_root = cwd if os.path.basename(cwd) == 'morningai' else os.path.dirname(cwd)
                     else:
                         repo_root = current_dir
-            
+
             events_path = os.path.join(repo_root, events_file)
-        
+
         os.makedirs(os.path.dirname(events_path), exist_ok=True)
 
         event = {
