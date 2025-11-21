@@ -362,6 +362,12 @@ pytest tests/test_dashboard_503_integration.py -v
   - Set by: `src/main.py` during startup
   - Used for: Service availability checks
 
+- `MORNINGAI_REPO_PATH`: Repository root path (Added PR #1398)
+  - Format: `/opt/render/project/src` (Render.com production)
+  - Used for: Context manager file discovery
+  - Fallback: Git detection → marker-based discovery
+  - Path: `handoff/20250928/40_App/orchestrator/context_manager.py`
+
 ### Optional Variables
 
 - `DB_POOL_SIZE`: Connection pool size (default: 5)
@@ -370,6 +376,16 @@ pytest tests/test_dashboard_503_integration.py -v
 - `DB_POOL_PRE_PING`: Enable connection health checks (default: true)
 
 See [Environment Variables Schema](../../config/env.schema.yaml) for complete list.
+
+### CI/CD Environment Variables (PR #1399)
+
+Backend test workflows now require:
+- **Python Version**: 3.12 (unified across backend.yml and test-apps.yml)
+- **Redis Service**: Required for backend tests
+  - Image: `redis:7-alpine`
+  - Port: 6379
+  - Health check: `redis-cli ping`
+- **PyJWT Conflict Resolution**: `pip uninstall -y jwt` before installing dependencies
 
 ---
 
@@ -391,5 +407,28 @@ For additional support:
 
 ---
 
+## Recent Updates (Nov 18-21, 2025)
+
+### PR #1350: E2E Testing Infrastructure
+- **Path**: `handoff/20250928/40_App/owner-console/e2e/`
+- **Tests**: 32 Playwright tests passing (11→32)
+- **Key Fixes**: Route handler isolation, API mocking, VITE_E2E security gate
+- **CI**: 55/55 checks passing
+
+### PR #1398: Production Path Discovery
+- **Path**: `handoff/20250928/40_App/orchestrator/context_manager.py`
+- **Change**: Replaced hardcoded `~/repos/morningai` with `MORNINGAI_REPO_PATH` env var
+- **Fallback**: 4-layer mechanism (env var → git → marker-based → error)
+- **CI**: 40/40 checks passing
+
+### PR #1399: Backend Test Environment Alignment
+- **Path**: `.github/workflows/test-apps.yml`
+- **Changes**: Python 3.12, Redis service, PyJWT conflict resolution
+- **Result**: Unified backend.yml and test-apps.yml configurations
+- **CI**: 33/33 checks passing
+
+---
+
 **Maintained By**: CTO / DevOps Team  
-**Version**: 1.0.0
+**Version**: 1.1.0  
+**Last Updated**: 2025-11-21
