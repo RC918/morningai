@@ -34,13 +34,19 @@ jobs:
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           echo "✅ Audit completed (warn mode - non-blocking)"
           exit 0
+        env:
+          GIT_REPO: ${{ github.repository }}
+          GIT_PR: ${{ github.event.pull_request.number }}
+          GIT_COMMIT: ${{ github.sha }}
       
       - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: shared-ui-import-audit
-          path: audit-output.txt
+          path: |
+            audit-output.txt
+            .github/artifacts/design-system-violations.json
           retention-days: 30
       
       - name: Parse audit results
@@ -63,12 +69,12 @@ jobs:
             echo "files_scanned=0" >> $GITHUB_OUTPUT
           fi
       
-      - name: Comment on PR with audit results
-        if: github.event_name == 'pull_request' && always()
+      - name: Comment on PR (violations detected)
+        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.violations != '0'
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: enforce-shared-ui
+          comment-tag: ai-gate:design-system
           body: |
             ## 🎨 Shared-UI Import Compliance Audit
             
@@ -79,7 +85,59 @@ jobs:
             - 📁 Files scanned: ${{ steps.parse.outputs.files_scanned }}
             - ⚠️ Violations found: ${{ steps.parse.outputs.violations }}
             
-            ${{ steps.parse.outputs.violations > 0 && '### ⚠️ Violations Detected\n\nDirect imports of UI component libraries were found. Please consider:\n\n1. **Replace with @morningai/shared-ui**: Use centralized components instead of direct imports\n2. **Add to shared-ui**: If component doesn''t exist, consider adding it to shared-ui\n3. **Allowed exceptions**: lucide-react (icons), recharts (charts), date-fns (dates)\n\n📎 [View detailed audit report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n### 📚 Documentation\nSee `docs/DESIGN_SYSTEM_ENFORCEMENT.md` for implementation guide and rationale.\n\n### ⏰ Timeline\n- **Current (Stage 1)**: Warn mode - violations reported but not blocking (1 week)\n- **Stage 2**: Diff-only enforcement - new code must comply\n- **Stage 3**: Full enforcement - all code must comply' || '### ✅ No Violations\n\nAll imports comply with shared-ui policy. Great work!' }}
+            ### ⚠️ Violations Detected
+            
+            Direct imports of UI component libraries were found. Please consider:
+            
+            1. **Replace with @morningai/shared-ui**: Use centralized components instead of direct imports
+            2. **Add to shared-ui**: If component doesn't exist, consider adding it to shared-ui
+            3. **Allowed exceptions**: lucide-react (icons), recharts (charts), date-fns (dates)
+            
+            📎 [View detailed audit report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            📄 [Download JSON artifact](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) - Machine-readable format for AI gates
+            
+            ### 📚 Documentation
+            - **Quick Fix Guide** (2 min): `docs/DESIGN_SYSTEM_QUICKSTART.md`
+            - **Full Documentation**: `docs/DESIGN_SYSTEM_ENFORCEMENT.md`
+            
+            ### ⏰ Timeline
+            - **Current (Stage 1)**: Warn mode - violations reported but not blocking (1 week)
+            - **Stage 2**: Diff-only enforcement - new code must comply
+            - **Stage 3**: Full enforcement - all code must comply
+            
+            ---
+            
+            🤖 **AI Gateway Integration**: This comment uses stable tag `ai-gate:design-system` for consumption by Gemini 3 Pro, GPT-5.1, and LLM Planner.
+            
+            ---
+            
+            ℹ️ **Stage 1 (Warn Mode)**: This audit is currently non-blocking to allow teams to migrate gradually. After 1 week of observation, we will move to Stage 2 (diff-only enforcement).
+      
+      - name: Comment on PR (no violations)
+        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.violations == '0'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: ai-gate:design-system
+          body: |
+            ## 🎨 Shared-UI Import Compliance Audit
+            
+            **Stage**: 1 (Warn Mode - Non-blocking)
+            **Status**: ✅ Audit completed
+            
+            **Summary**:
+            - 📁 Files scanned: ${{ steps.parse.outputs.files_scanned }}
+            - ⚠️ Violations found: 0
+            
+            ### ✅ No Violations
+            
+            All imports comply with shared-ui policy. Great work!
+            
+            📎 [View detailed audit report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ---
+            
+            🤖 **AI Gateway Integration**: This comment uses stable tag `ai-gate:design-system` for consumption by AI quality gates.
             
             ---
             
