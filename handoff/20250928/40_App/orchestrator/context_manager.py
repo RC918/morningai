@@ -13,7 +13,9 @@ import difflib
 import logging
 import os
 import re
-from typing import List, Tuple
+import subprocess
+from pathlib import Path
+from typing import List, Tuple, Optional
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,6 +32,55 @@ EXCLUDED_DIRS = {
     '.git', '.venv', 'node_modules', 'build', 'dist', '.next',
     '__pycache__', '.pytest_cache', 'venv', 'env', '.tox'
 }
+
+
+def discover_repo_root() -> Optional[str]:
+    """
+    Discover repository root path with production-safe fallback chain.
+    
+    Fallback order:
+    1. MORNINGAI_REPO_PATH environment variable (production/staging)
+    2. REPO_ROOT_PATH environment variable (testing/CI)
+    3. Git repository root detection (git rev-parse --show-toplevel)
+    4. Project root via Path(__file__) traversal
+    
+    Returns:
+        Absolute path to repository root, or None if not found
+    """
+    repo_path = os.getenv('MORNINGAI_REPO_PATH')
+    if repo_path and os.path.exists(repo_path):
+        logger.info(f"[ContextManager] Using MORNINGAI_REPO_PATH: {repo_path}")
+        return os.path.abspath(repo_path)
+    
+    repo_path = os.getenv('REPO_ROOT_PATH')
+    if repo_path and os.path.exists(repo_path):
+        logger.info(f"[ContextManager] Using REPO_ROOT_PATH: {repo_path}")
+        return os.path.abspath(repo_path)
+    
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True
+        )
+        repo_path = result.stdout.strip()
+        if repo_path and os.path.exists(repo_path):
+            logger.info(f"[ContextManager] Detected git repo root: {repo_path}")
+            return os.path.abspath(repo_path)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    
+    current = Path(__file__).resolve()
+    markers = ['.git', 'config', 'handoff', 'agents', 'pyproject.toml', 'setup.py']
+    
+    for parent in [current] + list(current.parents):
+        if any((parent / marker).exists() for marker in markers):
+            logger.info(f"[ContextManager] Detected project root via markers: {parent}")
+            return str(parent)
+    
+    return None
 
 
 def tokenize_text(text: str) -> List[str]:
@@ -241,11 +292,19 @@ def get_code_context(
     Returns:
         Code context string (<max_tokens)
     """
-    repo_path = os.path.join(os.path.expanduser('~'), 'repos', 'morningai')
+    repo_path = discover_repo_root()
 
-    if not os.path.exists(repo_path):
-        logger.warning(f"Repository path not found: {repo_path}")
-        return f"Repository: {repo}\nGoal: {goal}\n\nNote: Repository not found locally"
+    if not repo_path or not os.path.exists(repo_path):
+        error_msg = (
+            f"Repository path not found. Tried:\n"
+            f"  1. MORNINGAI_REPO_PATH env var\n"
+            f"  2. REPO_ROOT_PATH env var\n"
+            f"  3. git rev-parse --show-toplevel\n"
+            f"  4. Project root detection via markers\n"
+            f"Please set MORNINGAI_REPO_PATH environment variable."
+        )
+        logger.error(f"[ContextManager] {error_msg}")
+        return f"Repository: {repo}\nGoal: {goal}\n\nError: {error_msg}"
 
     logger.info(f"[ContextManager] Extracting context for goal: {goal[:50]}...")
 
