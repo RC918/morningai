@@ -1,0 +1,80 @@
+name: Settings Alias Audit
+
+on:
+  pull_request:
+    paths:
+      - 'common/config/settings.py'
+      - 'config/env.schema.yaml'
+      - 'scripts/ci/check_settings_aliases.py'
+      - '.github/workflows/settings-alias-audit.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'common/config/settings.py'
+      - 'config/env.schema.yaml'
+
+jobs:
+  audit-aliases:
+    name: Audit Pydantic Aliases
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+      
+      - name: Run alias audit (warn-only mode)
+        run: |
+          echo "::notice::Running Pydantic alias audit in warn-only mode"
+          python scripts/ci/check_settings_aliases.py || echo "::warning::Pydantic alias audit found missing aliases. This is currently non-blocking but should be fixed in a follow-up PR."
+        continue-on-error: true
+      
+      - name: Upload audit report
+        if: always()
+        run: |
+          python scripts/ci/check_settings_aliases.py > alias-audit-report.txt 2>&1 || true
+          echo "::notice::Alias audit report generated"
+      
+      - name: Comment audit results on PR
+        if: github.event_name == 'pull_request' && failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report = '';
+            try {
+              report = fs.readFileSync('alias-audit-report.txt', 'utf8');
+            } catch (e) {
+              report = 'Failed to read audit report';
+            }
+            
+            const body = `## ⚠️ Pydantic Alias Audit (Warn-Only)
+            
+            The alias audit detected missing Pydantic aliases. This is currently **non-blocking** but should be addressed in a follow-up PR.
+            
+            <details>
+            <summary>View Audit Report</summary>
+            
+            \`\`\`
+            ${report}
+            \`\`\`
+            
+            </details>
+            
+            **Note**: This check is in warn-only mode and will not block merging. See [scripts/ci/check_settings_aliases.py](../blob/main/scripts/ci/check_settings_aliases.py) for details.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
