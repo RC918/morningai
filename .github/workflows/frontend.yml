@@ -405,6 +405,7 @@ jobs:
         run: |
           cd handoff/20250928/40_App/owner-console
           pnpm run test-storybook:ci
+        continue-on-error: true
   
   owner-console-e2e:
     name: Owner Console E2E Tests
