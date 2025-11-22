@@ -4,8 +4,8 @@
 
 ## 📊 總覽統計
 
-- **總工作流數量**: 16
-- **支援 workflow_dispatch**: 16 (100%)
+- **總工作流數量**: 17
+- **支援 workflow_dispatch**: 17 (100%)
 - **Branch Protection 必須檢查**: 4
 
 ---
@@ -319,7 +319,51 @@
 
 ---
 
-### 16. `auto-merge-faq`
+### 16. `tolgee-sync` (Tolgee Translation Sync)
+**檔案**: `.github/workflows/tolgee-sync.yml`
+
+**用途**: Tolgee 翻譯同步，自動同步翻譯檔案與 Tolgee 平台
+
+**觸發條件**:
+- ✅ `workflow_dispatch` - 手動觸發（支援 `bootstrap` 參數進行首次推送）
+- ✅ `push` - main 分支推送
+- ✅ `schedule` - 每天 10:00 Asia/Taipei (cron: '0 2 * * *')
+
+**執行內容**:
+- 檢查 Tolgee 專案是否需要 bootstrap（Owner Console #24693, Frontend Dashboard #24702）
+- **自動運行**（push/schedule）:
+  - 如果兩個專案都有 keys: 執行正常同步（pull → validate → create PR）
+  - 如果任一專案為空: 優雅退出（綠色，日誌有清楚說明和手動 bootstrap 指示）
+- **手動 Bootstrap 模式**（workflow_dispatch + bootstrap=true）:
+  - 推送現有翻譯到空的 Tolgee 專案（首次設定）
+  - 可能因 Tolgee 方案限制失敗（預期行為，會顯示清楚的錯誤訊息）
+- **正常同步模式**（當兩個專案都有 keys）:
+  - Preflight 驗證（dry-run pull + validate）
+  - 從 Tolgee 拉取最新翻譯
+  - 驗證翻譯檔案結構完整性
+  - 如有變更自動創建 PR
+
+**行為**:
+- 使用 concurrency control 防止並發運行（`cancel-in-progress: true`）
+- Bootstrap 僅在手動觸發時執行（防止 `plan_key_limit_exceeded` 錯誤）
+- 當檢測到需要 bootstrap 時，自動運行會優雅退出（不產生紅色通知）
+- 優雅退出時日誌包含清楚的說明、當前狀態和手動 bootstrap 操作指示
+
+**為何非 Required**: 翻譯同步工作流，失敗不影響開發流程
+
+**當前狀態** (2025-11-22):
+- Owner Console (Project #24693): 正常運作（386 keys）
+- Frontend Dashboard (Project #24702): 暫停同步（0 keys，需要 bootstrap 或手動填充）
+- 自動運行行為: 優雅退出（綠色），不產生紅色 CI 通知
+
+**故障排除**:
+- 如看到 `plan_key_limit_exceeded` 錯誤: Tolgee 方案 key 數量已達上限，需要升級方案或手動清理 keys
+- 如需要 bootstrap 空專案: 前往 Actions → Tolgee Translation Sync → Run workflow → 勾選 "Bootstrap" checkbox
+- 如 bootstrap 失敗: 檢查 Tolgee 方案限制，考慮透過 Tolgee UI 手動填充或升級方案
+
+---
+
+### 17. `auto-merge-faq`
 **檔案**: `.github/workflows/auto-merge-faq.yml`
 
 **用途**: 自動合併 FAQ 文件更新 PR
@@ -428,7 +472,8 @@ main 分支合併條件
 ├── env-diagnose (多雲服務診斷)
 ├── sentry-smoke (Sentry 煙測)
 ├── sentry-smoke-cron (定時監控檢查)
-└── worker-heartbeat-monitor (Worker 心跳監控)
+├── worker-heartbeat-monitor (Worker 心跳監控)
+└── tolgee-sync (翻譯同步)
 ```
 
 ---
@@ -513,6 +558,8 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ## 📝 版本歷史
 
+- **2025-11-22**: 新增 `tolgee-sync` 工作流文檔，記錄翻譯同步行為與當前狀態
+- **2025-11-22**: 更新 `worker-heartbeat-monitor` 文檔，記錄自動關閉機制與並發控制
 - **2025-10-13**: 修復 `post-deploy-health-assertions` 缺少 `pull_request` 觸發器問題
 - **2025-10-13**: 新增 Required Checks 對應表，記錄 workflow 檔案與 job 名稱對應關係
 - **2025-10-12**: Phase 11 清債 - 所有工作流新增 `workflow_dispatch` 支援
@@ -522,6 +569,6 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ---
 
-**最後更新**: 2025-10-13  
+**最後更新**: 2025-11-22  
 **維護者**: @RC918 (Ryan Chen)  
-**文件版本**: 1.1.0
+**文件版本**: 1.2.0
