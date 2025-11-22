@@ -101,14 +101,9 @@
 - 現有代碼中的違規不會阻擋此 PR（僅檢查新變更）
 
 **緊急情況處理**：
-如果您有合法的緊急情況需要繞過此檢查：
-1. 聯繫 @RC918 取得批准
-2. 管理員需臨時從 branch protection 移除 "Audit UI Library Imports" 檢查
-3. 合併 PR
-4. 立即重新啟用檢查
-5. 建立 follow-up issue 修復違規
+如果您有合法的緊急情況需要繞過此檢查，請參考 [Emergency Override Runbook](../docs/EMERGENCY_OVERRIDE_RUNBOOK.md)。
 
-**注意**：沒有自動繞過機制。所有例外都需要明確的管理員批准。
+**注意**：沒有自動繞過機制。所有例外都需要明確的管理員批准和記錄。
 
 **相關文件**: 
 - 📚 [快速修復指南（2 分鐘）](../docs/DESIGN_SYSTEM_QUICKSTART.md)

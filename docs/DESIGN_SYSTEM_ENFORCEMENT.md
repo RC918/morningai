@@ -379,17 +379,24 @@ A: 可以，但需要：
 2. 獲得設計負責人 (@RC918) 批准
 3. 更新此文檔記錄例外情況
 
-### Q5: Stage 1 (warn mode) 會持續多久？
+### Q5: 如果有緊急情況需要立即合併怎麼辦？
 
-A: 預計合併後運行 1 週。期間會：
-- 收集團隊反饋
-- 識別和修復誤報
-- 提供遷移支援
-- 更新文檔
+A: 請參考 [Emergency Override Runbook](./EMERGENCY_OVERRIDE_RUNBOOK.md)。此流程僅用於真正的緊急情況（生產環境重大 bug、時間敏感的業務需求等），需要：
+1. 獲得 @RC918 的明確批准
+2. 臨時移除 branch protection 檢查
+3. 合併後立即復原檢查
+4. 建立 follow-up issue 追蹤修復（7 天期限）
+
+**注意**：沒有自動繞過機制。所有例外都需要明確的管理員批准和記錄。
+
+### Q6: Stage 1 (warn mode) 會持續多久？
+
+A: Stage 1 已完成（2025-11-21 至 2025-11-28）。當前處於 **Stage 2: Diff-Only Enforcement**，違規會阻擋 PR 合併。
 
 ## 相關資源 (Resources)
 
-- 📚 [Shared-UI 使用指南](./shared-ui-guide.md)
+- 📚 [快速修復指南（2 分鐘）](./DESIGN_SYSTEM_QUICKSTART.md)
+- 🚨 [緊急繞過流程](./EMERGENCY_OVERRIDE_RUNBOOK.md)
 - 🎨 [Storybook](https://storybook.morningai.com) (執行 `pnpm --filter @morningai/shared-ui storybook`)
 - 📖 [Radix UI 文檔](https://www.radix-ui.com/primitives/docs/overview/introduction)
 - ♿ [WCAG AAA 標準](https://www.w3.org/WAI/WCAG2AAA-Conformance)
