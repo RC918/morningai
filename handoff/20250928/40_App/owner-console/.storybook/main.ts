@@ -41,7 +41,7 @@ const config: StorybookConfig = {
       //   ],
       // },
       build: {
-        minify: false, // Disable minification to prevent TDZ
+        minify: false,
         // rollupOptions: {
         //   output: {
         //     manualChunks: {
