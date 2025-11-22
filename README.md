@@ -458,3 +458,8 @@ Morning AI 已部署兩個 AI Agent Sandbox 到 Fly.io，提供安全隔離的�
 **架構文檔**: [Agent Sandbox Architecture](docs/agent-sandbox-architecture.md)  
 **總成本**: ~$4/月（閒置時自動縮放至 $0）
 
+
+## Stage 2 Enforcement Test
+
+This line was added to test that README-only changes pass Stage 2 enforcement.
+The audit should skip scanning since no TypeScript/JavaScript files were modified.
