@@ -1,70 +1,86 @@
-# Verification Test After Fixes
+# Production Canary Test #3 - Verify Fixes
 
-After implementing fixes in the MorningAI platform, it's crucial to conduct verification tests to ensure that the changes have not introduced new issues and that the platform operates as expected. This document provides a comprehensive guide on how to perform verification testing after fixes have been applied.
+## Overview
+Canary testing is a method used to minimize the risk of introducing new software versions into production by gradually rolling out the change to a small subset of users before making it available to everybody. This FAQ details the procedure for verifying fixes through a production canary test, specifically focusing on test #3 conducted on 2025-11-22T15:37:32.075648 within the MorningAI platform.
 
-## Context
+### Context
+- **Repository:** RC918/morningai
+- **Documentation Location:** This information will be added to `docs/FAQ.md` in the repository.
 
-- **Repository**: `RC918/morningai`
-- **Location**: This information will be added to `docs/FAQ.md` in the repository.
+## Procedure for Conducting Canary Test #3
 
-## Explanation
-
-Verification testing is a process used to determine whether the development outputs meet the specified requirements. Post-fix verification ensures that any code changes or fixes address the intended issue without negatively impacting existing functionality. It involves re-running previously failed tests to confirm they pass and conducting regression testing to ensure no new bugs have been introduced.
-
-### Steps for Verification Testing
-
-1. **Update Your Local Repository**: Ensure you have the latest version of the codebase by pulling changes from the main branch.
-    ```bash
-    git checkout main
-    git pull origin main
-    ```
-
-2. **Run Automated Tests**: Execute your suite of automated tests to quickly identify any immediate issues.
-    ```bash
-    # From your project root directory
-    pytest tests/
-    ```
-
-3. **Manual Testing**: For areas not covered by automated tests, perform manual testing based on test cases that previously failed due to the bug you've fixed.
-
-4. **Regression Testing**: Conduct regression testing in areas potentially affected by the changes to ensure no new issues have been introduced.
-
-5. **Review Changes in Code**: Visually inspect your fixes and related components for potential side effects or issues.
-
-6. **Document Your Findings**: Update test cases, if necessary, and document the results of your verification testing in your project's tracking system.
-
-### Code Example: Running a Specific Test
-
-To run a specific test case related to your fix, you might use a command similar to:
+### 1. Preparation
+Before deploying the canary release, ensure all changes are thoroughly reviewed and passed all stages of pre-production testing (unit, integration, and system tests).
 
 ```bash
-pytest tests/test_module.py::test_specific_functionality
+git checkout main
+git pull origin main
+git tag -a v2025.11.22-canary.3 -m "Canary release for 2025-11-22"
+git push origin v2025.11.22-canary.3
+```
+
+### 2. Deployment
+Deploy the canary version to a controlled percentage of your production environment's capacity. Use your deployment tools (e.g., Render.com) to target only a specific subset of users.
+
+```yaml
+# Example deployment configuration snippet for Render.com
+
+services:
+  - type: web
+    name: morningai-canary
+    env: python
+    plan: starter
+    buildCommand: python setup.py install
+    startCommand: gunicorn "morningai:create_app()" --workers=4 --worker-class=gthread
+    region: Frankfurt
+    envVars:
+      - key: CANARY_RELEASE
+        value: "true"
+```
+
+### 3. Monitoring and Verification
+Monitor the application logs, performance metrics, and user feedback closely. Tools integrated with MorningAI, such as LangGraph for agent workflows and Redis Queue for task orchestration, should provide real-time insights into how well the new features or fixes are performing.
+
+```python
+# Example Python snippet for logging Redis Queue task status
+
+from rq import Connection, Queue
+import redis
+
+redis_url = "redis://localhost:6379"
+conn = redis.from_url(redis_url)
+
+with Connection(conn):
+    q = Queue()
+    job = q.enqueue('my_task', args=(my_arg,), timeout=600)
+    print(f"Task {job.id} added to queue at {job.enqueued_at}")
 ```
 
 ### Related Documentation Links
 
-- Automated Testing: [Pytest Documentation](https://docs.pytest.org/en/latest/)
-- Regression Testing Guidelines: [MorningAI Regression Testing](/docs/regression_testing.md)
-- Manual Testing Best Practices: [MorningAI Manual Testing](/docs/manual_testing.md)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
+- [LangGraph Documentation](https://langgraph.io/docs)
+- [Render.com Deployment Guides](https://render.com/docs/deployments)
 
-### Common Troubleshooting Tips
+## Common Troubleshooting Tips
 
-- **Test Fails Unexpectedly**: Ensure your environment matches production settings closely. Review environment variables and configuration files for discrepancies.
-- **Performance Issues Post-Fix**: Compare performance metrics before and after your fix using tools like cProfile for Python code.
-    ```python
-    import cProfile
-    cProfile.run('your_function()')
-    ```
-- **Dependencies Cause Failures**: Verify all dependencies are correctly installed and at appropriate versions. Use virtual environments to manage dependencies efficiently.
-- **Intermittent Issues**: If facing intermittent test failures, investigate timing issues, race conditions, or external service availability.
+**Issue:** Canary version is not receiving traffic.
+- **Solution:** Ensure that your routing rules are correctly configured to distribute traffic between your canary and production environments proportionally.
+
+**Issue:** Errors or performance regressions observed in the canary release.
+- **Solution:** Roll back immediately if critical issues arise. Investigate logs and metrics to identify the root cause. Perform additional testing in a staging environment before attempting another canary release.
+
+**Issue:** Difficulty monitoring specific metrics or logs.
+- **Solution:** Verify that all monitoring tools are correctly integrated and configured to capture data from both the canary and production environments equally.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Verification test after fixes - 2025-11-22T07:21:00.350378
-- Trace ID: `85b32752-2763-40f8-97ff-71147c95761f`
+- Task: Production canary test #3 - verify fixes - 2025-11-22T15:37:32.075648
+- Trace ID: `28f0411e-f4c0-4eeb-9381-e2645da5df6d`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
