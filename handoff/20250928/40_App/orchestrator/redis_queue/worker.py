@@ -59,6 +59,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+_canary_metrics = None
+
 SENTRY_DSN = settings.sentry_dsn
 APP_VERSION = settings.app_version or "8.0.0"
 
@@ -334,6 +336,17 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     Returns:
         dict: {"pr_url": str, "trace_id": str, "state": str}
     """
+    global _canary_metrics
+    if _canary_metrics is None:
+        try:
+            from metrics import create_canary_metrics
+            canary_metrics_enabled = getattr(settings, 'canary_metrics_enabled', True)
+            _canary_metrics = create_canary_metrics(redis, enabled=canary_metrics_enabled)
+            logger.info(f"Canary metrics initialized: enabled={canary_metrics_enabled}")
+        except Exception as e:
+            logger.warning(f"Failed to initialize canary metrics: {e}")
+            _canary_metrics = None
+    
     use_langgraph = settings.use_langgraph or False
     use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
     
@@ -353,6 +366,15 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 "use_langgraph": use_langgraph
             }
         )
+    
+    if _canary_metrics:
+        try:
+            if use_langgraph:
+                _canary_metrics.incr_counter("decisions.langgraph")
+            else:
+                _canary_metrics.incr_counter("decisions.simple")
+        except Exception as e:
+            logger.warning(f"Failed to record routing decision metric: {e}")
     
     if use_langgraph:
         from langgraph_orchestrator import run_orchestrator
@@ -417,13 +439,68 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 data={'task_id': task_id, 'trace_id': task_id, 'use_langgraph': use_langgraph}
             )
         
+        start_time_ns = time.monotonic_ns()
+        execution_success = False
+        
         if use_langgraph:
             result = run_orchestrator(question, repo, task_id)
             pr_url = result.get("pr_url", "")
             state = result.get("ci_state", "unknown")
             trace_id = result.get("trace_id", task_id)
+            execution_success = bool(pr_url)  # Success if PR was created
         else:
             pr_url, state, trace_id = execute(question, repo, trace_id=task_id)
+            execution_success = bool(pr_url)  # Success if PR was created
+        
+        if _canary_metrics and use_langgraph:
+            try:
+                elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
+                _canary_metrics.observe_latency_ms(elapsed_ms)
+                
+                if execution_success:
+                    _canary_metrics.incr_counter("planner.success")
+                else:
+                    _canary_metrics.incr_counter("planner.failure")
+                    
+                logger.info(f"Canary metrics recorded: latency={elapsed_ms:.2f}ms, success={execution_success}")
+                
+                canary_alerting_enabled = getattr(settings, 'canary_alerting_enabled', True)
+                if canary_alerting_enabled:
+                    try:
+                        # This prevents alert storms and reduces Redis GET load by ~60x
+                        eval_lock_key = "metrics:canary:slo_eval_lock"
+                        acquired_lock = redis.set(eval_lock_key, "1", ex=60, nx=True)
+                        
+                        if acquired_lock:
+                            from canary_alerting import create_canary_alerting
+                            
+                            canary_window_minutes = getattr(settings, 'canary_window_minutes', 15)
+                            canary_p95_threshold = getattr(settings, 'canary_p95_ms_threshold', 2500)
+                            canary_5xx_threshold = getattr(settings, 'canary_5xx_rate_threshold', 1.0)
+                            canary_failure_threshold = getattr(settings, 'canary_failure_rate_threshold', 5.0)
+                            ops_webhook_url = getattr(settings, 'ops_alert_webhook_url', None)
+                            
+                            canary_summary = _canary_metrics.get_canary_summary(window_minutes=canary_window_minutes)
+                            
+                            alerting = create_canary_alerting(
+                                redis,
+                                enabled=True,
+                                sentry_dsn=SENTRY_DSN,
+                                webhook_url=ops_webhook_url
+                            )
+                            
+                            thresholds = {
+                                'p95_ms': canary_p95_threshold,
+                                'error_5xx_rate': canary_5xx_threshold,
+                                'failure_rate': canary_failure_threshold
+                            }
+                            
+                            alerting.evaluate_slos(canary_summary, thresholds)
+                            logger.info("SLO evaluation completed")
+                    except Exception as alert_error:
+                        logger.warning(f"Failed to evaluate SLOs: {alert_error}")
+            except Exception as e:
+                logger.warning(f"Failed to record execution metrics: {e}")
         
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
@@ -470,6 +547,12 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     except Exception as e:
         error_msg = str(e)
         logger.exception(f"Task failed", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": task_id, "status": "error", "error": error_msg})
+        
+        if _canary_metrics and use_langgraph:
+            try:
+                _canary_metrics.incr_counter("planner.error_5xx")
+            except Exception as metric_error:
+                logger.warning(f"Failed to record error metric: {metric_error}")
         
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
@@ -583,6 +666,21 @@ if __name__ == "__main__":
             "rq_worker_name": RQ_WORKER_NAME,
             "queue": RQ_QUEUE_NAME,
             "redis_url": redis_url[:30] + "..." if len(redis_url) > 30 else redis_url
+        }
+    )
+    
+    logger.info(
+        f"Feature flags snapshot",
+        extra={
+            "operation": "startup",
+            "flags": {
+                "use_langgraph": settings.use_langgraph,
+                "use_langgraph_percent": getattr(settings, 'use_langgraph_percent', 0),
+                "use_llm_planner": getattr(settings, 'use_llm_planner', False),
+                "canary_metrics_enabled": getattr(settings, 'canary_metrics_enabled', True),
+                "canary_alerting_enabled": getattr(settings, 'canary_alerting_enabled', True),
+                "sentry_dsn_configured": bool(SENTRY_DSN)
+            }
         }
     )
     
