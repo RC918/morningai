@@ -55,17 +55,57 @@ jobs:
           echo "Frontend Dashboard (24702) has $FD_KEYS keys"
           echo "FD_KEYS=$FD_KEYS" >> $GITHUB_ENV
           
-          # Determine if bootstrap is needed
-          if [ "$OC_KEYS" = "0" ] || [ "$FD_KEYS" = "0" ]; then
-            echo "⚠️  Bootstrap needed: One or more projects are empty"
-            echo "NEEDS_BOOTSTRAP=true" >> $GITHUB_ENV
+          # Determine per-project bootstrap flags
+          if [ "$OC_KEYS" = "0" ]; then
+            echo "NEEDS_BOOTSTRAP_OC=true" >> $GITHUB_ENV
           else
-            echo "✅ Both projects have translations, skipping bootstrap"
-            echo "NEEDS_BOOTSTRAP=false" >> $GITHUB_ENV
+            echo "NEEDS_BOOTSTRAP_OC=false" >> $GITHUB_ENV
           fi
+          
+          if [ "$FD_KEYS" = "0" ]; then
+            echo "NEEDS_BOOTSTRAP_FD=true" >> $GITHUB_ENV
+          else
+            echo "NEEDS_BOOTSTRAP_FD=false" >> $GITHUB_ENV
+          fi
+          
+          # Determine if ALL projects need bootstrap
+          if [ "$OC_KEYS" = "0" ] && [ "$FD_KEYS" = "0" ]; then
+            echo "ALL_NEED_BOOTSTRAP=true" >> $GITHUB_ENV
+          else
+            echo "ALL_NEED_BOOTSTRAP=false" >> $GITHUB_ENV
+          fi
+          
+          # Determine if this is a manual bootstrap run
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.bootstrap }}" = "true" ]; then
+            echo "IS_MANUAL_BOOTSTRAP=true" >> $GITHUB_ENV
+          else
+            echo "IS_MANUAL_BOOTSTRAP=false" >> $GITHUB_ENV
+          fi
+          
+          # Determine which projects to process in auto runs
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "$OC_KEYS" != "0" ]; then
+            echo "PROCESS_OC=true" >> $GITHUB_ENV
+          else
+            echo "PROCESS_OC=false" >> $GITHUB_ENV
+          fi
+          
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "$FD_KEYS" != "0" ]; then
+            echo "PROCESS_FD=true" >> $GITHUB_ENV
+          else
+            echo "PROCESS_FD=false" >> $GITHUB_ENV
+          fi
+          
+          echo ""
+          echo "📊 Bootstrap flags:"
+          echo "  NEEDS_BOOTSTRAP_OC=${{ env.NEEDS_BOOTSTRAP_OC }}"
+          echo "  NEEDS_BOOTSTRAP_FD=${{ env.NEEDS_BOOTSTRAP_FD }}"
+          echo "  ALL_NEED_BOOTSTRAP=${{ env.ALL_NEED_BOOTSTRAP }}"
+          echo "  IS_MANUAL_BOOTSTRAP=${{ env.IS_MANUAL_BOOTSTRAP }}"
+          echo "  PROCESS_OC=${{ env.PROCESS_OC }}"
+          echo "  PROCESS_FD=${{ env.PROCESS_FD }}"
 
       - name: Handle bootstrap requirement for automated runs
-        if: env.NEEDS_BOOTSTRAP == 'true' && github.event_name != 'workflow_dispatch'
+        if: env.ALL_NEED_BOOTSTRAP == 'true' && github.event_name != 'workflow_dispatch'
         run: |
           echo "⚠️  Bootstrap is needed but this is an automated run (push/schedule)"
           echo ""
@@ -87,7 +127,7 @@ jobs:
           exit 0
 
       - name: Bootstrap - Ensure languages exist in Owner Console
-        if: (env.OC_KEYS == '0' || github.event.inputs.bootstrap == 'true') && github.event_name == 'workflow_dispatch' && github.event.inputs.bootstrap == 'true'
+        if: env.IS_MANUAL_BOOTSTRAP == 'true' && env.NEEDS_BOOTSTRAP_OC == 'true'
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
@@ -106,7 +146,7 @@ jobs:
           echo "✅ Languages verified/created"
 
       - name: Bootstrap - Push translations to Owner Console
-        if: (env.OC_KEYS == '0' || github.event.inputs.bootstrap == 'true') && github.event_name == 'workflow_dispatch' && github.event.inputs.bootstrap == 'true'
+        if: env.IS_MANUAL_BOOTSTRAP == 'true' && env.NEEDS_BOOTSTRAP_OC == 'true'
         working-directory: handoff/20250928/40_App/owner-console
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -123,7 +163,7 @@ jobs:
           echo "✅ Owner Console translations pushed successfully"
 
       - name: Bootstrap - Ensure languages exist in Frontend Dashboard
-        if: (env.FD_KEYS == '0' || github.event.inputs.bootstrap == 'true') && github.event_name == 'workflow_dispatch' && github.event.inputs.bootstrap == 'true'
+        if: env.IS_MANUAL_BOOTSTRAP == 'true' && env.NEEDS_BOOTSTRAP_FD == 'true'
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
@@ -142,7 +182,7 @@ jobs:
           echo "✅ Languages verified/created"
 
       - name: Bootstrap - Push translations to Frontend Dashboard
-        if: (env.FD_KEYS == '0' || github.event.inputs.bootstrap == 'true') && github.event_name == 'workflow_dispatch' && github.event.inputs.bootstrap == 'true'
+        if: env.IS_MANUAL_BOOTSTRAP == 'true' && env.NEEDS_BOOTSTRAP_FD == 'true'
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -159,7 +199,7 @@ jobs:
           echo "✅ Frontend Dashboard translations pushed successfully"
 
       - name: Verify bootstrap success
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.bootstrap == 'true'
+        if: env.IS_MANUAL_BOOTSTRAP == 'true'
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
@@ -186,7 +226,7 @@ jobs:
           echo "✅ Bootstrap verification passed!"
 
       - name: Preflight - Dry Pull and Validate Frontend Dashboard
-        if: env.NEEDS_BOOTSTRAP != 'true' && github.event.inputs.bootstrap != 'true'
+        if: env.IS_MANUAL_BOOTSTRAP != 'true' && env.PROCESS_FD == 'true'
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -197,7 +237,7 @@ jobs:
           echo "✅ Frontend Dashboard preflight pull completed"
 
       - name: Preflight - Dry Pull and Validate Owner Console
-        if: env.NEEDS_BOOTSTRAP != 'true' && github.event.inputs.bootstrap != 'true'
+        if: env.IS_MANUAL_BOOTSTRAP != 'true' && env.PROCESS_OC == 'true'
         working-directory: handoff/20250928/40_App/owner-console
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -208,7 +248,7 @@ jobs:
           echo "✅ Owner Console preflight pull completed"
 
       - name: Pull translations for Frontend Dashboard
-        if: env.NEEDS_BOOTSTRAP != 'true' && github.event.inputs.bootstrap != 'true'
+        if: env.IS_MANUAL_BOOTSTRAP != 'true' && env.PROCESS_FD == 'true'
         working-directory: handoff/20250928/40_App/frontend-dashboard
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
@@ -216,33 +256,31 @@ jobs:
           tolgee pull --api-key "$TOLGEE_API_KEY"
 
       - name: Pull translations for Owner Console
-        if: env.NEEDS_BOOTSTRAP != 'true' && github.event.inputs.bootstrap != 'true'
+        if: env.IS_MANUAL_BOOTSTRAP != 'true' && env.PROCESS_OC == 'true'
         working-directory: handoff/20250928/40_App/owner-console
         env:
           TOLGEE_API_KEY: ${{ secrets.TOLGEE_API_KEY }}
         run: |
           tolgee pull --api-key "$TOLGEE_API_KEY"
       
-      - name: Validate pulled translations (Preflight Check)
-        if: env.NEEDS_BOOTSTRAP != 'true' && github.event.inputs.bootstrap != 'true'
+      - name: Validate pulled translations - Frontend Dashboard
+        if: env.IS_MANUAL_BOOTSTRAP != 'true' && env.PROCESS_FD == 'true'
         run: |
-          echo "🔍 Validating pulled translations before creating PR..."
+          echo "🔍 Validating Frontend Dashboard translations..."
           
           # Use structured validator on /tmp files (just pulled from Tolgee)
           node $GITHUB_WORKSPACE/scripts/validate-tolgee-structure.js \
-            --fd-locales /tmp/tolgee-preview-fd \
-            --oc-locales /tmp/tolgee-preview-oc
+            --fd-locales /tmp/tolgee-preview-fd
           
           # Additional quick grep check for demo patterns
           if grep -r "What to pack\|add-item-add-button\|delete-item-button\|Quoi emballer\|Was mitnehmen" \
-            /tmp/tolgee-preview-fd/ \
-            /tmp/tolgee-preview-oc/ 2>/dev/null; then
+            /tmp/tolgee-preview-fd/ 2>/dev/null; then
             echo ""
-            echo "❌ ERROR: Tolgee demo data detected in pulled translations!"
-            echo "This indicates the Tolgee projects contain corrupted/demo data."
+            echo "❌ ERROR: Tolgee demo data detected in Frontend Dashboard translations!"
+            echo "This indicates the Tolgee project #24702 contains corrupted/demo data."
             echo ""
             echo "Please fix the Tolgee project data before running sync again:"
-            echo "1. Check Tolgee projects #24693 and #24702"
+            echo "1. Check Tolgee project #24702"
             echo "2. Remove any demo data (packing list app strings)"
             echo "3. Ensure correct translations are imported"
             echo "4. Re-run this workflow"
@@ -250,10 +288,37 @@ jobs:
             exit 1
           fi
           
-          echo "✅ Preflight validation passed - no demo data detected"
+          echo "✅ Frontend Dashboard validation passed"
+      
+      - name: Validate pulled translations - Owner Console
+        if: env.IS_MANUAL_BOOTSTRAP != 'true' && env.PROCESS_OC == 'true'
+        run: |
+          echo "🔍 Validating Owner Console translations..."
+          
+          # Use structured validator on /tmp files (just pulled from Tolgee)
+          node $GITHUB_WORKSPACE/scripts/validate-tolgee-structure.js \
+            --oc-locales /tmp/tolgee-preview-oc
+          
+          # Additional quick grep check for demo patterns
+          if grep -r "What to pack\|add-item-add-button\|delete-item-button\|Quoi emballer\|Was mitnehmen" \
+            /tmp/tolgee-preview-oc/ 2>/dev/null; then
+            echo ""
+            echo "❌ ERROR: Tolgee demo data detected in Owner Console translations!"
+            echo "This indicates the Tolgee project #24693 contains corrupted/demo data."
+            echo ""
+            echo "Please fix the Tolgee project data before running sync again:"
+            echo "1. Check Tolgee project #24693"
+            echo "2. Remove any demo data (packing list app strings)"
+            echo "3. Ensure correct translations are imported"
+            echo "4. Re-run this workflow"
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ Owner Console validation passed"
 
       - name: Create PR if changes
-        if: env.NEEDS_BOOTSTRAP != 'true' && github.event.inputs.bootstrap != 'true'
+        if: env.IS_MANUAL_BOOTSTRAP != 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: "chore(i18n): sync translations from Tolgee"
@@ -261,3 +326,25 @@ jobs:
           body: "Automated Tolgee sync via GitHub Actions."
           branch: chore/tolgee-sync
           base: main
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo ""
+          echo "📊 Workflow Summary"
+          echo "===================="
+          echo "Event: ${{ github.event_name }}"
+          echo "OC Keys: ${{ env.OC_KEYS }}"
+          echo "FD Keys: ${{ env.FD_KEYS }}"
+          echo ""
+          echo "Bootstrap Flags:"
+          echo "  NEEDS_BOOTSTRAP_OC: ${{ env.NEEDS_BOOTSTRAP_OC }}"
+          echo "  NEEDS_BOOTSTRAP_FD: ${{ env.NEEDS_BOOTSTRAP_FD }}"
+          echo "  ALL_NEED_BOOTSTRAP: ${{ env.ALL_NEED_BOOTSTRAP }}"
+          echo "  IS_MANUAL_BOOTSTRAP: ${{ env.IS_MANUAL_BOOTSTRAP }}"
+          echo ""
+          echo "Processing Flags:"
+          echo "  PROCESS_OC: ${{ env.PROCESS_OC }}"
+          echo "  PROCESS_FD: ${{ env.PROCESS_FD }}"
+          echo ""
+          echo "✅ Workflow completed"
