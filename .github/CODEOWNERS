@@ -7,8 +7,17 @@
 # Design System & Shared UI
 /packages/shared-ui/ @RC918
 /docs/shared-ui-guide.md @RC918
+/docs/DESIGN_SYSTEM_ENFORCEMENT.md @RC918
 /docs/UI_UX_*.md @RC918
 /docs/UX/ @RC918
+/handoff/20250928/40_App/frontend-dashboard/src/components/ui/ @RC918
+/handoff/20250928/40_App/owner-console/src/components/ @RC918
+
+# Design System Enforcement Configuration
+/handoff/20250928/40_App/frontend-dashboard/eslint.config.js @RC918
+/handoff/20250928/40_App/owner-console/eslint.config.js @RC918
+/scripts/audit-shared-ui-imports.sh @RC918
+/.github/workflows/enforce-shared-ui.yml @RC918
 
 # Prevent changes to deprecated directories (require explicit approval)
 /tools/frontend-lab/ @RC918
