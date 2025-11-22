@@ -79,19 +79,39 @@
 - [ ] 如使用設計 tokens，我已從 `@morningai/shared-ui` 匯入而非硬編碼
 - [ ] 不適用 - 此 PR 不包含 UI 元件變更
 
-### Shared-UI Import 合規性（強制）
+### Shared-UI Import 合規性（強制 - Stage 2: 阻擋模式）
 
-<!-- 所有 UI 相關變更都必須符合 shared-ui import 政策 -->
+<!-- ⚠️ 此檢查現在會阻擋 PR 合併。違規的 PR 無法合併，直到問題解決。 -->
+
+**必須符合的要求**：
 
 - [ ] 我已使用 `@morningai/shared-ui` 元件，而非直接 import `@radix-ui/react-*`、`@mui/*` 等 UI 元件庫
 - [ ] 我沒有直接 import `@headlessui/*` 或 `@chakra-ui/*`
-- [ ] 如果使用第三方庫，僅限於允許的例外：`lucide-react`（圖示）、`recharts`（圖表）、`date-fns`（日期處理）
+- [ ] 如果使用第三方庫，僅限於允許的例外：
+  - ✅ `lucide-react`（圖示）
+  - ✅ `recharts`（圖表）
+  - ✅ `date-fns`（日期處理）
 - [ ] ESLint `no-restricted-imports` 規則通過（無 UI 元件庫 import 警告）
-- [ ] CI 的 "Enforce Shared-UI Usage" 檢查通過
+- [ ] CI 的 "Audit UI Library Imports" 檢查通過（必須通過才能合併）
 - [ ] 不適用 - 此 PR 不包含 UI import 變更
 
+**🚨 Stage 2 強制執行**：
+- 此 PR 的變更檔案會被自動檢查（diff-only 模式）
+- 如果發現違規，CI 會失敗，PR 無法合併
+- 現有代碼中的違規不會阻擋此 PR（僅檢查新變更）
+
+**緊急情況處理**：
+如果您有合法的緊急情況需要繞過此檢查：
+1. 聯繫 @RC918 取得批准
+2. 管理員需臨時從 branch protection 移除 "Audit UI Library Imports" 檢查
+3. 合併 PR
+4. 立即重新啟用檢查
+5. 建立 follow-up issue 修復違規
+
+**注意**：沒有自動繞過機制。所有例外都需要明確的管理員批准。
+
 **相關文件**: 
-- 📚 [Shared UI 使用指南](../docs/shared-ui-guide.md)
+- 📚 [快速修復指南（2 分鐘）](../docs/DESIGN_SYSTEM_QUICKSTART.md)
 - 🎨 [設計系統強制執行指南](../docs/DESIGN_SYSTEM_ENFORCEMENT.md)
 - 📖 [i18n 政策](../CONTRIBUTING.md#i18n-政策強制執行)
 - 🎨 Storybook: `pnpm --filter frontend-dashboard storybook`
