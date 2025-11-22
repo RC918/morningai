@@ -229,7 +229,8 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     // Verify pagination page indicator
     const pageIndicator = page.getByTestId('pagination-page')
     await expect(pageIndicator).toBeVisible()
-    await expect(pageIndicator).toContainText('Page 1 of 2')
+    await expect(pageIndicator).toHaveAttribute('data-current', '1')
+    await expect(pageIndicator).toHaveAttribute('data-total', '2')
     
     const nextButton = page.getByTestId('pagination-next')
     await Promise.all([

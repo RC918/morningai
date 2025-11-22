@@ -909,6 +909,8 @@ const AgentExecutionLogs = () => {
                 <span 
                   className="text-sm text-neutral-600 dark:text-neutral-400 px-4"
                   data-testid="pagination-page"
+                  data-current={pagination.page}
+                  data-total={pagination.total_pages}
                   aria-live="polite"
                   aria-atomic="true"
                 >

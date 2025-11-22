@@ -42,14 +42,6 @@ const config: StorybookConfig = {
       // },
       build: {
         minify: false,
-        // rollupOptions: {
-        //   output: {
-        //     manualChunks: {
-        //       'react-vendor': ['react', 'react-dom'],
-        //       'storybook-vendor': ['@storybook/react'],
-        //     },
-        //   },
-        // },
       },
       esbuild: {
         target: 'es2020', // More conservative target
