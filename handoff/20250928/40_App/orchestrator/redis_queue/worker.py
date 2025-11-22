@@ -61,6 +61,22 @@ logger = logging.getLogger(__name__)
 
 _canary_metrics = None
 
+
+def sanitize_redis_mapping(mapping: dict) -> dict:
+    """
+    Remove None values from Redis mapping to prevent DataError.
+    
+    Redis commands like hset() require values to be bytes, string, int, or float.
+    Passing None causes: redis.exceptions.DataError: Invalid input of type: 'NoneType'
+    
+    Args:
+        mapping: Dictionary with potential None values
+        
+    Returns:
+        Dictionary with None values filtered out
+    """
+    return {k: v for k, v in mapping.items() if v is not None}
+
 SENTRY_DSN = settings.sentry_dsn
 APP_VERSION = settings.app_version or "8.0.0"
 
@@ -409,13 +425,13 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
         
         redis.hset(
             redis_key,
-            mapping={
+            mapping=sanitize_redis_mapping({
                 "status": "running",
                 "question": question,
                 "trace_id": task_id,
                 "job_id": job_id,
                 "updated_at": datetime.now(timezone.utc).isoformat()
-            }
+            })
         )
         redis.expire(redis_key, 3600)
         
@@ -512,7 +528,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
         
         redis.hset(
             redis_key,
-            mapping={
+            mapping=sanitize_redis_mapping({
                 "status": "done",
                 "question": question,
                 "trace_id": trace_id,
@@ -520,7 +536,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 "pr_url": pr_url,
                 "state": state,
                 "updated_at": datetime.now(timezone.utc).isoformat()
-            }
+            })
         )
         redis.expire(redis_key, 3600)
         
@@ -573,7 +589,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
         
         redis.hset(
             f"agent:task:{task_id}",
-            mapping={
+            mapping=sanitize_redis_mapping({
                 "status": "error",
                 "question": question,
                 "trace_id": task_id,
@@ -581,7 +597,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 "error_code": "ORCHESTRATOR_FAILED",
                 "error_message": error_msg,
                 "updated_at": datetime.now(timezone.utc).isoformat()
-            }
+            })
         )
         redis.expire(f"agent:task:{task_id}", 3600)
         
