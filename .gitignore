@@ -68,3 +68,9 @@ packages/shared-ui/storybook-static/
 
 # Agent evaluation results
 tools/agent_eval/results/
+
+# Test coverage artifacts
+packages/shared-ui/coverage/
+
+# Design system artifacts
+.github/artifacts/design-system-violations.json
