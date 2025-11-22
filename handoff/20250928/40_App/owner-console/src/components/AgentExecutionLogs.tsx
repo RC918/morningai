@@ -19,11 +19,6 @@ import {
   AlertTitle,
   StatusBadge,
   StatusBadgeProps,
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationPrevious,
-  PaginationNext,
   Table,
   TableBody,
   TableCell,
@@ -47,7 +42,9 @@ import {
   AlertTriangle,
   Copy,
   ExternalLink,
-  Eye
+  Eye,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from 'lucide-react'
 import { apiClient, apiClientWithMeta } from '@/lib/api-client'
 import { toast } from 'sonner'
@@ -503,14 +500,14 @@ const AgentExecutionLogs = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <label htmlFor="filter-status" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.status')}
               </label>
               <Select 
                 value={filters.status || 'all'} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}
               >
-                <SelectTrigger data-testid="filter-status">
+                <SelectTrigger id="filter-status" data-testid="filter-status" aria-label={t('governance.executionLogs.filters.status')}>
                   <SelectValue placeholder={t('governance.executionLogs.filters.allStatuses')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -526,14 +523,14 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <label htmlFor="filter-agent-type" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.agentType')}
               </label>
               <Select 
                 value={filters.agent_type || 'all'} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value === 'all' ? '' : value }))}
               >
-                <SelectTrigger data-testid="filter-agent-type">
+                <SelectTrigger id="filter-agent-type" data-testid="filter-agent-type" aria-label={t('governance.executionLogs.filters.agentType')}>
                   <SelectValue placeholder={t('governance.executionLogs.filters.allAgentTypes')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -548,10 +545,11 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <label htmlFor="filter-agent-id" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.agentId')}
               </label>
               <Input
+                id="filter-agent-id"
                 value={filters.agent_id}
                 onChange={(e) => setFilters(prev => ({ ...prev, agent_id: e.target.value }))}
                 placeholder={t('governance.executionLogs.filters.agentIdPlaceholder')}
@@ -560,10 +558,11 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <label htmlFor="filter-task-type" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.taskType')}
               </label>
               <Input
+                id="filter-task-type"
                 value={filters.task_type}
                 onChange={(e) => setFilters(prev => ({ ...prev, task_type: e.target.value }))}
                 placeholder={t('governance.executionLogs.filters.taskTypePlaceholder')}
@@ -572,14 +571,14 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <label htmlFor="filter-time-range" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.timeRange')}
               </label>
               <Select 
                 value={filters.time_range || 'all'} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value === 'all' ? '' : value }))}
               >
-                <SelectTrigger data-testid="filter-time-range">
+                <SelectTrigger id="filter-time-range" data-testid="filter-time-range" aria-label={t('governance.executionLogs.filters.timeRange')}>
                   <SelectValue placeholder={t('governance.executionLogs.filters.selectTimeRange')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -593,10 +592,11 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <label htmlFor="filter-start-date" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.startDate')}
               </label>
               <Input
+                id="filter-start-date"
                 type="date"
                 value={filters.start_date}
                 onChange={(e) => setFilters(prev => ({ ...prev, start_date: e.target.value, time_range: 'custom' }))}
@@ -606,10 +606,11 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <label htmlFor="filter-end-date" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
                 {t('governance.executionLogs.filters.endDate')}
               </label>
               <Input
+                id="filter-end-date"
                 type="date"
                 value={filters.end_date}
                 onChange={(e) => setFilters(prev => ({ ...prev, end_date: e.target.value, time_range: 'custom' }))}
@@ -887,63 +888,53 @@ const AgentExecutionLogs = () => {
                   total: pagination.total_items
                 })}
               </p>
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious 
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        if (pagination.page > 1) {
-                          handlePageChange(pagination.page - 1)
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (pagination.page === 1 && (e.key === 'Enter' || e.key === ' ')) {
-                          e.preventDefault()
-                        }
-                      }}
-                      aria-disabled={pagination.page === 1}
-                      tabIndex={pagination.page === 1 ? -1 : 0}
-                      className={pagination.page === 1 ? 'pointer-events-none opacity-50' : ''}
-                      data-testid="pagination-prev"
-                    />
-                  </PaginationItem>
-                  <PaginationItem>
-                    <span 
-                      className="text-sm text-neutral-600 dark:text-neutral-400 px-4"
-                      data-testid="pagination-page"
-                      data-current={pagination.page}
-                      data-total={pagination.total_pages}
-                    >
-                      {t('governance.executionLogs.pagination.page', {
-                        current: pagination.page,
-                        total: pagination.total_pages
-                      })}
-                    </span>
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationNext 
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        if (pagination.page < pagination.total_pages) {
-                          handlePageChange(pagination.page + 1)
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (pagination.page === pagination.total_pages && (e.key === 'Enter' || e.key === ' ')) {
-                          e.preventDefault()
-                        }
-                      }}
-                      aria-disabled={pagination.page === pagination.total_pages}
-                      tabIndex={pagination.page === pagination.total_pages ? -1 : 0}
-                      className={pagination.page === pagination.total_pages ? 'pointer-events-none opacity-50' : ''}
-                      data-testid="pagination-next"
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (pagination.page > 1) {
+                      handlePageChange(pagination.page - 1)
+                    }
+                  }}
+                  disabled={pagination.page === 1}
+                  aria-label={t('governance.executionLogs.pagination.previous')}
+                  data-testid="pagination-prev"
+                  className="gap-1"
+                >
+                  <ChevronLeftIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t('governance.executionLogs.pagination.previous')}</span>
+                </Button>
+                <span 
+                  className="text-sm text-neutral-600 dark:text-neutral-400 px-4"
+                  data-testid="pagination-page"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {t('governance.executionLogs.pagination.page', {
+                    current: pagination.page,
+                    total: pagination.total_pages
+                  })}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (pagination.page < pagination.total_pages) {
+                      handlePageChange(pagination.page + 1)
+                    }
+                  }}
+                  disabled={pagination.page === pagination.total_pages}
+                  aria-label={t('governance.executionLogs.pagination.next')}
+                  data-testid="pagination-next"
+                  className="gap-1"
+                >
+                  <span className="hidden sm:inline">{t('governance.executionLogs.pagination.next')}</span>
+                  <ChevronRightIcon className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
