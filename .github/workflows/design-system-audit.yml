@@ -187,14 +187,24 @@ jobs:
       - name: Run tests with coverage for shared-ui
         run: |
           cd packages/shared-ui
-          pnpm test --coverage --run 2>&1 | tee coverage-output.txt || true
+          pnpm test:coverage 2>&1 | tee coverage-output.txt || true
         continue-on-error: true
       
       - name: Parse coverage results
         id: coverage
         run: |
-          if [ -f packages/shared-ui/coverage-output.txt ]; then
-            # Extract coverage percentage (adjust grep pattern based on actual output)
+          # Read coverage from coverage-summary.json if available
+          if [ -f packages/shared-ui/coverage/coverage-summary.json ]; then
+            COVERAGE=$(node -e "
+              const fs = require('fs');
+              const summary = JSON.parse(fs.readFileSync('packages/shared-ui/coverage/coverage-summary.json', 'utf8'));
+              const pct = summary.total.statements.pct || 0;
+              console.log(Number(pct).toFixed(2));
+            ")
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "📊 Coverage: ${COVERAGE}%"
+          elif [ -f packages/shared-ui/coverage-output.txt ]; then
+            # Fallback: Extract coverage percentage from text output
             COVERAGE=$(grep -oP "All files\s+\|\s+\K[\d.]+" packages/shared-ui/coverage-output.txt | head -1 || echo "0")
             echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
             echo "📊 Coverage: ${COVERAGE}%"
@@ -220,7 +230,7 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           comment-tag: coverage-baseline
           body: |
-            ## 📊 Test Coverage - @morningai/shared-ui
+            ## 📊 Test Coverage - @morningai/shared-ui (Baseline)
             
             **Current Coverage**: ${{ steps.coverage.outputs.coverage }}%
             **Target**: >60%
@@ -228,6 +238,10 @@ jobs:
             ${{ steps.coverage.outputs.coverage >= 60 && '✅ Coverage target met!' || '⚠️ Coverage below target - consider adding more tests' }}
             
             📎 [View detailed coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ---
+            
+            ℹ️ **Note**: This is a baseline coverage check. For detailed per-file coverage, see the "Shared-UI Coverage Check" workflow comment.
       
       - name: Add coverage summary
         if: always()

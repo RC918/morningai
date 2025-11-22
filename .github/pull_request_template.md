@@ -79,8 +79,20 @@
 - [ ] 如使用設計 tokens，我已從 `@morningai/shared-ui` 匯入而非硬編碼
 - [ ] 不適用 - 此 PR 不包含 UI 元件變更
 
+### Shared-UI Import 合規性（強制）
+
+<!-- 所有 UI 相關變更都必須符合 shared-ui import 政策 -->
+
+- [ ] 我已使用 `@morningai/shared-ui` 元件，而非直接 import `@radix-ui/react-*`、`@mui/*` 等 UI 元件庫
+- [ ] 我沒有直接 import `@headlessui/*` 或 `@chakra-ui/*`
+- [ ] 如果使用第三方庫，僅限於允許的例外：`lucide-react`（圖示）、`recharts`（圖表）、`date-fns`（日期處理）
+- [ ] ESLint `no-restricted-imports` 規則通過（無 UI 元件庫 import 警告）
+- [ ] CI 的 "Enforce Shared-UI Usage" 檢查通過
+- [ ] 不適用 - 此 PR 不包含 UI import 變更
+
 **相關文件**: 
 - 📚 [Shared UI 使用指南](../docs/shared-ui-guide.md)
+- 🎨 [設計系統強制執行指南](../docs/DESIGN_SYSTEM_ENFORCEMENT.md)
 - 📖 [i18n 政策](../CONTRIBUTING.md#i18n-政策強制執行)
 - 🎨 Storybook: `pnpm --filter frontend-dashboard storybook`
 
