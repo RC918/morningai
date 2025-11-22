@@ -1,55 +1,88 @@
-# JSON Mode Verification Test in MorningAI
+# Verification Test After Fixes
 
 ## Overview
 
-This FAQ entry is focused on guiding developers through the process of conducting a JSON mode verification test in the MorningAI platform. JSON mode is crucial for enabling structured data interchange between the client and server, ensuring that data payloads are correctly formatted and understood by both ends. This test aims to verify that your application can serialize and deserialize JSON data accurately, in accordance with the platform's requirements.
+After implementing fixes or enhancements in the MorningAI platform, it's crucial to conduct verification tests to ensure that the changes do not adversely affect existing functionalities and that they resolve the issues they were intended to fix. This FAQ aims to guide developers through the process of performing verification tests post-fix implementation, specifically for changes made on 2025-11-22.
 
-## Conducting the JSON Mode Verification Test
+## Steps for Verification Testing
 
-To perform a JSON mode verification test, you need to follow a series of steps that involve sending a JSON payload to a specific endpoint and analyzing the response. This process ensures your integration with MorningAI's services is correctly handling JSON data.
+### 1. Pull the Latest Changes
 
-### Prerequisites
-
-- Ensure you have access to the MorningAI platform and necessary permissions.
-- Familiarize yourself with the API documentation relevant to your use case.
-
-### Step-by-Step Guide
-
-1. **Prepare the JSON Payload**: Create a JSON object that matches the schema expected by the endpoint you're testing against. For example:
-
-```json
-{
-  "query": "What is the current version of MorningAI?",
-  "parameters": {
-    "detailLevel": "high"
-  }
-}
-```
-
-2. **Send the Request**: Use `curl` or any HTTP client library in your preferred programming language to send the request to the appropriate endpoint. Replace `<API_ENDPOINT>` with the actual URL and `<YOUR_API_KEY>` with your valid API key.
+Ensure your local repository is up-to-date with the `RC918/morningai` main branch.
 
 ```bash
-curl -X POST <API_ENDPOINT> \
--H "Content-Type: application/json" \
--H "Authorization: Bearer <YOUR_API_KEY>" \
--d @payload.json
+git checkout main
+git pull origin main
 ```
 
-3. **Analyze the Response**: Ensure that the response you receive is also in JSON format and matches expected schemas or data structures.
+### 2. Set Up Your Development Environment
 
-### Related Documentation Links
+Before running tests, make sure your development environment is correctly set up. Refer to the `README.md` file for instructions on setting up your environment.
 
-- API Reference: [MorningAI API Documentation](https://docs.morningai.com/api)
-- Getting Started Guide: [MorningAI Getting Started](https://docs.morningai.com/getting-started)
+### 3. Running Tests
 
-### Common Troubleshooting Tips
+MorningAI uses a combination of unit and integration tests to ensure code quality and functionality. To run these tests, navigate to the root of your project directory and execute:
 
-- **Invalid JSON Format**: Verify that your JSON payload is correctly formatted. Tools like JSONLint can validate your JSON structure.
-- **Schema Mismatch**: Ensure that your request payload adheres to the schema expected by the MorningAI endpoint. Refer to specific endpoint documentation for schema details.
-- **Authentication Errors**: Double-check your API key and ensure it's passed correctly in the request header.
-- **HTTP Status Codes**: Pay attention to HTTP status codes returned by API calls. A `4xx` series error might indicate issues with your request, whereas a `5xx` series error suggests server-side problems.
+```bash
+# For unit tests
+pytest tests/unit
 
-For more detailed information on integrating with MorningAI's APIs, including advanced configuration options, refer to our comprehensive developer documentation available at [MorningAI Developer Docs](https://docs.morningai.com).
+# For integration tests
+pytest tests/integration
+```
+
+Make sure all tests pass without errors. If there are any failures, it may indicate that either the fix has introduced new issues or that existing test cases need adjustments.
+
+### 4. Manual Testing
+
+In addition to automated tests, manual testing should be performed to verify new features or fixes from a user's perspective. This includes:
+
+- Generating documentation using MorningAI.
+- Verifying multi-platform integration works as expected.
+- Checking real-time task orchestration and vector memory storage functionalities.
+
+### 5. Code Review
+
+Submit your changes for review via a pull request to `RC918/morningai`. Ensure you detail what changes were made and why. Include any relevant test results.
+
+```markdown
+Title: Fix for issue #XYZ - Date: 2025-11-22
+
+- Summary of changes made.
+- Reason for changes.
+- Test results or test cases added/modified.
+```
+
+### 6. Documentation Update
+
+Update `docs/FAQ.md` with any new findings or additional steps required for future verification testing, following the guidelines provided in this document.
+
+## Related Documentation Links
+
+- **Project Setup**: `README.md`
+- **Testing Guidelines**: `/docs/testing-guidelines.md`
+- **Contribution Guidelines**: `/CONTRIBUTING.md`
+
+## Common Troubleshooting Tips
+
+**Failing Tests After Fixes**
+- Ensure all dependencies are up-to-date.
+- Verify that your environment variables are correctly set.
+- Revisit the fix to ensure it addresses the root cause of the issue without side effects.
+
+**Issues with Multi-platform Integration**
+- Check service credentials and API keys for each platform.
+- Validate webhook URLs and event subscriptions.
+
+**Real-time Task Orchestration Issues**
+- Confirm Redis Queue (RQ) workers are running: `rq info`.
+- Check for error logs in `logs/worker.log`.
+
+**Vector Memory Storage Concerns**
+- Ensure pgvector is correctly installed and configured in PostgreSQL.
+- Verify vector operations through unit tests specifically designed for vector storage features.
+
+For further assistance, consult the MorningAI development team or raise an issue in the `RC918/morningai` repository.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -57,7 +90,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: JSON mode verification test #2 via FAQ endpoint - 2025-11-21T15:29:11.071555
-- Trace ID: `6f1e5f0e-d2f5-4709-bf10-579d69a66477`
+- Task: Verification test after fixes - 2025-11-22T07:21:00.350378
+- Trace ID: `85b32752-2763-40f8-97ff-71147c95761f`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
