@@ -2,8 +2,14 @@ name: Worker Heartbeat Monitor
 on:
   schedule: [{ cron: '*/15 * * * *' }]
   workflow_dispatch:
+    inputs:
+      verify:
+        description: 'Run verification mode (creates a test heartbeat issue and asserts closure)'
+        required: false
+        type: boolean
+        default: false
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event_name }}
   cancel-in-progress: true
 permissions:
   contents: read
@@ -32,21 +38,64 @@ jobs:
         name: Auto-close resolved heartbeat issues
         env:
           ALLOWED_HEARTBEAT_CREATORS: github-actions[bot]
+          VERIFY: ${{ github.event_name == 'workflow_dispatch' && inputs.verify || 'false' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const {owner, repo} = context.repo
-            const issues = await github.paginate(
-              github.rest.issues.listForRepo,
-              { owner, repo, state: 'open', labels: 'monitor:heartbeat', per_page: 100 }
-            )
-
-            // P2-1: Fix empty string environment variable handling
+            
+            // P1-1: URL fallback mechanism with logging
+            const repoSlug = process.env.GITHUB_REPOSITORY || `${owner}/${repo}`
+            const serverUrl = process.env.GITHUB_SERVER_URL || 'https://github.com'
+            const baseUrl = context.payload?.repository?.html_url || `${serverUrl}/${repoSlug}`
+            const runUrl = `${baseUrl}/actions/runs/${context.runId}`
+            core.info(`Using baseUrl: ${baseUrl}`)
+            
+            // P2-1: Fix empty string environment variable handling + P1-3: Log configuration
             const raw = process.env.ALLOWED_HEARTBEAT_CREATORS
             const allowedCreators = (raw && raw.trim()) 
               ? raw.split(',').map(s => s.trim()).filter(Boolean)
               : ['github-actions[bot]']
+            core.info(`Allowed creators: ${JSON.stringify(allowedCreators)}${(raw && raw.trim()) ? '' : ' (default applied)'}`)
+            
+            // P1-2: Verification mode
+            const verify = (process.env.VERIFY || 'false').toLowerCase() === 'true'
+            let testIssueNumber = null
+            
+            if (verify) {
+              core.info('Running in verification mode - creating test heartbeat issue')
+              
+              // Ensure label exists
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: 'monitor:heartbeat' })
+              } catch (e) {
+                if (e.status === 404) {
+                  core.info('Creating monitor:heartbeat label')
+                  await github.rest.issues.createLabel({
+                    owner, repo,
+                    name: 'monitor:heartbeat',
+                    description: 'Worker heartbeat monitoring alerts',
+                    color: 'FF6B6B'
+                  })
+                }
+              }
+              
+              // Create test issue
+              const testIssue = await github.rest.issues.create({
+                owner, repo,
+                title: '⚠️ Worker Heartbeat Alert: Test verification issue',
+                body: 'Auto-opened by monitor. [verification test]',
+                labels: ['monitor:heartbeat']
+              })
+              testIssueNumber = testIssue.data.number
+              core.info(`Created test issue #${testIssueNumber}`)
+            }
+            
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              { owner, repo, state: 'open', labels: 'monitor:heartbeat', per_page: 100 }
+            )
 
             const toClose = issues
               // do not touch PRs
@@ -59,6 +108,9 @@ jobs:
 
             if (!toClose.length) {
               core.info('No open heartbeat issues to close')
+              if (verify && testIssueNumber) {
+                throw new Error(`Verification failed: Test issue #${testIssueNumber} was not picked up by filters`)
+              }
               return
             }
 
@@ -69,10 +121,10 @@ jobs:
             
             for (const issue of toClose) {
               try {
-                // P2-3: Improve close comment with direct link
+                // P2-3: Improve close comment with direct link (using fallback URL)
                 await github.rest.issues.createComment({
                   owner, repo, issue_number: issue.number,
-                  body: `✅ Resolved by successful run: ${context.payload.repository.html_url}/actions/runs/${context.runId} at ${new Date().toISOString()}`
+                  body: `✅ Resolved by successful run: ${runUrl} at ${new Date().toISOString()}`
                 })
                 // P2-2: Add state_reason when closing issues
                 await github.rest.issues.update({
@@ -90,3 +142,28 @@ jobs:
             
             // P2-4: Summary statistics
             core.info(`Summary: Closed ${closedCount}, Failed ${failedCount}`)
+            
+            // P1-2: Verification assertions
+            if (verify && testIssueNumber) {
+              core.info(`Verifying test issue #${testIssueNumber} was closed correctly`)
+              
+              // Fetch the issue
+              const verifyIssue = await github.rest.issues.get({ owner, repo, issue_number: testIssueNumber })
+              
+              // Assert state and state_reason
+              if (verifyIssue.data.state !== 'closed') {
+                throw new Error(`Verification failed: Issue #${testIssueNumber} state is '${verifyIssue.data.state}', expected 'closed'`)
+              }
+              if (verifyIssue.data.state_reason !== 'completed') {
+                throw new Error(`Verification failed: Issue #${testIssueNumber} state_reason is '${verifyIssue.data.state_reason}', expected 'completed'`)
+              }
+              
+              // Fetch comments and verify runUrl is present
+              const comments = await github.rest.issues.listComments({ owner, repo, issue_number: testIssueNumber })
+              const hasRunUrl = comments.data.some(c => c.body.includes(runUrl))
+              if (!hasRunUrl) {
+                throw new Error(`Verification failed: Issue #${testIssueNumber} comments do not contain expected runUrl: ${runUrl}`)
+              }
+              
+              core.info('✅ Verification assertions passed: state=closed, state_reason=completed, comment contains runUrl')
+            }
