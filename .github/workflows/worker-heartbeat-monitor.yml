@@ -90,12 +90,41 @@ jobs:
               })
               testIssueNumber = testIssue.data.number
               core.info(`Created test issue #${testIssueNumber}`)
+              core.info(`Test issue creator: ${testIssue.data.user?.login}`)
             }
             
-            const issues = await github.paginate(
-              github.rest.issues.listForRepo,
-              { owner, repo, state: 'open', labels: 'monitor:heartbeat', per_page: 100 }
-            )
+            // List issues with retry mechanism for verification mode
+            async function listHeartbeatIssuesWithRetry(maxAttempts = 5) {
+              const params = { owner, repo, state: 'open', labels: 'monitor:heartbeat', per_page: 100 }
+              let items = []
+              for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                items = await github.paginate(github.rest.issues.listForRepo, params)
+                const seen = !verify || !testIssueNumber || items.some(i => i.number === testIssueNumber)
+                if (seen) {
+                  if (verify && testIssueNumber) {
+                    core.info(`Test issue #${testIssueNumber} visible after ${attempt} attempt(s)`)
+                  }
+                  return items
+                }
+                const delay = Math.min(500 * Math.pow(2, attempt - 1), 3000) // 0.5s,1s,2s,3s,3s
+                core.info(`Test issue #${testIssueNumber} not visible yet (attempt ${attempt}/${maxAttempts}); retrying in ${delay}ms`)
+                await new Promise(r => setTimeout(r, delay))
+              }
+              // Fallback: fetch test issue directly and inject
+              try {
+                const { data: testIssue } = await github.rest.issues.get({ owner, repo, issue_number: testIssueNumber })
+                core.info(`Injecting test issue #${testIssueNumber} via direct fetch fallback`)
+                const map = new Map(items.map(i => [i.number, i]))
+                map.set(testIssue.number, testIssue)
+                return [...map.values()]
+              } catch (e) {
+                core.warning(`Direct fetch of test issue failed: ${e.message}`)
+                return items
+              }
+            }
+            
+            const issues = await listHeartbeatIssuesWithRetry()
+            core.info(`Listed ${issues.length} open heartbeat issue(s) before filtering`)
 
             const toClose = issues
               // do not touch PRs
