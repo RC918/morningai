@@ -218,7 +218,7 @@ grep -r "import.*Dialog.*from.*shared-ui" handoff/20250928/40_App/
 → 在 shared-ui 中擴展元件或提出功能請求
 
 ### 問題 3: 緊急情況需要繞過
-→ Stage 2 時可使用 `design-exception` 標籤（需 @RC918 審核）
+→ 聯繫 @RC918 進行人工審核，管理員可臨時調整 branch protection 以允許合併
 
 ## 📚 延伸閱讀
 
