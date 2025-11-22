@@ -8,9 +8,11 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui';
 import { Download, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { isPWAInstallable, showInstallPrompt, isRunningAsPWA } from '../lib/pwa';
 
 export const PWAInstallPrompt: React.FC = () => {
+  const { t } = useTranslation();
   const [showPrompt, setShowPrompt] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
 
@@ -86,7 +88,7 @@ export const PWAInstallPrompt: React.FC = () => {
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-2">
               <Download className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Install App</CardTitle>
+              <CardTitle className="text-base">{t('pwa.installApp', 'Install App')}</CardTitle>
             </div>
             <Button
               variant="ghost"
@@ -98,22 +100,22 @@ export const PWAInstallPrompt: React.FC = () => {
             </Button>
           </div>
           <CardDescription className="text-sm">
-            Install Morning AI for a better experience
+            {t('pwa.installDescription', 'Install Morning AI for a better experience')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• Faster loading times</li>
-            <li>• Offline access</li>
-            <li>• Push notifications</li>
-            <li>• Native app experience</li>
+            <li>{t('pwa.benefit.fasterLoading', '• Faster loading times')}</li>
+            <li>{t('pwa.benefit.offlineAccess', '• Offline access')}</li>
+            <li>{t('pwa.benefit.pushNotifications', '• Push notifications')}</li>
+            <li>{t('pwa.benefit.nativeExperience', '• Native app experience')}</li>
           </ul>
           <Button
             onClick={handleInstall}
             disabled={isInstalling}
             className="w-full"
           >
-            {isInstalling ? 'Installing...' : 'Install Now'}
+            {isInstalling ? t('pwa.installing', 'Installing...') : t('pwa.installNow', 'Install Now')}
           </Button>
         </CardContent>
       </Card>

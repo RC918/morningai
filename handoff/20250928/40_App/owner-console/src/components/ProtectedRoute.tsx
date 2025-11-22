@@ -7,6 +7,7 @@
  */
 import React, { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthProvider';
 import { Alert, AlertDescription, AlertTitle } from '@morningai/shared-ui';
 import { AlertCircle } from 'lucide-react';
@@ -20,6 +21,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   requiredRole 
 }) => {
+  const { t } = useTranslation();
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
@@ -53,9 +55,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         <div className="flex items-center justify-center min-h-screen p-4">
           <Alert variant="destructive" className="max-w-md">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Access Denied</AlertTitle>
+            <AlertTitle>{t('auth.accessDenied', 'Access Denied')}</AlertTitle>
             <AlertDescription>
-              You don't have permission to access this page. Required role: {requiredRole}
+              {t('auth.noPermission', "You don't have permission to access this page. Required role: {{role}}", { role: requiredRole })}
             </AlertDescription>
           </Alert>
         </div>
