@@ -8,9 +8,11 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@morningai/shared-ui';
 import { WifiOff, Wifi } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { isOffline, onConnectionChange } from '../lib/pwa';
 
 export const OfflineIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const [offline, setOffline] = useState(isOffline());
   const [showOnlineMessage, setShowOnlineMessage] = useState(false);
 
@@ -38,14 +40,14 @@ export const OfflineIndicator: React.FC = () => {
           <>
             <WifiOff className="h-4 w-4" />
             <AlertDescription className="ml-2">
-              You're offline. Some features may be limited.
+              {t('offline.message', "You're offline. Some features may be limited.")}
             </AlertDescription>
           </>
         ) : (
           <>
             <Wifi className="h-4 w-4" />
             <AlertDescription className="ml-2">
-              You're back online!
+              {t('offline.backOnline', "You're back online!")}
             </AlertDescription>
           </>
         )}
