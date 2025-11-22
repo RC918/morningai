@@ -208,7 +208,6 @@ jobs:
       - name: Run ESLint
         working-directory: handoff/20250928/40_App/owner-console
         run: pnpm lint
-        continue-on-error: true
       
       - name: Build Owner Console
         working-directory: handoff/20250928/40_App/owner-console
