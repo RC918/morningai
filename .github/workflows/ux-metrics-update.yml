@@ -3,15 +3,23 @@ name: UX Metrics Update
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'metrics/**'
+      - 'handoff/20250928/40_App/owner-console/public/metrics/**'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   update-metrics:
     name: Update UX Metrics Dashboard
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     permissions:
       contents: write
-      pull-requests: read
+      pull-requests: write
     
     steps:
       - uses: actions/checkout@v4
@@ -42,19 +50,25 @@ jobs:
           mkdir -p handoff/20250928/40_App/owner-console/public/metrics
           cp metrics/ux-metrics.json handoff/20250928/40_App/owner-console/public/metrics/ux-metrics.json
       
-      - name: Commit and push updated metrics
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          if [ -n "$(git status --porcelain)" ]; then
-            git add metrics/ux-metrics.json
-            git add handoff/20250928/40_App/owner-console/public/metrics/ux-metrics.json
-            git commit -m "chore: Update UX metrics dashboard data [skip ci]"
-            git push
-          else
-            echo "No changes to commit"
-          fi
+      - name: Create or update metrics PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: Update UX metrics dashboard data [skip ci]"
+          title: "chore: Update UX metrics"
+          body: |
+            Automated UX metrics update via GitHub Actions.
+            
+            This PR updates the UX metrics dashboard data based on recent merged PRs.
+            
+            **Changes:**
+            - Updated `metrics/ux-metrics.json`
+            - Updated `handoff/20250928/40_App/owner-console/public/metrics/ux-metrics.json`
+            
+            **Auto-merge:** This PR can be safely merged if all checks pass.
+          branch: chore/ux-metrics
+          base: main
+          delete-branch: true
+          labels: automerge
       
       - name: Upload metrics artifact
         uses: actions/upload-artifact@v4
