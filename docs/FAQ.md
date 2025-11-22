@@ -1,62 +1,72 @@
-# Verification Test After Fixes
+# Production Canary Test #6 - Verify Fixes
 
-After implementing fixes in the MorningAI platform, it's crucial to conduct verification tests to ensure that the changes have not introduced new issues and that the platform operates as expected. This document provides a comprehensive guide on how to perform verification testing after fixes have been applied.
+## Overview
 
-## Context
+This FAQ entry is dedicated to guiding developers through the process of verifying fixes in the context of Production Canary Test #6, conducted on November 22, 2025. Canary testing is a method used to minimize the risk by slowly rolling out changes to a small subset of users before making them available to everybody. This specific test focuses on verifying the effectiveness and stability of recent fixes applied to the MorningAI platform.
 
-- **Repository**: `RC918/morningai`
-- **Location**: This information will be added to `docs/FAQ.md` in the repository.
+## Verification Process
 
-## Explanation
+To ensure comprehensive verification, follow these steps:
 
-Verification testing is a process used to determine whether the development outputs meet the specified requirements. Post-fix verification ensures that any code changes or fixes address the intended issue without negatively impacting existing functionality. It involves re-running previously failed tests to confirm they pass and conducting regression testing to ensure no new bugs have been introduced.
+### Step 1: Update Your Local Repository
 
-### Steps for Verification Testing
-
-1. **Update Your Local Repository**: Ensure you have the latest version of the codebase by pulling changes from the main branch.
-    ```bash
-    git checkout main
-    git pull origin main
-    ```
-
-2. **Run Automated Tests**: Execute your suite of automated tests to quickly identify any immediate issues.
-    ```bash
-    # From your project root directory
-    pytest tests/
-    ```
-
-3. **Manual Testing**: For areas not covered by automated tests, perform manual testing based on test cases that previously failed due to the bug you've fixed.
-
-4. **Regression Testing**: Conduct regression testing in areas potentially affected by the changes to ensure no new issues have been introduced.
-
-5. **Review Changes in Code**: Visually inspect your fixes and related components for potential side effects or issues.
-
-6. **Document Your Findings**: Update test cases, if necessary, and document the results of your verification testing in your project's tracking system.
-
-### Code Example: Running a Specific Test
-
-To run a specific test case related to your fix, you might use a command similar to:
+Ensure your local copy of the RC918/morningai repository is up-to-date with the main branch.
 
 ```bash
-pytest tests/test_module.py::test_specific_functionality
+git checkout main
+git pull origin main
 ```
+
+### Step 2: Deploy Canary Environment
+
+Deploy the canary environment using your preferred CI/CD tool. If you're using Render.com, as in our project setup, configure your project to deploy from a specific canary branch.
+
+```plaintext
+# Example Render.com configuration snippet
+services:
+  - type: web
+    name: morningai-canary
+    env: python
+    branch: canary
+    buildCommand: pip install -r requirements.txt && npm run build
+    startCommand: gunicorn -w 4 "app:create_app()"
+```
+
+Replace `"canary"` with the actual branch name if it differs.
+
+### Step 3: Monitor Performance and Errors
+
+After deployment, monitor the application's performance and error logs closely. Use tools integrated with MorningAI, like Sentry for error tracking and Prometheus for performance monitoring.
+
+### Step 4: Validate Fixes
+
+Confirm that the fixes have been successfully applied by executing relevant test cases or scripts. For code generation improvements, you might use:
+
+```python
+from morningai.codegen import generate_code
+
+# Example test case for a fix verification
+result = generate_code("Example input")
+assert expected_output == result, "The fix for code generation did not work as expected."
+```
+
+For UI fixes, manual testing or automated UI tests should be conducted to ensure everything works as intended.
 
 ### Related Documentation Links
 
-- Automated Testing: [Pytest Documentation](https://docs.pytest.org/en/latest/)
-- Regression Testing Guidelines: [MorningAI Regression Testing](/docs/regression_testing.md)
-- Manual Testing Best Practices: [MorningAI Manual Testing](/docs/manual_testing.md)
+- [Git Workflow](https://git-scm.com/docs/git-workflow)
+- [Render.com Deployment](https://render.com/docs/deployments)
+- [Sentry Documentation](https://docs.sentry.io/)
+- [Prometheus Monitoring](https://prometheus.io/docs/introduction/overview/)
 
-### Common Troubleshooting Tips
+## Common Troubleshooting Tips
 
-- **Test Fails Unexpectedly**: Ensure your environment matches production settings closely. Review environment variables and configuration files for discrepancies.
-- **Performance Issues Post-Fix**: Compare performance metrics before and after your fix using tools like cProfile for Python code.
-    ```python
-    import cProfile
-    cProfile.run('your_function()')
-    ```
-- **Dependencies Cause Failures**: Verify all dependencies are correctly installed and at appropriate versions. Use virtual environments to manage dependencies efficiently.
-- **Intermittent Issues**: If facing intermittent test failures, investigate timing issues, race conditions, or external service availability.
+- **Deployment Fails**: Check the `buildCommand` and `startCommand` in your configuration. Ensure all dependencies are correctly specified.
+- **Errors Not Captured**: Verify Sentry integration is correctly set up in Flask's app configuration.
+- **Performance Degradation**: Use Prometheus metrics to identify bottlenecks. Review recent changes for any inefficient code patterns.
+- **Test Assertions Fail**: Revisit the expected outcomes of your test cases. Ensure they align with the recent fixes.
+
+Remember, canary testing is crucial for identifying issues early in production. By carefully following these steps, developers can effectively verify fixes and contribute to maintaining MorningAI's reliability and performance.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -64,7 +74,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Verification test after fixes - 2025-11-22T07:21:00.350378
-- Trace ID: `85b32752-2763-40f8-97ff-71147c95761f`
+- Task: Production canary test #6 - verify fixes - 2025-11-22T15:37:35.234837
+- Trace ID: `d9712a0d-ccc3-40c8-84d9-61416df8f08b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
