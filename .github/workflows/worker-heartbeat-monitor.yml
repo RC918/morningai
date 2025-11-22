@@ -42,10 +42,11 @@ jobs:
               { owner, repo, state: 'open', labels: 'monitor:heartbeat', per_page: 100 }
             )
 
-            const allowedCreators = (process.env.ALLOWED_HEARTBEAT_CREATORS ?? 'github-actions[bot]')
-              .split(',')
-              .map(s => s.trim())
-              .filter(Boolean)
+            // P2-1: Fix empty string environment variable handling
+            const raw = process.env.ALLOWED_HEARTBEAT_CREATORS
+            const allowedCreators = (raw && raw.trim()) 
+              ? raw.split(',').map(s => s.trim()).filter(Boolean)
+              : ['github-actions[bot]']
 
             const toClose = issues
               // do not touch PRs
@@ -62,17 +63,30 @@ jobs:
             }
 
             core.info(`Closing ${toClose.length} heartbeat issue(s): ` + toClose.map(i => `#${i.number}`).join(', '))
+            
+            // P2-4: Add statistics logging
+            let closedCount = 0, failedCount = 0
+            
             for (const issue of toClose) {
               try {
+                // P2-3: Improve close comment with direct link
                 await github.rest.issues.createComment({
                   owner, repo, issue_number: issue.number,
-                  body: `Resolved by successful run ${context.runId} at ${new Date().toISOString()}`
+                  body: `✅ Resolved by successful run: ${context.payload.repository.html_url}/actions/runs/${context.runId} at ${new Date().toISOString()}`
                 })
+                // P2-2: Add state_reason when closing issues
                 await github.rest.issues.update({
-                  owner, repo, issue_number: issue.number, state: 'closed'
+                  owner, repo, issue_number: issue.number, 
+                  state: 'closed',
+                  state_reason: 'completed'
                 })
                 core.info(`Successfully closed #${issue.number}`)
+                closedCount++
               } catch (e) {
+                failedCount++
                 core.warning(`Failed to close #${issue.number}: ${e.message}`)
               }
             }
+            
+            // P2-4: Summary statistics
+            core.info(`Summary: Closed ${closedCount}, Failed ${failedCount}`)
