@@ -300,15 +300,22 @@
 **用途**: RQ Worker 心跳監控，確保後台任務處理正常
 
 **觸發條件**:
-- ✅ `workflow_dispatch` - 手動觸發
-- ✅ `schedule` - 每 5 分鐘執行一次
+- ✅ `workflow_dispatch` - 手動觸發（支援 `verify` 參數進行生產驗證）
+- ✅ `schedule` - 每 15 分鐘執行一次
 
 **執行內容**:
 - 檢查 Redis 中的 Worker 心跳時間戳
 - 驗證 Worker 進程存活
 - 超時警報（超過 10 分鐘未更新）
+- 成功時自動關閉開啟的 heartbeat alert issues
+- 驗證模式：創建測試 issue 並驗證自動關閉機制
+
+**環境變數**:
+- `ALLOWED_HEARTBEAT_CREATORS`: 允許自動關閉的 issue 建立者清單（以逗號分隔）。空字串會回退至預設值 `['github-actions[bot]']`。預設值：`github-actions[bot]`
 
 **為何非 Required**: 監控工作流，失敗不影響開發流程
+
+**並發控制**: 使用 `cancel-in-progress: true` 並依 event_name 區分，允許排程與手動運行並存
 
 ---
 
