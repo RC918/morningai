@@ -6,12 +6,17 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.5.0  
-**Last Updated**: 2025-11-19  
+**Document Version**: 1.6.0  
+**Last Updated**: 2025-11-21  
 **Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow)  
-**Test Coverage**: 21% (前端), 74%+ (後端)  
-**Recent Activity**: 113 commits (2025-11-12 至 2025-11-19)  
+**Test Coverage**: 59.89% (Owner Console), 74%+ (Backend)  
+**Recent Activity**: 116 commits (2025-11-12 至 2025-11-21)  
 **Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
+
+**Recent PRs (Nov 18-21, 2025)**:
+- **PR #1350** (Merged): E2E Testing Infrastructure - 32 Playwright tests, route handler isolation, API mocking
+- **PR #1398** (Merged): Production Path Discovery - `MORNINGAI_REPO_PATH` env var, 4-layer fallback
+- **PR #1399** (Merged): Backend Test Environment - Python 3.12, Redis service, PyJWT conflict resolution
 
 ---
 
@@ -53,21 +58,23 @@ This document provides a comprehensive overview of the MorningAI project structu
 - **Documentation Files**: 50+
 - **GitHub Actions Workflows**: 15+
 - **Test Coverage**: 
-  - **Frontend**: 21% (P3 Phase 1-2 完成，目標 80%)
-  - **Backend**: 74%+ (超過目標)
-  - **Owner Console**: 59.89% lines, 45.76% branches (超過 30% 目標)
+  - **Owner Console**: 59.89% lines, 45.76% branches (32 E2E tests, 218 unit tests)
+  - **Backend**: 74%+ (超過目標，CI 環境已修復)
+  - **Target**: 80% by Q2 2026
 - **Active Branches**: `main` (production), `develop` (staging)
-- **Recent Activity**: 113 commits in past week (2025-11-12 至 2025-11-19)
+- **Recent Activity**: 116 commits in past 9 days (2025-11-12 至 2025-11-21)
+- **CI Status**: All workflows passing (backend.yml, test-apps.yml unified)
 
 ### Technology Stack
 
 **Backend**:
-- Python 3.12
+- Python 3.12 (unified across all CI workflows as of PR #1399)
 - Flask
 - SQLAlchemy
 - PostgreSQL (Supabase)
-- Redis (Upstash)
+- Redis (Upstash, with health checks in CI)
 - RQ (Redis Queue)
+- pytest + pytest-cov (74%+ coverage)
 
 **Frontend**:
 - React 19.1.0
@@ -75,6 +82,8 @@ This document provides a comprehensive overview of the MorningAI project structu
 - Vite 6
 - Tailwind CSS 4.1.7
 - Custom Design System
+- Playwright (E2E testing, 32 tests passing)
+- Vitest + React Testing Library (unit testing)
 
 **Infrastructure**:
 - Render (Backend hosting)
@@ -180,8 +189,9 @@ The following 18 production backend modules are located in the root directory as
 ```
 .github/
 ├── workflows/                 # CI/CD workflows
-│   ├── backend.yml           # Backend CI (pytest + coverage)
-│   ├── frontend.yml          # Frontend CI (build + lint)
+│   ├── backend.yml           # Backend CI (pytest + coverage, Python 3.12, Redis service)
+│   ├── test-apps.yml         # App Tests (API Backend, Orchestrator, Frontend - unified with backend.yml as of PR #1399)
+│   ├── frontend.yml          # Frontend CI (build + lint + E2E tests)
 │   ├── staging-deploy.yml    # Staging deployment
 │   ├── agent-mvp-e2e.yml     # Agent E2E tests
 │   ├── ops-agent-sandbox-e2e.yml  # Ops agent E2E tests
@@ -310,6 +320,12 @@ handoff/20250928/40_App/
 │
 ├── owner-console/        # Owner management console
 │   ├── src/             # Source code
+│   ├── e2e/             # E2E tests (Playwright, 32 tests - added PR #1350)
+│   │   ├── auth.setup.ts           # Authentication setup
+│   │   ├── agent-execution-logs.spec.ts  # 10 test cases
+│   │   ├── system-monitoring.spec.ts     # 8 test cases
+│   │   ├── trace-link-integration.spec.ts
+│   │   └── utils/fixtures.ts       # API mocking and test utilities
 │   ├── public/          # Static assets
 │   ├── package.json     # Node.js dependencies
 │   └── README.md        # Owner console documentation

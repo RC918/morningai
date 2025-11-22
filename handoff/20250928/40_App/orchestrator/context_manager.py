@@ -20,6 +20,53 @@ from typing import List, Tuple, Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+_tiktoken_encoder = None
+_tiktoken_available = False
+
+def _init_tiktoken():
+    """Initialize tiktoken encoder if enabled and available"""
+    global _tiktoken_encoder, _tiktoken_available
+    
+    if _tiktoken_available or _tiktoken_encoder is not None:
+        return
+    
+    try:
+        use_tiktoken = os.getenv('USE_TIKTOKEN_ESTIMATOR', 'false').lower() == 'true'
+        if not use_tiktoken:
+            return
+        
+        import tiktoken
+        _tiktoken_encoder = tiktoken.encoding_for_model("gpt-4")
+        _tiktoken_available = True
+        logger.info("[ContextManager] Tiktoken estimator initialized successfully")
+    except ImportError:
+        logger.warning("[ContextManager] Tiktoken not available, using heuristic estimation")
+    except Exception as e:
+        logger.warning(f"[ContextManager] Failed to initialize tiktoken: {e}, using heuristic")
+
+def _estimate_tokens(text: str) -> int:
+    """
+    Estimate token count for text using tiktoken or heuristic fallback
+    
+    Args:
+        text: Text to estimate tokens for
+        
+    Returns:
+        Estimated token count
+    """
+    if not text:
+        return 0
+    
+    _init_tiktoken()
+    
+    if _tiktoken_available and _tiktoken_encoder:
+        try:
+            return len(_tiktoken_encoder.encode(text))
+        except Exception as e:
+            logger.warning(f"[ContextManager] Tiktoken encoding failed: {e}, using heuristic")
+    
+    return max(1, len(text) // 4)
+
 STOPWORDS = {
     'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
     'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
@@ -254,7 +301,7 @@ def build_context_string(
                 snippet = content[:500].strip()
                 file_block = f"{file_header}Snippet:\n{snippet}...\n"
 
-            block_tokens = len(file_block) // 4
+            block_tokens = _estimate_tokens(file_block)
 
             if estimated_tokens + block_tokens > max_tokens:
                 break
