@@ -1,7 +1,7 @@
 # MorningAI Environment Architecture
 
-**Last Updated**: 2025-11-19  
-**Document Version**: 2.0  
+**Last Updated**: 2025-11-21  
+**Document Version**: 2.1  
 **Related Documents**: 
 - [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
 - [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
@@ -21,13 +21,16 @@
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
 
-**近一週重要更新** (2025-11-12 至 2025-11-19):
-- ✅ Phase 1 (B): LLM Planner 整合與 ContextManager 實作 (#1353)
-- ✅ Phase 2: Code Generation Workflow with Security Validation (#1347)
-- ✅ Phase 1.5: Agent Evaluation Monitoring Dashboard (#1337)
-- ✅ 測試覆蓋率提升: 3% → 21% (P3 Phase 1-2)
-- ✅ Owner Console E2E 測試完成 (#1345, #1348)
-- ✅ Lighthouse CI 設置文檔與 workflow_dispatch 觸發器 (#1346)
+**近期重要更新** (2025-11-18 至 2025-11-21):
+- ✅ **PR #1350**: E2E 測試基礎設施完成 - 32 Playwright 測試通過，route handler 隔離，完整 API mocking
+  - Path: `handoff/20250928/40_App/owner-console/e2e/`
+  - 測試改善: 11 passed → 32 passed (修復 21 個失敗測試)
+- ✅ **PR #1398**: 生產環境路徑發現機制 - 新增 `MORNINGAI_REPO_PATH` 環境變數
+  - Path: `handoff/20250928/40_App/orchestrator/context_manager.py`
+  - 4 層 fallback: env var → git detection → marker-based discovery
+- ✅ **PR #1399**: Backend 測試環境統一 - Python 3.12, Redis service, PyJWT 衝突解決
+  - Path: `.github/workflows/test-apps.yml`
+  - 統一 backend.yml 和 test-apps.yml 配置
 
 ---
 
@@ -120,12 +123,19 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 ### Environment Variables
 
 **Schema Definition**: `config/env.schema.yaml` (Single Source of Truth)
-- **Total Defined**: 121 variables (20 required, 101 optional)
-- **Schema Version**: 1.2 (Phase 1-2 + Feature Flags)
+- **Total Defined**: 122 variables (20 required, 102 optional)
+- **Schema Version**: 1.3 (Phase 1-2 + Feature Flags + Deployment)
 - **Auto-Generated**: `.env.example` is generated from schema via `scripts/generate-env-examples.py`
 - **CI Validation**: `tests/lint/test_env_vars_defined.py` validates all `os.getenv()` calls against schema
 - **Deprecation**: Root `env_schema.yaml` is deprecated; use `config/env.schema.yaml` only
 - **Path**: `/home/ubuntu/repos/morningai/config/env.schema.yaml`
+
+**Recent Additions (PR #1398)**:
+- **Deployment Category**: New category for deployment-specific variables
+  - `MORNINGAI_REPO_PATH`: Repository root path for production/staging
+    - Required in Render.com: `/opt/render/project/src`
+    - Falls back to git detection or marker-based discovery
+    - Replaces hardcoded `~/repos/morningai` path
 
 **Phase 1-2 New Variables** (Added 2025-11):
 - **2FA/Authentication**: 

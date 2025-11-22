@@ -308,8 +308,24 @@ vercel env add VITE_API_BASE_URL development
 - [Environment Variables Schema](/config/env.schema.yaml)
 - [Secret Rotation Policy](../security/SECRET_ROTATION_POLICY.md)
 
+## E2E Testing Environment Variables (Added PR #1350)
+
+For E2E testing with Playwright, the following variables are required in CI:
+
+| Variable | Description | Example Value | Required |
+|----------|-------------|---------------|----------|
+| `VITE_E2E` | Enable E2E testing mode | `true` | ✅ Yes (CI only) |
+| `VITE_API_BASE_URL` | Mock API endpoint | `/api` | ✅ Yes |
+| `VITE_USE_MOCK_AUTH` | Enable mock authentication | `true` | ✅ Yes |
+| `VITE_TRACE_VIEWER_URL` | Trace viewer URL (optional) | `http://localhost:9323` | ⚠️ Optional |
+
+**Security Note**: `VITE_E2E` enables localStorage token storage for testing. This should **never** be enabled in production deployments.
+
+**Path**: `handoff/20250928/40_App/owner-console/e2e/`
+**Tests**: 32 Playwright tests (agent-execution-logs, system-monitoring, trace-link-integration)
+
 ---
 
-**Last Updated**: 2025-11-04
+**Last Updated**: 2025-11-21
 **Owner**: CTO + DevOps Team
 **Status**: Active

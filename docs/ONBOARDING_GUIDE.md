@@ -37,16 +37,27 @@ MorningAI is an intelligent agent orchestration platform that automates software
 
 Building the world's most advanced autonomous AI agent orchestration platform that seamlessly integrates development, operations, and business intelligence with human-in-the-loop governance.
 
-### Current Status (Updated: 2025-11-16)
+### Current Status (Updated: 2025-11-21)
 
 - **Phase**: Phase 8 (v8.0.0) - MVP Foundation Complete
 - **Test Coverage**: 
-  - Owner Console: **59.89% lines, 45.76% branches** (as reported in CI on 2025-11-16; 218 tests passing)
-  - Backend: Pending (test environment fix required)
+  - Owner Console: **59.89% lines, 45.76% branches** (32 E2E tests passing, 218 unit tests)
+  - Backend: **74%+** (CI environment fixed, all tests passing)
   - Target: 80% by Q2 2026
 - **Uptime**: 90% (Target: 99.9% by Q2 2026)
 - **Transformation**: Q4 2025 - Q2 2026 (MVP to World-Class)
 - **Latest Roadmap**: [Strategic Roadmap Reality Comparison](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
+
+**Recent Improvements (Nov 18-21, 2025)**:
+- ✅ **PR #1350**: E2E Testing Infrastructure - Fixed 21 failing tests, implemented route handler isolation, added comprehensive API mocking
+  - Path: `handoff/20250928/40_App/owner-console/e2e/`
+  - Result: 32 E2E tests passing (11→32), 55/55 CI checks passing
+- ✅ **PR #1398**: Production Path Discovery - Replaced hardcoded repo path with 4-layer fallback mechanism
+  - Path: `handoff/20250928/40_App/orchestrator/context_manager.py`
+  - Added: `MORNINGAI_REPO_PATH` environment variable for production/staging
+- ✅ **PR #1399**: Backend Test Environment - Unified Python 3.12, added Redis service, fixed PyJWT conflicts
+  - Path: `.github/workflows/test-apps.yml`
+  - Result: Backend tests now consistent across all CI workflows
 
 ### Key Features
 
@@ -55,6 +66,8 @@ Building the world's most advanced autonomous AI agent orchestration platform th
 - ✅ **Secret Scanning**: Gitleaks + TruffleHog in CI, blocks PRs with secrets
 - ✅ **2FA**: Complete TOTP implementation with 10 components, enforced login
 - ✅ **Storybook**: Owner Console with MSW, dark mode, a11y checks
+- ✅ **E2E Testing**: 32 Playwright tests with route handler isolation and API mocking
+- ✅ **CI/CD**: Unified backend test environment (Python 3.12, Redis service, 74%+ coverage)
 
 **AI Agents (In Development):**
 - **Dev_Agent**: Automated bug fixing and PR creation (target: >85% success rate)
@@ -221,6 +234,12 @@ python scripts/verify_secret_inventory.py  # (Added in PR #1084)
 - ✅ Run `generate-env-examples.py` to propagate changes to all `.env.example` files
 - ✅ CI automatically checks for drift on every PR
 - ✅ See [Secret Rotation Policy](./SECRET_ROTATION_POLICY.md) for security operations
+
+**Recent Additions (PR #1398)**:
+- `MORNINGAI_REPO_PATH`: Repository root path for production/staging environments
+  - Required in Render.com deployments: `/opt/render/project/src`
+  - Falls back to git detection or marker-based discovery in development
+  - Path: `config/env.schema.yaml` (Deployment category)
 
 **Backend** (`handoff/20250928/40_App/api-backend/.env`):
 ```bash
