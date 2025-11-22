@@ -538,3 +538,27 @@ devDependencies:
 
 **Outcome**: ✅ SUCCESS - Issue #1433 resolved!
 
+
+---
+
+## 🧹 PR CLEANUP (Post-Spike)
+
+**Time**: 16:34 UTC
+
+**Issues Found**:
+1. ❌ TypeScript Strict Check failing - caused by lockfile changes (not the TDZ fix)
+2. ❌ Accidentally committed coverage artifacts (40+ files)
+3. ⚠️ Removed continue-on-error too early (pre-existing a11y issues remain)
+
+**Actions Taken**:
+1. ✅ Verified TypeScript Strict Check passes on main branch
+2. ✅ Restored pnpm-lock.yaml from main (no lockfile changes needed for fix)
+3. ✅ Restored package.json from main (no override changes needed)
+4. ✅ Re-added continue-on-error for owner-console Storybook tests
+5. ✅ Removed 40+ coverage artifact files from git
+6. ✅ Added artifacts to .gitignore
+
+**Key Learning**: The TDZ fix ONLY requires changes to `.storybook/main.ts`. No lockfile or package.json changes needed.
+
+**Next**: Local testing to verify fix works correctly
+
