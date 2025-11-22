@@ -112,8 +112,12 @@ suggest_fix() {
 should_scan_file() {
   local file=$1
   
-  if [ "$DIFF_ONLY" != "true" ] || [ -z "$CHANGED_FILES" ]; then
+  if [ "$DIFF_ONLY" != "true" ]; then
     return 0
+  fi
+  
+  if [ -z "$CHANGED_FILES" ]; then
+    return 1
   fi
   
   grep -Fxq "$file" "$CHANGED_FILES_LIST" 2>/dev/null
