@@ -33,22 +33,26 @@ const config: StorybookConfig = {
 
     return mergeConfig(config, {
       plugins: filteredPlugins,
-      optimizeDeps: {
-        include: [
-          'react',
-          'react-dom',
-          '@storybook/react',
-        ],
-      },
+      // optimizeDeps: {
+      //   include: [
+      //     'react',
+      //     'react-dom',
+      //     '@storybook/react',
+      //   ],
+      // },
       build: {
-        rollupOptions: {
-          output: {
-            manualChunks: {
-              'react-vendor': ['react', 'react-dom'],
-              'storybook-vendor': ['@storybook/react'],
-            },
-          },
-        },
+        minify: false, // Disable minification to prevent TDZ
+        // rollupOptions: {
+        //   output: {
+        //     manualChunks: {
+        //       'react-vendor': ['react', 'react-dom'],
+        //       'storybook-vendor': ['@storybook/react'],
+        //     },
+        //   },
+        // },
+      },
+      esbuild: {
+        target: 'es2020', // More conservative target
       },
     });
   },
