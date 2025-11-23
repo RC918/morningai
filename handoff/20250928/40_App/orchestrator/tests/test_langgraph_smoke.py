@@ -76,7 +76,7 @@ class TestPlannerNode:
         assert result["current_step"] == 0
         assert len(result["messages"]) > 0
 
-    @patch('orchestrator.langgraph_orchestrator.generate_llm_plan')
+    @patch('llm_planner_adapter.generate_llm_plan')
     @patch('common.config.settings.settings')
     def test_planner_node_llm_mode(self, mock_settings, mock_generate_plan):
         """Test planner node uses LLM planner when enabled"""

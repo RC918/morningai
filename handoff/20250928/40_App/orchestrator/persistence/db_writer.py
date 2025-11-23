@@ -9,11 +9,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 from .db_client import get_client
-import sys
-import os
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from exceptions import (
+from orchestrator.exceptions import (
     DatabaseConnectionError,
     DatabaseWriteError,
     DatabaseReadError,
