@@ -79,7 +79,7 @@
 - [ ] 如使用設計 tokens，我已從 `@morningai/shared-ui` 匯入而非硬編碼
 - [ ] 不適用 - 此 PR 不包含 UI 元件變更
 
-### Shared-UI Import 合規性（強制 - Stage 2: 阻擋模式）
+### Shared-UI Import 合規性（強制 - Stage 3: 完全強制執行）
 
 <!-- ⚠️ 此檢查現在會阻擋 PR 合併。違規的 PR 無法合併，直到問題解決。 -->
 
