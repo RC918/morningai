@@ -240,8 +240,132 @@ redis-cli INFO server | grep redis_version
 - [Redis 配置測試](../handoff/20250928/40_App/api-backend/tests/test_redis_config.py)
 - [Redis 安全檢查測試](../handoff/20250928/40_App/api-backend/tests/test_redis_security.py)
 
+## Redis 映射清理（Mapping Sanitization）
+
+**Added**: 2025-11-23 (PR #1452)  
+**Path**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+
+### 問題描述
+
+Redis `hset()` 命令在傳遞 None 值時會引發錯誤：
+
+```python
+redis.exceptions.DataError: Invalid input of type: 'NoneType'. 
+Convert to a bytes, string, int or float first.
+```
+
+這個問題在以下場景中可能發生：
+- Worker 心跳更新（`worker:heartbeat:{ID}`）
+- 任務狀態更新
+- 任何使用字典批量寫入 Redis 的操作
+
+### 解決方案
+
+Worker 現在在所有 Redis 寫入操作前自動清理映射，過濾掉所有 None 值。
+
+**實現位置**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+
+```python
+def sanitize_redis_mapping(mapping: dict) -> dict:
+    """
+    Remove None values from dict before Redis hset.
+    
+    Redis hset() raises DataError when passed None values.
+    This function filters them out to prevent crashes.
+    
+    Args:
+        mapping: Dictionary that may contain None values
+        
+    Returns:
+        Dictionary with all None values removed
+    """
+    return {k: v for k, v in mapping.items() if v is not None}
+```
+
+### 使用範例
+
+```python
+# Worker 心跳更新
+heartbeat_data = {
+    "worker_id": worker_id,
+    "timestamp": datetime.now().isoformat(),
+    "status": "active",
+    "current_task": None,  # 可能為 None
+    "queue": queue_name
+}
+
+# 清理後再寫入 Redis
+sanitized_data = sanitize_redis_mapping(heartbeat_data)
+redis_client.hset(f"worker:heartbeat:{worker_id}", mapping=sanitized_data)
+```
+
+### 影響範圍
+
+此修復影響以下 Redis 操作：
+1. **Worker 心跳更新** - 每 30 秒更新一次，確保 worker 活性監控正常
+2. **任務狀態更新** - 任務執行過程中的狀態變更
+3. **所有使用 `hset(mapping=...)` 的操作** - 防止 None 值導致的崩潰
+
+### 測試
+
+**測試文件**: `handoff/20250928/40_App/orchestrator/tests/test_redis_sanitization.py`
+
+```python
+def test_sanitize_redis_mapping():
+    """Test that None values are filtered out"""
+    input_data = {
+        "key1": "value1",
+        "key2": None,
+        "key3": 123,
+        "key4": None
+    }
+    
+    result = sanitize_redis_mapping(input_data)
+    
+    assert "key1" in result
+    assert "key2" not in result
+    assert "key3" in result
+    assert "key4" not in result
+    assert result == {"key1": "value1", "key3": 123}
+```
+
+### 驗證
+
+檢查 Worker 心跳是否正常更新：
+
+```bash
+# 檢查 Worker 心跳鍵
+redis-cli HGETALL "worker:heartbeat:${WORKER_ID}"
+
+# 預期輸出（不應包含 None 值）
+1) "worker_id"
+2) "worker-123"
+3) "timestamp"
+4) "2025-11-23T07:00:00"
+5) "status"
+6) "active"
+7) "queue"
+8) "orchestrator"
+```
+
+### 最佳實踐
+
+1. **始終使用 `sanitize_redis_mapping()`** - 在任何使用 `hset(mapping=...)` 的地方
+2. **處理 None 值** - 在業務邏輯層決定如何處理 None（過濾或使用默認值）
+3. **記錄警告** - 如果過濾掉的 None 值可能表示數據問題，記錄警告日誌
+
+### 相關問題
+
+- **Issue**: Worker 心跳監控偶爾失敗
+- **根本原因**: 當 `current_task` 為 None 時，Redis `hset()` 拋出 DataError
+- **修復**: PR #1452 新增自動映射清理
+- **狀態**: ✅ 已修復（2025-11-23）
+
+---
+
 ## 更新歷史
 
+- **2025-11-23**: 新增 Redis 映射清理章節（PR #1452）
 - **2025-10-24**: 初版發布，針對 CVE-2025-49844 防護
 - **2025-10-24**: 新增安全檢查功能 `check_redis_security()`
 - **2025-10-24**: 更新 Redis 客戶端版本要求

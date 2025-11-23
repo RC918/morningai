@@ -1,6 +1,6 @@
 # Monitoring Dashboard Troubleshooting Guide
 
-**Last Updated**: 2025-11-04  
+**Last Updated**: 2025-11-23  
 **Applies To**: Monitoring Dashboard v2 (`/api/phase7/monitoring/dashboard`)
 
 ---
@@ -407,7 +407,7 @@ For additional support:
 
 ---
 
-## Recent Updates (Nov 18-21, 2025)
+## Recent Updates (Nov 18-23, 2025)
 
 ### PR #1350: E2E Testing Infrastructure
 - **Path**: `handoff/20250928/40_App/owner-console/e2e/`
@@ -427,8 +427,83 @@ For additional support:
 - **Result**: Unified backend.yml and test-apps.yml configurations
 - **CI**: 33/33 checks passing
 
+### PR #1452: Redis Mapping Sanitization (Nov 23)
+- **Path**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+- **Issue**: Redis NoneType DataError in worker heartbeat updates
+- **Fix**: Added `sanitize_redis_mapping()` function to filter None values
+- **Impact**: Improved worker heartbeat and task status update stability
+
+---
+
+## Redis NoneType DataError Troubleshooting
+
+**Added**: 2025-11-23 (PR #1452)
+
+### Symptom
+
+Worker crashes or heartbeat failures with error:
+
+```python
+redis.exceptions.DataError: Invalid input of type: 'NoneType'. 
+Convert to a bytes, string, int or float first.
+```
+
+### Root Cause
+
+Redis `hset()` command does not accept None values. This occurs when:
+- Worker heartbeat data contains `current_task: None`
+- Task status updates include optional fields set to None
+- Any dictionary with None values is passed to `hset(mapping=...)`
+
+### Solution (Implemented)
+
+Worker now automatically sanitizes all Redis mappings before writing:
+
+**Function**: `sanitize_redis_mapping()` in `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+
+```python
+def sanitize_redis_mapping(mapping: dict) -> dict:
+    """Remove None values from dict before Redis hset"""
+    return {k: v for k, v in mapping.items() if v is not None}
+```
+
+### Verification
+
+Check if worker heartbeat is updating correctly:
+
+```bash
+# Connect to Redis
+redis-cli -u $REDIS_URL
+
+# Check worker heartbeat (replace {WORKER_ID} with actual ID)
+HGETALL worker:heartbeat:{WORKER_ID}
+
+# Expected output (no None values):
+1) "worker_id"
+2) "worker-123"
+3) "timestamp"
+4) "2025-11-23T07:00:00"
+5) "status"
+6) "active"
+7) "queue"
+8) "orchestrator"
+```
+
+### Prevention
+
+When adding new Redis write operations:
+1. Always use `sanitize_redis_mapping()` before `hset(mapping=...)`
+2. Handle None values at business logic layer (filter or use defaults)
+3. Add tests for None value scenarios
+
+### Related Documentation
+
+- **[REDIS_SECURITY.md](../REDIS_SECURITY.md)** - Redis Mapping Sanitization section
+- **Worker Implementation**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+- **Tests**: `handoff/20250928/40_App/orchestrator/tests/test_redis_sanitization.py`
+
 ---
 
 **Maintained By**: CTO / DevOps Team  
-**Version**: 1.1.0  
-**Last Updated**: 2025-11-21
+**Version**: 1.2.0  
+**Last Updated**: 2025-11-23
