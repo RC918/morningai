@@ -1,85 +1,93 @@
-# Fix Authentication Timeout Issue
+# Extracting Duplicate API Client Code into a Shared Utility
 
-When working with MorningAI, you might encounter issues related to authentication timeouts. This can manifest as failed login attempts, session expirations, or errors when trying to access resources that require authentication. This guide aims to help developers understand and resolve authentication timeout issues effectively.
+When working with the MorningAI platform, it's common to interact with various APIs across different components of the application. Over time, developers might find themselves writing similar or duplicate code for making API requests in multiple places. To maintain code efficiency, readability, and ease of maintenance, it's advisable to extract this duplicate API client code into a shared utility module.
 
-## Understanding the Issue
+## Explanation
 
-Authentication timeout issues occur when the authentication token or session expires before the user has finished their task. In a multi-tenant SaaS platform like MorningAI, timely and secure authentication is crucial for maintaining the integrity and confidentiality of each tenant's data.
+Creating a shared API utility involves identifying the common patterns or functionalities used across different API calls (such as setting headers, handling responses, and error catching) and abstracting these into reusable functions or classes. This not only reduces duplication but also centralizes API interaction logic, making it easier to implement changes across the board.
 
-MorningAI utilizes token-based authentication, where each token has a predefined lifetime. Once this lifetime expires, the token is no longer valid, and the user must re-authenticate to obtain a new token.
+### Benefits
 
-## How to Fix
+- **Maintainability**: Centralizing API call logic makes it easier to update or fix issues in one location.
+- **Consistency**: Ensures consistent handling of API requests and responses throughout the application.
+- **Efficiency**: Reduces code bloat and helps in keeping the application lightweight.
 
-### 1. Adjust Token Lifetime
+## Implementation
 
-If you find that tokens are expiring too quickly for your use case, you can adjust the token lifetime in the backend configuration. This is done in the Flask app settings:
+Below is an example of how you might extract duplicate API client code into a shared utility using Python Flask, which is part of the backend stack for MorningAI.
 
-```python
-# File path: /backend/config.py
+### Step 1: Create a Shared API Client Module
 
-# Increase token expiration time (example: 2 hours)
-JWT_ACCESS_TOKEN_EXPIRES = 7200  # Time in seconds
-```
-
-Remember, increasing token lifetime can have security implications, so choose a value that balances convenience and security.
-
-### 2. Implement Token Refresh Mechanism
-
-For a more robust solution, implement a token refresh mechanism. This allows tokens to be renewed without requiring users to manually re-authenticate.
+First, create a new Python module for your API client. This could be located in `RC918/morningai/backend/utils/api_client.py`.
 
 ```python
-from flask_jwt_extended import (
-    create_access_token,
-    set_access_cookies,
-    create_refresh_token,
-    set_refresh_cookies,
-)
+# backend/utils/api_client.py
 
-# Example function to create new access and refresh tokens
-def generate_new_tokens(user_id):
-    access_token = create_access_token(identity=user_id)
-    refresh_token = create_refresh_token(identity=user_id)
-    # Set tokens as HTTPOnly cookies etc.
-    # Ensure proper handling of these tokens in your front-end application
+import requests
+from flask import current_app as app
+
+class APIClient:
+    def __init__(self):
+        self.base_url = app.config["API_BASE_URL"]
+        self.headers = {"Content-Type": "application/json"}
+
+    def get(self, endpoint):
+        response = requests.get(f"{self.base_url}/{endpoint}", headers=self.headers)
+        return response.json()
+
+    def post(self, endpoint, data):
+        response = requests.post(f"{self.base_url}/{endpoint}", json=data, headers=self.headers)
+        return response.json()
+
+# Usage example
+api_client = APIClient()
+response = api_client.get("data/endpoint")
 ```
 
-Refer to Flask-JWT-Extended documentation for more details on implementing token refresh: [Flask-JWT-Extended](https://flask-jwt-extended.readthedocs.io/en/stable/refreshing_tokens/)
+### Step 2: Refactor Existing Code to Use the Shared Client
 
-### 3. Frontend Token Renewal
+Next, replace existing duplicated API call implementations with calls to your new `APIClient` class.
 
-Ensure your frontend application listens for authentication failures due to expired tokens and automatically requests new tokens using the refresh mechanism.
+**Before:**
 
-```javascript
-// Example with Axios interceptor
-axios.interceptors.response.use(response => {
-  return response;
-}, error => {
-  if (error.response.status === 401) {
-    // Call endpoint to refresh token, then retry original request
-  }
-});
+```python
+# Directly using requests in multiple files
+import requests
+
+response = requests.get("https://api.example.com/data/endpoint", headers={"Content-Type": "application/json"})
+data = response.json()
 ```
 
-## Troubleshooting Tips
+**After:**
 
-- **Check Token Expiry Settings**: Verify the token expiry time in your backend configuration matches your application needs.
-- **Monitor Network Requests**: Use browser developer tools or network monitoring tools to inspect authentication requests and responses. Look for status codes related to authentication (e.g., 401 Unauthorized).
-- **Review Backend Logs**: Check your backend logs for any errors or warnings related to authentication or token handling.
-- **Update Dependencies**: Ensure all related dependencies (e.g., Flask-JWT-Extended) are up-to-date as updates may contain important fixes or improvements related to authentication handling.
+```python
+# Using the shared APIClient utility
+from backend.utils.api_client import APIClient
 
-For more detailed information on configuring and troubleshooting MorningAI's authentication system, refer to our official documentation:
+api_client = APIClient()
+data = api_client.get("data/endpoint")
+```
 
-- [MorningAI Authentication System](https://morningai.example.com/docs/authentication)
-- [Flask Configuration Handling](https://flask.palletsprojects.com/en/latest/config/)
+### Related Documentation Links
+
+- Requests library documentation: [https://requests.readthedocs.io](https://requests.readthedocs.io)
+- Flask documentation: [https://flask.palletsprojects.com](https://flask.palletsprojects.com)
+
+## Common Troubleshooting Tips
+
+- **Module Not Found**: Ensure that your `api_client.py` file is correctly placed within the project structure and that you're using correct import paths.
+- **Configuration Errors**: Verify that `API_BASE_URL` and any other configuration used by `APIClient` are correctly set in your Flask application's config.
+- **HTTP Request Issues**: Use tools like Postman or curl to manually test the API endpoints if you're having trouble getting expected responses through your APIClient utility.
+
+Refactoring your MorningAI application to utilize a shared API client can significantly improve its maintainability and scalability. By following these guidelines and utilizing the provided code examples, developers can ensure consistent and efficient communication with APIs across their project.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Extract duplicate API client code into shared utility
+- Trace ID: `task-003`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
