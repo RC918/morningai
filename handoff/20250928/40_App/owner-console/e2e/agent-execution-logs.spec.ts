@@ -232,7 +232,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await expect(pageIndicator).toHaveAttribute('data-current', '1')
     await expect(pageIndicator).toHaveAttribute('data-total', '2')
     
-    const pageText1 = await pageIndicator.textContent()
+    const pageText1 = (await pageIndicator.textContent()) ?? ''
     expect(pageText1).toContain('1')
     expect(pageText1).toContain('2')
     
@@ -244,7 +244,7 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     
     // Verify we're on page 2 (locale-agnostic)
     await expect(pageIndicator).toHaveAttribute('data-current', '2')
-    const pageText2 = await pageIndicator.textContent()
+    const pageText2 = (await pageIndicator.textContent()) ?? ''
     expect(pageText2).toContain('2')
   })
 
