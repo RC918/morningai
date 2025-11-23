@@ -867,6 +867,12 @@ class Settings(BaseSettings):
         description="Allow idempotency tests to run"
     )
 
+    enable_orchestrator: bool = Field(
+        default=True,
+        alias="ENABLE_ORCHESTRATOR",
+        description="Enable orchestrator/agent routes (set to false in CI/E2E to bypass Redis/TLS dependencies)"
+    )
+
     feature_cookie_auth: bool = Field(
         default=False,
         alias="FEATURE_COOKIE_AUTH",
@@ -1177,6 +1183,7 @@ class Settings(BaseSettings):
 
 _settings_instance = None
 
+
 def get_settings() -> Settings:
     """
     Get or create the global settings instance.
@@ -1197,6 +1204,7 @@ def get_settings() -> Settings:
             _settings_instance.log_deprecation_warnings()
 
     return _settings_instance
+
 
 def reload_settings() -> Settings:
     """
@@ -1220,6 +1228,7 @@ def reload_settings() -> Settings:
     _settings_instance = None
     return get_settings()
 
+
 class _SettingsProxy:
     """Proxy object that lazily instantiates Settings on first access"""
     def __getattr__(self, name):
@@ -1227,6 +1236,7 @@ class _SettingsProxy:
 
 
 settings = _SettingsProxy()
+
 
 def getenv(name: str, default: str = None) -> str:
     """
