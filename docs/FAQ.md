@@ -1,80 +1,85 @@
-# Production Canary Test #6 - Verify Fixes
+# Fix Authentication Timeout Issue
 
-## Overview
+When working with MorningAI, you might encounter issues related to authentication timeouts. This can manifest as failed login attempts, session expirations, or errors when trying to access resources that require authentication. This guide aims to help developers understand and resolve authentication timeout issues effectively.
 
-This FAQ entry is dedicated to guiding developers through the process of verifying fixes in the context of Production Canary Test #6, conducted on November 22, 2025. Canary testing is a method used to minimize the risk by slowly rolling out changes to a small subset of users before making them available to everybody. This specific test focuses on verifying the effectiveness and stability of recent fixes applied to the MorningAI platform.
+## Understanding the Issue
 
-## Verification Process
+Authentication timeout issues occur when the authentication token or session expires before the user has finished their task. In a multi-tenant SaaS platform like MorningAI, timely and secure authentication is crucial for maintaining the integrity and confidentiality of each tenant's data.
 
-To ensure comprehensive verification, follow these steps:
+MorningAI utilizes token-based authentication, where each token has a predefined lifetime. Once this lifetime expires, the token is no longer valid, and the user must re-authenticate to obtain a new token.
 
-### Step 1: Update Your Local Repository
+## How to Fix
 
-Ensure your local copy of the RC918/morningai repository is up-to-date with the main branch.
+### 1. Adjust Token Lifetime
 
-```bash
-git checkout main
-git pull origin main
-```
-
-### Step 2: Deploy Canary Environment
-
-Deploy the canary environment using your preferred CI/CD tool. If you're using Render.com, as in our project setup, configure your project to deploy from a specific canary branch.
-
-```plaintext
-# Example Render.com configuration snippet
-services:
-  - type: web
-    name: morningai-canary
-    env: python
-    branch: canary
-    buildCommand: pip install -r requirements.txt && npm run build
-    startCommand: gunicorn -w 4 "app:create_app()"
-```
-
-Replace `"canary"` with the actual branch name if it differs.
-
-### Step 3: Monitor Performance and Errors
-
-After deployment, monitor the application's performance and error logs closely. Use tools integrated with MorningAI, like Sentry for error tracking and Prometheus for performance monitoring.
-
-### Step 4: Validate Fixes
-
-Confirm that the fixes have been successfully applied by executing relevant test cases or scripts. For code generation improvements, you might use:
+If you find that tokens are expiring too quickly for your use case, you can adjust the token lifetime in the backend configuration. This is done in the Flask app settings:
 
 ```python
-from morningai.codegen import generate_code
+# File path: /backend/config.py
 
-# Example test case for a fix verification
-result = generate_code("Example input")
-assert expected_output == result, "The fix for code generation did not work as expected."
+# Increase token expiration time (example: 2 hours)
+JWT_ACCESS_TOKEN_EXPIRES = 7200  # Time in seconds
 ```
 
-For UI fixes, manual testing or automated UI tests should be conducted to ensure everything works as intended.
+Remember, increasing token lifetime can have security implications, so choose a value that balances convenience and security.
 
-### Related Documentation Links
+### 2. Implement Token Refresh Mechanism
 
-- [Git Workflow](https://git-scm.com/docs/git-workflow)
-- [Render.com Deployment](https://render.com/docs/deployments)
-- [Sentry Documentation](https://docs.sentry.io/)
-- [Prometheus Monitoring](https://prometheus.io/docs/introduction/overview/)
+For a more robust solution, implement a token refresh mechanism. This allows tokens to be renewed without requiring users to manually re-authenticate.
 
-## Common Troubleshooting Tips
+```python
+from flask_jwt_extended import (
+    create_access_token,
+    set_access_cookies,
+    create_refresh_token,
+    set_refresh_cookies,
+)
 
-- **Deployment Fails**: Check the `buildCommand` and `startCommand` in your configuration. Ensure all dependencies are correctly specified.
-- **Errors Not Captured**: Verify Sentry integration is correctly set up in Flask's app configuration.
-- **Performance Degradation**: Use Prometheus metrics to identify bottlenecks. Review recent changes for any inefficient code patterns.
-- **Test Assertions Fail**: Revisit the expected outcomes of your test cases. Ensure they align with the recent fixes.
+# Example function to create new access and refresh tokens
+def generate_new_tokens(user_id):
+    access_token = create_access_token(identity=user_id)
+    refresh_token = create_refresh_token(identity=user_id)
+    # Set tokens as HTTPOnly cookies etc.
+    # Ensure proper handling of these tokens in your front-end application
+```
 
-Remember, canary testing is crucial for identifying issues early in production. By carefully following these steps, developers can effectively verify fixes and contribute to maintaining MorningAI's reliability and performance.
+Refer to Flask-JWT-Extended documentation for more details on implementing token refresh: [Flask-JWT-Extended](https://flask-jwt-extended.readthedocs.io/en/stable/refreshing_tokens/)
+
+### 3. Frontend Token Renewal
+
+Ensure your frontend application listens for authentication failures due to expired tokens and automatically requests new tokens using the refresh mechanism.
+
+```javascript
+// Example with Axios interceptor
+axios.interceptors.response.use(response => {
+  return response;
+}, error => {
+  if (error.response.status === 401) {
+    // Call endpoint to refresh token, then retry original request
+  }
+});
+```
+
+## Troubleshooting Tips
+
+- **Check Token Expiry Settings**: Verify the token expiry time in your backend configuration matches your application needs.
+- **Monitor Network Requests**: Use browser developer tools or network monitoring tools to inspect authentication requests and responses. Look for status codes related to authentication (e.g., 401 Unauthorized).
+- **Review Backend Logs**: Check your backend logs for any errors or warnings related to authentication or token handling.
+- **Update Dependencies**: Ensure all related dependencies (e.g., Flask-JWT-Extended) are up-to-date as updates may contain important fixes or improvements related to authentication handling.
+
+For more detailed information on configuring and troubleshooting MorningAI's authentication system, refer to our official documentation:
+
+- [MorningAI Authentication System](https://morningai.example.com/docs/authentication)
+- [Flask Configuration Handling](https://flask.palletsprojects.com/en/latest/config/)
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Production canary test #6 - verify fixes - 2025-11-22T15:37:35.234837
-- Trace ID: `d9712a0d-ccc3-40c8-84d9-61416df8f08b`
+- Task: Fix authentication timeout issue
+- Trace ID: `task-001`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
