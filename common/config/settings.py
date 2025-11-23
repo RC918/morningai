@@ -44,7 +44,6 @@ class Settings(BaseSettings):
         populate_by_name=True,  # Allow both field name and alias
     )
 
-
     jwt_secret_key_secret: Optional[SecretStr] = Field(
         None,
         alias="JWT_SECRET_KEY",
@@ -56,6 +55,18 @@ class Settings(BaseSettings):
     def jwt_secret_key(self) -> Optional[str]:
         """JWT secret key (unwrapped from SecretStr)"""
         return self.jwt_secret_key_secret.get_secret_value() if self.jwt_secret_key_secret else None
+
+    access_token_expiry_minutes: int = Field(
+        default=15,
+        alias="ACCESS_TOKEN_EXPIRY_MINUTES",
+        description="JWT access token expiry time in minutes (CI/E2E can override to 60)"
+    )
+
+    log_token_expiry_on_startup: bool = Field(
+        default=False,
+        alias="LOG_TOKEN_EXPIRY_ON_STARTUP",
+        description="Enable debug logging of JWT token expiry configuration on startup"
+    )
 
     admin_password_secret: Optional[SecretStr] = Field(
         None,
@@ -83,7 +94,7 @@ class Settings(BaseSettings):
 
     flask_secret_key_secret: Optional[SecretStr] = Field(
         None,
-        alias="SECRET_KEY",
+        alias="FLASK_SECRET_KEY",
         description="Flask application secret key for sessions",
         repr=False
     )
@@ -107,7 +118,7 @@ class Settings(BaseSettings):
 
     encryption_master_key_secret: Optional[SecretStr] = Field(
         None,
-        alias="MASTER_KEY",
+        alias="ENCRYPTION_MASTER_KEY",
         description="Master encryption key for sensitive data",
         repr=False
     )
@@ -143,11 +154,13 @@ class Settings(BaseSettings):
 
     cookie_secure: bool = Field(
         default=True,
+        alias="COOKIE_SECURE",
         description="Enable Secure flag on authentication cookies (HTTPS-only)"
     )
 
     cookie_samesite: Literal["Strict", "Lax", "None"] = Field(
         default="Lax",
+        alias="COOKIE_SAMESITE",
         description="SameSite attribute for authentication cookies"
     )
 
@@ -178,6 +191,7 @@ class Settings(BaseSettings):
 
     memory_table: str = Field(
         default="memory",
+        alias="MEMORY_TABLE",
         description="Supabase memory table name for vector storage"
     )
 
@@ -195,11 +209,13 @@ class Settings(BaseSettings):
 
     redis_key_prefix: str = Field(
         default="morningai",
+        alias="REDIS_KEY_PREFIX",
         description="Redis key prefix for namespacing"
     )
 
     db_pool_max: int = Field(
         default=10,
+        alias="DB_POOL_MAX",
         description="Maximum database connection pool size"
     )
 
@@ -365,6 +381,7 @@ class Settings(BaseSettings):
 
     sentry_dsn: Optional[str] = Field(
         None,
+        alias="SENTRY_DSN",
         description="Sentry DSN for error tracking"
     )
 
@@ -382,6 +399,7 @@ class Settings(BaseSettings):
 
     sentry_environment: str = Field(
         default="production",
+        alias="SENTRY_ENVIRONMENT",
         description="Sentry environment name"
     )
 
@@ -569,6 +587,7 @@ class Settings(BaseSettings):
 
     port: int = Field(
         default=5000,
+        alias="PORT",
         description="Application server port"
     )
 
@@ -644,11 +663,13 @@ class Settings(BaseSettings):
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
+        alias="LOG_LEVEL",
         description="Application logging level"
     )
 
     debug: bool = Field(
         default=False,
+        alias="DEBUG",
         description="Enable debug mode (verbose logging)"
     )
 
@@ -721,6 +742,7 @@ class Settings(BaseSettings):
 
     feature_2fa_enabled: bool = Field(
         default=True,
+        alias="FEATURE_2FA_ENABLED",
         description="Enable Two-Factor Authentication (2FA/TOTP) feature"
     )
 
@@ -732,16 +754,19 @@ class Settings(BaseSettings):
 
     feature_2fa_preauth: bool = Field(
         default=False,
+        alias="FEATURE_2FA_PREAUTH",
         description="Enable Pre-Auth Token for 2FA (Week 1 - reduces password transmission)"
     )
 
     preauth_token_ttl: int = Field(
         default=300,
+        alias="PREAUTH_TOKEN_TTL",
         description="Pre-Auth Token TTL in seconds (5 minutes default)"
     )
 
     enable_mock_users: bool = Field(
         default=False,
+        alias="ENABLE_MOCK_USERS",
         description="Enable mock users for development/testing"
     )
 
@@ -833,7 +858,7 @@ class Settings(BaseSettings):
 
     stripe_webhook_secret_key_secret: Optional[SecretStr] = Field(
         None,
-        alias="STRIPE_WEBHOOK_SECRET",
+        alias="STRIPE_WEBHOOK_SECRET_KEY",
         description="Stripe webhook secret key",
         repr=False
     )
@@ -874,6 +899,18 @@ class Settings(BaseSettings):
         description="Enable testing mode"
     )
 
+    rls_tests_allowed: bool = Field(
+        default=False,
+        alias="RLS_TESTS_ALLOWED",
+        description="Enable RLS (Row Level Security) tests with real user JWTs (MUST be true to run RLS tests)"
+    )
+
+    test_supabase_url: Optional[str] = Field(
+        None,
+        alias="TEST_SUPABASE_URL",
+        description="Supabase URL for testing environment validation"
+    )
+
     run_py_browser_e2e: bool = Field(
         default=False,
         alias="RUN_PY_BROWSER_E2E",
@@ -882,11 +919,13 @@ class Settings(BaseSettings):
 
     staging_api_url: Optional[str] = Field(
         None,
+        alias="STAGING_API_URL",
         description="Staging environment API URL"
     )
 
     staging_test_email: Optional[str] = Field(
         None,
+        alias="STAGING_TEST_EMAIL",
         description="Test user email for staging environment"
     )
 
