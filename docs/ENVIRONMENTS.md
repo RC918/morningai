@@ -222,17 +222,25 @@ RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (expo
 **Logging Configuration**:
 ```bash
 # Application logging level (case-insensitive, normalized to uppercase)
+# Used by: Python logging configuration (common/config/settings.py)
 LOG_LEVEL=INFO                          # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
                                         # Supports any case: info/INFO/Info all work
 
 # Gunicorn logging level (case-insensitive, normalized to lowercase)
+# Used by: Gunicorn configuration (gunicorn.conf.py)
 GUNICORN_LOG_LEVEL=info                 # Options: debug, info, warning, error, critical
                                         # Supports any case: INFO/info/Info all work
 
 # Note: As of PR #1499, both LOG_LEVEL and GUNICORN_LOG_LEVEL support case-insensitive
 # input. The validators automatically normalize to the correct case before validation.
 # This prevents ValidationError when environment variables use different casing.
+# See config/env.schema.yaml for default values and allowed choices.
 ```
+
+**Troubleshooting**:
+- If you provide an invalid value (not in the list above), the application will fail to start with a Pydantic `ValidationError` on the `log_level` or `gunicorn_log_level` field.
+- Check startup logs for details and update the environment variable to one of the supported values.
+- Example error: `ValidationError: 1 validation error for Settings log_level Input should be 'DEBUG', 'INFO', 'WARNING', 'ERROR' or 'CRITICAL'`
 
 ---
 
