@@ -232,14 +232,20 @@ test.describe('AgentExecutionLogs E2E Tests', () => {
     await expect(pageIndicator).toHaveAttribute('data-current', '1')
     await expect(pageIndicator).toHaveAttribute('data-total', '2')
     
+    const pageText1 = (await pageIndicator.textContent()) ?? ''
+    expect(pageText1).toContain('1')
+    expect(pageText1).toContain('2')
+    
     const nextButton = page.getByTestId('pagination-next')
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/admin/agent-execution-logs') && r.url().includes('page=2') && r.status() === 200),
       nextButton.click()
     ])
     
-    // Verify we're on page 2
+    // Verify we're on page 2 (locale-agnostic)
     await expect(pageIndicator).toHaveAttribute('data-current', '2')
+    const pageText2 = (await pageIndicator.textContent()) ?? ''
+    expect(pageText2).toContain('2')
   })
 
   test('7. should display trace links when TRACE_VIEWER_URL is set', async ({ page }) => {

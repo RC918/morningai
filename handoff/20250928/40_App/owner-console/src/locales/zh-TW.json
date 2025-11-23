@@ -160,6 +160,7 @@
         "updatedAt": "更新時間"
       },
       "pagination": {
+        "label": "分頁導航",
         "showing": "顯示 {{start}}-{{end}} / 共 {{total}} 筆",
         "page": "第 {{current}} 頁 / 共 {{total}} 頁",
         "previous": "上一頁",
