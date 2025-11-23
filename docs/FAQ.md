@@ -1,83 +1,76 @@
-# Adding E2E Tests for Complete Agent Execution Flow in MorningAI
+# 如何重設密碼？
 
-End-to-End (E2E) testing is critical for ensuring the comprehensive performance and reliability of the MorningAI platform, especially for validating the autonomous agent execution flow. This guide provides an overview of how to add E2E tests within the MorningAI repository, specifically focusing on the complete agent execution flow.
+在MorningAI平台上重設密碼是一個簡單的過程，旨在幫助用戶快速恢復對其帳戶的訪問。無論是忘記密碼還是出於安全考慮需要定期更換密碼，以下步驟和代碼示例將指導您完成這一過程。
 
-## Understanding the Agent Execution Flow
+## 1. 重設密碼流程
 
-The agent execution flow in MorningAI involves multiple components, including code generation, multi-platform integration, real-time task orchestration, and vector memory storage. An E2E test should validate that these components work together seamlessly from start to finish.
-
-## Setting Up Your Testing Environment
-
-Before adding E2E tests, ensure your local development environment is correctly set up:
-
-1. Clone the repository: `git clone https://github.com/RC918/morningai.git`
-2. Install dependencies: Navigate to the root directory and run `npm install` or `yarn install` based on your package manager.
-3. Ensure local instances of PostgreSQL (Supabase), Redis Queue (RQ), and all necessary services are running.
-
-## Writing E2E Tests
-
-MorningAI uses a combination of tools for E2E testing. Assuming we're leveraging Python's `pytest` along with Selenium for web-based interactions:
-
-1. **Navigate to the Test Directory**: Place your E2E tests in `/tests/e2e/`.
-
-2. **Create a New Test File**: For example, `test_agent_execution_flow.py`.
-
-3. **Sample Test Code**:
+### 步驟1：請求重設密碼
+首先，用戶需要透過系統提供的「忘記密碼？」鏈接或按鈕啟動重設密碼流程。這通常位於登錄界面。
 
 ```python
-import pytest
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-
-def test_complete_agent_execution_flow():
-    # Initialize WebDriver (example with Chrome)
-    driver = webdriver.Chrome()
-
-    # Your test steps here. For example:
-    driver.get("http://localhost:3000/") # Adjust URL based on your local/dev environment
-    assert "MorningAI" in driver.title
-    
-    # Example step: Triggering an agent execution
-    elem = driver.find_element_by_name("execute")  # Adjust based on actual element
-    elem.clear()
-    elem.send_keys("Demo Execution")
-    elem.send_keys(Keys.RETURN)
-    
-    # Verify completion
-    # This will vary greatly depending on what completion looks like in your app
-    assert "Execution Completed" in driver.page_source
-    
-    driver.close()
-
+# Flask route example for initiating password reset
+@app.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    email = request.form['email']
+    # Verify email exists in the database
+    user = User.query.filter_by(email=email).first()
+    if user:
+        send_reset_email(user)
+    return 'If your email is in our database, you will receive a password reset link.'
 ```
 
-4. **Run Your Tests**: With `pytest`, you can run your tests using the command line:
+### 步驟2：發送重設郵件
+系統會向用戶的電子郵件地址發送一封包含重設密碼鏈接的郵件。此鏈接應該包含一個唯一的token，用於驗證請求。
 
-```bash
-pytest tests/e2e/test_agent_execution_flow.py
+```python
+# Example of sending a reset email with a unique token
+def send_reset_email(user):
+    token = user.get_reset_token()
+    msg = Message('Password Reset Request', sender='noreply@morningai.com', recipients=[user.email])
+    msg.body = f'''To reset your password, visit the following link:
+{url_for('reset_token', token=token, _external=True)}
+If you did not make this request then simply ignore this email and no changes will be made.
+'''
+    mail.send(msg)
 ```
 
-## Troubleshooting Common Issues
+### 步驟3：重設密碼
+用戶點擊郵件中的鏈接後，將被引導至一個允許他們輸入新密碼的頁面。
 
-- **WebDriver Not Found**: Ensure that you have the WebDriver for your browser installed and properly pathed.
-- **Connection Errors**: Verify that all services (PostgreSQL, Redis Queue) are running and accessible.
-- **Timeouts or Delays**: Some tests might fail due to timeouts; consider increasing wait times or using explicit waits in Selenium.
+```html
+<!-- Example HTML form for password reset -->
+<form action="/reset-password/<token>" method="POST">
+    <input type="password" name="password" placeholder="New Password" required>
+    <input type="password" name="confirm_password" placeholder="Confirm New Password" required>
+    <button type="submit">Reset Password</button>
+</form>
+```
 
-## Related Documentation Links
+## 2. 相關文檔連結
 
-- [Pytest Documentation](https://docs.pytest.org/en/latest/)
-- [Selenium with Python](https://selenium-python.readthedocs.io/)
-- [MorningAI Architecture Overview](/docs/architecture.md) - Provides a detailed understanding of how different components interact within MorningAI.
+- Flask-Mail: [https://flask-mail.readthedocs.io/en/latest/](https://flask-mail.readthedocs.io/en/latest/)
+- Flask-WTF: [https://flask-wtf.readthedocs.io/en/stable/](https://flask-wtf.readthedocs.io/en/stable/)
 
-Remember to regularly update your tests as you add new features or modify existing workflows within MorningAI to ensure continuous reliability and performance assurance.
+## 3. 常見問題解決
+
+### 郵件未收到
+- 檢查垃圾郵件文件夾。
+- 確認電子郵件地址無誤並再次嘗試。
+- 聯繫支持團隊以核實後端是否正常發送郵件。
+
+### 鏈接無法使用
+- 確保從電子郵件中完整複製了鏈接。
+- 如果鏈接已過期（通常24小時後），則需重新啟動重設密碼流程。
+- 聯繫技術支持以解決可能出現的任何服務器問題。
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Add E2E tests for complete agent execution flow
-- Trace ID: `task-009`
+- Task: 如何重設密碼？
+- Trace ID: `017b5ff1-2028-4fdf-9c99-e07a1574e66a`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
