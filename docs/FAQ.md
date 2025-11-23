@@ -1,69 +1,88 @@
-# Fixing Memory Leak in Redis Queue Worker
+# Adding a Cost Tracking Dashboard to Owner Console
 
-When working with the MorningAI platform, managing memory efficiently in Redis Queue (RQ) workers is crucial for maintaining performance and stability. A memory leak in an RQ worker can lead to increased latency, decreased throughput, and even service outages if not addressed promptly. This guide provides insights into identifying and fixing memory leaks within Redis Queue workers.
+## Overview
+Integrating a cost tracking dashboard into the Owner Console of MorningAI involves several key steps, including backend setup, frontend development, and ensuring secure data access. This feature will enable owners to monitor and manage their expenses effectively, providing insights into the cost associated with running their projects on MorningAI.
 
-## Understanding the Cause
+### Backend Setup
 
-Memory leaks in RQ workers can occur due to various reasons, including but not limited to:
-- Improper handling of large data objects.
-- Persistent connections that are not closed.
-- Cycles of references in Python that the garbage collector cannot free.
+#### Step 1: Database Model
+Firstly, ensure your PostgreSQL database (Supabase) is configured to track costs. You might need a table structure similar to the following:
 
-### Identifying a Memory Leak
-
-Before attempting to fix a memory leak, it's important to confirm its presence. Tools like `memory_profiler` in Python can help monitor the memory usage of a worker over time. An increasing trend of memory usage that doesn't decrease even when tasks are completed is a strong indicator of a memory leak.
-
-```python
-from memory_profiler import profile
-
-@profile
-def your_worker_function():
-    # Your code here
+```sql
+CREATE TABLE project_costs (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER REFERENCES projects(id),
+    date DATE NOT NULL,
+    cost NUMERIC(10, 2) NOT NULL
+);
 ```
 
-## Steps to Fix Memory Leaks
+Remember to apply Row Level Security (RLS) policies in Supabase to protect sensitive data.
 
-### 1. Simplify Data Handling
-Large data objects should be broken down into smaller chunks if possible, and ensure you're only keeping necessary data in scope.
-
-### 2. Close Connections Properly
-Ensure all database or network connections are explicitly closed after their use is complete. Using context managers (`with` statement) can automate this process.
+#### Step 2: API Endpoint
+Develop an API endpoint using Flask that retrieves cost data. Ensure Gunicorn is properly configured for multi-worker support to handle requests efficiently.
 
 ```python
-with get_database_connection() as connection:
-    # Use connection here
-# Connection is automatically closed here
+from flask import Flask, jsonify
+from models import ProjectCost
+
+app = Flask(__name__)
+
+@app.route('/api/costs/<int:project_id>')
+def get_project_costs(project_id):
+    costs = ProjectCost.query.filter_by(project_id=project_id).all()
+    return jsonify([cost.to_dict() for cost in costs])
 ```
 
-### 3. Eliminate Circular References
-Circular references can prevent Python's garbage collector from freeing up memory. Identify these cycles and break them by setting references you no longer need to `None`.
+### Frontend Development
 
-### 4. Use Weak References
-For managing caches or large datasets within your workers, consider using weak references (`weakref` module), which allow an object to be garbage collected even while it's being referenced.
+#### Step 1: React Component
+Create a React component for the dashboard. Use Vite and TailwindCSS for efficient bundling and styling.
 
-```python
-import weakref
+```jsx
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-# Assuming `large_object` is something you want to reference weakly
-weak_reference = weakref.ref(large_object)
+const CostDashboard = ({ projectId }) => {
+    const [costs, setCosts] = useState([]);
+
+    useEffect(() => {
+        axios.get(`/api/costs/${projectId}`)
+            .then(response => setCosts(response.data))
+            .catch(error => console.error('There was an error!', error));
+    }, [projectId]);
+
+    return (
+        <div className="p-4">
+            {costs.map(cost => (
+                <div key={cost.id} className="flex justify-between items-center">
+                    <span>{cost.date}</span>
+                    <span>${cost.cost.toFixed(2)}</span>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+export default CostDashboard;
 ```
 
-### 5. Optimize Code Logic
-Review your task functions for inefficiencies or unnecessary storage of data. Sometimes refactoring code for better efficiency can resolve memory issues.
+### Related Documentation Links
 
-## Related Documentation Links
+- [Supabase Documentation](https://supabase.io/docs)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [TailwindCSS Documentation](https://tailwindcss.com/docs)
 
-- RQ Documentation: [https://python-rq.org/docs/](https://python-rq.org/docs/)
-- Memory Profiler: [https://pypi.org/project/memory-profiler/](https://pypi.org/project/memory-profiler/)
-- Python Weak References: [https://docs.python.org/3/library/weakref.html](https://docs.python.org/3/library/weakref.html)
+### Common Troubleshooting Tips
 
-## Common Troubleshooting Tips
+**1. Data Not Displaying:** Ensure the API endpoint is correctly fetching data from the database. Check for any CORS issues that might prevent frontend access.
 
-- **Monitoring Memory Usage**: Continuously monitor the memory usage of your RQ workers using tools like `memory_profiler` or logging the memory usage at intervals.
-- **Incremental Changes**: Apply fixes incrementally and monitor their effects on memory usage; sometimes multiple small changes are required.
-- **Worker Restart Strategies**: As a temporary measure or last resort, implement a strategy to periodically restart workers based on time or number of tasks completed to mitigate memory leak impacts.
+**2. Slow Dashboard Performance:** If the dashboard is slow or unresponsive, consider optimizing your database queries or implementing caching strategies with Redis Queue.
 
-By following these guidelines and utilizing the provided resources, developers should be able to identify and address memory leaks within their Redis Queue workers effectively.
+**3. Security Concerns:** Always verify that Row Level Security (RLS) policies are in place and functioning as expected to prevent unauthorized access to sensitive information.
+
+By following these steps and recommendations, developers can successfully add a cost tracking dashboard to the Owner Console within MorningAI, enhancing visibility into operational costs and facilitating better financial management.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -71,7 +90,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Fix memory leak in Redis queue worker
-- Trace ID: `task-007`
+- Task: Add cost tracking dashboard to Owner Console
+- Trace ID: `task-010`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
