@@ -47,10 +47,10 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       
-      - name: Run API Backend tests
+      - name: Run API Backend tests (development mode)
         working-directory: handoff/20250928/40_App/api-backend
         run: |
-          pytest tests/ -v --tb=short --disable-warnings
+          pytest tests/ -v --tb=short --disable-warnings -k "not test_vercel_preview_blocked_in_production"
         env:
           PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0
@@ -58,6 +58,19 @@ jobs:
           TESTING: true
           ENVIRONMENT: development  # Set to development to allow ENABLE_MOCK_USERS in tests
           ENABLE_MOCK_USERS: 'true'  # Mock users allowed in development environment for testing
+          RATE_LIMIT_REQUESTS: 60
+
+      - name: Run API Backend tests (production mode)
+        working-directory: handoff/20250928/40_App/api-backend
+        run: |
+          pytest tests/test_cors_config.py::TestCORSHeadersMiddleware::test_vercel_preview_blocked_in_production -v --tb=short --disable-warnings
+        env:
+          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
+          REDIS_URL: redis://localhost:6379/0
+          FLASK_ENV: testing
+          TESTING: true
+          ENVIRONMENT: production  # Production mode for production-specific test
+          ENABLE_MOCK_USERS: 'false'  # Mock users disabled in production
           RATE_LIMIT_REQUESTS: 60
   
   test-orchestrator:
