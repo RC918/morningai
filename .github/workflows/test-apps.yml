@@ -56,7 +56,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           FLASK_ENV: testing
           TESTING: true
-          ENABLE_MOCK_USERS: true
+          ENABLE_MOCK_USERS: 'false'  # Must be false: backend settings enforce this outside development environment
           RATE_LIMIT_REQUESTS: 60
   
   test-orchestrator:
