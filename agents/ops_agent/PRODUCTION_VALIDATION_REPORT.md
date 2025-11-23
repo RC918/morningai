@@ -438,7 +438,7 @@ All success criteria have been met:
 VERCEL_TOKEN_NEW=<vercel-token>
 
 # Notifications (Optional)
-Mailtrap_API_TOKEN=<mailtrap-token>
+MAILTRAP_API_TOKEN=<mailtrap-token>
 SLACK_WEBHOOK_URL=<slack-webhook>
 SMTP_HOST=<smtp-host>
 SMTP_PORT=<smtp-port>
