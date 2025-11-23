@@ -10,12 +10,24 @@ from datetime import datetime, timezone
 from typing import Optional
 from .db_client import get_client
 
-from orchestrator.exceptions import (
-    DatabaseConnectionError,
-    DatabaseWriteError,
-    DatabaseReadError,
-    TenantResolutionError
-)
+# Dual-import pattern to support both package and script execution modes
+# - When orchestrator is installed as a package (tests, pip install -e .)
+# - When running as a script from orchestrator directory (CI, production worker)
+try:
+    from orchestrator.exceptions import (
+        DatabaseConnectionError,
+        DatabaseWriteError,
+        DatabaseReadError,
+        TenantResolutionError
+    )
+except ModuleNotFoundError:
+    # Fallback for when running from orchestrator directory
+    from exceptions import (  # noqa: F401
+        DatabaseConnectionError,
+        DatabaseWriteError,
+        DatabaseReadError,
+        TenantResolutionError
+    )
 
 logger = logging.getLogger(__name__)
 
