@@ -1,52 +1,77 @@
-# Test Task 0 for Planner Distribution Verification
+# Test Task 8 for Planner Distribution Verification
 
 ## Overview
-This FAQ entry is designed to guide developers through the process of verifying the planner distribution within the MorningAI platform, specifically focusing on Test Task 0. This task is crucial for ensuring that the autonomous agent system and real-time task orchestration components are functioning correctly, especially in a distributed environment.
 
-## Explanation
-Test Task 0 serves as a preliminary check to ensure that tasks are correctly distributed and executed across the system's architecture. This involves verifying that:
-- The Redis Queue (RQ) is correctly processing tasks.
-- The multi-worker setup in Gunicorn is handling requests efficiently.
-- The LangGraph orchestration is properly managing agent workflows.
+The Planner Distribution Verification task is crucial for ensuring that the task orchestration within the MorningAI platform operates efficiently and accurately across distributed systems. This process involves verifying that tasks are correctly assigned, executed, and managed by the autonomous agent system, leveraging real-time data and task prioritization to maintain optimal system performance.
 
-### Code Example
-To initiate Test Task 0, you can use the following Python snippet, assuming you have already set up your environment according to the platform's requirements:
+### Purpose
 
-```python
-from rq import Queue
-from redis import Redis
-from my_project.tasks import verify_distribution
+The purpose of this FAQ is to guide developers through the process of testing Task 8, which is specifically designed to validate the distribution and execution of planner tasks within MorningAI. This includes understanding the setup requirements, executing the test, interpreting results, and troubleshooting common issues.
 
-# Set up Redis connection
-redis_conn = Redis()
+## Prerequisites
 
-# Set up a queue for the test task
-q = Queue(connection=redis_conn)
+Before proceeding with Test Task 8, ensure that you have:
 
-# Enqueue Test Task 0
-job = q.enqueue(verify_distribution, args=(0,))
-print(f"Task {job.id} added to queue.")
+- Access to the RC918/morningai repository.
+- A working development environment set up as per the repository's `README.md`.
+- Basic familiarity with Python, Redis Queue (RQ), and pgvector/Supabase for vector memory storage.
 
-# Monitoring task status (simplified)
-if job.is_finished:
-    print("Test Task 0 completed successfully.")
-else:
-    print("Test Task 0 is still processing or encountered an issue.")
-```
+## Execution Steps
 
-Make sure to replace `my_project.tasks` and `verify_distribution` with the actual path and function name used in your project.
+To execute Test Task 8 for Planner Distribution Verification, follow these steps:
 
-### Related Documentation Links
-- **Redis Queue (RQ)**: [https://python-rq.org/docs/](https://python-rq.org/docs/)
-- **Gunicorn Configuration**: [https://gunicorn.org/#config](https://gunicorn.org/#config)
-- **LangGraph Documentation**: Unfortunately, as of my last update, specific documentation links for LangGraph were not available. Please refer to the internal MorningAI platform documentation or contact your system administrator.
+1. **Environment Setup**:
+   Ensure your local or development environment is set up according to the instructions found in `/setup/environment.md` within the RC918/morningai repository. This includes setting up Python dependencies, Redis Queue (RQ), and Supabase integration.
 
-### Common Troubleshooting Tips
-- **Task Not Being Processed**: Ensure that Redis is running and accessible. Check for any network issues that might prevent communication between services.
-- **Task Fails**: Review the output logs for errors. Common issues include misconfigurations in LangGraph or errors in the task's code.
-- **Performance Issues**: If tasks are slow or timing out, consider scaling your worker processes in Gunicorn or evaluating the performance of your Redis instance.
+2. **Start Services**:
+   Begin by starting all necessary services. This typically involves running Redis Server, initializing Supabase services, and ensuring Flask/Gunicorn servers are active.
 
-Remember, successful execution of Test Task 0 indicates a healthy communication flow between components but does not guarantee that all system features are fully operational. Further testing and verification are recommended for comprehensive validation.
+   ```bash
+   redis-server
+   # Follow Supabase initialization steps as per documentation
+   flask run --port=5000
+   ```
+
+3. **Load Test Data**:
+   Load any required test data into your PostgreSQL database. Utilize pgvector for vector memory storage if your test involves complex data patterns.
+
+4. **Execute Test Task**:
+   Navigate to the test directory and execute Test Task 8 using a Python script or through an integrated development environment (IDE).
+
+   ```python
+   python tests/test_task_8.py
+   ```
+
+5. **Monitor Output**:
+   Observe console output or log files for any errors or warnings during execution. Verify that tasks are distributed and executed as expected based on real-time data inputs and system load.
+
+## Related Documentation Links
+
+- Redis Queue (RQ) Documentation: [https://python-rq.org/docs/](https://python-rq.org/docs/)
+- Supabase Documentation: [https://supabase.com/docs](https://supabase.com/docs)
+- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
+- PostgreSQL/pgvector Integration: [https://github.com/supabase/pgvector](https://github.com/supabase/pgvector)
+
+## Common Troubleshooting Tips
+
+1. **Task Not Executing**:
+   - Verify Redis Queue (RQ) workers are running.
+   - Check if there's a connectivity issue with Redis Server.
+   - Ensure tasks are correctly enqueued with valid parameters.
+
+2. **Incorrect Task Distribution**:
+   - Confirm that LangGraph orchestration rules are properly defined.
+   - Validate the logic within your planner task for accurate prioritization.
+
+3. **Database Connection Issues**:
+   - Double-check PostgreSQL credentials and connection strings.
+   - Ensure Row Level Security configurations do not block test executions.
+
+4. **Performance Bottlenecks**:
+   - Monitor system resources to identify potential bottlenecks.
+   - Adjust Flask/Gunicorn server configurations to handle higher loads efficiently.
+
+For more detailed troubleshooting guides, refer to `/docs/troubleshooting.md` in the RC918/morningai repository.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -54,7 +79,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test task 0 for planner distribution verification
-- Trace ID: `planner-dist-check-0`
+- Task: Test task 8 for planner distribution verification
+- Trace ID: `planner-dist-check-8`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
