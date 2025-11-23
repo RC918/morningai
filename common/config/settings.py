@@ -44,7 +44,6 @@ class Settings(BaseSettings):
         populate_by_name=True,  # Allow both field name and alias
     )
 
-
     jwt_secret_key_secret: Optional[SecretStr] = Field(
         None,
         alias="JWT_SECRET_KEY",
