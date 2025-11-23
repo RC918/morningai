@@ -4,8 +4,8 @@
 
 ## 📊 總覽統計
 
-- **總工作流數量**: 16
-- **支援 workflow_dispatch**: 16 (100%)
+- **總工作流數量**: 18
+- **支援 workflow_dispatch**: 18 (100%)
 - **Branch Protection 必須檢查**: 4
 
 ---
@@ -319,7 +319,118 @@
 
 ---
 
-### 16. `auto-merge-faq`
+### 16. `tolgee-sync` (Tolgee Translation Sync)
+**檔案**: `.github/workflows/tolgee-sync.yml`
+
+**用途**: Tolgee 翻譯同步，自動同步翻譯檔案與 Tolgee 平台
+
+**觸發條件**:
+- ✅ `workflow_dispatch` - 手動觸發（支援 `bootstrap` 參數進行首次推送）
+- ✅ `push` - main 分支推送
+- ✅ `schedule` - 每天 10:00 Asia/Taipei (cron: '0 2 * * *')
+
+**執行內容**:
+- 檢查 Tolgee 專案是否需要 bootstrap（Owner Console #24693, Frontend Dashboard #24702）
+- **自動運行**（push/schedule）:
+  - 如果兩個專案都有 keys: 執行正常同步（pull → validate → create PR）
+  - 如果任一專案為空: 優雅退出（綠色，日誌有清楚說明和手動 bootstrap 指示）
+- **手動 Bootstrap 模式**（workflow_dispatch + bootstrap=true）:
+  - 推送現有翻譯到空的 Tolgee 專案（首次設定）
+  - 可能因 Tolgee 方案限制失敗（預期行為，會顯示清楚的錯誤訊息）
+- **正常同步模式**（當兩個專案都有 keys）:
+  - Preflight 驗證（dry-run pull + validate）
+  - 從 Tolgee 拉取最新翻譯
+  - 驗證翻譯檔案結構完整性
+  - 如有變更自動創建 PR
+  - **自動設置 i18n check status**（PR #1449）:
+    - 檢測 PR 是否為 locales-only（僅包含翻譯 JSON 文件）
+    - 如果是，自動設置 "Changed Files Strict i18n Check" 為 success
+    - 使用 belt-and-suspenders 方法：同時設置 commit status 和 check run
+    - 避免 GITHUB_TOKEN 創建的 PR 被 branch protection 卡住
+
+**行為**:
+- 使用 concurrency control 防止並發運行（`cancel-in-progress: true`）
+- Bootstrap 僅在手動觸發時執行（防止 `plan_key_limit_exceeded` 錯誤）
+- 當檢測到需要 bootstrap 時，自動運行會優雅退出（不產生紅色通知）
+- 優雅退出時日誌包含清楚的說明、當前狀態和手動 bootstrap 操作指示
+- **Per-project bootstrap flags**（PR #1436）: OC 和 FD 可以獨立運行，FD 為空不會阻塞 OC 同步
+
+**為何非 Required**: 翻譯同步工作流，失敗不影響開發流程
+
+**當前狀態** (2025-11-23):
+- Owner Console (Project #24693): 正常運作（448 keys）
+- Frontend Dashboard (Project #24702): 暫停同步（0 keys，需要 bootstrap 或手動填充）
+- 自動運行行為: OC 正常同步，FD 優雅退出（綠色），不產生紅色 CI 通知
+
+**i18n Check 自動設置機制** (PR #1449):
+- **問題**: github-actions[bot] 使用 GITHUB_TOKEN 創建的 PR 會被 GitHub 抑制 workflow 運行，導致 "Changed Files Strict i18n Check" 永遠處於 "Expected — Waiting for status to be reported" 狀態
+- **解決方案**: Workflow 自動檢測 locales-only PR 並設置 i18n check status
+- **實施方式**:
+  1. 在 PR 創建後，使用 fallback 邏輯找到 open PR（通過 head branch `chore/tolgee-sync`）
+  2. 列出 PR 的所有變更文件，檢測是否為 locales-only（僅包含 `handoff/.*/40_App/(owner-console/src/locales/|frontend-dashboard/src/i18n/locales/).*\.json`）
+  3. 如果是 locales-only，設置 commit status: `context: "Changed Files Strict i18n Check"`, `state: success`
+  4. 同時創建 check run: `name: "Changed Files Strict i18n Check"`, `conclusion: success`（belt-and-suspenders 方法）
+  5. 兩者都指向 workflow run URL，提供可追溯性
+- **為何需要 belt-and-suspenders**: Branch protection 可能配置為要求 commit status 或 check run，同時設置兩者確保最大兼容性
+- **GITHUB_TOKEN 抑制說明**: GitHub 為防止無限循環，會抑制由 GITHUB_TOKEN 觸發的 workflow 運行。這意味著 bot 創建的 PR 不會自動觸發 i18n check workflow，需要手動設置 status
+
+**故障排除**:
+- 如看到 `plan_key_limit_exceeded` 錯誤: Tolgee 方案 key 數量已達上限，需要升級方案或手動清理 keys
+- 如需要 bootstrap 空專案: 前往 Actions → Tolgee Translation Sync → Run workflow → 勾選 "Bootstrap" checkbox
+- 如 bootstrap 失敗: 檢查 Tolgee 方案限制，考慮透過 Tolgee UI 手動填充或升級方案
+- **如 PR 卡在 "Expected — Waiting for status to be reported"**: 
+  - 原因: PR head SHA 更新後，舊 SHA 的 status 不再有效
+  - 解決: 手動觸發 tolgee-sync workflow（Actions → Tolgee Translation Sync → Run workflow）
+  - Workflow 會自動找到 open PR 並為當前 head SHA 設置 status
+
+**相關 PR**:
+- PR #1431: 穩定化 Tolgee CI（Bootstrap 改為手動觸發）
+- PR #1436: 實施 per-project bootstrap flags（OC/FD 獨立運行）
+- PR #1449: 為 locales-only PR 自動設置 i18n check status（解決 GITHUB_TOKEN 抑制問題）
+
+---
+
+### 17. `ux-metrics-update` (UX Metrics Update)
+**檔案**: `.github/workflows/ux-metrics-update.yml`
+
+**用途**: UX Metrics 數據更新，自動更新 UX 指標並創建 PR
+
+**觸發條件**:
+- ✅ `workflow_dispatch` - 手動觸發
+- ✅ `push` - main 分支推送（僅當 metrics 相關檔案變更時）
+- ✅ `schedule` - 定期執行
+
+**執行內容**:
+- 收集 UX metrics 數據
+- 更新 `metrics/ux-metrics.json` 和 `handoff/.../public/metrics/ux-metrics.json`
+- 如有變更自動創建或更新 PR（branch: `chore/ux-metrics`）
+- **自動設置 i18n check status**（PR #1454）:
+  - 檢測 PR 是否為 metrics-only（僅包含 metrics JSON 文件）
+  - 如果是，自動設置 "Changed Files Strict i18n Check" 為 success
+  - 使用 belt-and-suspenders 方法：同時設置 commit status 和 check run
+  - 與 tolgee-sync 使用相同的模式，避免 GITHUB_TOKEN 創建的 PR 被卡住
+
+**行為**:
+- 使用 PR 模式（PR #1425）: 創建/更新 PR 而非直接推送到 main
+- 使用 `paths-ignore` 防止無限循環
+- 設置固定 bot 分支 `chore/ux-metrics`
+- **Metrics-only detection**: 檢測 PR 是否只包含 `metrics/ux-metrics.json` 和 `handoff/.*/40_App/(owner-console|frontend-dashboard)/public/metrics/ux-metrics.json`
+
+**為何非 Required**: Metrics 更新工作流，失敗不影響開發流程
+
+**i18n Check 自動設置機制** (PR #1454):
+- 完全鏡像 PR #1449 (Tolgee) 的實施方式
+- 使用相同的 fallback 邏輯找到 open PR（通過 head branch `chore/ux-metrics`）
+- 檢測 metrics-only PR 並設置 "Changed Files Strict i18n Check" status
+- 使用 belt-and-suspenders 方法確保兼容性
+
+**相關 PR**:
+- PR #1425: 切換為 PR 模式（符合 repository rules）
+- PR #1454: 為 metrics-only PR 自動設置 i18n check status（與 PR #1449 相同模式）
+
+---
+
+### 18. `auto-merge-faq`
 **檔案**: `.github/workflows/auto-merge-faq.yml`
 
 **用途**: 自動合併 FAQ 文件更新 PR
@@ -366,7 +477,7 @@
 
 ### 手動觸發工作流
 
-所有 16 個工作流現在都支援手動觸發：
+所有 18 個工作流現在都支援手動觸發：
 
 ```bash
 # 觸發單一工作流
@@ -429,6 +540,10 @@ main 分支合併條件
 ├── sentry-smoke (Sentry 煙測)
 ├── sentry-smoke-cron (定時監控檢查)
 └── worker-heartbeat-monitor (Worker 心跳監控)
+
+翻譯與 Metrics
+├── tolgee-sync (翻譯同步)
+└── ux-metrics-update (UX Metrics 更新)
 ```
 
 ---
@@ -513,6 +628,10 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ## 📝 版本歷史
 
+- **2025-11-23**: 新增 `tolgee-sync` 和 `ux-metrics-update` 工作流文檔
+- **2025-11-23**: 記錄 PR #1449 和 #1454 的 i18n check 自動設置機制（解決 GITHUB_TOKEN 抑制問題）
+- **2025-11-23**: 記錄 PR #1436 的 per-project bootstrap flags（OC/FD 獨立運行）
+- **2025-11-23**: 更新 Tolgee 當前狀態（OC: 448 keys, FD: 0 keys）
 - **2025-10-13**: 修復 `post-deploy-health-assertions` 缺少 `pull_request` 觸發器問題
 - **2025-10-13**: 新增 Required Checks 對應表，記錄 workflow 檔案與 job 名稱對應關係
 - **2025-10-12**: Phase 11 清債 - 所有工作流新增 `workflow_dispatch` 支援
@@ -522,6 +641,6 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ---
 
-**最後更新**: 2025-10-13  
+**最後更新**: 2025-11-23  
 **維護者**: @RC918 (Ryan Chen)  
-**文件版本**: 1.1.0
+**文件版本**: 1.3.0

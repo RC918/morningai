@@ -128,6 +128,7 @@
 - [ ] **新增功能/API 端點** → 更新 `ONBOARDING_GUIDE.md` 或相關 API 文檔
 - [ ] **修改部署流程** → 更新 `docs/deployment/` 相關文件
 - [ ] **架構變更** → 更新 `PROJECT_STRUCTURE_REPORT.md` 和相關 ADR
+- [ ] **新增/修改 GitHub Actions workflow** → 更新 `docs/ci_matrix.md` 相關章節，並在 workflow 文件頂部添加文檔引用註釋
 - [ ] 不適用 - 此 PR 不需要文檔更新
 
 **重要**: 文檔是單一真實來源。請確保：

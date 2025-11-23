@@ -27,7 +27,6 @@ from typing import Optional, Literal
 from pydantic import Field, field_validator, ConfigDict, SecretStr
 from pydantic_settings import BaseSettings
 
-
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables.
@@ -44,7 +43,6 @@ class Settings(BaseSettings):
         populate_by_name=True,  # Allow both field name and alias
     )
 
-
     jwt_secret_key_secret: Optional[SecretStr] = Field(
         None,
         alias="JWT_SECRET_KEY",
@@ -56,6 +54,18 @@ class Settings(BaseSettings):
     def jwt_secret_key(self) -> Optional[str]:
         """JWT secret key (unwrapped from SecretStr)"""
         return self.jwt_secret_key_secret.get_secret_value() if self.jwt_secret_key_secret else None
+
+    access_token_expiry_minutes: int = Field(
+        default=15,
+        alias="ACCESS_TOKEN_EXPIRY_MINUTES",
+        description="JWT access token expiry time in minutes (CI/E2E can override to 60)"
+    )
+
+    log_token_expiry_on_startup: bool = Field(
+        default=False,
+        alias="LOG_TOKEN_EXPIRY_ON_STARTUP",
+        description="Enable debug logging of JWT token expiry configuration on startup"
+    )
 
     admin_password_secret: Optional[SecretStr] = Field(
         None,
@@ -83,7 +93,7 @@ class Settings(BaseSettings):
 
     flask_secret_key_secret: Optional[SecretStr] = Field(
         None,
-        alias="SECRET_KEY",
+        alias="FLASK_SECRET_KEY",
         description="Flask application secret key for sessions",
         repr=False
     )
@@ -107,7 +117,7 @@ class Settings(BaseSettings):
 
     encryption_master_key_secret: Optional[SecretStr] = Field(
         None,
-        alias="MASTER_KEY",
+        alias="ENCRYPTION_MASTER_KEY",
         description="Master encryption key for sensitive data",
         repr=False
     )
@@ -143,11 +153,13 @@ class Settings(BaseSettings):
 
     cookie_secure: bool = Field(
         default=True,
+        alias="COOKIE_SECURE",
         description="Enable Secure flag on authentication cookies (HTTPS-only)"
     )
 
     cookie_samesite: Literal["Strict", "Lax", "None"] = Field(
         default="Lax",
+        alias="COOKIE_SAMESITE",
         description="SameSite attribute for authentication cookies"
     )
 
@@ -163,7 +175,6 @@ class Settings(BaseSettings):
         description="Path restriction for authentication cookies"
     )
 
-
     database_url: Optional[str] = Field(
         default=None,
         alias="DATABASE_URL",
@@ -178,6 +189,7 @@ class Settings(BaseSettings):
 
     memory_table: str = Field(
         default="memory",
+        alias="MEMORY_TABLE",
         description="Supabase memory table name for vector storage"
     )
 
@@ -195,14 +207,15 @@ class Settings(BaseSettings):
 
     redis_key_prefix: str = Field(
         default="morningai",
+        alias="REDIS_KEY_PREFIX",
         description="Redis key prefix for namespacing"
     )
 
     db_pool_max: int = Field(
         default=10,
+        alias="DB_POOL_MAX",
         description="Maximum database connection pool size"
     )
-
 
     supabase_url: Optional[str] = Field(
         None,
@@ -362,9 +375,9 @@ class Settings(BaseSettings):
         """Fly.io API token (unwrapped from SecretStr)"""
         return self.fly_api_token_secret.get_secret_value() if self.fly_api_token_secret else None
 
-
     sentry_dsn: Optional[str] = Field(
         None,
+        alias="SENTRY_DSN",
         description="Sentry DSN for error tracking"
     )
 
@@ -382,6 +395,7 @@ class Settings(BaseSettings):
 
     sentry_environment: str = Field(
         default="production",
+        alias="SENTRY_ENVIRONMENT",
         description="Sentry environment name"
     )
 
@@ -393,6 +407,7 @@ class Settings(BaseSettings):
 
     sentry_org: Optional[str] = Field(
         None,
+        alias="SENTRY_ORG",
         description="Sentry organization slug"
     )
 
@@ -439,7 +454,6 @@ class Settings(BaseSettings):
         description="Latency alert threshold in milliseconds"
     )
 
-
     github_token_secret: Optional[SecretStr] = Field(
         None,
         alias="GITHUB_TOKEN",
@@ -454,6 +468,7 @@ class Settings(BaseSettings):
 
     github_repo: str = Field(
         default="RC918/morningai",
+        alias="GITHUB_REPO",
         description="GitHub repository in owner/repo format"
     )
 
@@ -488,11 +503,13 @@ class Settings(BaseSettings):
 
     dev_agent_model: str = Field(
         default="gpt-4",
+        alias="DEV_AGENT_MODEL",
         description="OpenAI model for dev agent"
     )
 
     dev_agent_endpoint: Optional[str] = Field(
         None,
+        alias="DEV_AGENT_ENDPOINT",
         description="Dev agent API endpoint"
     )
 
@@ -517,16 +534,19 @@ class Settings(BaseSettings):
 
     telegram_admin_chat_id: Optional[str] = Field(
         None,
+        alias="TELEGRAM_ADMIN_CHAT_ID",
         description="Telegram admin chat ID for notifications"
     )
 
     mcp_server_url: Optional[str] = Field(
         None,
+        alias="MCP_SERVER_URL",
         description="MCP (Model Context Protocol) server endpoint"
     )
 
     agent_id: Optional[str] = Field(
         None,
+        alias="AGENT_ID",
         description="Agent identifier for MCP operations"
     )
 
@@ -542,7 +562,6 @@ class Settings(BaseSettings):
         """Mailtrap API token (unwrapped from SecretStr)"""
         return self.mailtrap_api_token_secret.get_secret_value() if self.mailtrap_api_token_secret else None
 
-
     rq_queue_name: str = Field(
         default="orchestrator",
         alias="RQ_QUEUE_NAME",
@@ -551,9 +570,9 @@ class Settings(BaseSettings):
 
     rq_serializer: Literal["json", "pickle"] = Field(
         default="json",
+        alias="RQ_SERIALIZER",
         description="RQ serializer type"
     )
-
 
     flask_env: Literal["development", "staging", "production", "testing"] = Field(
         default="development",
@@ -569,6 +588,7 @@ class Settings(BaseSettings):
 
     port: int = Field(
         default=5000,
+        alias="PORT",
         description="Application server port"
     )
 
@@ -580,11 +600,13 @@ class Settings(BaseSettings):
 
     app_version: str = Field(
         default="8.0.0",
+        alias="APP_VERSION",
         description="Application version for tracking"
     )
 
     app_phase: str = Field(
         default="Phase 8",
+        alias="APP_PHASE",
         description="Current application phase"
     )
 
@@ -596,6 +618,7 @@ class Settings(BaseSettings):
 
     orchestrator_path: str = Field(
         default="handoff/20250928/40_App/orchestrator",
+        alias="ORCHESTRATOR_PATH",
         description="Path to orchestrator module"
     )
 
@@ -619,108 +642,127 @@ class Settings(BaseSettings):
 
     orchestrator_cors_origins: str = Field(
         default="http://localhost:5173",
+        alias="ORCHESTRATOR_CORS_ORIGINS",
         description="CORS allowed origins for orchestrator API"
     )
 
     orchestrator_shutdown_timeout: int = Field(
         default=30,
+        alias="ORCHESTRATOR_SHUTDOWN_TIMEOUT",
         description="Graceful shutdown timeout in seconds"
     )
 
     orchestrator_test_mode: bool = Field(
         default=False,
+        alias="ORCHESTRATOR_TEST_MODE",
         description="Enable orchestrator test mode"
     )
 
     policies_path: str = Field(
         default="policies",
+        alias="POLICIES_PATH",
         description="Path to governance policy files"
     )
 
     faq_cache_ttl: int = Field(
         default=3600,
+        alias="FAQ_CACHE_TTL",
         description="FAQ cache TTL in seconds"
     )
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
+        alias="LOG_LEVEL",
         description="Application logging level"
     )
 
     debug: bool = Field(
         default=False,
+        alias="DEBUG",
         description="Enable debug mode (verbose logging)"
     )
 
-
     rate_limit_requests: int = Field(
         default=60,
+        alias="RATE_LIMIT_REQUESTS",
         description="Maximum requests per window"
     )
 
     rate_limit_window: int = Field(
         default=60,
+        alias="RATE_LIMIT_WINDOW",
         description="Rate limit window in seconds"
     )
 
     rate_limit_by_user: bool = Field(
         default=True,
+        alias="RATE_LIMIT_BY_USER",
         description="Apply rate limits per user (vs global)"
     )
 
     rate_limit_fail_fast: bool = Field(
         default=False,
+        alias="RATE_LIMIT_FAIL_FAST",
         description="Fail fast on rate limit errors"
     )
 
     rate_limit_redis_max_retries: int = Field(
         default=3,
+        alias="RATE_LIMIT_REDIS_MAX_RETRIES",
         description="Maximum Redis connection retries for rate limiting"
     )
 
     rate_limit_redis_retry_delay: int = Field(
         default=1,
+        alias="RATE_LIMIT_REDIS_RETRY_DELAY",
         description="Delay between Redis retries in seconds"
     )
 
-
     phase7_enabled: bool = Field(
         default=True,
+        alias="PHASE7_ENABLED",
         description="Enable Phase 7 components"
     )
 
     ops_agent_enabled: bool = Field(
         default=True,
+        alias="OPS_AGENT_ENABLED",
         description="Enable Ops Agent functionality"
     )
 
     growth_strategist_enabled: bool = Field(
         default=True,
+        alias="GROWTH_STRATEGIST_ENABLED",
         description="Enable Growth Strategist agent"
     )
 
     pm_agent_enabled: bool = Field(
         default=True,
+        alias="PM_AGENT_ENABLED",
         description="Enable PM Agent functionality"
     )
 
     hitl_approval_enabled: bool = Field(
         default=True,
+        alias="HITL_APPROVAL_ENABLED",
         description="Enable HITL (Human-in-the-Loop) approval system"
     )
 
     demo_mode: bool = Field(
         default=False,
+        alias="DEMO_MODE",
         description="Enable demo mode (limited functionality)"
     )
 
     sandbox_enabled: bool = Field(
         default=False,
+        alias="SANDBOX_ENABLED",
         description="Enable Docker sandbox containers for agents"
     )
 
     feature_2fa_enabled: bool = Field(
         default=True,
+        alias="FEATURE_2FA_ENABLED",
         description="Enable Two-Factor Authentication (2FA/TOTP) feature"
     )
 
@@ -732,16 +774,19 @@ class Settings(BaseSettings):
 
     feature_2fa_preauth: bool = Field(
         default=False,
+        alias="FEATURE_2FA_PREAUTH",
         description="Enable Pre-Auth Token for 2FA (Week 1 - reduces password transmission)"
     )
 
     preauth_token_ttl: int = Field(
         default=300,
+        alias="PREAUTH_TOKEN_TTL",
         description="Pre-Auth Token TTL in seconds (5 minutes default)"
     )
 
     enable_mock_users: bool = Field(
         default=False,
+        alias="ENABLE_MOCK_USERS",
         description="Enable mock users for development/testing"
     )
 
@@ -797,7 +842,6 @@ class Settings(BaseSettings):
         description="Allow mock governance for testing"
     )
 
-
     vite_api_base_url: str = Field(
         default="http://localhost:5001",
         description="Frontend API base URL"
@@ -818,7 +862,6 @@ class Settings(BaseSettings):
         description="Use mock API in frontend for development"
     )
 
-
     stripe_secret_key_secret: Optional[SecretStr] = Field(
         None,
         alias="STRIPE_SECRET_KEY",
@@ -833,7 +876,7 @@ class Settings(BaseSettings):
 
     stripe_webhook_secret_key_secret: Optional[SecretStr] = Field(
         None,
-        alias="STRIPE_WEBHOOK_SECRET",
+        alias="STRIPE_WEBHOOK_SECRET_KEY",
         description="Stripe webhook secret key",
         repr=False
     )
@@ -855,7 +898,6 @@ class Settings(BaseSettings):
         """Stripe webhook secret (unwrapped from SecretStr) - DEPRECATED"""
         return self.stripe_webhook_secret_secret.get_secret_value() if self.stripe_webhook_secret_secret else None
 
-
     test_admin_jwt_secret: Optional[SecretStr] = Field(
         None,
         alias="TEST_ADMIN_JWT",
@@ -874,6 +916,18 @@ class Settings(BaseSettings):
         description="Enable testing mode"
     )
 
+    rls_tests_allowed: bool = Field(
+        default=False,
+        alias="RLS_TESTS_ALLOWED",
+        description="Enable RLS (Row Level Security) tests with real user JWTs (MUST be true to run RLS tests)"
+    )
+
+    test_supabase_url: Optional[str] = Field(
+        None,
+        alias="TEST_SUPABASE_URL",
+        description="Supabase URL for testing environment validation"
+    )
+
     run_py_browser_e2e: bool = Field(
         default=False,
         alias="RUN_PY_BROWSER_E2E",
@@ -882,11 +936,13 @@ class Settings(BaseSettings):
 
     staging_api_url: Optional[str] = Field(
         None,
+        alias="STAGING_API_URL",
         description="Staging environment API URL"
     )
 
     staging_test_email: Optional[str] = Field(
         None,
+        alias="STAGING_TEST_EMAIL",
         description="Test user email for staging environment"
     )
 
@@ -901,7 +957,6 @@ class Settings(BaseSettings):
     def staging_test_password(self) -> Optional[str]:
         """Staging test password (unwrapped from SecretStr)"""
         return self.staging_test_password_secret.get_secret_value() if self.staging_test_password_secret else None
-
 
     gunicorn_workers: int = Field(
         default=4,
@@ -920,6 +975,7 @@ class Settings(BaseSettings):
 
     dashboard_port: int = Field(
         default=8050,
+        alias="DASHBOARD_PORT",
         description="Ops agent dashboard port"
     )
 
@@ -937,19 +993,21 @@ class Settings(BaseSettings):
 
     allowed_origins: str = Field(
         default="http://localhost:8050",
+        alias="ALLOWED_ORIGINS",
         description="Allowed origins for ops agent dashboard"
     )
 
     workspace_path: Optional[str] = Field(
         None,
+        alias="WORKSPACE_PATH",
         description="Agent workspace directory path"
     )
 
     setuptools_ext_suffix: Optional[str] = Field(
         None,
+        alias="SETUPTOOLS_EXT_SUFFIX",
         description="Setuptools extension suffix (auto-detected)"
     )
-
 
     @property
     def is_production(self) -> bool:
@@ -965,7 +1023,6 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Check if running in development environment"""
         return self.environment == "development"
-
 
     @field_validator("enable_mock_users")
     @classmethod
@@ -1025,7 +1082,6 @@ class Settings(BaseSettings):
                     stacklevel=2
                 )
 
-
 _settings_instance = None
 
 def get_settings() -> Settings:
@@ -1077,7 +1133,6 @@ class _SettingsProxy:
         return getattr(get_settings(), name)
 
 settings = _SettingsProxy()
-
 
 def getenv(name: str, default: str = None) -> str:
     """
