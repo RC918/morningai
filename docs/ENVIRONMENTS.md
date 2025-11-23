@@ -219,6 +219,21 @@ RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempt
 RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
 ```
 
+**Logging Configuration**:
+```bash
+# Application logging level (case-insensitive, normalized to uppercase)
+LOG_LEVEL=INFO                          # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+                                        # Supports any case: info/INFO/Info all work
+
+# Gunicorn logging level (case-insensitive, normalized to lowercase)
+GUNICORN_LOG_LEVEL=info                 # Options: debug, info, warning, error, critical
+                                        # Supports any case: INFO/info/Info all work
+
+# Note: As of PR #1499, both LOG_LEVEL and GUNICORN_LOG_LEVEL support case-insensitive
+# input. The validators automatically normalize to the correct case before validation.
+# This prevents ValidationError when environment variables use different casing.
+```
+
 ---
 
 ## 環境變數別名系統（Pydantic Aliases）
