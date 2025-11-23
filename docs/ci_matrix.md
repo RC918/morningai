@@ -424,9 +424,31 @@
 - 檢測 metrics-only PR 並設置 "Changed Files Strict i18n Check" status
 - 使用 belt-and-suspenders 方法確保兼容性
 
+**性能優化** (PR #1494):
+- **pnpm 緩存**: 使用 `actions/cache@v4` 緩存 pnpm store，減少依賴安裝時間
+  - 首次運行或 lockfile 變更：正常安裝（~30 秒）
+  - 後續運行（緩存命中）：快速恢復（~5 秒）
+  - 節省時間：~25 秒/次運行
+  - 緩存 key 基於 `pnpm-lock.yaml` hash，確保依賴變更時緩存失效
+  - 使用 `restore-keys` 提供 fallback，即使 exact match 失敗也能使用部分緩存
+- **淺層 checkout**: 使用 `fetch-depth: 1` 僅獲取最新 commit
+  - 不下載完整 git 歷史，減少網絡傳輸
+  - 節省時間：~5-10 秒/次運行
+  - 安全性：`aggregate-metrics.mjs` 僅使用 GitHub API，不依賴 git 歷史
+  - 兼容性：`peter-evans/create-pull-request` 內部自動處理分支更新
+- **總效益**: 每次運行節省 ~30-40 秒
+  - 實測數據：Checkout ~2 秒，Install ~5 秒（有緩存）
+  - 每月節省：~165 分鐘（假設 300 次運行）
+  - 緩存命中率：100%（驗證測試）
+- **驗證狀態**: ✅ 已通過兩次測試運行驗證（Run 19607623782, 19607676533）
+  - ✅ 緩存正常工作
+  - ✅ 無 push 失敗或 non-fast-forward 錯誤
+  - ✅ PR 創建/更新成功
+
 **相關 PR**:
 - PR #1425: 切換為 PR 模式（符合 repository rules）
 - PR #1454: 為 metrics-only PR 自動設置 i18n check status（與 PR #1449 相同模式）
+- PR #1494: 性能優化（pnpm 緩存 + 淺層 checkout）
 
 ---
 
