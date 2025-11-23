@@ -1,5 +1,16 @@
 name: Tolgee Translation Sync
 
+# 📚 Documentation: docs/ci_matrix.md (Section 16: Tolgee Translation Sync)
+# 
+# This workflow syncs translations between the codebase and Tolgee platform.
+# 
+# Key features:
+# - Per-project bootstrap flags (OC/FD can run independently)
+# - Auto-sets i18n check status for locales-only PRs (PR #1449)
+# - Graceful exit when projects need bootstrap (no red notifications)
+# 
+# For troubleshooting and detailed documentation, see docs/ci_matrix.md
+
 on:
   push:
     branches: [main]
