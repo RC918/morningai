@@ -27,6 +27,7 @@ from typing import Optional, Literal
 from pydantic import Field, field_validator, ConfigDict, SecretStr
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables.
@@ -261,6 +262,7 @@ class Settings(BaseSettings):
 
     cloudflare_zone_id: Optional[str] = Field(
         None,
+        alias="CLOUDFLARE_ZONE_ID",
         description="Cloudflare zone ID for domain"
     )
 
@@ -278,16 +280,19 @@ class Settings(BaseSettings):
 
     vercel_org_id: Optional[str] = Field(
         None,
+        alias="VERCEL_ORG_ID",
         description="Vercel organization ID"
     )
 
     vercel_project_id: Optional[str] = Field(
         None,
+        alias="VERCEL_PROJECT_ID",
         description="Vercel project ID"
     )
 
     vercel_team_id: Optional[str] = Field(
         None,
+        alias="VERCEL_TEAM_ID",
         description="Vercel team ID (alternative to vercel_org_id)"
     )
 
@@ -419,16 +424,25 @@ class Settings(BaseSettings):
 
     alert_email: Optional[str] = Field(
         None,
+        alias="ALERT_EMAIL",
         description="Email address for system alerts"
     )
 
     alert_slack_channel: Optional[str] = Field(
         None,
+        alias="ALERT_SLACK_CHANNEL",
         description="Slack channel for alerts"
+    )
+
+    ops_alert_webhook_url: Optional[str] = Field(
+        None,
+        alias="OPS_ALERT_WEBHOOK_URL",
+        description="Optional webhook URL for operational alerts (Slack/email/custom)"
     )
 
     monitor_base_url: Optional[str] = Field(
         None,
+        alias="MONITOR_BASE_URL",
         description="Monitoring system base URL"
     )
 
@@ -446,11 +460,13 @@ class Settings(BaseSettings):
 
     cost_alert_threshold: float = Field(
         default=50.0,
+        alias="COST_ALERT_THRESHOLD",
         description="Cost alert threshold in USD"
     )
 
     latency_alert_threshold: float = Field(
         default=5000.0,
+        alias="LATENCY_ALERT_THRESHOLD",
         description="Latency alert threshold in milliseconds"
     )
 
@@ -498,6 +514,7 @@ class Settings(BaseSettings):
 
     openai_max_daily_cost: float = Field(
         default=100.0,
+        alias="OPENAI_MAX_DAILY_COST",
         description="Maximum daily OpenAI API cost in USD"
     )
 
@@ -552,7 +569,7 @@ class Settings(BaseSettings):
 
     mailtrap_api_token_secret: Optional[SecretStr] = Field(
         None,
-        alias="Mailtrap_API_TOKEN",
+        alias="MAILTRAP_API_TOKEN",
         description="Mailtrap API token for email testing",
         repr=False
     )
@@ -676,6 +693,14 @@ class Settings(BaseSettings):
         description="Application logging level"
     )
 
+    @field_validator('log_level', mode='before')
+    @classmethod
+    def normalize_log_level(cls, v):
+        """Normalize log level to uppercase for case-insensitive validation."""
+        if isinstance(v, str):
+            return v.strip().upper()
+        return v
+
     debug: bool = Field(
         default=False,
         alias="DEBUG",
@@ -760,6 +785,48 @@ class Settings(BaseSettings):
         description="Enable Docker sandbox containers for agents"
     )
 
+    canary_metrics_enabled: bool = Field(
+        default=True,
+        alias="CANARY_METRICS_ENABLED",
+        description="Enable canary deployment metrics collection"
+    )
+
+    canary_alerting_enabled: bool = Field(
+        default=True,
+        alias="CANARY_ALERTING_ENABLED",
+        description="Enable canary SLO alerting"
+    )
+
+    canary_window_minutes: int = Field(
+        default=15,
+        alias="CANARY_WINDOW_MINUTES",
+        description="Time window for canary SLO evaluation in minutes"
+    )
+
+    canary_p95_ms_threshold: int = Field(
+        default=2500,
+        alias="CANARY_P95_MS_THRESHOLD",
+        description="Canary p95 latency threshold in milliseconds"
+    )
+
+    canary_5xx_rate_threshold: float = Field(
+        default=1.0,
+        alias="CANARY_5XX_RATE_THRESHOLD",
+        description="Canary 5xx error rate threshold percentage"
+    )
+
+    canary_failure_rate_threshold: float = Field(
+        default=5.0,
+        alias="CANARY_FAILURE_RATE_THRESHOLD",
+        description="Canary planner failure rate threshold percentage"
+    )
+
+    canary_buckets_ms: str = Field(
+        default="50,100,200,400,800,1600,3200",
+        alias="CANARY_BUCKETS_MS",
+        description="Canary latency histogram buckets in milliseconds (comma-separated)"
+    )
+
     feature_2fa_enabled: bool = Field(
         default=True,
         alias="FEATURE_2FA_ENABLED",
@@ -788,6 +855,30 @@ class Settings(BaseSettings):
         default=False,
         alias="ENABLE_MOCK_USERS",
         description="Enable mock users for development/testing"
+    )
+
+    use_tiktoken_estimator: bool = Field(
+        default=False,
+        alias="USE_TIKTOKEN_ESTIMATOR",
+        description="Use tiktoken for accurate token estimation instead of heuristic"
+    )
+
+    enable_rate_limit_in_tests: bool = Field(
+        default=False,
+        alias="ENABLE_RATE_LIMIT_IN_TESTS",
+        description="Enable rate limiting in test environment"
+    )
+
+    idempotency_tests_allowed: bool = Field(
+        default=False,
+        alias="IDEMPOTENCY_TESTS_ALLOWED",
+        description="Allow idempotency tests to run"
+    )
+
+    enable_orchestrator: bool = Field(
+        default=True,
+        alias="ENABLE_ORCHESTRATOR",
+        description="Enable orchestrator/agent routes (set to false in CI/E2E to bypass Redis/TLS dependencies)"
     )
 
     feature_cookie_auth: bool = Field(
@@ -960,16 +1051,27 @@ class Settings(BaseSettings):
 
     gunicorn_workers: int = Field(
         default=4,
+        alias="GUNICORN_WORKERS",
         description="Number of Gunicorn worker processes"
     )
 
     gunicorn_log_level: Literal["debug", "info", "warning", "error", "critical"] = Field(
         default="info",
+        alias="GUNICORN_LOG_LEVEL",
         description="Gunicorn logging level"
     )
 
+    @field_validator('gunicorn_log_level', mode='before')
+    @classmethod
+    def normalize_gunicorn_log_level(cls, v):
+        """Normalize gunicorn log level to lowercase for case-insensitive validation."""
+        if isinstance(v, str):
+            return v.strip().lower()
+        return v
+
     gunicorn_reload: bool = Field(
         default=False,
+        alias="GUNICORN_RELOAD",
         description="Enable Gunicorn auto-reload on code changes"
     )
 
@@ -1001,6 +1103,18 @@ class Settings(BaseSettings):
         None,
         alias="WORKSPACE_PATH",
         description="Agent workspace directory path"
+    )
+
+    repo_root_path: Optional[str] = Field(
+        None,
+        alias="REPO_ROOT_PATH",
+        description="Repository root path"
+    )
+
+    morningai_repo_path: Optional[str] = Field(
+        None,
+        alias="MORNINGAI_REPO_PATH",
+        description="MorningAI repository path"
     )
 
     setuptools_ext_suffix: Optional[str] = Field(
@@ -1082,7 +1196,9 @@ class Settings(BaseSettings):
                     stacklevel=2
                 )
 
+
 _settings_instance = None
+
 
 def get_settings() -> Settings:
     """
@@ -1104,6 +1220,7 @@ def get_settings() -> Settings:
             _settings_instance.log_deprecation_warnings()
 
     return _settings_instance
+
 
 def reload_settings() -> Settings:
     """
@@ -1127,12 +1244,15 @@ def reload_settings() -> Settings:
     _settings_instance = None
     return get_settings()
 
+
 class _SettingsProxy:
     """Proxy object that lazily instantiates Settings on first access"""
     def __getattr__(self, name):
         return getattr(get_settings(), name)
 
+
 settings = _SettingsProxy()
+
 
 def getenv(name: str, default: str = None) -> str:
     """

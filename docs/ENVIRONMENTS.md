@@ -1,7 +1,7 @@
 # MorningAI Environment Architecture
 
-**Last Updated**: 2025-11-21  
-**Document Version**: 2.1  
+**Last Updated**: 2025-11-23  
+**Document Version**: 2.2  
 **Related Documents**: 
 - [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
 - [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
@@ -21,7 +21,7 @@
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
 
-**近期重要更新** (2025-11-18 至 2025-11-21):
+**近期重要更新** (2025-11-18 至 2025-11-23):
 - ✅ **PR #1350**: E2E 測試基礎設施完成 - 32 Playwright 測試通過，route handler 隔離，完整 API mocking
   - Path: `handoff/20250928/40_App/owner-console/e2e/`
   - 測試改善: 11 passed → 32 passed (修復 21 個失敗測試)
@@ -31,6 +31,14 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - ✅ **PR #1399**: Backend 測試環境統一 - Python 3.12, Redis service, PyJWT 衝突解決
   - Path: `.github/workflows/test-apps.yml`
   - 統一 backend.yml 和 test-apps.yml 配置
+- ✅ **PR #1480**: Pydantic 別名系統 - 新增 23 個關鍵環境變數別名 (2025-11-23)
+  - Path: `common/config/settings.py`
+  - 修復：`FLASK_SECRET_KEY`, `ENCRYPTION_MASTER_KEY`, `STRIPE_WEBHOOK_SECRET_KEY` 別名
+  - 影響：向後相容性改進，標準化配置命名
+- ✅ **PR #1452**: Redis 映射清理 - 防止 NoneType DataError (2025-11-23)
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+  - 新增：`sanitize_redis_mapping()` 函數過濾 None 值
+  - 影響：提升 Worker 心跳和任務狀態更新的穩定性
 
 ---
 
@@ -210,6 +218,147 @@ RATE_LIMIT_BY_USER=false                # Use user_id instead of IP for rate lim
 RATE_LIMIT_REDIS_MAX_RETRIES=3          # Maximum Redis connection retry attempts
 RATE_LIMIT_REDIS_RETRY_DELAY=1.0        # Delay between retries in seconds (exponential backoff)
 ```
+
+---
+
+## 環境變數別名系統（Pydantic Aliases）
+
+**Added**: 2025-11-23 (PR #1480)  
+**Path**: `common/config/settings.py:47-722`
+
+從 2025-11-23 起，配置系統通過 Pydantic BaseSettings 支援環境變數別名，確保向後相容性並標準化命名規範。這允許使用舊的環境變數名稱，同時逐步遷移到標準化的命名約定。
+
+### 別名系統概述
+
+MorningAI 使用 Pydantic 的 `Field(alias=...)` 功能來支援多個環境變數名稱映射到同一個配置屬性。這確保了：
+
+1. **向後相容性**：現有部署可以繼續使用舊的環境變數名稱
+2. **標準化命名**：新部署應使用正式的標準化名稱
+3. **逐步遷移**：團隊可以按自己的節奏遷移到新名稱
+4. **CI 驗證**：別名覆蓋率由 CI 自動檢查（`scripts/ci/check_settings_aliases.py`）
+
+### 關鍵別名映射
+
+以下是已修復和標準化的關鍵環境變數別名：
+
+| 正式名稱（推薦） | 舊名稱（別名） | 狀態 | 安全等級 | 說明 |
+|-----------------|---------------|------|----------|------|
+| `FLASK_SECRET_KEY` | `SECRET_KEY` | ⚠️ 已棄用 | 🔒 CRITICAL | Flask 應用程式會話密鑰 |
+| `ENCRYPTION_MASTER_KEY` | `MASTER_KEY` | ⚠️ 已棄用 | 🔒 CRITICAL | 主加密密鑰 |
+| `STRIPE_WEBHOOK_SECRET_KEY` | `STRIPE_WEBHOOK_SECRET` | ⚠️ 已棄用 | 🔒 SECRET | Stripe Webhook 驗證密鑰 |
+
+**重要提示**：
+- 🔒 標記為 CRITICAL 的變數必須至少 64 字符，使用加密隨機生成
+- ⚠️ 已棄用的名稱仍然有效，但建議遷移到正式名稱
+- 在生產環境中，優先使用正式名稱以避免混淆
+
+### 新增別名（2025-11-23）
+
+以下 23 個環境變數現在支援通過 Pydantic 別名加載：
+
+#### 認證與安全
+- `ACCESS_TOKEN_EXPIRY_MINUTES` - JWT 訪問令牌過期時間（分鐘）
+- `LOG_TOKEN_EXPIRY_ON_STARTUP` - 啟動時記錄令牌過期配置
+- `FEATURE_2FA_ENABLED` - 啟用 2FA/TOTP 功能
+- `FEATURE_2FA_PREAUTH` - 啟用預認證令牌流程
+- `PREAUTH_TOKEN_TTL` - 預認證令牌 TTL（秒）
+
+#### 測試與開發
+- `RLS_TESTS_ALLOWED` - 允許 RLS 測試（僅測試環境）
+- `TEST_SUPABASE_URL` - 測試環境 Supabase URL
+- `ENABLE_MOCK_USERS` - 啟用模擬用戶（⚠️ 生產環境必須為 false）
+- `STAGING_API_URL` - Staging 環境 API URL
+- `STAGING_TEST_EMAIL` - Staging 測試用戶郵箱
+
+#### 基礎設施與監控
+- `REDIS_KEY_PREFIX` - Redis 鍵前綴（例如：`stg:` 用於 staging）
+- `RQ_QUEUE_NAME` - Redis Queue 隊列名稱（默認：`orchestrator`）
+- `DB_POOL_MAX` - 數據庫連接池最大連接數
+- `SENTRY_DSN` - Sentry 錯誤追蹤 DSN
+- `SENTRY_ENVIRONMENT` - Sentry 環境標識（production/staging/development）
+- `PORT` - 應用程式監聽端口
+- `LOG_LEVEL` - 日誌級別（DEBUG/INFO/WARNING/ERROR）
+- `DEBUG` - 調試模式開關
+
+#### Cookie 與會話
+- `COOKIE_SECURE` - Cookie Secure 標誌（生產環境應為 true）
+- `COOKIE_SAMESITE` - Cookie SameSite 屬性（Strict/Lax/None）
+- `COOKIE_DOMAIN` - Cookie 域名
+- `COOKIE_PATH` - Cookie 路徑
+
+#### 其他
+- `MEMORY_TABLE` - 記憶體表名稱（用於 pgvector 存儲）
+
+### 別名驗證與 CI
+
+**驗證腳本**：`scripts/ci/check_settings_aliases.py`
+
+此腳本檢查 `config/env.schema.yaml` 中定義的所有環境變數是否在 `common/config/settings.py` 中有對應的 Pydantic 別名。
+
+**CI 工作流**：[`.github/workflows/settings-alias-audit.yml`](../.github/workflows/settings-alias-audit.yml)
+
+自動運行別名覆蓋率檢查（warn-only 模式，不阻擋合併），確保配置系統的一致性。
+
+**目前別名狀態（快照）***：
+
+- 總變數數量：148（來自 `config/env.schema.yaml`）
+- 排除項目：11 個（前端專用 / 已棄用等）
+- 必要變數：137
+- 已有別名：約 109 個（約 80% 覆蓋率）
+- 缺少別名：28 個
+
+\* 根據 2025-11-23 執行的 `scripts/ci/check_settings_aliases.py` 稽核結果。可透過運行 `python scripts/ci/check_settings_aliases.py` 重新計算。
+
+**目標**：100% 覆蓋率（所有 `env.schema.yaml` 中的必要變數都應在 `settings.py` 中有別名）
+
+### 使用建議
+
+1. **新部署**：使用正式名稱（表格中的"正式名稱"列）
+2. **現有部署**：可以繼續使用舊名稱，但建議逐步遷移
+3. **遷移策略**：
+   ```bash
+   # 步驟 1: 在 .env 中同時設置新舊名稱
+   FLASK_SECRET_KEY=your_secret_key
+   SECRET_KEY=your_secret_key  # 保留以確保相容性
+   
+   # 步驟 2: 驗證應用程式正常運行
+   # 步驟 3: 移除舊名稱
+   FLASK_SECRET_KEY=your_secret_key
+   ```
+4. **安全考慮**：
+   - 🚫 **絕對不要**在生產環境中設置 `ENABLE_MOCK_USERS=true`
+   - 🚫 **絕對不要**在生產/staging 環境中設置 `RLS_TESTS_ALLOWED=true`
+   - ✅ 在生產環境中始終使用 `COOKIE_SECURE=true`
+
+### 技術實現
+
+別名通過 Pydantic 的 `Field` 定義實現：
+
+```python
+# common/config/settings.py 示例
+class Settings(BaseSettings):
+    flask_secret_key_secret: Optional[SecretStr] = Field(
+        None,
+        alias="FLASK_SECRET_KEY",  # 正式名稱
+        description="Flask application secret key for sessions",
+        repr=False
+    )
+    
+    # 舊名稱通過 Pydantic 的環境變數加載自動支援
+    # 如果同時設置了新舊名稱，新名稱（alias）優先
+```
+
+**加載優先級**：
+1. 環境變數（使用 alias 名稱）
+2. .env 文件（使用 alias 名稱）
+3. 默認值
+
+### 相關文檔
+
+- **配置 Schema**：`config/env.schema.yaml` - 所有環境變數的單一真實來源
+- **Pydantic 設置**：`common/config/settings.py` - 類型安全的配置類
+- **別名檢查腳本**：`scripts/ci/check_settings_aliases.py` - CI 驗證工具
+- **環境變數生成**：`scripts/generate-env-examples.py` - 生成 .env.example 文件
 
 ---
 

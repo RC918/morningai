@@ -289,7 +289,7 @@ from tools.notification_service import NotificationService
 
 # Initialize notification service
 notification_service = NotificationService(
-    mailtrap_token=os.getenv("Mailtrap_API_TOKEN"),
+    mailtrap_token=os.getenv("MAILTRAP_API_TOKEN"),
     slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL")
 )
 
@@ -321,7 +321,7 @@ from tools.notification_service import NotificationService
 
 # Initialize service
 notification_service = NotificationService(
-    mailtrap_token=os.getenv("Mailtrap_API_TOKEN"),
+    mailtrap_token=os.getenv("MAILTRAP_API_TOKEN"),
     slack_webhook_url="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
 )
 

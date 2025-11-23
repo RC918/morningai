@@ -182,7 +182,7 @@ class TestNotificationServiceIntegration:
     
     @pytest.mark.skipif(
         not settings.mailtrap_api_token,
-        reason="Mailtrap_API_TOKEN not set - skipping integration test"
+        reason="MAILTRAP_API_TOKEN not set - skipping integration test"
     )
     @pytest.mark.asyncio
     async def test_send_email_mailtrap_real(self):

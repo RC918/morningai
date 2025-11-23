@@ -6,17 +6,21 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.6.0  
-**Last Updated**: 2025-11-21  
+**Document Version**: 1.7.0  
+**Last Updated**: 2025-11-23  
 **Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow)  
 **Test Coverage**: 59.89% (Owner Console), 74%+ (Backend)  
-**Recent Activity**: 116 commits (2025-11-12 至 2025-11-21)  
+**Recent Activity**: 192 commits on main (2025-11-12 至 2025-11-23，快照值截至 2025-11-23)  
 **Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
-**Recent PRs (Nov 18-21, 2025)**:
+**Recent PRs (Nov 18-23, 2025)**:
 - **PR #1350** (Merged): E2E Testing Infrastructure - 32 Playwright tests, route handler isolation, API mocking
 - **PR #1398** (Merged): Production Path Discovery - `MORNINGAI_REPO_PATH` env var, 4-layer fallback
 - **PR #1399** (Merged): Backend Test Environment - Python 3.12, Redis service, PyJWT conflict resolution
+- **PR #1480** (Merged): Pydantic Alias System - 23 critical environment variable aliases (Nov 23)
+- **PR #1452** (Merged): Redis Mapping Sanitization - Prevent NoneType DataError (Nov 23)
+- **PR #1455** (Merged): AgentExecutionLogs Accessibility - 6 critical a11y violations resolved (Nov 23)
+- **PR #1437** (Merged): i18n Error Fixes - 10 i18n errors fixed in owner-console (Nov 23)
 
 ---
 
