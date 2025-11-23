@@ -261,6 +261,7 @@ class Settings(BaseSettings):
 
     cloudflare_zone_id: Optional[str] = Field(
         None,
+        alias="CLOUDFLARE_ZONE_ID",
         description="Cloudflare zone ID for domain"
     )
 
@@ -278,16 +279,19 @@ class Settings(BaseSettings):
 
     vercel_org_id: Optional[str] = Field(
         None,
+        alias="VERCEL_ORG_ID",
         description="Vercel organization ID"
     )
 
     vercel_project_id: Optional[str] = Field(
         None,
+        alias="VERCEL_PROJECT_ID",
         description="Vercel project ID"
     )
 
     vercel_team_id: Optional[str] = Field(
         None,
+        alias="VERCEL_TEAM_ID",
         description="Vercel team ID (alternative to vercel_org_id)"
     )
 
@@ -419,16 +423,19 @@ class Settings(BaseSettings):
 
     alert_email: Optional[str] = Field(
         None,
+        alias="ALERT_EMAIL",
         description="Email address for system alerts"
     )
 
     alert_slack_channel: Optional[str] = Field(
         None,
+        alias="ALERT_SLACK_CHANNEL",
         description="Slack channel for alerts"
     )
 
     monitor_base_url: Optional[str] = Field(
         None,
+        alias="MONITOR_BASE_URL",
         description="Monitoring system base URL"
     )
 
@@ -446,11 +453,13 @@ class Settings(BaseSettings):
 
     cost_alert_threshold: float = Field(
         default=50.0,
+        alias="COST_ALERT_THRESHOLD",
         description="Cost alert threshold in USD"
     )
 
     latency_alert_threshold: float = Field(
         default=5000.0,
+        alias="LATENCY_ALERT_THRESHOLD",
         description="Latency alert threshold in milliseconds"
     )
 
@@ -498,6 +507,7 @@ class Settings(BaseSettings):
 
     openai_max_daily_cost: float = Field(
         default=100.0,
+        alias="OPENAI_MAX_DAILY_COST",
         description="Maximum daily OpenAI API cost in USD"
     )
 
@@ -552,7 +562,7 @@ class Settings(BaseSettings):
 
     mailtrap_api_token_secret: Optional[SecretStr] = Field(
         None,
-        alias="Mailtrap_API_TOKEN",
+        alias="MAILTRAP_API_TOKEN",
         description="Mailtrap API token for email testing",
         repr=False
     )
@@ -960,16 +970,19 @@ class Settings(BaseSettings):
 
     gunicorn_workers: int = Field(
         default=4,
+        alias="GUNICORN_WORKERS",
         description="Number of Gunicorn worker processes"
     )
 
     gunicorn_log_level: Literal["debug", "info", "warning", "error", "critical"] = Field(
         default="info",
+        alias="GUNICORN_LOG_LEVEL",
         description="Gunicorn logging level"
     )
 
     gunicorn_reload: bool = Field(
         default=False,
+        alias="GUNICORN_RELOAD",
         description="Enable Gunicorn auto-reload on code changes"
     )
 
