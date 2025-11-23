@@ -693,6 +693,14 @@ class Settings(BaseSettings):
         description="Application logging level"
     )
 
+    @field_validator('log_level', mode='before')
+    @classmethod
+    def normalize_log_level(cls, v):
+        """Normalize log level to uppercase for case-insensitive validation."""
+        if isinstance(v, str):
+            return v.strip().upper()
+        return v
+
     debug: bool = Field(
         default=False,
         alias="DEBUG",
@@ -1052,6 +1060,14 @@ class Settings(BaseSettings):
         alias="GUNICORN_LOG_LEVEL",
         description="Gunicorn logging level"
     )
+
+    @field_validator('gunicorn_log_level', mode='before')
+    @classmethod
+    def normalize_gunicorn_log_level(cls, v):
+        """Normalize gunicorn log level to lowercase for case-insensitive validation."""
+        if isinstance(v, str):
+            return v.strip().lower()
+        return v
 
     gunicorn_reload: bool = Field(
         default=False,
