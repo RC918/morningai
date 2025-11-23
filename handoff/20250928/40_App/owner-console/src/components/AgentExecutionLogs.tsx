@@ -654,7 +654,7 @@ const AgentExecutionLogs = () => {
             <>
               {/* Desktop Table View (md and up) */}
               <div className="hidden md:block">
-                <Table data-testid="execution-table">
+                <Table id="execution-logs-table" data-testid="execution-table">
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t('governance.executionLogs.columns.status')}</TableHead>
@@ -880,7 +880,11 @@ const AgentExecutionLogs = () => {
 
           {/* Pagination */}
           {pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t" data-testid="pagination">
+            <nav 
+              className="flex items-center justify-between mt-6 pt-4 border-t" 
+              aria-label={t('governance.executionLogs.pagination.label')}
+              data-testid="pagination"
+            >
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 {t('governance.executionLogs.pagination.showing', {
                   start: (pagination.page - 1) * pagination.page_size + 1,
@@ -900,6 +904,7 @@ const AgentExecutionLogs = () => {
                   }}
                   disabled={pagination.page === 1}
                   aria-label={t('governance.executionLogs.pagination.previous')}
+                  aria-controls="execution-logs-table"
                   data-testid="pagination-prev"
                   className="gap-1"
                 >
@@ -930,6 +935,7 @@ const AgentExecutionLogs = () => {
                   }}
                   disabled={pagination.page === pagination.total_pages}
                   aria-label={t('governance.executionLogs.pagination.next')}
+                  aria-controls="execution-logs-table"
                   data-testid="pagination-next"
                   className="gap-1"
                 >
@@ -937,7 +943,7 @@ const AgentExecutionLogs = () => {
                   <ChevronRightIcon className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
+            </nav>
           )}
         </CardContent>
       </Card>
