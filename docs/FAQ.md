@@ -1,52 +1,59 @@
-# Test Task 0 for Planner Distribution Verification
+# Test Task 9 for Planner Distribution Verification
 
-## Overview
-This FAQ entry is designed to guide developers through the process of verifying the planner distribution within the MorningAI platform, specifically focusing on Test Task 0. This task is crucial for ensuring that the autonomous agent system and real-time task orchestration components are functioning correctly, especially in a distributed environment.
+## Explanation of the Topic
 
-## Explanation
-Test Task 0 serves as a preliminary check to ensure that tasks are correctly distributed and executed across the system's architecture. This involves verifying that:
-- The Redis Queue (RQ) is correctly processing tasks.
-- The multi-worker setup in Gunicorn is handling requests efficiently.
-- The LangGraph orchestration is properly managing agent workflows.
+In the context of MorningAI, **Test Task 9** refers to a specific procedure designed to verify the correct distribution and functioning of planners within the autonomous agent system. This test ensures that task orchestration and distribution mechanisms operate as intended, allowing for efficient management and execution of code generation tasks across different agents. The verification process involves checking the task allocation, execution by the planner agents, and the integration with vector memory storage and real-time task queues.
 
-### Code Example
-To initiate Test Task 0, you can use the following Python snippet, assuming you have already set up your environment according to the platform's requirements:
+### Code Examples
+
+#### Initiating Test Task 9
+
+To initiate Test Task 9, you would typically trigger a specific sequence of operations that simulate the creation, distribution, and execution of tasks by planners. Below is a hypothetical example using Python with Flask framework for initiating such a test:
 
 ```python
-from rq import Queue
-from redis import Redis
-from my_project.tasks import verify_distribution
+from flask import Flask, jsonify
+from morningai.tasks import distribute_tasks
 
-# Set up Redis connection
-redis_conn = Redis()
+app = Flask(__name__)
 
-# Set up a queue for the test task
-q = Queue(connection=redis_conn)
+@app.route('/trigger_test_task_9', methods=['GET'])
+def trigger_test_task_9():
+    # Simulate task creation
+    task_id = distribute_tasks.create_test_task()
+    
+    # Distribute the task among available planners
+    success, msg = distribute_tasks.distribute(task_id)
+    
+    if success:
+        return jsonify({"status": "success", "message": msg}), 200
+    else:
+        return jsonify({"status": "failure", "message": msg}), 500
 
-# Enqueue Test Task 0
-job = q.enqueue(verify_distribution, args=(0,))
-print(f"Task {job.id} added to queue.")
-
-# Monitoring task status (simplified)
-if job.is_finished:
-    print("Test Task 0 completed successfully.")
-else:
-    print("Test Task 0 is still processing or encountered an issue.")
+if __name__ == '__main__':
+    app.run(debug=True)
 ```
 
-Make sure to replace `my_project.tasks` and `verify_distribution` with the actual path and function name used in your project.
+This example demonstrates how to create an endpoint to trigger the test. The `distribute_tasks` module (a hypothetical module in this context) would contain logic for creating a test task (`create_test_task`) and distributing it among planners (`distribute`).
 
 ### Related Documentation Links
-- **Redis Queue (RQ)**: [https://python-rq.org/docs/](https://python-rq.org/docs/)
-- **Gunicorn Configuration**: [https://gunicorn.org/#config](https://gunicorn.org/#config)
-- **LangGraph Documentation**: Unfortunately, as of my last update, specific documentation links for LangGraph were not available. Please refer to the internal MorningAI platform documentation or contact your system administrator.
+
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- Redis Queue (RQ) Documentation: [https://python-rq.org/docs/](https://python-rq.org/docs/)
+- Supabase Documentation: [https://supabase.com/docs](https://supabase.com/docs)
 
 ### Common Troubleshooting Tips
-- **Task Not Being Processed**: Ensure that Redis is running and accessible. Check for any network issues that might prevent communication between services.
-- **Task Fails**: Review the output logs for errors. Common issues include misconfigurations in LangGraph or errors in the task's code.
-- **Performance Issues**: If tasks are slow or timing out, consider scaling your worker processes in Gunicorn or evaluating the performance of your Redis instance.
 
-Remember, successful execution of Test Task 0 indicates a healthy communication flow between components but does not guarantee that all system features are fully operational. Further testing and verification are recommended for comprehensive validation.
+1. **Task Not Being Distributed**: Ensure that the Redis Queue service is up and running. Verify your RQ worker processes are active and properly connected to Redis.
+   
+2. **Planner Execution Failure**: Check logs for any errors during task execution. This might involve debugging Python code or verifying database permissions (Supabase/PostgreSQL).
+   
+3. **Incorrect Task Outputs**: Validate the logic within your planner agents. Ensure that they are correctly interpreting tasks and interacting with vector memory storage as expected.
+   
+4. **Connectivity Issues**: If planners are not receiving tasks, verify network connectivity between your services, especially connections to Redis Queue and Supabase.
+
+5. **Database Permission Errors**: With Row Level Security enabled in Supabase/PostgreSQL, ensure appropriate policies are set for access control.
+
+By understanding how to perform Test Task 9 for planner distribution verification in MorningAI, developers can ensure their autonomous agent systems are correctly set up for efficient operation.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -54,7 +61,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test task 0 for planner distribution verification
-- Trace ID: `planner-dist-check-0`
+- Task: Test task 9 for planner distribution verification
+- Trace ID: `planner-dist-check-9`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
