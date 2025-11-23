@@ -261,7 +261,11 @@ Convert to a bytes, string, int or float first.
 
 ### 解決方案
 
-Worker 現在在所有 Redis 寫入操作前自動清理映射，過濾掉所有 None 值。
+Worker 現在在以下操作前自動清理 Redis 映射，過濾掉所有 None 值：
+
+- Worker 心跳更新（`worker:heartbeat:{ID}`）
+- 任務狀態更新（running, done, error）
+- 所有使用 `hset(mapping=...)` 的 worker 操作
 
 **實現位置**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
 

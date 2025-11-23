@@ -295,13 +295,21 @@ MorningAI 使用 Pydantic 的 `Field(alias=...)` 功能來支援多個環境變�
 
 此腳本檢查 `config/env.schema.yaml` 中定義的所有環境變數是否在 `common/config/settings.py` 中有對應的 Pydantic 別名。
 
-**CI 工作流**：`.github/workflows/settings-alias-audit.yml`
+**CI 工作流**：[`.github/workflows/settings-alias-audit.yml`](../.github/workflows/settings-alias-audit.yml)
 
-自動運行別名覆蓋率檢查，確保配置系統的一致性。
+自動運行別名覆蓋率檢查（warn-only 模式，不阻擋合併），確保配置系統的一致性。
 
-**當前覆蓋率**：84/135 變數（62%）
+**目前別名狀態（快照）***：
 
-**目標**：100% 覆蓋率（所有 `env.schema.yaml` 中的變數都應在 `settings.py` 中有別名）
+- 總變數數量：148（來自 `config/env.schema.yaml`）
+- 排除項目：11 個（前端專用 / 已棄用等）
+- 必要變數：137
+- 已有別名：約 109 個（約 80% 覆蓋率）
+- 缺少別名：28 個
+
+\* 根據 2025-11-23 執行的 `scripts/ci/check_settings_aliases.py` 稽核結果。可透過運行 `python scripts/ci/check_settings_aliases.py` 重新計算。
+
+**目標**：100% 覆蓋率（所有 `env.schema.yaml` 中的必要變數都應在 `settings.py` 中有別名）
 
 ### 使用建議
 
