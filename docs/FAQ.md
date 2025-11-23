@@ -1,85 +1,78 @@
-# Fix Authentication Timeout Issue
+# Fix RLS Policy Recursion in user_profiles Table
 
-When working with MorningAI, you might encounter issues related to authentication timeouts. This can manifest as failed login attempts, session expirations, or errors when trying to access resources that require authentication. This guide aims to help developers understand and resolve authentication timeout issues effectively.
+Row Level Security (RLS) policies in PostgreSQL provide a powerful mechanism to control access to rows in a database table based on the user accessing them. When implementing RLS on the `user_profiles` table, it's crucial to avoid recursion issues that can arise when policies inadvertently trigger themselves. This guide aims to help developers understand and resolve RLS policy recursion within the MorningAI platform's `user_profiles` table.
 
-## Understanding the Issue
+## Understanding RLS Policy Recursion
 
-Authentication timeout issues occur when the authentication token or session expires before the user has finished their task. In a multi-tenant SaaS platform like MorningAI, timely and secure authentication is crucial for maintaining the integrity and confidentiality of each tenant's data.
+RLS policy recursion occurs when an RLS policy on a table invokes a query that leads back to the same table with the same RLS policy being evaluated again. This can happen directly or indirectly and may result in infinite loops or excessive resource consumption, leading to performance degradation or failure.
 
-MorningAI utilizes token-based authentication, where each token has a predefined lifetime. Once this lifetime expires, the token is no longer valid, and the user must re-authenticate to obtain a new token.
+### Example Scenario:
 
-## How to Fix
+Consider an RLS policy on `user_profiles` that checks user data from the same table to determine access. If improperly configured, fetching a user profile might trigger the policy check, which in turn queries the `user_profiles` table again, causing a recursive loop.
 
-### 1. Adjust Token Lifetime
+## Implementing Safe RLS Policies
 
-If you find that tokens are expiring too quickly for your use case, you can adjust the token lifetime in the backend configuration. This is done in the Flask app settings:
+To prevent recursion, policies should be designed to avoid triggering themselves. Here’s how you can implement safe RLS policies for the `user_profiles` table:
 
-```python
-# File path: /backend/config.py
+### Step 1: Define Non-Recursive Conditions
 
-# Increase token expiration time (example: 2 hours)
-JWT_ACCESS_TOKEN_EXPIRES = 7200  # Time in seconds
+When creating your policy, ensure conditions do not cause self-referencing checks. Use static conditions or references to other tables whenever possible.
+
+**Code Example:**
+
+```sql
+CREATE POLICY user_profile_access_policy
+ON public.user_profiles
+FOR SELECT
+USING (
+    user_id = current_user_id() -- Assume current_user_id() fetches the ID without querying user_profiles.
+);
 ```
 
-Remember, increasing token lifetime can have security implications, so choose a value that balances convenience and security.
+### Step 2: Utilize Security Barrier Views
 
-### 2. Implement Token Refresh Mechanism
+If direct policy application leads to recursion, consider using security barrier views as an intermediate layer. These views can encapsulate the necessary logic without directly invoking policies.
 
-For a more robust solution, implement a token refresh mechanism. This allows tokens to be renewed without requiring users to manually re-authenticate.
+**Code Example:**
 
-```python
-from flask_jwt_extended import (
-    create_access_token,
-    set_access_cookies,
-    create_refresh_token,
-    set_refresh_cookies,
-)
+```sql
+CREATE VIEW user_profile_view WITH (security_barrier)
+AS SELECT * FROM public.user_profiles WHERE user_id = current_user_id();
 
-# Example function to create new access and refresh tokens
-def generate_new_tokens(user_id):
-    access_token = create_access_token(identity=user_id)
-    refresh_token = create_refresh_token(identity=user_id)
-    # Set tokens as HTTPOnly cookies etc.
-    # Ensure proper handling of these tokens in your front-end application
+-- Then apply RLS policies to this view instead of the direct table.
 ```
 
-Refer to Flask-JWT-Extended documentation for more details on implementing token refresh: [Flask-JWT-Extended](https://flask-jwt-extended.readthedocs.io/en/stable/refreshing_tokens/)
+### Step 3: Testing Policies
 
-### 3. Frontend Token Renewal
+After setting up your policies, thoroughly test them under various scenarios to ensure no recursive patterns emerge. This includes reading from and writing to the `user_profiles` table under different user contexts.
 
-Ensure your frontend application listens for authentication failures due to expired tokens and automatically requests new tokens using the refresh mechanism.
+**Command Line Test Example:**
 
-```javascript
-// Example with Axios interceptor
-axios.interceptors.response.use(response => {
-  return response;
-}, error => {
-  if (error.response.status === 401) {
-    // Call endpoint to refresh token, then retry original request
-  }
-});
+```bash
+psql -U test_user -d morningai_db -c "SELECT * FROM public.user_profiles;"
 ```
 
-## Troubleshooting Tips
+## Related Documentation Links
 
-- **Check Token Expiry Settings**: Verify the token expiry time in your backend configuration matches your application needs.
-- **Monitor Network Requests**: Use browser developer tools or network monitoring tools to inspect authentication requests and responses. Look for status codes related to authentication (e.g., 401 Unauthorized).
-- **Review Backend Logs**: Check your backend logs for any errors or warnings related to authentication or token handling.
-- **Update Dependencies**: Ensure all related dependencies (e.g., Flask-JWT-Extended) are up-to-date as updates may contain important fixes or improvements related to authentication handling.
+- PostgreSQL Row-Level Security: [PostgreSQL Documentation](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+- Creating Security Barrier Views: [PostgreSQL Views](https://www.postgresql.org/docs/current/sql-createview.html)
 
-For more detailed information on configuring and troubleshooting MorningAI's authentication system, refer to our official documentation:
+## Common Troubleshooting Tips
 
-- [MorningAI Authentication System](https://morningai.example.com/docs/authentication)
-- [Flask Configuration Handling](https://flask.palletsprojects.com/en/latest/config/)
+1. **Infinite Loop Detection**: Monitor query performance and watch for signs of infinite loops or excessive resource usage.
+2. **Policy Testing**: Regularly test your RLS policies with different roles and users to ensure correct behavior without recursion.
+3. **Review Policy Logic**: Double-check your policy conditions and logic for any potential self-referencing patterns that could lead to recursion.
+4. **Consult Logs**: PostgreSQL logs can provide insights into query execution paths which might help identify unintended recursive behavior.
+
+By carefully designing and testing your RLS policies on the `user_profiles` table, you can prevent recursion issues and ensure secure and efficient access control within MorningAI.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Fix RLS policy recursion in user_profiles table
+- Trace ID: `task-005`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
