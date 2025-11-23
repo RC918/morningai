@@ -176,6 +176,9 @@ export const normalizeExecutionLogStatus = (
 
 const AgentExecutionLogs = () => {
   const { t } = useTranslation()
+  const tableId = useId()
+  const paginationDescId = useId()
+  
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<ExecutionLog[]>([])
@@ -654,7 +657,7 @@ const AgentExecutionLogs = () => {
             <>
               {/* Desktop Table View (md and up) */}
               <div className="hidden md:block">
-                <Table id="execution-logs-table" data-testid="execution-table">
+                <Table id={tableId} data-testid="execution-table">
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t('governance.executionLogs.columns.status')}</TableHead>
@@ -883,9 +886,13 @@ const AgentExecutionLogs = () => {
             <nav 
               className="flex items-center justify-between mt-6 pt-4 border-t" 
               aria-label={t('governance.executionLogs.pagination.label')}
+              aria-describedby={paginationDescId}
               data-testid="pagination"
             >
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              <p 
+                id={paginationDescId}
+                className="text-sm text-neutral-600 dark:text-neutral-400"
+              >
                 {t('governance.executionLogs.pagination.showing', {
                   start: (pagination.page - 1) * pagination.page_size + 1,
                   end: Math.min(pagination.page * pagination.page_size, pagination.total_items),
@@ -904,7 +911,7 @@ const AgentExecutionLogs = () => {
                   }}
                   disabled={pagination.page === 1}
                   aria-label={t('governance.executionLogs.pagination.previous')}
-                  aria-controls="execution-logs-table"
+                  aria-controls={tableId}
                   data-testid="pagination-prev"
                   className="gap-1"
                 >
@@ -935,7 +942,7 @@ const AgentExecutionLogs = () => {
                   }}
                   disabled={pagination.page === pagination.total_pages}
                   aria-label={t('governance.executionLogs.pagination.next')}
-                  aria-controls="execution-logs-table"
+                  aria-controls={tableId}
                   data-testid="pagination-next"
                   className="gap-1"
                 >
