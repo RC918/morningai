@@ -411,6 +411,7 @@ class Settings(BaseSettings):
 
     sentry_org: Optional[str] = Field(
         None,
+        alias="SENTRY_ORG",
         description="Sentry organization slug"
     )
 
@@ -472,6 +473,7 @@ class Settings(BaseSettings):
 
     github_repo: str = Field(
         default="RC918/morningai",
+        alias="GITHUB_REPO",
         description="GitHub repository in owner/repo format"
     )
 
@@ -506,11 +508,13 @@ class Settings(BaseSettings):
 
     dev_agent_model: str = Field(
         default="gpt-4",
+        alias="DEV_AGENT_MODEL",
         description="OpenAI model for dev agent"
     )
 
     dev_agent_endpoint: Optional[str] = Field(
         None,
+        alias="DEV_AGENT_ENDPOINT",
         description="Dev agent API endpoint"
     )
 
@@ -535,16 +539,19 @@ class Settings(BaseSettings):
 
     telegram_admin_chat_id: Optional[str] = Field(
         None,
+        alias="TELEGRAM_ADMIN_CHAT_ID",
         description="Telegram admin chat ID for notifications"
     )
 
     mcp_server_url: Optional[str] = Field(
         None,
+        alias="MCP_SERVER_URL",
         description="MCP (Model Context Protocol) server endpoint"
     )
 
     agent_id: Optional[str] = Field(
         None,
+        alias="AGENT_ID",
         description="Agent identifier for MCP operations"
     )
 
@@ -569,6 +576,7 @@ class Settings(BaseSettings):
 
     rq_serializer: Literal["json", "pickle"] = Field(
         default="json",
+        alias="RQ_SERIALIZER",
         description="RQ serializer type"
     )
 
@@ -599,11 +607,13 @@ class Settings(BaseSettings):
 
     app_version: str = Field(
         default="8.0.0",
+        alias="APP_VERSION",
         description="Application version for tracking"
     )
 
     app_phase: str = Field(
         default="Phase 8",
+        alias="APP_PHASE",
         description="Current application phase"
     )
 
@@ -615,6 +625,7 @@ class Settings(BaseSettings):
 
     orchestrator_path: str = Field(
         default="handoff/20250928/40_App/orchestrator",
+        alias="ORCHESTRATOR_PATH",
         description="Path to orchestrator module"
     )
 
@@ -638,26 +649,31 @@ class Settings(BaseSettings):
 
     orchestrator_cors_origins: str = Field(
         default="http://localhost:5173",
+        alias="ORCHESTRATOR_CORS_ORIGINS",
         description="CORS allowed origins for orchestrator API"
     )
 
     orchestrator_shutdown_timeout: int = Field(
         default=30,
+        alias="ORCHESTRATOR_SHUTDOWN_TIMEOUT",
         description="Graceful shutdown timeout in seconds"
     )
 
     orchestrator_test_mode: bool = Field(
         default=False,
+        alias="ORCHESTRATOR_TEST_MODE",
         description="Enable orchestrator test mode"
     )
 
     policies_path: str = Field(
         default="policies",
+        alias="POLICIES_PATH",
         description="Path to governance policy files"
     )
 
     faq_cache_ttl: int = Field(
         default=3600,
+        alias="FAQ_CACHE_TTL",
         description="FAQ cache TTL in seconds"
     )
 
@@ -676,67 +692,80 @@ class Settings(BaseSettings):
 
     rate_limit_requests: int = Field(
         default=60,
+        alias="RATE_LIMIT_REQUESTS",
         description="Maximum requests per window"
     )
 
     rate_limit_window: int = Field(
         default=60,
+        alias="RATE_LIMIT_WINDOW",
         description="Rate limit window in seconds"
     )
 
     rate_limit_by_user: bool = Field(
         default=True,
+        alias="RATE_LIMIT_BY_USER",
         description="Apply rate limits per user (vs global)"
     )
 
     rate_limit_fail_fast: bool = Field(
         default=False,
+        alias="RATE_LIMIT_FAIL_FAST",
         description="Fail fast on rate limit errors"
     )
 
     rate_limit_redis_max_retries: int = Field(
         default=3,
+        alias="RATE_LIMIT_REDIS_MAX_RETRIES",
         description="Maximum Redis connection retries for rate limiting"
     )
 
     rate_limit_redis_retry_delay: int = Field(
         default=1,
+        alias="RATE_LIMIT_REDIS_RETRY_DELAY",
         description="Delay between Redis retries in seconds"
     )
 
 
     phase7_enabled: bool = Field(
         default=True,
+        alias="PHASE7_ENABLED",
         description="Enable Phase 7 components"
     )
 
     ops_agent_enabled: bool = Field(
         default=True,
+        alias="OPS_AGENT_ENABLED",
         description="Enable Ops Agent functionality"
     )
 
     growth_strategist_enabled: bool = Field(
         default=True,
+        alias="GROWTH_STRATEGIST_ENABLED",
         description="Enable Growth Strategist agent"
     )
 
     pm_agent_enabled: bool = Field(
         default=True,
+        alias="PM_AGENT_ENABLED",
         description="Enable PM Agent functionality"
     )
 
     hitl_approval_enabled: bool = Field(
         default=True,
+        alias="HITL_APPROVAL_ENABLED",
         description="Enable HITL (Human-in-the-Loop) approval system"
     )
 
     demo_mode: bool = Field(
         default=False,
+        alias="DEMO_MODE",
         description="Enable demo mode (limited functionality)"
     )
 
     sandbox_enabled: bool = Field(
         default=False,
+        alias="SANDBOX_ENABLED",
         description="Enable Docker sandbox containers for agents"
     )
 
@@ -959,6 +988,7 @@ class Settings(BaseSettings):
 
     dashboard_port: int = Field(
         default=8050,
+        alias="DASHBOARD_PORT",
         description="Ops agent dashboard port"
     )
 
@@ -976,16 +1006,19 @@ class Settings(BaseSettings):
 
     allowed_origins: str = Field(
         default="http://localhost:8050",
+        alias="ALLOWED_ORIGINS",
         description="Allowed origins for ops agent dashboard"
     )
 
     workspace_path: Optional[str] = Field(
         None,
+        alias="WORKSPACE_PATH",
         description="Agent workspace directory path"
     )
 
     setuptools_ext_suffix: Optional[str] = Field(
         None,
+        alias="SETUPTOOLS_EXT_SUFFIX",
         description="Setuptools extension suffix (auto-detected)"
     )
 
