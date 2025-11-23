@@ -16,14 +16,15 @@ This guide will help you get started with the MorningAI project, understand the 
 
 1. [Project Overview](#project-overview)
 2. [Environment Architecture](#environment-architecture)
-3. [Getting Started](#getting-started)
-4. [Development Workflow](#development-workflow)
-5. [Key Technologies](#key-technologies)
-6. [Project Structure](#project-structure)
-7. [Important Documentation](#important-documentation)
-8. [Common Tasks](#common-tasks)
-9. [Troubleshooting](#troubleshooting)
-10. [Getting Help](#getting-help)
+3. [Orchestrator Architecture](#orchestrator-architecture)
+4. [Getting Started](#getting-started)
+5. [Development Workflow](#development-workflow)
+6. [Key Technologies](#key-technologies)
+7. [Project Structure](#project-structure)
+8. [Important Documentation](#important-documentation)
+9. [Common Tasks](#common-tasks)
+10. [Troubleshooting](#troubleshooting)
+11. [Getting Help](#getting-help)
 
 ---
 
@@ -172,6 +173,347 @@ Feature Branch → develop (Staging) → main (Production)
 ```
 
 **Detailed Documentation**: [docs/ENVIRONMENTS.md](ENVIRONMENTS.md)
+
+---
+
+## Orchestrator Architecture
+
+### Overview: Two Execution Modes
+
+MorningAI's orchestrator uses a **dual-mode architecture** with a shared core executor. Understanding this architecture is critical for new contributors to avoid confusion and rework.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ HTTP Request: POST /faq                                      │
+│ Body: {"question": "..."}                                    │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│ API Backend (agent.py)                                       │
+│ - Generate task_id = UUID()                                 │
+│ - Enqueue: run_orchestrator_task(task_id, question, repo)  │
+│ - Return 202 Accepted                                       │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Redis Queue (orchestrator)                                   │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Worker (worker.py:366-400) - ROUTING DECISION               │
+│                                                              │
+│ if USE_LANGGRAPH=false and USE_LANGGRAPH_PERCENT > 0:      │
+│     task_hash = MD5(task_id) % 100                          │
+│     use_langgraph = (task_hash < USE_LANGGRAPH_PERCENT)    │
+│                                                              │
+│ Current: USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=5      │
+│ → ~5% tasks route to LangGraph                              │
+│ → ~95% tasks route to Simple                                │
+└────────────────────┬───────────────────┬────────────────────┘
+                     │                   │
+       use_langgraph=true    use_langgraph=false
+                     │                   │
+                     ▼                   ▼
+        ┌─────────────────────┐  ┌──────────────────┐
+        │ LangGraph Mode      │  │ Simple Mode      │
+        │ (~5% tasks)         │  │ (~95% tasks)     │
+        └──────────┬──────────┘  └────────┬─────────┘
+                   │                      │
+                   ▼                      ▼
+        ┌──────────────────┐    ┌────────────────┐
+        │ langgraph_       │    │ graph.execute  │
+        │ orchestrator.py  │    │ (direct)       │
+        │   ↓              │    └────────────────┘
+        │ executor_node    │
+        │   ↓              │
+        │ graph.execute    │
+        └──────────────────┘
+```
+
+### Mode 1: Simple Mode (Current: ~95% Traffic)
+
+**Files**:
+- Entry: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:399`
+- Executor: `handoff/20250928/40_App/orchestrator/graph.py`
+
+**Characteristics**:
+- ✅ **Fast**: Direct execution, no state machine overhead
+- ✅ **Stable**: Battle-tested, production-proven
+- ✅ **Stateless**: No retry logic, no CI monitoring
+- ❌ **Feature-frozen**: Only bug fixes accepted
+
+**When Used**:
+- `USE_LANGGRAPH=false` (default)
+- Task's MD5 hash % 100 >= `USE_LANGGRAPH_PERCENT`
+
+**Flow**:
+```
+Worker → graph.execute() → Create PR → Return result
+```
+
+### Mode 2: LangGraph Mode (Current: ~5% Traffic, Phase 1)
+
+**Files**:
+- Entry: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:396`
+- Orchestrator: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`
+- Executor: `handoff/20250928/40_App/orchestrator/graph.py:30` (shared!)
+
+**Characteristics**:
+- ✅ **Stateful**: Full state machine with LangGraph
+- ✅ **Intelligent**: LLM-powered planning (when `USE_LLM_PLANNER=true`)
+- ✅ **Resilient**: Retry logic, error handling, CI monitoring
+- ✅ **Active Development**: New features go here
+
+**When Used**:
+- `USE_LANGGRAPH=true` (100% routing), OR
+- `USE_LANGGRAPH=false` + Task's MD5 hash % 100 < `USE_LANGGRAPH_PERCENT`
+
+**Flow**:
+```
+Worker → langgraph_orchestrator.run_orchestrator()
+  → planner_node (LLM or static)
+  → executor_node → graph.execute()
+  → ci_monitor_node
+  → fixer_node (if needed)
+  → finalizer_node
+```
+
+### Shared Core: graph.execute()
+
+**Critical Understanding**: `graph.execute()` is **NOT** just the "old Simple orchestrator" - it's the **shared execution engine** for both modes!
+
+**File**: `handoff/20250928/40_App/orchestrator/graph.py:30-155`
+
+**Used By**:
+1. **Simple Mode**: Direct call from `worker.py:399`
+2. **LangGraph Mode**: Called by `executor_node` in `langgraph_orchestrator.py:143`
+
+**What It Does**:
+- Cost tracking and budget enforcement
+- Rate limiting (10 PRs/hour)
+- FAQ content generation with GPT-4
+- Git branch creation and PR opening
+- CI check monitoring
+- Test mode auto-cleanup
+
+**⚠️ Important**: Changes to `graph.execute()` affect **BOTH** modes. Always mention this in PR descriptions.
+
+### Routing Logic (Canary Deployment)
+
+**File**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:366-395`
+
+**Algorithm**:
+```python
+use_langgraph = settings.use_langgraph or False
+use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
+
+if not use_langgraph and use_langgraph_percent > 0:
+    # Canary logic: MD5 hash for deterministic routing
+    task_hash = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
+    task_percent = task_hash % 100  # 0-99 bucket
+    use_langgraph = task_percent < use_langgraph_percent
+```
+
+**Properties**:
+- **Deterministic**: Same task_id always routes to same mode
+- **Uniform**: MD5 ensures even distribution across 0-99 buckets
+- **Controllable**: Adjust `USE_LANGGRAPH_PERCENT` to change traffic split
+
+**Current Configuration** (Staging/Production):
+```
+USE_LANGGRAPH = false              # Allow canary (not 100%)
+USE_LANGGRAPH_PERCENT = 5          # 5% to LangGraph
+USE_LLM_PLANNER = true             # LangGraph uses LLM planner
+```
+
+**Result**: ~5% of tasks use LangGraph + LLM Planner, ~95% use Simple mode.
+
+### Environment Variables
+
+| Variable | Default | Purpose | Affects |
+|----------|---------|---------|---------|
+| `USE_LANGGRAPH` | `false` | Force 100% LangGraph routing | Worker routing |
+| `USE_LANGGRAPH_PERCENT` | `0` | Canary percentage (0-100) | Worker routing |
+| `USE_LLM_PLANNER` | `false` | Use LLM vs static planner | LangGraph only |
+
+**Override Behavior**:
+- `USE_LANGGRAPH=true` → 100% LangGraph (overrides percent)
+- `USE_LANGGRAPH=false` + `USE_LANGGRAPH_PERCENT=0` → 100% Simple (Kill Switch)
+- `USE_LANGGRAPH=false` + `USE_LANGGRAPH_PERCENT=5` → 5% canary
+
+### Development Guidelines
+
+#### ✅ DO: Adding New Orchestrator Features
+
+**Implement in LangGraph mode only**:
+```python
+# handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py
+
+def new_feature_node(state: AgentState) -> AgentState:
+    """New orchestrator feature"""
+    # Your implementation here
+    return state
+
+# Add to workflow
+workflow.add_node("new_feature", new_feature_node)
+workflow.add_edge("planner", "new_feature")
+```
+
+**Why**: Simple mode is feature-frozen. All new orchestrator logic goes in LangGraph.
+
+#### ✅ DO: Modifying Shared Executor
+
+**When changing `graph.execute()`**:
+1. Test with **both** Simple and LangGraph modes
+2. Add tests in `test_graph.py` AND `test_langgraph_ci.py`
+3. **Clearly state in PR description**: "This change affects both Simple and LangGraph modes"
+
+**Example PR description**:
+```markdown
+## Changes to Shared Executor
+
+This PR modifies `graph.execute()` which is used by both orchestrator modes:
+- Simple mode: Direct call from worker
+- LangGraph mode: Called by executor_node
+
+**Testing**: Verified with both modes in staging.
+```
+
+#### ❌ DON'T: Adding Features to Simple Mode
+
+**Never do this**:
+```python
+# handoff/20250928/40_App/orchestrator/graph.py
+
+def execute(goal, repo, trace_id):
+    # ❌ DON'T add new orchestrator features here
+    new_fancy_feature()  # This is wrong!
+```
+
+**Why**: Simple mode is frozen. New features belong in LangGraph.
+
+#### ❌ DON'T: Assume Only One Mode Exists
+
+**Bad assumption**: "I'll just modify the orchestrator" (which one?)
+
+**Good practice**: "I'll modify the LangGraph orchestrator's planner_node"
+
+### Monitoring & Observability
+
+**Canary Routing Logs** (search in Render Dashboard):
+```
+"Canary deployment"           # Routing decision
+"Using LangGraph orchestrator" # LangGraph execution
+"Using simple orchestrator"    # Simple execution
+"Using LLM planner"           # LLM planner selection
+```
+
+**Metrics** (`worker.py:386-393`):
+```python
+_canary_metrics.incr_counter("decisions.langgraph")  # LangGraph count
+_canary_metrics.incr_counter("decisions.simple")     # Simple count
+_canary_metrics.observe_latency_ms(elapsed_ms)       # Latency
+```
+
+**Structured Logging**:
+```json
+{
+  "operation": "canary_selection",
+  "task_id": "...",
+  "task_percent": 42,
+  "use_langgraph_percent": 5,
+  "use_langgraph": false
+}
+```
+
+### Migration Roadmap
+
+**Current State** (Phase 1 - Nov 2025):
+- ✅ Simple mode: 95% traffic (stable baseline)
+- ✅ LangGraph mode: 5% traffic (validation)
+- ✅ LLM Planner: Enabled for LangGraph tasks
+
+**Near-Term** (Phase 2 - Q1 2026):
+- 🎯 Gradually increase `USE_LANGGRAPH_PERCENT`: 5% → 25% → 50% → 100%
+- 🎯 Monitor success rates, costs, latency at each step
+- 🎯 Keep Simple mode as Kill Switch
+
+**Long-Term** (Phase 3 - Q2 2026):
+- 🎯 100% LangGraph routing (`USE_LANGGRAPH=true`)
+- 🎯 Refactor `graph.py`:
+  - **Option A** (Recommended): Rename to `core_executor.py`, keep only `execute()` function
+  - **Option B**: Integrate executor logic into `langgraph_orchestrator.py`, remove `graph.py`
+- 🎯 Update all documentation and tests
+
+### Testing Both Modes
+
+**Local Testing**:
+```bash
+# Test Simple mode
+export USE_LANGGRAPH=false
+export USE_LANGGRAPH_PERCENT=0
+python -m pytest tests/test_graph.py
+
+# Test LangGraph mode
+export USE_LANGGRAPH=true
+export USE_LLM_PLANNER=false  # Use static planner for faster tests
+python -m pytest tests/test_langgraph_ci.py
+
+# Test canary routing
+export USE_LANGGRAPH=false
+export USE_LANGGRAPH_PERCENT=50
+python -m pytest tests/test_worker.py::TestCanaryDeployment
+```
+
+**Staging Testing**:
+```bash
+# Check current routing distribution
+# In Render Dashboard → morningai-backend-v2-stg-worker → Logs
+# Search: "Canary deployment"
+
+# Expected: ~5% show use_langgraph=True, ~95% show use_langgraph=False
+```
+
+### Common Pitfalls
+
+1. **❌ "I'll just update the orchestrator"**
+   - Which one? Be specific: Simple or LangGraph?
+
+2. **❌ Modifying `graph.py` without testing LangGraph**
+   - `graph.execute()` is used by both modes!
+
+3. **❌ Adding features to Simple mode**
+   - Simple mode is frozen. Use LangGraph.
+
+4. **❌ Assuming 100% traffic uses one mode**
+   - Current: 95% Simple, 5% LangGraph. Test both!
+
+5. **❌ Searching for wrong log keywords**
+   - Use "Canary deployment", not "canary_selection"
+
+### Quick Reference
+
+**Files to Know**:
+```
+handoff/20250928/40_App/orchestrator/
+├── redis_queue/worker.py:366-400    # Routing logic
+├── graph.py:30-155                  # Shared executor (BOTH modes)
+├── langgraph_orchestrator.py        # LangGraph mode
+└── tests/
+    ├── test_graph.py                # Simple mode tests
+    ├── test_langgraph_ci.py         # LangGraph tests
+    └── test_worker.py               # Routing tests
+```
+
+**When to Use Which Mode**:
+- **Simple Mode**: Production baseline, feature-frozen
+- **LangGraph Mode**: New features, active development
+- **Shared Executor**: Core execution logic (both modes)
+
+**Questions?** See [Orchestrator ADRs](adr/001-dual-orchestrator-architecture.md) or ask in #engineering.
 
 ---
 

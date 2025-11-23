@@ -74,29 +74,102 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - **Auto-Deploy**: Yes (on push to `main`)
 - **Health Check**: `GET /health`
 
-⚠️ **Orchestrator Architecture (Dual System)**
+⚠️ **Orchestrator Architecture (Dual-Mode System with Shared Core)**
 
-MorningAI uses a producer-consumer architecture with two orchestrator implementations:
+MorningAI uses a **dual-mode orchestrator architecture** with a shared core executor and canary routing:
 
-| Component | Role | Maturity | Service | Path |
-|-----------|------|----------|---------|------|
-| **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` |
-| **Worker Orchestrator** | Task Execution (RQ) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
+```
+API Backend → Redis Queue → Worker (Routing) → [Simple Mode | LangGraph Mode]
+                                                       ↓              ↓
+                                                  graph.execute (Shared Core)
+```
 
-**Dual Execution Modes**:
-- **Simple Mode** (Production): `handoff/20250928/40_App/orchestrator/graph.py` - Fast, stateless execution
-  - Currently enabled via `USE_LANGGRAPH=false` in `render.yaml:48-49`
-  - Direct sequential execution without state machine overhead
-- **LangGraph Mode** (Optional): `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py:1-422` - Full state machine
-  - Complete implementation with retry logic, CI monitoring, and state persistence
-  - Can be enabled via `USE_LANGGRAPH=true` environment variable
-  - Runtime selection at `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:303-307`
+**Key Insight**: `graph.py` is NOT just "legacy code" - it's the **shared execution engine** used by both modes.
 
-**Architecture**: Producer (API) receives HTTP requests and enqueues tasks to Redis. Consumer (Worker) polls Redis and executes tasks using either simple mode or LangGraph workflows based on configuration.
+| Component | Role | Traffic | Status | Path |
+|-----------|------|---------|--------|------|
+| **Simple Mode** | Direct execution | ~95% | Feature-frozen | `handoff/20250928/40_App/orchestrator/graph.py` |
+| **LangGraph Mode** | Stateful workflows | ~5% | Active development | `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py` |
+| **Shared Core** | Execution engine | 100% | Both modes | `handoff/20250928/40_App/orchestrator/graph.py:30-155` |
+| **Routing Logic** | Mode selection | 100% | Canary deployment | `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:366-400` |
 
-**Documentation**: [ADR-001: Dual Orchestrator Architecture](adr/001-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](adr/002-producer-consumer-architecture.md)
+### Execution Modes
 
-**Consolidation Plan**: 2026 Q1 (tracked in [Issue #1105](https://github.com/RC918/morningai/issues/1105))
+**Simple Mode** (~95% traffic):
+- ✅ Fast: Direct execution, no state machine overhead
+- ✅ Stable: Battle-tested, production-proven
+- ✅ Stateless: No retry logic, no CI monitoring
+- ❌ Feature-frozen: Only bug fixes accepted
+- Entry: `worker.py:399` → `graph.execute()`
+
+**LangGraph Mode** (~5% traffic, Phase 1):
+- ✅ Stateful: Full state machine with LangGraph
+- ✅ Intelligent: LLM-powered planning (when `USE_LLM_PLANNER=true`)
+- ✅ Resilient: Retry logic, error handling, CI monitoring
+- ✅ Active Development: New features go here
+- Entry: `worker.py:396` → `langgraph_orchestrator.run_orchestrator()` → `executor_node` → `graph.execute()`
+
+### Routing Logic (Canary Deployment)
+
+**Algorithm** (`worker.py:366-400`):
+```python
+use_langgraph = settings.use_langgraph or False
+use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
+
+if not use_langgraph and use_langgraph_percent > 0:
+    # Canary logic: MD5 hash for deterministic routing
+    task_hash = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
+    task_percent = task_hash % 100  # 0-99 bucket
+    use_langgraph = task_percent < use_langgraph_percent
+```
+
+**Properties**:
+- **Deterministic**: Same task_id always routes to same mode
+- **Uniform**: MD5 ensures even distribution across 0-99 buckets
+- **Controllable**: Adjust `USE_LANGGRAPH_PERCENT` to change traffic split
+- **Observable**: Logs routing decision with structured logging
+
+**Monitoring Keywords** (search in Render Dashboard logs):
+- `"Canary deployment"` - Routing decision
+- `"Using LangGraph orchestrator"` - LangGraph execution
+- `"Using simple orchestrator"` - Simple execution
+- `"Using LLM planner"` - LLM planner selection
+
+### Environment Variable Configuration
+
+**Phase 1 Configuration** (Current - Production/Staging):
+```bash
+USE_LANGGRAPH=false              # Allow canary routing (not 100%)
+USE_LANGGRAPH_PERCENT=5          # 5% traffic to LangGraph
+USE_LLM_PLANNER=true             # LangGraph uses LLM planner
+```
+
+**Kill Switch** (Emergency - 100% Simple):
+```bash
+USE_LANGGRAPH=false
+USE_LANGGRAPH_PERCENT=0          # 0% to LangGraph (100% Simple)
+```
+
+**Full LangGraph** (Future - Phase 2+):
+```bash
+USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
+```
+
+### Development Guidelines
+
+**✅ DO**: Add new orchestrator features to LangGraph mode only
+**❌ DON'T**: Add features to Simple mode (feature-frozen)
+**⚠️ CRITICAL**: Changes to `graph.execute()` affect BOTH modes - test both!
+
+**Documentation**: 
+- [ONBOARDING_GUIDE.md - Orchestrator Architecture](./ONBOARDING_GUIDE.md#orchestrator-architecture) - Comprehensive developer guide
+- [PROJECT_STRUCTURE_REPORT.md - Orchestrator System](./PROJECT_STRUCTURE_REPORT.md#3-orchestrator-system) - Technical details
+- [ADR-001: Dual Orchestrator Architecture](adr/001-dual-orchestrator-architecture.md) - Historical context
+
+**Migration Roadmap**:
+- **Phase 1** (Current): 5% LangGraph canary validation
+- **Phase 2** (Q1 2026): Gradually increase to 100% LangGraph
+- **Phase 3** (Q2 2026): Refactor `graph.py` to `core_executor.py`
 
 #### Frontend Dashboard
 - **URL**: https://morningai.vercel.app
@@ -200,12 +273,19 @@ SENTRY_ENVIRONMENT=production
 
 **Orchestrator Configuration** (Phase 1-2):
 ```bash
-USE_LANGGRAPH=false  # Production uses simple mode (set in render.yaml:48-49)
-# Set to 'true' to enable LangGraph mode with full state machine
+# Dual-Mode Orchestrator with Canary Routing
+USE_LANGGRAPH=false                     # Allow canary routing (false = use percent, true = 100%)
+USE_LANGGRAPH_PERCENT=5                 # 5% traffic to LangGraph mode (0-100)
 
 # Phase 1-2 Feature Flags
 USE_LLM_PLANNER=true                    # Enable LLM-based task planning (Phase 1)
 USE_CODEGEN_WORKFLOW_PERCENT=0          # Percentage rollout for code generation (Phase 2, 0-100)
+
+# Configuration Examples:
+# - Kill Switch (100% Simple):    USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=0
+# - 5% Canary (Current):          USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=5
+# - 50% Split Testing:            USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=50
+# - 100% LangGraph (Future):      USE_LANGGRAPH=true (overrides percent)
 ```
 
 **Rate Limiting**:

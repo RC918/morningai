@@ -532,64 +532,214 @@ config/
 
 ### 3. Orchestrator System
 
-⚠️ **DUAL ORCHESTRATOR ARCHITECTURE** - See [ADR-001](./adr/001-dual-orchestrator-architecture.md) for details
+⚠️ **DUAL-MODE ORCHESTRATOR ARCHITECTURE** - Critical for understanding code organization
 
-**Current State**: Two orchestrator implementations in use:
+**Current State**: Single worker orchestrator with two execution modes sharing a common core.
 
-| Component | Role | Maturity | Service | Path | Documentation |
-|-----------|------|----------|---------|------|---------------|
-| **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` | [README](../orchestrator/README.md) |
-| **Worker Orchestrator** | Task Execution (RQ + LangGraph) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` | [README](../handoff/20250928/40_App/orchestrator/README.md) |
+#### Architecture Overview
 
-**Architecture**: Producer-consumer pattern. API Orchestrator receives HTTP requests and enqueues tasks to Redis. Worker Orchestrator polls Redis and executes tasks using LangGraph workflows.
+The orchestrator uses a **dual-mode architecture** with a shared core executor:
+
+```
+API Backend → Redis Queue → Worker (Routing) → [Simple Mode | LangGraph Mode]
+                                                       ↓              ↓
+                                                  graph.execute (Shared Core)
+```
+
+**Key Insight**: `graph.py` is NOT just "legacy code" - it's the **shared execution engine** used by both modes.
+
+| Component | Role | Traffic | Status | Path |
+|-----------|------|---------|--------|------|
+| **Simple Mode** | Direct execution | ~95% | Feature-frozen | `handoff/20250928/40_App/orchestrator/graph.py` |
+| **LangGraph Mode** | Stateful workflows | ~5% | Active development | `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py` |
+| **Shared Core** | Execution engine | 100% | Both modes | `handoff/20250928/40_App/orchestrator/graph.py:30-155` |
+| **Routing Logic** | Mode selection | 100% | Canary deployment | `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:366-400` |
+
+**Architecture**: Producer-consumer pattern with canary routing. API Backend enqueues tasks to Redis. Worker polls Redis and routes to Simple or LangGraph mode based on MD5 hash of task_id.
+
+**Current Configuration** (Phase 1):
+- `USE_LANGGRAPH=false` - Enable canary routing
+- `USE_LANGGRAPH_PERCENT=5` - 5% traffic to LangGraph
+- `USE_LLM_PLANNER=true` - LangGraph uses LLM planner
 
 **Key Documentation**:
-- [ADR-001: Dual Orchestrator Architecture](./adr/001-dual-orchestrator-architecture.md) - Rationale and migration plan
-- [ADR-002: Producer-Consumer Architecture](./adr/002-producer-consumer-architecture.md) - Technical architecture details
-- [render.yaml](../render.yaml) - Deployment configuration (lines 55-94, 111-150)
+- [ONBOARDING_GUIDE.md - Orchestrator Architecture](./ONBOARDING_GUIDE.md#orchestrator-architecture) - Comprehensive guide for developers
+- [ADR-001: Dual Orchestrator Architecture](./adr/001-dual-orchestrator-architecture.md) - Historical context
+- [ADR-002: Producer-Consumer Architecture](./adr/002-producer-consumer-architecture.md) - Technical architecture
+- [render.yaml](../render.yaml) - Deployment configuration
 
-**Consolidation Plan**: 2026 Q1 (tracked in [Issue #1105](https://github.com/RC918/morningai/issues/1105))
+**Migration Roadmap**:
+- **Phase 1** (Current): 5% LangGraph canary validation
+- **Phase 2** (Q1 2026): Gradually increase to 100% LangGraph
+- **Phase 3** (Q2 2026): Refactor `graph.py` to `core_executor.py` (Option A - Recommended)
 
-#### 3.1 API Orchestrator (Production API Layer)
-
-**Location**: `orchestrator/` (root directory)
-
-**Role**: API Layer (FastAPI) - Receives HTTP task submissions and enqueues to Redis
-
-**Maturity**: Beta
-
-**Key Components**:
-- **API** (`orchestrator/api/main.py`): FastAPI application
-- **Task Queue** (`orchestrator/task_queue/redis_queue.py`): Redis-based queue
-- **Sandbox** (`orchestrator/sandbox/`): Isolated agent execution
-- **MCP** (`orchestrator/mcp/`): Management Control Plane
-
-**Dependencies**: Does NOT include LangGraph (`orchestrator/requirements.txt`)
-
-**Deployment**: 
-- Render service: `morningai-orchestrator-api`
-- Docker runtime (`orchestrator/Dockerfile`)
-- Port: 8000
-- Environment: `USE_LANGGRAPH=false`
-
-#### 3.2 Worker Orchestrator (Task Execution Layer)
+#### 3.1 Mode 1: Simple Mode (Feature-Frozen, ~95% Traffic)
 
 **Location**: `handoff/20250928/40_App/orchestrator/`
 
-**Role**: Task Execution (RQ + LangGraph) - Polls Redis and executes tasks
+**Entry Point**: `redis_queue/worker.py:399` → `graph.py:execute()`
 
-**Maturity**: Production
+**Characteristics**:
+- ✅ **Fast**: Direct execution, no state machine overhead
+- ✅ **Stable**: Battle-tested, production-proven since 2025-Q3
+- ✅ **Stateless**: No retry logic, no CI monitoring
+- ❌ **Feature-frozen**: Only bug fixes accepted
 
-**Key Components**:
-- **LangGraph Orchestrator** (`langgraph_orchestrator.py`): Stateful workflows
-- **Redis Queue Worker**: RQ job processing
+**When Used**:
+- `USE_LANGGRAPH=false` (default)
+- Task's MD5 hash % 100 >= `USE_LANGGRAPH_PERCENT`
 
-**Dependencies**: Includes LangGraph and related dependencies
+**Key Files**:
+```
+handoff/20250928/40_App/orchestrator/
+├── redis_queue/worker.py:399        # Entry point: from graph import execute
+├── graph.py:30-155                  # Shared executor (used by both modes!)
+└── tests/test_graph.py              # Simple mode tests
+```
 
-**Deployment**:
-- Render service: `morningai-agent-worker`
-- Used by: RQ workers for background job processing
+**Development Policy**: **No new features**. All new orchestrator features must be implemented in LangGraph mode.
+
+#### 3.2 Mode 2: LangGraph Mode (Active Development, ~5% Traffic)
+
+**Location**: `handoff/20250928/40_App/orchestrator/`
+
+**Entry Point**: `redis_queue/worker.py:396` → `langgraph_orchestrator.py:run_orchestrator()`
+
+**Characteristics**:
+- ✅ **Stateful**: Full state machine with LangGraph
+- ✅ **Intelligent**: LLM-powered planning (when `USE_LLM_PLANNER=true`)
+- ✅ **Resilient**: Retry logic, error handling, CI monitoring
+- ✅ **Active Development**: New features go here
+
+**When Used**:
+- `USE_LANGGRAPH=true` (100% routing), OR
+- `USE_LANGGRAPH=false` + Task's MD5 hash % 100 < `USE_LANGGRAPH_PERCENT`
+
+**Workflow**:
+```
+Worker → langgraph_orchestrator.run_orchestrator()
+  → planner_node (LLM or static)
+  → executor_node → graph.execute()  # ← Uses shared core!
+  → ci_monitor_node
+  → fixer_node (if needed)
+  → finalizer_node
+```
+
+**Key Files**:
+```
+handoff/20250928/40_App/orchestrator/
+├── redis_queue/worker.py:396        # Entry point: from langgraph_orchestrator import run_orchestrator
+├── langgraph_orchestrator.py        # LangGraph state machine
+│   ├── planner_node (lines 76-104)  # LLM/static planner selection
+│   └── executor_node (line 143)     # Calls graph.execute()
+├── graph.py:30-155                  # Shared executor (used by both modes!)
+└── tests/test_langgraph_ci.py       # LangGraph tests
+```
+
+**Development Policy**: **All new orchestrator features go here**. This is the active development path.
+
+#### 3.3 Shared Core: graph.execute()
+
+**Location**: `handoff/20250928/40_App/orchestrator/graph.py:30-155`
+
+**Critical Understanding**: This is **NOT** just the "old Simple orchestrator" - it's the **shared execution engine** for both modes!
+
+**Used By**:
+1. **Simple Mode**: Direct call from `worker.py:399`
+   ```python
+   from graph import execute
+   pr_url, state, trace_id = execute(goal, repo, trace_id)
+   ```
+
+2. **LangGraph Mode**: Called by `executor_node` in `langgraph_orchestrator.py:143`
+   ```python
+   def executor_node(state: AgentState) -> AgentState:
+       from graph import execute
+       pr_url, ci_state, trace_id = execute(goal, repo, trace_id=trace_id)
+       # ...
+   ```
+
+**What It Does**:
+- Cost tracking and budget enforcement (`cost_tracker.py`)
+- Rate limiting (10 PRs/hour via `rate_limit.py`)
+- FAQ content generation with GPT-4 (`llm/faq_generator.py`)
+- Git branch creation and PR opening (`tools/github_api.py`)
+- CI check monitoring (`get_pr_checks()`)
+- Test mode auto-cleanup (draft PR cleanup)
+
+**⚠️ Critical Development Rule**: Changes to `graph.execute()` affect **BOTH** modes. Always:
+1. Test with both Simple and LangGraph modes
+2. Add tests in `test_graph.py` AND `test_langgraph_ci.py`
+3. State in PR description: "This change affects both orchestrator modes"
+
+#### 3.4 Routing Logic (Canary Deployment)
+
+**Location**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:366-400`
+
+**Algorithm**:
+```python
+use_langgraph = settings.use_langgraph or False
+use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
+
+if not use_langgraph and use_langgraph_percent > 0:
+    # Canary logic: MD5 hash for deterministic routing
+    task_hash = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
+    task_percent = task_hash % 100  # 0-99 bucket
+    use_langgraph = task_percent < use_langgraph_percent
+    
+    logger.info(f"Canary deployment: task_percent={task_percent}, "
+                f"threshold={use_langgraph_percent}, use_langgraph={use_langgraph}")
+
+if use_langgraph:
+    from langgraph_orchestrator import run_orchestrator
+    logger.info(f"Using LangGraph orchestrator for task {task_id}")
+else:
+    from graph import execute
+    logger.info(f"Using simple orchestrator for task {task_id}")
+```
+
+**Properties**:
+- **Deterministic**: Same task_id always routes to same mode
+- **Uniform**: MD5 ensures even distribution across 0-99 buckets
+- **Controllable**: Adjust `USE_LANGGRAPH_PERCENT` to change traffic split
+- **Observable**: Logs routing decision with structured logging
+
+**Monitoring**:
+```bash
+# Search in Render Dashboard → morningai-backend-v2-stg-worker → Logs
+"Canary deployment"           # Routing decision
+"Using LangGraph orchestrator" # LangGraph execution
+"Using simple orchestrator"    # Simple execution
+```
+
+#### 3.5 Deployment Configuration
+
+**Worker Service** (Render):
+- Service: `morningai-agent-worker` (Production), `morningai-backend-v2-stg-worker` (Staging)
+- Runtime: Python (not Docker)
 - Path: `handoff/20250928/40_App/orchestrator`
+- Start Command: `python redis_queue/worker.py`
+
+**Environment Variables**:
+```bash
+# Phase 1 Configuration (Current)
+USE_LANGGRAPH=false              # Allow canary (not 100%)
+USE_LANGGRAPH_PERCENT=5          # 5% to LangGraph
+USE_LLM_PLANNER=true             # LangGraph uses LLM planner
+
+# Kill Switch (Emergency)
+USE_LANGGRAPH=false
+USE_LANGGRAPH_PERCENT=0          # 0% to LangGraph (100% Simple)
+
+# Full LangGraph (Future)
+USE_LANGGRAPH=true               # 100% to LangGraph
+```
+
+**Dependencies** (`handoff/20250928/40_App/orchestrator/requirements.txt`):
+- LangGraph + LangChain (for LangGraph mode)
+- OpenAI SDK (for LLM planner)
+- Redis Queue (RQ) for worker
+- All dependencies for both modes (shared environment)
 
 ### 4. Frontend System
 
