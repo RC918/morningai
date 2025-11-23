@@ -1,60 +1,77 @@
-# Test Task 0 for Planner Distribution Verification
+# Test Task 3 for Planner Distribution Verification
 
-## Overview
-This FAQ entry is designed to guide developers through the process of verifying the planner distribution within the MorningAI platform, specifically focusing on Test Task 0. This task is crucial for ensuring that the autonomous agent system and real-time task orchestration components are functioning correctly, especially in a distributed environment.
+This section provides a comprehensive guide on verifying the planner distribution within the MorningAI platform, particularly focusing on test task 3. This process is critical for developers looking to ensure that task orchestration and distribution across the system are functioning as expected, leveraging MorningAI's real-time task orchestration with Redis Queue.
 
-## Explanation
-Test Task 0 serves as a preliminary check to ensure that tasks are correctly distributed and executed across the system's architecture. This involves verifying that:
-- The Redis Queue (RQ) is correctly processing tasks.
-- The multi-worker setup in Gunicorn is handling requests efficiently.
-- The LangGraph orchestration is properly managing agent workflows.
+## Understanding Test Task 3
 
-### Code Example
-To initiate Test Task 0, you can use the following Python snippet, assuming you have already set up your environment according to the platform's requirements:
+Test Task 3 is designed to validate the distribution and execution of planning tasks across the multi-tenant SaaS platform. It specifically checks for:
+
+- Correct task allocation and execution by the autonomous agent system.
+- Proper integration and functioning of Redis Queue for real-time task orchestration.
+- Efficient vector memory storage handling with pgvector/Supabase.
+
+### Code Example: Creating and Dispatching a Test Task
+
+To create and dispatch a test task for planner distribution verification, you can use the following Python snippet. Ensure your environment is set up with Flask and Redis Queue (RQ).
 
 ```python
 from rq import Queue
 from redis import Redis
-from my_project.tasks import verify_distribution
+from your_task_module import test_task_3
 
-# Set up Redis connection
+# Setup Redis connection
 redis_conn = Redis()
 
-# Set up a queue for the test task
+# Setup queue
 q = Queue(connection=redis_conn)
 
-# Enqueue Test Task 0
-job = q.enqueue(verify_distribution, args=(0,))
-print(f"Task {job.id} added to queue.")
-
-# Monitoring task status (simplified)
-if job.is_finished:
-    print("Test Task 0 completed successfully.")
-else:
-    print("Test Task 0 is still processing or encountered an issue.")
+# Dispatch test_task_3 for execution
+job = q.enqueue(test_task_3, args=(your_test_args,))
+print(f"Task {job.id} added to queue at {job.enqueued_at}")
 ```
 
-Make sure to replace `my_project.tasks` and `verify_distribution` with the actual path and function name used in your project.
+Replace `your_task_module` with the actual Python module where `test_task_3` function is defined, and `your_test_args` with any arguments required by your test function.
 
 ### Related Documentation Links
-- **Redis Queue (RQ)**: [https://python-rq.org/docs/](https://python-rq.org/docs/)
-- **Gunicorn Configuration**: [https://gunicorn.org/#config](https://gunicorn.org/#config)
-- **LangGraph Documentation**: Unfortunately, as of my last update, specific documentation links for LangGraph were not available. Please refer to the internal MorningAI platform documentation or contact your system administrator.
 
-### Common Troubleshooting Tips
-- **Task Not Being Processed**: Ensure that Redis is running and accessible. Check for any network issues that might prevent communication between services.
-- **Task Fails**: Review the output logs for errors. Common issues include misconfigurations in LangGraph or errors in the task's code.
-- **Performance Issues**: If tasks are slow or timing out, consider scaling your worker processes in Gunicorn or evaluating the performance of your Redis instance.
+- **Redis Queue (RQ) Documentation**: [https://python-rq.org/docs/](https://python-rq.org/docs/)
+- **pgvector/Supabase Documentation**: [https://supabase.com/docs/guides/database/full-text-search](https://supabase.com/docs/guides/database/full-text-search)
+- **Flask Documentation for Background Tasks**: [https://flask.palletsprojects.com/en/2.0.x/patterns/backgroundtasks/](https://flask.palletsprojects.com/en/2.0.x/patterns/backgroundtasks/)
 
-Remember, successful execution of Test Task 0 indicates a healthy communication flow between components but does not guarantee that all system features are fully operational. Further testing and verification are recommended for comprehensive validation.
+## Common Troubleshooting Tips
+
+### Task Not Executing
+
+If you notice that the dispatched task does not execute:
+
+1. Verify that Redis server is running: `redis-cli ping`. You should get a response `PONG`.
+2. Check if RQ worker is up and running: Navigate to your project directory and execute `rq worker`.
+3. Ensure there's no error in the task function which might cause it to fail silently.
+
+### Incorrect Task Distribution
+
+If tasks are not being distributed as expected:
+
+1. Check if all workers are connected to the same Redis instance.
+2. Ensure that tasks are not being filtered or limited by any unintended criteria within the task dispatch code.
+3. Verify that there's no network partition or connectivity issue affecting communication between workers and Redis.
+
+### Memory Issues with Vector Storage
+
+When using pgvector/Supabase for vector memory storage, ensure:
+
+1. Your vectors are appropriately sized according to your database schema.
+2. Batch operations when possible to reduce load.
+3. Monitor database performance and scale resources as needed.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Test task 0 for planner distribution verification
-- Trace ID: `planner-dist-check-0`
+- Task: Test task 3 for planner distribution verification
+- Trace ID: `planner-dist-check-3`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
