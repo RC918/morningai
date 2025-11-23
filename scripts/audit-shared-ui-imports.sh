@@ -219,9 +219,9 @@ if [ "$DIFF_ONLY" = "true" ]; then
   STAGE_NAME="diff-only-enforcement"
   IS_BLOCKING=true
 else
-  STAGE_NUM=1
-  STAGE_NAME="warn"
-  IS_BLOCKING=false
+  STAGE_NUM=3
+  STAGE_NAME="full-enforcement"
+  IS_BLOCKING=true
 fi
 
 cat > "$JSON_OUTPUT_FILE" <<EOF
@@ -276,7 +276,7 @@ if [ $VIOLATIONS_FOUND -gt 0 ]; then
     echo -e "${RED}🚨 This PR cannot be merged until violations are resolved${NC}"
     echo -e "${YELLOW}Emergency override: Contact @RC918 for admin approval${NC}"
   else
-    echo -e "${YELLOW}⚠️  Stage 1 (Warn Mode): Violations detected but not blocking${NC}"
+    echo -e "${RED}❌ Stage 3 (Full Enforcement): Violations detected - BLOCKING${NC}"
     echo ""
     echo -e "${BLUE}📝 Recommended Actions:${NC}"
     echo "1. Replace direct UI library imports with @morningai/shared-ui components"
@@ -294,18 +294,13 @@ if [ $VIOLATIONS_FOUND -gt 0 ]; then
     echo "json_artifact=$JSON_OUTPUT_FILE" >> "$GITHUB_OUTPUT"
   fi
   
-  if [ "$DIFF_ONLY" = "true" ]; then
-    rm -f "$VIOLATIONS_FILE" "$VIOLATIONS_DETAILS" "$CHANGED_FILES_LIST"
-    exit 1
-  else
-    rm -f "$VIOLATIONS_FILE" "$VIOLATIONS_DETAILS" "$CHANGED_FILES_LIST"
-    exit 0
-  fi
+  rm -f "$VIOLATIONS_FILE" "$VIOLATIONS_DETAILS" "$CHANGED_FILES_LIST"
+  exit 1
 else
   if [ "$DIFF_ONLY" = "true" ]; then
     echo -e "${GREEN}✅ Stage 2: No violations found in changed files - all imports comply${NC}"
   else
-    echo -e "${GREEN}✅ No violations found - all imports comply with shared-ui policy${NC}"
+    echo -e "${GREEN}✅ Stage 3: No violations found - all imports comply with shared-ui policy${NC}"
   fi
   
   if [ -n "$GITHUB_OUTPUT" ]; then
