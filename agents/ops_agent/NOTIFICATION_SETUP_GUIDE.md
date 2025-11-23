@@ -10,7 +10,7 @@ The Ops Agent notification service supports multiple channels: Email (Mailtrap/S
 
 ```bash
 # Set in environment or .env file
-export Mailtrap_API_TOKEN="your-mailtrap-token"
+export MAILTRAP_API_TOKEN="your-mailtrap-token"
 ```
 
 ### 2. Email via SMTP (Fallback)
@@ -38,7 +38,7 @@ from agents.ops_agent.tools.notification_service import NotificationService
 
 # Initialize service
 notification_service = NotificationService(
-    mailtrap_token=os.getenv("Mailtrap_API_TOKEN")
+    mailtrap_token=os.getenv("MAILTRAP_API_TOKEN")
 )
 
 # Send email
@@ -104,7 +104,7 @@ from agents.ops_agent.tools.alert_management_tool import AlertManagementTool
 
 # Setup notification service
 notification_service = NotificationService(
-    mailtrap_token=os.getenv("Mailtrap_API_TOKEN"),
+    mailtrap_token=os.getenv("MAILTRAP_API_TOKEN"),
     slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL")
 )
 
@@ -141,7 +141,7 @@ from agents.ops_agent.tools.notification_service import NotificationService
 
 async def test_email():
     service = NotificationService(
-        mailtrap_token=os.getenv("Mailtrap_API_TOKEN")
+        mailtrap_token=os.getenv("MAILTRAP_API_TOKEN")
     )
     
     result = await service.send_email_mailtrap(
@@ -179,7 +179,7 @@ asyncio.run(test_slack())
 
 1. **Check Mailtrap token**:
    ```bash
-   echo $Mailtrap_API_TOKEN
+   echo $MAILTRAP_API_TOKEN
    ```
 
 2. **Verify token in Mailtrap dashboard**:
@@ -216,7 +216,7 @@ asyncio.run(test_slack())
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `Mailtrap token not configured` | Missing environment variable | Set `Mailtrap_API_TOKEN` |
+| `Mailtrap token not configured` | Missing environment variable | Set `MAILTRAP_API_TOKEN` |
 | `Slack webhook URL not configured` | Missing environment variable | Set `SLACK_WEBHOOK_URL` |
 | `403 Forbidden` | Invalid token/webhook | Regenerate token/webhook |
 | `401 Unauthorized` | Expired credentials | Update credentials |
@@ -227,7 +227,7 @@ asyncio.run(test_slack())
 Never hardcode credentials:
 ```python
 # ✅ Good
-token = os.getenv("Mailtrap_API_TOKEN")
+token = os.getenv("MAILTRAP_API_TOKEN")
 
 # ❌ Bad
 token = "abc123xyz..."

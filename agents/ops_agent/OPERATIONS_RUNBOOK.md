@@ -18,7 +18,7 @@
 ```bash
 # Required environment variables
 export VERCEL_TOKEN_NEW="your-vercel-token"
-export Mailtrap_API_TOKEN="your-mailtrap-token"  # Optional
+export MAILTRAP_API_TOKEN="your-mailtrap-token"  # Optional
 export SLACK_WEBHOOK_URL="your-slack-webhook"    # Optional
 export SUPABASE_URL="your-supabase-url"
 export SUPABASE_SERVICE_ROLE_KEY="your-key"
@@ -165,7 +165,7 @@ from agents.ops_agent.tools.notification_service import NotificationService
 
 async def alert():
     service = NotificationService(
-        mailtrap_token=os.getenv('Mailtrap_API_TOKEN'),
+        mailtrap_token=os.getenv('MAILTRAP_API_TOKEN'),
         slack_webhook_url=os.getenv('SLACK_WEBHOOK_URL')
     )
     
@@ -501,7 +501,7 @@ GROUP BY state;
 **Diagnosis**:
 ```bash
 # Test Mailtrap
-curl -H "Authorization: Bearer $Mailtrap_API_TOKEN" \
+curl -H "Authorization: Bearer $MAILTRAP_API_TOKEN" \
      https://send.api.mailtrap.io/api/send \
      -X POST -H "Content-Type: application/json" \
      -d '{"from":{"email":"test@morningai.com"},"to":[{"email":"test@example.com"}],"subject":"Test","text":"Test"}'

@@ -176,7 +176,7 @@ SUPABASE_URL=<supabase-url>
 SUPABASE_SERVICE_ROLE_KEY=<supabase-key>
 
 # Notifications
-Mailtrap_API_TOKEN=<mailtrap-token>  # ✅ Configured
+MAILTRAP_API_TOKEN=<mailtrap-token>  # ✅ Configured
 SLACK_WEBHOOK_URL=<slack-webhook>    # ⚠️ To be configured
 
 # Deployment
