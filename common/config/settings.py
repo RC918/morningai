@@ -27,6 +27,7 @@ from typing import Optional, Literal
 from pydantic import Field, field_validator, ConfigDict, SecretStr
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables.
@@ -433,6 +434,12 @@ class Settings(BaseSettings):
         description="Slack channel for alerts"
     )
 
+    ops_alert_webhook_url: Optional[str] = Field(
+        None,
+        alias="OPS_ALERT_WEBHOOK_URL",
+        description="Optional webhook URL for operational alerts (Slack/email/custom)"
+    )
+
     monitor_base_url: Optional[str] = Field(
         None,
         alias="MONITOR_BASE_URL",
@@ -770,6 +777,48 @@ class Settings(BaseSettings):
         description="Enable Docker sandbox containers for agents"
     )
 
+    canary_metrics_enabled: bool = Field(
+        default=True,
+        alias="CANARY_METRICS_ENABLED",
+        description="Enable canary deployment metrics collection"
+    )
+
+    canary_alerting_enabled: bool = Field(
+        default=True,
+        alias="CANARY_ALERTING_ENABLED",
+        description="Enable canary SLO alerting"
+    )
+
+    canary_window_minutes: int = Field(
+        default=15,
+        alias="CANARY_WINDOW_MINUTES",
+        description="Time window for canary SLO evaluation in minutes"
+    )
+
+    canary_p95_ms_threshold: int = Field(
+        default=2500,
+        alias="CANARY_P95_MS_THRESHOLD",
+        description="Canary p95 latency threshold in milliseconds"
+    )
+
+    canary_5xx_rate_threshold: float = Field(
+        default=1.0,
+        alias="CANARY_5XX_RATE_THRESHOLD",
+        description="Canary 5xx error rate threshold percentage"
+    )
+
+    canary_failure_rate_threshold: float = Field(
+        default=5.0,
+        alias="CANARY_FAILURE_RATE_THRESHOLD",
+        description="Canary planner failure rate threshold percentage"
+    )
+
+    canary_buckets_ms: str = Field(
+        default="50,100,200,400,800,1600,3200",
+        alias="CANARY_BUCKETS_MS",
+        description="Canary latency histogram buckets in milliseconds (comma-separated)"
+    )
+
     feature_2fa_enabled: bool = Field(
         default=True,
         alias="FEATURE_2FA_ENABLED",
@@ -798,6 +847,24 @@ class Settings(BaseSettings):
         default=False,
         alias="ENABLE_MOCK_USERS",
         description="Enable mock users for development/testing"
+    )
+
+    use_tiktoken_estimator: bool = Field(
+        default=False,
+        alias="USE_TIKTOKEN_ESTIMATOR",
+        description="Use tiktoken for accurate token estimation instead of heuristic"
+    )
+
+    enable_rate_limit_in_tests: bool = Field(
+        default=False,
+        alias="ENABLE_RATE_LIMIT_IN_TESTS",
+        description="Enable rate limiting in test environment"
+    )
+
+    idempotency_tests_allowed: bool = Field(
+        default=False,
+        alias="IDEMPOTENCY_TESTS_ALLOWED",
+        description="Allow idempotency tests to run"
     )
 
     feature_cookie_auth: bool = Field(
@@ -1016,6 +1083,18 @@ class Settings(BaseSettings):
         description="Agent workspace directory path"
     )
 
+    repo_root_path: Optional[str] = Field(
+        None,
+        alias="REPO_ROOT_PATH",
+        description="Repository root path"
+    )
+
+    morningai_repo_path: Optional[str] = Field(
+        None,
+        alias="MORNINGAI_REPO_PATH",
+        description="MorningAI repository path"
+    )
+
     setuptools_ext_suffix: Optional[str] = Field(
         None,
         alias="SETUPTOOLS_EXT_SUFFIX",
@@ -1095,6 +1174,7 @@ class Settings(BaseSettings):
                     stacklevel=2
                 )
 
+
 _settings_instance = None
 
 def get_settings() -> Settings:
@@ -1144,6 +1224,7 @@ class _SettingsProxy:
     """Proxy object that lazily instantiates Settings on first access"""
     def __getattr__(self, name):
         return getattr(get_settings(), name)
+
 
 settings = _SettingsProxy()
 
