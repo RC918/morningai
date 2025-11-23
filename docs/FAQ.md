@@ -1,52 +1,58 @@
-# Test Task 0 for Planner Distribution Verification
+# Test Task 7: Planner Distribution Verification
+
+This FAQ section is dedicated to guiding developers through the process of verifying the planner distribution within the MorningAI platform. This task is crucial for ensuring that task distribution and execution are functioning correctly across the system's architecture.
 
 ## Overview
-This FAQ entry is designed to guide developers through the process of verifying the planner distribution within the MorningAI platform, specifically focusing on Test Task 0. This task is crucial for ensuring that the autonomous agent system and real-time task orchestration components are functioning correctly, especially in a distributed environment.
 
-## Explanation
-Test Task 0 serves as a preliminary check to ensure that tasks are correctly distributed and executed across the system's architecture. This involves verifying that:
-- The Redis Queue (RQ) is correctly processing tasks.
-- The multi-worker setup in Gunicorn is handling requests efficiently.
-- The LangGraph orchestration is properly managing agent workflows.
+Planner distribution verification involves checking that tasks are correctly distributed and executed across multiple workers in a balanced manner. This process helps identify any bottlenecks or inefficiencies in task allocation and execution, which is critical for optimizing the performance of the MorningAI platform.
 
-### Code Example
-To initiate Test Task 0, you can use the following Python snippet, assuming you have already set up your environment according to the platform's requirements:
+## How to Verify Planner Distribution
 
-```python
-from rq import Queue
-from redis import Redis
-from my_project.tasks import verify_distribution
+To verify planner distribution, follow these steps:
 
-# Set up Redis connection
-redis_conn = Redis()
+1. **Check Worker Health**: Ensure all workers are active and healthy. You can check worker health by inspecting the worker heartbeat via Redis Queue (RQ) dashboard.
 
-# Set up a queue for the test task
-q = Queue(connection=redis_conn)
+    ```python
+    from rq import Connection, Worker
+    with Connection():
+        workers = Worker.all()
+        for worker in workers:
+            print(f"Worker {worker.name} - State: {worker.get_state()}")
+    ```
 
-# Enqueue Test Task 0
-job = q.enqueue(verify_distribution, args=(0,))
-print(f"Task {job.id} added to queue.")
+2. **Monitor Task Distribution**: Use the RQ dashboard to monitor how tasks are being distributed among the available workers. Look for any uneven distribution of tasks which might indicate an issue with the task allocation logic.
 
-# Monitoring task status (simplified)
-if job.is_finished:
-    print("Test Task 0 completed successfully.")
-else:
-    print("Test Task 0 is still processing or encountered an issue.")
-```
+3. **Analyze Execution Logs**: Check the execution logs located at `logs/execution_logs.log` in the repository for any errors or warnings that might indicate problems with task execution or distribution.
 
-Make sure to replace `my_project.tasks` and `verify_distribution` with the actual path and function name used in your project.
+4. **Review Planner Distribution Algorithm**: Examine the code responsible for task distribution located at `src/task_distribution/planner.py`. Ensure that it correctly implements your desired distribution logic.
 
-### Related Documentation Links
-- **Redis Queue (RQ)**: [https://python-rq.org/docs/](https://python-rq.org/docs/)
-- **Gunicorn Configuration**: [https://gunicorn.org/#config](https://gunicorn.org/#config)
-- **LangGraph Documentation**: Unfortunately, as of my last update, specific documentation links for LangGraph were not available. Please refer to the internal MorningAI platform documentation or contact your system administrator.
+    ```python
+    # Example snippet from planner.py
+    def distribute_tasks(tasks):
+        # Your distribution logic here
+        pass
+    ```
 
-### Common Troubleshooting Tips
-- **Task Not Being Processed**: Ensure that Redis is running and accessible. Check for any network issues that might prevent communication between services.
-- **Task Fails**: Review the output logs for errors. Common issues include misconfigurations in LangGraph or errors in the task's code.
-- **Performance Issues**: If tasks are slow or timing out, consider scaling your worker processes in Gunicorn or evaluating the performance of your Redis instance.
+5. **Execute Test Tasks**: Manually trigger test tasks to observe their distribution and execution in real-time. This can help pinpoint issues not evident during passive observation.
 
-Remember, successful execution of Test Task 0 indicates a healthy communication flow between components but does not guarantee that all system features are fully operational. Further testing and verification are recommended for comprehensive validation.
+    ```bash
+    curl -X POST http://localhost:5000/api/trigger-test-task -d '{"task_id": "test123"}' -H "Content-Type: application/json"
+    ```
+
+## Related Documentation
+
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Supabase Row Level Security](https://supabase.io/docs/guides/auth/row-level-security)
+- [Flask Documentation](https://flask.palletsprojects.com/en/2.0.x/)
+
+## Common Troubleshooting Tips
+
+- **Tasks Not Distributing Evenly**: If tasks are not distributing evenly among workers, ensure that your distribution algorithm in `planner.py` does not contain logical errors. Also, verify that all workers are connected and reporting to Redis Queue.
+- **Tasks Stuck in Queue**: If tasks remain stuck in the queue without being picked up by workers, check if there's an issue with worker connectivity or health status.
+- **Failed Task Execution**: For tasks that fail during execution, review the specific error messages in `logs/execution_logs.log` to identify and rectify the underlying issue.
+- **Performance Bottlenecks**: If certain tasks consistently cause performance bottlenecks, consider implementing rate limiting or splitting large tasks into smaller, more manageable pieces.
+
+For further assistance or if you encounter unique issues not covered here, please consult the project's main documentation or reach out on our developer support channels.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -54,7 +60,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Test task 0 for planner distribution verification
-- Trace ID: `planner-dist-check-0`
+- Task: Test task 7 for planner distribution verification
+- Trace ID: `planner-dist-check-7`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
