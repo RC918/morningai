@@ -3,6 +3,7 @@ import os
 import sys
 import redis
 import yaml
+from pathlib import Path
 from datetime import date, datetime
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
@@ -49,10 +50,29 @@ class CostTracker:
             self.redis = None
         
         if policies_path is None:
-            policies_path = os.path.join(
-                os.path.dirname(__file__),
-                '../../../../config/policies.yaml'
-            )
+            # Check environment variable first
+            policies_path = os.getenv('POLICIES_PATH')
+            
+            if not policies_path:
+                # Try multiple candidate paths (same logic as ReputationEngine)
+                current_file = Path(__file__).resolve()
+                candidates = [
+                    current_file.parents[5] / "config" / "policies.yaml",  # From repo root
+                    Path.cwd() / "config" / "policies.yaml",  # From current working directory
+                    current_file.parents[4] / "config" / "policies.yaml",  # Fallback
+                ]
+                
+                for candidate in candidates:
+                    if candidate.exists():
+                        policies_path = str(candidate)
+                        break
+                
+                # Final fallback to relative path (for backwards compatibility)
+                if not policies_path:
+                    policies_path = os.path.join(
+                        os.path.dirname(__file__),
+                        '../../../../config/policies.yaml'
+                    )
         
         self.policies = self._load_policies(policies_path)
         self.budgets = self.policies.get('cost_budget', {})
