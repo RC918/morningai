@@ -146,6 +146,7 @@
         "updatedAt": "Updated"
       },
       "pagination": {
+        "label": "Pagination",
         "showing": "Showing {{start}}-{{end}} of {{total}}",
         "page": "Page {{current}} of {{total}}",
         "previous": "Previous",
