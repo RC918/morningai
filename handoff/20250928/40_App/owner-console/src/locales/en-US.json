@@ -1,549 +1,549 @@
 {
-  "nav": {
-    "dashboard": "Dashboard",
-    "governance": "Agent Governance",
-    "tenants": "Tenant Management",
-    "monitoring": "System Monitoring",
-    "uxMetrics": "UX Metrics",
-    "settings": "Platform Settings",
-    "logout": "Logout",
-    "mainNavigation": "Main navigation"
-  },
-  "dashboard": {
-    "title": "Platform Overview",
-    "subtitle": "Monitor your MorningAI platform at a glance",
-    "stats": {
-      "totalTenants": "Total Tenants",
-      "activeAgents": "Active Agents",
-      "monthlyCost": "Monthly Cost",
-      "systemHealth": "System Health",
-      "thisMonth": "this month",
-      "acrossAllTenants": "Across all tenants",
-      "platformWideUsage": "Platform-wide usage",
-      "allSystemsOperational": "All systems operational"
+  "agentEvaluation": {
+    "belowTarget": "Below Target",
+    "history": {
+      "ciPassed": "CI Passed",
+      "completed": "Completed",
+      "noResults": "No evaluation results available yet",
+      "prs": "PRs",
+      "runNumber": "Run #{{id}}",
+      "subtitle": "Recent agent evaluation runs from GitHub Actions",
+      "tasks": "Tasks",
+      "title": "Evaluation History",
+      "weeklyRuns": "Evaluations run weekly via GitHub Actions"
     },
-    "recentActivity": {
-      "title": "Recent Activity",
-      "subtitle": "Latest platform events and changes",
-      "newTenant": "New tenant registered",
-      "agentDeployed": "Agent deployed",
-      "maintenanceScheduled": "System maintenance scheduled"
-    },
-    "systemStatus": {
-      "title": "System Status",
-      "subtitle": "Infrastructure health and performance",
-      "apiBackend": "API Backend",
-      "database": "Database",
-      "redisCache": "Redis Cache",
-      "workerNodes": "Worker Nodes",
-      "healthy": "Healthy"
-    }
-  },
-  "governance": {
-    "title": "Agent Governance",
-    "subtitle": "Monitor agent reputation, permissions, and compliance",
-    "refresh": "Refresh",
-    "stats": {
-      "totalAgents": "Total Agents",
-      "avgReputation": "Avg Reputation",
-      "dailyCost": "Daily Cost",
-      "violations": "Violations"
-    },
-    "tabs": {
-      "agents": "Agents",
-      "events": "Events",
-      "violations": "Violations",
-      "executionLogs": "Execution Logs"
-    },
-    "executionLogs": {
-      "title": "Agent Execution Logs",
-      "subtitle": "Monitor agent task execution history and performance",
-      "noLogs": "No execution logs found",
-      "filters": {
-        "status": "Status",
-        "allStatuses": "All Statuses",
-        "agentType": "Agent Type",
-        "allAgentTypes": "All Agent Types",
-        "agentId": "Agent ID",
-        "agentIdPlaceholder": "Filter by agent ID",
-        "tenantId": "Tenant ID",
-        "tenantIdPlaceholder": "Filter by tenant ID",
-        "taskType": "Task Type",
-        "taskTypePlaceholder": "Filter by task type",
-        "timeRange": "Time Range",
-        "selectTimeRange": "Select time range",
-        "allTime": "All Time",
-        "last24Hours": "Last 24 Hours",
-        "last7Days": "Last 7 Days",
-        "last30Days": "Last 30 Days",
-        "customRange": "Custom Range",
-        "dateRange": "Date Range",
-        "startDate": "Start Date",
-        "endDate": "End Date",
-        "clearFilters": "Clear Filters",
-        "applyFilters": "Apply Filters"
-      },
-      "agentTypes": {
-        "devAgent": "Dev Agent",
-        "opsAgent": "Ops Agent",
-        "pmAgent": "PM Agent",
-        "growthStrategist": "Growth Strategist",
-        "metaAgent": "Meta Agent"
-      },
-      "statuses": {
-        "queued": "Queued",
-        "assigned": "Assigned",
-        "running": "Running",
-        "completed": "Completed",
-        "failed": "Failed",
-        "cancelled": "Cancelled",
-        "unknown": "Unknown"
-      },
-      "columns": {
-        "taskId": "Task ID",
-        "status": "Status",
-        "taskType": "Task Type",
-        "agent": "Agent",
-        "tenant": "Tenant",
-        "duration": "Duration",
-        "timestamps": "Timestamps",
-        "actions": "Actions"
-      },
-      "summary": {
-        "title": "Execution Summary",
-        "totalExecutions": "Total Executions",
-        "successRate": "Success Rate",
-        "avgDuration": "Avg Duration",
-        "statusBreakdown": "Status Breakdown"
-      },
-      "viewDetails": "View Details",
-      "copyTraceId": "Copy trace ID",
-      "copyTaskId": "Copy task ID",
-      "copyTenantId": "Copy tenant ID",
-      "viewTraceDetails": "View trace details in observability platform",
-      "traceIdCopied": "Trace ID copied to clipboard",
-      "traceIdCopyFailed": "Failed to copy trace ID",
-      "taskIdCopied": "Task ID copied to clipboard",
-      "taskIdCopyFailed": "Failed to copy task ID",
-      "tenantIdCopied": "Tenant ID copied to clipboard",
-      "tenantIdCopyFailed": "Failed to copy tenant ID",
-      "retryLoad": "Retry loading execution logs",
-      "details": {
-        "title": "Execution Log Details",
-        "subtitle": "Detailed information about this execution",
-        "taskDetails": "Task Details",
-        "agentInfo": "Agent Information",
-        "executionTime": "Execution Time",
-        "payload": "Payload",
-        "result": "Result",
-        "errorMessage": "Error Message",
-        "traceId": "Trace ID",
-        "prUrl": "Pull Request",
-        "timing": "Timing",
-        "createdAt": "Created",
-        "startedAt": "Started",
-        "completedAt": "Completed",
-        "updatedAt": "Updated"
-      },
-      "pagination": {
-        "label": "Pagination",
-        "showing": "Showing {{start}}-{{end}} of {{total}}",
-        "page": "Page {{current}} of {{total}}",
-        "previous": "Previous",
-        "next": "Next",
-        "pageSize": "Items per page"
-      }
-    },
-    "agents": {
-      "title": "Agent Reputation Leaderboard",
-      "subtitle": "Agents ranked by reputation score and permission level",
-      "noAgents": "No agents found",
-      "reputation": "Reputation",
-      "type": "Type"
-    },
-    "events": {
-      "title": "Recent Events",
-      "subtitle": "Reputation events and agent activities",
-      "noEvents": "No events found",
-      "delta": "Delta",
-      "trace": "Trace"
-    },
-    "violations": {
-      "title": "Policy Violations",
-      "subtitle": "Security and compliance violations",
-      "noViolations": "No violations detected",
-      "severity": "Severity",
-      "resolved": "Resolved"
-    },
-    "permissions": {
-      "prodFull": "Prod Full",
-      "prodLowRisk": "Prod Low Risk",
-      "staging": "Staging",
-      "sandbox": "Sandbox"
-    }
-  },
-  "tenants": {
-    "title": "Tenant Management",
-    "subtitle": "Manage tenant accounts and permissions",
-    "addTenant": "Add Tenant",
-    "activeTenants": "Active Tenants",
-    "allTenants": "All registered tenant organizations",
-    "agents": "agents",
-    "users": "users",
-    "active": "active",
-    "suspended": "suspended"
-  },
-  "monitoring": {
-    "title": "System Monitoring",
-    "subtitle": "Monitor system health and performance metrics",
-    "apiServices": "API Services",
-    "database": "Database",
-    "workers": "Workers",
-    "uptime": "Uptime",
-    "avgResponse": "Avg Response",
-    "connections": "Connections",
-    "queryTime": "Query Time",
-    "active": "Active",
-    "queueSize": "Queue Size",
-    "systemHealth": "System Health",
-    "overallStatus": "Overall Status",
-    "cpuUsage": "CPU Usage",
-    "cpuTrend": "CPU usage trend (last 24 hours)",
-    "cores": "Cores",
-    "memory": "Memory",
-    "memoryTrend": "Memory usage trend (last 24 hours)",
-    "disk": "Disk",
-    "diskTrend": "Disk usage trend (last 24 hours)",
-    "usedTotal": "Used/Total",
-    "gbFormat": "{{used}}GB / {{total}}GB",
-    "noHealthData": "No system health data available",
-    "noMetricsData": "No metrics available yet",
-    "mockDataLabel": "Mock Data"
-  },
-  "uxMetrics": {
-    "title": "UX Metrics Dashboard",
-    "subtitle": "Monitor UX quality metrics across recent PRs",
-    "errorLoading": "Error Loading Metrics",
-    "noData": "No metrics data available",
-    "lastUpdated": "Last updated: {{date}}",
-    "totalPRs": "Total PRs",
-    "avgFCP": "Avg FCP",
-    "avgLCP": "Avg LCP",
-    "target": "Target: ≤{{value}}{{unit}}",
-    "i18nCoverage": "i18n Coverage",
-    "prsWithData": "PRs with i18n data",
-    "qualityThresholds": "Quality Thresholds",
-    "i18n": "i18n",
-    "a11yCritical": "A11y Critical",
-    "motionP95": "Motion P95",
-    "vrtMismatch": "VRT Mismatch",
-    "lighthouseFCP": "Lighthouse FCP",
-    "recentPRs": "Recent PRs",
-    "pr": "PR",
-    "prTitle": "Title",
-    "author": "Author",
-    "merged": "Merged",
-    "i18nFD": "i18n (FD)",
-    "i18nOC": "i18n (OC)",
-    "available": "✓ Available",
-    "frontendDashboard": "Frontend Dashboard",
-    "ownerConsole": "Owner Console",
-    "a11yTests": "A11y Tests",
-    "motionTests": "Motion Tests",
-    "vrtTests": "VRT Tests",
-    "prCount": "{{available}}/{{total}} PRs",
-    "i18nTrend": "i18n Coverage Trend",
-    "lighthouseTrend": "Lighthouse Performance Trend",
-    "bundleSizeTrend": "Bundle Size Change Trend",
-    "avgBundleSize": "Avg Bundle Size",
-    "avgChange": "Avg Change",
-    "totalChange": "Total Change",
-    "critical": "C",
-    "serious": "S"
-  },
-  "metricsDashboard": {
-    "title": "Metrics Dashboard",
-    "subtitle": "Real-time system performance and agent monitoring",
-    "error": "Error",
-    "loadingMetrics": "Loading metrics...",
-    "devMode": {
-      "title": "Development Mode - Mock Data",
-      "description": "This dashboard is displaying simulated data for development purposes only. Real metrics will be available once the monitoring backend is deployed.",
-      "warning": "Do not use this data for production decisions."
-    },
-    "devInfo": {
-      "title": "Development Info",
-      "description": "The Metrics Dashboard requires the backend API endpoint:",
-      "endpoint": "GET /phase7/monitoring/dashboard",
-      "hint": "Ensure your backend server is running and the endpoint is implemented."
-    },
-    "autoRefresh": "Auto-refresh: {{status}}",
-    "autoRefreshOn": "ON",
-    "autoRefreshOff": "OFF",
+    "lastEvaluation": "Last evaluation",
     "metrics": {
-      "apiRequestRate": "API Request Rate",
-      "apiRequestRateDesc": "Requests per minute",
-      "taskSuccessRate": "Task Success Rate",
-      "taskSuccessRateDesc": "Agent task completion rate",
-      "queueDepth": "Queue Depth",
-      "queueDepthDesc": "Tasks waiting in queue",
-      "activeAgents": "Active Agents",
-      "activeAgentsDesc": "Currently active agents"
+      "ciPassRate": "CI Pass Rate",
+      "completionRate": "Completion Rate",
+      "plannerAccuracy": "Planner Accuracy",
+      "selfHealingRate": "Self-Healing Rate"
     },
-    "tabs": {
-      "agents": "Agents",
-      "systemHealth": "System Health",
-      "performance": "Performance"
-    },
-    "agent": {
-      "idLabel": "ID: {{id}}",
-      "reputationScore": "Reputation Score",
-      "successRate": "Success Rate",
-      "activeTasks": "Active Tasks"
-    },
-    "agents": {
-      "noData": "No agent data available. Agent metrics will be displayed here once the monitoring system collects data."
-    },
-    "systemHealth": {
-      "errorRate": "Error Rate",
-      "avgLatency": "Avg Latency",
-      "latencyValue": "{{value}}ms",
-      "latencyTarget": "Target: < 1000ms",
-      "circuitBreakers": "Circuit Breakers",
-      "openCircuitBreakers": "Open circuit breakers"
-    },
-    "performance": {
-      "title": "Performance Metrics",
-      "subtitle": "Detailed performance metrics and trends",
-      "description": "Performance charts and detailed metrics will be displayed here. Integration with monitoring backend in progress."
-    }
+    "onTarget": "On Target",
+    "subtitle": "Monitor AI agent performance metrics and evaluation results",
+    "target": "Target",
+    "title": "Agent Evaluation Dashboard"
   },
-  "settings": {
-    "title": "Platform Settings",
-    "subtitle": "Configure platform-wide settings and policies",
-    "general": {
-      "title": "General Settings",
-      "subtitle": "Platform-wide configuration options",
-      "platformName": "Platform Name",
-      "supportEmail": "Support Email",
-      "saveChanges": "Save Changes"
-    },
-    "security": {
-      "title": "Security Policies",
-      "subtitle": "Configure security and compliance settings",
-      "requireMFA": "Require MFA",
-      "requireMFADesc": "Enforce multi-factor authentication for all users",
-      "sessionTimeout": "Session Timeout",
-      "sessionTimeoutDesc": "Auto-logout after inactivity",
-      "30minutes": "30 minutes",
-      "1hour": "1 hour",
-      "4hours": "4 hours"
-    },
-    "2fa": {
-      "title": "Two-Factor Authentication",
-      "subtitle": "Secure your account with an additional layer of protection",
-      "loading": "Loading...",
-      "featureDisabled": {
-        "title": "Feature Unavailable",
-        "description": "Two-factor authentication is currently unavailable in this environment. Please contact your administrator for more information."
-      },
-      "status": {
-        "label": "Status",
-        "enabled": "Enabled",
-        "disabled": "Disabled",
-        "enabledOn": "Enabled on {{date}}"
-      },
-      "actions": {
-        "enable": "Enable 2FA",
-        "disable": "Disable 2FA",
-        "regenerate": "Regenerate"
-      },
-      "backupCodes": {
-        "title": "Backup Codes",
-        "remaining": "{{count}} codes remaining",
-        "saveTitle": "Save Your Backup Codes",
-        "saveDescription": "Store these codes in a safe place. Each code can only be used once.",
-        "copied": "Copied!",
-        "copyAll": "Copy All",
-        "download": "Download",
-        "important": "Important:",
-        "warningMessage": "These codes will not be shown again. Make sure to save them before continuing.",
-        "confirmSaved": "I've Saved My Backup Codes",
-        "lowWarning": "You have {{count}} backup codes remaining. Consider regenerating them.",
-        "regenerateTitle": "Regenerate Backup Codes",
-        "regenerateDescription": "This will invalidate your current backup codes and generate new ones.",
-        "regenerateWarning": "Warning:",
-        "regenerateWarningMessage": "Your old backup codes will no longer work after regeneration.",
-        "regenerateButton": "Regenerate Codes",
-        "regenerating": "Regenerating...",
-        "passwordLabel": "Password",
-        "passwordHelper": "Confirm your password to regenerate backup codes"
-      },
-      "disable": {
-        "title": "Disable Two-Factor Authentication",
-        "description": "This will remove 2FA protection from your account. You can re-enable it at any time.",
-        "warning": "Warning:",
-        "warningMessage": "Disabling 2FA will make your account less secure.",
-        "confirmButton": "Disable 2FA",
-        "cancel": "Cancel",
-        "disabling": "Disabling...",
-        "passwordLabel": "Password",
-        "totpCodeLabel": "Current TOTP Code",
-        "totpCodePlaceholder": "000000",
-        "totpCodeHelper": "Enter the 6-digit code from your authenticator app"
-      },
-      "cardDescription": "Add an extra layer of security to your account",
-      "setup": {
-        "qrAlt": "Two-factor authentication QR code",
-        "qrCodeDescription": "Scan this QR code with your authenticator app",
-        "manualEntry": "Or enter this code manually:",
-        "recommendedApps": "Recommended authenticator apps:",
-        "title": "Enable Two-Factor Authentication",
-        "subtitle": "Follow the steps below to secure your account",
-        "passwordPrompt": "First, confirm your password to continue",
-        "qrScanned": "I've Scanned the QR Code",
-        "verifyPrompt": "Enter the 6-digit code from your authenticator app",
-        "verificationCodeLabel": "Verification Code",
-        "verifying": "Verifying...",
-        "continue": "Continue",
-        "verify": "Verify",
-        "back": "Back",
-        "cancel": "Cancel",
-        "successTitle": "2FA Enabled Successfully!",
-        "successDescription": "Your account is now protected with two-factor authentication.",
-        "apps": {
-          "google": "Google Authenticator",
-          "microsoft": "Microsoft Authenticator",
-          "authy": "Authy",
-          "onepassword": "1Password"
-        }
-      },
-      "trustedDevices": {
-        "title": "Trusted Devices",
-        "description": "Manage devices that are trusted for 30 days without requiring 2FA",
-        "noDevices": "No trusted devices",
-        "noDevicesHelp": "When you check 'Remember this device' during login, it will appear here",
-        "lastUsed": "Last used",
-        "expires": "Expires",
-        "expiringSoon": "expiring soon",
-        "note": "Trusted devices will automatically expire after 30 days. You can revoke access at any time."
-      }
-    }
-  },
-  "common": {
-    "loading": "Loading...",
-    "error": "Error",
-    "success": "Success",
-    "cancel": "Cancel",
-    "save": "Save",
-    "delete": "Delete",
-    "edit": "Edit",
-    "view": "View",
-    "search": "Search",
-    "filter": "Filter",
-    "export": "Export",
-    "refresh": "Refresh",
-    "retry": "Retry",
-    "usage": "Usage",
-    "idShort": "ID: {{id}}",
-    "changeLanguage": "Change language",
-    "na": "N/A",
-    "pass": "✓ Pass",
-    "fail": "✗ Fail",
-    "ms": "ms"
+  "app": {
+    "copyright": "© 2025 Morning AI. All rights reserved.",
+    "motto": "Empowering the future with AI",
+    "name": "Morning AI",
+    "tagline": "Owner Console"
   },
   "auth": {
-    "login": {
-      "title": "Owner Console Login",
-      "description": "Enter your credentials to access the platform",
-      "username": "Username",
-      "password": "Password",
-      "usernamePlaceholder": "Enter your username",
-      "passwordPlaceholder": "Enter your password",
-      "loginButton": "Login",
-      "loggingIn": "Logging in...",
-      "loginFailed": "Login failed",
-      "loginError": "Invalid username or password",
-      "devAccount": "Development Account"
-    },
-    "logout": "Logout",
-    "email": "Email",
-    "forgotPassword": "Forgot password?",
-    "rememberMe": "Remember me",
-    "loginSuccess": "Login successful",
-    "logoutSuccess": "Logout successful",
     "2fa": {
-      "verifyTitle": "Two-Factor Authentication",
-      "verifyDescription": "Enter the 6-digit code from your authenticator app",
-      "verifyBackupDescription": "Enter one of your backup codes",
-      "totpCodeLabel": "Authentication Code",
-      "totpDigitLabel": "Digit {{index}}",
-      "totpCodeHelp": "Enter the 6-digit code from your authenticator app",
+      "backupCodeHelp": "Enter your backup code in the format XXXX-XXXX-XXXX-XXXX",
       "backupCodeLabel": "Backup Code",
       "backupCodePlaceholder": "XXXX-XXXX-XXXX-XXXX",
-      "backupCodeHelp": "Enter your backup code in the format XXXX-XXXX-XXXX-XXXX",
-      "rememberDevice": "Remember this device for 30 days",
-      "useBackupCode": "Use backup code instead",
-      "useTotpCode": "Use authenticator code",
-      "verify": "Verify",
-      "verifying": "Verifying...",
       "cancel": "Cancel",
-      "invalidCode": "Invalid code. {{attempts}} attempts remaining.",
-      "invalidBackupCode": "Invalid backup code. {{attempts}} attempts remaining.",
-      "tooManyAttempts": "Too many failed attempts. Please try again later.",
       "enroll": {
-        "title": "Set Up Two-Factor Authentication",
+        "back": "Back",
+        "backupCodesDescription": "These codes can be used to access your account if you lose your authenticator device. Store them in a safe place.",
+        "backupCodesWarning": "Save these backup codes!",
         "description": "Secure your account with two-factor authentication",
         "qrInstructions1": "Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)",
         "qrInstructions2": "Or manually enter the secret key shown below.",
         "qrScanned": "I've Scanned the QR Code",
-        "verifyPrompt": "Enter the 6-digit code from your authenticator app to verify setup",
+        "title": "Set Up Two-Factor Authentication",
         "verificationCodeLabel": "Verification Code",
-        "back": "Back",
         "verify": "Verify",
         "verifying": "Verifying...",
-        "backupCodesWarning": "Save these backup codes!",
-        "backupCodesDescription": "These codes can be used to access your account if you lose your authenticator device. Store them in a safe place."
-      }
+        "verifyPrompt": "Enter the 6-digit code from your authenticator app to verify setup"
+      },
+      "invalidBackupCode": "Invalid backup code. {{attempts}} attempts remaining.",
+      "invalidCode": "Invalid code. {{attempts}} attempts remaining.",
+      "rememberDevice": "Remember this device for 30 days",
+      "tooManyAttempts": "Too many failed attempts. Please try again later.",
+      "totpCodeHelp": "Enter the 6-digit code from your authenticator app",
+      "totpCodeLabel": "Authentication Code",
+      "totpDigitLabel": "Digit {{index}}",
+      "useBackupCode": "Use backup code instead",
+      "useTotpCode": "Use authenticator code",
+      "verify": "Verify",
+      "verifyBackupDescription": "Enter one of your backup codes",
+      "verifyDescription": "Enter the 6-digit code from your authenticator app",
+      "verifying": "Verifying...",
+      "verifyTitle": "Two-Factor Authentication"
+    },
+    "email": "Email",
+    "forgotPassword": "Forgot password?",
+    "login": {
+      "description": "Enter your credentials to access the platform",
+      "devAccount": "Development Account",
+      "loggingIn": "Logging in...",
+      "loginButton": "Login",
+      "loginError": "Invalid username or password",
+      "loginFailed": "Login failed",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "title": "Owner Console Login",
+      "username": "Username",
+      "usernamePlaceholder": "Enter your username"
+    },
+    "loginSuccess": "Login successful",
+    "logout": "Logout",
+    "logoutSuccess": "Logout successful",
+    "rememberMe": "Remember me"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "changeLanguage": "Change language",
+    "delete": "Delete",
+    "edit": "Edit",
+    "error": "Error",
+    "export": "Export",
+    "fail": "✗ Fail",
+    "filter": "Filter",
+    "idShort": "ID: {{id}}",
+    "loading": "Loading...",
+    "ms": "ms",
+    "na": "N/A",
+    "pass": "✓ Pass",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "save": "Save",
+    "search": "Search",
+    "success": "Success",
+    "usage": "Usage",
+    "view": "View"
+  },
+  "dashboard": {
+    "recentActivity": {
+      "agentDeployed": "Agent deployed",
+      "maintenanceScheduled": "System maintenance scheduled",
+      "newTenant": "New tenant registered",
+      "subtitle": "Latest platform events and changes",
+      "title": "Recent Activity"
+    },
+    "stats": {
+      "acrossAllTenants": "Across all tenants",
+      "activeAgents": "Active Agents",
+      "allSystemsOperational": "All systems operational",
+      "monthlyCost": "Monthly Cost",
+      "platformWideUsage": "Platform-wide usage",
+      "systemHealth": "System Health",
+      "thisMonth": "this month",
+      "totalTenants": "Total Tenants"
+    },
+    "subtitle": "Monitor your MorningAI platform at a glance",
+    "systemStatus": {
+      "apiBackend": "API Backend",
+      "database": "Database",
+      "healthy": "Healthy",
+      "redisCache": "Redis Cache",
+      "subtitle": "Infrastructure health and performance",
+      "title": "System Status",
+      "workerNodes": "Worker Nodes"
+    },
+    "title": "Platform Overview"
+  },
+  "governance": {
+    "agents": {
+      "noAgents": "No agents found",
+      "reputation": "Reputation",
+      "subtitle": "Agents ranked by reputation score and permission level",
+      "title": "Agent Reputation Leaderboard",
+      "type": "Type"
+    },
+    "events": {
+      "delta": "Delta",
+      "noEvents": "No events found",
+      "subtitle": "Reputation events and agent activities",
+      "title": "Recent Events",
+      "trace": "Trace"
+    },
+    "executionLogs": {
+      "agentTypes": {
+        "devAgent": "Dev Agent",
+        "growthStrategist": "Growth Strategist",
+        "metaAgent": "Meta Agent",
+        "opsAgent": "Ops Agent",
+        "pmAgent": "PM Agent"
+      },
+      "columns": {
+        "actions": "Actions",
+        "agent": "Agent",
+        "duration": "Duration",
+        "status": "Status",
+        "taskId": "Task ID",
+        "taskType": "Task Type",
+        "tenant": "Tenant",
+        "timestamps": "Timestamps"
+      },
+      "copyTaskId": "Copy task ID",
+      "copyTenantId": "Copy tenant ID",
+      "copyTraceId": "Copy trace ID",
+      "details": {
+        "agentInfo": "Agent Information",
+        "completedAt": "Completed",
+        "createdAt": "Created",
+        "errorMessage": "Error Message",
+        "executionTime": "Execution Time",
+        "payload": "Payload",
+        "prUrl": "Pull Request",
+        "result": "Result",
+        "startedAt": "Started",
+        "subtitle": "Detailed information about this execution",
+        "taskDetails": "Task Details",
+        "timing": "Timing",
+        "title": "Execution Log Details",
+        "traceId": "Trace ID",
+        "updatedAt": "Updated",
+        "viewDetails": "View Details"
+      },
+      "filters": {
+        "agentId": "Agent ID",
+        "agentIdPlaceholder": "Filter by agent ID",
+        "agentType": "Agent Type",
+        "allAgentTypes": "All Agent Types",
+        "allStatuses": "All Statuses",
+        "allTime": "All Time",
+        "applyFilters": "Apply Filters",
+        "clearFilters": "Clear Filters",
+        "customRange": "Custom Range",
+        "dateRange": "Date Range",
+        "endDate": "End Date",
+        "last24Hours": "Last 24 Hours",
+        "last30Days": "Last 30 Days",
+        "last7Days": "Last 7 Days",
+        "selectTimeRange": "Select time range",
+        "startDate": "Start Date",
+        "status": "Status",
+        "taskType": "Task Type",
+        "taskTypePlaceholder": "Filter by task type",
+        "tenantId": "Tenant ID",
+        "tenantIdPlaceholder": "Filter by tenant ID",
+        "timeRange": "Time Range"
+      },
+      "noLogs": "No execution logs found",
+      "pagination": {
+        "next": "Next",
+        "page": "Page {{current}} of {{total}}",
+        "pageSize": "Items per page",
+        "previous": "Previous",
+        "showing": "Showing {{start}}-{{end}} of {{total}}"
+      },
+      "retryLoad": "Retry loading execution logs",
+      "statuses": {
+        "assigned": "Assigned",
+        "cancelled": "Cancelled",
+        "completed": "Completed",
+        "failed": "Failed",
+        "queued": "Queued",
+        "running": "Running",
+        "unknown": "Unknown"
+      },
+      "subtitle": "Monitor agent task execution history and performance",
+      "summary": {
+        "avgDuration": "Avg Duration",
+        "statusBreakdown": "Status Breakdown",
+        "successRate": "Success Rate",
+        "title": "Execution Summary",
+        "totalExecutions": "Total Executions"
+      },
+      "taskIdCopied": "Task ID copied to clipboard",
+      "taskIdCopyFailed": "Failed to copy task ID",
+      "tenantIdCopied": "Tenant ID copied to clipboard",
+      "tenantIdCopyFailed": "Failed to copy tenant ID",
+      "title": "Agent Execution Logs",
+      "traceIdCopied": "Trace ID copied to clipboard",
+      "traceIdCopyFailed": "Failed to copy trace ID",
+      "viewDetails": "View Details",
+      "viewTraceDetails": "View trace details in observability platform"
+    },
+    "permissions": {
+      "prodFull": "Prod Full",
+      "prodLowRisk": "Prod Low Risk",
+      "sandbox": "Sandbox",
+      "staging": "Staging"
+    },
+    "refresh": "Refresh",
+    "stats": {
+      "avgReputation": "Avg Reputation",
+      "dailyCost": "Daily Cost",
+      "totalAgents": "Total Agents",
+      "violations": "Violations"
+    },
+    "subtitle": "Monitor agent reputation, permissions, and compliance",
+    "tabs": {
+      "agents": "Agents",
+      "events": "Events",
+      "executionLogs": "Execution Logs",
+      "violations": "Violations"
+    },
+    "title": "Agent Governance",
+    "violations": {
+      "noViolations": "No violations detected",
+      "resolved": "Resolved",
+      "severity": "Severity",
+      "subtitle": "Security and compliance violations",
+      "title": "Policy Violations"
     }
   },
-  "app": {
-    "name": "Morning AI",
-    "tagline": "Owner Console",
-    "copyright": "© 2025 Morning AI. All rights reserved.",
-    "motto": "Empowering the future with AI"
+  "metricsDashboard": {
+    "agent": {
+      "activeTasks": "Active Tasks",
+      "idLabel": "ID: {{id}}",
+      "reputationScore": "Reputation Score",
+      "successRate": "Success Rate"
+    },
+    "agents": {
+      "noData": "No agent data available. Agent metrics will be displayed here once the monitoring system collects data."
+    },
+    "autoRefresh": "Auto-refresh: {{status}}",
+    "autoRefreshOff": "OFF",
+    "autoRefreshOn": "ON",
+    "devInfo": {
+      "description": "The Metrics Dashboard requires the backend API endpoint:",
+      "endpoint": "GET /phase7/monitoring/dashboard",
+      "hint": "Ensure your backend server is running and the endpoint is implemented.",
+      "title": "Development Info"
+    },
+    "devMode": {
+      "description": "This dashboard is displaying simulated data for development purposes only. Real metrics will be available once the monitoring backend is deployed.",
+      "title": "Development Mode - Mock Data",
+      "warning": "Do not use this data for production decisions."
+    },
+    "error": "Error",
+    "loadingMetrics": "Loading metrics...",
+    "metrics": {
+      "activeAgents": "Active Agents",
+      "activeAgentsDesc": "Currently active agents",
+      "apiRequestRate": "API Request Rate",
+      "apiRequestRateDesc": "Requests per minute",
+      "queueDepth": "Queue Depth",
+      "queueDepthDesc": "Tasks waiting in queue",
+      "taskSuccessRate": "Task Success Rate",
+      "taskSuccessRateDesc": "Agent task completion rate"
+    },
+    "performance": {
+      "description": "Performance charts and detailed metrics will be displayed here. Integration with monitoring backend in progress.",
+      "subtitle": "Detailed performance metrics and trends",
+      "title": "Performance Metrics"
+    },
+    "subtitle": "Real-time system performance and agent monitoring",
+    "systemHealth": {
+      "avgLatency": "Avg Latency",
+      "circuitBreakers": "Circuit Breakers",
+      "errorRate": "Error Rate",
+      "latencyTarget": "Target: < 1000ms",
+      "latencyValue": "{{value}}ms",
+      "openCircuitBreakers": "Open circuit breakers"
+    },
+    "tabs": {
+      "agents": "Agents",
+      "performance": "Performance",
+      "systemHealth": "System Health"
+    },
+    "title": "Metrics Dashboard"
+  },
+  "monitoring": {
+    "active": "Active",
+    "apiServices": "API Services",
+    "avgResponse": "Avg Response",
+    "connections": "Connections",
+    "cores": "Cores",
+    "cpuTrend": "CPU usage trend (last 24 hours)",
+    "cpuUsage": "CPU Usage",
+    "database": "Database",
+    "disk": "Disk",
+    "diskTrend": "Disk usage trend (last 24 hours)",
+    "gbFormat": "{{used}}GB / {{total}}GB",
+    "memory": "Memory",
+    "memoryTrend": "Memory usage trend (last 24 hours)",
+    "mockDataLabel": "Mock Data",
+    "noHealthData": "No system health data available",
+    "noMetricsData": "No metrics available yet",
+    "overallStatus": "Overall Status",
+    "queryTime": "Query Time",
+    "queueSize": "Queue Size",
+    "subtitle": "Monitor system health and performance metrics",
+    "systemHealth": "System Health",
+    "title": "System Monitoring",
+    "uptime": "Uptime",
+    "usedTotal": "Used/Total",
+    "workers": "Workers"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "governance": "Agent Governance",
+    "logout": "Logout",
+    "mainNavigation": "Main navigation",
+    "monitoring": "System Monitoring",
+    "settings": "Platform Settings",
+    "tenants": "Tenant Management",
+    "uxMetrics": "UX Metrics"
+  },
+  "settings": {
+    "2fa": {
+      "actions": {
+        "disable": "Disable 2FA",
+        "enable": "Enable 2FA",
+        "regenerate": "Regenerate"
+      },
+      "backupCodes": {
+        "confirmSaved": "I've Saved My Backup Codes",
+        "copied": "Copied!",
+        "copyAll": "Copy All",
+        "download": "Download",
+        "important": "Important:",
+        "lowWarning": "You have {{count}} backup codes remaining. Consider regenerating them.",
+        "passwordHelper": "Confirm your password to regenerate backup codes",
+        "passwordLabel": "Password",
+        "regenerateButton": "Regenerate Codes",
+        "regenerateDescription": "This will invalidate your current backup codes and generate new ones.",
+        "regenerateTitle": "Regenerate Backup Codes",
+        "regenerateWarning": "Warning:",
+        "regenerateWarningMessage": "Your old backup codes will no longer work after regeneration.",
+        "regenerating": "Regenerating...",
+        "remaining": "{{count}} codes remaining",
+        "saveDescription": "Store these codes in a safe place. Each code can only be used once.",
+        "saveTitle": "Save Your Backup Codes",
+        "title": "Backup Codes",
+        "warningMessage": "These codes will not be shown again. Make sure to save them before continuing."
+      },
+      "cardDescription": "Add an extra layer of security to your account",
+      "disable": {
+        "cancel": "Cancel",
+        "confirmButton": "Disable 2FA",
+        "description": "This will remove 2FA protection from your account. You can re-enable it at any time.",
+        "disabling": "Disabling...",
+        "passwordLabel": "Password",
+        "title": "Disable Two-Factor Authentication",
+        "totpCodeHelper": "Enter the 6-digit code from your authenticator app",
+        "totpCodeLabel": "Current TOTP Code",
+        "totpCodePlaceholder": "000000",
+        "warning": "Warning:",
+        "warningMessage": "Disabling 2FA will make your account less secure."
+      },
+      "featureDisabled": {
+        "description": "Two-factor authentication is currently unavailable in this environment. Please contact your administrator for more information.",
+        "title": "Feature Unavailable"
+      },
+      "loading": "Loading...",
+      "setup": {
+        "apps": {
+          "authy": "Authy",
+          "google": "Google Authenticator",
+          "microsoft": "Microsoft Authenticator",
+          "onepassword": "1Password"
+        },
+        "back": "Back",
+        "cancel": "Cancel",
+        "continue": "Continue",
+        "manualEntry": "Or enter this code manually:",
+        "passwordPrompt": "First, confirm your password to continue",
+        "qrAlt": "Two-factor authentication QR code",
+        "qrCodeDescription": "Scan this QR code with your authenticator app",
+        "qrScanned": "I've Scanned the QR Code",
+        "recommendedApps": "Recommended authenticator apps:",
+        "subtitle": "Follow the steps below to secure your account",
+        "successDescription": "Your account is now protected with two-factor authentication.",
+        "successTitle": "2FA Enabled Successfully!",
+        "title": "Enable Two-Factor Authentication",
+        "verificationCodeLabel": "Verification Code",
+        "verify": "Verify",
+        "verifying": "Verifying...",
+        "verifyPrompt": "Enter the 6-digit code from your authenticator app"
+      },
+      "status": {
+        "disabled": "Disabled",
+        "enabled": "Enabled",
+        "enabledOn": "Enabled on {{date}}",
+        "label": "Status"
+      },
+      "subtitle": "Secure your account with an additional layer of protection",
+      "title": "Two-Factor Authentication",
+      "trustedDevices": {
+        "description": "Manage devices that are trusted for 30 days without requiring 2FA",
+        "expires": "Expires",
+        "expiringSoon": "expiring soon",
+        "lastUsed": "Last used",
+        "noDevices": "No trusted devices",
+        "noDevicesHelp": "When you check 'Remember this device' during login, it will appear here",
+        "note": "Trusted devices will automatically expire after 30 days. You can revoke access at any time.",
+        "title": "Trusted Devices"
+      }
+    },
+    "general": {
+      "platformName": "Platform Name",
+      "saveChanges": "Save Changes",
+      "subtitle": "Platform-wide configuration options",
+      "supportEmail": "Support Email",
+      "title": "General Settings"
+    },
+    "security": {
+      "1hour": "1 hour",
+      "30minutes": "30 minutes",
+      "4hours": "4 hours",
+      "requireMFA": "Require MFA",
+      "requireMFADesc": "Enforce multi-factor authentication for all users",
+      "sessionTimeout": "Session Timeout",
+      "sessionTimeoutDesc": "Auto-logout after inactivity",
+      "subtitle": "Configure security and compliance settings",
+      "title": "Security Policies"
+    },
+    "subtitle": "Configure platform-wide settings and policies",
+    "title": "Platform Settings"
   },
   "sidebar": {
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
     "user": {
       "defaultName": "Owner",
       "defaultRole": "Platform Owner"
-    },
-    "expand": "Expand sidebar",
-    "collapse": "Collapse sidebar"
-  },
-  "agentEvaluation": {
-    "title": "Agent Evaluation Dashboard",
-    "subtitle": "Monitor AI agent performance metrics and evaluation results",
-    "target": "Target",
-    "onTarget": "On Target",
-    "belowTarget": "Below Target",
-    "lastEvaluation": "Last evaluation",
-    "metrics": {
-      "plannerAccuracy": "Planner Accuracy",
-      "selfHealingRate": "Self-Healing Rate",
-      "completionRate": "Completion Rate",
-      "ciPassRate": "CI Pass Rate"
-    },
-    "history": {
-      "title": "Evaluation History",
-      "subtitle": "Recent agent evaluation runs from GitHub Actions",
-      "noResults": "No evaluation results available yet",
-      "weeklyRuns": "Evaluations run weekly via GitHub Actions",
-      "runNumber": "Run #{{id}}",
-      "tasks": "Tasks",
-      "completed": "Completed",
-      "prs": "PRs",
-      "ciPassed": "CI Passed"
     }
+  },
+  "tenants": {
+    "active": "active",
+    "activeTenants": "Active Tenants",
+    "addTenant": "Add Tenant",
+    "agents": "agents",
+    "allTenants": "All registered tenant organizations",
+    "subtitle": "Manage tenant accounts and permissions",
+    "suspended": "suspended",
+    "title": "Tenant Management",
+    "users": "users"
+  },
+  "uxMetrics": {
+    "a11yCritical": "A11y Critical",
+    "a11yTests": "A11y Tests",
+    "author": "Author",
+    "available": "✓ Available",
+    "avgBundleSize": "Avg Bundle Size",
+    "avgChange": "Avg Change",
+    "avgFCP": "Avg FCP",
+    "avgLCP": "Avg LCP",
+    "bundleSizeTrend": "Bundle Size Change Trend",
+    "critical": "C",
+    "errorLoading": "Error Loading Metrics",
+    "frontendDashboard": "Frontend Dashboard",
+    "i18n": "i18n",
+    "i18nCoverage": "i18n Coverage",
+    "i18nFD": "i18n (FD)",
+    "i18nOC": "i18n (OC)",
+    "i18nTrend": "i18n Coverage Trend",
+    "lastUpdated": "Last updated: {{date}}",
+    "lighthouseFCP": "Lighthouse FCP",
+    "lighthouseTrend": "Lighthouse Performance Trend",
+    "merged": "Merged",
+    "motionP95": "Motion P95",
+    "motionTests": "Motion Tests",
+    "noData": "No metrics data available",
+    "ownerConsole": "Owner Console",
+    "pr": "PR",
+    "prCount": "{{available}}/{{total}} PRs",
+    "prsWithData": "PRs with i18n data",
+    "prTitle": "Title",
+    "qualityThresholds": "Quality Thresholds",
+    "recentPRs": "Recent PRs",
+    "serious": "S",
+    "subtitle": "Monitor UX quality metrics across recent PRs",
+    "target": "Target: ≤{{value}}{{unit}}",
+    "title": "UX Metrics Dashboard",
+    "totalChange": "Total Change",
+    "totalPRs": "Total PRs",
+    "vrtMismatch": "VRT Mismatch",
+    "vrtTests": "VRT Tests"
   }
 }
