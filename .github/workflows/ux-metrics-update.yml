@@ -1,5 +1,16 @@
 name: UX Metrics Update
 
+# 📚 Documentation: docs/ci_matrix.md (Section 17: UX Metrics Update)
+# 
+# This workflow updates UX metrics dashboard data and creates PRs.
+# 
+# Key features:
+# - PR mode to comply with repository rules (PR #1425)
+# - Auto-sets i18n check status for metrics-only PRs (PR #1454)
+# - Belt-and-suspenders approach (commit status + check run)
+# 
+# For troubleshooting and detailed documentation, see docs/ci_matrix.md
+
 on:
   push:
     branches: [main]
