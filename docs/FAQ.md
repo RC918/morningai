@@ -1,85 +1,110 @@
-# Fix Authentication Timeout Issue
+# Adding Dark Mode Toggle to System Monitoring Page
 
-When working with MorningAI, you might encounter issues related to authentication timeouts. This can manifest as failed login attempts, session expirations, or errors when trying to access resources that require authentication. This guide aims to help developers understand and resolve authentication timeout issues effectively.
+Implementing a dark mode toggle on the system monitoring page enhances user experience by allowing users to switch between light and dark themes according to their preference. This FAQ aims to guide developers through the process of adding this feature within the MorningAI platform, specifically for the system monitoring page.
 
-## Understanding the Issue
+## Understanding the Requirement
 
-Authentication timeout issues occur when the authentication token or session expires before the user has finished their task. In a multi-tenant SaaS platform like MorningAI, timely and secure authentication is crucial for maintaining the integrity and confidentiality of each tenant's data.
+The objective is to introduce a toggle button on the system monitoring page that enables users to switch between dark and light modes. This involves:
 
-MorningAI utilizes token-based authentication, where each token has a predefined lifetime. Once this lifetime expires, the token is no longer valid, and the user must re-authenticate to obtain a new token.
+- Modifying the frontend to include a toggle switch.
+- Implementing theme switching logic with React Context or a similar state management solution.
+- Ensuring persistent theme choice across sessions.
 
-## How to Fix
+## Implementation Steps
 
-### 1. Adjust Token Lifetime
+### Step 1: Update Frontend with Toggle Switch
 
-If you find that tokens are expiring too quickly for your use case, you can adjust the token lifetime in the backend configuration. This is done in the Flask app settings:
+Firstly, add a toggle switch component to your system monitoring page. You can use TailwindCSS for styling consistency across the platform.
 
-```python
-# File path: /backend/config.py
+**Example:** `src/components/SystemMonitoringPage.js`
 
-# Increase token expiration time (example: 2 hours)
-JWT_ACCESS_TOKEN_EXPIRES = 7200  # Time in seconds
+```jsx
+import React from 'react';
+import { ThemeToggle } from './ThemeToggle'; // Ensure you have created this component
+
+const SystemMonitoringPage = () => {
+  return (
+    <div>
+      <h1>System Monitoring</h1>
+      <ThemeToggle /> {/* Toggle switch component */}
+      {/* Rest of your system monitoring components */}
+    </div>
+  );
+};
+
+export default SystemMonitoringPage;
 ```
 
-Remember, increasing token lifetime can have security implications, so choose a value that balances convenience and security.
+### Step 2: Implement Dark Mode Logic
 
-### 2. Implement Token Refresh Mechanism
+Utilize React Context or a similar state management approach to manage the theme state across the application.
 
-For a more robust solution, implement a token refresh mechanism. This allows tokens to be renewed without requiring users to manually re-authenticate.
+**Example:** `src/context/ThemeContext.js`
 
-```python
-from flask_jwt_extended import (
-    create_access_token,
-    set_access_cookies,
-    create_refresh_token,
-    set_refresh_cookies,
-)
+```jsx
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-# Example function to create new access and refresh tokens
-def generate_new_tokens(user_id):
-    access_token = create_access_token(identity=user_id)
-    refresh_token = create_refresh_token(identity=user_id)
-    # Set tokens as HTTPOnly cookies etc.
-    # Ensure proper handling of these tokens in your front-end application
+const ThemeContext = createContext();
+
+export const ThemeProvider = ({ children }) => {
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+export const useTheme = () => useContext(ThemeContext);
 ```
 
-Refer to Flask-JWT-Extended documentation for more details on implementing token refresh: [Flask-JWT-Extended](https://flask-jwt-extended.readthedocs.io/en/stable/refreshing_tokens/)
+### Step 3: Style for Dark Mode
 
-### 3. Frontend Token Renewal
+Ensure you have corresponding CSS or TailwindCSS classes that respond to the theme changes. This might involve custom properties or conditional class application based on the current theme.
 
-Ensure your frontend application listens for authentication failures due to expired tokens and automatically requests new tokens using the refresh mechanism.
+**Example:** `public/index.css`
 
-```javascript
-// Example with Axios interceptor
-axios.interceptors.response.use(response => {
-  return response;
-}, error => {
-  if (error.response.status === 401) {
-    // Call endpoint to refresh token, then retry original request
-  }
-});
+```css
+[data-theme='dark'] {
+  --background-color: #333;
+  --text-color: #fff;
+  /* Add other necessary variables */
+}
+
+[data-theme='light'] {
+  --background-color: #fff;
+  --text-color: #000;
+  /* Add other necessary variables */
+}
 ```
 
-## Troubleshooting Tips
+### Related Documentation Links
 
-- **Check Token Expiry Settings**: Verify the token expiry time in your backend configuration matches your application needs.
-- **Monitor Network Requests**: Use browser developer tools or network monitoring tools to inspect authentication requests and responses. Look for status codes related to authentication (e.g., 401 Unauthorized).
-- **Review Backend Logs**: Check your backend logs for any errors or warnings related to authentication or token handling.
-- **Update Dependencies**: Ensure all related dependencies (e.g., Flask-JWT-Extended) are up-to-date as updates may contain important fixes or improvements related to authentication handling.
+- [React Context](https://reactjs.org/docs/context.html)
+- [TailwindCSS Customization](https://tailwindcss.com/docs/customizing-colors)
+- [Using Local Storage in React](https://reactjs.org/docs/hooks-effect.html)
 
-For more detailed information on configuring and troubleshooting MorningAI's authentication system, refer to our official documentation:
+## Common Troubleshooting Tips
 
-- [MorningAI Authentication System](https://morningai.example.com/docs/authentication)
-- [Flask Configuration Handling](https://flask.palletsprojects.com/en/latest/config/)
+- **Toggle Not Working**: Ensure that your state management setup correctly updates and broadcasts the theme change across components. Double-check context providers and hooks.
+- **Styles Not Applying**: Verify that CSS or TailwindCSS classes are correctly applied and respond to attribute selectors. Check for typos or incorrect variable names in your CSS files.
+- **Persistence Issues**: If the theme does not persist across sessions, ensure that you are correctly using `localStorage` to save and retrieve the theme setting.
+
+By following these steps and utilizing the provided examples, developers should be able to successfully implement a dark mode toggle on the system monitoring page within MorningAI's platform architecture.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Add dark mode toggle to system monitoring page
+- Trace ID: `task-006`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
