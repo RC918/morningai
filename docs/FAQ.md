@@ -1,72 +1,108 @@
-# Production Canary Test #6 - Verify Fixes
+# Adding Export Functionality to the Metrics Dashboard
+
+This FAQ entry is designed to guide developers through the process of adding export functionality to the Metrics Dashboard within the MorningAI platform. The feature aims to allow users to export dashboard data into various formats (e.g., CSV, Excel) for further analysis or reporting.
 
 ## Overview
 
-This FAQ entry is dedicated to guiding developers through the process of verifying fixes in the context of Production Canary Test #6, conducted on November 22, 2025. Canary testing is a method used to minimize the risk by slowly rolling out changes to a small subset of users before making them available to everybody. This specific test focuses on verifying the effectiveness and stability of recent fixes applied to the MorningAI platform.
+The Metrics Dashboard is a critical component of MorningAI, providing insights and analytics. Enhancing it with export functionality improves data accessibility and usability. This guide covers backend adjustments, frontend integration, and additional setup steps required to implement this feature.
 
-## Verification Process
+## Backend Implementation
 
-To ensure comprehensive verification, follow these steps:
+### Step 1: Update the Flask API
 
-### Step 1: Update Your Local Repository
-
-Ensure your local copy of the RC918/morningai repository is up-to-date with the main branch.
-
-```bash
-git checkout main
-git pull origin main
-```
-
-### Step 2: Deploy Canary Environment
-
-Deploy the canary environment using your preferred CI/CD tool. If you're using Render.com, as in our project setup, configure your project to deploy from a specific canary branch.
-
-```plaintext
-# Example Render.com configuration snippet
-services:
-  - type: web
-    name: morningai-canary
-    env: python
-    branch: canary
-    buildCommand: pip install -r requirements.txt && npm run build
-    startCommand: gunicorn -w 4 "app:create_app()"
-```
-
-Replace `"canary"` with the actual branch name if it differs.
-
-### Step 3: Monitor Performance and Errors
-
-After deployment, monitor the application's performance and error logs closely. Use tools integrated with MorningAI, like Sentry for error tracking and Prometheus for performance monitoring.
-
-### Step 4: Validate Fixes
-
-Confirm that the fixes have been successfully applied by executing relevant test cases or scripts. For code generation improvements, you might use:
+First, modify the Flask API to handle data serialization and file generation. Assuming the metrics are stored in PostgreSQL (Supabase) and accessed via Flask:
 
 ```python
-from morningai.codegen import generate_code
+# app/api/metrics.py
 
-# Example test case for a fix verification
-result = generate_code("Example input")
-assert expected_output == result, "The fix for code generation did not work as expected."
+from flask import Flask, request, send_file
+import pandas as pd
+from .db import get_db
+
+app = Flask(__name__)
+
+@app.route('/export_metrics', methods=['GET'])
+def export_metrics():
+    # Retrieve metrics from database
+    db = get_db()
+    query = "SELECT * FROM metrics"
+    df = pd.read_sql_query(query, db)
+
+    # Convert DataFrame to desired format (e.g., CSV)
+    filename = "metrics_export.csv"
+    df.to_csv(filename, index=False)
+
+    # Send file as attachment
+    return send_file(filename, as_attachment=True, attachment_filename=filename)
 ```
 
-For UI fixes, manual testing or automated UI tests should be conducted to ensure everything works as intended.
+Ensure `pandas` is installed for DataFrame operations: `pip install pandas`.
 
-### Related Documentation Links
+### Step 2: Configure Gunicorn for File Downloads
 
-- [Git Workflow](https://git-scm.com/docs/git-workflow)
-- [Render.com Deployment](https://render.com/docs/deployments)
-- [Sentry Documentation](https://docs.sentry.io/)
-- [Prometheus Monitoring](https://prometheus.io/docs/introduction/overview/)
+Ensure Gunicorn is configured correctly in `gunicorn.config.py` to handle file downloads without timeout issues.
+
+```python
+# gunicorn.config.py
+
+timeout = 120  # Adjust based on your file generation time
+```
+
+## Frontend Integration
+
+### Step 1: Add Export Button
+
+Incorporate an "Export" button in the React-based dashboard:
+
+```jsx
+// src/components/MetricsDashboard.jsx
+
+import React from 'react';
+import axios from 'axios';
+
+function MetricsDashboard() {
+
+  const handleExport = async () => {
+    try {
+      const response = await axios.get('/api/export_metrics', {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'metrics_export.csv'); // or .xlsx if exporting as Excel
+      document.body.appendChild(link);
+      link.click();
+    } catch (error) {
+      console.error('Error exporting metrics:', error);
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={handleExport}>Export</button>
+    </div>
+  );
+}
+
+export default MetricsDashboard;
+```
+
+### Step 2: Style Button with TailwindCSS
+
+Enhance button aesthetics using TailwindCSS:
+
+```html
+<button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onClick={handleExport}>Export</button>
+```
 
 ## Common Troubleshooting Tips
 
-- **Deployment Fails**: Check the `buildCommand` and `startCommand` in your configuration. Ensure all dependencies are correctly specified.
-- **Errors Not Captured**: Verify Sentry integration is correctly set up in Flask's app configuration.
-- **Performance Degradation**: Use Prometheus metrics to identify bottlenecks. Review recent changes for any inefficient code patterns.
-- **Test Assertions Fail**: Revisit the expected outcomes of your test cases. Ensure they align with the recent fixes.
+- **Timeout Issues**: If exports take too long and cause timeouts, consider increasing the timeout setting in `gunicorn.config.py` or implementing asynchronous file generation.
+- **Large File Downloads**: For large datasets, it might be beneficial to generate files asynchronously and provide a download link once ready.
+- **Dependency Management**: Ensure all dependencies (e.g., `pandas`, `Flask`) are up-to-date and compatible with your project's environment.
 
-Remember, canary testing is crucial for identifying issues early in production. By carefully following these steps, developers can effectively verify fixes and contribute to maintaining MorningAI's reliability and performance.
+For further details on configuring and optimizing your Flask application and PostgreSQL interactions, refer to the official [Flask](https://flask.palletsprojects.com/en/2.1.x/) and [Pandas](https://pandas.pydata.org/pandas-docs/stable/index.html) documentation.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +110,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Production canary test #6 - verify fixes - 2025-11-22T15:37:35.234837
-- Trace ID: `d9712a0d-ccc3-40c8-84d9-61416df8f08b`
+- Task: Add export functionality to metrics dashboard
+- Trace ID: `task-002`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
