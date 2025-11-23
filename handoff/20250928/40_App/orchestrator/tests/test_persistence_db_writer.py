@@ -5,15 +5,20 @@ Phase 0-Lite Supplement: Targeted tests for agent_tasks persistence
 """
 import pytest
 from unittest.mock import Mock, patch
+import sys
+import os
 
-from orchestrator.persistence.db_writer import (
+# Add orchestrator to path (standard pattern for all orchestrator tests)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from persistence.db_writer import (
     fetch_user_tenant_id,
     upsert_task_queued,
     upsert_task_running,
     upsert_task_done,
     upsert_task_error
 )
-from orchestrator.exceptions import (
+from exceptions import (
     DatabaseReadError,
     TenantResolutionError
 )
@@ -40,7 +45,7 @@ def mock_supabase_client():
 class TestFetchUserTenantId:
     """Test fetch_user_tenant_id function"""
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_fetch_user_tenant_id_success(self, mock_get_client, mock_supabase_client):
         """Test successful tenant_id fetch"""
         mock_get_client.return_value = mock_supabase_client
@@ -50,7 +55,7 @@ class TestFetchUserTenantId:
         assert tenant_id == "test-tenant-123"
         mock_supabase_client.table.assert_called_once_with("user_profiles")
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_fetch_user_tenant_id_no_client(self, mock_get_client):
         """Test fetch_user_tenant_id handles missing client"""
         mock_get_client.return_value = None
@@ -59,7 +64,7 @@ class TestFetchUserTenantId:
         with pytest.raises(DatabaseReadError):
             fetch_user_tenant_id("user-123")
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_fetch_user_tenant_id_no_profile(self, mock_get_client, mock_supabase_client):
         """Test fetch_user_tenant_id handles missing user profile"""
         mock_get_client.return_value = mock_supabase_client
@@ -78,7 +83,7 @@ class TestFetchUserTenantId:
 
         assert "No user_profile found" in str(exc_info.value)
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_fetch_user_tenant_id_database_error(self, mock_get_client, mock_supabase_client):
         """Test fetch_user_tenant_id handles database errors"""
         mock_get_client.return_value = mock_supabase_client
@@ -99,7 +104,7 @@ class TestFetchUserTenantId:
 class TestUpsertTaskQueued:
     """Test upsert_task_queued function"""
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_queued_success(self, mock_get_client, mock_supabase_client):
         """Test successful task queued upsert"""
         mock_get_client.return_value = mock_supabase_client
@@ -128,7 +133,7 @@ class TestUpsertTaskQueued:
         assert upsert_data["job_id"] == "job-123"
         assert upsert_data["tenant_id"] == "tenant-123"
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_queued_default_tenant(self, mock_get_client, mock_supabase_client):
         """Test task queued upsert uses default tenant when not provided"""
         mock_get_client.return_value = mock_supabase_client
@@ -146,7 +151,7 @@ class TestUpsertTaskQueued:
         upsert_data = table_mock.upsert.call_args[0][0]
         assert upsert_data["tenant_id"] == "00000000-0000-0000-0000-000000000001"
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_queued_handles_exception(self, mock_get_client, mock_supabase_client):
         """Test task queued upsert handles exceptions gracefully"""
         mock_get_client.return_value = mock_supabase_client
@@ -167,7 +172,7 @@ class TestUpsertTaskQueued:
 class TestUpsertTaskRunning:
     """Test upsert_task_running function"""
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_running_success(self, mock_get_client, mock_supabase_client):
         """Test successful task running upsert"""
         mock_get_client.return_value = mock_supabase_client
@@ -188,7 +193,7 @@ class TestUpsertTaskRunning:
         assert "started_at" in upsert_data
         assert upsert_data["tenant_id"] == "tenant-123"
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_running_default_tenant(self, mock_get_client, mock_supabase_client):
         """Test task running upsert uses default tenant"""
         mock_get_client.return_value = mock_supabase_client
@@ -204,7 +209,7 @@ class TestUpsertTaskRunning:
         upsert_data = table_mock.upsert.call_args[0][0]
         assert upsert_data["tenant_id"] == "00000000-0000-0000-0000-000000000001"
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_running_handles_exception(self, mock_get_client, mock_supabase_client):
         """Test task running upsert handles exceptions"""
         mock_get_client.return_value = mock_supabase_client
@@ -223,7 +228,7 @@ class TestUpsertTaskRunning:
 class TestUpsertTaskDone:
     """Test upsert_task_done function"""
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_done_success(self, mock_get_client, mock_supabase_client):
         """Test successful task done upsert"""
         mock_get_client.return_value = mock_supabase_client
@@ -246,7 +251,7 @@ class TestUpsertTaskDone:
         assert "finished_at" in upsert_data
         assert upsert_data["tenant_id"] == "tenant-123"
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_done_handles_exception(self, mock_get_client, mock_supabase_client):
         """Test task done upsert handles exceptions"""
         mock_get_client.return_value = mock_supabase_client
@@ -266,7 +271,7 @@ class TestUpsertTaskDone:
 class TestUpsertTaskError:
     """Test upsert_task_error function"""
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_error_success(self, mock_get_client, mock_supabase_client):
         """Test successful task error upsert"""
         mock_get_client.return_value = mock_supabase_client
@@ -289,7 +294,7 @@ class TestUpsertTaskError:
         assert "finished_at" in upsert_data
         assert upsert_data["tenant_id"] == "tenant-123"
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_error_truncates_long_message(self, mock_get_client, mock_supabase_client):
         """Test task error upsert truncates long error messages"""
         mock_get_client.return_value = mock_supabase_client
@@ -309,7 +314,7 @@ class TestUpsertTaskError:
         upsert_data = table_mock.upsert.call_args[0][0]
         assert len(upsert_data["error_msg"]) == 500
 
-    @patch('orchestrator.persistence.db_writer.get_client')
+    @patch('persistence.db_writer.get_client')
     def test_upsert_task_error_handles_exception(self, mock_get_client, mock_supabase_client):
         """Test task error upsert handles exceptions"""
         mock_get_client.return_value = mock_supabase_client
