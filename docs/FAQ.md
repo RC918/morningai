@@ -1,68 +1,60 @@
 # Phase 1 Canary Final Validation Test: Creating a Simple Python Function to Add Two Numbers
 
-This FAQ entry is designed to guide developers through the process of validating their setup and understanding of the MorningAI platform by creating a simple Python function. This function will add two numbers, serving as a basic but effective test of your development environment and integration with MorningAI's capabilities.
+## Overview
 
-## Understanding the Task
+This section of the FAQ aims to assist developers in understanding and utilizing the MorningAI platform, specifically through the creation and validation of a simple Python function. This function will add two numbers, serving as a basic test to ensure that your development environment is correctly set up and that you can successfully execute Python code within the MorningAI repository context.
 
-The goal is to write a Python function that takes two arguments (both numbers) and returns their sum. This task is part of the Phase 1 Canary Final Validation Test, aiming to ensure developers can successfully write, deploy, and integrate code within the MorningAI ecosystem.
+### Code Example
 
-## Code Example
-
-Below is a straightforward example of how to create this function:
+Below is a straightforward example of a Python function designed to add two numbers. This function can be used as part of the Phase 1 Canary Final Validation Test.
 
 ```python
 def add_two_numbers(number1, number2):
     """
     Adds two numbers and returns the result.
-    
-    :param number1: The first number to add.
-    :param number2: The second number to add.
+
+    :param number1: First number to add.
+    :param number2: Second number to add.
     :return: The sum of number1 and number2.
     """
     return number1 + number2
 ```
 
-You can test this function by calling it with two numbers:
+You can save this code in a file named `addition.py` within your local clone of the `RC918/morningai` repository. 
+
+### Testing the Function
+
+To test this function, you can create another Python script in the same directory, or append to the bottom of `addition.py`, the following lines:
 
 ```python
-result = add_two_numbers(5, 7)
-print(f"The result is {result}")
+if __name__ == "__main__":
+    result = add_two_numbers(3, 5)
+    print(f"The result is {result}")
 ```
 
-This should output: `The result is 12`.
+Execute this script from your terminal or command prompt:
 
-## Integration with MorningAI
+```bash
+python addition.py
+```
 
-To integrate this function into the MorningAI platform, follow these steps:
+If everything is set up correctly, you should see `The result is 8` outputted to your terminal.
 
-1. Ensure your local development environment is set up according to the guidelines found in `docs/setup.md` in the RC918/morningai repository.
-2. Place your Python script in the appropriate project directory. For instance, utility functions might go into a `utils/` directory if one exists.
-3. Use Git to push your changes to the repository:
-   ```bash
-   git add .
-   git commit -m "Add simple addition function for validation test"
-   git push origin main
-   ```
-4. Configure any necessary hooks or triggers within MorningAI's orchestration layer (LangGraph) as detailed in `docs/orchestration.md`.
+### Related Documentation Links
 
-## Related Documentation Links
+For more information on setting up your development environment and working with Python scripts, consider these resources:
 
-- Setup Guide: [Setting Up Your Development Environment](https://github.com/RC918/morningai/docs/setup.md)
-- Orchestration with LangGraph: [LangGraph Orchestration](https://github.com/RC918/morningai/docs/orchestration.md)
-- Code Deployment Guidelines: [Deploying Your Code](https://github.com/RC918/morningai/docs/deployment.md)
+- [Python Official Documentation](https://docs.python.org/3/)
+- [MorningAI GitHub Repository README](https://github.com/RC918/morningai/blob/main/README.md)
+- [Supabase Documentation](https://supabase.com/docs)
 
-## Common Troubleshooting Tips
+### Common Troubleshooting Tips
 
-- **Issue**: Function does not execute after deployment.
-  - **Solution**: Ensure you have followed all deployment steps correctly. Check the logs for errors related to deployment or execution.
+- **SyntaxError**: Ensure that you're using Python 3 as some syntax may not be compatible with Python 2.
+- **FileNotFoundError**: Confirm that you are executing the script from the correct directory where `addition.py` is located.
+- **ModuleNotFoundError**: If your script depends on external modules, ensure they are installed in your environment using pip, e.g., `pip install module-name`.
 
-- **Issue**: Incorrect results returned from the function.
-  - **Solution**: Verify that you are passing the correct data types (i.e., integers or floats) to the function. Remember that Python dynamically types variables, which can sometimes lead to unexpected behavior.
-
-- **Issue**: Changes are not reflected on MorningAI.
-  - **Solution**: Confirm that you've pushed your latest changes to the repository and that CI/CD pipelines have successfully completed. Review CI/CD logs for any failure messages.
-
-For more detailed troubleshooting guides and community discussions, visit our [Issues](https://github.com/RC918/morningai/issues) section on GitHub.
+Remember to commit any new scripts or modifications back to the `RC918/morningai` repository following your team's workflow guidelines. This ensures that all team members have access to the latest codebase and can contribute effectively.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
