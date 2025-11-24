@@ -122,7 +122,7 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 - **LangGraph Mode** (Optional): `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py:1-422` - Full state machine with retry logic, CI monitoring (can be enabled via `USE_LANGGRAPH=true`)
 - **Runtime Selection**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:303-307` conditionally imports orchestrator based on environment flag
 
-**See**: [ADR-001](adr/001-dual-orchestrator-architecture.md), [ADR-002](adr/002-producer-consumer-architecture.md) • **Consolidation**: 2026 Q1
+**See**: [ADR-001](adr/001-dual-orchestrator-architecture.md), [ADR-002](adr/002-producer-consumer-architecture.md), [ADR-004](adr/004-shared-core-executor-pattern.md) • **Consolidation**: 2026 Q1
 
 **Infrastructure**:
 - **Database**: Supabase PostgreSQL (production)
@@ -523,7 +523,7 @@ handoff/20250928/40_App/orchestrator/
 - **LangGraph Mode**: New features, active development
 - **Shared Executor**: Core execution logic (both modes)
 
-**Questions?** See [Orchestrator ADRs](adr/001-dual-orchestrator-architecture.md) or ask in #engineering.
+**Questions?** See Orchestrator ADRs ([ADR-001](adr/001-dual-orchestrator-architecture.md), [ADR-002](adr/002-producer-consumer-architecture.md), [ADR-004](adr/004-shared-core-executor-pattern.md)) or ask in #engineering.
 
 ---
 
