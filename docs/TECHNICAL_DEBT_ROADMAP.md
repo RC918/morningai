@@ -390,7 +390,7 @@ It is imported by handoff/20250928/40_App/api-backend/src/main.py.
 
 Status: PRODUCTION
 Location: Root directory (imported by backend)
-Related: ADR-001 (Backend of Record)
+Related: ADR-003 (Backend of Record)
 
 TODO: Move to handoff/.../api-backend/src/phases/ in future refactor
 """

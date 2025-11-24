@@ -110,7 +110,7 @@ HTTP Request → API Backend → Redis Queue → Worker (Routing Decision)
 - 📖 [ONBOARDING_GUIDE.md - Orchestrator Architecture](docs/ONBOARDING_GUIDE.md#orchestrator-architecture) - 完整開發指南
 - 📊 [PROJECT_STRUCTURE_REPORT.md - Orchestrator System](docs/PROJECT_STRUCTURE_REPORT.md#orchestrator-system) - 架構詳解
 - ⚙️ [ENVIRONMENTS.md - Orchestrator Configuration](docs/ENVIRONMENTS.md#orchestrator-configuration) - 配置指南
-- 📝 [ADR-001: Dual Orchestrator Architecture](docs/adr/001-dual-orchestrator-architecture.md) - API vs Worker 分離
+- 📝 [ADR-005: Dual Orchestrator Architecture](docs/adr/005-dual-orchestrator-architecture.md) - API vs Worker 分離
 - 📝 [ADR-002: Producer-Consumer Architecture](docs/adr/002-producer-consumer-architecture.md) - 生產者-消費者模式
 - 📝 [ADR-004: Shared Core Executor Pattern](docs/adr/004-shared-core-executor-pattern.md) - 共享核心執行器設計決策
 
@@ -344,7 +344,7 @@ MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊�
 **系統架構：**
 - [Architecture](docs/ARCHITECTURE.md) - 系統架構文檔
 - [Architecture Decision Records (ADRs)](docs/adr/README.md) - 重要架構決策記錄
-  - [ADR-001: Dual Orchestrator Architecture](docs/adr/001-dual-orchestrator-architecture.md)
+  - [ADR-005: Dual Orchestrator Architecture](docs/adr/005-dual-orchestrator-architecture.md)
   - [ADR-002: Producer-Consumer Architecture](docs/adr/002-producer-consumer-architecture.md)
   - [ADR-003: Backend of Record](docs/adr/003-backend-of-record.md)
 

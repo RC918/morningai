@@ -3,7 +3,7 @@
 **Status**: Accepted  
 **Date**: 2025-11-24  
 **Deciders**: CTO, Engineering Team  
-**Related**: ADR-001, ADR-002, PR #1520
+**Related**: ADR-005, ADR-002, PR #1520
 
 ---
 
@@ -398,10 +398,10 @@ When LangGraph mode reaches 100% traffic and runs stably for 3+ months, consider
 - Verify executor node calls `graph.execute()`
 - Test LangGraph-specific features
 
-**Observability Tests** (`test_observability.py`):
-- Verify `trace_id` propagation
-- Verify `planner_type` recording
-- Test metrics collection
+**Observability Tests**:
+- Verify `trace_id` propagation in integration tests
+- Verify `planner_type` recording in LangGraph tests
+- Test metrics collection in worker tests
 
 ### Integration Tests
 
@@ -422,7 +422,7 @@ When LangGraph mode reaches 100% traffic and runs stably for 3+ months, consider
 - [ONBOARDING_GUIDE.md - Orchestrator Architecture](../ONBOARDING_GUIDE.md#orchestrator-architecture)
 - [PROJECT_STRUCTURE_REPORT.md - Orchestrator System](../PROJECT_STRUCTURE_REPORT.md#orchestrator-system)
 - [ENVIRONMENTS.md - Orchestrator Configuration](../ENVIRONMENTS.md#orchestrator-configuration)
-- [ADR-001: Dual Orchestrator Architecture](./001-dual-orchestrator-architecture.md)
+- [ADR-005: Dual Orchestrator Architecture](./005-dual-orchestrator-architecture.md)
 - [ADR-002: Producer-Consumer Architecture](./002-producer-consumer-architecture.md)
 - [PR #1520: Document Orchestrator Architecture](https://github.com/RC918/morningai/pull/1520)
 
