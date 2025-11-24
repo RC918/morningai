@@ -69,6 +69,59 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 
 詳細架構文檔：[Owner Console README](handoff/20250928/40_App/owner-console/README.md)
 
+---
+
+## 🏗️ Orchestrator 架構
+
+MorningAI 使用雙模式 Orchestrator 架構，支持金絲雀部署和逐步遷移：
+
+### 架構概覽
+
+```
+HTTP Request → API Backend → Redis Queue → Worker (Routing Decision)
+                                                     ↓
+                                        ┌────────────┴────────────┐
+                                        ↓                         ↓
+                                  Simple Mode              LangGraph Mode
+                                  (~95% traffic)           (~5% traffic)
+                                  Feature-frozen           Active development
+                                        ↓                         ↓
+                                        └────────────┬────────────┘
+                                                     ↓
+                                            graph.execute()
+                                            (Shared Core Executor)
+```
+
+### 關鍵特性
+
+- **雙模式架構**: Simple mode（穩定基線）+ LangGraph mode（創新路徑）
+- **金絲雀路由**: MD5-based 確定性路由，支持 0-100% 流量控制
+- **共享核心**: 兩種模式使用相同的 `graph.execute()` 執行引擎
+- **Phase 1 配置**: ~95% Simple mode, ~5% LangGraph mode
+
+### 開發指南
+
+- ✅ **新功能**: 必須在 LangGraph mode 中實作
+- ✅ **Bug 修復**: Simple mode 只接受 bug 修復
+- ⚠️ **修改 graph.execute()**: 必須測試兩種模式
+
+### 詳細文檔
+
+- 📖 [ONBOARDING_GUIDE.md - Orchestrator Architecture](docs/ONBOARDING_GUIDE.md#orchestrator-architecture) - 完整開發指南
+- 📊 [PROJECT_STRUCTURE_REPORT.md - Orchestrator System](docs/PROJECT_STRUCTURE_REPORT.md#orchestrator-system) - 架構詳解
+- ⚙️ [ENVIRONMENTS.md - Orchestrator Configuration](docs/ENVIRONMENTS.md#orchestrator-configuration) - 配置指南
+- 📝 [ADR-001: Dual Orchestrator Architecture](docs/adr/001-dual-orchestrator-architecture.md) - API vs Worker 分離
+- 📝 [ADR-002: Producer-Consumer Architecture](docs/adr/002-producer-consumer-architecture.md) - 生產者-消費者模式
+- 📝 [ADR-004: Shared Core Executor Pattern](docs/adr/004-shared-core-executor-pattern.md) - 共享核心執行器設計決策
+
+### 遷移路線圖
+
+- **Phase 1** (當前): 5% 金絲雀，LLM Planner 啟用
+- **Phase 2** (Q1 2026): 逐步增加到 100% LangGraph
+- **Phase 3** (Q2 2026): 重構 graph.py，移除 Simple mode
+
+---
+
 ## 環境架構
 
 MorningAI 採用多環境部署架構，確保開發、測試和生產環境的隔離：

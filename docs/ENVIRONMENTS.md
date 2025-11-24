@@ -174,6 +174,8 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
 - [ONBOARDING_GUIDE.md - Orchestrator Architecture](./ONBOARDING_GUIDE.md#orchestrator-architecture) - Comprehensive developer guide
 - [PROJECT_STRUCTURE_REPORT.md - Orchestrator System](./PROJECT_STRUCTURE_REPORT.md#3-orchestrator-system) - Technical details
 - [ADR-001: Dual Orchestrator Architecture](adr/001-dual-orchestrator-architecture.md) - Historical context
+- [ADR-002: Producer-Consumer Architecture](adr/002-producer-consumer-architecture.md) - Technical architecture
+- [ADR-004: Shared Core Executor Pattern](adr/004-shared-core-executor-pattern.md) - Design decision for shared execution engine
 
 **Migration Roadmap**:
 - **Phase 1** (Current): 5% LangGraph canary validation
