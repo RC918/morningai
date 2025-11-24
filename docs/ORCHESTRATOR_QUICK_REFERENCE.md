@@ -32,12 +32,9 @@
 USE_LANGGRAPH=false              # Allow canary routing
 USE_LANGGRAPH_PERCENT=5          # 5% traffic to LangGraph
 USE_LLM_PLANNER=true             # LangGraph uses LLM planner
-
-# Staging Worker (morningai-backend-v2-stg-worker)
-USE_LANGGRAPH=false              # Allow canary routing
-USE_LANGGRAPH_PERCENT=10         # 10% traffic to LangGraph (higher for testing)
-USE_LLM_PLANNER=true             # LangGraph uses LLM planner
 ```
+
+**Note**: For staging worker configuration, refer to [STAGING_SETUP_GUIDE.md](./ops/STAGING_SETUP_GUIDE.md). Staging worker service names are environment-specific.
 
 ### Configuration Locations
 
@@ -54,10 +51,11 @@ USE_LLM_PLANNER=true             # LangGraph uses LLM planner
 | Service | Role | Environment | Configuration Location |
 |---------|------|-------------|----------------------|
 | `morningai-agent-worker` | Production Worker | Production | Render Dashboard → Production Worker → Environment |
-| `morningai-backend-v2-stg-worker` | Staging Worker | Staging | Render Dashboard → Staging Worker → Environment |
 | `morningai-backend-v2` | API Backend | Production | ❌ No routing flags needed (API layer) |
 
 **Important**: Routing flags (`USE_LANGGRAPH*`) are set on **Worker services only**, NOT on API Backend.
+
+**Staging Workers**: For staging worker service names and configuration, refer to [STAGING_SETUP_GUIDE.md](./ops/STAGING_SETUP_GUIDE.md). Worker services may differ by environment.
 
 ---
 
@@ -65,12 +63,12 @@ USE_LLM_PLANNER=true             # LangGraph uses LLM planner
 
 | Keyword | Purpose | Example |
 |---------|---------|---------|
-| `"Using LangGraph orchestrator"` | Find LangGraph mode executions | `grep "Using LangGraph" logs/worker.log` |
-| `"Using simple orchestrator"` | Find Simple mode executions | `grep "Using simple" logs/worker.log` |
-| `"Canary deployment"` | Find routing decisions | `grep "Canary deployment" logs/worker.log` |
-| `"task_percent"` | Find task routing percentages | `grep "task_percent" logs/worker.log` |
-| `planner_type` | Identify planner type (llm/static) | `grep "planner_type" logs/planner_runs.jsonl` |
-| `trace_id` | Track execution across services | `grep "trace_id=abc123" logs/*.log` |
+| `"Using LangGraph orchestrator"` | Find LangGraph mode executions | Search in worker logs (Render Dashboard) |
+| `"Using simple orchestrator"` | Find Simple mode executions | Search in worker logs (Render Dashboard) |
+| `"Canary deployment"` | Find routing decisions | Search in worker logs (Render Dashboard) |
+| `"task_percent"` | Find task routing percentages | Search in worker logs (Render Dashboard) |
+| `planner_type` | Identify planner type (llm/static) | Search in planner logs |
+| `trace_id` | Track execution across services | Search in logs by trace ID |
 
 ---
 
@@ -99,8 +97,10 @@ pytest tests/test_langgraph_smoke.py -v
 cd handoff/20250928/40_App/orchestrator
 export USE_LANGGRAPH=false
 export USE_LANGGRAPH_PERCENT=5
-pytest tests/test_canary_routing.py -v
+pytest tests/test_worker.py -k canary -v
 ```
+
+**Note**: Canary routing tests are in `test_worker.py` (e.g., `test_canary_5_percent_distribution`, `test_canary_deterministic_same_task_id`).
 
 ### Test Both Modes (Required for graph.execute() changes)
 
@@ -161,10 +161,7 @@ USE_LANGGRAPH_PERCENT = 0  # Route 100% to Simple Mode
 # Save and redeploy
 ```
 
-**Verify**:
-```bash
-grep "Using simple orchestrator" logs/worker.log | wc -l  # Should be 100%
-```
+**Verify**: Check worker logs in Render Dashboard for `"Using simple orchestrator"` (should be 100%)
 
 **Recovery Time**: < 5 minutes
 

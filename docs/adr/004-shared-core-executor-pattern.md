@@ -302,11 +302,9 @@ flowchart TD
    ```
 
 2. **Verify Rollback**:
-   ```bash
-   # Check logs for routing decisions
-   grep "Using simple orchestrator" logs/worker.log | wc -l  # Should be 100%
-   grep "Using LangGraph orchestrator" logs/worker.log | wc -l  # Should be 0
-   ```
+   - Check worker logs in Render Dashboard
+   - Search for "Using simple orchestrator" (should be 100%)
+   - Search for "Using LangGraph orchestrator" (should be 0)
 
 3. **Monitor**:
    - Watch error rate drop to baseline (<5%)
@@ -369,10 +367,10 @@ flowchart TD
 
 2. **Investigate**:
    ```bash
-   # Check routing logic
-   grep "Canary deployment" logs/worker.log
+   # Check routing logic in worker logs (Render Dashboard)
+   # Search for "Canary deployment" keyword
    # Verify MD5 hash calculation
-   pytest tests/test_canary_routing.py -v
+   pytest tests/test_worker.py -k canary -v
    ```
 
 3. **Fix and Redeploy**:

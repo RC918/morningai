@@ -711,7 +711,7 @@ else:
 
 **Monitoring**:
 ```bash
-# Search in Render Dashboard → morningai-backend-v2-stg-worker → Logs
+# Search in Render Dashboard → Worker Logs (see STAGING_SETUP_GUIDE.md for staging service names)
 "Canary deployment"           # Routing decision
 "Using LangGraph orchestrator" # LangGraph execution
 "Using simple orchestrator"    # Simple execution
@@ -720,7 +720,7 @@ else:
 #### 3.5 Deployment Configuration
 
 **Worker Service** (Render):
-- Service: `morningai-agent-worker` (Production), `morningai-backend-v2-stg-worker` (Staging)
+- Service: `morningai-agent-worker` (Production); for staging, see [STAGING_SETUP_GUIDE.md](./ops/STAGING_SETUP_GUIDE.md)
 - Runtime: Python (not Docker)
 - Path: `handoff/20250928/40_App/orchestrator`
 - Start Command: `python redis_queue/worker.py`
