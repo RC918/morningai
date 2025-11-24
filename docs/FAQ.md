@@ -1,85 +1,76 @@
-# Frequently Asked Questions (FAQ)
+# Phase 1 Canary Final Validation Test: Creating a Simple Python Function to Add Two Numbers
 
-Phase 1 Canary Test - Verify LLM Planner + JSONL
+This FAQ entry is designed to guide developers through the process of validating their setup and understanding of the MorningAI platform by creating a simple Python function. This function will add two numbers, serving as a basic but effective test of your development environment and integration with MorningAI's capabilities.
 
+## Understanding the Task
 
-MorningAI is a comprehensive multi-tenant SaaS platform for autonomous agent-based code generation and documentation management.
+The goal is to write a Python function that takes two arguments (both numbers) and returns their sum. This task is part of the Phase 1 Canary Final Validation Test, aiming to ensure developers can successfully write, deploy, and integrate code within the MorningAI ecosystem.
 
+## Code Example
 
-- **Autonomous Agent System**: GPT-4 powered agents for automated code generation and PR creation
-- **Multi-tenant Architecture**: Row Level Security (RLS) for complete tenant data isolation
-- **Real-time Task Queue**: Redis Queue with worker heartbeat monitoring for reliable task execution
-- **Vector Memory**: pgvector-based memory storage for context-aware agents
-- **Multi-platform Integration**: Support for Telegram, LINE, Messenger via platform_bindings
+Below is a straightforward example of how to create this function:
 
-
-**Frontend**:
-- React with Vite
-- TailwindCSS for styling
-- Modern ES6+ JavaScript
-
-**Backend**:
-- Python 3.12
-- Flask web framework
-- Gunicorn with 4 workers for production
-- Row Level Security (RLS) for tenant isolation
-
-**Infrastructure**:
-- PostgreSQL (Supabase) for data persistence
-- Redis for task queue and caching
-- Redis Queue (RQ) for async job processing
-- Sentry for error tracking and monitoring
-
-**AI & Orchestration**:
-- OpenAI GPT-4 for content generation
-- LangGraph for agent workflow orchestration
-- pgvector for semantic search and memory
-
-
-Please refer to our documentation:
-- [README](../README.md) - Installation and setup
-- [CONTRIBUTING](../CONTRIBUTING.md) - Contribution guidelines
-- [RLS Implementation Guide](../docs/RLS_IMPLEMENTATION_GUIDE.md) - Database security
-
-
-```
-┌─────────────┐      ┌──────────────┐      ┌─────────────┐
-│   Frontend  │─────▶│  API Backend │─────▶│   Supabase  │
-│   (React)   │      │   (Flask)    │      │ (PostgreSQL)│
-└─────────────┘      └──────────────┘      └─────────────┘
-                            │
-                            ├───▶ Redis Queue
-                            │         │
-                            │         ▼
-                            │    Orchestrator Worker
-                            │    (LangGraph + GPT-4)
-                            │         │
-                            └─────────┘
+```python
+def add_two_numbers(number1, number2):
+    """
+    Adds two numbers and returns the result.
+    
+    :param number1: The first number to add.
+    :param number2: The second number to add.
+    :return: The sum of number1 and number2.
+    """
+    return number1 + number2
 ```
 
+You can test this function by calling it with two numbers:
 
-**Start Development Server**:
-```bash
-cd handoff/20250928/40_App/api-backend/src
-gunicorn -c ../gunicorn.conf.py main:app
+```python
+result = add_two_numbers(5, 7)
+print(f"The result is {result}")
 ```
 
-**Run Tests**:
-```bash
-cd handoff/20250928/40_App/api-backend
-pytest tests/ -v
-```
+This should output: `The result is 12`.
 
-**Check RLS Policies**:
-```sql
-SELECT tablename, rowsecurity FROM pg_tables 
-WHERE schemaname = 'public' AND rowsecurity = true;
-```
+## Integration with MorningAI
+
+To integrate this function into the MorningAI platform, follow these steps:
+
+1. Ensure your local development environment is set up according to the guidelines found in `docs/setup.md` in the RC918/morningai repository.
+2. Place your Python script in the appropriate project directory. For instance, utility functions might go into a `utils/` directory if one exists.
+3. Use Git to push your changes to the repository:
+   ```bash
+   git add .
+   git commit -m "Add simple addition function for validation test"
+   git push origin main
+   ```
+4. Configure any necessary hooks or triggers within MorningAI's orchestration layer (LangGraph) as detailed in `docs/orchestration.md`.
+
+## Related Documentation Links
+
+- Setup Guide: [Setting Up Your Development Environment](https://github.com/RC918/morningai/docs/setup.md)
+- Orchestration with LangGraph: [LangGraph Orchestration](https://github.com/RC918/morningai/docs/orchestration.md)
+- Code Deployment Guidelines: [Deploying Your Code](https://github.com/RC918/morningai/docs/deployment.md)
+
+## Common Troubleshooting Tips
+
+- **Issue**: Function does not execute after deployment.
+  - **Solution**: Ensure you have followed all deployment steps correctly. Check the logs for errors related to deployment or execution.
+
+- **Issue**: Incorrect results returned from the function.
+  - **Solution**: Verify that you are passing the correct data types (i.e., integers or floats) to the function. Remember that Python dynamically types variables, which can sometimes lead to unexpected behavior.
+
+- **Issue**: Changes are not reflected on MorningAI.
+  - **Solution**: Confirm that you've pushed your latest changes to the repository and that CI/CD pipelines have successfully completed. Review CI/CD logs for any failure messages.
+
+For more detailed troubleshooting guides and community discussions, visit our [Issues](https://github.com/RC918/morningai/issues) section on GitHub.
+
+---
+Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Phase 1 Canary Test - Verify LLM Planner + JSONL
-- Trace ID: `canary-test-35`
-- Generated by: MorningAI Orchestrator (Fallback Template)
+- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
+- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
+- Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
