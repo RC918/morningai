@@ -1,85 +1,66 @@
-# Frequently Asked Questions (FAQ)
+# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
 
-Phase 1 Canary Test - Verify LLM Planner + JSONL
+## Overview
 
+In the context of MorningAI, Phase 1 Canary Final Validation Tests are critical steps in ensuring that our autonomous agent system and code generation features are working as expected. This specific test involves creating a simple Python function that can add two numbers. This task not only validates the basic functionality of our platform but also demonstrates how developers can quickly prototype and test simple functions within the MorningAI ecosystem.
 
-MorningAI is a comprehensive multi-tenant SaaS platform for autonomous agent-based code generation and documentation management.
+## Implementation
 
+To implement a Python function that adds two numbers, follow the steps below. This example assumes you have a basic understanding of Python and your development environment is set up to create and run Python scripts.
 
-- **Autonomous Agent System**: GPT-4 powered agents for automated code generation and PR creation
-- **Multi-tenant Architecture**: Row Level Security (RLS) for complete tenant data isolation
-- **Real-time Task Queue**: Redis Queue with worker heartbeat monitoring for reliable task execution
-- **Vector Memory**: pgvector-based memory storage for context-aware agents
-- **Multi-platform Integration**: Support for Telegram, LINE, Messenger via platform_bindings
+### Code Example
 
+```python
+# Define the function to add two numbers
+def add_two_numbers(number1, number2):
+    return number1 + number2
 
-**Frontend**:
-- React with Vite
-- TailwindCSS for styling
-- Modern ES6+ JavaScript
-
-**Backend**:
-- Python 3.12
-- Flask web framework
-- Gunicorn with 4 workers for production
-- Row Level Security (RLS) for tenant isolation
-
-**Infrastructure**:
-- PostgreSQL (Supabase) for data persistence
-- Redis for task queue and caching
-- Redis Queue (RQ) for async job processing
-- Sentry for error tracking and monitoring
-
-**AI & Orchestration**:
-- OpenAI GPT-4 for content generation
-- LangGraph for agent workflow orchestration
-- pgvector for semantic search and memory
-
-
-Please refer to our documentation:
-- [README](../README.md) - Installation and setup
-- [CONTRIBUTING](../CONTRIBUTING.md) - Contribution guidelines
-- [RLS Implementation Guide](../docs/RLS_IMPLEMENTATION_GUIDE.md) - Database security
-
-
-```
-┌─────────────┐      ┌──────────────┐      ┌─────────────┐
-│   Frontend  │─────▶│  API Backend │─────▶│   Supabase  │
-│   (React)   │      │   (Flask)    │      │ (PostgreSQL)│
-└─────────────┘      └──────────────┘      └─────────────┘
-                            │
-                            ├───▶ Redis Queue
-                            │         │
-                            │         ▼
-                            │    Orchestrator Worker
-                            │    (LangGraph + GPT-4)
-                            │         │
-                            └─────────┘
+# Example usage
+if __name__ == "__main__":
+    result = add_two_numbers(3, 5)
+    print(f"The result is: {result}")
 ```
 
+Save this script in your preferred directory within the `RC918/morningai` repository. For instance, you might save it as `examples/simple_add_function.py`.
 
-**Start Development Server**:
-```bash
-cd handoff/20250928/40_App/api-backend/src
-gunicorn -c ../gunicorn.conf.py main:app
+### Running the Script
+
+To run this script, navigate to the directory where it's saved and use the following command in your terminal:
+
+```shell
+python simple_add_function.py
 ```
 
-**Run Tests**:
-```bash
-cd handoff/20250928/40_App/api-backend
-pytest tests/ -v
+You should see output similar to:
+
+```
+The result is: 8
 ```
 
-**Check RLS Policies**:
-```sql
-SELECT tablename, rowsecurity FROM pg_tables 
-WHERE schemaname = 'public' AND rowsecurity = true;
-```
+### Related Documentation Links
+
+- [Python Functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions): Learn more about defining functions in Python.
+- [MorningAI Code Generation](/docs/code_generation.md): Understand how MorningAI facilitates code generation for various programming tasks.
+- [Getting Started with MorningAI](/docs/getting_started.md): A comprehensive guide for new developers on setting up and using MorningAI for their projects.
+
+## Troubleshooting
+
+While implementing this simple function is straightforward, here are some common issues you might encounter:
+
+- **SyntaxError**: Ensure your Python syntax is correct. Common mistakes include missing colons (`:`) at the end of the `def` statement or incorrect indentation.
+- **NameError**: If you encounter a `NameError`, it might be due to calling the function before it's defined or misspelling its name. Double-check your function's definition and how you're calling it.
+- **TypeError**: Passing arguments that are not numbers (e.g., strings) will result in a `TypeError`. Make sure both inputs to `add_two_numbers` are integers or floats.
+
+Should you face issues not covered here, reviewing Python's official documentation or searching for the error message online often provides helpful insights.
+
+---
+
+Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Phase 1 Canary Test - Verify LLM Planner + JSONL
-- Trace ID: `canary-test-35`
-- Generated by: MorningAI Orchestrator (Fallback Template)
+- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
+- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
+- Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
