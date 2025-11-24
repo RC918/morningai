@@ -568,7 +568,7 @@ API Backend → Redis Queue → Worker (Routing) → [Simple Mode | LangGraph Mo
 
 **Key Documentation**:
 - [ONBOARDING_GUIDE.md - Orchestrator Architecture](./ONBOARDING_GUIDE.md#orchestrator-architecture) - Comprehensive guide for developers
-- [ADR-001: Dual Orchestrator Architecture](./adr/001-dual-orchestrator-architecture.md) - Historical context
+- [ADR-005: Dual Orchestrator Architecture](./adr/005-dual-orchestrator-architecture.md) - Historical context
 - [ADR-002: Producer-Consumer Architecture](./adr/002-producer-consumer-architecture.md) - Technical architecture
 - [ADR-004: Shared Core Executor Pattern](./adr/004-shared-core-executor-pattern.md) - Design decision for shared execution engine
 - [render.yaml](../render.yaml) - Deployment configuration
