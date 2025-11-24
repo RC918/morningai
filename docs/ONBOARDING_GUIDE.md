@@ -431,10 +431,20 @@ _canary_metrics.observe_latency_ms(elapsed_ms)       # Latency
 
 ### Migration Roadmap
 
-**Current State** (Phase 1 - Nov 2025):
-- ✅ Simple mode: 95% traffic (stable baseline)
-- ✅ LangGraph mode: 5% traffic (validation)
+⚠️ **注意**：本文檔描述架構設計和政策。實際環境變數配置可能因運維需求調整。請以 Render Dashboard 的實際配置為準。
+
+**Phase 1 參考狀態** (Nov 2025):
+- ✅ Simple mode: ~95% traffic (stable baseline)
+- ✅ LangGraph mode: ~5% traffic (validation)
 - ✅ LLM Planner: Enabled for LangGraph tasks
+
+**實際配置查詢**:
+| 服務 | USE_LANGGRAPH | USE_LANGGRAPH_PERCENT | USE_LLM_PLANNER |
+|------|---------------|----------------------|-----------------|
+| Staging Worker | `false` | `5` | `true` |
+| Production Worker | `false` | `5` | `true` |
+
+查看位置: Render Dashboard → Service → Environment Tab
 
 **Near-Term** (Phase 2 - Q1 2026):
 - 🎯 Gradually increase `USE_LANGGRAPH_PERCENT`: 5% → 25% → 50% → 100%

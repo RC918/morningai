@@ -137,7 +137,16 @@ if not use_langgraph and use_langgraph_percent > 0:
 
 ### Environment Variable Configuration
 
-**Phase 1 Configuration** (Current - Production/Staging):
+⚠️ **注意**：本文檔描述架構設計和政策。實際環境變數配置可能因運維需求調整。請以 Render Dashboard 的實際配置為準。
+
+**Phase 1 參考配置**（實際配置請查看 Render Dashboard）:
+
+| 服務 | USE_LANGGRAPH | USE_LANGGRAPH_PERCENT | USE_LLM_PLANNER | 位置 |
+|------|---------------|----------------------|-----------------|------|
+| `morningai-backend-v2-stg-worker` | `false` | `5` | `true` | Render Dashboard → Staging Worker → Environment |
+| `morningai-agent-worker` (Production) | `false` | `5` | `true` | Render Dashboard → Production Worker → Environment |
+
+**配置範例**:
 ```bash
 USE_LANGGRAPH=false              # Allow canary routing (not 100%)
 USE_LANGGRAPH_PERCENT=5          # 5% traffic to LangGraph
@@ -272,6 +281,9 @@ SENTRY_ENVIRONMENT=production
 ```
 
 **Orchestrator Configuration** (Phase 1-2):
+
+⚠️ **注意**：以下為參考配置。實際環境變數請查看 Render Dashboard。
+
 ```bash
 # Dual-Mode Orchestrator with Canary Routing
 USE_LANGGRAPH=false                     # Allow canary routing (false = use percent, true = 100%)
@@ -283,7 +295,7 @@ USE_CODEGEN_WORKFLOW_PERCENT=0          # Percentage rollout for code generation
 
 # Configuration Examples:
 # - Kill Switch (100% Simple):    USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=0
-# - 5% Canary (Current):          USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=5
+# - 5% Canary (Phase 1 Reference): USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=5
 # - 50% Split Testing:            USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=50
 # - 100% LangGraph (Future):      USE_LANGGRAPH=true (overrides percent)
 ```

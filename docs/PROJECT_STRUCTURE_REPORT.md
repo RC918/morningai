@@ -557,10 +557,14 @@ API Backend → Redis Queue → Worker (Routing) → [Simple Mode | LangGraph Mo
 
 **Architecture**: Producer-consumer pattern with canary routing. API Backend enqueues tasks to Redis. Worker polls Redis and routes to Simple or LangGraph mode based on MD5 hash of task_id.
 
-**Current Configuration** (Phase 1):
-- `USE_LANGGRAPH=false` - Enable canary routing
-- `USE_LANGGRAPH_PERCENT=5` - 5% traffic to LangGraph
-- `USE_LLM_PLANNER=true` - LangGraph uses LLM planner
+**Phase 1 參考配置**（實際配置請查看 Render Dashboard）:
+
+| 服務 | USE_LANGGRAPH | USE_LANGGRAPH_PERCENT | USE_LLM_PLANNER |
+|------|---------------|----------------------|-----------------|
+| Staging Worker | `false` | `5` | `true` |
+| Production Worker | `false` | `5` | `true` |
+
+⚠️ **注意**：本文檔描述架構設計和政策。實際環境變數配置可能因運維需求調整。請以 Render Dashboard 的實際配置為準。
 
 **Key Documentation**:
 - [ONBOARDING_GUIDE.md - Orchestrator Architecture](./ONBOARDING_GUIDE.md#orchestrator-architecture) - Comprehensive guide for developers
@@ -721,8 +725,11 @@ else:
 - Start Command: `python redis_queue/worker.py`
 
 **Environment Variables**:
+
+⚠️ **注意**：以下為參考配置。實際環境變數請查看 Render Dashboard。
+
 ```bash
-# Phase 1 Configuration (Current)
+# Phase 1 Reference Configuration
 USE_LANGGRAPH=false              # Allow canary (not 100%)
 USE_LANGGRAPH_PERCENT=5          # 5% to LangGraph
 USE_LLM_PLANNER=true             # LangGraph uses LLM planner
