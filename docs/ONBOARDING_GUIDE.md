@@ -481,7 +481,7 @@ python -m pytest tests/test_worker.py::TestCanaryDeployment
 **Staging Testing**:
 ```bash
 # Check current routing distribution
-# In Render Dashboard → morningai-backend-v2-stg-worker → Logs
+# In Render Dashboard → Worker Logs (see STAGING_SETUP_GUIDE.md for service names)
 # Search: "Canary deployment"
 
 # Expected: ~5% show use_langgraph=True, ~95% show use_langgraph=False

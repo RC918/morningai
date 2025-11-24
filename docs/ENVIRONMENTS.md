@@ -143,8 +143,9 @@ if not use_langgraph and use_langgraph_percent > 0:
 
 | 服務 | USE_LANGGRAPH | USE_LANGGRAPH_PERCENT | USE_LLM_PLANNER | 位置 |
 |------|---------------|----------------------|-----------------|------|
-| `morningai-backend-v2-stg-worker` | `false` | `5` | `true` | Render Dashboard → Staging Worker → Environment |
 | `morningai-agent-worker` (Production) | `false` | `5` | `true` | Render Dashboard → Production Worker → Environment |
+
+**Note**: For staging worker configuration, refer to [STAGING_SETUP_GUIDE.md](./ops/STAGING_SETUP_GUIDE.md). Staging worker service names are environment-specific and defined in the staging setup documentation.
 
 **配置範例**:
 ```bash
