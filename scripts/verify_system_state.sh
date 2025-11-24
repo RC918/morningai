@@ -266,7 +266,7 @@ echo "10. Verifying Architecture Decision Records..."
 if [ -f "docs/adr/005-dual-orchestrator-architecture.md" ]; then
     check_pass "ADR-005 (Dual Orchestrator) exists"
 else
-    check_fail "ADR-001 NOT found"
+    check_fail "ADR-005 NOT found"
 fi
 
 echo ""

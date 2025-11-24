@@ -1,4 +1,4 @@
-# ADR-001: Dual Orchestrator Architecture
+# ADR-005: Dual Orchestrator Architecture
 
 **Status**: Accepted (Interim)  
 **Date**: 2025-11-03  

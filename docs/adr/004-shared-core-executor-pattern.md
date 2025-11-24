@@ -3,7 +3,7 @@
 **Status**: Accepted  
 **Date**: 2025-11-24  
 **Deciders**: CTO, Engineering Team  
-**Related**: ADR-001, ADR-002, PR #1520
+**Related**: ADR-005, ADR-002, PR #1520
 
 ---
 
