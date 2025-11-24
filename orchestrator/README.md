@@ -14,7 +14,7 @@ This is the **API layer** of the orchestrator system (producer in producer-consu
 **Related Components**:
 - **Worker Orchestrator**: `handoff/20250928/40_App/orchestrator/` (RQ Worker - task execution engine)
 - **Deployment**: [render.yaml#L111-L150](https://github.com/RC918/morningai/blob/b59625751e80476b6f99ec9f61ace76b8e64f2c1/render.yaml#L111-L150)
-- **Architecture Decision**: [ADR-001: Dual Orchestrator Architecture](../docs/adr/001-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](../docs/adr/002-producer-consumer-architecture.md)
+- **Architecture Decision**: [ADR-005: Dual Orchestrator Architecture](../docs/adr/005-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](../docs/adr/002-producer-consumer-architecture.md)
 
 ---
 

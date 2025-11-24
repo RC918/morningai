@@ -9,6 +9,8 @@ This directory contains Architecture Decision Records (ADRs) for the MorningAI p
 | [001](./001-pnpm-turborepo-migration.md) | pnpm + Turborepo Migration | Accepted | 2025-10-28 | Migration from npm to pnpm and adoption of Turborepo for monorepo management |
 | [002](./002-producer-consumer-architecture.md) | Producer-Consumer Architecture for Orchestrator | Accepted | 2025-10-29 | Redis + RQ based producer-consumer pattern separating API and worker layers |
 | [003](./003-backend-of-record.md) | Backend of Record for MorningAI | Accepted | 2025-10-29 | Designation of `handoff/.../api-backend` as the canonical backend application |
+| [004](./004-shared-core-executor-pattern.md) | Shared Core Executor Pattern | Accepted | 2025-11-24 | Simple mode and LangGraph mode share `graph.execute()` as common execution engine |
+| [005](./005-dual-orchestrator-architecture.md) | Dual Orchestrator Architecture | Accepted (Interim) | 2025-11-03 | API Orchestrator vs Worker Orchestrator separation with consolidation plan for 2026 Q1 |
 
 ## What is an ADR?
 
