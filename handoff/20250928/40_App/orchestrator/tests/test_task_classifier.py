@@ -13,7 +13,6 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # noqa: E402
-# noqa: E402
 from agents.dev_agent.workflows.task_classifier import TaskClassifier, TaskType, classify_task
 
 
