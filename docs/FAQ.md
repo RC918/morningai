@@ -1,77 +1,85 @@
-# Test Task 3 for Planner Distribution Verification
+# Frequently Asked Questions (FAQ)
 
-This section provides a comprehensive guide on verifying the planner distribution within the MorningAI platform, particularly focusing on test task 3. This process is critical for developers looking to ensure that task orchestration and distribution across the system are functioning as expected, leveraging MorningAI's real-time task orchestration with Redis Queue.
+Create a draft PR that adds a simple test file to verify GitHub integration
 
-## Understanding Test Task 3
 
-Test Task 3 is designed to validate the distribution and execution of planning tasks across the multi-tenant SaaS platform. It specifically checks for:
+MorningAI is a comprehensive multi-tenant SaaS platform for autonomous agent-based code generation and documentation management.
 
-- Correct task allocation and execution by the autonomous agent system.
-- Proper integration and functioning of Redis Queue for real-time task orchestration.
-- Efficient vector memory storage handling with pgvector/Supabase.
 
-### Code Example: Creating and Dispatching a Test Task
+- **Autonomous Agent System**: GPT-4 powered agents for automated code generation and PR creation
+- **Multi-tenant Architecture**: Row Level Security (RLS) for complete tenant data isolation
+- **Real-time Task Queue**: Redis Queue with worker heartbeat monitoring for reliable task execution
+- **Vector Memory**: pgvector-based memory storage for context-aware agents
+- **Multi-platform Integration**: Support for Telegram, LINE, Messenger via platform_bindings
 
-To create and dispatch a test task for planner distribution verification, you can use the following Python snippet. Ensure your environment is set up with Flask and Redis Queue (RQ).
 
-```python
-from rq import Queue
-from redis import Redis
-from your_task_module import test_task_3
+**Frontend**:
+- React with Vite
+- TailwindCSS for styling
+- Modern ES6+ JavaScript
 
-# Setup Redis connection
-redis_conn = Redis()
+**Backend**:
+- Python 3.12
+- Flask web framework
+- Gunicorn with 4 workers for production
+- Row Level Security (RLS) for tenant isolation
 
-# Setup queue
-q = Queue(connection=redis_conn)
+**Infrastructure**:
+- PostgreSQL (Supabase) for data persistence
+- Redis for task queue and caching
+- Redis Queue (RQ) for async job processing
+- Sentry for error tracking and monitoring
 
-# Dispatch test_task_3 for execution
-job = q.enqueue(test_task_3, args=(your_test_args,))
-print(f"Task {job.id} added to queue at {job.enqueued_at}")
+**AI & Orchestration**:
+- OpenAI GPT-4 for content generation
+- LangGraph for agent workflow orchestration
+- pgvector for semantic search and memory
+
+
+Please refer to our documentation:
+- [README](../README.md) - Installation and setup
+- [CONTRIBUTING](../CONTRIBUTING.md) - Contribution guidelines
+- [RLS Implementation Guide](../docs/RLS_IMPLEMENTATION_GUIDE.md) - Database security
+
+
+```
+┌─────────────┐      ┌──────────────┐      ┌─────────────┐
+│   Frontend  │─────▶│  API Backend │─────▶│   Supabase  │
+│   (React)   │      │   (Flask)    │      │ (PostgreSQL)│
+└─────────────┘      └──────────────┘      └─────────────┘
+                            │
+                            ├───▶ Redis Queue
+                            │         │
+                            │         ▼
+                            │    Orchestrator Worker
+                            │    (LangGraph + GPT-4)
+                            │         │
+                            └─────────┘
 ```
 
-Replace `your_task_module` with the actual Python module where `test_task_3` function is defined, and `your_test_args` with any arguments required by your test function.
 
-### Related Documentation Links
+**Start Development Server**:
+```bash
+cd handoff/20250928/40_App/api-backend/src
+gunicorn -c ../gunicorn.conf.py main:app
+```
 
-- **Redis Queue (RQ) Documentation**: [https://python-rq.org/docs/](https://python-rq.org/docs/)
-- **pgvector/Supabase Documentation**: [https://supabase.com/docs/guides/database/full-text-search](https://supabase.com/docs/guides/database/full-text-search)
-- **Flask Documentation for Background Tasks**: [https://flask.palletsprojects.com/en/2.0.x/patterns/backgroundtasks/](https://flask.palletsprojects.com/en/2.0.x/patterns/backgroundtasks/)
+**Run Tests**:
+```bash
+cd handoff/20250928/40_App/api-backend
+pytest tests/ -v
+```
 
-## Common Troubleshooting Tips
-
-### Task Not Executing
-
-If you notice that the dispatched task does not execute:
-
-1. Verify that Redis server is running: `redis-cli ping`. You should get a response `PONG`.
-2. Check if RQ worker is up and running: Navigate to your project directory and execute `rq worker`.
-3. Ensure there's no error in the task function which might cause it to fail silently.
-
-### Incorrect Task Distribution
-
-If tasks are not being distributed as expected:
-
-1. Check if all workers are connected to the same Redis instance.
-2. Ensure that tasks are not being filtered or limited by any unintended criteria within the task dispatch code.
-3. Verify that there's no network partition or connectivity issue affecting communication between workers and Redis.
-
-### Memory Issues with Vector Storage
-
-When using pgvector/Supabase for vector memory storage, ensure:
-
-1. Your vectors are appropriately sized according to your database schema.
-2. Batch operations when possible to reduce load.
-3. Monitor database performance and scale resources as needed.
-
----
-
-Generated by MorningAI Orchestrator using GPT-4
+**Check RLS Policies**:
+```sql
+SELECT tablename, rowsecurity FROM pg_tables 
+WHERE schemaname = 'public' AND rowsecurity = true;
+```
 
 ---
 
 **Metadata**:
-- Task: Test task 3 for planner distribution verification
-- Trace ID: `planner-dist-check-3`
-- Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
+- Task: Create a draft PR that adds a simple test file to verify GitHub integration
+- Trace ID: `test-after-pr1508-merge-1763965465`
+- Generated by: MorningAI Orchestrator (Fallback Template)
 - Repository: RC918/morningai
