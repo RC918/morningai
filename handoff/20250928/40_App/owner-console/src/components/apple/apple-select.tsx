@@ -87,13 +87,13 @@ AppleSelect.displayName = "AppleSelect"
  * Ensures proper text color and spacing in both light and dark modes.
  * Always uses dark text on light background for consistency with Apple design.
  */
-export const AppleSelectItem = React.forwardRef<
-  React.ElementRef<typeof BaseSelectItem>,
-  BaseSelectItemProps
->(({ className, children, ...props }, ref) => {
+export function AppleSelectItem({
+  className,
+  children,
+  ...props
+}: BaseSelectItemProps) {
   return (
     <BaseSelectItem
-      ref={ref}
       className={cn(
         // Override default focus colors to maintain dark text on light background
         "text-neutral-900 dark:text-neutral-900",
@@ -110,7 +110,7 @@ export const AppleSelectItem = React.forwardRef<
       {children}
     </BaseSelectItem>
   )
-})
+}
 
 AppleSelectItem.displayName = "AppleSelectItem"
 
