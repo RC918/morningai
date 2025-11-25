@@ -96,6 +96,13 @@ function AppleButton({
     onClick?.(e)
   }, [disabled, haptic, onClick, onHapticFeedback])
 
+  // Motion props should only be applied when not using asChild (Slot)
+  const motionProps = asChild ? {} : {
+    whileHover: disabled ? {} : { scale: 1.02 },
+    whileTap: disabled ? {} : { scale: 0.98 },
+    transition: springConfig,
+  }
+
   return (
     <Comp
       ref={buttonRef}
@@ -103,9 +110,7 @@ function AppleButton({
       className={cn(appleButtonVariants({ variant, size, className }))}
       disabled={disabled}
       onClick={handleClick}
-      whileHover={disabled ? {} : { scale: 1.02 }}
-      whileTap={disabled ? {} : { scale: 0.98 }}
-      transition={springConfig}
+      {...motionProps}
       {...props}
     >
       {children}
