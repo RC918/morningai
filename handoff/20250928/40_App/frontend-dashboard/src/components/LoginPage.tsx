@@ -416,10 +416,10 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 </div>
               </div>
 
-              <div className="mt-6 text-center text-subhead text-neutral-600 dark:text-neutral-300">
+              <div className="mt-6 text-center text-subhead text-neutral-600 dark:text-neutral-900">
                 {t('auth.login.noAccount', '還沒有帳號？')}{' '}
-                {/* NOTE: Using primary-300 in dark mode for better contrast (Lighthouse CI requirement) */}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-300 dark:hover:text-primary-200 font-medium underline">
+                {/* NOTE: Card is white in dark mode, so use dark text for contrast (Lighthouse CI requirement) */}
+                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-neutral-900 dark:hover:text-neutral-700 font-medium underline">
                   {t('auth.login.signupLink', '註冊')}
                 </Link>
               </div>
