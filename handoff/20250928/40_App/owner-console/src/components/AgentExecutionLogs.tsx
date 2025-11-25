@@ -488,13 +488,14 @@ const AgentExecutionLogs = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-callout font-medium text-neutral-900 mb-2 block">
+              <p className="text-callout font-medium text-neutral-900 mb-2 block">
                 {t('governance.executionLogs.filters.status')}
-              </label>
+              </p>
               <AppleSelect 
                 value={filters.status || 'all'} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}
                 data-testid="filter-status"
+                placeholder={t('governance.executionLogs.filters.allStatuses')}
               >
                 <AppleSelectItem value="all">{t('governance.executionLogs.filters.allStatuses')}</AppleSelectItem>
                 <AppleSelectItem value="queued">{t('governance.executionLogs.statuses.queued')}</AppleSelectItem>
@@ -507,13 +508,14 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-callout font-medium text-neutral-900 mb-2 block">
+              <p className="text-callout font-medium text-neutral-900 mb-2 block">
                 {t('governance.executionLogs.filters.agentType')}
-              </label>
+              </p>
               <AppleSelect 
                 value={filters.agent_type || 'all'} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value === 'all' ? '' : value }))}
                 data-testid="filter-agent-type"
+                placeholder={t('governance.executionLogs.filters.allAgentTypes')}
               >
                 <AppleSelectItem value="all">{t('governance.executionLogs.filters.allAgentTypes')}</AppleSelectItem>
                 <AppleSelectItem value="dev_agent">{t('governance.executionLogs.agentTypes.devAgent')}</AppleSelectItem>
@@ -549,13 +551,14 @@ const AgentExecutionLogs = () => {
             </div>
 
             <div>
-              <label className="text-callout font-medium text-neutral-900 mb-2 block">
+              <p className="text-callout font-medium text-neutral-900 mb-2 block">
                 {t('governance.executionLogs.filters.timeRange')}
-              </label>
+              </p>
               <AppleSelect 
                 value={filters.time_range || 'all'} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value === 'all' ? '' : value }))}
                 data-testid="filter-time-range"
+                placeholder={t('governance.executionLogs.filters.selectTimeRange')}
               >
                 <AppleSelectItem value="all">{t('governance.executionLogs.filters.allTime')}</AppleSelectItem>
                 <AppleSelectItem value="24h">{t('governance.executionLogs.filters.last24Hours')}</AppleSelectItem>
