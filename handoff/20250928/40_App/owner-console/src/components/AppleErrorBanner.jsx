@@ -17,19 +17,24 @@ import { useTranslation } from 'react-i18next'
  * @param {Function} props.onRetry - Optional retry callback
  * @param {string} props.retryLabel - Optional custom retry button label
  * @param {React.ReactNode} props.icon - Optional custom icon (defaults to AlertTriangle)
+ * @param {string} props.testId - Optional test ID for the alert element (defaults to 'error-alert')
+ * @param {string} props.retryTestId - Optional test ID for the retry button (defaults to 'retry-button')
  */
 export const AppleErrorBanner = ({ 
   title, 
   message, 
   onRetry, 
   retryLabel,
-  icon = <AlertTriangle className="h-4 w-4" />
+  icon = <AlertTriangle className="h-4 w-4" />,
+  testId = 'error-alert',
+  retryTestId = 'retry-button'
 }) => {
   const { t } = useTranslation()
   
   return (
     <Alert 
       variant="destructive" 
+      data-testid={testId}
       className="rounded-xl border-error-200 bg-error-50/80 dark:bg-error-900/20"
     >
       {icon}
@@ -42,6 +47,7 @@ export const AppleErrorBanner = ({
             variant="outline" 
             size="sm" 
             className="ml-4"
+            data-testid={retryTestId}
           >
             {retryLabel || t('common.refresh')}
           </Button>
