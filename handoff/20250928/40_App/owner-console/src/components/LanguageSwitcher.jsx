@@ -6,8 +6,8 @@ import { AppleButton } from '@/components/apple/apple-button'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const languages = [
-  { code: 'en-US', name: 'English', flag: '🇺🇸' },
-  { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' }
+  { code: 'en-US', name: 'English' },
+  { code: 'zh-TW', name: '繁體中文' }
 ]
 
 export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
@@ -53,10 +53,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
                   onClick={() => changeLanguage(lang.code)}
                   className="flex items-center justify-between cursor-pointer"
                 >
-                  <span className="flex items-center space-x-2">
-                    <span className="text-lg">{lang.flag}</span>
-                    <span>{lang.name}</span>
-                  </span>
+                  <span>{lang.name}</span>
                   {i18n.language === lang.code && (
                     <Check className="w-4 h-4 text-green-600" />
                   )}
@@ -74,7 +71,6 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
       <DropdownMenuTrigger asChild>
         <AppleButton variant="outline" haptic="light" className={`${className} min-w-32`}>
           <Globe className="w-4 h-4 mr-2" />
-          <span className="text-lg mr-2">{currentLanguage.flag}</span>
           <span>{currentLanguage.name}</span>
         </AppleButton>
       </DropdownMenuTrigger>
@@ -96,10 +92,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
                 onClick={() => changeLanguage(lang.code)}
                 className="flex items-center justify-between cursor-pointer"
               >
-                <span className="flex items-center space-x-2">
-                  <span className="text-lg">{lang.flag}</span>
-                  <span>{lang.name}</span>
-                </span>
+                <span>{lang.name}</span>
                 {i18n.language === lang.code && (
                   <motion.div
                     initial={{ scale: 0 }}
