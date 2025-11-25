@@ -41,13 +41,13 @@ export const AppleSelect = React.forwardRef<
           // Base styling matching AppleInput
           "rounded-xl border border-gray-300 bg-white/80 backdrop-blur-sm text-base transition-all outline-none",
           // Text color - always dark text for readability on light background
-          "text-neutral-900 dark:text-neutral-900",
+          "text-neutral-900",
           // Focus state matching AppleInput
           "focus:border-blue-600 focus:ring-[3px] focus:ring-blue-600/20",
-          // Hover state - maintain dark text on hover
-          "hover:bg-gray-50 hover:text-neutral-900 dark:hover:bg-neutral-800/60 dark:hover:text-neutral-900",
-          // Dark mode background
-          "dark:bg-neutral-900/60 dark:border-neutral-700",
+          // Hover state
+          "hover:bg-gray-50 hover:text-neutral-900",
+          // Dark mode - keep pill light with dark text for Apple style
+          "dark:bg-white dark:hover:bg-neutral-100 dark:border-neutral-300 dark:text-neutral-900",
           // Sizing matching AppleInput default size
           "h-11 px-4 py-3",
           // Disabled state
