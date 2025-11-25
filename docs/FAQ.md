@@ -1,77 +1,50 @@
-# Test Task 3 for Planner Distribution Verification
+# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
 
-This section provides a comprehensive guide on verifying the planner distribution within the MorningAI platform, particularly focusing on test task 3. This process is critical for developers looking to ensure that task orchestration and distribution across the system are functioning as expected, leveraging MorningAI's real-time task orchestration with Redis Queue.
+In the context of developing with MorningAI, understanding how to perform basic operations such as creating simple Python functions is crucial. This FAQ entry will guide you through the process of creating a Python function that adds two numbers. This example is part of our validation tests to ensure developers can implement basic logic and integrate it within the MorningAI platform.
 
-## Understanding Test Task 3
+## Comprehensive Explanation
 
-Test Task 3 is designed to validate the distribution and execution of planning tasks across the multi-tenant SaaS platform. It specifically checks for:
+Creating a Python function involves defining a block of reusable code that performs a specific task—in this case, adding two numbers. This function will accept two parameters, perform the addition operation, and return the result. This basic example serves as a foundation for more complex operations and integrations within MorningAI.
 
-- Correct task allocation and execution by the autonomous agent system.
-- Proper integration and functioning of Redis Queue for real-time task orchestration.
-- Efficient vector memory storage handling with pgvector/Supabase.
+### Code Example
 
-### Code Example: Creating and Dispatching a Test Task
-
-To create and dispatch a test task for planner distribution verification, you can use the following Python snippet. Ensure your environment is set up with Flask and Redis Queue (RQ).
+Below is a simple Python function named `add_two_numbers` that takes two parameters (`number1` and `number2`) and returns their sum:
 
 ```python
-from rq import Queue
-from redis import Redis
-from your_task_module import test_task_3
+def add_two_numbers(number1, number2):
+    """Add two numbers and return the result."""
+    return number1 + number2
 
-# Setup Redis connection
-redis_conn = Redis()
-
-# Setup queue
-q = Queue(connection=redis_conn)
-
-# Dispatch test_task_3 for execution
-job = q.enqueue(test_task_3, args=(your_test_args,))
-print(f"Task {job.id} added to queue at {job.enqueued_at}")
+# Example usage:
+result = add_two_numbers(5, 7)
+print(f"The sum is: {result}")
 ```
-
-Replace `your_task_module` with the actual Python module where `test_task_3` function is defined, and `your_test_args` with any arguments required by your test function.
 
 ### Related Documentation Links
 
-- **Redis Queue (RQ) Documentation**: [https://python-rq.org/docs/](https://python-rq.org/docs/)
-- **pgvector/Supabase Documentation**: [https://supabase.com/docs/guides/database/full-text-search](https://supabase.com/docs/guides/database/full-text-search)
-- **Flask Documentation for Background Tasks**: [https://flask.palletsprojects.com/en/2.0.x/patterns/backgroundtasks/](https://flask.palletsprojects.com/en/2.0.x/patterns/backgroundtasks/)
+For further reading and more advanced functionalities within MorningAI, consider exploring these resources:
 
-## Common Troubleshooting Tips
+- [Python Functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions) - Official Python documentation on defining functions.
+- [MorningAI Architecture Overview](/docs/architecture.md) - Detailed information about how MorningAI's architecture supports custom functions and integrations.
+- [Integrating Custom Logic into MorningAI](/docs/integration/custom_logic.md) - Guidelines on integrating custom Python functions like `add_two_numbers` into your MorningAI projects.
 
-### Task Not Executing
+### Common Troubleshooting Tips
 
-If you notice that the dispatched task does not execute:
+When implementing or executing Python functions in MorningAI, you might encounter some issues. Here are tips to resolve common problems:
 
-1. Verify that Redis server is running: `redis-cli ping`. You should get a response `PONG`.
-2. Check if RQ worker is up and running: Navigate to your project directory and execute `rq worker`.
-3. Ensure there's no error in the task function which might cause it to fail silently.
+- **SyntaxError**: Ensure your Python syntax is correct. Common mistakes include missing colons (`:`) at the end of the `def` line or incorrect indentation.
+- **TypeError**: This occurs if the function arguments are not of compatible types (e.g., attempting to add a string and an integer). Make sure that the inputs to your function are of expected types.
+- **NameError**: If you see a message like "NameError: name 'add_two_numbers' is not defined", check that your function is correctly defined before you call it. Also, ensure there are no spelling errors in your function name.
 
-### Incorrect Task Distribution
-
-If tasks are not being distributed as expected:
-
-1. Check if all workers are connected to the same Redis instance.
-2. Ensure that tasks are not being filtered or limited by any unintended criteria within the task dispatch code.
-3. Verify that there's no network partition or connectivity issue affecting communication between workers and Redis.
-
-### Memory Issues with Vector Storage
-
-When using pgvector/Supabase for vector memory storage, ensure:
-
-1. Your vectors are appropriately sized according to your database schema.
-2. Batch operations when possible to reduce load.
-3. Monitor database performance and scale resources as needed.
+By following this guide, you should be able to create simple Python functions for use within the MorningAI platform. Remember, understanding these basic concepts lays the groundwork for developing more complex functionalities and workflows in your projects.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Test task 3 for planner distribution verification
-- Trace ID: `planner-dist-check-3`
+- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
+- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai

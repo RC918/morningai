@@ -13,7 +13,7 @@ This is the **worker layer** of the orchestrator system (consumer in producer-co
 **Related Components**:
 - **API Orchestrator**: `orchestrator/` (root) - FastAPI service for task submission
 - **Deployment**: [render.yaml#L55-L94](https://github.com/RC918/morningai/blob/b59625751e80476b6f99ec9f61ace76b8e64f2c1/render.yaml#L55-L94)
-- **Architecture Decision**: [ADR-001: Dual Orchestrator Architecture](../../../../docs/adr/001-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](../../../../docs/adr/002-producer-consumer-architecture.md)
+- **Architecture Decision**: [ADR-005: Dual Orchestrator Architecture](../../../../docs/adr/005-dual-orchestrator-architecture.md), [ADR-002: Producer-Consumer Architecture](../../../../docs/adr/002-producer-consumer-architecture.md)
 
 ---
 

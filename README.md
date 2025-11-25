@@ -99,6 +99,27 @@ HTTP Request → API Backend → Redis Queue → Worker (Routing Decision)
 - **共享核心**: 兩種模式使用相同的 `graph.execute()` 執行引擎
 - **Phase 1 配置**: ~95% Simple mode, ~5% LangGraph mode
 
+### 架構圖
+
+```mermaid
+graph TB
+    A[HTTP Request] --> B[API Backend<br/>morningai-backend-v2]
+    B --> C[Redis Queue<br/>orchestrator queue]
+    C --> D[Worker<br/>morningai-agent-worker]
+    D --> E{Routing Decision<br/>MD5 Hash % 100}
+    E -->|"~95% traffic"| F[Simple Mode<br/>Feature-frozen]
+    E -->|"~5% traffic"| G[LangGraph Mode<br/>Active development]
+    F --> H[graph.execute&#40;&#41;<br/>Shared Core Executor]
+    G --> I[LangGraph Workflow]
+    I --> H
+    H --> J[Task Execution]
+    
+    style F fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style G fill:#fff4e1,stroke:#f57c00,stroke-width:2px
+    style H fill:#e8f5e9,stroke:#388e3c,stroke-width:3px
+    style E fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+```
+
 ### 開發指南
 
 - ✅ **新功能**: 必須在 LangGraph mode 中實作
@@ -108,9 +129,10 @@ HTTP Request → API Backend → Redis Queue → Worker (Routing Decision)
 ### 詳細文檔
 
 - 📖 [ONBOARDING_GUIDE.md - Orchestrator Architecture](docs/ONBOARDING_GUIDE.md#orchestrator-architecture) - 完整開發指南
+- 📋 [ORCHESTRATOR_QUICK_REFERENCE.md](docs/ORCHESTRATOR_QUICK_REFERENCE.md) - 快速參考卡片（一頁）
 - 📊 [PROJECT_STRUCTURE_REPORT.md - Orchestrator System](docs/PROJECT_STRUCTURE_REPORT.md#orchestrator-system) - 架構詳解
 - ⚙️ [ENVIRONMENTS.md - Orchestrator Configuration](docs/ENVIRONMENTS.md#orchestrator-configuration) - 配置指南
-- 📝 [ADR-001: Dual Orchestrator Architecture](docs/adr/001-dual-orchestrator-architecture.md) - API vs Worker 分離
+- 📝 [ADR-005: Dual Orchestrator Architecture](docs/adr/005-dual-orchestrator-architecture.md) - API vs Worker 分離
 - 📝 [ADR-002: Producer-Consumer Architecture](docs/adr/002-producer-consumer-architecture.md) - 生產者-消費者模式
 - 📝 [ADR-004: Shared Core Executor Pattern](docs/adr/004-shared-core-executor-pattern.md) - 共享核心執行器設計決策
 
@@ -344,7 +366,7 @@ MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊�
 **系統架構：**
 - [Architecture](docs/ARCHITECTURE.md) - 系統架構文檔
 - [Architecture Decision Records (ADRs)](docs/adr/README.md) - 重要架構決策記錄
-  - [ADR-001: Dual Orchestrator Architecture](docs/adr/001-dual-orchestrator-architecture.md)
+  - [ADR-005: Dual Orchestrator Architecture](docs/adr/005-dual-orchestrator-architecture.md)
   - [ADR-002: Producer-Consumer Architecture](docs/adr/002-producer-consumer-architecture.md)
   - [ADR-003: Backend of Record](docs/adr/003-backend-of-record.md)
 
