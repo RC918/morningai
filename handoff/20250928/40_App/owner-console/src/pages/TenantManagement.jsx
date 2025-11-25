@@ -85,7 +85,7 @@ const TenantManagement = () => {
         />
       )}
 
-      <Card className="material-card">
+      <Card className="material-card hover-lift">
         <CardHeader>
           <CardTitle>{t('tenants.activeTenants')}</CardTitle>
           <CardDescription>{t('tenants.allTenants')}</CardDescription>

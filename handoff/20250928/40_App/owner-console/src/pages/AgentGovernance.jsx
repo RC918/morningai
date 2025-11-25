@@ -168,11 +168,11 @@ const AgentGovernance = () => {
 
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="material-card">
+          <Card className="material-card hover-lift">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('governance.stats.totalAgents')}</p>
-                <Shield className="w-5 h-5 text-primary-600" />
+                <Shield className="w-5 h-5 text-calm" />
               </div>
               <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
                 {statistics.reputation?.total_agents || 0}
@@ -180,11 +180,11 @@ const AgentGovernance = () => {
             </CardContent>
           </Card>
 
-          <Card className="material-card">
+          <Card className="material-card hover-lift">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('governance.stats.avgReputation')}</p>
-                <TrendingUp className="w-5 h-5 text-success-600" />
+                <TrendingUp className="w-5 h-5 text-growth" />
               </div>
               <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
                 {statistics.reputation?.average_score?.toFixed(0) || 100}
@@ -192,11 +192,11 @@ const AgentGovernance = () => {
             </CardContent>
           </Card>
 
-          <Card className="material-card">
+          <Card className="material-card hover-lift">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('governance.stats.dailyCost')}</p>
-                <DollarSign className="w-5 h-5 text-accent-600" />
+                <DollarSign className="w-5 h-5 text-joy" />
               </div>
               <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
                 ${statistics.costs?.daily?.usage?.usd?.toFixed(2) || '0.00'}
@@ -204,11 +204,11 @@ const AgentGovernance = () => {
             </CardContent>
           </Card>
 
-          <Card className="material-card">
+          <Card className="material-card hover-lift">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('governance.stats.violations')}</p>
-                <AlertTriangle className="w-5 h-5 text-error-600" />
+                <AlertTriangle className="w-5 h-5 text-energy" />
               </div>
               <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
                 {violations.length}
@@ -227,7 +227,7 @@ const AgentGovernance = () => {
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
-          <Card className="material-card">
+          <Card className="material-card hover-lift">
             <CardHeader>
               <CardTitle>{t('governance.agents.title')}</CardTitle>
               <CardDescription>{t('governance.agents.subtitle')}</CardDescription>
@@ -268,7 +268,7 @@ const AgentGovernance = () => {
         </TabsContent>
 
         <TabsContent value="events" className="space-y-4">
-          <Card className="material-card">
+          <Card className="material-card hover-lift">
             <CardHeader>
               <CardTitle>{t('governance.events.title')}</CardTitle>
               <CardDescription>{t('governance.events.subtitle')}</CardDescription>
@@ -309,7 +309,7 @@ const AgentGovernance = () => {
         </TabsContent>
 
         <TabsContent value="violations" className="space-y-4">
-          <Card className="material-card">
+          <Card className="material-card hover-lift">
             <CardHeader>
               <CardTitle>{t('governance.violations.title')}</CardTitle>
               <CardDescription>{t('governance.violations.subtitle')}</CardDescription>

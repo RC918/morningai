@@ -108,7 +108,7 @@ const SystemMonitoring = () => {
         </div>
 
         {/* System Health Card Skeleton */}
-        <Card className="material-card">
+        <Card className="material-card hover-lift">
           <CardHeader>
             <Skeleton className="h-6 w-48" aria-hidden="true" />
           </CardHeader>
@@ -131,7 +131,7 @@ const SystemMonitoring = () => {
         {/* Metrics Cards Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="material-card">
+            <Card key={i} className="material-card hover-lift">
               <CardHeader>
                 <Skeleton className="h-6 w-32" aria-hidden="true" />
               </CardHeader>
@@ -159,7 +159,7 @@ const SystemMonitoring = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
-            <Activity className="w-8 h-8 text-success-600" />
+            <Activity className="w-8 h-8 text-growth" />
             {t('monitoring.title')}
           </h1>
           <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
@@ -179,7 +179,7 @@ const SystemMonitoring = () => {
       )}
 
       {!error && !loading && isEmptyValue(health) && (
-        <Card className="material-card">
+        <Card className="material-card hover-lift">
           <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
             <Activity className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
             <p id="empty-health-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noHealthData')}</p>
@@ -197,7 +197,7 @@ const SystemMonitoring = () => {
       )}
 
       {health && (
-        <Card className="material-card" data-testid="system-health">
+        <Card className="material-card hover-lift" data-testid="system-health">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="w-5 h-5" />
@@ -230,7 +230,7 @@ const SystemMonitoring = () => {
       )}
 
       {!error && !loading && isEmptyValue(metrics) && (
-        <Card className="material-card">
+        <Card className="material-card hover-lift">
           <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
             <Database className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
             <p id="empty-metrics-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noMetricsData')}</p>
@@ -249,7 +249,7 @@ const SystemMonitoring = () => {
 
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="material-card" data-testid="cpu-card">
+          <Card className="material-card hover-lift" data-testid="cpu-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cpu className="w-5 h-5" />
@@ -276,7 +276,7 @@ const SystemMonitoring = () => {
                           <Line 
                             type="monotone" 
                             dataKey="value" 
-                            stroke="rgb(var(--color-primary-600))" 
+                            stroke="rgb(var(--color-calm))" 
                             strokeWidth={2}
                             dot={false}
                             isAnimationActive={false}
@@ -295,7 +295,7 @@ const SystemMonitoring = () => {
             </CardContent>
           </Card>
 
-          <Card className="material-card" data-testid="memory-card">
+          <Card className="material-card hover-lift" data-testid="memory-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="w-5 h-5" />
@@ -324,7 +324,7 @@ const SystemMonitoring = () => {
                           <Line 
                             type="monotone" 
                             dataKey="value" 
-                            stroke="rgb(var(--color-success-600))" 
+                            stroke="rgb(var(--color-growth))" 
                             strokeWidth={2}
                             dot={false}
                             isAnimationActive={false}
@@ -343,7 +343,7 @@ const SystemMonitoring = () => {
             </CardContent>
           </Card>
 
-          <Card className="material-card" data-testid="disk-card">
+          <Card className="material-card hover-lift" data-testid="disk-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <HardDrive className="w-5 h-5" />
@@ -372,7 +372,7 @@ const SystemMonitoring = () => {
                           <Line 
                             type="monotone" 
                             dataKey="value" 
-                            stroke="rgb(var(--color-warning-600))" 
+                            stroke="rgb(var(--color-joy))" 
                             strokeWidth={2}
                             dot={false}
                             isAnimationActive={false}

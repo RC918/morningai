@@ -275,13 +275,13 @@ a:focus-visible {
 }
 
 .hover-lift:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 12px 24px 0 rgb(0 0 0 / 0.12);
+  transform: translateY(-0.8px) scale(1.004);
+  box-shadow: 0 2.4px 4.8px 0 rgb(0 0 0 / 0.12);
 }
 
 .hover-lift:active {
-  transform: translateY(-1px) scale(0.98);
-  box-shadow: 0 4px 8px 0 rgb(0 0 0 / 0.08);
+  transform: translateY(-0.2px) scale(0.996);
+  box-shadow: 0 0.8px 1.6px 0 rgb(0 0 0 / 0.08);
 }
 
 /* Button press effect */
