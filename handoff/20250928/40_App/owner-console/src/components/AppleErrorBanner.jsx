@@ -36,11 +36,11 @@ export const AppleErrorBanner = ({
     <Alert 
       variant="destructive" 
       data-testid={testId}
-      className="rounded-xl border-error-200 bg-error-50/80 dark:bg-error-900/20"
+      className="rounded-xl border-error-200 bg-error-50/80 dark:bg-error-50/80 text-neutral-900 dark:text-neutral-900"
     >
       {icon}
-      <AlertTitle className="text-callout font-semibold">{title}</AlertTitle>
-      <AlertDescription className="text-footnote">
+      <AlertTitle className="text-callout font-semibold text-neutral-900 dark:text-neutral-900">{title}</AlertTitle>
+      <AlertDescription className="text-footnote text-neutral-800 dark:text-neutral-800">
         {message}
         {onRetry && (
           <AppleButton 
