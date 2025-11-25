@@ -25,6 +25,7 @@ import {
   Calendar
 } from 'lucide-react'
 import { getAgentEvaluationResults, getAgentEvaluationMetrics } from '@/lib/agent-evaluation-api'
+import { AppleButton } from '@/components/apple/apple-button'
 
 const AgentEvaluationDashboard = () => {
   const { t, i18n } = useTranslation()
@@ -151,10 +152,10 @@ const AgentEvaluationDashboard = () => {
             {t('agentEvaluation.subtitle', 'Monitor AI agent performance metrics and evaluation results')}
           </p>
         </div>
-        <Button onClick={loadEvaluationData} variant="outline" disabled={loading}>
+        <AppleButton onClick={loadEvaluationData} variant="outline" haptic="light" disabled={loading}>
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           {t('common.refresh', 'Refresh')}
-        </Button>
+        </AppleButton>
       </div>
 
       {/* Error Alert */}

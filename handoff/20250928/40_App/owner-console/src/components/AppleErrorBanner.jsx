@@ -1,6 +1,7 @@
-import { Alert, AlertDescription, AlertTitle, Button } from '@morningai/shared-ui'
+import { Alert, AlertDescription, AlertTitle } from '@morningai/shared-ui'
 import { AlertTriangle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { AppleButton } from '@/components/apple/apple-button'
 
 /**
  * AppleErrorBanner - A consistent Apple-styled error banner component
@@ -42,15 +43,16 @@ export const AppleErrorBanner = ({
       <AlertDescription className="text-footnote">
         {message}
         {onRetry && (
-          <Button 
+          <AppleButton 
             onClick={onRetry} 
             variant="outline" 
             size="sm" 
+            haptic="light"
             className="ml-4"
             data-testid={retryTestId}
           >
             {retryLabel || t('common.refresh')}
-          </Button>
+          </AppleButton>
         )}
       </AlertDescription>
     </Alert>

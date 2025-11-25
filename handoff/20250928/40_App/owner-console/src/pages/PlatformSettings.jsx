@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Switch, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@morningai/shared-ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Switch } from '@morningai/shared-ui'
 import { Settings, Save, Shield, ChevronRight } from 'lucide-react'
 import { AppleInput } from '@/components/apple/apple-input'
 import { AppleButton } from '@/components/apple/apple-button'
+import { AppleSelect, SelectItem } from '@/components/apple/apple-select'
 
 const PlatformSettings = () => {
   const { t } = useTranslation()
@@ -64,16 +65,11 @@ const PlatformSettings = () => {
               <p className="text-callout font-medium">{t('settings.security.sessionTimeout')}</p>
               <p className="text-footnote text-neutral-600 dark:text-neutral-400">{t('settings.security.sessionTimeoutDesc')}</p>
             </div>
-            <Select defaultValue="30min">
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="30min">{t('settings.security.30minutes')}</SelectItem>
-                <SelectItem value="1hour">{t('settings.security.1hour')}</SelectItem>
-                <SelectItem value="4hours">{t('settings.security.4hours')}</SelectItem>
-              </SelectContent>
-            </Select>
+            <AppleSelect defaultValue="30min" triggerClassName="w-[180px]">
+              <SelectItem value="30min">{t('settings.security.30minutes')}</SelectItem>
+              <SelectItem value="1hour">{t('settings.security.1hour')}</SelectItem>
+              <SelectItem value="4hours">{t('settings.security.4hours')}</SelectItem>
+            </AppleSelect>
           </div>
         </CardContent>
       </Card>

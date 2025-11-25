@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Butto
 import { Users, Plus, Settings, Activity } from 'lucide-react'
 import { getTenantInfo, getTenantMembers } from '@/lib/generated/tenant/tenant'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
+import { AppleButton } from '@/components/apple/apple-button'
 
 const TenantManagement = () => {
   const { t } = useTranslation()
@@ -70,10 +71,10 @@ const TenantManagement = () => {
           </h1>
           <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('tenants.subtitle')}</p>
         </div>
-        <Button>
+        <AppleButton variant="primary" haptic="medium">
           <Plus className="w-4 h-4 mr-2" />
           {t('tenants.addTenant')}
-        </Button>
+        </AppleButton>
       </div>
 
       {error && (

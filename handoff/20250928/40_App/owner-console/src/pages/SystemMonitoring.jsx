@@ -5,6 +5,7 @@ import { Activity, Server, Database, Zap, Cpu, HardDrive, RefreshCw } from 'luci
 import { getAdminSystemHealth, getAdminSystemMetrics } from '@/lib/generated/admin/admin'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
+import { AppleButton } from '@/components/apple/apple-button'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
@@ -158,10 +159,10 @@ const SystemMonitoring = () => {
           </h1>
           <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
         </div>
-        <Button onClick={loadSystemData} variant="outline" disabled={loading} data-testid="refresh-metrics">
+        <AppleButton onClick={loadSystemData} variant="outline" haptic="light" disabled={loading} data-testid="refresh-metrics">
           <RefreshCw className="w-4 h-4 mr-2" />
           {t('common.refresh')}
-        </Button>
+        </AppleButton>
       </div>
 
       {error && (
@@ -177,14 +178,15 @@ const SystemMonitoring = () => {
           <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
             <Activity className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
             <p id="empty-health-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noHealthData')}</p>
-            <Button 
+            <AppleButton 
               onClick={loadSystemData} 
               variant="outline" 
+              haptic="light"
               className="mt-4"
               aria-label={t('monitoring.retryLoadHealth', { defaultValue: 'Retry loading system health' })}
             >
               {t('common.refresh')}
-            </Button>
+            </AppleButton>
           </CardContent>
         </Card>
       )}
@@ -227,14 +229,15 @@ const SystemMonitoring = () => {
           <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
             <Database className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
             <p id="empty-metrics-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noMetricsData')}</p>
-            <Button 
+            <AppleButton 
               onClick={loadSystemData} 
               variant="outline" 
+              haptic="light"
               className="mt-4"
               aria-label={t('monitoring.retryLoadMetrics', { defaultValue: 'Retry loading system metrics' })}
             >
               {t('common.refresh')}
-            </Button>
+            </AppleButton>
           </CardContent>
         </Card>
       )}

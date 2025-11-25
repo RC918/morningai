@@ -14,6 +14,7 @@ import { getAdminAgents } from '@/lib/generated/admin/admin'
 import { getGovernanceEvents, getGovernanceViolations, getGovernanceStatistics } from '@/lib/generated/governance/governance'
 import AgentExecutionLogs from '@/components/AgentExecutionLogs'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
+import { AppleButton } from '@/components/apple/apple-button'
 
 const AgentGovernance = () => {
   const { t } = useTranslation()
@@ -140,10 +141,10 @@ const AgentGovernance = () => {
           </h1>
           <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('governance.subtitle')}</p>
         </div>
-        <Button onClick={loadGovernanceData} variant="outline" disabled={loading}>
+        <AppleButton onClick={loadGovernanceData} variant="outline" haptic="light" disabled={loading}>
           <Activity className="w-4 h-4 mr-2" />
           {t('governance.refresh')}
-        </Button>
+        </AppleButton>
       </div>
 
       {error && (
