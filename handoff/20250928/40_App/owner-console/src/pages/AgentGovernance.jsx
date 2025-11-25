@@ -306,8 +306,8 @@ const AgentGovernance = () => {
             <CardContent>
               <div className="space-y-2">
                 {violations.length === 0 ? (
-                  <div className="text-center py-8">
-                    <CheckCircle className="w-12 h-12 text-success-600 mx-auto mb-2" />
+                  <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                    <CheckCircle className="w-12 h-12 text-success-600" />
                     <p className="text-neutral-500 dark:text-neutral-400">{t('governance.violations.noViolations')}</p>
                   </div>
                 ) : (

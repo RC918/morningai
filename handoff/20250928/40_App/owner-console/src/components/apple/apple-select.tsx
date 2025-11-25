@@ -40,7 +40,7 @@ export const AppleSelect = React.forwardRef<
       <SelectTrigger
         className={cn(
           // Base styling matching AppleInput
-          "rounded-xl border border-gray-300 bg-white/80 backdrop-blur-sm text-base transition-all outline-none",
+          "rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm text-base transition-all outline-none",
           // Text color - always dark text for readability on light background
           "text-neutral-900",
           // Focus state matching AppleInput
@@ -48,13 +48,13 @@ export const AppleSelect = React.forwardRef<
           // Hover state
           "hover:bg-gray-50 hover:text-neutral-900",
           // Dark mode - keep pill light with dark text for Apple style
-          "dark:bg-white dark:hover:bg-neutral-100 dark:border-neutral-300 dark:text-neutral-900",
+          "dark:bg-white dark:hover:bg-neutral-100 dark:border-neutral-200 dark:text-neutral-900",
           // Sizing matching AppleInput default size
           "h-11 px-4 py-3",
           // Disabled state
           "disabled:cursor-not-allowed disabled:opacity-50",
-          // Typography
-          "md:text-sm",
+          // Typography matching AppleButton and AppleInput
+          "text-callout md:text-callout",
           triggerClassName
         )}
       >
@@ -67,7 +67,7 @@ export const AppleSelect = React.forwardRef<
           // Text color - always dark for readability on light background
           "text-neutral-900",
           // Dark mode - keep dropdown light like the trigger pill
-          "dark:bg-white/95 dark:border-neutral-300 dark:text-neutral-900",
+          "dark:bg-white/95 dark:border-neutral-200 dark:text-neutral-900",
           // Ensure proper spacing for items
           "py-2",
           contentClassName
@@ -99,8 +99,9 @@ export function AppleSelectItem({
         "text-neutral-900 dark:text-neutral-900",
         "focus:bg-neutral-100 focus:text-neutral-900",
         "dark:focus:bg-neutral-100 dark:focus:text-neutral-900",
-        // Proper spacing to prevent text overlap
-        "py-2.5 px-3",
+        // Proper spacing to prevent text overlap with checkmark (shared-ui uses absolute right-2 for checkmark)
+        // Keep vertical padding but ensure right padding accommodates the checkmark
+        "py-2.5 pl-3 pr-8",
         // Ensure proper line height
         "leading-normal",
         className

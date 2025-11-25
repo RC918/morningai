@@ -14,9 +14,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Alert,
-  AlertDescription,
-  AlertTitle,
   StatusBadge,
   StatusBadgeProps,
   Table,
@@ -49,6 +46,7 @@ import {
 import { apiClient, apiClientWithMeta } from '@/lib/api-client'
 import { toast } from 'sonner'
 import { buildTraceUrl } from '@/lib/trace'
+import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 
 const TRACE_VIEWER_URL = import.meta.env.VITE_TRACE_VIEWER_URL || ''
 
@@ -360,7 +358,7 @@ const AgentExecutionLogs = () => {
           {/* Summary Statistics Skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4" role="status" aria-live="polite" aria-label={t('common.loading')}>
             {[1, 2, 3, 4].map((i) => (
-              <Card key={i}>
+              <Card key={i} className="material-card">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between mb-2">
                     <Skeleton className="h-4 w-24" aria-hidden="true" />
@@ -373,7 +371,7 @@ const AgentExecutionLogs = () => {
           </div>
 
           {/* Filters Skeleton */}
-          <Card>
+          <Card className="material-card">
             <CardHeader>
               <Skeleton className="h-6 w-32" aria-hidden="true" />
             </CardHeader>
@@ -390,7 +388,7 @@ const AgentExecutionLogs = () => {
           </Card>
 
           {/* Table Skeleton */}
-          <Card>
+          <Card className="material-card">
             <CardHeader>
               <Skeleton className="h-6 w-48" aria-hidden="true" />
               <Skeleton className="h-4 w-64 mt-2" aria-hidden="true" />
@@ -415,29 +413,20 @@ const AgentExecutionLogs = () => {
       ) : (
         <>
       {error && (
-        <Alert variant="destructive" data-testid="error-alert">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{t('common.error')}</AlertTitle>
-          <AlertDescription>
-            {error}
-            <Button 
-              onClick={() => loadExecutionLogs()} 
-              variant="outline" 
-              size="sm" 
-              className="ml-4"
-              aria-label={t('governance.executionLogs.retryLoad')}
-              data-testid="retry-button"
-            >
-              {t('common.retry')}
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <AppleErrorBanner
+          title={t('common.error')}
+          message={error}
+          onRetry={() => loadExecutionLogs()}
+          retryLabel={t('common.retry')}
+          testId="error-alert"
+          retryTestId="retry-button"
+        />
       )}
 
       {/* Summary Statistics */}
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card data-testid="summary-total">
+          <Card data-testid="summary-total" className="material-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.totalExecutions')}</p>
@@ -449,7 +438,7 @@ const AgentExecutionLogs = () => {
             </CardContent>
           </Card>
 
-          <Card data-testid="summary-success-rate">
+          <Card data-testid="summary-success-rate" className="material-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.successRate')}</p>
@@ -461,7 +450,7 @@ const AgentExecutionLogs = () => {
             </CardContent>
           </Card>
 
-          <Card data-testid="summary-avg-duration">
+          <Card data-testid="summary-avg-duration" className="material-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.avgDuration')}</p>
@@ -473,7 +462,7 @@ const AgentExecutionLogs = () => {
             </CardContent>
           </Card>
 
-          <Card data-testid="summary-status-breakdown">
+          <Card data-testid="summary-status-breakdown" className="material-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.executionLogs.summary.statusBreakdown')}</p>
@@ -493,7 +482,7 @@ const AgentExecutionLogs = () => {
       )}
 
       {/* Filters */}
-      <Card>
+      <Card className="material-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="w-5 h-5" />
@@ -635,7 +624,7 @@ const AgentExecutionLogs = () => {
       </Card>
 
       {/* Execution Logs */}
-      <Card>
+      <Card className="material-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
