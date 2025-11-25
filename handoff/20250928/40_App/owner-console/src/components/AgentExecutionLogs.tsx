@@ -496,6 +496,7 @@ const AgentExecutionLogs = () => {
                 onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}
                 data-testid="filter-status"
                 placeholder={t('governance.executionLogs.filters.allStatuses')}
+                aria-label={t('governance.executionLogs.filters.status')}
               >
                 <AppleSelectItem value="all">{t('governance.executionLogs.filters.allStatuses')}</AppleSelectItem>
                 <AppleSelectItem value="queued">{t('governance.executionLogs.statuses.queued')}</AppleSelectItem>
@@ -516,6 +517,7 @@ const AgentExecutionLogs = () => {
                 onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value === 'all' ? '' : value }))}
                 data-testid="filter-agent-type"
                 placeholder={t('governance.executionLogs.filters.allAgentTypes')}
+                aria-label={t('governance.executionLogs.filters.agentType')}
               >
                 <AppleSelectItem value="all">{t('governance.executionLogs.filters.allAgentTypes')}</AppleSelectItem>
                 <AppleSelectItem value="dev_agent">{t('governance.executionLogs.agentTypes.devAgent')}</AppleSelectItem>
@@ -559,6 +561,7 @@ const AgentExecutionLogs = () => {
                 onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value === 'all' ? '' : value }))}
                 data-testid="filter-time-range"
                 placeholder={t('governance.executionLogs.filters.selectTimeRange')}
+                aria-label={t('governance.executionLogs.filters.timeRange')}
               >
                 <AppleSelectItem value="all">{t('governance.executionLogs.filters.allTime')}</AppleSelectItem>
                 <AppleSelectItem value="24h">{t('governance.executionLogs.filters.last24Hours')}</AppleSelectItem>

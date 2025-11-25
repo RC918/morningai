@@ -36,13 +36,14 @@ export const AppleSelect = React.forwardRef<
   React.ElementRef<typeof Select>,
   AppleSelectProps
 >(({ className, triggerClassName, contentClassName, placeholder, children, ...props }, ref) => {
-  // Extract data-testid to forward to SelectTrigger for E2E tests
-  const { 'data-testid': dataTestId, ...selectProps } = props as any
+  // Extract data-testid and aria-label to forward to SelectTrigger for E2E tests and accessibility
+  const { 'data-testid': dataTestId, 'aria-label': ariaLabel, ...selectProps } = props as any
   
   return (
     <Select {...selectProps}>
       <SelectTrigger
         data-testid={dataTestId}
+        aria-label={ariaLabel}
         className={cn(
           // Base styling matching AppleInput
           "rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm text-base transition-all outline-none",
