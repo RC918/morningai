@@ -29,15 +29,21 @@ interface AppleSelectProps extends SelectProps {
   className?: string
   triggerClassName?: string
   contentClassName?: string
+  placeholder?: string
 }
 
 export const AppleSelect = React.forwardRef<
   React.ElementRef<typeof Select>,
   AppleSelectProps
->(({ className, triggerClassName, contentClassName, children, ...props }, ref) => {
+>(({ className, triggerClassName, contentClassName, placeholder, children, ...props }, ref) => {
+  // Extract data-testid and aria-label to forward to SelectTrigger for E2E tests and accessibility
+  const { 'data-testid': dataTestId, 'aria-label': ariaLabel, ...selectProps } = props as any
+  
   return (
-    <Select {...props}>
+    <Select {...selectProps}>
       <SelectTrigger
+        data-testid={dataTestId}
+        aria-label={ariaLabel}
         className={cn(
           // Base styling matching AppleInput
           "rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm text-base transition-all outline-none",
@@ -58,7 +64,7 @@ export const AppleSelect = React.forwardRef<
           triggerClassName
         )}
       >
-        <SelectValue />
+        <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent
         className={cn(

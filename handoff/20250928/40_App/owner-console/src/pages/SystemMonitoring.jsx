@@ -50,15 +50,20 @@ const SystemMonitoring = () => {
   }
 
   const getStatusColor = (status) => {
+    // Emotional Color Mapping:
+    // - healthy → growth (綠) - 成功/健康
+    // - degraded → joy (橙) - 警告/注意
+    // - unhealthy → energy (紅) - 錯誤/危險
+    // - unknown → calm (藍) - 正常/穩定
     switch (status) {
       case 'healthy':
-        return 'bg-success-100 text-success-800 border-success-300'
+        return 'bg-growth-10 text-growth'
       case 'degraded':
-        return 'bg-warning-100 text-warning-800 border-warning-300'
+        return 'bg-joy-10 text-joy'
       case 'unhealthy':
-        return 'bg-error-100 text-error-800 border-error-300'
+        return 'bg-energy-10 text-energy'
       default:
-        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
+        return 'bg-calm-10 text-calm'
     }
   }
 

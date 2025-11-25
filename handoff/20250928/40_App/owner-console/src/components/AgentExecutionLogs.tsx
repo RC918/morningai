@@ -8,12 +8,6 @@ import {
   CardTitle, 
   Badge, 
   Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   StatusBadge,
   StatusBadgeProps,
   Table,
@@ -47,6 +41,8 @@ import { apiClient, apiClientWithMeta } from '@/lib/api-client'
 import { toast } from 'sonner'
 import { buildTraceUrl } from '@/lib/trace'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
+import { AppleSelect, SelectItem as AppleSelectItem } from '@/components/apple/apple-select'
+import { AppleInput } from '@/components/apple/apple-input'
 
 const TRACE_VIEWER_URL = import.meta.env.VITE_TRACE_VIEWER_URL || ''
 
@@ -492,120 +488,110 @@ const AgentExecutionLogs = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label htmlFor="filter-status" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <p className="text-callout font-medium text-neutral-900 mb-2 block">
                 {t('governance.executionLogs.filters.status')}
-              </label>
-              <Select 
+              </p>
+              <AppleSelect 
                 value={filters.status || 'all'} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}
+                data-testid="filter-status"
+                placeholder={t('governance.executionLogs.filters.allStatuses')}
+                aria-label={t('governance.executionLogs.filters.status')}
               >
-                <SelectTrigger id="filter-status" data-testid="filter-status" aria-label={t('governance.executionLogs.filters.status')}>
-                  <SelectValue placeholder={t('governance.executionLogs.filters.allStatuses')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('governance.executionLogs.filters.allStatuses')}</SelectItem>
-                  <SelectItem value="queued">{t('governance.executionLogs.statuses.queued')}</SelectItem>
-                  <SelectItem value="assigned">{t('governance.executionLogs.statuses.assigned')}</SelectItem>
-                  <SelectItem value="running">{t('governance.executionLogs.statuses.running')}</SelectItem>
-                  <SelectItem value="completed">{t('governance.executionLogs.statuses.completed')}</SelectItem>
-                  <SelectItem value="failed">{t('governance.executionLogs.statuses.failed')}</SelectItem>
-                  <SelectItem value="cancelled">{t('governance.executionLogs.statuses.cancelled')}</SelectItem>
-                </SelectContent>
-              </Select>
+                <AppleSelectItem value="all">{t('governance.executionLogs.filters.allStatuses')}</AppleSelectItem>
+                <AppleSelectItem value="queued">{t('governance.executionLogs.statuses.queued')}</AppleSelectItem>
+                <AppleSelectItem value="assigned">{t('governance.executionLogs.statuses.assigned')}</AppleSelectItem>
+                <AppleSelectItem value="running">{t('governance.executionLogs.statuses.running')}</AppleSelectItem>
+                <AppleSelectItem value="completed">{t('governance.executionLogs.statuses.completed')}</AppleSelectItem>
+                <AppleSelectItem value="failed">{t('governance.executionLogs.statuses.failed')}</AppleSelectItem>
+                <AppleSelectItem value="cancelled">{t('governance.executionLogs.statuses.cancelled')}</AppleSelectItem>
+              </AppleSelect>
             </div>
 
             <div>
-              <label htmlFor="filter-agent-type" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <p className="text-callout font-medium text-neutral-900 mb-2 block">
                 {t('governance.executionLogs.filters.agentType')}
-              </label>
-              <Select 
+              </p>
+              <AppleSelect 
                 value={filters.agent_type || 'all'} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, agent_type: value === 'all' ? '' : value }))}
+                data-testid="filter-agent-type"
+                placeholder={t('governance.executionLogs.filters.allAgentTypes')}
+                aria-label={t('governance.executionLogs.filters.agentType')}
               >
-                <SelectTrigger id="filter-agent-type" data-testid="filter-agent-type" aria-label={t('governance.executionLogs.filters.agentType')}>
-                  <SelectValue placeholder={t('governance.executionLogs.filters.allAgentTypes')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('governance.executionLogs.filters.allAgentTypes')}</SelectItem>
-                  <SelectItem value="dev_agent">{t('governance.executionLogs.agentTypes.devAgent')}</SelectItem>
-                  <SelectItem value="ops_agent">{t('governance.executionLogs.agentTypes.opsAgent')}</SelectItem>
-                  <SelectItem value="pm_agent">{t('governance.executionLogs.agentTypes.pmAgent')}</SelectItem>
-                  <SelectItem value="growth_strategist">{t('governance.executionLogs.agentTypes.growthStrategist')}</SelectItem>
-                  <SelectItem value="meta_agent">{t('governance.executionLogs.agentTypes.metaAgent')}</SelectItem>
-                </SelectContent>
-              </Select>
+                <AppleSelectItem value="all">{t('governance.executionLogs.filters.allAgentTypes')}</AppleSelectItem>
+                <AppleSelectItem value="dev_agent">{t('governance.executionLogs.agentTypes.devAgent')}</AppleSelectItem>
+                <AppleSelectItem value="ops_agent">{t('governance.executionLogs.agentTypes.opsAgent')}</AppleSelectItem>
+                <AppleSelectItem value="pm_agent">{t('governance.executionLogs.agentTypes.pmAgent')}</AppleSelectItem>
+                <AppleSelectItem value="growth_strategist">{t('governance.executionLogs.agentTypes.growthStrategist')}</AppleSelectItem>
+                <AppleSelectItem value="meta_agent">{t('governance.executionLogs.agentTypes.metaAgent')}</AppleSelectItem>
+              </AppleSelect>
             </div>
 
             <div>
-              <label htmlFor="filter-agent-id" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
-                {t('governance.executionLogs.filters.agentId')}
-              </label>
-              <Input
+              <AppleInput
                 id="filter-agent-id"
                 value={filters.agent_id}
                 onChange={(e) => setFilters(prev => ({ ...prev, agent_id: e.target.value }))}
+                label={t('governance.executionLogs.filters.agentId')}
                 placeholder={t('governance.executionLogs.filters.agentIdPlaceholder')}
+                variant="filled"
                 data-testid="filter-agent-id"
               />
             </div>
 
             <div>
-              <label htmlFor="filter-task-type" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
-                {t('governance.executionLogs.filters.taskType')}
-              </label>
-              <Input
+              <AppleInput
                 id="filter-task-type"
                 value={filters.task_type}
                 onChange={(e) => setFilters(prev => ({ ...prev, task_type: e.target.value }))}
+                label={t('governance.executionLogs.filters.taskType')}
                 placeholder={t('governance.executionLogs.filters.taskTypePlaceholder')}
+                variant="filled"
                 data-testid="filter-task-type"
               />
             </div>
 
             <div>
-              <label htmlFor="filter-time-range" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
+              <p className="text-callout font-medium text-neutral-900 mb-2 block">
                 {t('governance.executionLogs.filters.timeRange')}
-              </label>
-              <Select 
+              </p>
+              <AppleSelect 
                 value={filters.time_range || 'all'} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, time_range: value === 'all' ? '' : value }))}
+                data-testid="filter-time-range"
+                placeholder={t('governance.executionLogs.filters.selectTimeRange')}
+                aria-label={t('governance.executionLogs.filters.timeRange')}
               >
-                <SelectTrigger id="filter-time-range" data-testid="filter-time-range" aria-label={t('governance.executionLogs.filters.timeRange')}>
-                  <SelectValue placeholder={t('governance.executionLogs.filters.selectTimeRange')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('governance.executionLogs.filters.allTime')}</SelectItem>
-                  <SelectItem value="24h">{t('governance.executionLogs.filters.last24Hours')}</SelectItem>
-                  <SelectItem value="7d">{t('governance.executionLogs.filters.last7Days')}</SelectItem>
-                  <SelectItem value="30d">{t('governance.executionLogs.filters.last30Days')}</SelectItem>
-                  <SelectItem value="custom">{t('governance.executionLogs.filters.customRange')}</SelectItem>
-                </SelectContent>
-              </Select>
+                <AppleSelectItem value="all">{t('governance.executionLogs.filters.allTime')}</AppleSelectItem>
+                <AppleSelectItem value="24h">{t('governance.executionLogs.filters.last24Hours')}</AppleSelectItem>
+                <AppleSelectItem value="7d">{t('governance.executionLogs.filters.last7Days')}</AppleSelectItem>
+                <AppleSelectItem value="30d">{t('governance.executionLogs.filters.last30Days')}</AppleSelectItem>
+                <AppleSelectItem value="custom">{t('governance.executionLogs.filters.customRange')}</AppleSelectItem>
+              </AppleSelect>
             </div>
 
             <div>
-              <label htmlFor="filter-start-date" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
-                {t('governance.executionLogs.filters.startDate')}
-              </label>
-              <Input
+              <AppleInput
                 id="filter-start-date"
                 type="date"
                 value={filters.start_date}
                 onChange={(e) => setFilters(prev => ({ ...prev, start_date: e.target.value, time_range: 'custom' }))}
+                label={t('governance.executionLogs.filters.startDate')}
+                variant="filled"
                 disabled={filters.time_range !== 'custom' && filters.time_range !== ''}
                 data-testid="filter-start-date"
               />
             </div>
 
             <div>
-              <label htmlFor="filter-end-date" className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 block">
-                {t('governance.executionLogs.filters.endDate')}
-              </label>
-              <Input
+              <AppleInput
                 id="filter-end-date"
                 type="date"
                 value={filters.end_date}
                 onChange={(e) => setFilters(prev => ({ ...prev, end_date: e.target.value, time_range: 'custom' }))}
+                label={t('governance.executionLogs.filters.endDate')}
+                variant="filled"
                 disabled={filters.time_range !== 'custom' && filters.time_range !== ''}
                 data-testid="filter-end-date"
               />
