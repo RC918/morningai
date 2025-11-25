@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Alert, AlertDescription } from '@morningai/shared-ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@morningai/shared-ui'
+import { AppleButton } from '@/components/apple/apple-button'
 import { 
   Users, 
   Shield,
@@ -64,18 +65,18 @@ const OwnerDashboard = () => {
             </div>
             <div className="flex items-center gap-2 ml-4">
               <Link to="/settings/2fa">
-                <Button size="sm" variant="default">
+                <AppleButton size="sm" variant="primary">
                   {t('dashboard.2fa.prompt.setupButton')}
-                </Button>
+                </AppleButton>
               </Link>
-              <Button
+              <AppleButton
                 size="sm"
                 variant="ghost"
                 onClick={() => setShow2FAPrompt(false)}
                 className="text-warning-900 hover:text-warning-950"
               >
                 <X className="h-4 w-4" />
-              </Button>
+              </AppleButton>
             </div>
           </AlertDescription>
         </Alert>
@@ -83,7 +84,7 @@ const OwnerDashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Emotional Color: calm (藍) - 正常/穩定 */}
-        <Card className="material-card">
+        <Card className="material-card hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-callout font-medium">{t('dashboard.stats.totalTenants')}</CardTitle>
             <div className="w-8 h-8 rounded-full bg-calm-10 flex items-center justify-center">
@@ -99,7 +100,7 @@ const OwnerDashboard = () => {
         </Card>
 
         {/* Emotional Color: wisdom (紫) - 洞察/智慧 */}
-        <Card className="material-card">
+        <Card className="material-card hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-callout font-medium">{t('dashboard.stats.activeAgents')}</CardTitle>
             <div className="w-8 h-8 rounded-full bg-wisdom-10 flex items-center justify-center">
@@ -115,7 +116,7 @@ const OwnerDashboard = () => {
         </Card>
 
         {/* Emotional Color: joy (橙) - 警告/注意 (成本需要關注) */}
-        <Card className="material-card">
+        <Card className="material-card hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-callout font-medium">{t('dashboard.stats.monthlyCost')}</CardTitle>
             <div className="w-8 h-8 rounded-full bg-joy-10 flex items-center justify-center">
@@ -131,7 +132,7 @@ const OwnerDashboard = () => {
         </Card>
 
         {/* Emotional Color: growth (綠) - 成功/成長 */}
-        <Card className="material-card">
+        <Card className="material-card hover-lift">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-callout font-medium">{t('dashboard.stats.systemHealth')}</CardTitle>
             <div className="w-8 h-8 rounded-full bg-growth-10 flex items-center justify-center">
@@ -148,7 +149,7 @@ const OwnerDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="material-card">
+        <Card className="material-card hover-lift">
           <CardHeader>
             <CardTitle>{t('dashboard.recentActivity.title')}</CardTitle>
             <CardDescription>{t('dashboard.recentActivity.subtitle')}</CardDescription>
@@ -183,7 +184,7 @@ const OwnerDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="material-card">
+        <Card className="material-card hover-lift">
           <CardHeader>
             <CardTitle>{t('dashboard.systemStatus.title')}</CardTitle>
             <CardDescription>{t('dashboard.systemStatus.subtitle')}</CardDescription>

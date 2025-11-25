@@ -12,21 +12,21 @@ const appleButtonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-blue-600 text-white shadow-sm hover:bg-blue-700 hover:shadow-md focus-visible:ring-blue-600/30 active:shadow-sm",
+          "bg-primary-600 text-white shadow-sm hover:bg-primary-700 hover:shadow-md focus-visible:ring-primary-600/30 active:shadow-sm",
         secondary:
-          "bg-gray-100 text-gray-900 shadow-sm hover:bg-gray-200 hover:shadow-md focus-visible:ring-gray-500/30 active:shadow-sm",
+          "bg-neutral-100 text-neutral-900 shadow-sm hover:bg-neutral-200 hover:shadow-md focus-visible:ring-neutral-500/30 active:shadow-sm",
         destructive:
-          "bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-md focus-visible:ring-red-600/30 active:shadow-sm",
+          "bg-error-600 text-white shadow-sm hover:bg-error-700 hover:shadow-md focus-visible:ring-error-600/30 active:shadow-sm",
         outline:
-          "border border-gray-300 bg-white/80 backdrop-blur-sm shadow-xs hover:bg-gray-50 hover:text-gray-900 focus-visible:ring-blue-600/20 active:bg-gray-100/80",
+          "border border-neutral-300 bg-white/80 backdrop-blur-sm shadow-xs hover:bg-neutral-50 hover:text-neutral-900 focus-visible:ring-primary-600/20 active:bg-neutral-100/80",
         ghost:
-          "hover:bg-gray-100/80 hover:text-gray-900 focus-visible:ring-blue-600/20 active:bg-gray-100",
+          "hover:bg-neutral-100/80 hover:text-neutral-900 focus-visible:ring-primary-600/20 active:bg-neutral-100",
         link:
-          "text-blue-600 underline-offset-4 hover:underline focus-visible:ring-blue-600/20",
+          "text-primary-600 underline-offset-4 hover:underline focus-visible:ring-primary-600/20",
         filled:
-          "bg-gray-100 text-gray-900 shadow-xs hover:shadow-sm focus-visible:ring-gray-500/30 active:shadow-xs",
+          "bg-neutral-100 text-neutral-900 shadow-xs hover:shadow-sm focus-visible:ring-neutral-500/30 active:shadow-xs",
         tinted:
-          "bg-blue-600/10 text-blue-600 hover:bg-blue-600/20 focus-visible:ring-blue-600/30 active:bg-blue-600/15",
+          "bg-primary-600/10 text-primary-600 hover:bg-primary-600/20 focus-visible:ring-primary-600/30 active:bg-primary-600/15",
       },
       size: {
         sm: "h-8 rounded-lg gap-1.5 px-3 text-sm has-[>svg]:px-2.5",
