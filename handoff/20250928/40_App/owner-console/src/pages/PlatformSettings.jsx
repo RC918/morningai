@@ -15,7 +15,7 @@ const PlatformSettings = () => {
         <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('settings.subtitle')}</p>
       </div>
 
-      <Card>
+      <Card className="material-card">
         <CardHeader>
           <CardTitle>{t('settings.general.title')}</CardTitle>
           <CardDescription>{t('settings.general.subtitle')}</CardDescription>
@@ -46,7 +46,7 @@ const PlatformSettings = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="material-card">
         <CardHeader>
           <CardTitle>{t('settings.security.title')}</CardTitle>
           <CardDescription>{t('settings.security.subtitle')}</CardDescription>
@@ -73,7 +73,7 @@ const PlatformSettings = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="material-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />

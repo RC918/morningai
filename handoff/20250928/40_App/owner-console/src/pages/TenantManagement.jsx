@@ -93,7 +93,7 @@ const TenantManagement = () => {
         </Alert>
       )}
 
-      <Card>
+      <Card className="material-card">
         <CardHeader>
           <CardTitle>{t('tenants.activeTenants')}</CardTitle>
           <CardDescription>{t('tenants.allTenants')}</CardDescription>
@@ -104,7 +104,7 @@ const TenantManagement = () => {
               <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">{t('tenants.noTenants')}</p>
             ) : (
               tenants.map((tenant) => (
-                <div key={tenant.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={tenant.id} className="material-card flex items-center justify-between p-4">
                   <div>
                     <p className="text-callout font-semibold text-neutral-900 dark:text-white">{tenant.name}</p>
                     <p className="text-footnote text-neutral-600 dark:text-neutral-400">{t('common.idShort', { id: tenant.id })}</p>

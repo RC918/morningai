@@ -183,7 +183,7 @@ const SystemMonitoring = () => {
       )}
 
       {!error && !loading && isEmptyValue(health) && (
-        <Card>
+        <Card className="material-card">
           <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
             <Activity className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
             <p id="empty-health-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noHealthData')}</p>
@@ -200,7 +200,7 @@ const SystemMonitoring = () => {
       )}
 
       {health && (
-        <Card data-testid="system-health">
+        <Card className="material-card" data-testid="system-health">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="w-5 h-5" />
@@ -233,7 +233,7 @@ const SystemMonitoring = () => {
       )}
 
       {!error && !loading && isEmptyValue(metrics) && (
-        <Card>
+        <Card className="material-card">
           <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
             <Database className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
             <p id="empty-metrics-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noMetricsData')}</p>
@@ -251,7 +251,7 @@ const SystemMonitoring = () => {
 
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card data-testid="cpu-card">
+          <Card className="material-card" data-testid="cpu-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cpu className="w-5 h-5" />
@@ -297,7 +297,7 @@ const SystemMonitoring = () => {
             </CardContent>
           </Card>
 
-          <Card data-testid="memory-card">
+          <Card className="material-card" data-testid="memory-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="w-5 h-5" />
@@ -345,7 +345,7 @@ const SystemMonitoring = () => {
             </CardContent>
           </Card>
 
-          <Card data-testid="disk-card">
+          <Card className="material-card" data-testid="disk-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <HardDrive className="w-5 h-5" />

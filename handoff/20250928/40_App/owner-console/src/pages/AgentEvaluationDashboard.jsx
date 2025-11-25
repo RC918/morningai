@@ -106,7 +106,7 @@ const AgentEvaluationDashboard = () => {
         {/* Metrics Cards Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
+            <Card key={i} className="material-card">
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
               </CardHeader>
@@ -119,7 +119,7 @@ const AgentEvaluationDashboard = () => {
         </div>
 
         {/* Evaluation History Skeleton */}
-        <Card>
+        <Card className="material-card">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
           </CardHeader>
@@ -180,7 +180,7 @@ const AgentEvaluationDashboard = () => {
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Planner Accuracy */}
-          <Card>
+          <Card className="material-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.plannerAccuracy', 'Planner Accuracy')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
@@ -203,7 +203,7 @@ const AgentEvaluationDashboard = () => {
           </Card>
 
           {/* Self-Healing Rate */}
-          <Card>
+          <Card className="material-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.selfHealingRate', 'Self-Healing Rate')}</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
@@ -226,7 +226,7 @@ const AgentEvaluationDashboard = () => {
           </Card>
 
           {/* Completion Rate */}
-          <Card>
+          <Card className="material-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.completionRate', 'Completion Rate')}</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
@@ -249,7 +249,7 @@ const AgentEvaluationDashboard = () => {
           </Card>
 
           {/* CI Pass Rate */}
-          <Card>
+          <Card className="material-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.ciPassRate', 'CI Pass Rate')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -274,7 +274,7 @@ const AgentEvaluationDashboard = () => {
       )}
 
       {/* Evaluation History */}
-      <Card>
+      <Card className="material-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
@@ -355,7 +355,7 @@ const AgentEvaluationDashboard = () => {
 
       {/* Last Evaluation Info */}
       {metrics && metrics.last_evaluation && (
-        <Card>
+        <Card className="material-card">
           <CardContent className="py-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-neutral-600 dark:text-neutral-400">

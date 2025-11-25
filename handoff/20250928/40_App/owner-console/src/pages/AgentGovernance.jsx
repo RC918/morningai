@@ -165,7 +165,7 @@ const AgentGovernance = () => {
 
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
+          <Card className="material-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.stats.totalAgents')}</p>
@@ -177,7 +177,7 @@ const AgentGovernance = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="material-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.stats.avgReputation')}</p>
@@ -189,7 +189,7 @@ const AgentGovernance = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="material-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.stats.dailyCost')}</p>
@@ -201,7 +201,7 @@ const AgentGovernance = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="material-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('governance.stats.violations')}</p>
@@ -224,7 +224,7 @@ const AgentGovernance = () => {
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
-          <Card>
+          <Card className="material-card">
             <CardHeader>
               <CardTitle>{t('governance.agents.title')}</CardTitle>
               <CardDescription>{t('governance.agents.subtitle')}</CardDescription>
@@ -265,7 +265,7 @@ const AgentGovernance = () => {
         </TabsContent>
 
         <TabsContent value="events" className="space-y-4">
-          <Card>
+          <Card className="material-card">
             <CardHeader>
               <CardTitle>{t('governance.events.title')}</CardTitle>
               <CardDescription>{t('governance.events.subtitle')}</CardDescription>
@@ -306,7 +306,7 @@ const AgentGovernance = () => {
         </TabsContent>
 
         <TabsContent value="violations" className="space-y-4">
-          <Card>
+          <Card className="material-card">
             <CardHeader>
               <CardTitle>{t('governance.violations.title')}</CardTitle>
               <CardDescription>{t('governance.violations.subtitle')}</CardDescription>
