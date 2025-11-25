@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger, Alert, AlertDescription, AlertTitle } from '@morningai/shared-ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@morningai/shared-ui'
 import { 
   Shield, 
   TrendingUp,
@@ -13,6 +13,7 @@ import {
 import { getAdminAgents } from '@/lib/generated/admin/admin'
 import { getGovernanceEvents, getGovernanceViolations, getGovernanceStatistics } from '@/lib/generated/governance/governance'
 import AgentExecutionLogs from '@/components/AgentExecutionLogs'
+import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 
 const AgentGovernance = () => {
   const { t } = useTranslation()
@@ -146,21 +147,11 @@ const AgentGovernance = () => {
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{t('common.error')}</AlertTitle>
-          <AlertDescription>
-            {error}
-            <Button 
-              onClick={loadGovernanceData} 
-              variant="outline" 
-              size="sm" 
-              className="ml-4"
-            >
-              {t('common.refresh')}
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <AppleErrorBanner
+          title={t('common.error')}
+          message={error}
+          onRetry={loadGovernanceData}
+        />
       )}
 
       {statistics && (
@@ -237,7 +228,7 @@ const AgentGovernance = () => {
                   agents.map((agent, index) => (
                     <button
                       key={agent.id} 
-                      className="w-full text-left flex items-center justify-between p-4 border rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer transition-colors"
+                      className="w-full text-left flex items-center justify-between p-4 material-card cursor-pointer transition-opacity hover:opacity-80"
                       onClick={() => setSelectedAgent(agent)}
                     >
                       <div className="flex items-center gap-4">
@@ -276,7 +267,7 @@ const AgentGovernance = () => {
                   <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">{t('governance.events.noEvents')}</p>
                 ) : (
                   events.map((event) => (
-                    <div key={event.event_id} className="flex items-start gap-3 p-3 border rounded-lg">
+                    <div key={event.event_id} className="flex items-start gap-3 p-3 material-card">
                       {getEventTypeIcon(event.event_type)}
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
@@ -320,7 +311,7 @@ const AgentGovernance = () => {
                   </div>
                 ) : (
                   violations.map((violation) => (
-                    <div key={violation.violation_id} className="flex items-start gap-3 p-3 border border-error-200 bg-error-50 rounded-lg">
+                    <div key={violation.violation_id} className="flex items-start gap-3 p-3 rounded-xl border border-error-200 bg-error-50/80 dark:bg-error-900/20">
                       <AlertTriangle className="w-5 h-5 text-error-600 mt-0.5" />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">

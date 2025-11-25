@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Alert, AlertDescription, AlertTitle } from '@morningai/shared-ui'
-import { Users, Plus, Settings, AlertTriangle, Activity } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from '@morningai/shared-ui'
+import { Users, Plus, Settings, Activity } from 'lucide-react'
 import { getTenantInfo, getTenantMembers } from '@/lib/generated/tenant/tenant'
+import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 
 const TenantManagement = () => {
   const { t } = useTranslation()
@@ -76,21 +77,11 @@ const TenantManagement = () => {
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{t('common.error')}</AlertTitle>
-          <AlertDescription>
-            {error}
-            <Button 
-              onClick={loadTenants} 
-              variant="outline" 
-              size="sm" 
-              className="ml-4"
-            >
-              {t('common.refresh')}
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <AppleErrorBanner
+          title={t('common.error')}
+          message={error}
+          onRetry={loadTenants}
+        />
       )}
 
       <Card className="material-card">

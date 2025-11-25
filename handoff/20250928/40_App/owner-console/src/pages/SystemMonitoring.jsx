@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Alert, AlertDescription, AlertTitle, Skeleton } from '@morningai/shared-ui'
-import { Activity, Server, Database, Zap, AlertTriangle, Cpu, HardDrive, RefreshCw } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Skeleton } from '@morningai/shared-ui'
+import { Activity, Server, Database, Zap, Cpu, HardDrive, RefreshCw } from 'lucide-react'
 import { getAdminSystemHealth, getAdminSystemMetrics } from '@/lib/generated/admin/admin'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
+import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
@@ -164,22 +165,11 @@ const SystemMonitoring = () => {
       </div>
 
       {error && (
-        <Alert variant="destructive" data-testid="error-alert">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{t('common.error')}</AlertTitle>
-          <AlertDescription>
-            {error}
-            <Button 
-              onClick={loadSystemData} 
-              variant="outline" 
-              size="sm" 
-              className="ml-4"
-              data-testid="retry-button"
-            >
-              {t('common.refresh')}
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <AppleErrorBanner
+          title={t('common.error')}
+          message={error}
+          onRetry={loadSystemData}
+        />
       )}
 
       {!error && !loading && isEmptyValue(health) && (

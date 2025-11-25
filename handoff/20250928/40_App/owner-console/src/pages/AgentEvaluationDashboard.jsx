@@ -300,7 +300,7 @@ const AgentEvaluationDashboard = () => {
               {evaluations.map((evaluation) => (
                 <div 
                   key={evaluation.id} 
-                  className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                  className="flex items-center justify-between p-4 material-card transition-opacity hover:opacity-80"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">

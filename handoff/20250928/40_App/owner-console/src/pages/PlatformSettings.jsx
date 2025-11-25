@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '@morningai/shared-ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Switch, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@morningai/shared-ui'
 import { Settings, Save, Shield, ChevronRight } from 'lucide-react'
+import { AppleInput } from '@/components/apple/apple-input'
+import { AppleButton } from '@/components/apple/apple-button'
 
 const PlatformSettings = () => {
   const { t } = useTranslation()
@@ -21,28 +23,26 @@ const PlatformSettings = () => {
           <CardDescription>{t('settings.general.subtitle')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <label htmlFor="platform-name" className="text-callout font-medium">{t('settings.general.platformName')}</label>
-            <input 
-              id="platform-name"
-              type="text" 
-              defaultValue="MorningAI Platform" 
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="support-email" className="text-callout font-medium">{t('settings.general.supportEmail')}</label>
-            <input 
-              id="support-email"
-              type="email" 
-              defaultValue="support@morningai.com" 
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
-            />
-          </div>
-          <Button>
+          <AppleInput
+            id="platform-name"
+            type="text"
+            label={t('settings.general.platformName')}
+            defaultValue="MorningAI Platform"
+            variant="filled"
+            haptic="light"
+          />
+          <AppleInput
+            id="support-email"
+            type="email"
+            label={t('settings.general.supportEmail')}
+            defaultValue="support@morningai.com"
+            variant="filled"
+            haptic="light"
+          />
+          <AppleButton variant="primary" haptic="medium">
             <Save className="w-4 h-4 mr-2" />
             {t('settings.general.saveChanges')}
-          </Button>
+          </AppleButton>
         </CardContent>
       </Card>
 
@@ -57,18 +57,23 @@ const PlatformSettings = () => {
               <p className="text-callout font-medium">{t('settings.security.requireMFA')}</p>
               <p className="text-footnote text-neutral-600 dark:text-neutral-400">{t('settings.security.requireMFADesc')}</p>
             </div>
-            <input type="checkbox" defaultChecked className="w-5 h-5" />
+            <Switch defaultChecked />
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-callout font-medium">{t('settings.security.sessionTimeout')}</p>
               <p className="text-footnote text-neutral-600 dark:text-neutral-400">{t('settings.security.sessionTimeoutDesc')}</p>
             </div>
-            <select className="px-3 py-2 border rounded-lg">
-              <option>{t('settings.security.30minutes')}</option>
-              <option>{t('settings.security.1hour')}</option>
-              <option>{t('settings.security.4hours')}</option>
-            </select>
+            <Select defaultValue="30min">
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30min">{t('settings.security.30minutes')}</SelectItem>
+                <SelectItem value="1hour">{t('settings.security.1hour')}</SelectItem>
+                <SelectItem value="4hours">{t('settings.security.4hours')}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -92,10 +97,10 @@ const PlatformSettings = () => {
               </p>
             </div>
             <Link to="/settings/2fa">
-              <Button variant="outline" className="flex items-center gap-2">
+              <AppleButton variant="outline" className="flex items-center gap-2">
                 {t('settings.2fa.card.manageButton')}
                 <ChevronRight className="w-4 h-4" />
-              </Button>
+              </AppleButton>
             </Link>
           </div>
         </CardContent>

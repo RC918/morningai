@@ -234,7 +234,7 @@ export default function UXMetrics() {
       </div>
 
       {/* PR History Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="material-card overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-200">
           <h2 className="text-title-2 font-semibold text-neutral-900 dark:text-white">{t('uxMetrics.recentPRs')}</h2>
         </div>
@@ -430,7 +430,7 @@ export default function UXMetrics() {
         <div className="mt-8 space-y-8">
           {/* i18n Coverage Trend */}
           {metrics.summary.trends['frontend-dashboard']?.i18n && (
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="material-card p-6">
               <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t('uxMetrics.i18nTrend')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={metrics.summary.trends['frontend-dashboard'].i18n.filter(d => d.value !== null)}>
@@ -447,7 +447,7 @@ export default function UXMetrics() {
 
           {/* Lighthouse Performance Trend */}
           {metrics.summary.trends.lighthouse && (
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="material-card p-6">
               <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t('uxMetrics.lighthouseTrend')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={metrics.summary.trends.lighthouse.filter(d => d.fcp !== null || d.lcp !== null)}>
@@ -465,7 +465,7 @@ export default function UXMetrics() {
 
           {/* Bundle Size Trend */}
           {metrics.summary.trends.bundleSize && (
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="material-card p-6">
               <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t('uxMetrics.bundleSizeTrend')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={metrics.summary.trends.bundleSize.filter(d => d.change_kb !== null)}>
