@@ -329,11 +329,16 @@ const Dashboard = (): React.ReactElement => {
   }
 
   const getStatusColor = (status: string): string => {
+    // Emotional Color Mapping:
+    // - executed → growth (綠) - 成功/完成
+    // - pending → joy (橙) - 警告/等待中
+    // - failed → energy (紅) - 錯誤/失敗
+    // - default → calm (藍) - 正常/穩定
     switch (status) {
-      case 'executed': return 'bg-success-100 text-success-800'
-      case 'pending': return 'bg-warning-100 text-warning-800'
-      case 'failed': return 'bg-error-100 text-error-800'
-      default: return 'bg-neutral-100 text-neutral-800'
+      case 'executed': return 'bg-growth-10 text-growth'
+      case 'pending': return 'bg-joy-10 text-joy'
+      case 'failed': return 'bg-energy-10 text-energy'
+      default: return 'bg-calm-10 text-calm'
     }
   }
 

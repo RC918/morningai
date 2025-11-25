@@ -82,53 +82,65 @@ const OwnerDashboard = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Emotional Color: calm (藍) - 正常/穩定 */}
         <Card className="material-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-callout font-medium">{t('dashboard.stats.totalTenants')}</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <div className="w-8 h-8 rounded-full bg-calm-10 flex items-center justify-center">
+              <Users className="h-4 w-4 text-calm" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-title-2 md:text-title-1 font-bold">{stats.totalTenants}</div>
+            <div className="text-title-2 md:text-title-1 font-bold text-calm">{stats.totalTenants}</div>
             <p className="text-footnote text-muted-foreground">
-              <TrendingUp className="inline h-3 w-3 text-success-600" /> +2 {t('dashboard.stats.thisMonth')}
+              <TrendingUp className="inline h-3 w-3 text-growth" /> +2 {t('dashboard.stats.thisMonth')}
             </p>
           </CardContent>
         </Card>
 
+        {/* Emotional Color: wisdom (紫) - 洞察/智慧 */}
         <Card className="material-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-callout font-medium">{t('dashboard.stats.activeAgents')}</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
+            <div className="w-8 h-8 rounded-full bg-wisdom-10 flex items-center justify-center">
+              <Shield className="h-4 w-4 text-wisdom" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-title-2 md:text-title-1 font-bold">{stats.activeAgents}</div>
+            <div className="text-title-2 md:text-title-1 font-bold text-wisdom">{stats.activeAgents}</div>
             <p className="text-footnote text-muted-foreground">
               {t('dashboard.stats.acrossAllTenants')}
             </p>
           </CardContent>
         </Card>
 
+        {/* Emotional Color: joy (橙) - 警告/注意 (成本需要關注) */}
         <Card className="material-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-callout font-medium">{t('dashboard.stats.monthlyCost')}</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div className="w-8 h-8 rounded-full bg-joy-10 flex items-center justify-center">
+              <DollarSign className="h-4 w-4 text-joy" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-title-2 md:text-title-1 font-bold">${stats.totalCost.toFixed(2)}</div>
+            <div className="text-title-2 md:text-title-1 font-bold text-joy">${stats.totalCost.toFixed(2)}</div>
             <p className="text-footnote text-muted-foreground">
               {t('dashboard.stats.platformWideUsage')}
             </p>
           </CardContent>
         </Card>
 
+        {/* Emotional Color: growth (綠) - 成功/成長 */}
         <Card className="material-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-callout font-medium">{t('dashboard.stats.systemHealth')}</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <div className="w-8 h-8 rounded-full bg-growth-10 flex items-center justify-center">
+              <Activity className="h-4 w-4 text-growth" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-title-2 md:text-title-1 font-bold">{stats.systemHealth}%</div>
-            <p className="text-footnote text-success-600">
+            <div className="text-title-2 md:text-title-1 font-bold text-growth">{stats.systemHealth}%</div>
+            <p className="text-footnote text-growth">
               {t('dashboard.stats.allSystemsOperational')}
             </p>
           </CardContent>
@@ -143,22 +155,25 @@ const OwnerDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {/* Emotional Color: growth (綠) - 成功/成長 */}
               <div className="flex items-center gap-4">
-                <div className="w-2 h-2 bg-success-600 rounded-full"></div>
+                <div className="w-2 h-2 bg-growth rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-callout font-medium">{t('dashboard.recentActivity.newTenant')}</p>
                   <p className="text-caption-2 text-neutral-500 dark:text-neutral-400">{t('dashboard.recentActivity.placeholder.acme')}</p>
                 </div>
               </div>
+              {/* Emotional Color: calm (藍) - 正常/穩定 */}
               <div className="flex items-center gap-4">
-                <div className="w-2 h-2 bg-primary-600 rounded-full"></div>
+                <div className="w-2 h-2 bg-calm rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-callout font-medium">{t('dashboard.recentActivity.agentDeployed')}</p>
                   <p className="text-caption-2 text-neutral-500 dark:text-neutral-400">{t('dashboard.recentActivity.placeholder.opsAgent')}</p>
                 </div>
               </div>
+              {/* Emotional Color: joy (橙) - 警告/注意 */}
               <div className="flex items-center gap-4">
-                <div className="w-2 h-2 bg-warning-600 rounded-full"></div>
+                <div className="w-2 h-2 bg-joy rounded-full"></div>
                 <div className="flex-1">
                   <p className="text-callout font-medium">{t('dashboard.recentActivity.maintenanceScheduled')}</p>
                   <p className="text-caption-2 text-neutral-500 dark:text-neutral-400">{t('dashboard.recentActivity.placeholder.maintenance')}</p>
@@ -175,33 +190,42 @@ const OwnerDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {/* Emotional Color: growth (綠) - 成功/健康 */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-neutral-500" />
+                  <Server className="h-4 w-4 text-growth" />
                   <span className="text-callout">{t('dashboard.systemStatus.apiBackend')}</span>
                 </div>
-                <span className="text-caption-2 text-success-600 font-medium">{t('dashboard.systemStatus.healthy')}</span>
+                <span className="inline-flex items-center rounded-full bg-growth-10 px-2 py-1 text-caption-2 text-growth font-medium">
+                  {t('dashboard.systemStatus.healthy')}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-neutral-500" />
+                  <Server className="h-4 w-4 text-growth" />
                   <span className="text-callout">{t('dashboard.systemStatus.database')}</span>
                 </div>
-                <span className="text-caption-2 text-success-600 font-medium">{t('dashboard.systemStatus.healthy')}</span>
+                <span className="inline-flex items-center rounded-full bg-growth-10 px-2 py-1 text-caption-2 text-growth font-medium">
+                  {t('dashboard.systemStatus.healthy')}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-neutral-500" />
+                  <Server className="h-4 w-4 text-growth" />
                   <span className="text-callout">{t('dashboard.systemStatus.redisCache')}</span>
                 </div>
-                <span className="text-caption-2 text-success-600 font-medium">{t('dashboard.systemStatus.healthy')}</span>
+                <span className="inline-flex items-center rounded-full bg-growth-10 px-2 py-1 text-caption-2 text-growth font-medium">
+                  {t('dashboard.systemStatus.healthy')}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-neutral-500" />
+                  <Server className="h-4 w-4 text-growth" />
                   <span className="text-callout">{t('dashboard.systemStatus.workerNodes')}</span>
                 </div>
-                <span className="text-caption-2 text-success-600 font-medium">{t('dashboard.systemStatus.healthy')}</span>
+                <span className="inline-flex items-center rounded-full bg-growth-10 px-2 py-1 text-caption-2 text-growth font-medium">
+                  {t('dashboard.systemStatus.healthy')}
+                </span>
               </div>
             </div>
           </CardContent>

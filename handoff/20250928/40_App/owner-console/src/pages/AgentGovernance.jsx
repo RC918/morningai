@@ -66,30 +66,40 @@ const AgentGovernance = () => {
   }
 
   const getStatusColor = (status) => {
+    // Emotional Color Mapping:
+    // - active → growth (綠) - 成功/運行中
+    // - paused → joy (橙) - 警告/暫停
+    // - error → energy (紅) - 錯誤/危險
+    // - default → calm (藍) - 正常/穩定
     switch (status) {
       case 'active':
-        return 'bg-success-100 text-success-800 border-success-300'
+        return 'bg-growth-10 text-growth'
       case 'paused':
-        return 'bg-warning-100 text-warning-800 border-warning-300'
+        return 'bg-joy-10 text-joy'
       case 'error':
-        return 'bg-error-100 text-error-800 border-error-300'
+        return 'bg-energy-10 text-energy'
       default:
-        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
+        return 'bg-calm-10 text-calm'
     }
   }
 
   const getPermissionLevelColor = (level) => {
+    // Emotional Color Mapping:
+    // - prod_full_access → growth (綠) - 成功/完全權限
+    // - prod_low_risk → wisdom (紫) - 洞察/低風險
+    // - staging_access → joy (橙) - 警告/測試環境
+    // - sandbox_only → calm (藍) - 正常/沙盒
     switch (level) {
       case 'prod_full_access':
-        return 'bg-success-100 text-success-800 border-success-300'
+        return 'bg-growth-10 text-growth'
       case 'prod_low_risk':
-        return 'bg-primary-100 text-primary-800 border-primary-300'
+        return 'bg-wisdom-10 text-wisdom'
       case 'staging_access':
-        return 'bg-warning-100 text-warning-800 border-warning-300'
+        return 'bg-joy-10 text-joy'
       case 'sandbox_only':
-        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
+        return 'bg-calm-10 text-calm'
       default:
-        return 'bg-neutral-100 text-neutral-800 border-neutral-300'
+        return 'bg-calm-10 text-calm'
     }
   }
 
@@ -104,17 +114,18 @@ const AgentGovernance = () => {
   }
 
   const getEventTypeIcon = (eventType) => {
+    // Emotional Color Mapping for event icons
     switch (eventType) {
       case 'task_success':
-        return <CheckCircle className="w-4 h-4 text-success-600" />
+        return <CheckCircle className="w-4 h-4 text-growth" />
       case 'task_failure':
-        return <XCircle className="w-4 h-4 text-error-600" />
+        return <XCircle className="w-4 h-4 text-energy" />
       case 'budget_exceeded':
-        return <AlertTriangle className="w-4 h-4 text-warning-600" />
+        return <AlertTriangle className="w-4 h-4 text-joy" />
       case 'permission_denied':
-        return <Shield className="w-4 h-4 text-error-600" />
+        return <Shield className="w-4 h-4 text-energy" />
       default:
-        return <Activity className="w-4 h-4 text-neutral-600" />
+        return <Activity className="w-4 h-4 text-calm" />
     }
   }
 
