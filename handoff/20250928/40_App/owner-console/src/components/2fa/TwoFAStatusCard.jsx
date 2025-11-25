@@ -78,8 +78,8 @@ export function TwoFAStatusCard({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0 mr-3" />
             <div className="space-y-1">
               <p className="font-medium text-blue-900">
                 {t('settings.2fa.featureDisabled.title')}
