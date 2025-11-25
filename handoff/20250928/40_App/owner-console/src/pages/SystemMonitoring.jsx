@@ -151,11 +151,11 @@ const SystemMonitoring = () => {
     <div className="p-8 space-y-6" aria-busy={loading} data-testid="system-monitoring">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
+          <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
             <Activity className="w-8 h-8 text-success-600" />
             {t('monitoring.title')}
           </h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
+          <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
         </div>
         <Button onClick={loadSystemData} variant="outline" disabled={loading} data-testid="refresh-metrics">
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -209,19 +209,19 @@ const SystemMonitoring = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-lg font-medium">{t('monitoring.overallStatus')}</span>
+              <span className="text-title-3 font-medium">{t('monitoring.overallStatus')}</span>
               <Badge className={getStatusColor(health.status)}>
                 {health.status?.toUpperCase()}
               </Badge>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-neutral-600 dark:text-neutral-400">{t('monitoring.uptime')}</span>
-                <span className="text-sm font-semibold">{formatUptime(health.uptime_hours)}</span>
+                <span className="text-callout text-neutral-600 dark:text-neutral-400">{t('monitoring.uptime')}</span>
+                <span className="text-callout font-semibold">{formatUptime(health.uptime_hours)}</span>
               </div>
               {health.services && Object.entries(health.services).map(([service, status]) => (
                 <div key={service} className="flex justify-between">
-                  <span className="text-sm text-neutral-600 dark:text-neutral-400 capitalize">{service}</span>
+                  <span className="text-callout text-neutral-600 dark:text-neutral-400 capitalize">{service}</span>
                   <Badge className={getStatusColor(status)} variant="outline">
                     {status}
                   </Badge>
@@ -262,12 +262,12 @@ const SystemMonitoring = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('common.usage')}</span>
-                    <span className="text-sm font-semibold">{metrics.cpu?.usage_percent}%</span>
+                    <span className="text-callout">{t('common.usage')}</span>
+                    <span className="text-callout font-semibold">{metrics.cpu?.usage_percent}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('monitoring.cores')}</span>
-                    <span className="text-sm font-semibold">{metrics.cpu?.count}</span>
+                    <span className="text-callout">{t('monitoring.cores')}</span>
+                    <span className="text-callout font-semibold">{metrics.cpu?.count}</span>
                   </div>
                 </div>
                 {metrics.cpu?.usage_percent != null && (
@@ -308,12 +308,12 @@ const SystemMonitoring = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('common.usage')}</span>
-                    <span className="text-sm font-semibold">{metrics.memory?.usage_percent}%</span>
+                    <span className="text-callout">{t('common.usage')}</span>
+                    <span className="text-callout font-semibold">{metrics.memory?.usage_percent}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('monitoring.usedTotal')}</span>
-                    <span className="text-sm font-semibold">
+                    <span className="text-callout">{t('monitoring.usedTotal')}</span>
+                    <span className="text-callout font-semibold">
                       {t('monitoring.gbFormat', { used: metrics.memory?.used_gb, total: metrics.memory?.total_gb })}
                     </span>
                   </div>
@@ -356,12 +356,12 @@ const SystemMonitoring = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('common.usage')}</span>
-                    <span className="text-sm font-semibold">{metrics.disk?.usage_percent}%</span>
+                    <span className="text-callout">{t('common.usage')}</span>
+                    <span className="text-callout font-semibold">{metrics.disk?.usage_percent}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('monitoring.usedTotal')}</span>
-                    <span className="text-sm font-semibold">
+                    <span className="text-callout">{t('monitoring.usedTotal')}</span>
+                    <span className="text-callout font-semibold">
                       {t('monitoring.gbFormat', { used: metrics.disk?.used_gb, total: metrics.disk?.total_gb })}
                     </span>
                   </div>

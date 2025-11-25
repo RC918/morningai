@@ -8,11 +8,11 @@ const PlatformSettings = () => {
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
+        <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
           <Settings className="w-8 h-8 text-neutral-600 dark:text-neutral-400" />
           {t('settings.title')}
         </h1>
-        <p className="text-neutral-600 dark:text-neutral-400 mt-1">{t('settings.subtitle')}</p>
+        <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('settings.subtitle')}</p>
       </div>
 
       <Card>
@@ -22,7 +22,7 @@ const PlatformSettings = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label htmlFor="platform-name" className="text-sm font-medium">{t('settings.general.platformName')}</label>
+            <label htmlFor="platform-name" className="text-callout font-medium">{t('settings.general.platformName')}</label>
             <input 
               id="platform-name"
               type="text" 
@@ -31,7 +31,7 @@ const PlatformSettings = () => {
             />
           </div>
           <div>
-            <label htmlFor="support-email" className="text-sm font-medium">{t('settings.general.supportEmail')}</label>
+            <label htmlFor="support-email" className="text-callout font-medium">{t('settings.general.supportEmail')}</label>
             <input 
               id="support-email"
               type="email" 
@@ -54,15 +54,15 @@ const PlatformSettings = () => {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">{t('settings.security.requireMFA')}</p>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('settings.security.requireMFADesc')}</p>
+              <p className="text-callout font-medium">{t('settings.security.requireMFA')}</p>
+              <p className="text-footnote text-neutral-600 dark:text-neutral-400">{t('settings.security.requireMFADesc')}</p>
             </div>
             <input type="checkbox" defaultChecked className="w-5 h-5" />
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">{t('settings.security.sessionTimeout')}</p>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('settings.security.sessionTimeoutDesc')}</p>
+              <p className="text-callout font-medium">{t('settings.security.sessionTimeout')}</p>
+              <p className="text-footnote text-neutral-600 dark:text-neutral-400">{t('settings.security.sessionTimeoutDesc')}</p>
             </div>
             <select className="px-3 py-2 border rounded-lg">
               <option>{t('settings.security.30minutes')}</option>
@@ -86,8 +86,8 @@ const PlatformSettings = () => {
         <CardContent>
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-sm font-medium">{t('settings.2fa.card.manage')}</p>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              <p className="text-callout font-medium">{t('settings.2fa.card.manage')}</p>
+              <p className="text-footnote text-neutral-600 dark:text-neutral-400">
                 {t('settings.2fa.card.manageDescription')}
               </p>
             </div>
