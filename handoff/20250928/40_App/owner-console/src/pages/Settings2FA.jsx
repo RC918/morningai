@@ -28,10 +28,10 @@ export default function Settings2FA() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-8">
       <div>
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t('settings.2fa.title')}</h1>
-        <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+        <h1 className="text-large-title text-neutral-900 dark:text-white">{t('settings.2fa.title')}</h1>
+        <p className="text-body text-neutral-600 dark:text-neutral-400 mt-2">
           {t('settings.2fa.subtitle')}
         </p>
       </div>

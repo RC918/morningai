@@ -2,10 +2,11 @@ import * as React from "react"
 import {
   Select,
   SelectContent,
-  SelectItem,
+  SelectItem as BaseSelectItem,
   SelectTrigger,
   SelectValue,
   type SelectProps,
+  type SelectItemProps as BaseSelectItemProps,
 } from '@morningai/shared-ui'
 import { cn } from "@/lib/utils"
 
@@ -61,10 +62,14 @@ export const AppleSelect = React.forwardRef<
       </SelectTrigger>
       <SelectContent
         className={cn(
-          // Apple-styled dropdown
+          // Apple-styled dropdown - keep light in both modes for consistency with trigger
           "rounded-xl shadow-lg bg-white/95 backdrop-blur-md border border-gray-200",
-          // Dark mode
-          "dark:bg-neutral-900/95 dark:border-neutral-700",
+          // Text color - always dark for readability on light background
+          "text-neutral-900",
+          // Dark mode - keep dropdown light like the trigger pill
+          "dark:bg-white/95 dark:border-neutral-300 dark:text-neutral-900",
+          // Ensure proper spacing for items
+          "py-2",
           contentClassName
         )}
       >
@@ -76,4 +81,38 @@ export const AppleSelect = React.forwardRef<
 
 AppleSelect.displayName = "AppleSelect"
 
-export { SelectItem } from '@morningai/shared-ui'
+/**
+ * AppleSelectItem - Apple-styled select item component
+ * 
+ * Ensures proper text color and spacing in both light and dark modes.
+ * Always uses dark text on light background for consistency with Apple design.
+ */
+export const AppleSelectItem = React.forwardRef<
+  React.ElementRef<typeof BaseSelectItem>,
+  BaseSelectItemProps
+>(({ className, children, ...props }, ref) => {
+  return (
+    <BaseSelectItem
+      ref={ref}
+      className={cn(
+        // Override default focus colors to maintain dark text on light background
+        "text-neutral-900 dark:text-neutral-900",
+        "focus:bg-neutral-100 focus:text-neutral-900",
+        "dark:focus:bg-neutral-100 dark:focus:text-neutral-900",
+        // Proper spacing to prevent text overlap
+        "py-2.5 px-3",
+        // Ensure proper line height
+        "leading-normal",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </BaseSelectItem>
+  )
+})
+
+AppleSelectItem.displayName = "AppleSelectItem"
+
+// Export both for convenience
+export { AppleSelectItem as SelectItem }
