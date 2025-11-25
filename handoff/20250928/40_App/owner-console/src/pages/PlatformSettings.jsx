@@ -18,10 +18,10 @@ const PlatformSettings = () => {
         <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('settings.subtitle')}</p>
       </div>
 
-      <Card className="apple-surface-light">
+      <Card className="material-card">
         <CardHeader className="px-6 pt-6">
-          <CardTitle className="text-neutral-900">{t('settings.general.title')}</CardTitle>
-          <CardDescription className="text-neutral-600">{t('settings.general.subtitle')}</CardDescription>
+          <CardTitle>{t('settings.general.title')}</CardTitle>
+          <CardDescription>{t('settings.general.subtitle')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 px-6 pb-6">
           <AppleInput
@@ -47,22 +47,22 @@ const PlatformSettings = () => {
         </CardContent>
       </Card>
 
-      <Card className="apple-surface-light">
+      <Card className="material-card">
         <CardHeader className="px-6 pt-6">
-          <CardTitle className="text-neutral-900">{t('settings.security.title')}</CardTitle>
-          <CardDescription className="text-neutral-600">{t('settings.security.subtitle')}</CardDescription>
+          <CardTitle>{t('settings.security.title')}</CardTitle>
+          <CardDescription>{t('settings.security.subtitle')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 px-6 pb-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-callout font-medium text-neutral-900">{t('settings.security.requireMFA')}</p>
+              <p className="text-callout font-medium">{t('settings.security.requireMFA')}</p>
               <p className="text-footnote text-neutral-600">{t('settings.security.requireMFADesc')}</p>
             </div>
             <Switch defaultChecked />
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-callout font-medium text-neutral-900">{t('settings.security.sessionTimeout')}</p>
+              <p className="text-callout font-medium">{t('settings.security.sessionTimeout')}</p>
               <p className="text-footnote text-neutral-600">{t('settings.security.sessionTimeoutDesc')}</p>
             </div>
             <AppleSelect defaultValue="30min" triggerClassName="w-[180px]">
@@ -74,20 +74,20 @@ const PlatformSettings = () => {
         </CardContent>
       </Card>
 
-      <Card className="apple-surface-light">
+      <Card className="material-card">
         <CardHeader className="px-6 pt-6">
-          <CardTitle className="flex items-center gap-2 text-neutral-900">
+          <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
             {t('settings.2fa.card.title')}
           </CardTitle>
-          <CardDescription className="text-neutral-600">
+          <CardDescription>
             {t('settings.2fa.card.description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-6 pb-6">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-callout font-medium text-neutral-900">{t('settings.2fa.card.manage')}</p>
+              <p className="text-callout font-medium">{t('settings.2fa.card.manage')}</p>
               <p className="text-footnote text-neutral-600">
                 {t('settings.2fa.card.manageDescription')}
               </p>
