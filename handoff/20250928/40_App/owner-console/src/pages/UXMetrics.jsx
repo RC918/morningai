@@ -172,37 +172,37 @@ export default function UXMetrics() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-callout font-medium text-neutral-500 uppercase">{t('uxMetrics.totalPRs')}</h3>
-          <p className="text-display-3 font-bold text-neutral-900 dark:text-white mt-2">{metrics.total_prs}</p>
+        <div className="material-card p-6">
+          <h3 className="text-callout font-medium text-neutral-500 dark:text-neutral-400 uppercase">{t('uxMetrics.totalPRs')}</h3>
+          <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white mt-2">{metrics.total_prs}</p>
         </div>
 
         {metrics.summary.lighthouse && (
           <>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-callout font-medium text-neutral-500 uppercase">{t('uxMetrics.avgFCP')}</h3>
-              <p className={`text-display-3 font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.fcp_avg, metrics.thresholds.lighthouse.fcp)}`}>
+            <div className="material-card p-6">
+              <h3 className="text-callout font-medium text-neutral-500 dark:text-neutral-400 uppercase">{t('uxMetrics.avgFCP')}</h3>
+              <p className={`text-title-2 md:text-title-1 font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.fcp_avg, metrics.thresholds.lighthouse.fcp)}`}>
                 {formatValue(metrics.summary.lighthouse.fcp_avg, 'ms')}
               </p>
-              <p className="text-caption-2 text-neutral-500 dark:text-neutral-400 mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}</p>
+              <p className="text-footnote text-neutral-500 dark:text-neutral-400 mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}</p>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-callout font-medium text-neutral-500 uppercase">{t('uxMetrics.avgLCP')}</h3>
-              <p className={`text-display-3 font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.lcp_avg, metrics.thresholds.lighthouse.lcp)}`}>
+            <div className="material-card p-6">
+              <h3 className="text-callout font-medium text-neutral-500 dark:text-neutral-400 uppercase">{t('uxMetrics.avgLCP')}</h3>
+              <p className={`text-title-2 md:text-title-1 font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.lcp_avg, metrics.thresholds.lighthouse.lcp)}`}>
                 {formatValue(metrics.summary.lighthouse.lcp_avg, 'ms')}
               </p>
-              <p className="text-caption-2 text-neutral-500 dark:text-neutral-400 mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}</p>
+              <p className="text-footnote text-neutral-500 dark:text-neutral-400 mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}</p>
             </div>
           </>
         )}
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-callout font-medium text-neutral-500 uppercase">{t('uxMetrics.i18nCoverage')}</h3>
-          <p className="text-display-3 font-bold text-neutral-900 dark:text-white mt-2">
+        <div className="material-card p-6">
+          <h3 className="text-callout font-medium text-neutral-500 dark:text-neutral-400 uppercase">{t('uxMetrics.i18nCoverage')}</h3>
+          <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white mt-2">
             {metrics.summary.apps['frontend-dashboard'].i18n_available}/{metrics.total_prs}
           </p>
-          <p className="text-caption-2 text-neutral-500 dark:text-neutral-400 mt-1">{t('uxMetrics.prsWithData')}</p>
+          <p className="text-footnote text-neutral-500 dark:text-neutral-400 mt-1">{t('uxMetrics.prsWithData')}</p>
         </div>
       </div>
 
@@ -352,7 +352,7 @@ export default function UXMetrics() {
       {/* App-Specific Metrics with Pass Rates */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
         {['frontend-dashboard', 'owner-console'].map((app) => (
-          <div key={app} className="bg-white rounded-lg shadow p-6">
+          <div key={app} className="material-card p-6">
             <h3 className="text-title-3 font-semibold text-neutral-900 dark:text-white mb-4">
               {app === 'frontend-dashboard' ? t('uxMetrics.frontendDashboard') : t('uxMetrics.ownerConsole')}
             </h3>
