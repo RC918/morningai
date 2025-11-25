@@ -1,0 +1,227 @@
+/* iOS Material System - Apple-level UI/UX Enhancement */
+/* Based on Apple Human Interface Guidelines */
+
+/* Material Base Classes */
+.material {
+  position: relative;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Ultra Thin Material - Lightest blur effect */
+.material-ultra-thin {
+  background-color: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+}
+
+.dark .material-ultra-thin {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Thin Material - Light blur effect */
+.material-thin {
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(15px) saturate(160%);
+  -webkit-backdrop-filter: blur(15px) saturate(160%);
+}
+
+.dark .material-thin {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+/* Regular Material - Standard blur effect */
+.material-regular {
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.dark .material-regular {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Thick Material - Heavy blur effect */
+.material-thick {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+}
+
+.dark .material-thick {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Chrome Material - Strongest blur effect */
+.material-chrome {
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(40px) saturate(220%);
+  -webkit-backdrop-filter: blur(40px) saturate(220%);
+}
+
+.dark .material-chrome {
+  background-color: rgba(0, 0, 0, 0.9);
+}
+
+/* Material with vibrancy effect */
+.material-vibrant {
+  backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+}
+
+/* Fallback for browsers that don't support backdrop-filter */
+@supports not (backdrop-filter: blur(20px)) {
+  .material,
+  .material-ultra-thin,
+  .material-thin,
+  .material-regular,
+  .material-thick,
+  .material-chrome {
+    background-color: rgba(255, 255, 255, 0.95);
+  }
+  
+  .dark .material,
+  .dark .material-ultra-thin,
+  .dark .material-thin,
+  .dark .material-regular,
+  .dark .material-thick,
+  .dark .material-chrome {
+    background-color: rgba(0, 0, 0, 0.95);
+  }
+}
+
+/* Material Shadows - Refined depth system */
+.material-shadow-1 {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+
+.material-shadow-2 {
+  box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.06);
+}
+
+.material-shadow-3 {
+  box-shadow: 0 4px 8px 0 rgb(0 0 0 / 0.08);
+}
+
+.material-shadow-4 {
+  box-shadow: 0 8px 16px 0 rgb(0 0 0 / 0.10);
+}
+
+.material-shadow-5 {
+  box-shadow: 0 16px 32px 0 rgb(0 0 0 / 0.12);
+}
+
+/* Combine material with shadow for depth */
+.material-elevated {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 
+    0 1px 2px 0 rgb(0 0 0 / 0.04),
+    0 4px 8px 0 rgb(0 0 0 / 0.06);
+}
+
+/* Material card component */
+.material-card {
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 8px 0 rgb(0 0 0 / 0.08);
+  border-radius: 12px;
+}
+
+.dark .material-card {
+  background-color: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Material overlay for modals/sheets */
+.material-overlay {
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Material navigation bar */
+.material-navbar {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dark .material-navbar {
+  background-color: rgba(0, 0, 0, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Material sidebar */
+.material-sidebar {
+  background-color: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dark .material-sidebar {
+  background-color: rgba(0, 0, 0, 0.75);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Frosted glass effect for popovers */
+.material-popover {
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    0 8px 16px 0 rgb(0 0 0 / 0.10),
+    0 2px 4px 0 rgb(0 0 0 / 0.06);
+}
+
+.dark .material-popover {
+  background-color: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Utility classes for material effects */
+.backdrop-blur-sm {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.backdrop-blur-md {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.backdrop-blur-lg {
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+}
+
+.backdrop-blur-xl {
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+}
+
+.backdrop-saturate {
+  backdrop-filter: saturate(180%);
+  -webkit-backdrop-filter: saturate(180%);
+}
+
+.backdrop-brightness {
+  backdrop-filter: brightness(1.1);
+  -webkit-backdrop-filter: brightness(1.1);
+}
+
+/* Combined backdrop effects */
+.backdrop-glass {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.backdrop-glass-vibrant {
+  backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+}

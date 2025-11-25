@@ -22,8 +22,8 @@ interface LanguageSwitcherProps {
 }
 
 const languages: Language[] = [
-  { code: 'en-US', name: 'English', flag: '🇺🇸' },
-  { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' }
+  { code: 'en-US', name: 'English', flag: '' },
+  { code: 'zh-TW', name: '繁體中文', flag: '' }
 ]
 
 export const LanguageSwitcher = ({ variant = 'default', className = '' }: LanguageSwitcherProps): React.ReactElement => {
@@ -43,12 +43,12 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
         <DropdownMenuTrigger asChild>
           <AppleButton 
             variant="outline" 
-            size="sm" 
-            className={`${className} bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700 shadow-md flex items-center justify-center`}
-            style={{ width: '40px', height: '40px', padding: '0' }}
+            size="icon-sm" 
+            haptic="light"
+            className={className}
             aria-label={`Change language (current: ${currentLanguage.name})`}
           >
-            <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} aria-hidden="true" />
+            <Globe className="w-5 h-5" aria-hidden="true" />
           </AppleButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
@@ -68,10 +68,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
                   onClick={() => changeLanguage(lang.code)}
                   className="flex items-center justify-between cursor-pointer text-neutral-800 dark:text-neutral-200"
                 >
-                  <span className="flex items-center space-x-2">
-                    <span className="text-lg">{lang.flag}</span>
-                    <span>{lang.name}</span>
-                  </span>
+                  <span>{lang.name}</span>
                   {i18n.language === lang.code && (
                     <Check className="w-4 h-4 text-success-600" />
                   )}
@@ -87,9 +84,8 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <AppleButton variant="outline" className={`${className} min-w-32`} aria-label={`Change language (current: ${currentLanguage.name})`}>
+        <AppleButton variant="outline" haptic="light" className={`${className} min-w-32`} aria-label={`Change language (current: ${currentLanguage.name})`}>
           <Globe className="w-4 h-4 mr-2" aria-hidden="true" />
-          <span className="text-lg mr-2">{currentLanguage.flag}</span>
           <span>{currentLanguage.name}</span>
         </AppleButton>
       </DropdownMenuTrigger>
@@ -110,10 +106,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
                 onClick={() => changeLanguage(lang.code)}
                 className="flex items-center justify-between cursor-pointer text-neutral-800 dark:text-neutral-200"
               >
-                <span className="flex items-center space-x-2">
-                  <span className="text-lg">{lang.flag}</span>
-                  <span>{lang.name}</span>
-                </span>
+                <span>{lang.name}</span>
                 {i18n.language === lang.code && (
                   <motion.div
                     initial={{ scale: 0 }}

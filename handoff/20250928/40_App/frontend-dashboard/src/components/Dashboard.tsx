@@ -349,10 +349,10 @@ const Dashboard = (): React.ReactElement => {
   const DashboardToolbar = (): React.ReactElement => (
     <div className="flex justify-between items-center mb-6">
       <div>
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">
+        <h1 className="text-large-title text-neutral-900 dark:text-white">
           {showReportCenter ? t('reportCenter.title') : t('dashboard.title')}
         </h1>
-        <p className="text-neutral-600 dark:text-neutral-600 mt-2">
+        <p className="text-body text-neutral-600 dark:text-neutral-600 mt-2">
           {showReportCenter ? t('reportCenter.description') : t('dashboard.description')}
         </p>
         {isEditMode && (
@@ -445,7 +445,7 @@ const Dashboard = (): React.ReactElement => {
               }}
             >
               <Grid3X3 className="w-6 h-6 mb-2" />
-              <span className="text-xs">{widget.name}</span>
+              <span className="text-caption-1">{widget.name}</span>
             </AppleButton>
           ))}
         </div>
@@ -578,9 +578,9 @@ const Dashboard = (): React.ReactElement => {
                         {getStatusIcon(decision.status)}
                       </div>
                       <div>
-                        <h4 className="font-medium dark:text-white">{decision.strategy}</h4>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-600">{decision.impact}</p>
-                        <p className="text-xs text-neutral-600 dark:text-neutral-600">
+                        <h4 className="text-callout font-medium dark:text-white">{decision.strategy}</h4>
+                        <p className="text-subhead text-neutral-600 dark:text-neutral-600">{decision.impact}</p>
+                        <p className="text-caption-1 text-neutral-600 dark:text-neutral-600">
                           {new Date(decision.timestamp).toLocaleString()}
                         </p>
                       </div>
@@ -590,7 +590,7 @@ const Dashboard = (): React.ReactElement => {
                         {decision.status === 'executed' ? t('decisions.status.executed') : 
                          decision.status === 'pending' ? t('decisions.status.pending') : t('decisions.status.failed')}
                       </Badge>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-600 mt-1">
+                      <p className="text-footnote text-neutral-600 dark:text-neutral-600 mt-1">
                         {t('decisions.confidence')}: {(decision.confidence * 100).toFixed(0)}%
                       </p>
                     </div>
@@ -606,8 +606,8 @@ const Dashboard = (): React.ReactElement => {
           <Card className="border-dashed border-2">
             <CardContent className="p-6 text-center">
               <Edit3 className="w-12 h-12 mx-auto mb-4 text-neutral-600" />
-              <h3 className="text-lg font-medium mb-2 dark:text-white">{t('dashboard.customize')}</h3>
-              <p className="text-neutral-600 dark:text-neutral-600 mb-4">
+              <h3 className="text-title-3 font-medium mb-2 dark:text-white">{t('dashboard.customize')}</h3>
+              <p className="text-body text-neutral-600 dark:text-neutral-600 mb-4">
                 {t('dashboard.editInstructions')}
               </p>
               <div className="flex justify-center space-x-2">

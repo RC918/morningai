@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Globe, Check } from 'lucide-react'
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@morningai/shared-ui'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@morningai/shared-ui'
+import { AppleButton } from '@/components/apple/apple-button'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const languages = [
-  { code: 'en-US', name: 'English', flag: '🇺🇸' },
-  { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' }
+  { code: 'en-US', name: 'English' },
+  { code: 'zh-TW', name: '繁體中文' }
 ]
 
 export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
@@ -24,15 +25,15 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
     return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
-          <Button 
+          <AppleButton 
             variant="outline" 
-            size="sm" 
-            className={`${className} bg-white hover:bg-gray-50 shadow-md flex items-center justify-center`}
-            style={{ width: '40px', height: '40px', padding: '0' }}
+            size="icon-sm" 
+            haptic="light"
+            className={className}
             aria-label={t('common.changeLanguage')}
           >
-            <Globe className="w-5 h-5" style={{ width: '20px', height: '20px' }} />
-          </Button>
+            <Globe className="w-5 h-5" />
+          </AppleButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
           align="end" 
@@ -52,10 +53,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
                   onClick={() => changeLanguage(lang.code)}
                   className="flex items-center justify-between cursor-pointer"
                 >
-                  <span className="flex items-center space-x-2">
-                    <span className="text-lg">{lang.flag}</span>
-                    <span>{lang.name}</span>
-                  </span>
+                  <span>{lang.name}</span>
                   {i18n.language === lang.code && (
                     <Check className="w-4 h-4 text-green-600" />
                   )}
@@ -71,11 +69,10 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className={`${className} min-w-32`}>
+        <AppleButton variant="outline" haptic="light" className={`${className} min-w-32`}>
           <Globe className="w-4 h-4 mr-2" />
-          <span className="text-lg mr-2">{currentLanguage.flag}</span>
           <span>{currentLanguage.name}</span>
-        </Button>
+        </AppleButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
@@ -95,10 +92,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
                 onClick={() => changeLanguage(lang.code)}
                 className="flex items-center justify-between cursor-pointer"
               >
-                <span className="flex items-center space-x-2">
-                  <span className="text-lg">{lang.flag}</span>
-                  <span>{lang.name}</span>
-                </span>
+                <span>{lang.name}</span>
                 {i18n.language === lang.code && (
                   <motion.div
                     initial={{ scale: 0 }}

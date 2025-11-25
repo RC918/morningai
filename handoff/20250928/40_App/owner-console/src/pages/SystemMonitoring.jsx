@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Alert, AlertDescription, AlertTitle, Skeleton } from '@morningai/shared-ui'
-import { Activity, Server, Database, Zap, AlertTriangle, Cpu, HardDrive, RefreshCw } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Skeleton } from '@morningai/shared-ui'
+import { Activity, Server, Database, Zap, Cpu, HardDrive, RefreshCw } from 'lucide-react'
 import { getAdminSystemHealth, getAdminSystemMetrics } from '@/lib/generated/admin/admin'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
+import { AppleErrorBanner } from '@/components/AppleErrorBanner'
+import { AppleButton } from '@/components/apple/apple-button'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
@@ -101,7 +103,7 @@ const SystemMonitoring = () => {
         </div>
 
         {/* System Health Card Skeleton */}
-        <Card>
+        <Card className="material-card">
           <CardHeader>
             <Skeleton className="h-6 w-48" aria-hidden="true" />
           </CardHeader>
@@ -124,7 +126,7 @@ const SystemMonitoring = () => {
         {/* Metrics Cards Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <Card key={i}>
+            <Card key={i} className="material-card">
               <CardHeader>
                 <Skeleton className="h-6 w-32" aria-hidden="true" />
               </CardHeader>
@@ -151,56 +153,46 @@ const SystemMonitoring = () => {
     <div className="p-8 space-y-6" aria-busy={loading} data-testid="system-monitoring">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
+          <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
             <Activity className="w-8 h-8 text-success-600" />
             {t('monitoring.title')}
           </h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
+          <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
         </div>
-        <Button onClick={loadSystemData} variant="outline" disabled={loading} data-testid="refresh-metrics">
+        <AppleButton onClick={loadSystemData} variant="outline" haptic="light" disabled={loading} data-testid="refresh-metrics">
           <RefreshCw className="w-4 h-4 mr-2" />
           {t('common.refresh')}
-        </Button>
+        </AppleButton>
       </div>
 
       {error && (
-        <Alert variant="destructive" data-testid="error-alert">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{t('common.error')}</AlertTitle>
-          <AlertDescription>
-            {error}
-            <Button 
-              onClick={loadSystemData} 
-              variant="outline" 
-              size="sm" 
-              className="ml-4"
-              data-testid="retry-button"
-            >
-              {t('common.refresh')}
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <AppleErrorBanner
+          title={t('common.error')}
+          message={error}
+          onRetry={loadSystemData}
+        />
       )}
 
       {!error && !loading && isEmptyValue(health) && (
-        <Card>
+        <Card className="material-card">
           <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
             <Activity className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
             <p id="empty-health-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noHealthData')}</p>
-            <Button 
+            <AppleButton 
               onClick={loadSystemData} 
               variant="outline" 
+              haptic="light"
               className="mt-4"
               aria-label={t('monitoring.retryLoadHealth', { defaultValue: 'Retry loading system health' })}
             >
               {t('common.refresh')}
-            </Button>
+            </AppleButton>
           </CardContent>
         </Card>
       )}
 
       {health && (
-        <Card data-testid="system-health">
+        <Card className="material-card" data-testid="system-health">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="w-5 h-5" />
@@ -209,19 +201,19 @@ const SystemMonitoring = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-lg font-medium">{t('monitoring.overallStatus')}</span>
+              <span className="text-title-3 font-medium">{t('monitoring.overallStatus')}</span>
               <Badge className={getStatusColor(health.status)}>
                 {health.status?.toUpperCase()}
               </Badge>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-neutral-600 dark:text-neutral-400">{t('monitoring.uptime')}</span>
-                <span className="text-sm font-semibold">{formatUptime(health.uptime_hours)}</span>
+                <span className="text-callout text-neutral-600 dark:text-neutral-400">{t('monitoring.uptime')}</span>
+                <span className="text-callout font-semibold">{formatUptime(health.uptime_hours)}</span>
               </div>
               {health.services && Object.entries(health.services).map(([service, status]) => (
                 <div key={service} className="flex justify-between">
-                  <span className="text-sm text-neutral-600 dark:text-neutral-400 capitalize">{service}</span>
+                  <span className="text-callout text-neutral-600 dark:text-neutral-400 capitalize">{service}</span>
                   <Badge className={getStatusColor(status)} variant="outline">
                     {status}
                   </Badge>
@@ -233,25 +225,26 @@ const SystemMonitoring = () => {
       )}
 
       {!error && !loading && isEmptyValue(metrics) && (
-        <Card>
+        <Card className="material-card">
           <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
             <Database className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
             <p id="empty-metrics-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noMetricsData')}</p>
-            <Button 
+            <AppleButton 
               onClick={loadSystemData} 
               variant="outline" 
+              haptic="light"
               className="mt-4"
               aria-label={t('monitoring.retryLoadMetrics', { defaultValue: 'Retry loading system metrics' })}
             >
               {t('common.refresh')}
-            </Button>
+            </AppleButton>
           </CardContent>
         </Card>
       )}
 
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card data-testid="cpu-card">
+          <Card className="material-card" data-testid="cpu-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cpu className="w-5 h-5" />
@@ -262,12 +255,12 @@ const SystemMonitoring = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('common.usage')}</span>
-                    <span className="text-sm font-semibold">{metrics.cpu?.usage_percent}%</span>
+                    <span className="text-callout">{t('common.usage')}</span>
+                    <span className="text-callout font-semibold">{metrics.cpu?.usage_percent}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('monitoring.cores')}</span>
-                    <span className="text-sm font-semibold">{metrics.cpu?.count}</span>
+                    <span className="text-callout">{t('monitoring.cores')}</span>
+                    <span className="text-callout font-semibold">{metrics.cpu?.count}</span>
                   </div>
                 </div>
                 {metrics.cpu?.usage_percent != null && (
@@ -297,7 +290,7 @@ const SystemMonitoring = () => {
             </CardContent>
           </Card>
 
-          <Card data-testid="memory-card">
+          <Card className="material-card" data-testid="memory-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="w-5 h-5" />
@@ -308,12 +301,12 @@ const SystemMonitoring = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('common.usage')}</span>
-                    <span className="text-sm font-semibold">{metrics.memory?.usage_percent}%</span>
+                    <span className="text-callout">{t('common.usage')}</span>
+                    <span className="text-callout font-semibold">{metrics.memory?.usage_percent}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('monitoring.usedTotal')}</span>
-                    <span className="text-sm font-semibold">
+                    <span className="text-callout">{t('monitoring.usedTotal')}</span>
+                    <span className="text-callout font-semibold">
                       {t('monitoring.gbFormat', { used: metrics.memory?.used_gb, total: metrics.memory?.total_gb })}
                     </span>
                   </div>
@@ -345,7 +338,7 @@ const SystemMonitoring = () => {
             </CardContent>
           </Card>
 
-          <Card data-testid="disk-card">
+          <Card className="material-card" data-testid="disk-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <HardDrive className="w-5 h-5" />
@@ -356,12 +349,12 @@ const SystemMonitoring = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('common.usage')}</span>
-                    <span className="text-sm font-semibold">{metrics.disk?.usage_percent}%</span>
+                    <span className="text-callout">{t('common.usage')}</span>
+                    <span className="text-callout font-semibold">{metrics.disk?.usage_percent}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('monitoring.usedTotal')}</span>
-                    <span className="text-sm font-semibold">
+                    <span className="text-callout">{t('monitoring.usedTotal')}</span>
+                    <span className="text-callout font-semibold">
                       {t('monitoring.gbFormat', { used: metrics.disk?.used_gb, total: metrics.disk?.total_gb })}
                     </span>
                   </div>

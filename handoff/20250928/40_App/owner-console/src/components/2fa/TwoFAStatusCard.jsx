@@ -36,13 +36,13 @@ export function TwoFAStatusCard({
 
   if (loading) {
     return (
-      <Card>
+      <Card className="apple-surface-light">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-neutral-900">
             <Shield className="w-5 h-5" />
             {t('settings.2fa.title')}
           </CardTitle>
-          <CardDescription>{t('settings.2fa.loading')}</CardDescription>
+          <CardDescription className="text-neutral-600">{t('settings.2fa.loading')}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -50,13 +50,13 @@ export function TwoFAStatusCard({
 
   if (error) {
     return (
-      <Card>
+      <Card className="apple-surface-light">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-neutral-900">
             <Shield className="w-5 h-5" />
             {t('settings.2fa.title')}
           </CardTitle>
-          <CardDescription className="text-destructive flex items-center gap-2">
+          <CardDescription className="text-red-600 flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
             {error}
           </CardDescription>
@@ -67,24 +67,24 @@ export function TwoFAStatusCard({
 
   if (status?.feature_disabled) {
     return (
-      <Card>
+      <Card className="apple-surface-light">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-neutral-900">
             <Shield className="w-5 h-5" />
             {t('settings.2fa.title')}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-neutral-600">
             {t('settings.2fa.subtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
-              <p className="font-medium text-blue-900 dark:text-blue-100">
+              <p className="font-medium text-blue-900">
                 {t('settings.2fa.featureDisabled.title')}
               </p>
-              <p className="text-sm text-blue-800 dark:text-blue-200">
+              <p className="text-sm text-blue-800">
                 {t('settings.2fa.featureDisabled.description')}
               </p>
             </div>
@@ -97,13 +97,13 @@ export function TwoFAStatusCard({
   const isEnabled = status?.enabled ?? false;
 
   return (
-    <Card>
+    <Card className="apple-surface-light">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-neutral-900">
           <Shield className="w-5 h-5" />
           {t('settings.2fa.title')}
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-neutral-600">
           {t('settings.2fa.subtitle')}
         </CardDescription>
       </CardHeader>
@@ -111,7 +111,7 @@ export function TwoFAStatusCard({
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="font-medium">{t('settings.2fa.status.label')}</span>
+              <span className="font-medium text-neutral-900">{t('settings.2fa.status.label')}</span>
               {isEnabled ? (
                 <Badge variant="default" className="bg-green-500 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
@@ -124,7 +124,7 @@ export function TwoFAStatusCard({
               )}
             </div>
             {isEnabled && status?.verified_at && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-neutral-600">
                 {t('settings.2fa.status.enabledOn', { date: new Date(status.verified_at).toLocaleDateString() })}
               </p>
             )}
@@ -141,14 +141,14 @@ export function TwoFAStatusCard({
         </div>
 
         {isEnabled && (
-          <div className="pt-4 border-t space-y-3">
+          <div className="pt-4 border-t border-neutral-200 space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <Key className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{t('settings.2fa.backupCodes.title')}</span>
+                  <Key className="w-4 h-4 text-neutral-600" />
+                  <span className="text-sm font-medium text-neutral-900">{t('settings.2fa.backupCodes.title')}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-neutral-600">
                   {t('settings.2fa.backupCodes.remaining', { count: status?.backup_codes_remaining ?? 0 })}
                 </p>
               </div>
@@ -162,9 +162,9 @@ export function TwoFAStatusCard({
               </Button>
             </div>
             {(status?.backup_codes_remaining ?? 0) <= 2 && (
-              <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-500 mt-0.5" />
-                <p className="text-xs text-yellow-800 dark:text-yellow-200">
+              <div className="flex items-start gap-2 p-3 bg-yellow-50 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5" />
+                <p className="text-xs text-yellow-800">
                   {t('settings.2fa.backupCodes.lowWarning', { count: status?.backup_codes_remaining ?? 0 })}
                 </p>
               </div>
