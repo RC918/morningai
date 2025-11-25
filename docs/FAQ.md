@@ -1,85 +1,50 @@
-# Frequently Asked Questions (FAQ)
+# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
 
-Create a draft PR that adds a simple test file to verify GitHub integration
+In the context of developing with MorningAI, understanding how to perform basic operations such as creating simple Python functions is crucial. This FAQ entry will guide you through the process of creating a Python function that adds two numbers. This example is part of our validation tests to ensure developers can implement basic logic and integrate it within the MorningAI platform.
 
+## Comprehensive Explanation
 
-MorningAI is a comprehensive multi-tenant SaaS platform for autonomous agent-based code generation and documentation management.
+Creating a Python function involves defining a block of reusable code that performs a specific task—in this case, adding two numbers. This function will accept two parameters, perform the addition operation, and return the result. This basic example serves as a foundation for more complex operations and integrations within MorningAI.
 
+### Code Example
 
-- **Autonomous Agent System**: GPT-4 powered agents for automated code generation and PR creation
-- **Multi-tenant Architecture**: Row Level Security (RLS) for complete tenant data isolation
-- **Real-time Task Queue**: Redis Queue with worker heartbeat monitoring for reliable task execution
-- **Vector Memory**: pgvector-based memory storage for context-aware agents
-- **Multi-platform Integration**: Support for Telegram, LINE, Messenger via platform_bindings
+Below is a simple Python function named `add_two_numbers` that takes two parameters (`number1` and `number2`) and returns their sum:
 
+```python
+def add_two_numbers(number1, number2):
+    """Add two numbers and return the result."""
+    return number1 + number2
 
-**Frontend**:
-- React with Vite
-- TailwindCSS for styling
-- Modern ES6+ JavaScript
-
-**Backend**:
-- Python 3.12
-- Flask web framework
-- Gunicorn with 4 workers for production
-- Row Level Security (RLS) for tenant isolation
-
-**Infrastructure**:
-- PostgreSQL (Supabase) for data persistence
-- Redis for task queue and caching
-- Redis Queue (RQ) for async job processing
-- Sentry for error tracking and monitoring
-
-**AI & Orchestration**:
-- OpenAI GPT-4 for content generation
-- LangGraph for agent workflow orchestration
-- pgvector for semantic search and memory
-
-
-Please refer to our documentation:
-- [README](../README.md) - Installation and setup
-- [CONTRIBUTING](../CONTRIBUTING.md) - Contribution guidelines
-- [RLS Implementation Guide](../docs/RLS_IMPLEMENTATION_GUIDE.md) - Database security
-
-
-```
-┌─────────────┐      ┌──────────────┐      ┌─────────────┐
-│   Frontend  │─────▶│  API Backend │─────▶│   Supabase  │
-│   (React)   │      │   (Flask)    │      │ (PostgreSQL)│
-└─────────────┘      └──────────────┘      └─────────────┘
-                            │
-                            ├───▶ Redis Queue
-                            │         │
-                            │         ▼
-                            │    Orchestrator Worker
-                            │    (LangGraph + GPT-4)
-                            │         │
-                            └─────────┘
+# Example usage:
+result = add_two_numbers(5, 7)
+print(f"The sum is: {result}")
 ```
 
+### Related Documentation Links
 
-**Start Development Server**:
-```bash
-cd handoff/20250928/40_App/api-backend/src
-gunicorn -c ../gunicorn.conf.py main:app
-```
+For further reading and more advanced functionalities within MorningAI, consider exploring these resources:
 
-**Run Tests**:
-```bash
-cd handoff/20250928/40_App/api-backend
-pytest tests/ -v
-```
+- [Python Functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions) - Official Python documentation on defining functions.
+- [MorningAI Architecture Overview](/docs/architecture.md) - Detailed information about how MorningAI's architecture supports custom functions and integrations.
+- [Integrating Custom Logic into MorningAI](/docs/integration/custom_logic.md) - Guidelines on integrating custom Python functions like `add_two_numbers` into your MorningAI projects.
 
-**Check RLS Policies**:
-```sql
-SELECT tablename, rowsecurity FROM pg_tables 
-WHERE schemaname = 'public' AND rowsecurity = true;
-```
+### Common Troubleshooting Tips
+
+When implementing or executing Python functions in MorningAI, you might encounter some issues. Here are tips to resolve common problems:
+
+- **SyntaxError**: Ensure your Python syntax is correct. Common mistakes include missing colons (`:`) at the end of the `def` line or incorrect indentation.
+- **TypeError**: This occurs if the function arguments are not of compatible types (e.g., attempting to add a string and an integer). Make sure that the inputs to your function are of expected types.
+- **NameError**: If you see a message like "NameError: name 'add_two_numbers' is not defined", check that your function is correctly defined before you call it. Also, ensure there are no spelling errors in your function name.
+
+By following this guide, you should be able to create simple Python functions for use within the MorningAI platform. Remember, understanding these basic concepts lays the groundwork for developing more complex functionalities and workflows in your projects.
+
+---
+Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Create a draft PR that adds a simple test file to verify GitHub integration
-- Trace ID: `test-after-pr1508-merge-1763965424`
-- Generated by: MorningAI Orchestrator (Fallback Template)
+- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
+- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
+- Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
