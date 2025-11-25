@@ -19,11 +19,11 @@ const PlatformSettings = () => {
       </div>
 
       <Card className="material-card">
-        <CardHeader>
+        <CardHeader className="px-6 pt-6">
           <CardTitle>{t('settings.general.title')}</CardTitle>
           <CardDescription>{t('settings.general.subtitle')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-6 pb-6">
           <AppleInput
             id="platform-name"
             type="text"
@@ -48,11 +48,11 @@ const PlatformSettings = () => {
       </Card>
 
       <Card className="material-card">
-        <CardHeader>
+        <CardHeader className="px-6 pt-6">
           <CardTitle>{t('settings.security.title')}</CardTitle>
           <CardDescription>{t('settings.security.subtitle')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-6 pb-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-callout font-medium">{t('settings.security.requireMFA')}</p>
@@ -75,7 +75,7 @@ const PlatformSettings = () => {
       </Card>
 
       <Card className="material-card">
-        <CardHeader>
+        <CardHeader className="px-6 pt-6">
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
             {t('settings.2fa.card.title')}
@@ -84,7 +84,7 @@ const PlatformSettings = () => {
             {t('settings.2fa.card.description')}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 pb-6">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-callout font-medium">{t('settings.2fa.card.manage')}</p>

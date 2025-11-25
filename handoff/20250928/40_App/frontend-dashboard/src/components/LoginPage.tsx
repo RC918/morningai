@@ -271,16 +271,16 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
             </motion.div>
           </Link>
           <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
-            <h1 className="text-display-3 font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
+            <h1 className="text-display-3 font-bold text-neutral-900">{t('app.name')}</h1>
           </Link>
-          <p className="text-body text-neutral-600 dark:text-neutral-300 mt-2">{t('app.tagline')}</p>
+          <p className="text-body text-neutral-600 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? undefined : itemVariants}>
-          <Card>
+          <Card className="bg-white dark:bg-white">
             <CardHeader>
-              <CardTitle>{t('auth.login.title')}</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-neutral-900">{t('auth.login.title')}</CardTitle>
+              <CardDescription className="text-neutral-600">
                 {t('auth.login.description')}
               </CardDescription>
             </CardHeader>
