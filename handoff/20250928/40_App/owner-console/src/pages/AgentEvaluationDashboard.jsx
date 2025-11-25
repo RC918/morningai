@@ -143,11 +143,11 @@ const AgentEvaluationDashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
+          <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
             <Activity className="w-8 h-8 text-primary-600" />
             {t('agentEvaluation.title', 'Agent Evaluation Dashboard')}
           </h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">
             {t('agentEvaluation.subtitle', 'Monitor AI agent performance metrics and evaluation results')}
           </p>
         </div>
@@ -182,14 +182,14 @@ const AgentEvaluationDashboard = () => {
           {/* Planner Accuracy */}
           <Card className="material-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.plannerAccuracy', 'Planner Accuracy')}</CardTitle>
+              <CardTitle className="text-callout font-medium">{t('agentEvaluation.metrics.plannerAccuracy', 'Planner Accuracy')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${hasData ? getMetricColor(metrics.metrics.planner_accuracy, metrics.targets.planner_accuracy) : 'text-neutral-400'}`}>
+              <div className={`text-title-2 md:text-title-1 font-bold ${hasData ? getMetricColor(metrics.metrics.planner_accuracy, metrics.targets.planner_accuracy) : 'text-neutral-400'}`}>
                 {hasData ? formatPercentage(metrics.metrics.planner_accuracy) : t('common.na', 'N/A')}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-caption-2 text-muted-foreground mt-1">
                 {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.planner_accuracy)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
               <div className="mt-2 min-h-[24px]">
@@ -205,14 +205,14 @@ const AgentEvaluationDashboard = () => {
           {/* Self-Healing Rate */}
           <Card className="material-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.selfHealingRate', 'Self-Healing Rate')}</CardTitle>
+              <CardTitle className="text-callout font-medium">{t('agentEvaluation.metrics.selfHealingRate', 'Self-Healing Rate')}</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${hasData ? getMetricColor(metrics.metrics.self_healing_rate, metrics.targets.self_healing_rate) : 'text-neutral-400'}`}>
+              <div className={`text-title-2 md:text-title-1 font-bold ${hasData ? getMetricColor(metrics.metrics.self_healing_rate, metrics.targets.self_healing_rate) : 'text-neutral-400'}`}>
                 {hasData ? formatPercentage(metrics.metrics.self_healing_rate) : t('common.na', 'N/A')}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-caption-2 text-muted-foreground mt-1">
                 {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.self_healing_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
               <div className="mt-2 min-h-[24px]">
@@ -228,14 +228,14 @@ const AgentEvaluationDashboard = () => {
           {/* Completion Rate */}
           <Card className="material-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.completionRate', 'Completion Rate')}</CardTitle>
+              <CardTitle className="text-callout font-medium">{t('agentEvaluation.metrics.completionRate', 'Completion Rate')}</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${hasData ? getMetricColor(metrics.metrics.completion_rate, metrics.targets.completion_rate) : 'text-neutral-400'}`}>
+              <div className={`text-title-2 md:text-title-1 font-bold ${hasData ? getMetricColor(metrics.metrics.completion_rate, metrics.targets.completion_rate) : 'text-neutral-400'}`}>
                 {hasData ? formatPercentage(metrics.metrics.completion_rate) : t('common.na', 'N/A')}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-caption-2 text-muted-foreground mt-1">
                 {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.completion_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
               <div className="mt-2 min-h-[24px]">
@@ -251,14 +251,14 @@ const AgentEvaluationDashboard = () => {
           {/* CI Pass Rate */}
           <Card className="material-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('agentEvaluation.metrics.ciPassRate', 'CI Pass Rate')}</CardTitle>
+              <CardTitle className="text-callout font-medium">{t('agentEvaluation.metrics.ciPassRate', 'CI Pass Rate')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${hasData ? getMetricColor(metrics.metrics.ci_pass_rate, metrics.targets.ci_pass_rate) : 'text-neutral-400'}`}>
+              <div className={`text-title-2 md:text-title-1 font-bold ${hasData ? getMetricColor(metrics.metrics.ci_pass_rate, metrics.targets.ci_pass_rate) : 'text-neutral-400'}`}>
                 {hasData ? formatPercentage(metrics.metrics.ci_pass_rate) : t('common.na', 'N/A')}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-caption-2 text-muted-foreground mt-1">
                 {hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.ci_pass_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
               </p>
               <div className="mt-2 min-h-[24px]">
@@ -291,7 +291,7 @@ const AgentEvaluationDashboard = () => {
               <p className="text-neutral-600 dark:text-neutral-400">
                 {t('agentEvaluation.history.noResults', 'No evaluation results available yet')}
               </p>
-              <p className="text-sm text-neutral-500 dark:text-neutral-500 mt-2">
+              <p className="text-callout text-neutral-500 dark:text-neutral-500 mt-2">
                 {t('agentEvaluation.history.weeklyRuns', 'Evaluations run weekly via GitHub Actions')}
               </p>
             </div>
@@ -310,15 +310,15 @@ const AgentEvaluationDashboard = () => {
                         ) : (
                           <XCircle className="w-5 h-5 text-error-600" />
                         )}
-                        <span className="font-medium text-sm">
+                        <span className="font-medium text-callout">
                           {formatDate(evaluation.date)}
                         </span>
                       </div>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-caption-2">
                         {t('agentEvaluation.history.runNumber', 'Run #{{id}}', { id: evaluation.run_id })}
                       </Badge>
                     </div>
-                    <div className="mt-2 grid grid-cols-4 gap-4 text-sm">
+                    <div className="mt-2 grid grid-cols-4 gap-4 text-callout">
                       <div>
                         <span className="text-neutral-500">{t('agentEvaluation.history.tasks', 'Tasks')}:</span>
                         <span className="ml-1 font-medium">{evaluation.total_tasks}</span>
@@ -357,7 +357,7 @@ const AgentEvaluationDashboard = () => {
       {metrics && metrics.last_evaluation && (
         <Card className="material-card">
           <CardContent className="py-4">
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-callout">
               <span className="text-neutral-600 dark:text-neutral-400">
                 {t('agentEvaluation.lastEvaluation', 'Last evaluation')}:
               </span>

@@ -101,7 +101,7 @@ const SystemMonitoring = () => {
         </div>
 
         {/* System Health Card Skeleton */}
-        <Card>
+        <Card className="material-card">
           <CardHeader>
             <Skeleton className="h-6 w-48" aria-hidden="true" />
           </CardHeader>
@@ -124,7 +124,7 @@ const SystemMonitoring = () => {
         {/* Metrics Cards Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <Card key={i}>
+            <Card key={i} className="material-card">
               <CardHeader>
                 <Skeleton className="h-6 w-32" aria-hidden="true" />
               </CardHeader>

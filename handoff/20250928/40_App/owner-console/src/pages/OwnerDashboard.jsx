@@ -136,7 +136,7 @@ const OwnerDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="material-card">
           <CardHeader>
             <CardTitle>{t('dashboard.recentActivity.title')}</CardTitle>
             <CardDescription>{t('dashboard.recentActivity.subtitle')}</CardDescription>
@@ -168,7 +168,7 @@ const OwnerDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="material-card">
           <CardHeader>
             <CardTitle>{t('dashboard.systemStatus.title')}</CardTitle>
             <CardDescription>{t('dashboard.systemStatus.subtitle')}</CardDescription>
