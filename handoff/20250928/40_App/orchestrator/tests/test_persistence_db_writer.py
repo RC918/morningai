@@ -11,14 +11,15 @@ import os
 # Add orchestrator to path (standard pattern for all orchestrator tests)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from persistence.db_writer import (
+from persistence.db_writer import (  # noqa: E402
+    normalize_and_validate_uuid,
     fetch_user_tenant_id,
     upsert_task_queued,
     upsert_task_running,
     upsert_task_done,
     upsert_task_error
 )
-from exceptions import (
+from exceptions import (  # noqa: E402
     DatabaseReadError,
     TenantResolutionError
 )
@@ -40,6 +41,75 @@ def mock_supabase_client():
     client.table = Mock(return_value=table_mock)
 
     return client
+
+
+class TestNormalizeAndValidateUuid:
+    """Test normalize_and_validate_uuid function"""
+
+    def test_pure_uuid_fast_path(self):
+        """Test that pure UUIDs are validated without regex (fast path)"""
+        test_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        result = normalize_and_validate_uuid(test_uuid, "test_field")
+        assert result == test_uuid
+
+    def test_prefixed_uuid_extraction(self):
+        """Test extraction of UUID from prefixed string"""
+        prefixed_id = "phase1-stg-test-550e8400-e29b-41d4-a716-446655440000"
+        expected_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        result = normalize_and_validate_uuid(prefixed_id, "task_id")
+        assert result == expected_uuid
+
+    def test_multiple_uuids_extracts_first(self):
+        """Test that first UUID is extracted when multiple are present"""
+        multi_uuid = "prefix-550e8400-e29b-41d4-a716-446655440000-suffix-660e8400-e29b-41d4-a716-446655440001"
+        expected_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        result = normalize_and_validate_uuid(multi_uuid, "test_field")
+        assert result == expected_uuid
+
+    def test_uppercase_uuid_normalized(self):
+        """Test that uppercase UUIDs are normalized to lowercase"""
+        uppercase_uuid = "550E8400-E29B-41D4-A716-446655440000"
+        expected_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        result = normalize_and_validate_uuid(uppercase_uuid, "test_field")
+        assert result == expected_uuid
+
+    def test_invalid_uuid_raises_error(self):
+        """Test that invalid UUID raises ValueError"""
+        invalid_id = "not-a-uuid-at-all"
+        with pytest.raises(ValueError, match="No valid UUID found"):
+            normalize_and_validate_uuid(invalid_id, "test_field")
+
+    def test_empty_string_raises_error(self):
+        """Test that empty string raises ValueError"""
+        with pytest.raises(ValueError, match="No valid UUID found"):
+            normalize_and_validate_uuid("", "test_field")
+
+    def test_partial_uuid_raises_error(self):
+        """Test that partial UUID raises ValueError"""
+        partial_uuid = "550e8400-e29b-41d4-a716"
+        with pytest.raises(ValueError, match="No valid UUID found"):
+            normalize_and_validate_uuid(partial_uuid, "test_field")
+
+    @patch('persistence.db_writer.logger')
+    def test_normalization_logs_warning(self, mock_logger):
+        """Test that normalization logs warning when prefix is stripped"""
+        prefixed_id = "phase1-stg-test-550e8400-e29b-41d4-a716-446655440000"
+        normalize_and_validate_uuid(prefixed_id, "task_id")
+
+        # Verify warning was logged
+        mock_logger.warning.assert_called_once()
+        call_args = mock_logger.warning.call_args
+        assert "UUID normalization" in call_args[0][0]
+        assert "task_id" in call_args[0][0]
+
+    @patch('persistence.db_writer.logger')
+    def test_pure_uuid_no_warning(self, mock_logger):
+        """Test that pure UUID does not log warning"""
+        test_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        normalize_and_validate_uuid(test_uuid, "test_field")
+
+        # Verify no warning was logged
+        mock_logger.warning.assert_not_called()
 
 
 class TestFetchUserTenantId:
@@ -110,8 +180,8 @@ class TestUpsertTaskQueued:
         mock_get_client.return_value = mock_supabase_client
 
         result = upsert_task_queued(
-            task_id="task-123",
-            trace_id="trace-123",
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001",
             question="Test question",
             job_id="job-123",
             tenant_id="tenant-123"
@@ -126,8 +196,8 @@ class TestUpsertTaskQueued:
 
         # Verify data structure
         upsert_data = table_mock.upsert.call_args[0][0]
-        assert upsert_data["task_id"] == "task-123"
-        assert upsert_data["trace_id"] == "trace-123"
+        assert upsert_data["task_id"] == "550e8400-e29b-41d4-a716-446655440000"
+        assert upsert_data["trace_id"] == "660e8400-e29b-41d4-a716-446655440001"
         assert upsert_data["question"] == "Test question"
         assert upsert_data["status"] == "queued"
         assert upsert_data["job_id"] == "job-123"
@@ -139,8 +209,8 @@ class TestUpsertTaskQueued:
         mock_get_client.return_value = mock_supabase_client
 
         result = upsert_task_queued(
-            task_id="task-123",
-            trace_id="trace-123",
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001",
             question="Test question"
         )
 
@@ -161,8 +231,8 @@ class TestUpsertTaskQueued:
         table_mock.upsert.side_effect = Exception("Database write failed")
 
         result = upsert_task_queued(
-            task_id="task-123",
-            trace_id="trace-123",
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001",
             question="Test question"
         )
 
@@ -178,8 +248,8 @@ class TestUpsertTaskRunning:
         mock_get_client.return_value = mock_supabase_client
 
         result = upsert_task_running(
-            task_id="task-123",
-            trace_id="trace-123",
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001",
             tenant_id="tenant-123"
         )
 
@@ -188,7 +258,7 @@ class TestUpsertTaskRunning:
         # Verify data structure
         table_mock = mock_supabase_client.table.return_value
         upsert_data = table_mock.upsert.call_args[0][0]
-        assert upsert_data["task_id"] == "task-123"
+        assert upsert_data["task_id"] == "550e8400-e29b-41d4-a716-446655440000"
         assert upsert_data["status"] == "running"
         assert "started_at" in upsert_data
         assert upsert_data["tenant_id"] == "tenant-123"
@@ -199,8 +269,8 @@ class TestUpsertTaskRunning:
         mock_get_client.return_value = mock_supabase_client
 
         result = upsert_task_running(
-            task_id="task-123",
-            trace_id="trace-123"
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001"
         )
 
         assert result is True
@@ -218,8 +288,8 @@ class TestUpsertTaskRunning:
         table_mock.upsert.side_effect = Exception("Database error")
 
         result = upsert_task_running(
-            task_id="task-123",
-            trace_id="trace-123"
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001"
         )
 
         assert result is False
@@ -234,8 +304,8 @@ class TestUpsertTaskDone:
         mock_get_client.return_value = mock_supabase_client
 
         result = upsert_task_done(
-            task_id="task-123",
-            trace_id="trace-123",
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001",
             pr_url="https://github.com/test/repo/pull/123",
             tenant_id="tenant-123"
         )
@@ -245,7 +315,7 @@ class TestUpsertTaskDone:
         # Verify data structure
         table_mock = mock_supabase_client.table.return_value
         upsert_data = table_mock.upsert.call_args[0][0]
-        assert upsert_data["task_id"] == "task-123"
+        assert upsert_data["task_id"] == "550e8400-e29b-41d4-a716-446655440000"
         assert upsert_data["status"] == "done"
         assert upsert_data["pr_url"] == "https://github.com/test/repo/pull/123"
         assert "finished_at" in upsert_data
@@ -260,8 +330,8 @@ class TestUpsertTaskDone:
         table_mock.upsert.side_effect = Exception("Database error")
 
         result = upsert_task_done(
-            task_id="task-123",
-            trace_id="trace-123",
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001",
             pr_url="https://github.com/test/repo/pull/123"
         )
 
@@ -277,8 +347,8 @@ class TestUpsertTaskError:
         mock_get_client.return_value = mock_supabase_client
 
         result = upsert_task_error(
-            task_id="task-123",
-            trace_id="trace-123",
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001",
             error_msg="Test error message",
             tenant_id="tenant-123"
         )
@@ -288,7 +358,7 @@ class TestUpsertTaskError:
         # Verify data structure
         table_mock = mock_supabase_client.table.return_value
         upsert_data = table_mock.upsert.call_args[0][0]
-        assert upsert_data["task_id"] == "task-123"
+        assert upsert_data["task_id"] == "550e8400-e29b-41d4-a716-446655440000"
         assert upsert_data["status"] == "error"
         assert upsert_data["error_msg"] == "Test error message"
         assert "finished_at" in upsert_data
@@ -302,8 +372,8 @@ class TestUpsertTaskError:
         long_error = "x" * 600  # 600 characters
 
         result = upsert_task_error(
-            task_id="task-123",
-            trace_id="trace-123",
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001",
             error_msg=long_error
         )
 
@@ -323,8 +393,8 @@ class TestUpsertTaskError:
         table_mock.upsert.side_effect = Exception("Database error")
 
         result = upsert_task_error(
-            task_id="task-123",
-            trace_id="trace-123",
+            task_id="550e8400-e29b-41d4-a716-446655440000",
+            trace_id="660e8400-e29b-41d4-a716-446655440001",
             error_msg="Test error"
         )
 
