@@ -1,95 +1,74 @@
-# Convert JSON to YAML using a Python CLI Tool
-
-This FAQ provides guidance on creating and using a Python Command Line Interface (CLI) tool that converts JSON files to YAML format. This tool is particularly useful for developers working with MorningAI, facilitating easy data format transformations to accommodate various integration and configuration needs.
+# Verifying 600s Timeout in Test Tasks
 
 ## Overview
+In the development and operation of MorningAI, ensuring that tasks execute within their expected time frames is crucial for maintaining system performance and reliability. This FAQ addresses how to verify that a 600-second (10-minute) timeout is properly configured and functioning for test tasks within the MorningAI platform.
 
-The conversion tool leverages Python's rich library ecosystem, utilizing `json` and `PyYAML`, two powerful libraries for handling JSON and YAML data formats, respectively. The tool reads a JSON file, parses its content into a Python dictionary, and then outputs the equivalent YAML format.
+### Context
+- **Repository**: `RC918/morningai`
+- **Location in Repository**: This information will be added to `docs/FAQ.md`.
 
-### Prerequisites
+## Explanation
+Timeout settings are an essential part of task management in asynchronous and distributed systems like MorningAI. They prevent tasks from running indefinitely due to errors or other issues, which could lead to resource exhaustion and degrade the system's responsiveness. The 600s timeout setting specifies that a test task should be automatically terminated if it exceeds 10 minutes in execution time.
 
-- Python 3.6 or newer
-- PyYAML package
+### Configuration Steps
+To verify or set up a 600-second timeout for test tasks, follow these steps:
 
-To install PyYAML, run:
-
-```bash
-pip install PyYAML
-```
-
-## Code Example
-
-Below is a simple Python script that performs the conversion from JSON to YAML:
+1. **Define the Timeout in Task Configuration**:
+   Ensure that each task definition includes a timeout parameter set to 600 seconds. In Python, using Flask with Redis Queue (RQ), you would define a job like this:
 
 ```python
-# json_to_yaml.py
+from redis import Redis
+from rq import Queue
 
-import json
-import yaml
-import sys
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
 
-def convert_json_to_yaml(json_file_path, yaml_file_path):
-    try:
-        with open(json_file_path, 'r') as json_file:
-            json_data = json.load(json_file)
-        
-        with open(yaml_file_path, 'w') as yaml_file:
-            yaml.dump(json_data, yaml_file, default_flow_style=False)
-            
-        print(f"Successfully converted {json_file_path} to {yaml_file_path}")
-    except Exception as e:
-        print(f"Error during conversion: {e}")
+def my_long_running_task():
+    # Task implementation here
+    pass
 
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python json_to_yaml.py <input_json_file> <output_yaml_file>")
-        sys.exit(1)
-    
-    _, json_input, yaml_output = sys.argv
-    convert_json_to_yaml(json_input, yaml_output)
+# Enqueue the task with a 600-second timeout
+job = q.enqueue(my_long_running_task, timeout=600)
 ```
 
-This script can be executed from the command line by providing the source JSON file and the target YAML file names as arguments:
+2. **Implementing Timeout Checks**:
+   In scenarios where you're manually managing task execution times, ensure to implement logic that respects the 600-second limit. This could involve checking execution start times against current times within long-running loops or operations.
 
-```bash
-python json_to_yaml.py input.json output.yaml
-```
+3. **Monitoring and Alerts**:
+   Use monitoring tools compatible with your stack (e.g., Sentry, Prometheus) to track tasks exceeding their timeouts. Set up alerts to notify your team when such incidents occur for proactive handling.
 
-### Related Documentation
-
-- PyYAML Documentation: https://pyyaml.org/wiki/PyYAMLDocumentation
-- Official Python `json` library documentation: https://docs.python.org/3/library/json.html
+### Related Documentation Links
+- Redis Queue (RQ) Documentation on Jobs: [https://python-rq.org/docs/jobs/](https://python-rq.org/docs/jobs/)
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- Monitoring with Sentry: [https://sentry.io/welcome/](https://sentry.io/welcome/)
+- Prometheus Monitoring: [https://prometheus.io/docs/introduction/overview/](https://prometheus.io/docs/introduction/overview/)
 
 ## Common Troubleshooting Tips
 
-**1. ImportError for PyYAML**
+1. **Task Does Not Terminate After 600 Seconds**:
+   - Ensure the timeout parameter is correctly set when enqueueing the task.
+   - Verify that the task is not being reset or re-enqueued without a timeout due to retries or error handling logic.
+   - Check for any global configuration that might override individual task timeouts.
 
-If you encounter an `ImportError` related to PyYAML, ensure that you have correctly installed PyYAML in your environment:
+2. **Tasks Failing Due to Timeout**:
+   - Analyze the task's execution path for unexpected delays or inefficiencies.
+   - Consider breaking down long-running tasks into smaller, independently executable parts if possible.
+   - Review resource allocation (CPU, memory) for the worker processes to ensure they're adequate.
 
-```bash
-pip install PyYAML
-```
+3. **Monitoring Tools Not Reporting Timeouts**:
+   - Double-check the integration setup between your application and monitoring tools.
+   - Ensure alert rules are correctly configured to trigger on job timeout events.
+   - Validate that monitoring services have access to relevant logs and metrics from your application and infrastructure.
 
-**2. FileNotFoundError**
-
-Ensure both the source JSON file exists and the path is correct. Double-check the file name and directory path provided as arguments.
-
-**3. SyntaxError in JSON File**
-
-Invalid JSON format will cause a failure in conversion. Use online validators or IDE tools to check and fix any syntax errors in your JSON file before conversion.
-
-**4. Permission Issues**
-
-When saving the output YAML file, you might encounter permission-related errors depending on your operating system's security settings or if you're writing to a protected directory. Ensure you have write permissions for the target directory.
+For more detailed troubleshooting related to specific technologies (Redis Queue, Flask), please consult their respective documentation or reach out to their support communities.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Generate a Python CLI tool that converts JSON to YAML format
-- Trace ID: `phase1-stg-test-c3afa545-abe9-4318-9d96-9ce757faa8c4`
+- Task: [Phase1-Verify-Timeout] Test task to verify 600s timeout is working
+- Trace ID: `phase1-verify-7ecc7492-974a-4b21-8a2b-27c555e12862`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
