@@ -1,72 +1,105 @@
-# Creating a Python Decorator for Logging Function Execution Time
+# Creating a TypeScript React Component for a User Profile Card
 
-In the development of MorningAI, monitoring and improving performance is crucial. A Python decorator can be used to log the execution time of functions, aiding in identifying bottlenecks and optimizing code efficiency. This FAQ provides a detailed guide on creating and using such a decorator within the MorningAI platform.
+This FAQ section aims to guide developers through the process of creating a TypeScript React component specifically for displaying a user profile card on the MorningAI platform. The user profile card will include basic user information such as name, role, and a profile picture.
 
-## Understanding Decorators
+## Overview
 
-A decorator in Python is essentially a function that wraps another function or method. It allows us to add functionality to an existing function by modifying its behavior without changing its code. For logging execution time, the decorator will measure the time taken by the function it decorates to execute and log this duration.
+A user profile card is a critical component within many applications, serving as a quick reference for user details. In MorningAI, this component enhances the UI by providing essential information about users in a concise and visually appealing format. Implementing this feature with TypeScript in React ensures type safety and enhances code quality and maintainability.
 
-## Code Example
+## Step-by-Step Guide
 
-Below is an example of a simple execution time logging decorator:
+### 1. Setting Up Your Environment
 
-```python
-import time
-import functools
+Before starting, ensure your development environment is set up to handle TypeScript in a React project. This setup includes having Node.js installed and your preferred IDE configured for TypeScript.
 
-def log_execution_time(func):
-    """Decorator that logs the execution time of the function."""
-    
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        print(f"{func.__name__!r} executed in {(end_time - start_time):.4f}s")
-        return result
-    
-    return wrapper
+```bash
+# Install TypeScript globally if you haven't
+npm install -g typescript
+
+# Create a new React app with TypeScript
+npx create-react-app my-app --template typescript
+
+# Navigate into your project directory
+cd my-app
 ```
 
-To use this decorator, simply prepend `@log_execution_time` before any function definition you wish to monitor. Here's how you can apply it:
+### 2. Creating the UserProfileCard Component
 
-```python
-@log_execution_time
-def sample_function(param):
-    # Function logic here
-    pass
+Navigate to the `src` directory in your project, create a new file named `UserProfileCard.tsx`, and add the following TypeScript React component code:
+
+```tsx
+import React from 'react';
+
+interface UserProfile {
+  name: string;
+  role: string;
+  imageUrl: string;
+}
+
+const UserProfileCard: React.FC<UserProfile> = ({ name, role, imageUrl }) => {
+  return (
+    <div className="profile-card">
+      <img src={imageUrl} alt={`${name}'s profile`} className="profile-image" />
+      <div className="profile-info">
+        <h2>{name}</h2>
+        <p>{role}</p>
+      </div>
+    </div>
+  );
+};
+
+export default UserProfileCard;
 ```
 
-### Related Documentation Links
+### 3. Styling the Component
 
-- [Decorators in Python](https://docs.python.org/3/glossary.html#term-decorator)
-- [The functools module](https://docs.python.org/3/library/functools.html)
+For styling, you can use TailwindCSS which is already integrated into the MorningAI platform's tech stack. Add the following classes to your component elements for basic styling:
 
-## Integration with MorningAI
+```tsx
+// Within your UserProfileCard component
+<div className="max-w-sm rounded overflow-hidden shadow-lg">
+  <img src={imageUrl} alt={`${name}'s profile`} className="w-full" />
+  <div className="px-6 py-4">
+    <div className="font-bold text-xl mb-2">{name}</div>
+    <p className="text-gray-700 text-base">{role}</p>
+  </div>
+</div>
+```
 
-To integrate this decorator into MorningAI's codebase:
-1. Place the `log_execution_time` definition in a common utilities module, such as `utils/decorators.py`.
-2. Import this decorator in any Python file where you wish to log function execution times.
-3. Prepend `@log_execution_time` to critical functions where performance monitoring is required.
+### 4. Integrating the Component
 
-Example file path for integration:
-- Add the decorator code in: `RC918/morningai/utils/decorators.py`
-- Use it in various parts of the application like so:
-  ```python
-  from utils.decorators import log_execution_time
-  
-  @log_execution_time
-  def some_critical_function():
-      pass
-  ```
+To integrate this component within MorningAI, import it into one of your application's pages or another component where you wish to display the user profile card.
+
+```tsx
+import React from 'react';
+import UserProfileCard from './UserProfileCard';
+
+function App() {
+  return (
+    <div className="App">
+      <UserProfileCard 
+        name="Jane Doe" 
+        role="Software Developer" 
+        imageUrl="/path/to/image.jpg"
+      />
+    </div>
+  );
+}
+
+export default App;
+```
+
+## Related Documentation
+
+For more information on using TypeScript with React, visit the [TypeScript documentation](https://www.typescriptlang.org/docs/handbook/react.html).
+
+To learn more about styling components with TailwindCSS, refer to the [TailwindCSS documentation](https://tailwindcss.com/docs).
 
 ## Common Troubleshooting Tips
 
-- **Decorator Not Working**: Ensure you have imported the decorator correctly and placed `@log_execution_time` above your function definitions without any syntax errors.
-- **Incorrect Execution Time**: Make sure there's no I/O operation or external call affecting the function's execution time unpredictably.
-- **Performance Overhead**: While decorators are generally lightweight, excessive logging might introduce overhead. Use selectively on critical paths only.
-
-This approach aids in maintaining optimal performance within MorningAI's operations by allowing developers to easily identify and address potential inefficiencies.
+- **TypeScript Errors**: Ensure all props passed to `UserProfileCard` match the interface `UserProfile`. Any mismatch will result in compilation errors.
+- **Image Not Displaying**: Verify that the path provided to `imageUrl` is correct. Remember that paths are relative to the public directory in a Create React App project.
+- **Styling Issues**: If styles do not apply as expected, ensure TailwindCSS is correctly configured and imported into your project. Check for any typos or incorrect usage of utility classes.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +107,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python decorator that logs function execution time
-- Trace ID: `phase1-stg-test-e9ea1e18-9c0e-4bea-8a5a-187ab87f68ab`
+- Task: [Phase1-Test] Create a TypeScript React component for a user profile card
+- Trace ID: `phase1-stg-test-7ce05c82-94e5-4b36-b6cc-ecee248e9d5c`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
