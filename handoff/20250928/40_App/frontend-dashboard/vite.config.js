@@ -126,11 +126,41 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            'ui-vendor': ['lucide-react', 'recharts', 'framer-motion'],
-            'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
-            'i18n-vendor': ['i18next', 'react-i18next'],
+          manualChunks: (id) => {
+            // Only split clearly independent, heavy libraries
+            // Let React/Radix follow Vite's default behavior to avoid bundling issues
+            
+            // Charts library - heavy, clearly independent
+            if (id.includes('node_modules/recharts')) {
+              return 'charts-vendor';
+            }
+            
+            // Supabase - heavy library, clearly independent
+            if (id.includes('node_modules/@supabase')) {
+              return 'supabase-vendor';
+            }
+            
+            // Sentry - monitoring library, clearly independent
+            if (id.includes('node_modules/@sentry')) {
+              return 'sentry-vendor';
+            }
+            
+            // Animation library - heavy, clearly independent
+            if (id.includes('node_modules/framer-motion')) {
+              return 'motion-vendor';
+            }
+            
+            // i18n libraries - clearly independent
+            if (id.includes('node_modules/i18next') || 
+                id.includes('node_modules/react-i18next') ||
+                id.includes('node_modules/@tolgee')) {
+              return 'i18n-vendor';
+            }
+            
+            // Icons library - clearly independent
+            if (id.includes('node_modules/lucide-react')) {
+              return 'icons-vendor';
+            }
           },
         },
       },

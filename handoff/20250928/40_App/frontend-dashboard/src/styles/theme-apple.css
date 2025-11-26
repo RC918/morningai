@@ -26,6 +26,11 @@
   --color-primary-lighter: #FFD9B3;
   --color-primary-lightest: #FFF4E6;
   
+  /* Tailwind primary scale (for bg-primary-500, bg-primary-600, etc.) */
+  --color-primary-500: #FF8C42;  /* Same as --color-primary */
+  --color-primary-600: #FF6B35;  /* Same as --color-primary-hover */
+  --color-primary-700: #E55A24;  /* Same as --color-primary-active */
+  
   /* ===== Secondary Colors ===== */
   --color-secondary: #FFD700;
   --color-secondary-hover: #E6C200;
@@ -178,7 +183,20 @@
 }
 
 /* Dark mode variant */
-.theme-apple.dark {
+.dark .theme-apple {
+  /* ===== Primary Colors (Dark) - DARKER for better contrast with white text ===== */
+  --color-primary: #CC5500;        /* Darker burnt orange for dark mode (was #FF8C42) */
+  --color-primary-hover: #B34700;  /* Even darker on hover (was #FF6B35) */
+  --color-primary-active: #993D00; /* Active state (was #E55A24) */
+  --color-primary-light: #E66A1A;
+  --color-primary-lighter: #FF8C42;
+  --color-primary-lightest: #FFB366;
+  
+  /* Tailwind primary scale (Dark) - DARKER for better contrast with white text */
+  --color-primary-500: #CC5500;  /* Darker burnt orange (same as --color-primary) */
+  --color-primary-600: #B34700;  /* Even darker (same as --color-primary-hover) */
+  --color-primary-700: #993D00;  /* Darkest (same as --color-primary-active) */
+  
   /* ===== Background Colors (Dark) ===== */
   --bg-primary: #171717;
   --bg-secondary: #262626;

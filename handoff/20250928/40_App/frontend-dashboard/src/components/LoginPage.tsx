@@ -277,10 +277,10 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? undefined : itemVariants}>
-          <Card className="bg-white dark:bg-white text-neutral-900 dark:text-neutral-900">
+          <Card className="bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white">
             <CardHeader>
-              <CardTitle className="text-neutral-900 dark:text-neutral-900">{t('auth.login.title')}</CardTitle>
-              <CardDescription className="text-neutral-600 dark:text-neutral-600">
+              <CardTitle className="text-neutral-900 dark:text-white">{t('auth.login.title')}</CardTitle>
+              <CardDescription className="text-neutral-600 dark:text-neutral-300">
                 {t('auth.login.description')}
               </CardDescription>
             </CardHeader>
@@ -353,7 +353,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                     <Separator className="w-full" />
                   </div>
                   <div className="relative flex justify-center text-caption-2 uppercase">
-                    <span className="bg-white dark:bg-white px-2 text-neutral-500 dark:text-neutral-500">
+                    <span className="bg-white dark:bg-neutral-800 px-2 text-neutral-500 dark:text-neutral-400">
                       {t('auth.login.orContinueWith')}
                     </span>
                   </div>
@@ -416,20 +416,20 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 </div>
               </div>
 
-              <div className="mt-6 text-center text-subhead text-neutral-600 dark:text-neutral-900">
+              <div className="mt-6 text-center text-subhead text-neutral-600 dark:text-neutral-300">
                 {t('auth.login.noAccount', '還沒有帳號？')}{' '}
-                {/* NOTE: Card is white in dark mode, so use dark text for contrast (Lighthouse CI requirement) */}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-neutral-900 dark:hover:text-neutral-700 font-medium underline">
+                {/* NOTE: Proper dark mode support for WCAG AA compliance (Lighthouse CI requirement) */}
+                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium underline">
                   {t('auth.login.signupLink', '註冊')}
                 </Link>
               </div>
 
               {import.meta.env.DEV && (
-                <div className="mt-6 p-4 bg-neutral-100 dark:bg-neutral-100 rounded-lg">
-                  <h2 className="text-subhead font-medium text-neutral-900 dark:text-neutral-900 mb-2">{t('auth.login.devAccount')}</h2>
-                  <div className="text-footnote text-neutral-700 dark:text-neutral-700 space-y-1">
-                    <p>{t('auth.login.username')}: <code className="bg-neutral-200 dark:bg-neutral-200 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
-                    <p>{t('auth.login.password')}: <code className="bg-neutral-200 dark:bg-neutral-200 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
+                <div className="mt-6 p-4 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
+                  <h2 className="text-subhead font-medium text-neutral-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
+                  <div className="text-footnote text-neutral-700 dark:text-neutral-300 space-y-1">
+                    <p>{t('auth.login.username')}: <code className="bg-neutral-200 dark:bg-neutral-600 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
+                    <p>{t('auth.login.password')}: <code className="bg-neutral-200 dark:bg-neutral-600 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
                   </div>
                 </div>
               )}
