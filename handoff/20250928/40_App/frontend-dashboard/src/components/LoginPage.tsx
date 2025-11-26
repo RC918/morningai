@@ -308,8 +308,8 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   value={credentials.email}
                   onChange={handleChange}
                   leftIcon={
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700">
-                      <User className="w-4 h-4 text-neutral-700 dark:text-neutral-300" strokeWidth={2.4} />
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 dark:bg-neutral-600">
+                      <User className="w-4 h-4 text-neutral-800 dark:text-neutral-200" strokeWidth={2.5} />
                     </span>
                   }
                   labelPosition="static"
@@ -327,8 +327,8 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                     value={credentials.password}
                     onChange={handleChange}
                     leftIcon={
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700">
-                        <Lock className="w-4 h-4 text-neutral-700 dark:text-neutral-300" strokeWidth={2.4} />
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 dark:bg-neutral-600">
+                        <Lock className="w-4 h-4 text-neutral-800 dark:text-neutral-200" strokeWidth={2.5} />
                       </span>
                     }
                     labelPosition="static"
