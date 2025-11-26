@@ -271,16 +271,16 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
             </motion.div>
           </Link>
           <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
-            <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
+            <h1 className="text-display-3 font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
           </Link>
-          <p className="text-neutral-600 dark:text-neutral-300 mt-2">{t('app.tagline')}</p>
+          <p className="text-body text-neutral-600 dark:text-neutral-300 mt-2">{t('app.tagline')}</p>
         </motion.div>
 
         <motion.div variants={prefersReducedMotion ? undefined : itemVariants}>
-          <Card>
+          <Card className="bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white">
             <CardHeader>
-              <CardTitle>{t('auth.login.title')}</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-neutral-900 dark:text-white">{t('auth.login.title')}</CardTitle>
+              <CardDescription className="text-neutral-600 dark:text-neutral-300">
                 {t('auth.login.description')}
               </CardDescription>
             </CardHeader>
@@ -352,8 +352,8 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   <div className="absolute inset-0 flex items-center">
                     <Separator className="w-full" />
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white dark:bg-neutral-800 px-2 text-neutral-500 dark:text-neutral-300">
+                  <div className="relative flex justify-center text-caption-2 uppercase">
+                    <span className="bg-white dark:bg-neutral-800 px-2 text-neutral-500 dark:text-neutral-400">
                       {t('auth.login.orContinueWith')}
                     </span>
                   </div>
@@ -416,21 +416,20 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 </div>
               </div>
 
-              <div className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-300">
+              <div className="mt-6 text-center text-subhead text-neutral-600 dark:text-neutral-300">
                 {t('auth.login.noAccount', '還沒有帳號？')}{' '}
-                {/* NOTE: Using primary-200 for CI color-contrast compliance. 
-                    If reverting to primary-300 for brand consistency, adjust .lighthouserc precision settings. */}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-200 dark:hover:text-primary-100 font-medium">
+                {/* NOTE: Proper dark mode support for WCAG AA compliance (Lighthouse CI requirement) */}
+                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium underline">
                   {t('auth.login.signupLink', '註冊')}
                 </Link>
               </div>
 
               {import.meta.env.DEV && (
-                <div className="mt-6 p-4 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
-                  <h2 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
-                  <div className="text-sm text-neutral-700 dark:text-neutral-300 space-y-1">
-                    <p>{t('auth.login.username')}: <code className="bg-neutral-200 dark:bg-neutral-700 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
-                    <p>{t('auth.login.password')}: <code className="bg-neutral-200 dark:bg-neutral-700 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
+                <div className="mt-6 p-4 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
+                  <h2 className="text-subhead font-medium text-neutral-900 dark:text-white mb-2">{t('auth.login.devAccount')}</h2>
+                  <div className="text-footnote text-neutral-700 dark:text-neutral-300 space-y-1">
+                    <p>{t('auth.login.username')}: <code className="bg-neutral-200 dark:bg-neutral-600 px-1 rounded">{t('auth.login.demoUsername', 'admin')}</code></p>
+                    <p>{t('auth.login.password')}: <code className="bg-neutral-200 dark:bg-neutral-600 px-1 rounded">{t('auth.login.demoPassword', 'admin123')}</code></p>
                   </div>
                 </div>
               )}
@@ -439,7 +438,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
         </motion.div>
 
         <motion.div
-          className="text-center mt-8 text-sm text-neutral-600 dark:text-neutral-300"
+          className="text-center mt-8 text-footnote text-neutral-600 dark:text-neutral-300"
           variants={prefersReducedMotion ? undefined : itemVariants}
         >
           <p>{t('app.copyright')}</p>

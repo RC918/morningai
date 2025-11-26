@@ -1,24 +1,141 @@
-/* Load fonts from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Tailwind v4 Design Tokens - MUST be defined before @import "tailwindcss" */
+@theme {
+  /* Max-width tokens used by max-w-* utilities */
+  /* Note: Tailwind v4 uses --container-* tokens for max-width utilities */
+  --container-xs: 20rem;     /* 320px - max-w-xs */
+  --container-sm: 24rem;     /* 384px - max-w-sm */
+  --container-md: 28rem;     /* 448px - max-w-md */
+  --container-lg: 32rem;     /* 512px - max-w-lg */
+  --container-xl: 36rem;     /* 576px - max-w-xl */
+  --container-2xl: 42rem;    /* 672px - max-w-2xl */
+  --container-3xl: 48rem;    /* 768px - max-w-3xl */
+  --container-4xl: 56rem;    /* 896px - max-w-4xl */
+  --container-5xl: 64rem;    /* 1024px - max-w-5xl */
+  --container-6xl: 72rem;    /* 1152px - max-w-6xl */
+  --container-7xl: 80rem;    /* 1280px - max-w-7xl */
 
-/* Import theme with design tokens (must come before Tailwind) */
-@import './styles/theme.css';
+  /* Semantic Color Tokens - Design System */
+  /* Error colors (red) - for error states, destructive actions */
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-200: #fecaca;
+  --color-error-300: #fca5a5;
+  --color-error-400: #f87171;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+  --color-error-800: #991b1b;
+  --color-error-900: #7f1d1d;
+  --color-error-950: #450a0a;
+
+  /* Success colors (green) - for success states, confirmations */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+  --color-success-950: #052e16;
+
+  /* Warning colors (yellow/amber) - for warning states, cautions */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+  --color-warning-950: #451a03;
+
+  /* Info colors (blue) - for informational badges, tooltips, hints */
+  --color-info-50: #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-200: #bfdbfe;
+  --color-info-300: #93c5fd;
+  --color-info-400: #60a5fa;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+  --color-info-800: #1e40af;
+  --color-info-900: #1e3a8a;
+  --color-info-950: #172554;
+
+  /* Neutral colors (gray) - for neutral elements, disabled states */
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-500: #6b7280;
+  --color-neutral-600: #4b5563;
+  --color-neutral-700: #374151;
+  --color-neutral-800: #1f2937;
+  --color-neutral-900: #111827;
+  --color-neutral-950: #030712;
+
+  /* Primary colors (blue) - for CTAs, interactive elements */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
+
+  /* Accent colors (purple) - for accent elements, highlights */
+  --color-accent-50: #faf5ff;
+  --color-accent-100: #f3e8ff;
+  --color-accent-200: #e9d5ff;
+  --color-accent-300: #d8b4fe;
+  --color-accent-400: #c084fc;
+  --color-accent-500: #a855f7;
+  --color-accent-600: #9333ea;
+  --color-accent-700: #7e22ce;
+  --color-accent-800: #6b21a8;
+  --color-accent-900: #581c87;
+  --color-accent-950: #3b0764;
+}
 
 @import "tailwindcss";
+@import "./materials.css";
+@import "./accessibility.css";
 
-/* Fix for vertical text rendering issue in Chinese locale */
-/* Ensure all text renders horizontally regardless of language */
-html,
-body,
-* {
-  writing-mode: horizontal-tb !important;
-  text-orientation: mixed !important;
+/* Font optimization - Week 6 Performance */
+/* Use system fonts as fallback for faster initial render */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap; /* Ensures text remains visible during font load */
+  src: local('Inter'), local('Inter-Regular');
 }
+
+/* Optimize font loading with unicode-range subsetting */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Removed duplicate @theme block that was overriding the correct --space-* tokens defined above */
 
 /* WCAG 2.1 AA Focus Management */
 /* Enhanced focus indicators for keyboard navigation */
 *:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #0051D0;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -39,7 +156,7 @@ body,
 /* High contrast focus for buttons */
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #0051D0;
   outline-offset: 2px;
 }
 
@@ -55,133 +172,580 @@ a:focus-visible {
   }
 }
 
+/* Dark mode overrides */
+.dark {
+  --color-background: 222.2 84% 4.9%;
+  --color-foreground: 210 40% 98%;
+  --color-card: 222.2 84% 4.9%;
+  --color-card-foreground: 210 40% 98%;
+  --color-popover: 222.2 84% 4.9%;
+  --color-popover-foreground: 210 40% 98%;
+  --color-muted: 217.2 32.6% 17.5%;
+  --color-muted-foreground: 215 20.2% 65.1%;
+  --color-border: 217.2 32.6% 17.5%;
+  --color-input: 217.2 32.6% 17.5%;
+  --color-ring: 212.7 26.8% 83.9%;
+  --color-destructive: 0 62.8% 30.6%;
+  --color-destructive-foreground: 210 40% 98%;
+  --color-secondary: 217.2 32.6% 17.5%;
+  --color-secondary-foreground: 210 40% 98%;
+  --color-accent: 217.2 32.6% 17.5%;
+  --color-accent-foreground: 210 40% 98%;
+}
+
+/* Ensure smooth theme transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Disable transitions during theme change to prevent flash */
+.theme-transition * {
+  transition: none !important;
+}
+
+/* Apple-level Spring Animations */
+@keyframes spring-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+  50% {
+    transform: scale(1.02) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes spring-out {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95) translateY(5px);
+  }
+}
+
+@keyframes bounce-gentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+/* Spring animation utilities */
+.animate-spring-in {
+  animation: spring-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-spring-out {
+  animation: spring-out 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Hover effects with spring physics */
+.hover-lift {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-0.8px) scale(1.004);
+  box-shadow: 0 2.4px 4.8px 0 rgb(0 0 0 / 0.12);
+}
+
+.hover-lift:active {
+  transform: translateY(-0.2px) scale(0.996);
+  box-shadow: 0 0.8px 1.6px 0 rgb(0 0 0 / 0.08);
+}
+
+/* Button press effect */
+.press-effect {
+  transition: transform 0.1s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.press-effect:active {
+  transform: scale(0.96);
+}
+
+/* Smooth scale transitions */
+.scale-smooth {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Focus ring with spring animation */
+.focus-ring-spring:focus-visible {
+  outline: 2px solid #0051D0;
+  outline-offset: 2px;
+  animation: spring-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .animate-spring-in,
+  .animate-spring-out,
+  .animate-bounce-gentle,
+  .animate-pulse-subtle {
+    animation: none;
+  }
+  
+  .hover-lift:hover {
+    transform: none;
+  }
+}
+
 /* ============================================
-   Tailwind v4 max-w-* Utilities Override (CRITICAL FIX)
-   ============================================
-   
-   Issue: Tailwind v4 incorrectly maps max-w-* utilities to --spacing-* tokens,
-   which are intended for padding/margin (e.g., --spacing-md = 16px).
-   
-   Container widths should use standard rem values:
-   - max-w-sm: 24rem (~384px)
-   - max-w-md: 28rem (~448px)
-   - max-w-lg: 32rem (~512px)
-   - max-w-xl: 36rem (~576px)
-   - max-w-2xl: 42rem (~672px)
-   
-   These overrides restore the correct container widths and prevent
-   layout collapse issues like the one fixed in PR #1303.
-   
-   IMPORTANT: Using !important to ensure these overrides always take precedence
-   over Tailwind's generated utilities, regardless of CSS ordering or minification.
-   
-   Related: https://github.com/RC918/morningai/pull/1303
-*/
-.max-w-sm {
-  max-width: 24rem !important;
+   Apple-Level Typography System
+   ============================================ */
+
+/* Typography Utility Classes - iOS Style */
+
+/* Display Styles */
+.text-display-1 {
+  font-size: var(--font-size-display1, 3.5rem);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
-.max-w-md {
-  max-width: 28rem !important;
+.text-display-2 {
+  font-size: var(--font-size-display2, 3rem);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
-.max-w-lg {
-  max-width: 32rem !important;
+.text-display-3 {
+  font-size: var(--font-size-display3, 2.5rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
-.max-w-xl {
-  max-width: 36rem !important;
+/* Title Styles */
+.text-large-title {
+  font-size: var(--font-size-large, 2.125rem);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
-.max-w-2xl {
-  max-width: 42rem !important;
+.text-title-1 {
+  font-size: var(--font-size-title1, 1.75rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.3;
 }
 
-.max-w-3xl {
-  max-width: 48rem !important;
+.text-title-2 {
+  font-size: var(--font-size-title2, 1.375rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.35;
 }
 
-.max-w-4xl {
-  max-width: 56rem !important;
+.text-title-3 {
+  font-size: var(--font-size-title3, 1.25rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.4;
 }
 
-.max-w-5xl {
-  max-width: 64rem !important;
+/* Body Styles */
+.text-headline {
+  font-size: var(--font-size-headline, 1.0625rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.45;
 }
 
-.max-w-6xl {
-  max-width: 72rem !important;
+.text-body {
+  font-size: var(--font-size-body, 1.0625rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
 }
 
-.max-w-7xl {
-  max-width: 80rem !important;
+.text-callout {
+  font-size: var(--font-size-callout, 1rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
 }
 
-/* Responsive variants */
-@media (min-width: 640px) {
-  .sm\:max-w-sm { max-width: 24rem !important; }
-  .sm\:max-w-md { max-width: 28rem !important; }
-  .sm\:max-w-lg { max-width: 32rem !important; }
-  .sm\:max-w-xl { max-width: 36rem !important; }
-  .sm\:max-w-2xl { max-width: 42rem !important; }
-  .sm\:max-w-3xl { max-width: 48rem !important; }
-  .sm\:max-w-4xl { max-width: 56rem !important; }
-  .sm\:max-w-5xl { max-width: 64rem !important; }
-  .sm\:max-w-6xl { max-width: 72rem !important; }
-  .sm\:max-w-7xl { max-width: 80rem !important; }
+.text-subhead {
+  font-size: var(--font-size-subhead, 0.9375rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
 }
 
-@media (min-width: 768px) {
-  .md\:max-w-sm { max-width: 24rem !important; }
-  .md\:max-w-md { max-width: 28rem !important; }
-  .md\:max-w-lg { max-width: 32rem !important; }
-  .md\:max-w-xl { max-width: 36rem !important; }
-  .md\:max-w-2xl { max-width: 42rem !important; }
-  .md\:max-w-3xl { max-width: 48rem !important; }
-  .md\:max-w-4xl { max-width: 56rem !important; }
-  .md\:max-w-5xl { max-width: 64rem !important; }
-  .md\:max-w-6xl { max-width: 72rem !important; }
-  .md\:max-w-7xl { max-width: 80rem !important; }
+/* Small Text Styles */
+.text-footnote {
+  font-size: var(--font-size-footnote, 0.8125rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
 }
 
-@media (min-width: 1024px) {
-  .lg\:max-w-sm { max-width: 24rem !important; }
-  .lg\:max-w-md { max-width: 28rem !important; }
-  .lg\:max-w-lg { max-width: 32rem !important; }
-  .lg\:max-w-xl { max-width: 36rem !important; }
-  .lg\:max-w-2xl { max-width: 42rem !important; }
-  .lg\:max-w-3xl { max-width: 48rem !important; }
-  .lg\:max-w-4xl { max-width: 56rem !important; }
-  .lg\:max-w-5xl { max-width: 64rem !important; }
-  .lg\:max-w-6xl { max-width: 72rem !important; }
-  .lg\:max-w-7xl { max-width: 80rem !important; }
+.text-caption-1 {
+  font-size: var(--font-size-caption1, 0.75rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
 }
 
-@media (min-width: 1280px) {
-  .xl\:max-w-sm { max-width: 24rem !important; }
-  .xl\:max-w-md { max-width: 28rem !important; }
-  .xl\:max-w-lg { max-width: 32rem !important; }
-  .xl\:max-w-xl { max-width: 36rem !important; }
-  .xl\:max-w-2xl { max-width: 42rem !important; }
-  .xl\:max-w-3xl { max-width: 48rem !important; }
-  .xl\:max-w-4xl { max-width: 56rem !important; }
-  .xl\:max-w-5xl { max-width: 64rem !important; }
-  .xl\:max-w-6xl { max-width: 72rem !important; }
-  .xl\:max-w-7xl { max-width: 80rem !important; }
+.text-caption-2 {
+  font-size: var(--font-size-caption2, 0.6875rem);
+  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.5;
 }
 
-@media (min-width: 1536px) {
-  .\32xl\:max-w-sm { max-width: 24rem !important; }
-  .\32xl\:max-w-md { max-width: 28rem !important; }
-  .\32xl\:max-w-lg { max-width: 32rem !important; }
-  .\32xl\:max-w-xl { max-width: 36rem !important; }
-  .\32xl\:max-w-2xl { max-width: 42rem !important; }
-  .\32xl\:max-w-3xl { max-width: 48rem !important; }
-  .\32xl\:max-w-4xl { max-width: 56rem !important; }
-  .\32xl\:max-w-5xl { max-width: 64rem !important; }
-  .\32xl\:max-w-6xl { max-width: 72rem !important; }
-  .\32xl\:max-w-7xl { max-width: 80rem !important; }
+/* Responsive Typography - Fluid Scaling */
+.text-responsive-display {
+  font-size: clamp(2.5rem, 2rem + 2vw, 3.5rem);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
+
+.text-responsive-title {
+  font-size: clamp(1.5rem, 1.25rem + 1vw, 1.75rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.3;
+}
+
+.text-responsive-body {
+  font-size: clamp(1rem, 0.9rem + 0.3vw, 1.0625rem);
+  line-height: 1.5;
+}
+
+/* Font Weight Utilities */
+.font-light {
+  font-weight: var(--font-weight-light, 300);
+}
+
+.font-normal {
+  font-weight: var(--font-weight-normal, 400);
+}
+
+.font-medium {
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.font-semibold {
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.font-bold {
+  font-weight: var(--font-weight-bold, 700);
+}
+
+/* Line Height Utilities */
+.leading-tight {
+  line-height: var(--line-height-tight, 1.25);
+}
+
+.leading-normal {
+  line-height: var(--line-height-normal, 1.5);
+}
+
+.leading-relaxed {
+  line-height: var(--line-height-relaxed, 1.75);
+}
+
+/* Letter Spacing Utilities */
+.tracking-tighter {
+  letter-spacing: -0.02em;
+}
+
+.tracking-tight {
+  letter-spacing: -0.01em;
+}
+
+.tracking-normal {
+  letter-spacing: 0;
+}
+
+.tracking-wide {
+  letter-spacing: 0.01em;
+}
+
+.tracking-wider {
+  letter-spacing: 0.05em;
+}
+
+/* Text Truncation */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.text-truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Text Balance (for headlines) */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Text Pretty (for body text) */
+.text-pretty {
+  text-wrap: pretty;
+}
+
+/* ============================================
+   Apple-Level Emotional Color System
+   ============================================ */
+
+/* Emotional Color Utilities - iOS Style */
+
+/* Joy - Orange (#FF9500) */
+.bg-joy {
+  background-color: var(--color-joy);
+}
+
+.text-joy {
+  color: var(--color-joy-text); /* WCAG AA compliant (4.52:1) */
+}
+
+.border-joy {
+  border-color: var(--color-joy);
+}
+
+/* Calm - Light Blue (#5AC8FA) */
+.bg-calm {
+  background-color: var(--color-calm);
+}
+
+.text-calm {
+  color: var(--color-calm-text); /* WCAG AA compliant (4.54:1) */
+}
+
+.border-calm {
+  border-color: var(--color-calm);
+}
+
+/* Energy - Red (#FF3B30) */
+.bg-energy {
+  background-color: var(--color-energy);
+}
+
+.text-energy {
+  color: var(--color-energy-text); /* WCAG AA compliant (4.5:1) */
+}
+
+.border-energy {
+  border-color: var(--color-energy);
+}
+
+/* Growth - Green (#34C759) */
+.bg-growth {
+  background-color: var(--color-growth);
+}
+
+.text-growth {
+  color: var(--color-growth-text); /* WCAG AA compliant (4.53:1) */
+}
+
+.border-growth {
+  border-color: var(--color-growth);
+}
+
+/* Wisdom - Purple (#5856D6) */
+.bg-wisdom {
+  background-color: var(--color-wisdom);
+}
+
+.text-wisdom {
+  color: var(--color-wisdom-text); /* WCAG AA compliant (5.2:1) */
+}
+
+.border-wisdom {
+  border-color: var(--color-wisdom);
+}
+
+/* Emotional Color Gradients */
+.bg-gradient-joy {
+  background: linear-gradient(135deg, #FF9500 0%, #FFB340 100%);
+}
+
+.bg-gradient-calm {
+  background: linear-gradient(135deg, #5AC8FA 0%, #7DD8FC 100%);
+}
+
+.bg-gradient-energy {
+  background: linear-gradient(135deg, #FF3B30 0%, #FF6B63 100%);
+}
+
+.bg-gradient-growth {
+  background: linear-gradient(135deg, #34C759 0%, #5FD87F 100%);
+}
+
+.bg-gradient-wisdom {
+  background: linear-gradient(135deg, #5856D6 0%, #7B79E8 100%);
+}
+
+/* Emotional Color with Opacity */
+.bg-joy-10 {
+  background-color: rgba(255, 149, 0, 0.1);
+}
+
+.bg-joy-20 {
+  background-color: rgba(255, 149, 0, 0.2);
+}
+
+.bg-calm-10 {
+  background-color: rgba(90, 200, 250, 0.1);
+}
+
+.bg-calm-20 {
+  background-color: rgba(90, 200, 250, 0.2);
+}
+
+.bg-energy-10 {
+  background-color: rgba(255, 59, 48, 0.1);
+}
+
+.bg-energy-20 {
+  background-color: rgba(255, 59, 48, 0.2);
+}
+
+.bg-growth-10 {
+  background-color: rgba(52, 199, 89, 0.1);
+}
+
+.bg-growth-20 {
+  background-color: rgba(52, 199, 89, 0.2);
+}
+
+.bg-wisdom-10 {
+  background-color: rgba(88, 86, 214, 0.1);
+}
+
+.bg-wisdom-20 {
+  background-color: rgba(88, 86, 214, 0.2);
+}
+
+/* Dark Mode Emotional Colors - Text variants for dark backgrounds */
+.dark .text-joy {
+  color: #FFB340; /* Lighter for dark mode (WCAG AA on dark bg) */
+}
+
+.dark .text-calm {
+  color: #7DD8FC; /* Lighter for dark mode (WCAG AA on dark bg) */
+}
+
+.dark .text-energy {
+  color: #FF6B63; /* Lighter for dark mode (WCAG AA on dark bg) */
+}
+
+.dark .text-growth {
+  color: #5FD87F; /* Lighter for dark mode (WCAG AA on dark bg) */
+}
+
+.dark .text-wisdom {
+  color: #7B79E8; /* Lighter for dark mode (WCAG AA on dark bg) */
+}
+
+/* Accessibility Settings Styles */
+
+/* Reduced Motion */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* High Contrast Mode */
+.high-contrast {
+  --tw-bg-opacity: 1;
+  --tw-text-opacity: 1;
+}
+
+.high-contrast * {
+  border-color: currentColor !important;
+}
+
+.high-contrast button,
+.high-contrast a,
+.high-contrast input,
+.high-contrast select,
+.high-contrast textarea {
+  outline: 2px solid currentColor !important;
+  outline-offset: 2px !important;
+}
+
+/* Font Size Settings */
+[data-font-size="small"] {
+  font-size: 14px;
+}
+
+[data-font-size="medium"] {
+  font-size: 16px;
+}
+
+[data-font-size="large"] {
+  font-size: 18px;
+}
+
+[data-font-size="extra-large"] {
+  font-size: 20px;
+}
+
+/* Enhanced Focus Indicators */
+[data-focus-indicators="enhanced"] *:focus {
+  outline: 3px solid #3b82f6 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
+}
+
+[data-focus-indicators="enhanced"] *:focus-visible {
+  outline: 3px solid #3b82f6 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Remove global writing-mode rules that interfere with Tailwind */
 
 /* [UX-SENTINEL] Resizable Panels visual hide fallback */
 /* Hide accessibility labels in resize handles while keeping them accessible to screen readers */
@@ -199,6 +763,6 @@ a:focus-visible {
 
 /* Ensure the handle remains interactive and accessible */
 [data-panel-group] [role="separator"]:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #0051D0;
   outline-offset: 2px;
 }
