@@ -1,62 +1,54 @@
-# Verifying 600s Timeout After PR #1562 Deployment
+# Phase1-TimeoutVerification: Verify RQ_JOB_TIMEOUT=600 is Working
 
-After the deployment of PR #1562 in the RC918/morningai repository, it's crucial to verify that the intended 600-second (10-minute) timeout setting has been correctly applied and is functioning as expected. This adjustment is pivotal for ensuring that operations which require extended processing times do not prematurely terminate, thus enhancing the robustness and reliability of MorningAI's features. This guide aims to assist developers in confirming the successful implementation of this change.
+## Explanation of the Topic
 
-## Comprehensive Explanation
+In MorningAI, task orchestration is a critical component that ensures tasks are executed efficiently and within expected time frames. The Redis Queue (RQ) plays a significant role in managing background jobs within the platform. One of the parameters that can be configured for these jobs is `RQ_JOB_TIMEOUT`, which specifies the maximum amount of time (in seconds) a job can run before it's terminated. Setting `RQ_JOB_TIMEOUT=600` means any job exceeding 10 minutes in execution will be automatically stopped.
 
-PR #1562 introduces a configuration update designed to extend the default timeout settings for specific processes within the MorningAI platform. This adjustment is particularly relevant for operations susceptible to extended execution times, such as large data processing tasks or complex AI model training sessions. The change aims to mitigate issues related to premature task termination due to timeout constraints, thereby improving overall task success rates and platform stability.
+This feature is crucial for maintaining system health and preventing tasks from running indefinitely, which could lead to resource exhaustion and degraded system performance.
 
-### Code Examples
+### Code Example
 
-#### Verifying Timeout Setting
-
-To verify that the 600s timeout has been correctly applied post-deployment, you can perform a test using a simple Flask route (assuming your service is built with Flask, as per the MorningAI tech stack). The example below demonstrates how you might set up such a test:
+To verify that `RQ_JOB_TIMEOUT=600` is working as expected, you can create a test job that intentionally exceeds this limit to see if it gets terminated at the 10-minute mark:
 
 ```python
-from flask import Flask
+from rq import Queue
+from redis import Redis
 import time
 
-app = Flask(__name__)
+def long_running_task():
+    # Simulate long task
+    print("Task started")
+    time.sleep(610)  # Sleep for 610 seconds, 10 seconds longer than the timeout
+    print("Task completed")
 
-@app.route('/test-timeout')
-def test_timeout():
-    print("Starting a 10-minute sleep...")
-    # Sleep for 605 seconds to ensure we surpass the 600s threshold
-    time.sleep(605)
-    return "If you're seeing this, the timeout setting works!"
-
-if __name__ == '__main__':
-    app.run()
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+job = q.enqueue(long_running_task)
 ```
 
-This code sets up a basic endpoint that, when accessed, will cause the server to pause for 605 seconds. If your new timeout configuration is effective, requests to this endpoint should not terminate prematurely.
+In your Flask application setup where RQ is configured, ensure you have set the timeout value:
 
-#### Configuration Check
+```python
+from rq import Worker, Queue, Connection
 
-Ensure your Gunicorn configuration reflects the new timeout settings if applicable. An example configuration snippet might look like this:
-
-```bash
-# gunicorn.config.py
-timeout = 600  # Set the timeout to 600 seconds
+with Connection(redis_conn):
+    worker = Worker(map(Queue, ['default']), job_timeout=600)  # Setting the job timeout to 600 seconds
+    worker.work()
 ```
 
 ### Related Documentation Links
 
-- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
-- Gunicorn Settings: [https://docs.gunicorn.org/en/stable/settings.html#timeout](https://docs.gunicorn.org/en/stable/settings.html#timeout)
+- Redis Queue (RQ) Documentation: [https://python-rq.org/docs/](https://python-rq.org/docs/)
+- Flask-RQ2 Extension Documentation: [https://flask-rq2.readthedocs.io/en/latest/](https://flask-rq2.readthedocs.io/en/latest/)
 
-## Common Troubleshooting Tips
+### Common Troubleshooting Tips
 
-**Issue**: Request still times out before 600 seconds.
-- **Solution**: Confirm that both your application server (e.g., Gunicorn) and any reverse proxy (e.g., Nginx) in use are configured with matching or suitable timeout settings. Proxy or load balancer settings can override application server configurations.
+- **Job Not Terminating**: If jobs are not terminating as expected, ensure that the `job_timeout` parameter is correctly set in your worker configuration. Also, confirm that your Redis server is running and accessible.
+- **Incorrect Timeout Behavior**: Make sure there's no override of the timeout value in your job enqueue function. The timeout specified during job enqueueing (`q.enqueue(func, timeout=...)`) takes precedence over the worker's default timeout.
+- **Redis Connection Issues**: If your jobs are not being processed at all, verify your Redis connection settings. Ensure that your application can communicate with the Redis server and that authentication (if required) is correctly configured.
+- **Monitoring and Logging**: For deeper insights into what happens when a job exceeds its timeout, enable logging for your RQ workers and monitor the logs for any errors or warnings related to job execution and termination.
 
-**Issue**: Configuration changes not taking effect.
-- **Solution**: Ensure that after applying changes to configurations or environment variables, you restart your application server and any related services to apply these updates. In a containerized environment, this may involve rebuilding your container image.
-
-**Issue**: Unable to verify through direct testing.
-- **Solution**: Consult application logs for evidence of timeout-related entries or errors. Logs can provide insights into whether tasks are terminating due to reaching newly configured timeout limits.
-
-For further assistance or inquiries related to PR #1562 deployment and its impacts on MorningAI's functionality, please reach out through our project's issue tracker or support channels.
+By understanding how to configure and verify `RQ_JOB_TIMEOUT`, developers can better manage task execution times within MorningAI, leading to more reliable and efficient operation of the platform.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -64,7 +56,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Verify-Post-Deploy] Test task to verify 600s timeout after PR #1562 deployment
-- Trace ID: `phase1-verify-post-deploy-eda32538-924e-4327-942a-8af5f274646d`
+- Task: Phase1-TimeoutVerification: Verify RQ_JOB_TIMEOUT=600 is working
+- Trace ID: `phase1-timeout-verification-test`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
-- Repository: RC918/morningai
+- Repository: test/verification
