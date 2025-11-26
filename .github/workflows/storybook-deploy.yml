@@ -64,6 +64,14 @@ jobs:
           cp -r handoff/20250928/40_App/frontend-dashboard/storybook-static/* storybook_publish/storybook/
           mkdir -p storybook_publish/dashboard
           cp storybook_publish/dashboard/index.html storybook_publish/dashboard/ || echo "Redirect file will be committed separately"
+          # Add vercel.json to skip install/build for pre-built static files
+          cat > storybook_publish/vercel.json << 'EOF'
+          {
+            "installCommand": "echo 'skip install - pre-built static files'",
+            "buildCommand": "echo 'skip build - pre-built static files'",
+            "outputDirectory": "storybook"
+          }
+          EOF
       
       - name: Deploy to GitHub Pages (main branch only)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -74,7 +82,7 @@ jobs:
           publish_branch: gh-pages-storybook
           cname: storybook.morningai.app
           enable_jekyll: false
-          keep_files: true
+          keep_files: false
       
       - name: Upload Storybook artifact (PR only)
         if: github.event_name == 'pull_request'
