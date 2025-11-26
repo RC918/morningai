@@ -285,7 +285,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 {error && (
                   <motion.div
                     initial={prefersReducedMotion ? {} : { opacity: 0, y: -10 }}
@@ -308,23 +308,35 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   value={credentials.email}
                   onChange={handleChange}
                   leftIcon={<User className="w-4 h-4" />}
+                  labelPosition="static"
                   required
                   haptic="light"
                 />
 
-                <AppleInput
-                  id="password"
-                  name="password"
-                  type="password"
-                  label={t('auth.login.password')}
-                  placeholder={t('auth.login.passwordPlaceholder')}
-                  value={credentials.password}
-                  onChange={handleChange}
-                  leftIcon={<Lock className="w-4 h-4" />}
-                  showPasswordToggle
-                  required
-                  haptic="light"
-                />
+                <div className="space-y-2">
+                  <AppleInput
+                    id="password"
+                    name="password"
+                    type="password"
+                    label={t('auth.login.password')}
+                    placeholder={t('auth.login.passwordPlaceholder')}
+                    value={credentials.password}
+                    onChange={handleChange}
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    labelPosition="static"
+                    showPasswordToggle
+                    required
+                    haptic="light"
+                  />
+                  <div className="flex justify-end">
+                    <Link 
+                      to="/forgot-password" 
+                      className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium hover:underline"
+                    >
+                      {t('auth.login.forgotPassword', '忘記密碼？')}
+                    </Link>
+                  </div>
+                </div>
 
                 <motion.div
                   whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
@@ -416,10 +428,10 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 </div>
               </div>
 
-              <div className="mt-6 text-center text-subhead text-neutral-600 dark:text-neutral-300">
+              <div className="mt-8 text-center text-base text-neutral-700 dark:text-neutral-200">
                 {t('auth.login.noAccount', '還沒有帳號？')}{' '}
                 {/* NOTE: Proper dark mode support for WCAG AA compliance (Lighthouse CI requirement) */}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium underline">
+                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-semibold underline text-base">
                   {t('auth.login.signupLink', '註冊')}
                 </Link>
               </div>
