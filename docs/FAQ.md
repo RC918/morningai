@@ -1,83 +1,69 @@
-# Handling Large File Uploads Resulting in 500 Error
+# FAQ: Handling Large File Uploads in MorningAI
 
-When attempting to upload files larger than 10MB to the MorningAI platform, users may encounter a 500 error. This document aims to guide developers through understanding the issue, implementing a solution, and troubleshooting common pitfalls related to large file uploads.
+## Overview
 
-## Understanding the Issue
+Some users have reported experiencing application crashes when attempting to upload files larger than 10MB to the MorningAI platform. This document aims to address the issue by outlining the steps to reproduce the error, providing an explanation of the underlying problem, and offering solutions and troubleshooting tips.
 
-The application crash when uploading files larger than 10MB is typically caused by limitations set on the server or within the application code that restricts the size of files that can be uploaded. This can lead to an unhandled exception, resulting in a 500 error response.
+### Steps to Reproduce
+1. Navigate to the upload page on the MorningAI platform.
+2. Select a file larger than 10MB.
+3. Click the "Upload" button.
 
-### Code Example: Setting File Size Limit in Flask
+**Expected Outcome**: The file uploads successfully, and the user receives a success message.
 
-In a Flask application, such as MorningAI, file size limits are often enforced using the `MAX_CONTENT_LENGTH` configuration:
+**Actual Outcome**: The application throws a 500 error, indicating an internal server error.
 
+## Explanation of the Issue
+
+The issue arises due to a limitation set on file upload size within both the frontend and backend configurations of MorningAI. Most web servers, including those used by MorningAI (Flask/Gunicorn), have default file size limits for uploads as a security measure to prevent denial-of-service (DoS) attacks through resource exhaustion.
+
+### Backend Configuration
+
+In `app.py` or where the Flask app is initialized, there is likely a configuration setting for `MAX_CONTENT_LENGTH` that limits the size of incoming request payloads. Similarly, Gunicorn configurations might also restrict body sizes for requests.
+
+#### Example Flask Configuration
 ```python
-# Inside your config.py or similar configuration file
-MAX_CONTENT_LENGTH = 10 * 1024 * 1024 # 10MB limit
+from flask import Flask
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Limit set to 10MB
 ```
 
-This setting will automatically reject uploads that exceed the specified size, but it must be properly handled to provide a user-friendly error message rather than a generic server error.
+### Frontend Configuration
 
-## Implementing a Solution
+The frontend code using React might not directly limit file sizes but could handle errors or validations related to file uploads improperly.
 
-To address this issue and allow for larger file uploads, you can increase the `MAX_CONTENT_LENGTH` setting in your Flask application. Additionally, ensure your frontend and any intermediary services (like NGINX or Apache) are configured to support the increased size limit.
+## Solutions and Troubleshooting
 
 ### Increasing File Size Limit
 
-1. **Backend Configuration** (Flask):
+#### Backend Adjustment
 
-    Update `MAX_CONTENT_LENGTH` in your Flask app configuration:
+To allow larger files, increase the `MAX_CONTENT_LENGTH` in your Flask app configuration:
 
-    ```python
-    # Increase limit to 50MB
-    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-    ```
+```python
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Increase limit to 50MB
+```
 
-2. **Frontend Notification**:
+If using Gunicorn, ensure there are no conflicting configurations that might override or enforce a smaller limit.
 
-    Inform users of the file size limit through the UI:
+#### Frontend Handling
 
-    ```javascript
-    // Before initiating upload, check file size (example in JavaScript)
-    if(file.size > (50 * 1024 * 1024)) { // Check against 50MB
-        alert('File size exceeds limit of 50MB.');
-        return;
-    }
-    ```
-
-3. **Web Server Configuration**:
-
-    - For **NGINX**, adjust `client_max_body_size` in your config:
-    
-        ```
-        server {
-            ...
-            client_max_body_size 50M;
-        }
-        ```
-
-    - For **Apache**, modify `LimitRequestBody` directive:
-    
-        ```
-        <Directory "/var/www/html">
-            ...
-            LimitRequestBody 52428800
-        </Directory>
-        ```
+Ensure that your frontend properly handles and displays errors related to file size limitations. Implement client-side validation to give immediate feedback if a file exceeds the allowed size.
 
 ### Related Documentation Links
 
 - Flask Documentation on Request Data: [Flask Request Data](https://flask.palletsprojects.com/en/2.0.x/patterns/fileuploads/)
-- NGINX Client Max Body Size: [NGINX Module ngx_http_core_module](http://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size)
-- Apache Core Features: [Apache LimitRequestBody](https://httpd.apache.org/docs/2.4/mod/core.html#limitrequestbody)
+- Gunicorn Configuration: [Gunicorn Settings](https://docs.gunicorn.org/en/stable/settings.html)
 
-## Common Troubleshooting Tips
+### Common Troubleshooting Tips
 
-1. **Verify Configuration Changes**: Ensure that all configuration changes have been correctly applied and that services have been restarted afterward.
-2. **Check Application Logs**: Review backend logs for errors related to file handling or middleware that might be rejecting large requests.
-3. **Browser Network Tab**: Use browser developer tools to inspect the request payload and response codes for additional insights.
-4. **File Type Restrictions**: Aside from size, ensure there are no restrictions on file types that might also cause upload failures.
+- **Verify Configurations**: Double-check both your Flask and Gunicorn configurations to ensure they align with your intended file size limits.
+- **Check Network Conditions**: Sometimes, issues with large file uploads can be attributed to network instability or timeouts rather than configuration limits.
+- **Inspect Browser Console and Network Activity**: For frontend issues, inspecting the browser's console and network activity can provide clues about why an upload failed.
+- **Review Server Logs**: Server logs often contain detailed error messages that can help diagnose issues with file uploads.
 
-By following these guidelines and adjusting configurations as needed, developers should be able to mitigate issues related to uploading large files on MorningAI and enhance overall user experience.
+By understanding and adjusting these configurations as needed, developers can ensure that users are able to upload large files successfully without crashing the application.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
