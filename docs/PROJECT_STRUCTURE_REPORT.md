@@ -6,14 +6,30 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.7.0  
-**Last Updated**: 2025-11-23  
+**Document Version**: 1.8.0  
+**Last Updated**: 2025-11-26  
 **Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow)  
 **Test Coverage**: 59.89% (Owner Console), 74%+ (Backend)  
-**Recent Activity**: 192 commits on main (2025-11-12 至 2025-11-23，快照值截至 2025-11-23)  
+**Recent Activity**: 220+ commits on main (2025-11-12 至 2025-11-26，快照值截至 2025-11-26)  
 **Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
-**Recent PRs (Nov 18-23, 2025)**:
+**Recent PRs (Nov 25-26, 2025)**:
+- **PR #1548** (Merged): Frontend Dashboard Code Splitting - 20% bundle reduction + Lighthouse CI color-contrast fix
+  - Path: `handoff/20250928/40_App/frontend-dashboard/`
+- **PR #1562** (Merged): RQ Job Timeout Configuration - Added `RQ_JOB_TIMEOUT` environment variable
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
+- **PR #1547** (Merged): AppleButton Migration to shared-ui - Adapter pattern implementation
+  - Path: `handoff/20250928/40_App/packages/shared-ui/`
+- **PR #1546** (Merged): Phase 2 UI Completion - Emotional colors, AppleButton alignment, Spring animations
+  - Path: `handoff/20250928/40_App/frontend-dashboard/src/`
+- **PR #1545** (Merged): P1 Emotional Colors + AgentExecutionLogs Apple Design
+  - Path: `handoff/20250928/40_App/owner-console/src/components/AgentExecutionLogs.tsx`
+- **PR #1544** (Merged): Apple Design System Global Application
+  - Path: `handoff/20250928/40_App/frontend-dashboard/`, `handoff/20250928/40_App/owner-console/`
+- **PR #1543** (Merged): Dark Mode Disable + PlatformSettings Card Styling
+  - Path: `handoff/20250928/40_App/owner-console/`
+
+**Previous PRs (Nov 18-23, 2025)**:
 - **PR #1350** (Merged): E2E Testing Infrastructure - 32 Playwright tests, route handler isolation, API mocking
 - **PR #1398** (Merged): Production Path Discovery - `MORNINGAI_REPO_PATH` env var, 4-layer fallback
 - **PR #1399** (Merged): Backend Test Environment - Python 3.12, Redis service, PyJWT conflict resolution

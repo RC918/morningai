@@ -1,11 +1,11 @@
 # MorningAI Environment Architecture
 
-**Last Updated**: 2025-11-23  
-**Document Version**: 2.2  
+**Last Updated**: 2025-11-26  
+**Document Version**: 2.3  
 **Related Documents**: 
 - [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
 - [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
-- [ONBOARDING.md](../ONBOARDING.md) - 新人上手指南
+- [ONBOARDING_GUIDE.md](./ONBOARDING_GUIDE.md) - 新人上手指南
 
 ---
 
@@ -21,21 +21,42 @@
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
 
-**近期重要更新** (2025-11-18 至 2025-11-23):
-- ✅ **PR #1350**: E2E 測試基礎設施完成 - 32 Playwright 測試通過，route handler 隔離，完整 API mocking
+**近期重要更新** (2025-11-25 至 2025-11-26):
+- **PR #1548**: Frontend Dashboard 代碼分割優化 - 20% bundle 減少 + Lighthouse CI color-contrast 修復
+  - Path: `handoff/20250928/40_App/frontend-dashboard/`
+  - 影響：提升性能和無障礙合規性
+- **PR #1562**: RQ Job Timeout 配置 - 新增 `RQ_JOB_TIMEOUT` 環境變數
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
+  - 影響：可配置的任務超時時間（預設：3600 秒）
+- **PR #1547**: AppleButton 遷移到 shared-ui - Adapter pattern 實作
+  - Path: `handoff/20250928/40_App/packages/shared-ui/`
+  - 影響：統一組件庫跨 frontend-dashboard 和 owner-console
+- **PR #1546**: Phase 2 UI 完成 - 情感顏色、AppleButton 對齊、Spring 動畫
+  - Path: `handoff/20250928/40_App/frontend-dashboard/src/`
+- **PR #1545**: P1 情感顏色 + AgentExecutionLogs Apple 設計
+  - Path: `handoff/20250928/40_App/owner-console/src/components/AgentExecutionLogs.tsx`
+- **PR #1544**: Apple 設計系統全局應用
+  - Path: `handoff/20250928/40_App/frontend-dashboard/`, `handoff/20250928/40_App/owner-console/`
+- **UUID 正規化修復**: 處理外部工具的前綴 task ID
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+- **LoginPage UX 改進**: 使用 Apple 設計系統全面重構
+  - Path: `handoff/20250928/40_App/frontend-dashboard/src/pages/LoginPage.tsx`
+
+**先前重要更新** (2025-11-18 至 2025-11-23):
+- **PR #1350**: E2E 測試基礎設施完成 - 32 Playwright 測試通過，route handler 隔離，完整 API mocking
   - Path: `handoff/20250928/40_App/owner-console/e2e/`
   - 測試改善: 11 passed → 32 passed (修復 21 個失敗測試)
-- ✅ **PR #1398**: 生產環境路徑發現機制 - 新增 `MORNINGAI_REPO_PATH` 環境變數
+- **PR #1398**: 生產環境路徑發現機制 - 新增 `MORNINGAI_REPO_PATH` 環境變數
   - Path: `handoff/20250928/40_App/orchestrator/context_manager.py`
   - 4 層 fallback: env var → git detection → marker-based discovery
-- ✅ **PR #1399**: Backend 測試環境統一 - Python 3.12, Redis service, PyJWT 衝突解決
+- **PR #1399**: Backend 測試環境統一 - Python 3.12, Redis service, PyJWT 衝突解決
   - Path: `.github/workflows/test-apps.yml`
   - 統一 backend.yml 和 test-apps.yml 配置
-- ✅ **PR #1480**: Pydantic 別名系統 - 新增 23 個關鍵環境變數別名 (2025-11-23)
+- **PR #1480**: Pydantic 別名系統 - 新增 23 個關鍵環境變數別名 (2025-11-23)
   - Path: `common/config/settings.py`
   - 修復：`FLASK_SECRET_KEY`, `ENCRYPTION_MASTER_KEY`, `STRIPE_WEBHOOK_SECRET_KEY` 別名
   - 影響：向後相容性改進，標準化配置命名
-- ✅ **PR #1452**: Redis 映射清理 - 防止 NoneType DataError (2025-11-23)
+- **PR #1452**: Redis 映射清理 - 防止 NoneType DataError (2025-11-23)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - 新增：`sanitize_redis_mapping()` 函數過濾 None 值
   - 影響：提升 Worker 心跳和任務狀態更新的穩定性
