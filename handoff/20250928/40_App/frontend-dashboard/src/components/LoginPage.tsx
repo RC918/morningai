@@ -307,11 +307,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   placeholder={t('auth.login.emailPlaceholder')}
                   value={credentials.email}
                   onChange={handleChange}
-                  leftIcon={
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 dark:bg-neutral-600">
-                      <User className="w-4 h-4 text-neutral-800 dark:text-neutral-200" strokeWidth={2.5} />
-                    </span>
-                  }
+                  leftIcon={<User className="w-5 h-5 text-neutral-700 dark:text-neutral-300" strokeWidth={2.5} />}
                   labelPosition="static"
                   required
                   haptic="light"
@@ -326,11 +322,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                     placeholder={t('auth.login.passwordPlaceholder')}
                     value={credentials.password}
                     onChange={handleChange}
-                    leftIcon={
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 dark:bg-neutral-600">
-                        <Lock className="w-4 h-4 text-neutral-800 dark:text-neutral-200" strokeWidth={2.5} />
-                      </span>
-                    }
+                    leftIcon={<Lock className="w-5 h-5 text-neutral-700 dark:text-neutral-300" strokeWidth={2.5} />}
                     labelPosition="static"
                     showPasswordToggle
                     required
