@@ -1,11 +1,11 @@
 # Vercel Deployment Strategy
 
-**Document Version**: 2.0  
-**Last Updated**: 2025-11-19  
+**Document Version**: 2.1  
+**Last Updated**: 2025-11-26  
 **Related Documents**:
-- [ENVIRONMENTS.md](../ENVIRONMENTS.md) - 環境架構文件
+- [ENVIRONMENTS.md](../ENVIRONMENTS.md) - 環境架構文件（單一真實來源）
 - [PROJECT_STRUCTURE_REPORT.md](../PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
-- [ONBOARDING.md](../../ONBOARDING.md) - 新人上手指南
+- [ONBOARDING_GUIDE.md](../ONBOARDING_GUIDE.md) - 新人上手指南
 
 ## Overview
 
@@ -387,14 +387,27 @@ All deployments send errors and performance data to Sentry:
 
 ---
 
-**Last Updated**: 2025-11-19
+**Last Updated**: 2025-11-26
 **Owner**: CTO + DevOps Team
 **Status**: Active
 
-**近一週重要更新** (2025-11-12 至 2025-11-19):
-- ✅ Phase 1 (B): LLM Planner 整合與 ContextManager 實作 (#1353)
-- ✅ Phase 2: Code Generation Workflow with Security Validation (#1347)
-- ✅ Phase 1.5: Agent Evaluation Monitoring Dashboard (#1337)
-- ✅ Design Token Migration 完成 - Tailwind config + semantic tokens (#1323, #1331, #1332)
-- ✅ Owner Console E2E 測試完成 (#1345, #1348)
-- ✅ Lighthouse CI 設置文檔與 workflow_dispatch 觸發器 (#1346)
+**近兩日重要更新** (2025-11-25 至 2025-11-26):
+- **PR #1548**: Frontend Dashboard 代碼分割優化 - 20% bundle 減少 + Lighthouse CI color-contrast 修復
+  - Path: `handoff/20250928/40_App/frontend-dashboard/`
+- **PR #1562**: RQ Job Timeout 配置 - 新增 `RQ_JOB_TIMEOUT` 環境變數
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
+- **PR #1547**: AppleButton 遷移到 shared-ui - Adapter pattern 實作
+  - Path: `packages/shared-ui/`
+- **PR #1546**: Phase 2 UI 完成 - 情感顏色、AppleButton 對齊、Spring 動畫
+- **PR #1545**: P1 情感顏色 + AgentExecutionLogs Apple 設計
+- **PR #1544**: Apple 設計系統全局應用
+- **PR #1543**: Dark Mode 禁用 + PlatformSettings 卡片樣式修復
+- **LoginPage UX 改進**: 使用 Apple 設計系統全面重構
+
+**先前重要更新** (2025-11-12 至 2025-11-19):
+- Phase 1 (B): LLM Planner 整合與 ContextManager 實作 (#1353)
+- Phase 2: Code Generation Workflow with Security Validation (#1347)
+- Phase 1.5: Agent Evaluation Monitoring Dashboard (#1337)
+- Design Token Migration 完成 - Tailwind config + semantic tokens (#1323, #1331, #1332)
+- Owner Console E2E 測試完成 (#1345, #1348)
+- Lighthouse CI 設置文檔與 workflow_dispatch 觸發器 (#1346)
