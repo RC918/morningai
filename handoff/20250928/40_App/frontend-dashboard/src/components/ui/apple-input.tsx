@@ -49,6 +49,7 @@ export interface AppleInputProps
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
   haptic?: "none" | "light" | "medium" | "heavy"
+  labelPosition?: "floating" | "static"
 }
 
 function AppleInput({
@@ -67,6 +68,7 @@ function AppleInput({
   haptic = "light",
   disabled = false,
   required = false,
+  labelPosition = "floating",
   onFocus,
   onBlur,
   onChange,
@@ -134,8 +136,22 @@ function AppleInput({
 
   return (
     <div className="relative w-full">
-      {/* Floating Label */}
-      {label && (
+      {/* Static Label (above input) */}
+      {label && labelPosition === "static" && (
+        <label
+          htmlFor={props.id}
+          className={cn(
+            "block text-sm font-medium mb-2 text-neutral-700 dark:text-neutral-200",
+            disabled && "opacity-50"
+          )}
+        >
+          {label}
+          {required && <span className="text-destructive ml-1">*</span>}
+        </label>
+      )}
+
+      {/* Floating Label (inside input) */}
+      {label && labelPosition === "floating" && (
         <motion.label
           htmlFor={props.id}
           className={cn(
@@ -157,7 +173,7 @@ function AppleInput({
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+          <div className="absolute inset-y-0 left-3 flex items-center text-gray-500 pointer-events-none z-10 [transform:none] [filter:none] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:[stroke-width:1.75] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
             {leftIcon}
           </div>
         )}
@@ -169,8 +185,8 @@ function AppleInput({
           data-slot="input"
           className={cn(
             appleInputVariants({ variant, inputSize, state, className }),
-            label && "pt-6 pb-2",
-            leftIcon && "pl-10",
+            label && labelPosition === "floating" && "pt-6 pb-2",
+            leftIcon && "!pl-[44px]",
             (rightIcon || showPasswordToggle || showStateIcon) && "pr-10",
             "placeholder:text-muted-foreground/50 selection:bg-primary selection:text-primary-foreground"
           )}
@@ -216,16 +232,17 @@ function AppleInput({
             <motion.button
               type="button"
               onClick={togglePasswordVisibility}
-              className="text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+              className="text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded p-1 -m-1"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               transition={springConfig}
               aria-label={showPassword ? "Hide password" : "Show password"}
+              title={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
-                <EyeOff className="w-4 h-4" />
+                <EyeOff className="w-5 h-5" />
               ) : (
-                <Eye className="w-4 h-4" />
+                <Eye className="w-5 h-5" />
               )}
             </motion.button>
           )}

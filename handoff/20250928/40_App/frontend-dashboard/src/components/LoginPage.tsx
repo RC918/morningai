@@ -236,7 +236,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900 py-8 sm:py-0">
       <motion.div
         style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}
         initial={prefersReducedMotion ? {} : { opacity: 0, x: 20 }}
@@ -256,7 +256,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
           className="text-center mb-8"
           variants={prefersReducedMotion ? undefined : itemVariants}
         >
-          <Link to="/" className="inline-block">
+          <Link to="/" className="block">
             <motion.div
               className="mx-auto w-16 h-16 mb-4"
               whileHover={prefersReducedMotion ? {} : { scale: 1.1, rotate: 5 }}
@@ -270,7 +270,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
               />
             </motion.div>
           </Link>
-          <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
+          <Link to="/" className="block hover:opacity-80 transition-opacity">
             <h1 className="text-display-3 font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
           </Link>
           <p className="text-body text-neutral-600 dark:text-neutral-300 mt-2">{t('app.tagline')}</p>
@@ -285,7 +285,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 {error && (
                   <motion.div
                     initial={prefersReducedMotion ? {} : { opacity: 0, y: -10 }}
@@ -308,23 +308,35 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   value={credentials.email}
                   onChange={handleChange}
                   leftIcon={<User className="w-4 h-4" />}
+                  labelPosition="static"
                   required
                   haptic="light"
                 />
 
-                <AppleInput
-                  id="password"
-                  name="password"
-                  type="password"
-                  label={t('auth.login.password')}
-                  placeholder={t('auth.login.passwordPlaceholder')}
-                  value={credentials.password}
-                  onChange={handleChange}
-                  leftIcon={<Lock className="w-4 h-4" />}
-                  showPasswordToggle
-                  required
-                  haptic="light"
-                />
+                <div className="space-y-2">
+                  <AppleInput
+                    id="password"
+                    name="password"
+                    type="password"
+                    label={t('auth.login.password')}
+                    placeholder={t('auth.login.passwordPlaceholder')}
+                    value={credentials.password}
+                    onChange={handleChange}
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    labelPosition="static"
+                    showPasswordToggle
+                    required
+                    haptic="light"
+                  />
+                  <div className="flex justify-end">
+                    <Link 
+                      to="/forgot-password" 
+                      className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium hover:underline"
+                    >
+                      {t('auth.login.forgotPassword', '忘記密碼？')}
+                    </Link>
+                  </div>
+                </div>
 
                 <motion.div
                   whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
