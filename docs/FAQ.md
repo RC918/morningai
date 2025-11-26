@@ -1,65 +1,77 @@
-# Validating Email Addresses with Regex in Python
+# Converting JSON to YAML Using a Python CLI Tool
 
-Validating email addresses is a common requirement in many applications, including web forms, data processing scripts, and more. In Python, this can efficiently be accomplished using Regular Expressions (regex). This FAQ provides a comprehensive guide on how to create a Python function for email validation using regex, tailored for developers working with the MorningAI platform.
+This FAQ aims to guide developers through the process of creating and using a Python Command Line Interface (CLI) tool that converts JSON files to YAML format. This task is relevant for data transformation processes, especially when working with configuration files in development projects hosted on the MorningAI platform.
 
-## Understanding Email Validation
+## Overview
 
-Email validation through regex involves matching strings against a pattern that represents the structure of a valid email address. A typical email address has a local part, an "@" symbol, followed by the domain part. The regex pattern must account for various valid characters in these parts and ensure they adhere to general email formatting rules.
+JSON (JavaScript Object Notation) and YAML (YAML Ain't Markup Language) are both widely used formats for configuration files. JSON is straightforward and easily readable by machines, while YAML offers a more human-friendly syntax. Converting between these two formats can be essential for developers working on projects that require configuration files in both formats or transitioning from one format to the other.
 
-## Code Example
+## Prerequisites
 
-Below is an example of a Python function named `validate_email` that uses regex to validate an email address. This function returns `True` if the email is valid according to the regex pattern; otherwise, it returns `False`.
+- Python 3.x installed on your system
+- Access to the command line or terminal
+- Basic knowledge of working with Python and CLI tools
 
-```python
-import re
+## Installation
 
-def validate_email(email):
-    """
-    Validates an email address using regular expression.
-    
-    Args:
-        email (str): The email address to validate.
-    
-    Returns:
-        bool: True if the email is valid, False otherwise.
-    """
-    pattern = r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)"
-    return re.match(pattern, email) is not None
+Before proceeding, ensure you have `pyyaml` installed, which is a Python library designed to handle YAML. You can install it using pip:
+
+```bash
+pip install pyyaml
 ```
 
-### How to Use
+## Step-by-Step Guide
 
-To use this function in your MorningAI project:
+### 1. Creating the CLI Tool
 
-1. Ensure you have Python installed in your environment.
-2. Include this function within your project's appropriate module. For example, it could be part of a utility module at `RC918/morningai/utils/email_validator.py`.
-3. Import and call this function wherever you need to validate an email address.
-
-Example usage:
+Create a new Python file named `json_to_yaml.py` in your project directory. This script will serve as our CLI tool.
 
 ```python
-from utils.email_validator import validate_email
+# json_to_yaml.py
+import yaml
+import json
+import argparse
 
-email = "example@test.com"
-if validate_email(email):
-    print("Email is valid.")
-else:
-    print("Email is invalid.")
+def convert_json_to_yaml(json_file, yaml_file):
+    """Converts a JSON file to YAML format."""
+    with open(json_file, 'r') as jf:
+        json_data = json.load(jf)
+    
+    with open(yaml_file, 'w') as yf:
+        yaml.dump(json_data, yf, allow_unicode=True)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Convert JSON to YAML")
+    parser.add_argument('json_file', type=str, help='Path to the input JSON file')
+    parser.add_argument('yaml_file', type=str, help='Path for the output YAML file')
+    
+    args = parser.parse_args()
+    
+    convert_json_to_yaml(args.json_file, args.yaml_file)
 ```
 
-## Related Documentation
+### 2. Using the CLI Tool
 
-For more details on regex patterns and Python's `re` module functions:
-- [Python re module](https://docs.python.org/3/library/re.html)
-- [Regular Expressions (Regex) Tutorial](https://www.regular-expressions.info/)
+To use this tool, navigate to your terminal or command line, ensure you are in the same directory as `json_to_yaml.py`, and execute the following command:
 
-## Troubleshooting Common Issues
+```bash
+python json_to_yaml.py input.json output.yaml
+```
 
-- **Pattern Mismatches**: If valid emails are being marked as invalid or vice versa, review the regex pattern for any missing or extraneous characters.
-- **Performance Issues**: Regex operations can be costly for large datasets. Consider optimizing the regex pattern or pre-validating inputs where possible.
-- **Unicode Characters**: The provided regex does not account for Unicode characters in the local part of the email address. If needed, adjust the pattern accordingly based on [RFC 6530](https://tools.ietf.org/html/rfc6530).
+Replace `input.json` with the path to your source JSON file and `output.yaml` with the desired path for the generated YAML file.
 
-Remember to test your validation logic thoroughly with a variety of email addresses to ensure accuracy and robustness.
+## Related Documentation Links
+
+- PyYAML Documentation: https://pyyaml.org/wiki/PyYAMLDocumentation
+- argparse — Parser for Command-Line Options: https://docs.python.org/3/library/argparse.html
+
+## Common Troubleshooting Tips
+
+- **ModuleNotFoundError**: Ensure you have installed the `pyyaml` library using pip.
+- **FileNotFoundError**: Verify that the path to your input JSON file is correct and accessible.
+- **SyntaxError in JSON/YAML**: Both JSON and YAML have strict syntax rules. Ensure your JSON is properly formatted before conversion and check the generated YAML for any syntax issues if it fails to be processed by other tools.
+
+Remember to commit your `json_to_yaml.py` script into the `RC918/morningai` repository under an appropriate directory structure (e.g., `/tools/json_to_yaml.py`) and reference this FAQ in your documentation (`docs/FAQ.md`) to assist other developers.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -67,7 +79,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python function that validates email addresses using regex
-- Trace ID: `phase1-stg-test-21f11db6-1aae-4476-9eed-f39a31eedb4a`
+- Task: [Phase1-Test] Generate a Python CLI tool that converts JSON to YAML format
+- Trace ID: `phase1-stg-test-4889f6d3-978d-4a98-8748-70e2edf86f58`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
