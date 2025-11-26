@@ -1,35 +1,27 @@
 # Adding Dark Mode Toggle to Settings Page
 
-## Overview
-The feature request entails adding a dark mode toggle on the settings page of MorningAI. This functionality allows users to switch between light and dark themes according to their preference. The chosen theme should persist across sessions using `localStorage`.
+Implementing a dark mode toggle on the settings page allows users to switch between light and dark themes according to their preference. This feature enhances user experience, especially in low-light environments, by reducing eye strain. The preference for dark or light mode will be stored in the browser's `localStorage` to ensure that the user's choice persists across sessions.
 
 ## Implementation Steps
 
 ### 1. Update the UI
-First, add a toggle switch to the settings page. This can be done using React and TailwindCSS for styling.
 
-**Example:**
+First, add a toggle button on the settings page. This can be done by updating the `SettingsPage.jsx` file located at `src/pages/SettingsPage.jsx`.
+
 ```jsx
-// In src/components/SettingsPage.js
-
-import { useState, useEffect } from 'react';
+import React from 'react';
 
 const SettingsPage = () => {
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return JSON.parse(localStorage.getItem('darkMode')) || false;
-  });
-
   const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    localStorage.setItem('darkMode', !isDarkMode);
+    const newMode = localStorage.getItem('darkMode') === 'true' ? 'false' : 'true';
+    localStorage.setItem('darkMode', newMode);
+    document.body.classList.toggle('dark-mode', newMode === 'true');
   };
 
   return (
-    <div className={`settings-container ${isDarkMode ? 'dark' : ''}`}>
-      <label className="switch">
-        <input type="checkbox" checked={isDarkMode} onChange={toggleDarkMode} />
-        <span className="slider round"></span>
-      </label>
+    <div>
+      <h1>Settings</h1>
+      <button onClick={toggleDarkMode}>Toggle Dark Mode</button>
     </div>
   );
 };
@@ -37,43 +29,52 @@ const SettingsPage = () => {
 export default SettingsPage;
 ```
 
-### 2. Persisting Theme Preference
-Use `localStorage` to save the user's theme preference. The example above demonstrates how to update and retrieve the theme preference using `localStorage`.
+### 2. Apply Dark Mode Styles
 
-### 3. Apply Theme Globally
-Ensure that the application respects the theme preference throughout all components. This can be achieved by updating the application's root or higher-order component to listen for changes in `localStorage`.
+Create a CSS file `dark-mode.css` in `src/assets/styles/` and include styles for the dark mode. Then, import this CSS file in your main entry file (`src/main.jsx` or similar), so it's available globally.
 
-**Example:**
-```jsx
-// In src/App.js or similar
+```css
+/* src/assets/styles/dark-mode.css */
+body.dark-mode {
+  background-color: #121212;
+  color: #e0e0e0;
+}
 
-useEffect(() => {
-  const isDarkMode = JSON.parse(localStorage.getItem('darkMode'));
-  if (isDarkMode) {
-    document.body.classList.add('dark');
-  } else {
-    document.body.classList.remove('dark');
-  }
-}, []);
+/* Add other dark mode specific styles here */
 ```
 
-### Related Documentation:
-- React State Hooks: https://reactjs.org/docs/hooks-state.html
-- TailwindCSS Documentation: https://tailwindcss.com/docs/dark-mode
-- Using Local Storage in Web Applications: https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
+### 3. Persist and Apply Preference on Load
+
+Modify the entry point of your application (`src/main.jsx`) to check `localStorage` for the user's theme preference when the app loads and apply it accordingly.
+
+```jsx
+import React from 'react';
+import ReactDOM from 'react-dom';
+import App from './App';
+import './assets/styles/dark-mode.css'; // Ensure this is imported
+
+const applyDarkModePreference = () => {
+  const prefersDarkMode = localStorage.getItem('darkMode') === 'true';
+  document.body.classList.toggle('dark-mode', prefersDarkMode);
+};
+
+applyDarkModePreference();
+
+ReactDOM.render(<App />, document.getElementById('root'));
+```
+
+### Related Documentation Links
+
+- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- localStorage Web API: [https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)
 
 ## Common Troubleshooting Tips
 
-**Issue**: Theme does not persist after reloading.
-**Solution**: Ensure that `localStorage` is correctly being read during the initial render of your application.
+- **Toggle not working**: Ensure that your toggle function correctly updates localStorage and toggles the class on the `<body>`. Check for typos in localStorage keys or class names.
+- **Preference not persisting across sessions**: Verify that you are reading and applying the stored preference when the application loads. Missing or incorrect implementation of this step could result in the preference not being applied after reloading.
+- **Styles not applied correctly**: Make sure that your CSS selectors match those used in your JavaScript code to toggle dark mode. Also, confirm that `dark-mode.css` is correctly imported into your project.
 
-**Issue**: Dark mode styles are not applied globally.
-**Solution**: Verify that global styles or class changes are correctly implemented at the root level of your application. Also, ensure that all relevant CSS selectors are properly defined for dark mode.
-
-**Issue**: Toggle state does not update immediately.
-**Solution**: Check if the state update and `localStorage` update are correctly implemented and synchronized within your toggle function.
-
-For further assistance, please refer to our community forums or submit an issue on GitHub at RC918/morningai.
+Remember, when testing changes, it may be necessary to clear your browser cache or perform a hard reload to see updates immediately.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
