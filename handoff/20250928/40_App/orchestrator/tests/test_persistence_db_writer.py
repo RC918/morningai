@@ -111,6 +111,64 @@ class TestNormalizeAndValidateUuid:
         # Verify no warning was logged
         mock_logger.warning.assert_not_called()
 
+    def test_none_input_raises_type_error(self):
+        """Test that None input raises TypeError"""
+        with pytest.raises(TypeError, match="cannot be None"):
+            normalize_and_validate_uuid(None, "test_field")
+
+    def test_non_string_input_raises_type_error(self):
+        """Test that non-string input raises TypeError"""
+        with pytest.raises(TypeError, match="must be a string"):
+            normalize_and_validate_uuid(123, "test_field")
+
+        with pytest.raises(TypeError, match="must be a string"):
+            normalize_and_validate_uuid([], "test_field")
+
+        with pytest.raises(TypeError, match="must be a string"):
+            normalize_and_validate_uuid({}, "test_field")
+
+    def test_super_long_string_with_uuid(self):
+        """Test that super-long strings with UUID are handled correctly"""
+        # Create a 10KB string with UUID embedded
+        long_prefix = "x" * 5000
+        test_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        long_suffix = "y" * 5000
+        super_long_string = f"{long_prefix}{test_uuid}{long_suffix}"
+
+        result = normalize_and_validate_uuid(super_long_string, "test_field")
+        assert result == test_uuid
+
+    def test_super_long_string_without_uuid(self):
+        """Test that super-long strings without UUID raise ValueError"""
+        # Create a 10KB string without any UUID
+        super_long_string = "z" * 10000
+
+        with pytest.raises(ValueError, match="No valid UUID found"):
+            normalize_and_validate_uuid(super_long_string, "test_field")
+
+    @patch('persistence.db_writer.logger')
+    def test_log_key_consistency(self, mock_logger):
+        """Test that log keys are consistent (snake_case)"""
+        prefixed_id = "phase1-stg-test-550e8400-e29b-41d4-a716-446655440000"
+        normalize_and_validate_uuid(prefixed_id, "task_id")
+
+        # Verify warning was logged with consistent keys
+        mock_logger.warning.assert_called_once()
+        call_args = mock_logger.warning.call_args
+
+        # Check that extra dict has consistent snake_case keys
+        extra_dict = call_args[1]['extra']
+        assert 'operation' in extra_dict
+        assert 'field_name' in extra_dict
+        assert 'original_value' in extra_dict
+        assert 'normalized_value' in extra_dict
+
+        # Verify values are correct
+        assert extra_dict['operation'] == 'uuid_normalization'
+        assert extra_dict['field_name'] == 'task_id'
+        assert extra_dict['original_value'] == prefixed_id
+        assert extra_dict['normalized_value'] == '550e8400-e29b-41d4-a716-446655440000'
+
 
 class TestFetchUserTenantId:
     """Test fetch_user_tenant_id function"""

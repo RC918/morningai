@@ -39,6 +39,7 @@ def normalize_and_validate_uuid(id_str: str, field_name: str = "id") -> str:
         Validated UUID string in canonical format
 
     Raises:
+        TypeError: If input is None or not a string
         ValueError: If no valid UUID is found in the input string
 
     Examples:
@@ -48,10 +49,16 @@ def normalize_and_validate_uuid(id_str: str, field_name: str = "id") -> str:
         >>> normalize_and_validate_uuid("phase1-stg-test-550e8400-e29b-41d4-a716-446655440000")
         "550e8400-e29b-41d4-a716-446655440000"
     """
+    # Handle None and non-string inputs
+    if id_str is None:
+        raise TypeError(f"{field_name} cannot be None")
+    if not isinstance(id_str, str):
+        raise TypeError(f"{field_name} must be a string, got {type(id_str).__name__}")
+
     # Fast path: try as-is first (most common case)
     try:
         return str(uuid.UUID(id_str))
-    except ValueError:
+    except (ValueError, AttributeError):
         pass
 
     # Search for UUID pattern in the string
@@ -69,10 +76,10 @@ def normalize_and_validate_uuid(id_str: str, field_name: str = "id") -> str:
         logger.warning(
             f"UUID normalization: {field_name} '{id_str}' -> '{validated}'",
             extra={
-                "operation": "persistence.uuid_normalization",
-                "field": field_name,
-                "original": id_str,
-                "normalized": str(validated)
+                "operation": "uuid_normalization",
+                "field_name": field_name,
+                "original_value": id_str,
+                "normalized_value": str(validated)
             }
         )
 
