@@ -5,6 +5,7 @@ RQ Worker for orchestrator tasks with graceful shutdown and heartbeat monitoring
 Environment Variables:
 - REDIS_URL: Redis connection URL (default: redis://localhost:6379/0)
 - RQ_QUEUE_NAME: Queue name to process (default: orchestrator)
+- RQ_JOB_TIMEOUT: Job timeout in seconds (default: 600)
 - SENTRY_DSN: Sentry DSN for error tracking (optional)
 - RENDER_INSTANCE_ID / HOSTNAME: Worker identifier
 
@@ -21,7 +22,7 @@ Heartbeat:
 - Key deleted on clean shutdown or expires via TTL
 
 Job Configuration:
-- ttl=600 (job timeout)
+- timeout=600 (job timeout, configurable via RQ_JOB_TIMEOUT)
 - result_ttl=86400 (result retention: 24h)
 - failure_ttl=3600 (failure retention: 1h)
 
@@ -334,7 +335,11 @@ def enqueue(steps, idempotency_key: Optional[str] = None) -> List[str]:
             sentry_sdk.capture_exception(e)
         return [f"demo-job-{i}" for i in range(len(steps))]
 
-@job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]))
+# Job timeout configuration (default: 600 seconds = 10 minutes)
+# Can be overridden via RQ_JOB_TIMEOUT environment variable
+JOB_TIMEOUT = int(os.getenv("RQ_JOB_TIMEOUT", "600"))
+
+@job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=JOB_TIMEOUT)
 def run_orchestrator_task(task_id: str, question: str, repo: str):
     """
     Execute orchestrator with retry logic (used by API for agent tasks)
