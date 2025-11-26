@@ -1,83 +1,73 @@
-# Handling Large File Uploads Resulting in 500 Error
+# Handling File Upload Size Limit Errors in MorningAI
 
-When attempting to upload files larger than 10MB to the MorningAI platform, users may encounter a 500 error. This document aims to guide developers through understanding the issue, implementing a solution, and troubleshooting common pitfalls related to large file uploads.
+When attempting to upload files larger than 10MB to the MorningAI platform, users may encounter a 500 error. This document aims to address the underlying cause of this issue, provide steps for reproducing the error, and offer solutions to resolve it.
 
-## Understanding the Issue
+## Issue Overview
 
-The application crash when uploading files larger than 10MB is typically caused by limitations set on the server or within the application code that restricts the size of files that can be uploaded. This can lead to an unhandled exception, resulting in a 500 error response.
+The application crashes with a 500 error during file uploads exceeding 10MB. This problem typically occurs due to server-side restrictions on the maximum allowable upload size.
 
-### Code Example: Setting File Size Limit in Flask
+### Steps to Reproduce
 
-In a Flask application, such as MorningAI, file size limits are often enforced using the `MAX_CONTENT_LENGTH` configuration:
+1. Navigate to the file upload page.
+2. Select a file larger than 10MB.
+3. Click the "Upload" button.
+
+**Expected Result:** The file uploads successfully, and the user receives a success message.
+
+**Actual Result:** The application returns a 500 error.
+
+## Resolution
+
+### Adjusting File Size Limit in Flask
+
+Since MorningAI's backend is powered by Flask, you need to configure the Flask application to accept larger file sizes. By default, Flask restricts incoming request data sizes for security reasons.
+
+To change this limit:
+
+1. Locate your Flask application configuration file. Typically, this can be found in `app.py` or within a settings module depending on your project's structure.
+2. Add or modify the `MAX_CONTENT_LENGTH` configuration key. For example, to allow files up to 20MB, you would add:
 
 ```python
-# Inside your config.py or similar configuration file
-MAX_CONTENT_LENGTH = 10 * 1024 * 1024 # 10MB limit
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024 # 20MB limit
 ```
 
-This setting will automatically reject uploads that exceed the specified size, but it must be properly handled to provide a user-friendly error message rather than a generic server error.
+### Updating Nginx Configuration (If Applicable)
 
-## Implementing a Solution
+If your deployment uses Nginx as a reverse proxy or web server, you will also need to adjust its configuration:
 
-To address this issue and allow for larger file uploads, you can increase the `MAX_CONTENT_LENGTH` setting in your Flask application. Additionally, ensure your frontend and any intermediary services (like NGINX or Apache) are configured to support the increased size limit.
+1. Open your Nginx configuration file for the site (commonly located in `/etc/nginx/sites-available/your_site_name`).
+2. Add or modify the `client_max_body_size` directive within the server block:
 
-### Increasing File Size Limit
+```nginx
+server {
+    ...
+    client_max_body_size 20M;
+}
+```
 
-1. **Backend Configuration** (Flask):
+3. Reload Nginx to apply the changes:
 
-    Update `MAX_CONTENT_LENGTH` in your Flask app configuration:
+```bash
+sudo systemctl reload nginx
+```
 
-    ```python
-    # Increase limit to 50MB
-    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-    ```
+### Adjustments for Render.com Deployment
 
-2. **Frontend Notification**:
+For deployments on Render.com, ensure that any proxy or service limit configurations are also adjusted accordingly through their dashboard or service settings.
 
-    Inform users of the file size limit through the UI:
+## Troubleshooting Tips
 
-    ```javascript
-    // Before initiating upload, check file size (example in JavaScript)
-    if(file.size > (50 * 1024 * 1024)) { // Check against 50MB
-        alert('File size exceeds limit of 50MB.');
-        return;
-    }
-    ```
+- **Verify Configuration Changes:** After making changes, verify that they are correctly applied by restarting your application and/or web server.
+- **Check Error Logs:** Review both Flask and web server (e.g., Nginx) error logs for more detailed information about the error.
+- **Test with Different File Sizes:** To isolate the issue, try uploading files of varying sizes just below and above the limit you've set.
 
-3. **Web Server Configuration**:
+## Related Documentation Links
 
-    - For **NGINX**, adjust `client_max_body_size` in your config:
-    
-        ```
-        server {
-            ...
-            client_max_body_size 50M;
-        }
-        ```
+- [Flask Documentation on Request Data](https://flask.palletsprojects.com/en/2.0.x/patterns/fileuploads/)
+- [Nginx Client Max Body Size](http://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size)
+- [Render.com Documentation](https://render.com/docs)
 
-    - For **Apache**, modify `LimitRequestBody` directive:
-    
-        ```
-        <Directory "/var/www/html">
-            ...
-            LimitRequestBody 52428800
-        </Directory>
-        ```
-
-### Related Documentation Links
-
-- Flask Documentation on Request Data: [Flask Request Data](https://flask.palletsprojects.com/en/2.0.x/patterns/fileuploads/)
-- NGINX Client Max Body Size: [NGINX Module ngx_http_core_module](http://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size)
-- Apache Core Features: [Apache LimitRequestBody](https://httpd.apache.org/docs/2.4/mod/core.html#limitrequestbody)
-
-## Common Troubleshooting Tips
-
-1. **Verify Configuration Changes**: Ensure that all configuration changes have been correctly applied and that services have been restarted afterward.
-2. **Check Application Logs**: Review backend logs for errors related to file handling or middleware that might be rejecting large requests.
-3. **Browser Network Tab**: Use browser developer tools to inspect the request payload and response codes for additional insights.
-4. **File Type Restrictions**: Aside from size, ensure there are no restrictions on file types that might also cause upload failures.
-
-By following these guidelines and adjusting configurations as needed, developers should be able to mitigate issues related to uploading large files on MorningAI and enhance overall user experience.
+By following these guidelines and adjusting your configuration appropriately, you should be able to resolve issues related to uploading large files in MorningAI.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
