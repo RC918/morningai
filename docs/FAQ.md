@@ -1,72 +1,61 @@
-# Creating a Python Decorator for Logging Function Execution Time
+# Handling Large File Upload Errors in MorningAI
 
-In the development of MorningAI, monitoring and improving performance is crucial. A Python decorator can be used to log the execution time of functions, aiding in identifying bottlenecks and optimizing code efficiency. This FAQ provides a detailed guide on creating and using such a decorator within the MorningAI platform.
+When attempting to upload files larger than 10MB, users may encounter a `500 Internal Server Error`. This error can disrupt the user experience and hinder the functionality of MorningAI's autonomous agent system for code generation, among other features. Below, we provide a detailed explanation of the issue, steps to reproduce it, and guidance for resolution.
 
-## Understanding Decorators
+## Steps to Reproduce the Error
+1. Navigate to the file upload page within the MorningAI platform.
+2. Select a file larger than 10MB.
+3. Click the "Upload" button.
 
-A decorator in Python is essentially a function that wraps another function or method. It allows us to add functionality to an existing function by modifying its behavior without changing its code. For logging execution time, the decorator will measure the time taken by the function it decorates to execute and log this duration.
+**Expected Outcome:** The file uploads successfully, and the user receives a success message.
 
-## Code Example
+**Actual Outcome:** The application crashes and returns a `500 Internal Server Error`.
 
-Below is an example of a simple execution time logging decorator:
+## Understanding the Issue
 
-```python
-import time
-import functools
+The error is typically caused by server-side limitations on request size or timeouts that are exceeded when uploading large files. MorningAI's backend is built using Python and Flask, which by default have certain constraints on incoming request payloads.
 
-def log_execution_time(func):
-    """Decorator that logs the execution time of the function."""
-    
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        print(f"{func.__name__!r} executed in {(end_time - start_time):.4f}s")
-        return result
-    
-    return wrapper
-```
+### Code Example: Flask Request Size Limit Configuration
 
-To use this decorator, simply prepend `@log_execution_time` before any function definition you wish to monitor. Here's how you can apply it:
+In your Flask application setup (usually found in `app.py` or `server.py`), you might encounter or need to set configurations related to request sizes as follows:
 
 ```python
-@log_execution_time
-def sample_function(param):
-    # Function logic here
-    pass
+from flask import Flask
+
+app = Flask(__name__)
+# Set max content length for file uploads (in bytes)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # For 10 MB limit
 ```
 
-### Related Documentation Links
+This snippet sets a limit on the maximum request body size that Flask will accept, effectively capping file uploads at 10MB unless adjusted.
 
-- [Decorators in Python](https://docs.python.org/3/glossary.html#term-decorator)
-- [The functools module](https://docs.python.org/3/library/functools.html)
+## Resolution Steps
 
-## Integration with MorningAI
+To address this issue, you have several options:
 
-To integrate this decorator into MorningAI's codebase:
-1. Place the `log_execution_time` definition in a common utilities module, such as `utils/decorators.py`.
-2. Import this decorator in any Python file where you wish to log function execution times.
-3. Prepend `@log_execution_time` to critical functions where performance monitoring is required.
+1. **Increase Flask's `MAX_CONTENT_LENGTH`:** Adjust this setting in your Flask app configuration to allow larger files. Consider the implications on memory usage and transfer times.
 
-Example file path for integration:
-- Add the decorator code in: `RC918/morningai/utils/decorators.py`
-- Use it in various parts of the application like so:
-  ```python
-  from utils.decorators import log_execution_time
-  
-  @log_execution_time
-  def some_critical_function():
-      pass
-  ```
+    ```python
+    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Example for 50 MB limit
+    ```
 
-## Common Troubleshooting Tips
+2. **Client-Side File Splitting:** Implement logic in your frontend to split large files into smaller chunks before uploading. This requires additional handling on the server side to reassemble these chunks.
 
-- **Decorator Not Working**: Ensure you have imported the decorator correctly and placed `@log_execution_time` above your function definitions without any syntax errors.
-- **Incorrect Execution Time**: Make sure there's no I/O operation or external call affecting the function's execution time unpredictably.
-- **Performance Overhead**: While decorators are generally lightweight, excessive logging might introduce overhead. Use selectively on critical paths only.
+3. **Use a Dedicated File Upload Service:** Offload large file handling to services designed for this purpose, integrating them with MorningAI via API calls.
 
-This approach aids in maintaining optimal performance within MorningAI's operations by allowing developers to easily identify and address potential inefficiencies.
+## Troubleshooting Tips
+
+- **Check Server Logs:** Review your server logs for specific error messages related to failed uploads.
+- **Browser Limitations:** Some browsers may have their own limitations or behaviors related to large file uploads; ensure compatibility across different environments.
+- **Network Issues:** Ensure that network timeouts or interruptions are not causing the issue, particularly with very large files or slow connections.
+
+## Related Documentation Links
+
+- [Flask Documentation: Configuring Applications](https://flask.palletsprojects.com/en/2.0.x/config/)
+- [Python Requests: Streaming Uploads](https://requests.readthedocs.io/en/latest/user/advanced/#streaming-uploads)
+- [Supabase Storage](https://supabase.io/docs/guides/storage)
+
+For more detailed information about configuring and managing your MorningAI environment, please refer to our documentation in the `docs/` directory of the RC918/morningai repository.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +63,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python decorator that logs function execution time
-- Trace ID: `phase1-stg-test-e9ea1e18-9c0e-4bea-8a5a-187ab87f68ab`
+- Task: [Phase1-Test] Bug Report: Application crashes when uploading files > 10MB. Steps to reproduce: 1) Navigate to upload page 2) Select large file 3) Click upload. Expected: Success message. Actual: 500 error
+- Trace ID: `phase1-stg-test-7b8c2fd2-a5e8-42dc-a883-6adc3c1d28ab`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
