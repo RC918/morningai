@@ -258,13 +258,17 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
           variants={prefersReducedMotion ? undefined : itemVariants}
         >
           <Link to="/" className="inline-flex items-center justify-center gap-3 hover:opacity-80 transition-opacity">
-            <motion.img 
-              src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
-              alt="Morning AI" 
-              className="w-10 h-10 rounded-xl"
+            <motion.div
+              className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0"
               whileHover={prefersReducedMotion ? {} : { scale: 1.1, rotate: 5 }}
               transition={{ duration: 0.3 }}
-            />
+            >
+              <img 
+                src="/assets/brand/icon-only/MorningAI_icon_1024.png" 
+                alt="Morning AI" 
+                className="w-full h-full"
+              />
+            </motion.div>
             <h1 className="text-display-3 font-bold text-neutral-900 dark:text-white leading-none">{t('app.name')}</h1>
           </Link>
           <p className="text-body text-neutral-600 dark:text-neutral-300 mt-4">{t('app.tagline')}</p>
