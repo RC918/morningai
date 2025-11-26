@@ -1,7 +1,7 @@
 {
-  "generated_at": "2025-11-26T07:32:44.644Z",
+  "generated_at": "2025-11-26T11:07:41.871Z",
   "repo": "RC918/morningai",
-  "total_prs": 27,
+  "total_prs": 19,
   "thresholds": {
     "i18n": {
       "target": 95,
@@ -27,6 +27,153 @@
   },
   "metrics": [
     {
+      "pr": 1593,
+      "title": "docs: Update documentation with recent PRs (Nov 25-26) and paths alignment",
+      "merged_at": "2025-11-26T11:04:20Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1593",
+      "sha": "72e87e3ce3e6c2b9fcff9b303423b5a2a9af86b2",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1605,
+      "title": "docs: Update FAQ (trace-id: phase1-s)",
+      "merged_at": "2025-11-26T11:01:09Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1605",
+      "sha": "06cd749e466b0e2971cc6b699b1bad5279665665",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1603,
+      "title": "docs: Update FAQ (trace-id: phase1-s)",
+      "merged_at": "2025-11-26T10:50:28Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1603",
+      "sha": "8229b03eb4180d004493629a20b3915154057d84",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1599,
+      "title": "docs: Update FAQ (trace-id: phase1-s)",
+      "merged_at": "2025-11-26T10:45:16Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1599",
+      "sha": "d28f981f42beedcfca155a3e53ad0d847b5396d7",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1595,
+      "title": "docs: Update FAQ (trace-id: phase1-s)",
+      "merged_at": "2025-11-26T10:42:48Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1595",
+      "sha": "d0074b139ce6411599093271ade7c7075dfe0816",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1592,
+      "title": "fix: Add UUID normalization to handle prefixed task IDs from external tools",
+      "merged_at": "2025-11-26T10:37:07Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1592",
+      "sha": "2532e98436c1623aaaaf1332dc0ed8b303276f54",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56436353966
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
       "pr": 1548,
       "title": "perf(frontend-dashboard): Optimize code splitting and fix Lighthouse CI audits (20% bundle reduction + color-contrast fix)",
       "merged_at": "2025-11-26T07:31:23Z",
@@ -47,9 +194,12 @@
             "critical": 0,
             "serious": 0,
             "passed": true,
-            "comment_id": 3579251256
+            "comment_id": 3579844170
           },
-          "motion": null,
+          "motion": {
+            "status": "available",
+            "check_run_id": 56421053446
+          },
           "vrt": null
         },
         "owner-console": {
@@ -65,9 +215,12 @@
             "critical": 0,
             "serious": 0,
             "passed": true,
-            "comment_id": 3579252378
+            "comment_id": 3579843857
           },
-          "motion": null,
+          "motion": {
+            "status": "available",
+            "check_run_id": 56421053448
+          },
           "vrt": null
         }
       },
@@ -76,6 +229,58 @@
         "fcp": 770,
         "lcp": 1610,
         "comment_url": "https://github.com/RC918/morningai/pull/1548#issuecomment-3578931733"
+      }
+    },
+    {
+      "pr": 1568,
+      "title": "chore: Update UX metrics",
+      "merged_at": "2025-11-26T07:32:51Z",
+      "author": "github-actions[bot]",
+      "url": "https://github.com/RC918/morningai/pull/1568",
+      "sha": "dd56fc1a855632aa3ce75a225259d164fff179ac",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": {
+            "status": "parsed",
+            "value": 100,
+            "unit": "%",
+            "passed": true,
+            "comment_id": 3579699301
+          },
+          "a11y": {
+            "status": "parsed",
+            "critical": 0,
+            "serious": 0,
+            "passed": true,
+            "comment_id": 3579706511
+          },
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": {
+            "status": "parsed",
+            "value": 100,
+            "unit": "%",
+            "passed": true,
+            "comment_id": 3579739954
+          },
+          "a11y": {
+            "status": "parsed",
+            "critical": 0,
+            "serious": 0,
+            "passed": true,
+            "comment_id": 3579758322
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": {
+        "fcp": 720,
+        "lcp": 1610,
+        "comment_url": "https://github.com/RC918/morningai/pull/1568#issuecomment-3579733015"
       }
     },
     {
@@ -372,560 +577,27 @@
       },
       "bundleSize": null,
       "lighthouse": null
-    },
-    {
-      "pr": 1557,
-      "title": "docs: Update FAQ (trace-id: phase1-s)",
-      "merged_at": "2025-11-26T04:36:22Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1557",
-      "sha": "30f61e8bbd15f628fd27014bc357bd06e626870a",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1553,
-      "title": "docs: Update FAQ (trace-id: phase1-s)",
-      "merged_at": "2025-11-26T04:32:31Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1553",
-      "sha": "9ac4ffef7fc388fb6b5b4aeab3eaa1addc38751f",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1549,
-      "title": "docs: Update FAQ (trace-id: phase1-s)",
-      "merged_at": "2025-11-26T04:30:05Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1549",
-      "sha": "05cefb7e0a23c4aebc52f3250f4bb99b6fc7f4d8",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1547,
-      "title": "feat(shared-ui): Migrate AppleButton to shared-ui with adapter pattern",
-      "merged_at": "2025-11-26T03:50:26Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1547",
-      "sha": "4d5dfbdb516475dc1c4023391e1ff0e1b73e4d85",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3578857272
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3578859683
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56409420926
-          },
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3578858133
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3578859979
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56409420920
-          },
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": {
-        "fcp": 720,
-        "lcp": 1610,
-        "comment_url": "https://github.com/RC918/morningai/pull/1547#issuecomment-3577186917"
-      }
-    },
-    {
-      "pr": 1546,
-      "title": "feat(ui): Complete Phase 2 - Emotional colors, AppleButton alignment, Spring animations",
-      "merged_at": "2025-11-25T19:06:18Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1546",
-      "sha": "031c9c7fb16b2ec876f2987710930c63e714efcd",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3577004616
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3577005224
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56375099840
-          },
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3577000663
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3577004790
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56375099903
-          },
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": {
-        "fcp": 720,
-        "lcp": 1570,
-        "comment_url": "https://github.com/RC918/morningai/pull/1546#issuecomment-3576966848"
-      }
-    },
-    {
-      "pr": 1545,
-      "title": "feat(ui): Reintroduce P1 emotional colors + Fix AgentExecutionLogs Apple design",
-      "merged_at": "2025-11-25T17:43:40Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1545",
-      "sha": "ad95a8a32ebe35b9da33d3bc238a3f7790fdd23d",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3576647415
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3576650651
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56367387824
-          },
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3576647098
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3576650719
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56367387842
-          },
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": {
-        "fcp": 720,
-        "lcp": 1570,
-        "comment_url": "https://github.com/RC918/morningai/pull/1545#issuecomment-3576453954"
-      }
-    },
-    {
-      "pr": 1544,
-      "title": "fix(ui): Apply Apple design system globally - Fix UI/UX issues",
-      "merged_at": "2025-11-25T16:07:16Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1544",
-      "sha": "acc362ad17d542912970b55ed6530fc460e3939d",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3576281927
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3576287795
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56357483688
-          },
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3576281923
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3576287301
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56357483703
-          },
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": {
-        "fcp": 720,
-        "lcp": 1610,
-        "comment_url": "https://github.com/RC918/morningai/pull/1544#issuecomment-3576290379"
-      }
-    },
-    {
-      "pr": 1543,
-      "title": "feat(ui): Implement P0 + P1 Apple Design System (fonts, colors, glassmorphism, animations)",
-      "merged_at": "2025-11-25T14:51:33Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1543",
-      "sha": "0d29ffcf1aab6acfe243164c554dc7dd9f1eb01e",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3575371511
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3575377118
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56348991143
-          },
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3575370674
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3575376498
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56348991139
-          },
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": {
-        "fcp": 720,
-        "lcp": 1570,
-        "comment_url": "https://github.com/RC918/morningai/pull/1543#issuecomment-3573922529"
-      }
-    },
-    {
-      "pr": 1525,
-      "title": "test: P2 improvements - Expand security validation and real-world test coverage",
-      "merged_at": "2025-11-25T12:06:07Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1525",
-      "sha": "cb4114b2e60d64b03ee66a1b3aef4a403e19491d",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": {
-            "status": "available",
-            "check_run_id": 56332627152
-          },
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1542,
-      "title": "docs: Update FAQ (trace-id: dd85a361)",
-      "merged_at": "2025-11-24T14:06:37Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1542",
-      "sha": "4e96f8535f673ff480ee655d930c46e90f9cce47",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1537,
-      "title": "docs: Update FAQ (trace-id: dd85a361)",
-      "merged_at": "2025-11-24T14:03:38Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1537",
-      "sha": "eaab33d3f0416389ee6ae318fbdb0352ce69d1e2",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1535,
-      "title": "docs: Update FAQ (trace-id: canary-t)",
-      "merged_at": "2025-11-24T11:11:30Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1535",
-      "sha": "d66e40588f02acb0f3858adc8311c378b19f5a75",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1534,
-      "title": "docs: Update FAQ (trace-id: canary-t)",
-      "merged_at": "2025-11-24T11:09:25Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1534",
-      "sha": "223851c26c31b83a166684e6ea5174887bcdbae5",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1533,
-      "title": "docs: Update FAQ (trace-id: canary-t)",
-      "merged_at": "2025-11-24T11:08:45Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1533",
-      "sha": "593dadf4b68a108b71c3bf863e025c06ad5ad4e6",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1536,
-      "title": "docs: Update FAQ (trace-id: canary-t)",
-      "merged_at": "2025-11-24T11:09:36Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1536",
-      "sha": "f930a89dbd18018322fb1dd150e47a4fa03b7917",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
     }
   ],
   "summary": {
     "apps": {
       "frontend-dashboard": {
-        "total_prs": 27,
+        "total_prs": 19,
         "i18n": {
-          "available": 7,
-          "parsed": 7,
+          "available": 3,
+          "parsed": 3,
           "avg_coverage": 100,
           "pass_rate": 100
         },
         "a11y": {
-          "available": 7,
-          "parsed": 7,
+          "available": 3,
+          "parsed": 3,
           "avg_critical": 0,
           "avg_serious": 0,
           "pass_rate": 100
         },
         "motion": {
-          "available": 5,
+          "available": 1,
           "parsed": 0,
           "avg_p95": null,
           "pass_rate": null
@@ -938,22 +610,22 @@
         }
       },
       "owner-console": {
-        "total_prs": 27,
+        "total_prs": 19,
         "i18n": {
-          "available": 7,
-          "parsed": 7,
+          "available": 3,
+          "parsed": 3,
           "avg_coverage": 100,
           "pass_rate": 100
         },
         "a11y": {
-          "available": 9,
-          "parsed": 7,
+          "available": 5,
+          "parsed": 3,
           "avg_critical": 0,
           "avg_serious": 0,
           "pass_rate": 100
         },
         "motion": {
-          "available": 5,
+          "available": 1,
           "parsed": 0,
           "avg_p95": null,
           "pass_rate": null
@@ -970,41 +642,6 @@
       "frontend-dashboard": {
         "i18n": [
           {
-            "pr": 1526,
-            "value": 100,
-            "passed": true
-          },
-          {
-            "pr": 1562,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1569,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1570,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1573,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1576,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1578,
-            "value": null,
-            "passed": null
-          },
-          {
             "pr": 1582,
             "value": null,
             "passed": null
@@ -1015,55 +652,48 @@
             "passed": null
           },
           {
+            "pr": 1568,
+            "value": 100,
+            "passed": true
+          },
+          {
             "pr": 1548,
             "value": 100,
             "passed": true
+          },
+          {
+            "pr": 1592,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1595,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1599,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1603,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1605,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1593,
+            "value": null,
+            "passed": null
           }
         ],
         "a11y": [
           {
-            "pr": 1526,
-            "critical": null,
-            "serious": null,
-            "passed": true
-          },
-          {
-            "pr": 1562,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1569,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1570,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1573,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1576,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1578,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
             "pr": 1582,
             "critical": null,
             "serious": null,
@@ -1076,49 +706,56 @@
             "passed": null
           },
           {
+            "pr": 1568,
+            "critical": null,
+            "serious": null,
+            "passed": true
+          },
+          {
             "pr": 1548,
             "critical": null,
             "serious": null,
             "passed": true
+          },
+          {
+            "pr": 1592,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1595,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1599,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1603,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1605,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1593,
+            "critical": null,
+            "serious": null,
+            "passed": null
           }
         ],
         "motion": [
           {
-            "pr": 1526,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1562,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1569,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1570,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1573,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1576,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1578,
-            "value": null,
-            "passed": null
-          },
-          {
             "pr": 1582,
             "value": null,
             "passed": null
@@ -1129,48 +766,48 @@
             "passed": null
           },
           {
+            "pr": 1568,
+            "value": null,
+            "passed": null
+          },
+          {
             "pr": 1548,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1592,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1595,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1599,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1603,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1605,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1593,
             "value": null,
             "passed": null
           }
         ],
         "vrt": [
           {
-            "pr": 1526,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1562,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1569,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1570,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1573,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1576,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1578,
-            "value": null,
-            "passed": null
-          },
-          {
             "pr": 1582,
             "value": null,
             "passed": null
@@ -1181,7 +818,42 @@
             "passed": null
           },
           {
+            "pr": 1568,
+            "value": null,
+            "passed": null
+          },
+          {
             "pr": 1548,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1592,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1595,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1599,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1603,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1605,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1593,
             "value": null,
             "passed": null
           }
@@ -1190,41 +862,6 @@
       "owner-console": {
         "i18n": [
           {
-            "pr": 1526,
-            "value": 100,
-            "passed": true
-          },
-          {
-            "pr": 1562,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1569,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1570,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1573,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1576,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1578,
-            "value": null,
-            "passed": null
-          },
-          {
             "pr": 1582,
             "value": null,
             "passed": null
@@ -1235,55 +872,48 @@
             "passed": null
           },
           {
+            "pr": 1568,
+            "value": 100,
+            "passed": true
+          },
+          {
             "pr": 1548,
             "value": 100,
             "passed": true
+          },
+          {
+            "pr": 1592,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1595,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1599,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1603,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1605,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1593,
+            "value": null,
+            "passed": null
           }
         ],
         "a11y": [
           {
-            "pr": 1526,
-            "critical": null,
-            "serious": null,
-            "passed": true
-          },
-          {
-            "pr": 1562,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1569,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1570,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1573,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1576,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1578,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
             "pr": 1582,
             "critical": null,
             "serious": null,
@@ -1296,49 +926,56 @@
             "passed": null
           },
           {
+            "pr": 1568,
+            "critical": null,
+            "serious": null,
+            "passed": true
+          },
+          {
             "pr": 1548,
             "critical": null,
             "serious": null,
             "passed": true
+          },
+          {
+            "pr": 1592,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1595,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1599,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1603,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1605,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1593,
+            "critical": null,
+            "serious": null,
+            "passed": null
           }
         ],
         "motion": [
           {
-            "pr": 1526,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1562,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1569,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1570,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1573,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1576,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1578,
-            "value": null,
-            "passed": null
-          },
-          {
             "pr": 1582,
             "value": null,
             "passed": null
@@ -1349,48 +986,48 @@
             "passed": null
           },
           {
+            "pr": 1568,
+            "value": null,
+            "passed": null
+          },
+          {
             "pr": 1548,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1592,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1595,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1599,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1603,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1605,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1593,
             "value": null,
             "passed": null
           }
         ],
         "vrt": [
           {
-            "pr": 1526,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1562,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1569,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1570,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1573,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1576,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1578,
-            "value": null,
-            "passed": null
-          },
-          {
             "pr": 1582,
             "value": null,
             "passed": null
@@ -1401,48 +1038,48 @@
             "passed": null
           },
           {
+            "pr": 1568,
+            "value": null,
+            "passed": null
+          },
+          {
             "pr": 1548,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1592,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1595,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1599,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1603,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1605,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1593,
             "value": null,
             "passed": null
           }
         ]
       },
       "lighthouse": [
-        {
-          "pr": 1526,
-          "fcp": 720,
-          "lcp": 1610
-        },
-        {
-          "pr": 1562,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1569,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1570,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1573,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1576,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1578,
-          "fcp": null,
-          "lcp": null
-        },
         {
           "pr": 1582,
           "fcp": null,
@@ -1454,16 +1091,51 @@
           "lcp": null
         },
         {
+          "pr": 1568,
+          "fcp": 720,
+          "lcp": 1610
+        },
+        {
           "pr": 1548,
           "fcp": 770,
           "lcp": 1610
+        },
+        {
+          "pr": 1592,
+          "fcp": null,
+          "lcp": null
+        },
+        {
+          "pr": 1595,
+          "fcp": null,
+          "lcp": null
+        },
+        {
+          "pr": 1599,
+          "fcp": null,
+          "lcp": null
+        },
+        {
+          "pr": 1603,
+          "fcp": null,
+          "lcp": null
+        },
+        {
+          "pr": 1605,
+          "fcp": null,
+          "lcp": null
+        },
+        {
+          "pr": 1593,
+          "fcp": null,
+          "lcp": null
         }
       ]
     },
     "lighthouse": {
-      "total_prs": 7,
-      "fcp_avg": 727.1428571428571,
-      "lcp_avg": 1592.857142857143,
+      "total_prs": 3,
+      "fcp_avg": 736.6666666666666,
+      "lcp_avg": 1610,
       "fcp_pass_rate": 100,
       "lcp_pass_rate": 100
     }
