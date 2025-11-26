@@ -1,56 +1,76 @@
-# Validating Email Addresses with Regex in Python
+# Converting JSON to YAML with a Python CLI Tool
 
-Validating email addresses is a common task in web development, ensuring that user input conforms to a standard email format before processing or storing it. In Python, this can be achieved using the `re` module, which provides support for regular expressions. This FAQ entry will guide you through creating a Python function to validate email addresses using regex, suitable for integration with MorningAI's autonomous agent system or any other part of your application requiring email validation.
+This FAQ entry is aimed at guiding developers through the process of creating a Python Command-Line Interface (CLI) tool that converts JSON files to YAML format. This functionality can be particularly useful for developers working with MorningAI, allowing for easy conversion between these two commonly used data serialization formats.
 
-## Explanation
+## Overview
 
-An email address has a standard format: it typically includes characters before and after an "@" symbol, with domain parts separated by dots. A regex (regular expression) pattern can be used to match this structure. The Python `re` module allows us to define such patterns and search strings for matches.
+The Python programming language, with its rich ecosystem of libraries, provides a straightforward approach to developing such a CLI tool. For this task, we'll primarily use the `json` module for parsing JSON files and the `PyYAML` library for generating YAML output.
 
-### Code Example
+### Prerequisites
 
-Here's a basic example of a Python function that uses regex to validate an email address:
+- Python installed on your system
+- Basic knowledge of working with Python scripts
+- Installation of PyYAML library
 
-```python
-import re
+To install PyYAML, run the following command:
 
-def validate_email(email):
-    # Define the regex pattern for validating an email
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    
-    # Use re.match() to check if the pattern matches the email
-    if re.match(pattern, email):
-        return True
-    else:
-        return False
+```bash
+pip install PyYAML
 ```
 
-In this example, `re.match()` checks if the entire string matches the regex pattern defined for a valid email address:
+## Code Example
 
-- Begins with letters (both cases), digits, dots, underscores, percent signs, plus signs, or hyphens.
-- Followed by an "@" symbol.
-- Then more letters (both cases), digits, dots, or hyphens.
-- Ends with a dot followed by two or more letters (the top-level domain).
+Below is a simple Python script that reads a JSON file, converts its content to YAML format, and prints the output. This script can be enhanced to accept file paths via CLI arguments and write the output to a file instead of standard output.
 
-### Related Documentation
+```python
+import json
+import yaml
+import sys
 
-For further details on using regular expressions in Python:
-- Python's `re` module: [https://docs.python.org/3/library/re.html](https://docs.python.org/3/library/re.html)
-- Regular expression syntax: [https://docs.python.org/3/howto/regex.html#regex-howto](https://docs.python.org/3/howto/regex.html#regex-howto)
+def json_to_yaml(json_file_path):
+    try:
+        # Load JSON content
+        with open(json_file_path, 'r') as json_file:
+            json_content = json.load(json_file)
 
-### Common Troubleshooting Tips
+        # Convert JSON to YAML
+        yaml_content = yaml.dump(json_content, sort_keys=False)
+        
+        return yaml_content
+        
+    except Exception as e:
+        sys.exit(f"Error converting JSON to YAML: {e}")
 
-1. **Pattern Not Matching**: Ensure your regex pattern covers all valid email formats you expect. Regex patterns are case-sensitive by default. Use `re.IGNORECASE` flag if you want a case-insensitive match.
-2. **Special Characters**: Email standards allow for some special characters that might not be covered by a basic regex pattern. If necessary, update your pattern to include these.
-3. **Performance Issues**: Regex matching can be slow for complex patterns or large datasets. Consider pre-compiling your regex pattern with `re.compile()` if you're validating emails in bulk.
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python json_to_yaml.py <path_to_json_file>")
+        sys.exit(1)
 
-To integrate this function into MorningAI's codebase:
-1. Clone the repository (`RC918/morningai`) and navigate to your local copy.
-2. Create or edit relevant Python modules under the appropriate directories (e.g., `src/validation`).
-3. Add your function and ensure it's imported where needed.
-4. Write unit tests to verify its functionality within `tests/validation`.
-5. Commit your changes with a meaningful message and push them to the repository.
+    json_file_path = sys.argv[1]
+    print(json_to_yaml(json_file_path))
+```
 
-For more detailed information on contributing to MorningAI, refer to our contribution guidelines in the repository documentation.
+Save this script as `json_to_yaml.py` in your project directory.
+
+### Usage
+
+To use this tool, execute it from the command line by passing the path to your JSON file as an argument:
+
+```bash
+python json_to_yaml.py path/to/your/file.json
+```
+
+## Related Documentation Links
+
+- PyYAML Documentation: https://pyyaml.org/wiki/PyYAMLDocumentation
+- Python `json` module: https://docs.python.org/3/library/json.html
+
+## Troubleshooting Tips
+
+- **PyYAML Installation Issues**: Ensure you have pip installed and your Python environment set up correctly. If you're using virtual environments (which is recommended), make sure PyYAML is installed within the same environment as where you're running your script.
+- **JSON File Not Found**: Verify that the path to your JSON file is correct. Relative and absolute paths should work, but it's easy to make typos or misunderstand your current working directory.
+- **Syntax Errors in JSON File**: The `json` module will raise an exception if your JSON file is not properly formatted. Use online validators or IDE plugins to check and fix syntax errors in your JSON files.
+- **Encoding Issues**: If you encounter encoding errors while reading the JSON file, specify the encoding parameter in the `open()` function call, like `open(json_file_path, 'r', encoding='utf-8')`.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -58,7 +78,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python function that validates email addresses using regex
-- Trace ID: `phase1-stg-test-5875d15e-a9f0-4907-9955-53b468a98ab9`
+- Task: [Phase1-Test] Generate a Python CLI tool that converts JSON to YAML format
+- Trace ID: `phase1-stg-test-c3afa545-abe9-4318-9d96-9ce757faa8c4`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
