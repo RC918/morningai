@@ -397,7 +397,7 @@ All deployments send errors and performance data to Sentry:
 - **PR #1562**: RQ Job Timeout 配置 - 新增 `RQ_JOB_TIMEOUT` 環境變數
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
 - **PR #1547**: AppleButton 遷移到 shared-ui - Adapter pattern 實作
-  - Path: `handoff/20250928/40_App/packages/shared-ui/`
+  - Path: `packages/shared-ui/`
 - **PR #1546**: Phase 2 UI 完成 - 情感顏色、AppleButton 對齊、Spring 動畫
 - **PR #1545**: P1 情感顏色 + AgentExecutionLogs Apple 設計
 - **PR #1544**: Apple 設計系統全局應用

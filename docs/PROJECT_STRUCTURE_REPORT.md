@@ -19,7 +19,7 @@
 - **PR #1562** (Merged): RQ Job Timeout Configuration - Added `RQ_JOB_TIMEOUT` environment variable
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
 - **PR #1547** (Merged): AppleButton Migration to shared-ui - Adapter pattern implementation
-  - Path: `handoff/20250928/40_App/packages/shared-ui/`
+  - Path: `packages/shared-ui/`
 - **PR #1546** (Merged): Phase 2 UI Completion - Emotional colors, AppleButton alignment, Spring animations
   - Path: `handoff/20250928/40_App/frontend-dashboard/src/`
 - **PR #1545** (Merged): P1 Emotional Colors + AgentExecutionLogs Apple Design

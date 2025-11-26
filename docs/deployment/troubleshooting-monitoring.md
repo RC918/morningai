@@ -420,7 +420,7 @@ For additional support:
 - **Impact**: Configurable job timeout for long-running tasks (default: 3600s)
 
 ### PR #1547: AppleButton Migration to shared-ui
-- **Path**: `handoff/20250928/40_App/packages/shared-ui/`
+- **Path**: `packages/shared-ui/`
 - **Change**: Adapter pattern implementation
 - **Impact**: Unified component library across frontend-dashboard and owner-console
 
@@ -435,7 +435,7 @@ For additional support:
 - **Impact**: Improved compatibility with external task submission tools
 
 ### LoginPage UX Improvements
-- **Path**: `handoff/20250928/40_App/frontend-dashboard/src/pages/LoginPage.tsx`
+- **Path**: `handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx`
 - **Change**: Comprehensive redesign using Apple design system
 - **Impact**: Fixed icon blur, added static labels, improved accessibility
 

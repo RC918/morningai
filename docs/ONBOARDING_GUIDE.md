@@ -58,7 +58,7 @@ Building the world's most advanced autonomous AI agent orchestration platform th
   - Path: `config/env.schema.yaml`
   - Impact: Configurable job timeout for long-running tasks (default: 3600s)
 - **PR #1547**: AppleButton Migration to shared-ui - Adapter pattern implementation
-  - Path: `handoff/20250928/40_App/packages/shared-ui/`
+  - Path: `packages/shared-ui/`
   - Impact: Unified component library across frontend-dashboard and owner-console
 - **PR #1546**: Phase 2 UI Completion - Emotional colors, AppleButton alignment, Spring animations
   - Path: `handoff/20250928/40_App/frontend-dashboard/src/`
@@ -76,7 +76,7 @@ Building the world's most advanced autonomous AI agent orchestration platform th
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - Impact: Improved compatibility with external task submission tools
 - **LoginPage UX Improvements**: Comprehensive redesign using Apple design system
-  - Path: `handoff/20250928/40_App/frontend-dashboard/src/pages/LoginPage.tsx`
+  - Path: `handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx`
   - Impact: Fixed icon blur, added static labels, improved accessibility
 
 **Previous Improvements (Nov 18-23, 2025)**:

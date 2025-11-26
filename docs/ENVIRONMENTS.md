@@ -29,7 +29,7 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
   - 影響：可配置的任務超時時間（預設：3600 秒）
 - **PR #1547**: AppleButton 遷移到 shared-ui - Adapter pattern 實作
-  - Path: `handoff/20250928/40_App/packages/shared-ui/`
+  - Path: `packages/shared-ui/`
   - 影響：統一組件庫跨 frontend-dashboard 和 owner-console
 - **PR #1546**: Phase 2 UI 完成 - 情感顏色、AppleButton 對齊、Spring 動畫
   - Path: `handoff/20250928/40_App/frontend-dashboard/src/`
@@ -40,7 +40,7 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - **UUID 正規化修復**: 處理外部工具的前綴 task ID
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
 - **LoginPage UX 改進**: 使用 Apple 設計系統全面重構
-  - Path: `handoff/20250928/40_App/frontend-dashboard/src/pages/LoginPage.tsx`
+  - Path: `handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx`
 
 **先前重要更新** (2025-11-18 至 2025-11-23):
 - **PR #1350**: E2E 測試基礎設施完成 - 32 Playwright 測試通過，route handler 隔離，完整 API mocking
