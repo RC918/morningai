@@ -1,72 +1,94 @@
-# Creating a Python Decorator for Logging Function Execution Time
+# Implementing Dark Mode Toggle in MorningAI
 
-In the development of MorningAI, monitoring and improving performance is crucial. A Python decorator can be used to log the execution time of functions, aiding in identifying bottlenecks and optimizing code efficiency. This FAQ provides a detailed guide on creating and using such a decorator within the MorningAI platform.
+## Overview
 
-## Understanding Decorators
+The requirement for a dark mode feature has been increasingly popular among users for its visually appealing interface option that's easier on the eyes, especially in low-light conditions. This FAQ provides a comprehensive guide on adding a dark mode toggle to the settings page of MorningAI, ensuring the user's preference persists across sessions using `localStorage`.
 
-A decorator in Python is essentially a function that wraps another function or method. It allows us to add functionality to an existing function by modifying its behavior without changing its code. For logging execution time, the decorator will measure the time taken by the function it decorates to execute and log this duration.
+## Implementation Steps
 
-## Code Example
+### 1. Update the UI for Settings Page
 
-Below is an example of a simple execution time logging decorator:
+First, ensure the settings page has a UI component (like a toggle switch) that users can interact with to switch between dark and light themes.
 
-```python
-import time
-import functools
+```jsx
+// src/components/SettingsToggle.jsx
 
-def log_execution_time(func):
-    """Decorator that logs the execution time of the function."""
-    
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        print(f"{func.__name__!r} executed in {(end_time - start_time):.4f}s")
-        return result
-    
-    return wrapper
+import React from 'react';
+
+const SettingsToggle = ({ isDarkMode, onToggle }) => (
+  <label>
+    <input
+      type="checkbox"
+      checked={isDarkMode}
+      onChange={onToggle}
+    />
+    Toggle Dark Mode
+  </label>
+);
+
+export default SettingsToggle;
 ```
 
-To use this decorator, simply prepend `@log_execution_time` before any function definition you wish to monitor. Here's how you can apply it:
+### 2. Managing Theme Preference
 
-```python
-@log_execution_time
-def sample_function(param):
-    # Function logic here
-    pass
+Utilize `localStorage` to save the user's theme preference. This ensures that the preference persists even after the browser is closed or refreshed.
+
+```javascript
+// src/utils/themeManager.js
+
+export const getThemePreference = () => localStorage.getItem('theme') || 'light';
+
+export const setThemePreference = (theme) => localStorage.setItem('theme', theme);
 ```
+
+### 3. Integrating Theme Preference in Your Application
+
+In your main application component, use a React effect to read from `localStorage` and apply the theme accordingly.
+
+```jsx
+// src/App.jsx
+
+import React, { useEffect, useState } from 'react';
+import { getThemePreference, setThemePreference } from './utils/themeManager';
+import SettingsToggle from './components/SettingsToggle';
+
+const App = () => {
+  const [isDarkMode, setIsDarkMode] = useState(getThemePreference() === 'dark');
+
+  useEffect(() => {
+    document.body.className = isDarkMode ? 'dark-mode' : 'light-mode';
+  }, [isDarkMode]);
+
+  const handleToggle = () => {
+    setIsDarkMode(!isDarkMode);
+    setThemePreference(!isDarkMode ? 'dark' : 'light');
+  };
+
+  return (
+    <div>
+      <SettingsToggle isDarkMode={isDarkMode} onToggle={handleToggle} />
+      {/* Your app content */}
+    </div>
+  );
+};
+
+export default App;
+```
+
+Make sure to define corresponding CSS classes for `dark-mode` and `light-mode` to reflect theme changes visually.
 
 ### Related Documentation Links
 
-- [Decorators in Python](https://docs.python.org/3/glossary.html#term-decorator)
-- [The functools module](https://docs.python.org/3/library/functools.html)
+- React Documentation: https://reactjs.org/docs/hooks-effect.html
+- LocalStorage Web API: https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
 
-## Integration with MorningAI
+## Troubleshooting Tips
 
-To integrate this decorator into MorningAI's codebase:
-1. Place the `log_execution_time` definition in a common utilities module, such as `utils/decorators.py`.
-2. Import this decorator in any Python file where you wish to log function execution times.
-3. Prepend `@log_execution_time` to critical functions where performance monitoring is required.
+- **Theme Does Not Persist Across Sessions**: Ensure you're correctly setting and retrieving the theme preference in `localStorage`. Double-check the keys used in `setItem` and `getItem` methods.
+- **Flicker on Page Load**: A common issue when implementing theme switching is a brief flicker of the default theme before applying the user's preference. This can often be mitigated by moving theme detection and application logic into a higher-level component or using server-side rendering techniques.
+- **Incorrect Theme Applied**: Verify that your event handlers are correctly toggling the state and that you're applying the correct class names based on this state.
 
-Example file path for integration:
-- Add the decorator code in: `RC918/morningai/utils/decorators.py`
-- Use it in various parts of the application like so:
-  ```python
-  from utils.decorators import log_execution_time
-  
-  @log_execution_time
-  def some_critical_function():
-      pass
-  ```
-
-## Common Troubleshooting Tips
-
-- **Decorator Not Working**: Ensure you have imported the decorator correctly and placed `@log_execution_time` above your function definitions without any syntax errors.
-- **Incorrect Execution Time**: Make sure there's no I/O operation or external call affecting the function's execution time unpredictably.
-- **Performance Overhead**: While decorators are generally lightweight, excessive logging might introduce overhead. Use selectively on critical paths only.
-
-This approach aids in maintaining optimal performance within MorningAI's operations by allowing developers to easily identify and address potential inefficiencies.
+Remember, maintaining consistency in user preferences enhances user experience significantly. Implementing a dark mode toggle not only caters to individual visual comfort but also demonstrates attention to modern web standards and accessibility.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +96,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python decorator that logs function execution time
-- Trace ID: `phase1-stg-test-e9ea1e18-9c0e-4bea-8a5a-187ab87f68ab`
+- Task: [Phase1-Test] Feature Request: Add dark mode toggle to settings page. Users have requested this feature. Should persist preference in localStorage
+- Trace ID: `phase1-stg-test-93914161-0ef5-483c-af07-b4d75c00cf5d`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
