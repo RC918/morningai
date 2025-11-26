@@ -1,55 +1,73 @@
-# Validate Email Addresses with Regex in Python
+# Managing a Simple In-Memory Cache with TTL in Python
 
-Validating email addresses is a common requirement in many web and application development projects. A robust method to accomplish this is by using Regular Expressions (Regex). This FAQ entry will guide you through creating a Python function to validate email addresses using regex, ensuring that the emails conform to standard formatting rules.
+This FAQ section is designed to help developers understand how to implement and manage a simple in-memory cache system with Time-to-Live (TTL) functionality in Python. This can be particularly useful within the MorningAI platform for caching results from expensive operations or API calls to enhance performance.
 
-## Understanding Email Validation
+## Overview
 
-Email validation through regex involves matching the email string against a pattern that represents the standard format of email addresses. The general pattern includes local part, "@" symbol, and domain part, with specific rules for each section.
+An in-memory cache temporarily stores data in the memory to quickly retrieve information without needing to access the database or external services repeatedly. Implementing TTL (Time-to-Live) ensures that the data is only stored for a specific duration, after which it expires and is removed from the cache. This approach is helpful for managing memory efficiently and ensuring that the data is up-to-date.
 
-## Code Example
+## Implementation
 
-Below is an example of a Python function that uses regex to validate an email address. This function can be integrated into your MorningAI project under the repository `RC918/morningai`.
-
-```python
-import re
-
-def validate_email(email):
-    # Define a regex pattern for validating an email
-    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-    
-    # Match the email against the pattern
-    if re.match(pattern, email):
-        return True
-    else:
-        return False
-```
-
-### How to Use
-
-To use this function in your project, simply import it and pass an email address as an argument:
+Below is a simple Python class named `SimpleCache` that implements an in-memory cache with TTL. This class uses a dictionary to store cache keys and values, along with expiration times.
 
 ```python
-from your_module import validate_email  # Adjust 'your_module' based on your actual file path
+import time
 
-email = "test@example.com"
-if validate_email(email):
-    print("Valid email!")
-else:
-    print("Invalid email.")
+class SimpleCache:
+    def __init__(self):
+        self.cache = {}
+        self.expiry = {}
+
+    def set(self, key, value, ttl):
+        self.cache[key] = value
+        self.expiry[key] = time.time() + ttl
+
+    def get(self, key):
+        if key in self.cache and time.time() < self.expiry[key]:
+            return self.cache[key]
+        else:
+            return None
+
+    def clean_up(self):
+        current_time = time.time()
+        expired_keys = [key for key, expiry_time in self.expiry.items() if current_time >= expiry_time]
+        for key in expired_keys:
+            del self.cache[key]
+            del self.expiry[key]
 ```
 
-## Related Documentation Links
+### How It Works:
 
-- Python Regular Expressions (Regex) documentation: [https://docs.python.org/3/library/re.html](https://docs.python.org/3/library/re.html)
-- Official RFC 5322 specifying the syntax for email addresses: [https://tools.ietf.org/html/rfc5322](https://tools.ietf.org/html/rfc5322)
+- **Initialization**: The `SimpleCache` class initializes two dictionaries: `cache` for storing the data and `expiry` for keeping track of when each cache item should expire.
+- **Setting Cache Items**: The `set` method adds items to the cache with a specified TTL. It calculates the expiration time by adding the current time (`time.time()`) to the TTL.
+- **Getting Cache Items**: The `get` method retrieves items from the cache. It first checks if the item exists and has not expired before returning it.
+- **Cleaning Up**: The `clean_up` method removes expired items from the cache. It iterates through `expiry`, identifies expired keys, and deletes them from both `cache` and `expiry`.
 
-## Common Troubleshooting Tips
+## Usage
 
-- **Pattern mismatch errors**: Ensure that the regex pattern covers all valid cases for email formats you want to support. Note that some valid emails might not match if the pattern is too restrictive.
-- **re.match returns None**: This indicates no match was found. Ensure your input string is indeed an email address and matches the specified pattern.
-- **Performance issues**: Validating emails with regex in real-time on large datasets can be resource-intensive. Consider optimizing your approach or validating in batches if performance becomes an issue.
+To use this caching mechanism within MorningAI or any Python application:
 
-For further customization or integration within the MorningAI platform, refer to the documentation on adding utility functions and managing dependencies within the project's architecture at `docs/FAQ.md` and other relevant sections of the repository `RC918/morningai`.
+1. Instantiate the `SimpleCache`.
+2. Use the `set` method to add items to your cache with a specified TTL.
+3. Retrieve cached items using the `get` method.
+4. Periodically call `clean_up` to remove expired items and free up memory.
+
+Example:
+
+```python
+cache = SimpleCache()
+cache.set("test_key", "test_value", ttl=60)  # Sets a key with a 60-second TTL
+value = cache.get("test_key")  # Retrieves 'test_value' if within TTL
+cache.clean_up()  # Cleans up any expired keys
+```
+
+## Troubleshooting Tips
+
+- **Cache Misses**: If retrieving a value immediately after setting it fails, ensure that your system clock is accurate and that you are not inadvertently calling `clean_up` too soon.
+- **Memory Usage**: Regularly call `clean_up` to prevent memory bloat from expired items lingering in your cache.
+- **Performance**: For high-frequency operations, consider optimizing your cleanup strategy or using more sophisticated caching libraries like Redis or Memcached that inherently support TTL.
+
+For further documentation on managing caches and understanding their usage within MorningAI's infrastructure, refer to our [Advanced Caching Techniques](#) section.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -57,7 +75,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python function that validates email addresses using regex
-- Trace ID: `phase1-stg-test-2de95163-c30f-44ac-9ff6-c5c86cf814a7`
+- Task: [Phase1-Test] Write a Python class for managing a simple in-memory cache with TTL
+- Trace ID: `phase1-stg-test-6f3fc6ae-9db6-4727-8c0f-b22ece31d44b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
