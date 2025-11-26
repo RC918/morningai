@@ -1,42 +1,62 @@
-# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
+# Verifying 600s Timeout After PR #1562 Deployment
 
-In the context of developing with MorningAI, understanding how to perform basic operations such as creating simple Python functions is crucial. This FAQ entry will guide you through the process of creating a Python function that adds two numbers. This example is part of our validation tests to ensure developers can implement basic logic and integrate it within the MorningAI platform.
+After the deployment of PR #1562 in the RC918/morningai repository, it's crucial to verify that the intended 600-second (10-minute) timeout setting has been correctly applied and is functioning as expected. This adjustment is pivotal for ensuring that operations which require extended processing times do not prematurely terminate, thus enhancing the robustness and reliability of MorningAI's features. This guide aims to assist developers in confirming the successful implementation of this change.
 
 ## Comprehensive Explanation
 
-Creating a Python function involves defining a block of reusable code that performs a specific task—in this case, adding two numbers. This function will accept two parameters, perform the addition operation, and return the result. This basic example serves as a foundation for more complex operations and integrations within MorningAI.
+PR #1562 introduces a configuration update designed to extend the default timeout settings for specific processes within the MorningAI platform. This adjustment is particularly relevant for operations susceptible to extended execution times, such as large data processing tasks or complex AI model training sessions. The change aims to mitigate issues related to premature task termination due to timeout constraints, thereby improving overall task success rates and platform stability.
 
-### Code Example
+### Code Examples
 
-Below is a simple Python function named `add_two_numbers` that takes two parameters (`number1` and `number2`) and returns their sum:
+#### Verifying Timeout Setting
+
+To verify that the 600s timeout has been correctly applied post-deployment, you can perform a test using a simple Flask route (assuming your service is built with Flask, as per the MorningAI tech stack). The example below demonstrates how you might set up such a test:
 
 ```python
-def add_two_numbers(number1, number2):
-    """Add two numbers and return the result."""
-    return number1 + number2
+from flask import Flask
+import time
 
-# Example usage:
-result = add_two_numbers(5, 7)
-print(f"The sum is: {result}")
+app = Flask(__name__)
+
+@app.route('/test-timeout')
+def test_timeout():
+    print("Starting a 10-minute sleep...")
+    # Sleep for 605 seconds to ensure we surpass the 600s threshold
+    time.sleep(605)
+    return "If you're seeing this, the timeout setting works!"
+
+if __name__ == '__main__':
+    app.run()
+```
+
+This code sets up a basic endpoint that, when accessed, will cause the server to pause for 605 seconds. If your new timeout configuration is effective, requests to this endpoint should not terminate prematurely.
+
+#### Configuration Check
+
+Ensure your Gunicorn configuration reflects the new timeout settings if applicable. An example configuration snippet might look like this:
+
+```bash
+# gunicorn.config.py
+timeout = 600  # Set the timeout to 600 seconds
 ```
 
 ### Related Documentation Links
 
-For further reading and more advanced functionalities within MorningAI, consider exploring these resources:
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- Gunicorn Settings: [https://docs.gunicorn.org/en/stable/settings.html#timeout](https://docs.gunicorn.org/en/stable/settings.html#timeout)
 
-- [Python Functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions) - Official Python documentation on defining functions.
-- [MorningAI Architecture Overview](/docs/architecture.md) - Detailed information about how MorningAI's architecture supports custom functions and integrations.
-- [Integrating Custom Logic into MorningAI](/docs/integration/custom_logic.md) - Guidelines on integrating custom Python functions like `add_two_numbers` into your MorningAI projects.
+## Common Troubleshooting Tips
 
-### Common Troubleshooting Tips
+**Issue**: Request still times out before 600 seconds.
+- **Solution**: Confirm that both your application server (e.g., Gunicorn) and any reverse proxy (e.g., Nginx) in use are configured with matching or suitable timeout settings. Proxy or load balancer settings can override application server configurations.
 
-When implementing or executing Python functions in MorningAI, you might encounter some issues. Here are tips to resolve common problems:
+**Issue**: Configuration changes not taking effect.
+- **Solution**: Ensure that after applying changes to configurations or environment variables, you restart your application server and any related services to apply these updates. In a containerized environment, this may involve rebuilding your container image.
 
-- **SyntaxError**: Ensure your Python syntax is correct. Common mistakes include missing colons (`:`) at the end of the `def` line or incorrect indentation.
-- **TypeError**: This occurs if the function arguments are not of compatible types (e.g., attempting to add a string and an integer). Make sure that the inputs to your function are of expected types.
-- **NameError**: If you see a message like "NameError: name 'add_two_numbers' is not defined", check that your function is correctly defined before you call it. Also, ensure there are no spelling errors in your function name.
+**Issue**: Unable to verify through direct testing.
+- **Solution**: Consult application logs for evidence of timeout-related entries or errors. Logs can provide insights into whether tasks are terminating due to reaching newly configured timeout limits.
 
-By following this guide, you should be able to create simple Python functions for use within the MorningAI platform. Remember, understanding these basic concepts lays the groundwork for developing more complex functionalities and workflows in your projects.
+For further assistance or inquiries related to PR #1562 deployment and its impacts on MorningAI's functionality, please reach out through our project's issue tracker or support channels.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -44,7 +64,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
-- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
+- Task: [Phase1-Verify-Post-Deploy] Test task to verify 600s timeout after PR #1562 deployment
+- Trace ID: `phase1-verify-post-deploy-eda32538-924e-4327-942a-8af5f274646d`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
