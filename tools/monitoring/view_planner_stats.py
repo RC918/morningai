@@ -139,9 +139,21 @@ def compute_statistics(events: List[Dict[str, Any]]) -> Dict[str, Any]:
     timestamps = []
 
     for event in events:
-        # Planning time (convert ms to seconds)
+        # Planning time (convert ms to seconds) - handle non-numeric values
         if 'planning_time_ms' in event:
-            planning_times.append(event['planning_time_ms'] / 1000.0)
+            value = event.get('planning_time_ms')
+            
+            if isinstance(value, (int, float)):
+                planning_times.append(value / 1000.0)
+            elif value is not None:
+                try:
+                    planning_times.append(float(value) / 1000.0)
+                except (TypeError, ValueError):
+                    print(
+                        f"Warning: Non-numeric planning_time_ms={value!r} "
+                        f"for trace_id={event.get('trace_id', 'unknown')}",
+                        file=sys.stderr
+                    )
 
         # Step counts
         num_steps = event.get('num_steps', 0)
@@ -176,7 +188,15 @@ def compute_statistics(events: List[Dict[str, Any]]) -> Dict[str, Any]:
         stats['time_min'] = min(planning_times)
         stats['time_max'] = max(planning_times)
         stats['time_mean'] = sum(planning_times) / len(planning_times)
-        stats['time_median'] = sorted_times[len(sorted_times) // 2]
+        
+        # Median: standard definition (average of two middle values for even N)
+        n = len(sorted_times)
+        mid = n // 2
+        if n % 2 == 1:
+            stats['time_median'] = sorted_times[mid]
+        else:
+            stats['time_median'] = (sorted_times[mid - 1] + sorted_times[mid]) / 2.0
+        
         stats['time_p95'] = sorted_times[int((len(sorted_times) - 1) * 0.95)]
 
     # Timeline

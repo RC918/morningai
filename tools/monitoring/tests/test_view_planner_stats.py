@@ -117,7 +117,7 @@ def test_compute_statistics(sample_events):
     assert stats['time_min'] == 3.0  # 3000ms = 3s
     assert stats['time_max'] == 12.0  # 12000ms = 12s
     assert stats['time_mean'] == 7.0  # (5+8+12+3)/4 = 7s
-    assert stats['time_median'] == 8.0  # median of [3, 5, 8, 12] using index //2 = 8
+    assert stats['time_median'] == 6.5  # median of [3, 5, 8, 12] = (5+8)/2 = 6.5
 
     # Check step distribution
     assert stats['step_counts'][3] == 1
@@ -280,6 +280,83 @@ def test_p95_calculation_multi_event():
     # This should NOT be 12.0 (the max)
     assert stats['time_p95'] == 8.0
     assert stats['time_p95'] != stats['time_max']  # P95 should not equal max for this sample
+
+
+def test_median_calculation_odd_length():
+    """Test median calculation with odd-length list"""
+    events = [
+        {
+            "trace_id": f"test-{i}",
+            "goal": "test",
+            "planner_type": "llm",
+            "task_type": "test",
+            "actual_plan_steps": ["step1"],
+            "num_steps": 1,
+            "planning_time_ms": time_ms,
+            "timestamp": "2025-11-26T10:00:00.000000"
+        }
+        for i, time_ms in enumerate([3000, 5000, 8000])
+    ]
+
+    stats = compute_statistics(events)
+
+    # With [3, 5, 8], median should be middle value: 5.0
+    assert stats['time_median'] == 5.0
+
+
+def test_non_numeric_planning_time():
+    """Test handling of non-numeric planning_time_ms values"""
+    events = [
+        {
+            "trace_id": "test-1",
+            "goal": "test",
+            "planner_type": "llm",
+            "task_type": "test",
+            "actual_plan_steps": ["step1"],
+            "num_steps": 1,
+            "planning_time_ms": 5000.0,  # Valid numeric
+            "timestamp": "2025-11-26T10:00:00.000000"
+        },
+        {
+            "trace_id": "test-2",
+            "goal": "test",
+            "planner_type": "llm",
+            "task_type": "test",
+            "actual_plan_steps": ["step1"],
+            "num_steps": 1,
+            "planning_time_ms": "8000",  # String but parseable
+            "timestamp": "2025-11-26T10:00:00.000000"
+        },
+        {
+            "trace_id": "test-3",
+            "goal": "test",
+            "planner_type": "llm",
+            "task_type": "test",
+            "actual_plan_steps": ["step1"],
+            "num_steps": 1,
+            "planning_time_ms": None,  # None - should be skipped
+            "timestamp": "2025-11-26T10:00:00.000000"
+        },
+        {
+            "trace_id": "test-4",
+            "goal": "test",
+            "planner_type": "llm",
+            "task_type": "test",
+            "actual_plan_steps": ["step1"],
+            "num_steps": 1,
+            "planning_time_ms": "bad_value",  # Non-parseable - should be skipped
+            "timestamp": "2025-11-26T10:00:00.000000"
+        }
+    ]
+
+    stats = compute_statistics(events)
+
+    # Should only include valid numeric values: 5.0 and 8.0
+    assert stats['total_count'] == 4  # All events counted
+    assert len(stats['planning_times']) == 2  # Only 2 valid planning times
+    assert stats['planning_times'] == [5.0, 8.0]
+    assert stats['time_min'] == 5.0
+    assert stats['time_max'] == 8.0
 
 
 if __name__ == '__main__':
