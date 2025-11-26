@@ -173,7 +173,7 @@ function AppleInput({
       <div className="relative">
         {/* Left Icon */}
         {leftIcon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 dark:text-neutral-400 pointer-events-none">
+          <div className="absolute inset-y-0 left-3 flex items-center text-gray-500 pointer-events-none z-10 [transform:none] [filter:none] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:[stroke-width:1.75] [&>svg]:[vector-effect:non-scaling-stroke] [&>svg]:[shape-rendering:geometricPrecision]">
             {leftIcon}
           </div>
         )}
