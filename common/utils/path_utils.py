@@ -6,8 +6,6 @@ with support for environment variable overrides and multiple execution contexts.
 """
 
 import os
-from pathlib import Path
-from typing import Optional
 
 from common.utils.repo_root import get_repo_root
 
