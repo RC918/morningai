@@ -51,6 +51,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
   const [show2FADialog, setShow2FADialog] = useState<boolean>(false)
   const [show2FAEnrollDialog, setShow2FAEnrollDialog] = useState<boolean>(false)
   const [tmpLoginToken, setTmpLoginToken] = useState<string>('')
+  const [rememberMe, setRememberMe] = useState<boolean>(false)
 
   useEffect(() => {
     const mediaQuery: MediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -285,7 +286,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 {error && (
                   <motion.div
                     initial={prefersReducedMotion ? {} : { opacity: 0, y: -10 }}
@@ -299,32 +300,80 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   </motion.div>
                 )}
 
-                <AppleInput
-                  id="email"
-                  name="email"
-                  type="email"
-                  label={t('auth.login.email')}
-                  placeholder={t('auth.login.emailPlaceholder')}
-                  value={credentials.email}
-                  onChange={handleChange}
-                  leftIcon={<User className="w-4 h-4" />}
-                  required
-                  haptic="light"
-                />
+                <div className="space-y-2">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-neutral-900 dark:text-neutral-900"
+                  >
+                    {t('auth.login.email')}
+                    <span className="text-destructive ml-1">*</span>
+                  </label>
+                  <AppleInput
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder={t('auth.login.emailPlaceholder')}
+                    value={credentials.email}
+                    onChange={handleChange}
+                    leftIcon={<User className="w-4 h-4" />}
+                    required
+                    haptic="light"
+                  />
+                </div>
 
-                <AppleInput
-                  id="password"
-                  name="password"
-                  type="password"
-                  label={t('auth.login.password')}
-                  placeholder={t('auth.login.passwordPlaceholder')}
-                  value={credentials.password}
-                  onChange={handleChange}
-                  leftIcon={<Lock className="w-4 h-4" />}
-                  showPasswordToggle
-                  required
-                  haptic="light"
-                />
+                <div className="space-y-2">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-neutral-900 dark:text-neutral-900"
+                  >
+                    {t('auth.login.password')}
+                    <span className="text-destructive ml-1">*</span>
+                  </label>
+                  <AppleInput
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder={t('auth.login.passwordPlaceholder')}
+                    value={credentials.password}
+                    onChange={handleChange}
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    showPasswordToggle
+                    required
+                    haptic="light"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setRememberMe(!rememberMe)}
+                    className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-800 hover:text-neutral-900 transition-colors"
+                    aria-pressed={rememberMe}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`inline-flex h-4 w-4 items-center justify-center rounded border transition-colors ${
+                        rememberMe 
+                          ? 'bg-primary-600 border-primary-600' 
+                          : 'border-neutral-400 bg-white'
+                      }`}
+                    >
+                      {rememberMe && (
+                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                    <span>{t('auth.login.rememberMe')}</span>
+                  </button>
+
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-600 dark:hover:text-primary-700 transition-colors"
+                  >
+                    {t('auth.login.forgotPassword')}
+                  </Link>
+                </div>
 
                 <motion.div
                   whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
@@ -332,7 +381,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 >
                   <AppleButton 
                     type="submit" 
-                    className="w-full" 
+                    className="w-full min-h-[44px]" 
                     disabled={loading}
                   >
                     {loading ? (
@@ -359,16 +408,16 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                   </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-3 gap-3">
+                <div className="mt-6 flex flex-col gap-3">
                   <AppleButton
                     type="button"
                     variant="outline"
                     onClick={() => handleSSOLogin('google')}
                     disabled={loading}
-                    className="w-full"
+                    className="w-full min-h-[44px] flex items-center justify-center gap-3"
                     aria-label={t('auth.sso.loginWithGoogle')}
                   >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24">
                       <path
                         fill="currentColor"
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -386,6 +435,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                       />
                     </svg>
+                    <span className="text-sm font-medium">{t('auth.sso.loginWithGoogle')}</span>
                   </AppleButton>
 
                   <AppleButton
@@ -393,12 +443,13 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                     variant="outline"
                     onClick={() => handleSSOLogin('apple')}
                     disabled={loading}
-                    className="w-full"
+                    className="w-full min-h-[44px] flex items-center justify-center gap-3"
                     aria-label={t('auth.sso.loginWithApple')}
                   >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
                     </svg>
+                    <span className="text-sm font-medium">{t('auth.sso.loginWithApple')}</span>
                   </AppleButton>
 
                   <AppleButton
@@ -406,21 +457,26 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                     variant="outline"
                     onClick={() => handleSSOLogin('github')}
                     disabled={loading}
-                    className="w-full"
+                    className="w-full min-h-[44px] flex items-center justify-center gap-3"
                     aria-label={t('auth.sso.loginWithGitHub')}
                   >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
                     </svg>
+                    <span className="text-sm font-medium">{t('auth.sso.loginWithGitHub')}</span>
                   </AppleButton>
                 </div>
               </div>
 
-              <div className="mt-6 text-center text-subhead text-neutral-600 dark:text-neutral-900">
-                {t('auth.login.noAccount', '還沒有帳號？')}{' '}
-                {/* NOTE: Card is white in dark mode, so use dark text for contrast (Lighthouse CI requirement) */}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-neutral-900 dark:hover:text-neutral-700 font-medium underline">
-                  {t('auth.login.signupLink', '註冊')}
+              <div className="mt-8 text-center">
+                <p className="text-base text-neutral-800 dark:text-neutral-900">
+                  {t('auth.login.noAccount')}
+                </p>
+                <Link 
+                  to="/signup" 
+                  className="mt-2 inline-block text-base font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-600 dark:hover:text-primary-700 transition-colors"
+                >
+                  {t('auth.login.signupLink')}
                 </Link>
               </div>
 

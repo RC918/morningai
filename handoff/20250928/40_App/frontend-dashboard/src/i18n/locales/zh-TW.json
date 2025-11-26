@@ -22,7 +22,14 @@
       "devAccount": "開發環境測試帳號",
       "loginSuccess": "登入成功",
       "welcomeBack": "歡迎回來，{{name}}！",
-      "orContinueWith": "或使用以下方式繼續"
+      "orContinueWith": "或使用以下方式繼續",
+      "forgotPassword": "忘記密碼？",
+      "rememberMe": "記住我",
+      "noAccount": "還沒有帳號？",
+      "signupLink": "註冊",
+      "google": "Google",
+      "apple": "Apple",
+      "github": "GitHub"
     },
     "logout": {
       "logoutSuccess": "已登出",

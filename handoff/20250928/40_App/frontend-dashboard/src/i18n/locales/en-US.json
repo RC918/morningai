@@ -22,7 +22,14 @@
       "devAccount": "Development Test Account",
       "loginSuccess": "Login Successful",
       "welcomeBack": "Welcome back, {{name}}!",
-      "orContinueWith": "Or continue with"
+      "orContinueWith": "Or continue with",
+      "forgotPassword": "Forgot password?",
+      "rememberMe": "Remember me",
+      "noAccount": "Don't have an account?",
+      "signupLink": "Sign up",
+      "google": "Google",
+      "apple": "Apple",
+      "github": "GitHub"
     },
     "logout": {
       "logoutSuccess": "Logged Out",
