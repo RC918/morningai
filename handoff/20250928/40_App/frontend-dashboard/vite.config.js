@@ -126,11 +126,65 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            'ui-vendor': ['lucide-react', 'recharts', 'framer-motion'],
-            'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
-            'i18n-vendor': ['i18next', 'react-i18next'],
+          manualChunks: (id) => {
+            // React core libraries
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+              return 'react-vendor';
+            }
+            
+            // React Router
+            if (id.includes('node_modules/react-router-dom')) {
+              return 'router-vendor';
+            }
+            
+            // Radix UI components - split into separate chunk
+            if (id.includes('node_modules/@radix-ui')) {
+              return 'radix-vendor';
+            }
+            
+            // Charts library - heavy, separate chunk
+            if (id.includes('node_modules/recharts')) {
+              return 'charts-vendor';
+            }
+            
+            // Icons library - separate chunk
+            if (id.includes('node_modules/lucide-react')) {
+              return 'icons-vendor';
+            }
+            
+            // Animation library - separate chunk
+            if (id.includes('node_modules/framer-motion')) {
+              return 'motion-vendor';
+            }
+            
+            // Form libraries
+            if (id.includes('node_modules/react-hook-form') || 
+                id.includes('node_modules/@hookform') || 
+                id.includes('node_modules/zod')) {
+              return 'form-vendor';
+            }
+            
+            // i18n libraries
+            if (id.includes('node_modules/i18next') || 
+                id.includes('node_modules/react-i18next') ||
+                id.includes('node_modules/@tolgee')) {
+              return 'i18n-vendor';
+            }
+            
+            // Supabase - heavy library, separate chunk
+            if (id.includes('node_modules/@supabase')) {
+              return 'supabase-vendor';
+            }
+            
+            // Sentry - monitoring library, separate chunk
+            if (id.includes('node_modules/@sentry')) {
+              return 'sentry-vendor';
+            }
+            
+            // Other node_modules
+            if (id.includes('node_modules')) {
+              return 'vendor';
+            }
           },
         },
       },
