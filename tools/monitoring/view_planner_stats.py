@@ -177,7 +177,7 @@ def compute_statistics(events: List[Dict[str, Any]]) -> Dict[str, Any]:
         stats['time_max'] = max(planning_times)
         stats['time_mean'] = sum(planning_times) / len(planning_times)
         stats['time_median'] = sorted_times[len(sorted_times) // 2]
-        stats['time_p95'] = sorted_times[int(len(sorted_times) * 0.95)] if len(sorted_times) > 1 else sorted_times[0]
+        stats['time_p95'] = sorted_times[int((len(sorted_times) - 1) * 0.95)]
 
     # Timeline
     if timestamps:

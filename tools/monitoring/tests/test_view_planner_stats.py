@@ -257,5 +257,30 @@ def test_p95_calculation_single_event():
     assert stats['time_p95'] == 5.0
 
 
+def test_p95_calculation_multi_event():
+    """Test P95 calculation with multiple events to avoid returning max"""
+    events = [
+        {
+            "trace_id": f"test-{i}",
+            "goal": "test",
+            "planner_type": "llm",
+            "task_type": "test",
+            "actual_plan_steps": ["step1"],
+            "num_steps": 1,
+            "planning_time_ms": time_ms,
+            "timestamp": "2025-11-26T10:00:00.000000"
+        }
+        for i, time_ms in enumerate([3000, 5000, 8000, 12000])
+    ]
+
+    stats = compute_statistics(events)
+
+    # With [3, 5, 8, 12], P95 using int((N-1)*0.95) formula:
+    # int((4-1)*0.95) = int(2.85) = 2, so sorted_times[2] = 8.0
+    # This should NOT be 12.0 (the max)
+    assert stats['time_p95'] == 8.0
+    assert stats['time_p95'] != stats['time_max']  # P95 should not equal max for this sample
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
