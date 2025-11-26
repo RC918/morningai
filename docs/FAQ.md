@@ -1,14 +1,18 @@
-# Creating a Python Decorator for Logging Function Execution Time
+# How to Create a Python Decorator for Logging Function Execution Time
 
-In the development of MorningAI, monitoring and improving performance is crucial. A Python decorator can be used to log the execution time of functions, aiding in identifying bottlenecks and optimizing code efficiency. This FAQ provides a detailed guide on creating and using such a decorator within the MorningAI platform.
+This FAQ entry will guide you through the process of creating a Python decorator that can be used within the MorningAI platform to log the execution time of functions. This is particularly useful for monitoring performance and identifying potential bottlenecks in your code.
 
-## Understanding Decorators
+## Understanding Python Decorators
 
-A decorator in Python is essentially a function that wraps another function or method. It allows us to add functionality to an existing function by modifying its behavior without changing its code. For logging execution time, the decorator will measure the time taken by the function it decorates to execute and log this duration.
+A decorator in Python is a function that wraps another function or method. It allows you to add functionality to an existing function without modifying its structure. Decorators are a powerful aspect of Python programming, enabling clean modifications and extensions to methods and functions.
 
-## Code Example
+## Implementing the Execution Time Logger Decorator
 
-Below is an example of a simple execution time logging decorator:
+The following is a step-by-step guide to creating a decorator that logs the execution time of a function.
+
+### Step 1: Define the Decorator Function
+
+First, we need to define our decorator function. This function will use the `functools.wraps` decorator from the Python standard library to ensure that our decorated function retains its name and documentation string.
 
 ```python
 import time
@@ -20,53 +24,57 @@ def log_execution_time(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         start_time = time.time()
-        result = func(*args, **kwargs)
+        value = func(*args, **kwargs)
         end_time = time.time()
-        print(f"{func.__name__!r} executed in {(end_time - start_time):.4f}s")
-        return result
+        execution_time = end_time - start_time
+        print(f"{func.__name__!r} executed in {execution_time:.4f} seconds")
+        return value
     
     return wrapper
 ```
 
-To use this decorator, simply prepend `@log_execution_time` before any function definition you wish to monitor. Here's how you can apply it:
+### Step 2: Apply the Decorator
+
+To use this decorator, simply prepend `@log_execution_time` before any function definition that you want to monitor. For example:
 
 ```python
 @log_execution_time
 def sample_function(param):
-    # Function logic here
-    pass
+    """Function to demonstrate logging of execution time."""
+    # Simulate a delay
+    time.sleep(2)
+    return f"Function with param {param} has completed."
 ```
 
-### Related Documentation Links
+### Step 3: Test Your Decorated Function
 
-- [Decorators in Python](https://docs.python.org/3/glossary.html#term-decorator)
-- [The functools module](https://docs.python.org/3/library/functools.html)
+Now, you can call your decorated function as usual, and it will automatically log its execution time.
 
-## Integration with MorningAI
+```python
+result = sample_function("MorningAI")
+print(result)
+```
 
-To integrate this decorator into MorningAI's codebase:
-1. Place the `log_execution_time` definition in a common utilities module, such as `utils/decorators.py`.
-2. Import this decorator in any Python file where you wish to log function execution times.
-3. Prepend `@log_execution_time` to critical functions where performance monitoring is required.
+This should output something like:
 
-Example file path for integration:
-- Add the decorator code in: `RC918/morningai/utils/decorators.py`
-- Use it in various parts of the application like so:
-  ```python
-  from utils.decorators import log_execution_time
-  
-  @log_execution_time
-  def some_critical_function():
-      pass
-  ```
+```
+'sample_function' executed in 2.0023 seconds
+Function with param MorningAI has completed.
+```
+
+## Related Documentation Links
+
+- [Python Decorators](https://docs.python.org/3/glossary.html#term-decorator)
+- [functools.wraps](https://docs.python.org/3/library/functools.html#functools.wraps)
 
 ## Common Troubleshooting Tips
 
-- **Decorator Not Working**: Ensure you have imported the decorator correctly and placed `@log_execution_time` above your function definitions without any syntax errors.
-- **Incorrect Execution Time**: Make sure there's no I/O operation or external call affecting the function's execution time unpredictably.
-- **Performance Overhead**: While decorators are generally lightweight, excessive logging might introduce overhead. Use selectively on critical paths only.
+- Ensure you import necessary modules (`time`, `functools`) at the beginning of your script.
+- Use `@functools.wraps(func)` inside your decorator to preserve the decorated function’s metadata.
+- If you encounter an error stating "TypeError: 'NoneType' object is not callable," double-check that your decorator function returns another function (the wrapper) correctly.
+- Remember that decorators are applied at import time. Thus, if your application relies on runtime conditions to determine whether or not to log execution times, consider using a factory pattern for your decorators or applying them conditionally inside your functions.
 
-This approach aids in maintaining optimal performance within MorningAI's operations by allowing developers to easily identify and address potential inefficiencies.
+This guide should help you effectively monitor and optimize the performance of various components within the MorningAI platform by logging their execution times.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
