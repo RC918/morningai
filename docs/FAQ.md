@@ -1,86 +1,52 @@
-# Convert JSON to YAML using a Python CLI Tool
+# Verifying 600s Timeout in MorningAI
 
-This FAQ provides guidance on creating and using a Python Command Line Interface (CLI) tool that converts JSON files to YAML format. This tool is particularly useful for developers working with MorningAI, facilitating easy data format transformations to accommodate various integration and configuration needs.
+When working with MorningAI, ensuring that long-running tasks do not exceed the expected execution time is crucial for maintaining system performance and reliability. This FAQ provides a comprehensive guide on how to test and verify that the 600-second (10-minute) timeout feature is working as intended within the platform.
 
-## Overview
+## Understanding the 600s Timeout
 
-The conversion tool leverages Python's rich library ecosystem, utilizing `json` and `PyYAML`, two powerful libraries for handling JSON and YAML data formats, respectively. The tool reads a JSON file, parses its content into a Python dictionary, and then outputs the equivalent YAML format.
+The 600s timeout is a safeguard implemented in MorningAI to prevent any task from running indefinitely, which could potentially lead to resource exhaustion and affect the overall stability of the platform. This feature is particularly relevant for tasks that are prone to unexpected delays or hang due to external dependencies or inefficient code.
 
-### Prerequisites
+### Code Example: Initiating a Test Task
 
-- Python 3.6 or newer
-- PyYAML package
-
-To install PyYAML, run:
-
-```bash
-pip install PyYAML
-```
-
-## Code Example
-
-Below is a simple Python script that performs the conversion from JSON to YAML:
+To verify the 600s timeout, you can create a simple test task designed to intentionally exceed this limit. Below is an example using Python with Flask, which is part of the backend technology stack of MorningAI.
 
 ```python
-# json_to_yaml.py
+from flask import Flask
+import time
 
-import json
-import yaml
-import sys
+app = Flask(__name__)
 
-def convert_json_to_yaml(json_file_path, yaml_file_path):
-    try:
-        with open(json_file_path, 'r') as json_file:
-            json_data = json.load(json_file)
-        
-        with open(yaml_file_path, 'w') as yaml_file:
-            yaml.dump(json_data, yaml_file, default_flow_style=False)
-            
-        print(f"Successfully converted {json_file_path} to {yaml_file_path}")
-    except Exception as e:
-        print(f"Error during conversion: {e}")
+@app.route('/test-timeout')
+def test_timeout():
+    # Simulate a long-running task
+    time.sleep(610) # Sleep for 610 seconds
+    return 'If you see this message, the timeout did not work as expected.'
 
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python json_to_yaml.py <input_json_file> <output_yaml_file>")
-        sys.exit(1)
-    
-    _, json_input, yaml_output = sys.argv
-    convert_json_to_yaml(json_input, yaml_output)
+if __name__ == '__main__':
+    app.run()
 ```
 
-This script can be executed from the command line by providing the source JSON file and the target YAML file names as arguments:
+### Testing Procedure
 
-```bash
-python json_to_yaml.py input.json output.yaml
-```
+1. Deploy the above code snippet as part of your service in the MorningAI platform.
+2. Trigger the `/test-timeout` endpoint.
+3. Monitor the task to see if it gets terminated after 600 seconds.
 
-### Related Documentation
+## Related Documentation Links
 
-- PyYAML Documentation: https://pyyaml.org/wiki/PyYAMLDocumentation
-- Official Python `json` library documentation: https://docs.python.org/3/library/json.html
+- [Flask Documentation](https://flask.palletsprojects.com/)
+- [MorningAI Python Flask Integration Guide](https://github.com/RC918/morningai/docs/python_flask_integration.md)
+- [Understanding Redis Queue (RQ) in MorningAI](https://github.com/RC918/morningai/docs/redis_queue_rq_guide.md)
 
 ## Common Troubleshooting Tips
 
-**1. ImportError for PyYAML**
+- **Task Continues Beyond 600 Seconds**: Ensure that there are no overrides or exceptions set for specific routes or tasks that might extend the default timeout period.
+- **Immediate Timeout Before 600 Seconds**: This might be due to misconfiguration in your deployment settings on Render.com. Review your service configuration for any incorrect timeout settings.
+- **Task Not Starting**: Verify that your Redis Queue (RQ) workers are running and properly configured to handle tasks. Check worker heartbeat monitoring logs for any anomalies.
 
-If you encounter an `ImportError` related to PyYAML, ensure that you have correctly installed PyYAML in your environment:
-
-```bash
-pip install PyYAML
-```
-
-**2. FileNotFoundError**
-
-Ensure both the source JSON file exists and the path is correct. Double-check the file name and directory path provided as arguments.
-
-**3. SyntaxError in JSON File**
-
-Invalid JSON format will cause a failure in conversion. Use online validators or IDE tools to check and fix any syntax errors in your JSON file before conversion.
-
-**4. Permission Issues**
-
-When saving the output YAML file, you might encounter permission-related errors depending on your operating system's security settings or if you're writing to a protected directory. Ensure you have write permissions for the target directory.
+For more detailed troubleshooting steps, refer to:
+- [Render.com Deployment Issues](https://render.com/docs/deployments)
+- [Monitoring and Logging in Flask Applications](https://flask.palletsprojects.com/en/latest/logging/)
 
 ---
 
@@ -89,7 +55,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Generate a Python CLI tool that converts JSON to YAML format
-- Trace ID: `phase1-stg-test-c3afa545-abe9-4318-9d96-9ce757faa8c4`
+- Task: [Phase1-Verify-Timeout] Test task to verify 600s timeout is working
+- Trace ID: `phase1-verify-7ecc7492-974a-4b21-8a2b-27c555e12862`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
