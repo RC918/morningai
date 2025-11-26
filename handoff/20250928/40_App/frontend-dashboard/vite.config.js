@@ -127,63 +127,39 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: (id) => {
-            // React core libraries
-            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-              return 'react-vendor';
-            }
+            // Only split clearly independent, heavy libraries
+            // Let React/Radix follow Vite's default behavior to avoid bundling issues
             
-            // React Router
-            if (id.includes('node_modules/react-router-dom')) {
-              return 'router-vendor';
-            }
-            
-            // Radix UI components - split into separate chunk
-            if (id.includes('node_modules/@radix-ui')) {
-              return 'radix-vendor';
-            }
-            
-            // Charts library - heavy, separate chunk
+            // Charts library - heavy, clearly independent
             if (id.includes('node_modules/recharts')) {
               return 'charts-vendor';
             }
             
-            // Icons library - separate chunk
-            if (id.includes('node_modules/lucide-react')) {
-              return 'icons-vendor';
+            // Supabase - heavy library, clearly independent
+            if (id.includes('node_modules/@supabase')) {
+              return 'supabase-vendor';
             }
             
-            // Animation library - separate chunk
+            // Sentry - monitoring library, clearly independent
+            if (id.includes('node_modules/@sentry')) {
+              return 'sentry-vendor';
+            }
+            
+            // Animation library - heavy, clearly independent
             if (id.includes('node_modules/framer-motion')) {
               return 'motion-vendor';
             }
             
-            // Form libraries
-            if (id.includes('node_modules/react-hook-form') || 
-                id.includes('node_modules/@hookform') || 
-                id.includes('node_modules/zod')) {
-              return 'form-vendor';
-            }
-            
-            // i18n libraries
+            // i18n libraries - clearly independent
             if (id.includes('node_modules/i18next') || 
                 id.includes('node_modules/react-i18next') ||
                 id.includes('node_modules/@tolgee')) {
               return 'i18n-vendor';
             }
             
-            // Supabase - heavy library, separate chunk
-            if (id.includes('node_modules/@supabase')) {
-              return 'supabase-vendor';
-            }
-            
-            // Sentry - monitoring library, separate chunk
-            if (id.includes('node_modules/@sentry')) {
-              return 'sentry-vendor';
-            }
-            
-            // Other node_modules
-            if (id.includes('node_modules')) {
-              return 'vendor';
+            // Icons library - clearly independent
+            if (id.includes('node_modules/lucide-react')) {
+              return 'icons-vendor';
             }
           },
         },
