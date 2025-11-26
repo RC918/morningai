@@ -1,73 +1,72 @@
-# Managing a Simple In-Memory Cache with TTL in Python
+# Creating a Python Decorator for Logging Function Execution Time
 
-This FAQ section is designed to help developers understand how to implement and manage a simple in-memory cache system with Time-to-Live (TTL) functionality in Python. This can be particularly useful within the MorningAI platform for caching results from expensive operations or API calls to enhance performance.
+In the development of MorningAI, monitoring and improving performance is crucial. A Python decorator can be used to log the execution time of functions, aiding in identifying bottlenecks and optimizing code efficiency. This FAQ provides a detailed guide on creating and using such a decorator within the MorningAI platform.
 
-## Overview
+## Understanding Decorators
 
-An in-memory cache temporarily stores data in the memory to quickly retrieve information without needing to access the database or external services repeatedly. Implementing TTL (Time-to-Live) ensures that the data is only stored for a specific duration, after which it expires and is removed from the cache. This approach is helpful for managing memory efficiently and ensuring that the data is up-to-date.
+A decorator in Python is essentially a function that wraps another function or method. It allows us to add functionality to an existing function by modifying its behavior without changing its code. For logging execution time, the decorator will measure the time taken by the function it decorates to execute and log this duration.
 
-## Implementation
+## Code Example
 
-Below is a simple Python class named `SimpleCache` that implements an in-memory cache with TTL. This class uses a dictionary to store cache keys and values, along with expiration times.
+Below is an example of a simple execution time logging decorator:
 
 ```python
 import time
+import functools
 
-class SimpleCache:
-    def __init__(self):
-        self.cache = {}
-        self.expiry = {}
-
-    def set(self, key, value, ttl):
-        self.cache[key] = value
-        self.expiry[key] = time.time() + ttl
-
-    def get(self, key):
-        if key in self.cache and time.time() < self.expiry[key]:
-            return self.cache[key]
-        else:
-            return None
-
-    def clean_up(self):
-        current_time = time.time()
-        expired_keys = [key for key, expiry_time in self.expiry.items() if current_time >= expiry_time]
-        for key in expired_keys:
-            del self.cache[key]
-            del self.expiry[key]
+def log_execution_time(func):
+    """Decorator that logs the execution time of the function."""
+    
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"{func.__name__!r} executed in {(end_time - start_time):.4f}s")
+        return result
+    
+    return wrapper
 ```
 
-### How It Works:
-
-- **Initialization**: The `SimpleCache` class initializes two dictionaries: `cache` for storing the data and `expiry` for keeping track of when each cache item should expire.
-- **Setting Cache Items**: The `set` method adds items to the cache with a specified TTL. It calculates the expiration time by adding the current time (`time.time()`) to the TTL.
-- **Getting Cache Items**: The `get` method retrieves items from the cache. It first checks if the item exists and has not expired before returning it.
-- **Cleaning Up**: The `clean_up` method removes expired items from the cache. It iterates through `expiry`, identifies expired keys, and deletes them from both `cache` and `expiry`.
-
-## Usage
-
-To use this caching mechanism within MorningAI or any Python application:
-
-1. Instantiate the `SimpleCache`.
-2. Use the `set` method to add items to your cache with a specified TTL.
-3. Retrieve cached items using the `get` method.
-4. Periodically call `clean_up` to remove expired items and free up memory.
-
-Example:
+To use this decorator, simply prepend `@log_execution_time` before any function definition you wish to monitor. Here's how you can apply it:
 
 ```python
-cache = SimpleCache()
-cache.set("test_key", "test_value", ttl=60)  # Sets a key with a 60-second TTL
-value = cache.get("test_key")  # Retrieves 'test_value' if within TTL
-cache.clean_up()  # Cleans up any expired keys
+@log_execution_time
+def sample_function(param):
+    # Function logic here
+    pass
 ```
 
-## Troubleshooting Tips
+### Related Documentation Links
 
-- **Cache Misses**: If retrieving a value immediately after setting it fails, ensure that your system clock is accurate and that you are not inadvertently calling `clean_up` too soon.
-- **Memory Usage**: Regularly call `clean_up` to prevent memory bloat from expired items lingering in your cache.
-- **Performance**: For high-frequency operations, consider optimizing your cleanup strategy or using more sophisticated caching libraries like Redis or Memcached that inherently support TTL.
+- [Decorators in Python](https://docs.python.org/3/glossary.html#term-decorator)
+- [The functools module](https://docs.python.org/3/library/functools.html)
 
-For further documentation on managing caches and understanding their usage within MorningAI's infrastructure, refer to our [Advanced Caching Techniques](#) section.
+## Integration with MorningAI
+
+To integrate this decorator into MorningAI's codebase:
+1. Place the `log_execution_time` definition in a common utilities module, such as `utils/decorators.py`.
+2. Import this decorator in any Python file where you wish to log function execution times.
+3. Prepend `@log_execution_time` to critical functions where performance monitoring is required.
+
+Example file path for integration:
+- Add the decorator code in: `RC918/morningai/utils/decorators.py`
+- Use it in various parts of the application like so:
+  ```python
+  from utils.decorators import log_execution_time
+  
+  @log_execution_time
+  def some_critical_function():
+      pass
+  ```
+
+## Common Troubleshooting Tips
+
+- **Decorator Not Working**: Ensure you have imported the decorator correctly and placed `@log_execution_time` above your function definitions without any syntax errors.
+- **Incorrect Execution Time**: Make sure there's no I/O operation or external call affecting the function's execution time unpredictably.
+- **Performance Overhead**: While decorators are generally lightweight, excessive logging might introduce overhead. Use selectively on critical paths only.
+
+This approach aids in maintaining optimal performance within MorningAI's operations by allowing developers to easily identify and address potential inefficiencies.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -75,7 +74,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Write a Python class for managing a simple in-memory cache with TTL
-- Trace ID: `phase1-stg-test-6f3fc6ae-9db6-4727-8c0f-b22ece31d44b`
+- Task: [Phase1-Test] Create a Python decorator that logs function execution time
+- Trace ID: `phase1-stg-test-e9ea1e18-9c0e-4bea-8a5a-187ab87f68ab`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
