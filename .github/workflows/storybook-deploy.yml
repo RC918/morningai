@@ -62,8 +62,31 @@ jobs:
         run: |
           mkdir -p storybook_publish/storybook
           cp -r handoff/20250928/40_App/frontend-dashboard/storybook-static/* storybook_publish/storybook/
+          
+          # Sanity check: ensure only one iframe bundle exists (multiple = corrupted build)
+          count=$(ls storybook_publish/storybook/assets/iframe-*.js 2>/dev/null | wc -l)
+          if [ "$count" -gt 1 ]; then
+            echo "Error: Expected 1 iframe bundle, found $count. Build may be corrupted."
+            exit 1
+          fi
+          echo "Sanity check passed: found $count iframe bundle(s)"
+          
+          # Generate dashboard redirect to /storybook/
           mkdir -p storybook_publish/dashboard
-          cp storybook_publish/dashboard/index.html storybook_publish/dashboard/ || echo "Redirect file will be committed separately"
+          cat > storybook_publish/dashboard/index.html << 'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=/storybook/">
+            <title>Redirecting to Storybook...</title>
+          </head>
+          <body>
+            <p>Redirecting to <a href="/storybook/">Storybook</a>...</p>
+          </body>
+          </html>
+          EOF
+          
           # Add vercel.json to skip install/build for pre-built static files
           cat > storybook_publish/vercel.json << 'EOF'
           {
@@ -82,6 +105,9 @@ jobs:
           publish_branch: gh-pages-storybook
           cname: storybook.morningai.app
           enable_jekyll: false
+          # keep_files: false ensures clean builds - using 'true' causes accumulation
+          # of old assets from multiple builds, leading to corrupted Storybook
+          # (e.g., multiple iframe-*.js files causing __STORYBOOK_MODULE_PREVIEW_API__ errors)
           keep_files: false
       
       - name: Upload Storybook artifact (PR only)
