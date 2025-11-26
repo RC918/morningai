@@ -1,72 +1,85 @@
-# Creating a Python Decorator for Logging Function Execution Time
+# How to Generate a Python Script That Reads CSV and Outputs Statistics
 
-In the development of MorningAI, monitoring and improving performance is crucial. A Python decorator can be used to log the execution time of functions, aiding in identifying bottlenecks and optimizing code efficiency. This FAQ provides a detailed guide on creating and using such a decorator within the MorningAI platform.
+This FAQ aims to guide developers on creating a Python script capable of reading data from a CSV file and computing essential statistics. This functionality is particularly useful in data analysis, providing insights into datasets managed or analyzed within the MorningAI platform.
 
-## Understanding Decorators
+## Overview
 
-A decorator in Python is essentially a function that wraps another function or method. It allows us to add functionality to an existing function by modifying its behavior without changing its code. For logging execution time, the decorator will measure the time taken by the function it decorates to execute and log this duration.
+Processing CSV files is a common task in data science and software development. Python, with its rich ecosystem of libraries, offers robust tools for reading CSV files and performing statistical analysis. This example will utilize Python's built-in `csv` module for reading the file and the `statistics` module for calculating basic statistics.
 
-## Code Example
+## Prerequisites
 
-Below is an example of a simple execution time logging decorator:
+- Python 3.x installed
+- Basic understanding of Python programming
+- A CSV file to analyze (for this example, we'll assume a simple dataset with numerical values)
 
-```python
-import time
-import functools
+## Step-by-Step Guide
 
-def log_execution_time(func):
-    """Decorator that logs the execution time of the function."""
-    
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        print(f"{func.__name__!r} executed in {(end_time - start_time):.4f}s")
-        return result
-    
-    return wrapper
-```
+### 1. Reading CSV File
 
-To use this decorator, simply prepend `@log_execution_time` before any function definition you wish to monitor. Here's how you can apply it:
+First, we need to read the CSV file. We'll use the `csv.reader` from the Python `csv` module for this purpose.
 
 ```python
-@log_execution_time
-def sample_function(param):
-    # Function logic here
-    pass
+import csv
+
+def read_csv(file_path):
+    with open(file_path, newline='') as csvfile:
+        data_reader = csv.reader(csvfile)
+        data = [row for row in data_reader]
+    return data
 ```
 
-### Related Documentation Links
+### 2. Calculating Statistics
 
-- [Decorators in Python](https://docs.python.org/3/glossary.html#term-decorator)
-- [The functools module](https://docs.python.org/3/library/functools.html)
+Next, we'll compute basic statistics - mean (average), median, and standard deviation - using the `statistics` module.
 
-## Integration with MorningAI
+```python
+import statistics
 
-To integrate this decorator into MorningAI's codebase:
-1. Place the `log_execution_time` definition in a common utilities module, such as `utils/decorators.py`.
-2. Import this decorator in any Python file where you wish to log function execution times.
-3. Prepend `@log_execution_time` to critical functions where performance monitoring is required.
+def calculate_statistics(data):
+    # Assuming all rows have numerical data convert strings to floats
+    numerical_data = [float(item) for sublist in data for item in sublist]
+    
+    mean = statistics.mean(numerical_data)
+    median = statistics.median(numerical_data)
+    std_dev = statistics.stdev(numerical_data)
+    
+    return mean, median, std_dev
+```
 
-Example file path for integration:
-- Add the decorator code in: `RC918/morningai/utils/decorators.py`
-- Use it in various parts of the application like so:
-  ```python
-  from utils.decorators import log_execution_time
-  
-  @log_execution_time
-  def some_critical_function():
-      pass
-  ```
+### 3. Putting It All Together
+
+Now, let's combine these functions into a script that reads a CSV file and prints out the calculated statistics.
+
+```python
+def main():
+    file_path = 'path/to/your/file.csv'
+    
+    # Read CSV
+    data = read_csv(file_path)
+    
+    # Calculate Statistics
+    mean, median, std_dev = calculate_statistics(data)
+    
+    print(f"Mean: {mean}, Median: {median}, Standard Deviation: {std_dev}")
+
+if __name__ == "__main__":
+    main()
+```
+
+Replace `'path/to/your/file.csv'` with the actual path to your CSV file.
+
+## Related Documentation Links
+
+- Python CSV Module: https://docs.python.org/3/library/csv.html
+- Python Statistics Module: https://docs.python.org/3/library/statistics.html
 
 ## Common Troubleshooting Tips
 
-- **Decorator Not Working**: Ensure you have imported the decorator correctly and placed `@log_execution_time` above your function definitions without any syntax errors.
-- **Incorrect Execution Time**: Make sure there's no I/O operation or external call affecting the function's execution time unpredictably.
-- **Performance Overhead**: While decorators are generally lightweight, excessive logging might introduce overhead. Use selectively on critical paths only.
+- **FileNotFoundError**: Ensure the path to your CSV file is correct.
+- **ValueError**: This error might occur if your data contains non-numerical values. Ensure all rows used for statistical calculations contain only numbers.
+- **StatisticsError**: If you encounter this when calculating standard deviation, ensure your dataset contains more than one value.
 
-This approach aids in maintaining optimal performance within MorningAI's operations by allowing developers to easily identify and address potential inefficiencies.
+Remember to consult the official Python documentation for more detailed explanations and additional functionalities you might require.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -74,7 +87,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python decorator that logs function execution time
-- Trace ID: `phase1-stg-test-e9ea1e18-9c0e-4bea-8a5a-187ab87f68ab`
+- Task: [Phase1-Test] Generate a Python script that reads CSV and outputs statistics
+- Trace ID: `phase1-stg-test-b4cbc903-789a-45b3-b1fb-a1b136414bee`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
