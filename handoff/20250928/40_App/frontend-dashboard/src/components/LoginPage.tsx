@@ -363,7 +363,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
 
                   <Link
                     to="/forgot-password"
-                    className="text-caption-1 font-medium text-primary-600 hover:text-primary-700 dark:text-primary-600 dark:hover:text-primary-700 transition-colors"
+                    className="text-caption-1 font-medium text-primary-600 hover:text-primary-700 dark:text-neutral-900 dark:hover:text-neutral-700 transition-colors"
                   >
                     {t('auth.login.forgotPassword')}
                   </Link>
@@ -460,9 +460,10 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 <p className="text-base text-neutral-800 dark:text-neutral-900">
                   {t('auth.login.noAccount')}
                 </p>
+                {/* NOTE: Card is white in dark mode, so use dark text for contrast (Lighthouse CI requirement) */}
                 <Link 
                   to="/signup" 
-                  className="mt-2 inline-block text-base font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-600 dark:hover:text-primary-700 transition-colors"
+                  className="mt-2 inline-block text-base font-semibold text-primary-600 hover:text-primary-700 dark:text-neutral-900 dark:hover:text-neutral-700 underline transition-colors"
                 >
                   {t('auth.login.signupLink')}
                 </Link>
