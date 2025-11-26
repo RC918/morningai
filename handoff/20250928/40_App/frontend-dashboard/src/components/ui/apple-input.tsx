@@ -186,7 +186,7 @@ function AppleInput({
           className={cn(
             appleInputVariants({ variant, inputSize, state, className }),
             label && labelPosition === "floating" && "pt-6 pb-2",
-            leftIcon && "pl-10",
+            leftIcon && "!pl-[44px]",
             (rightIcon || showPasswordToggle || showStateIcon) && "pr-10",
             "placeholder:text-muted-foreground/50 selection:bg-primary selection:text-primary-foreground"
           )}

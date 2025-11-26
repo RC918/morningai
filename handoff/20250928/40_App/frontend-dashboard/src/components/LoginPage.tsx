@@ -236,7 +236,7 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
+    <div className="min-h-screen flex items-center justify-start sm:justify-center bg-neutral-50 dark:bg-neutral-900 py-8 sm:py-0">
       <motion.div
         style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 50 }}
         initial={prefersReducedMotion ? {} : { opacity: 0, x: 20 }}
