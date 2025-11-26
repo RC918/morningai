@@ -1,77 +1,98 @@
-# FAQ: Handling Large File Uploads in MorningAI
+# Implementing Dark Mode Toggle in MorningAI
+
+Adding a dark mode toggle to the settings page enhances user experience by allowing users to switch between light and dark themes based on their preference. This feature should remember the user's choice using `localStorage` for persistence across sessions. This FAQ aims to guide developers through the process of implementing this feature within the MorningAI platform.
 
 ## Overview
 
-Some users have reported experiencing application crashes when attempting to upload files larger than 10MB to the MorningAI platform. This document aims to address the issue by outlining the steps to reproduce the error, providing an explanation of the underlying problem, and offering solutions and troubleshooting tips.
+Implementing a dark mode toggle involves creating a UI component for the toggle, implementing logic to apply the dark mode theme, and saving the user's preference in `localStorage`. When a user changes their preference, it should immediately apply the new theme and ensure the preference persists across sessions.
 
-### Steps to Reproduce
-1. Navigate to the upload page on the MorningAI platform.
-2. Select a file larger than 10MB.
-3. Click the "Upload" button.
+### Code Examples
 
-**Expected Outcome**: The file uploads successfully, and the user receives a success message.
+#### 1. Creating the Toggle Component
 
-**Actual Outcome**: The application throws a 500 error, indicating an internal server error.
+First, create a toggle switch in your settings page. Assuming you're using React (as per MorningAI's technology stack), here's a basic example:
 
-## Explanation of the Issue
+```jsx
+// src/components/DarkModeToggle.jsx
+import React from 'react';
 
-The issue arises due to a limitation set on file upload size within both the frontend and backend configurations of MorningAI. Most web servers, including those used by MorningAI (Flask/Gunicorn), have default file size limits for uploads as a security measure to prevent denial-of-service (DoS) attacks through resource exhaustion.
+const DarkModeToggle = ({ isDarkMode, onToggle }) => (
+  <label>
+    <input
+      type="checkbox"
+      checked={isDarkMode}
+      onChange={onToggle}
+    />
+    Toggle Dark Mode
+  </label>
+);
 
-### Backend Configuration
-
-In `app.py` or where the Flask app is initialized, there is likely a configuration setting for `MAX_CONTENT_LENGTH` that limits the size of incoming request payloads. Similarly, Gunicorn configurations might also restrict body sizes for requests.
-
-#### Example Flask Configuration
-```python
-from flask import Flask
-
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # Limit set to 10MB
+export default DarkModeToggle;
 ```
 
-### Frontend Configuration
+#### 2. Managing Dark Mode State and localStorage
 
-The frontend code using React might not directly limit file sizes but could handle errors or validations related to file uploads improperly.
+In your settings page component or a context/provider if you're managing global state:
 
-## Solutions and Troubleshooting
+```jsx
+// src/pages/SettingsPage.jsx or similar
+import React, { useState, useEffect } from 'react';
+import DarkModeToggle from '../components/DarkModeToggle';
 
-### Increasing File Size Limit
+const SettingsPage = () => {
+  const [isDarkMode, setIsDarkMode] = useState(() => JSON.parse(localStorage.getItem('darkMode') || 'false'));
 
-#### Backend Adjustment
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
+    document.body.className = isDarkMode ? 'dark-mode' : '';
+  }, [isDarkMode]);
 
-To allow larger files, increase the `MAX_CONTENT_LENGTH` in your Flask app configuration:
+  const handleToggle = () => setIsDarkMode(!isDarkMode);
 
-```python
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Increase limit to 50MB
+  return (
+    <div>
+      <h1>Settings</h1>
+      <DarkModeToggle isDarkMode={isDarkMode} onToggle={handleToggle} />
+    </div>
+  );
+};
+
+export default SettingsPage;
 ```
 
-If using Gunicorn, ensure there are no conflicting configurations that might override or enforce a smaller limit.
+#### 3. Applying CSS for Dark Mode
 
-#### Frontend Handling
+In your CSS (assuming TailwindCSS):
 
-Ensure that your frontend properly handles and displays errors related to file size limitations. Implement client-side validation to give immediate feedback if a file exceeds the allowed size.
+```css
+/* Add to your main CSS file */
+body.dark-mode {
+  /* Define dark theme colors */
+  background-color: #333;
+  color: #fff;
+}
+```
 
-### Related Documentation Links
+### Related Documentation
 
-- Flask Documentation on Request Data: [Flask Request Data](https://flask.palletsprojects.com/en/2.0.x/patterns/fileuploads/)
-- Gunicorn Configuration: [Gunicorn Settings](https://docs.gunicorn.org/en/stable/settings.html)
+- React Documentation: https://reactjs.org/docs/hooks-state.html
+- TailwindCSS Documentation: https://tailwindcss.com/docs/dark-mode
+- localStorage Web API: https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
 
-### Common Troubleshooting Tips
+### Troubleshooting Tips
 
-- **Verify Configurations**: Double-check both your Flask and Gunicorn configurations to ensure they align with your intended file size limits.
-- **Check Network Conditions**: Sometimes, issues with large file uploads can be attributed to network instability or timeouts rather than configuration limits.
-- **Inspect Browser Console and Network Activity**: For frontend issues, inspecting the browser's console and network activity can provide clues about why an upload failed.
-- **Review Server Logs**: Server logs often contain detailed error messages that can help diagnose issues with file uploads.
-
-By understanding and adjusting these configurations as needed, developers can ensure that users are able to upload large files successfully without crashing the application.
+- **Preference Not Persisting**: Ensure `localStorage.setItem` is correctly called with the right key-value pair. Double-check that `useEffect` dependency array includes `isDarkMode`.
+- **Flash of Incorrect Theme**: To prevent a flash of incorrect theme (FOIT) when loading the page, consider setting up a small script in your HTML `<head>` that immediately reads from `localStorage` and sets the appropriate class on the body before any content is rendered.
+- **Styling Not Applied**: If your dark mode styles are not applied, ensure that your CSS selectors are correct and that there are no specificity issues overriding your dark mode styles.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Bug Report: Application crashes when uploading files > 10MB. Steps to reproduce: 1) Navigate to upload page 2) Select large file 3) Click upload. Expected: Success message. Actual: 500 error
-- Trace ID: `phase1-stg-test-7b8c2fd2-a5e8-42dc-a883-6adc3c1d28ab`
+- Task: [Phase1-Test] Feature Request: Add dark mode toggle to settings page. Users have requested this feature. Should persist preference in localStorage
+- Trace ID: `phase1-stg-test-93914161-0ef5-483c-af07-b4d75c00cf5d`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
