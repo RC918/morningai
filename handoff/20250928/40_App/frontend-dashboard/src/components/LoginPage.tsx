@@ -428,10 +428,10 @@ const LoginPage = ({ onLogin }: LoginPageProps): React.ReactElement => {
                 </div>
               </div>
 
-              <div className="mt-8 text-center text-base text-neutral-700 dark:text-neutral-200">
+              <div className="mt-6 text-center text-subhead text-neutral-600 dark:text-neutral-300">
                 {t('auth.login.noAccount', '還沒有帳號？')}{' '}
                 {/* NOTE: Proper dark mode support for WCAG AA compliance (Lighthouse CI requirement) */}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-semibold underline text-base">
+                <Link to="/signup" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium underline">
                   {t('auth.login.signupLink', '註冊')}
                 </Link>
               </div>

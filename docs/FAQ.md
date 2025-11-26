@@ -1,42 +1,55 @@
-# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
+# Validate Email Addresses with Regex in Python
 
-In the context of developing with MorningAI, understanding how to perform basic operations such as creating simple Python functions is crucial. This FAQ entry will guide you through the process of creating a Python function that adds two numbers. This example is part of our validation tests to ensure developers can implement basic logic and integrate it within the MorningAI platform.
+Validating email addresses is a common requirement in many web and application development projects. A robust method to accomplish this is by using Regular Expressions (Regex). This FAQ entry will guide you through creating a Python function to validate email addresses using regex, ensuring that the emails conform to standard formatting rules.
 
-## Comprehensive Explanation
+## Understanding Email Validation
 
-Creating a Python function involves defining a block of reusable code that performs a specific task—in this case, adding two numbers. This function will accept two parameters, perform the addition operation, and return the result. This basic example serves as a foundation for more complex operations and integrations within MorningAI.
+Email validation through regex involves matching the email string against a pattern that represents the standard format of email addresses. The general pattern includes local part, "@" symbol, and domain part, with specific rules for each section.
 
-### Code Example
+## Code Example
 
-Below is a simple Python function named `add_two_numbers` that takes two parameters (`number1` and `number2`) and returns their sum:
+Below is an example of a Python function that uses regex to validate an email address. This function can be integrated into your MorningAI project under the repository `RC918/morningai`.
 
 ```python
-def add_two_numbers(number1, number2):
-    """Add two numbers and return the result."""
-    return number1 + number2
+import re
 
-# Example usage:
-result = add_two_numbers(5, 7)
-print(f"The sum is: {result}")
+def validate_email(email):
+    # Define a regex pattern for validating an email
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    
+    # Match the email against the pattern
+    if re.match(pattern, email):
+        return True
+    else:
+        return False
 ```
 
-### Related Documentation Links
+### How to Use
 
-For further reading and more advanced functionalities within MorningAI, consider exploring these resources:
+To use this function in your project, simply import it and pass an email address as an argument:
 
-- [Python Functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions) - Official Python documentation on defining functions.
-- [MorningAI Architecture Overview](/docs/architecture.md) - Detailed information about how MorningAI's architecture supports custom functions and integrations.
-- [Integrating Custom Logic into MorningAI](/docs/integration/custom_logic.md) - Guidelines on integrating custom Python functions like `add_two_numbers` into your MorningAI projects.
+```python
+from your_module import validate_email  # Adjust 'your_module' based on your actual file path
 
-### Common Troubleshooting Tips
+email = "test@example.com"
+if validate_email(email):
+    print("Valid email!")
+else:
+    print("Invalid email.")
+```
 
-When implementing or executing Python functions in MorningAI, you might encounter some issues. Here are tips to resolve common problems:
+## Related Documentation Links
 
-- **SyntaxError**: Ensure your Python syntax is correct. Common mistakes include missing colons (`:`) at the end of the `def` line or incorrect indentation.
-- **TypeError**: This occurs if the function arguments are not of compatible types (e.g., attempting to add a string and an integer). Make sure that the inputs to your function are of expected types.
-- **NameError**: If you see a message like "NameError: name 'add_two_numbers' is not defined", check that your function is correctly defined before you call it. Also, ensure there are no spelling errors in your function name.
+- Python Regular Expressions (Regex) documentation: [https://docs.python.org/3/library/re.html](https://docs.python.org/3/library/re.html)
+- Official RFC 5322 specifying the syntax for email addresses: [https://tools.ietf.org/html/rfc5322](https://tools.ietf.org/html/rfc5322)
 
-By following this guide, you should be able to create simple Python functions for use within the MorningAI platform. Remember, understanding these basic concepts lays the groundwork for developing more complex functionalities and workflows in your projects.
+## Common Troubleshooting Tips
+
+- **Pattern mismatch errors**: Ensure that the regex pattern covers all valid cases for email formats you want to support. Note that some valid emails might not match if the pattern is too restrictive.
+- **re.match returns None**: This indicates no match was found. Ensure your input string is indeed an email address and matches the specified pattern.
+- **Performance issues**: Validating emails with regex in real-time on large datasets can be resource-intensive. Consider optimizing your approach or validating in batches if performance becomes an issue.
+
+For further customization or integration within the MorningAI platform, refer to the documentation on adding utility functions and managing dependencies within the project's architecture at `docs/FAQ.md` and other relevant sections of the repository `RC918/morningai`.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -44,7 +57,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
-- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
+- Task: [Phase1-Test] Create a Python function that validates email addresses using regex
+- Trace ID: `phase1-stg-test-2de95163-c30f-44ac-9ff6-c5c86cf814a7`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
