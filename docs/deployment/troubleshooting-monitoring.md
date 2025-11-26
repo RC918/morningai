@@ -1,6 +1,6 @@
 # Monitoring Dashboard Troubleshooting Guide
 
-**Last Updated**: 2025-11-23  
+**Last Updated**: 2025-11-26  
 **Applies To**: Monitoring Dashboard v2 (`/api/phase7/monitoring/dashboard`)
 
 ---
@@ -407,7 +407,39 @@ For additional support:
 
 ---
 
-## Recent Updates (Nov 18-23, 2025)
+## Recent Updates (Nov 25-26, 2025)
+
+### PR #1548: Frontend Dashboard Code Splitting
+- **Path**: `handoff/20250928/40_App/frontend-dashboard/`
+- **Change**: 20% bundle reduction + Lighthouse CI color-contrast fix
+- **Impact**: Improved performance and accessibility compliance
+
+### PR #1562: RQ Job Timeout Configuration
+- **Path**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
+- **Change**: Added `RQ_JOB_TIMEOUT` environment variable
+- **Impact**: Configurable job timeout for long-running tasks (default: 3600s)
+
+### PR #1547: AppleButton Migration to shared-ui
+- **Path**: `packages/shared-ui/`
+- **Change**: Adapter pattern implementation
+- **Impact**: Unified component library across frontend-dashboard and owner-console
+
+### PR #1546: Phase 2 UI Completion
+- **Path**: `handoff/20250928/40_App/frontend-dashboard/src/`
+- **Change**: Emotional colors, AppleButton alignment, Spring animations
+- **Impact**: Enhanced Apple design system consistency
+
+### UUID Normalization Fix
+- **Path**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+- **Change**: Handle prefixed task IDs from external tools
+- **Impact**: Improved compatibility with external task submission tools
+
+### LoginPage UX Improvements
+- **Path**: `handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx`
+- **Change**: Comprehensive redesign using Apple design system
+- **Impact**: Fixed icon blur, added static labels, improved accessibility
+
+## Previous Updates (Nov 18-23, 2025)
 
 ### PR #1350: E2E Testing Infrastructure
 - **Path**: `handoff/20250928/40_App/owner-console/e2e/`
@@ -505,5 +537,5 @@ When adding new Redis write operations:
 ---
 
 **Maintained By**: CTO / DevOps Team  
-**Version**: 1.2.0  
-**Last Updated**: 2025-11-23
+**Version**: 1.3.0  
+**Last Updated**: 2025-11-26
