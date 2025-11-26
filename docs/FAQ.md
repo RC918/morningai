@@ -1,55 +1,75 @@
-# Validate Email Addresses with Regex in Python
+# Logging Function Execution Time in Python with a Decorator
 
-Validating email addresses is a common requirement in many web and application development projects. A robust method to accomplish this is by using Regular Expressions (Regex). This FAQ entry will guide you through creating a Python function to validate email addresses using regex, ensuring that the emails conform to standard formatting rules.
+Creating a Python decorator for logging the execution time of functions is a valuable tool for developers, especially when optimizing code and identifying performance bottlenecks. This FAQ will guide you through the process of creating such a decorator and integrating it with your projects on the MorningAI platform.
 
-## Understanding Email Validation
+## Understanding Python Decorators
 
-Email validation through regex involves matching the email string against a pattern that represents the standard format of email addresses. The general pattern includes local part, "@" symbol, and domain part, with specific rules for each section.
+A decorator in Python is essentially a function that wraps another function or method. The primary purpose is to transparently modify or enhance the behavior of the function it decorates. When dealing with performance analysis, decorators become handy tools for measuring execution time without cluttering the business logic with profiling code.
 
-## Code Example
+## Creating the Execution Time Logger Decorator
 
-Below is an example of a Python function that uses regex to validate an email address. This function can be integrated into your MorningAI project under the repository `RC918/morningai`.
+To create a decorator that logs the execution time of a function, follow these steps:
 
-```python
-import re
+1. **Define the Decorator Function**: This involves writing a wrapper function that records the time before and after the decorated function's execution.
 
-def validate_email(email):
-    # Define a regex pattern for validating an email
-    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-    
-    # Match the email against the pattern
-    if re.match(pattern, email):
-        return True
-    else:
-        return False
-```
+2. **Calculate Execution Time**: Subtract the start time from the end time to find out how long the function took to execute.
 
-### How to Use
+3. **Log the Execution Time**: Print or log the execution time for monitoring and debugging purposes.
 
-To use this function in your project, simply import it and pass an email address as an argument:
+### Code Example
+
+Here's an example implementation of an execution time logger decorator:
 
 ```python
-from your_module import validate_email  # Adjust 'your_module' based on your actual file path
+import time
+import functools
 
-email = "test@example.com"
-if validate_email(email):
-    print("Valid email!")
-else:
-    print("Invalid email.")
+def log_execution_time(func):
+    """Decorator to log the execution time of a function."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"{func.__name__!r} executed in {(end_time - start_time):.4f} seconds")
+        return result
+
+    return wrapper
 ```
+
+### Using the Decorator
+
+To use this decorator, simply prefix any function you wish to profile with `@log_execution_time`:
+
+```python
+@log_execution_time
+def sample_function():
+    # Function logic here
+    pass
+```
+
+## Integration with MorningAI
+
+When integrating this decorator into your MorningAI projects, consider where performance metrics are most valuable. For instance, applying it to functions responsible for data processing or external API calls can provide insights into potential bottlenecks.
+
+### Repository Integration
+
+1. Add the `log_execution_time` decorator code to a module within your project (e.g., `utils/decorators.py`).
+2. Import and use it across various modules as needed to monitor execution times.
 
 ## Related Documentation Links
 
-- Python Regular Expressions (Regex) documentation: [https://docs.python.org/3/library/re.html](https://docs.python.org/3/library/re.html)
-- Official RFC 5322 specifying the syntax for email addresses: [https://tools.ietf.org/html/rfc5322](https://tools.ietf.org/html/rfc5322)
+- [Python Decorators](https://docs.python.org/3/glossary.html#term-decorator)
+- [functools.wraps](https://docs.python.org/3/library/functools.html#functools.wraps)
 
 ## Common Troubleshooting Tips
 
-- **Pattern mismatch errors**: Ensure that the regex pattern covers all valid cases for email formats you want to support. Note that some valid emails might not match if the pattern is too restrictive.
-- **re.match returns None**: This indicates no match was found. Ensure your input string is indeed an email address and matches the specified pattern.
-- **Performance issues**: Validating emails with regex in real-time on large datasets can be resource-intensive. Consider optimizing your approach or validating in batches if performance becomes an issue.
+- **Decorator Not Working**: Ensure you've imported the decorator correctly wherever you're trying to use it.
+- **Incorrect Execution Times**: Make sure there's no additional logic between starting and stopping your timer within the decorator.
+- **Performance Overhead**: While decorators are generally lightweight, excessive logging might introduce overhead. Use them judiciously, especially in production environments.
 
-For further customization or integration within the MorningAI platform, refer to the documentation on adding utility functions and managing dependencies within the project's architecture at `docs/FAQ.md` and other relevant sections of the repository `RC918/morningai`.
+Remember, profiling and optimization are ongoing processes. Regularly reviewing and analyzing execution times can lead to more efficient and performant applications on MorningAI.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -57,7 +77,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python function that validates email addresses using regex
-- Trace ID: `phase1-stg-test-2de95163-c30f-44ac-9ff6-c5c86cf814a7`
+- Task: [Phase1-Test] Create a Python decorator that logs function execution time
+- Trace ID: `phase1-stg-test-24cd9434-7d36-4b44-ad71-b037069c651b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
