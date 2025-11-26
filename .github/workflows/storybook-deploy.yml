@@ -103,7 +103,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./storybook_publish
           publish_branch: gh-pages-storybook
-          cname: storybook.morningai.app
+          cname: storybook.gm365.me
           enable_jekyll: false
           # keep_files: false ensures clean builds - using 'true' causes accumulation
           # of old assets from multiple builds, leading to corrupted Storybook
