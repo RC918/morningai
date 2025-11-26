@@ -187,7 +187,7 @@ function AppleInput({
             appleInputVariants({ variant, inputSize, state, className }),
             label && labelPosition === "floating" && "pt-6 pb-2",
             leftIcon && "pl-10",
-            (rightIcon || showPasswordToggle || showStateIcon) && "pr-12",
+            (rightIcon || showPasswordToggle || showStateIcon) && "pr-10",
             "placeholder:text-muted-foreground/50 selection:bg-primary selection:text-primary-foreground"
           )}
           disabled={disabled}
