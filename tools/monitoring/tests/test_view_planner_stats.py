@@ -15,8 +15,7 @@ from view_planner_stats import (  # noqa: E402
     load_planner_events,
     compute_statistics,
     format_statistics,
-    show_recent_entries,
-    find_git_root
+    show_recent_entries
 )
 
 
@@ -195,24 +194,25 @@ def test_show_recent_entries_empty():
     assert output == "No entries to display"
 
 
-def test_find_git_root(tmp_path):
-    """Test finding git root directory"""
-    # Create a fake git repo structure
-    git_dir = tmp_path / ".git"
-    git_dir.mkdir()
-
-    subdir = tmp_path / "subdir" / "nested"
-    subdir.mkdir(parents=True)
-
-    # Should find git root from subdirectory
-    root = find_git_root(str(subdir))
-    assert root == str(tmp_path)
+def test_path_resolution_with_env_var(tmp_path, monkeypatch):
+    """Test path resolution with environment variable override"""
+    from common.utils.path_utils import resolve_planner_events_path
+    
+    # Test with absolute path
+    abs_path = str(tmp_path / "custom" / "events.jsonl")
+    monkeypatch.setenv('PLANNER_EVENTS_FILE', abs_path)
+    
+    resolved = resolve_planner_events_path()
+    assert resolved == abs_path
 
 
-def test_find_git_root_not_found(tmp_path):
-    """Test finding git root when not in a git repo"""
-    root = find_git_root(str(tmp_path))
-    assert root is None
+def test_path_resolution_default():
+    """Test path resolution with default relative path"""
+    from common.utils.path_utils import resolve_planner_events_path
+    
+    resolved = resolve_planner_events_path()
+    # Should end with the default path
+    assert resolved.endswith('tools/agent_eval/data/planner_runs.jsonl')
 
 
 def test_planning_time_conversion(sample_events):

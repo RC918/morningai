@@ -29,53 +29,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-
-def find_git_root(start_dir: str) -> Optional[str]:
-    """
-    Find git repository root by searching for .git directory
-
-    Args:
-        start_dir: Directory to start searching from
-
-    Returns:
-        Path to git root, or None if not found
-    """
-    current = start_dir
-    while current != '/' and not os.path.exists(os.path.join(current, '.git')):
-        current = os.path.dirname(current)
-    return current if os.path.exists(os.path.join(current, '.git')) else None
-
-
-def resolve_planner_events_path() -> str:
-    """
-    Resolve planner_runs.jsonl path using same logic as LLMPlannerAdapter
-
-    Returns:
-        Absolute path to planner_runs.jsonl file
-    """
-    events_file = os.environ.get('PLANNER_EVENTS_FILE', 'tools/agent_eval/data/planner_runs.jsonl')
-
-    # If absolute path, use as-is
-    if os.path.isabs(events_file):
-        return events_file
-
-    # Find git root
-    cwd = os.getcwd()
-    repo_root = find_git_root(cwd)
-
-    if not repo_root:
-        # Try from script location
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        repo_root = find_git_root(current_dir)
-
-        if not repo_root:
-            # Fallback: assume cwd is repo root or contains morningai
-            if os.path.basename(cwd) == 'morningai' or os.path.basename(os.path.dirname(cwd)) == 'morningai':
-                repo_root = cwd if os.path.basename(cwd) == 'morningai' else os.path.dirname(cwd)
-            else:
-                repo_root = current_dir
-
-    return os.path.join(repo_root, events_file)
+from common.utils.path_utils import resolve_planner_events_path
 
 
 def load_planner_events(file_path: str, filter_goal: Optional[str] = None) -> List[Dict[str, Any]]:
