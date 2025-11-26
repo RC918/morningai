@@ -178,14 +178,14 @@
 }
 
 /* Dark mode variant */
-.theme-apple.dark {
-  /* ===== Primary Colors (Dark) - Lighter for better contrast with white text ===== */
-  --color-primary: #FFB366;        /* Lighter orange for dark mode (was #FF8C42) */
-  --color-primary-hover: #FFC999;  /* Even lighter on hover (was #FF6B35) */
-  --color-primary-active: #FF9F4D; /* Active state (was #E55A24) */
-  --color-primary-light: #FFD9B3;
-  --color-primary-lighter: #FFF4E6;
-  --color-primary-lightest: #FFFBF5;
+.dark .theme-apple {
+  /* ===== Primary Colors (Dark) - DARKER for better contrast with white text ===== */
+  --color-primary: #CC5500;        /* Darker burnt orange for dark mode (was #FF8C42) */
+  --color-primary-hover: #B34700;  /* Even darker on hover (was #FF6B35) */
+  --color-primary-active: #993D00; /* Active state (was #E55A24) */
+  --color-primary-light: #E66A1A;
+  --color-primary-lighter: #FF8C42;
+  --color-primary-lightest: #FFB366;
   
   /* ===== Background Colors (Dark) ===== */
   --bg-primary: #171717;
