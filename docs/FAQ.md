@@ -1,66 +1,50 @@
-# Verifying 600s Timeout in Test Tasks
+# Verifying 600s Timeout After PR #1562 Deployment
 
 ## Overview
-In the development and operation of MorningAI, ensuring that tasks execute within their expected time frames is crucial for maintaining system performance and reliability. This FAQ addresses how to verify that a 600-second (10-minute) timeout is properly configured and functioning for test tasks within the MorningAI platform.
 
-### Context
-- **Repository**: `RC918/morningai`
-- **Location in Repository**: This information will be added to `docs/FAQ.md`.
+After the deployment of Pull Request (PR) #1562 in the RC918/morningai repository, it is crucial to verify the implementation of a 600-second timeout feature. This feature is intended to enhance the platform's stability and performance by ensuring that operations do not exceed a predefined execution time. This FAQ aims to guide developers through the process of verifying this timeout functionality to ensure it operates as expected within the MorningAI platform.
 
 ## Explanation
-Timeout settings are an essential part of task management in asynchronous and distributed systems like MorningAI. They prevent tasks from running indefinitely due to errors or other issues, which could lead to resource exhaustion and degrade the system's responsiveness. The 600s timeout setting specifies that a test task should be automatically terminated if it exceeds 10 minutes in execution time.
 
-### Configuration Steps
-To verify or set up a 600-second timeout for test tasks, follow these steps:
+The 600-second timeout was introduced to handle long-running tasks more effectively, preventing them from consuming excessive resources or blocking other operations. This change affects how tasks are managed and executed across various components of the MorningAI platform, including autonomous agent systems, real-time task orchestration, and multi-platform integration.
 
-1. **Define the Timeout in Task Configuration**:
-   Ensure that each task definition includes a timeout parameter set to 600 seconds. In Python, using Flask with Redis Queue (RQ), you would define a job like this:
+### Code Example: Verifying Timeout
+
+To verify the 600s timeout, you can simulate a long-running task and observe if it terminates as expected after 600 seconds. Below is an example using Python with Flask, assuming you have a route that triggers a long-running task:
 
 ```python
-from redis import Redis
-from rq import Queue
+from flask import Flask
+import time
 
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
+app = Flask(__name__)
 
-def my_long_running_task():
-    # Task implementation here
-    pass
+@app.route('/test-timeout')
+def test_timeout():
+    print("Task started.")
+    # Simulate a long-running task
+    time.sleep(605)  # Sleep for 605 seconds
+    print("Task completed.")
+    return "Task should have been terminated by a timeout."
 
-# Enqueue the task with a 600-second timeout
-job = q.enqueue(my_long_running_task, timeout=600)
+if __name__ == '__main__':
+    app.run(debug=True)
 ```
 
-2. **Implementing Timeout Checks**:
-   In scenarios where you're manually managing task execution times, ensure to implement logic that respects the 600-second limit. This could involve checking execution start times against current times within long-running loops or operations.
-
-3. **Monitoring and Alerts**:
-   Use monitoring tools compatible with your stack (e.g., Sentry, Prometheus) to track tasks exceeding their timeouts. Set up alerts to notify your team when such incidents occur for proactive handling.
+This code snippet is purely illustrative. In practice, you would replace `time.sleep(605)` with the actual task or function call that's expected to be long-running.
 
 ### Related Documentation Links
-- Redis Queue (RQ) Documentation on Jobs: [https://python-rq.org/docs/jobs/](https://python-rq.org/docs/jobs/)
+
 - Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
-- Monitoring with Sentry: [https://sentry.io/welcome/](https://sentry.io/welcome/)
-- Prometheus Monitoring: [https://prometheus.io/docs/introduction/overview/](https://prometheus.io/docs/introduction/overview/)
+- Redis Queue (RQ) Documentation: [https://python-rq.org/](https://python-rq.org/)
+- Gunicorn Configuration: [https://gunicorn.org/#config](https://gunicorn.org/#config)
 
-## Common Troubleshooting Tips
+### Common Troubleshooting Tips
 
-1. **Task Does Not Terminate After 600 Seconds**:
-   - Ensure the timeout parameter is correctly set when enqueueing the task.
-   - Verify that the task is not being reset or re-enqueued without a timeout due to retries or error handling logic.
-   - Check for any global configuration that might override individual task timeouts.
+- **Task Completes Despite Timeout**: Ensure that your environment correctly implements timeout settings. For Gunicorn deployments, review your gunicorn configuration file (`gunicorn.conf.py`) for worker timeout settings.
+- **False Timeout Triggers**: If tasks are being terminated before reaching the 600-second threshold, check system logs for any errors or misconfigurations that might cause premature timeouts.
+- **Monitoring and Logging**: Utilize logging within your application to monitor task start and end times. This can help verify if timeouts are functioning as expected. Ensure your logging level is set appropriately in your Flask application to capture these events.
 
-2. **Tasks Failing Due to Timeout**:
-   - Analyze the task's execution path for unexpected delays or inefficiencies.
-   - Consider breaking down long-running tasks into smaller, independently executable parts if possible.
-   - Review resource allocation (CPU, memory) for the worker processes to ensure they're adequate.
-
-3. **Monitoring Tools Not Reporting Timeouts**:
-   - Double-check the integration setup between your application and monitoring tools.
-   - Ensure alert rules are correctly configured to trigger on job timeout events.
-   - Validate that monitoring services have access to relevant logs and metrics from your application and infrastructure.
-
-For more detailed troubleshooting related to specific technologies (Redis Queue, Flask), please consult their respective documentation or reach out to their support communities.
+For additional troubleshooting related to specific components of MorningAI (e.g., Redis Queue worker timeouts or Supabase operations), refer to the respective component's documentation for detailed diagnostic techniques.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -68,7 +52,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: [Phase1-Verify-Timeout] Test task to verify 600s timeout is working
-- Trace ID: `phase1-verify-7ecc7492-974a-4b21-8a2b-27c555e12862`
+- Task: [Phase1-Verify-Post-Deploy] Test task to verify 600s timeout after PR #1562 deployment
+- Trace ID: `phase1-verify-post-deploy-eda32538-924e-4327-942a-8af5f274646d`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
