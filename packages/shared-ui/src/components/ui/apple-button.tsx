@@ -11,21 +11,21 @@ const appleButtonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-primary-600 text-white shadow-sm hover:bg-primary-700 hover:shadow-md focus-visible:ring-primary-600/30 active:shadow-sm",
+          "bg-primary-600 dark:bg-primary-500 text-white shadow-sm hover:bg-primary-700 dark:hover:bg-primary-600 hover:shadow-md focus-visible:ring-primary-600/30 active:shadow-sm",
         secondary:
-          "bg-neutral-100 text-neutral-900 shadow-sm hover:bg-neutral-200 hover:shadow-md focus-visible:ring-neutral-500/30 active:shadow-sm",
+          "bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm hover:bg-neutral-200 dark:hover:bg-neutral-600 hover:shadow-md focus-visible:ring-neutral-500/30 active:shadow-sm",
         destructive:
-          "bg-error-600 text-white shadow-sm hover:bg-error-700 hover:shadow-md focus-visible:ring-error-600/30 active:shadow-sm",
+          "bg-error-600 dark:bg-error-500 text-white shadow-sm hover:bg-error-700 dark:hover:bg-error-600 hover:shadow-md focus-visible:ring-error-600/30 active:shadow-sm",
         outline:
-          "border border-neutral-300 bg-white/80 backdrop-blur-sm shadow-xs hover:bg-neutral-50 hover:text-neutral-900 focus-visible:ring-primary-600/20 active:bg-neutral-100/80",
+          "border border-neutral-300 dark:border-neutral-600 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm shadow-xs hover:bg-neutral-50 dark:hover:bg-neutral-700 hover:text-neutral-900 dark:hover:text-white focus-visible:ring-primary-600/20 active:bg-neutral-100/80 dark:active:bg-neutral-700/80",
         ghost:
-          "hover:bg-neutral-100/80 hover:text-neutral-900 focus-visible:ring-primary-600/20 active:bg-neutral-100",
+          "hover:bg-neutral-100/80 dark:hover:bg-neutral-700/80 hover:text-neutral-900 dark:hover:text-white focus-visible:ring-primary-600/20 active:bg-neutral-100 dark:active:bg-neutral-700",
         link:
-          "text-primary-600 underline-offset-4 hover:underline focus-visible:ring-primary-600/20",
+          "text-primary-600 dark:text-primary-400 underline-offset-4 hover:underline focus-visible:ring-primary-600/20",
         filled:
-          "bg-neutral-100 text-neutral-900 shadow-xs hover:shadow-sm focus-visible:ring-neutral-500/30 active:shadow-xs",
+          "bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-xs hover:shadow-sm focus-visible:ring-neutral-500/30 active:shadow-xs",
         tinted:
-          "bg-primary-600/10 text-primary-600 hover:bg-primary-600/20 focus-visible:ring-primary-600/30 active:bg-primary-600/15",
+          "bg-primary-600/10 dark:bg-primary-400/20 text-primary-600 dark:text-primary-400 hover:bg-primary-600/20 dark:hover:bg-primary-400/30 focus-visible:ring-primary-600/30 active:bg-primary-600/15 dark:active:bg-primary-400/25",
       },
       size: {
         sm: "h-8 rounded-lg gap-1.5 px-3 text-sm has-[>svg]:px-2.5",

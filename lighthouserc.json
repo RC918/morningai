@@ -43,6 +43,7 @@
         "heading-order": ["error", {"minScore": 0.9}],
         "image-delivery-insight": "off",
         "network-dependency-tree-insight": "off",
+        "unminified-javascript": ["warn", {"maxLength": 1}],
         "unused-javascript": "warn",
         "uses-responsive-images": "warn"
       }
