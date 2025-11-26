@@ -138,8 +138,8 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
                 style={{ width: '40px', height: '40px', maxWidth: '40px', maxHeight: '40px' }}
               />
               <div>
-                <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
-                <p className="text-xs text-neutral-600 dark:text-neutral-600">{t('sidebar.header.subtitle')}</p>
+                <h1 className="text-title-3 font-bold text-neutral-900 dark:text-white">{t('app.name')}</h1>
+                <p className="text-caption-2 text-neutral-600 dark:text-neutral-600">{t('sidebar.header.subtitle')}</p>
               </div>
             </Link>
           )}
@@ -173,10 +173,10 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
           
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
+              <p className="text-subhead font-medium text-neutral-900 dark:text-white truncate">
                 {user?.name || t('sidebar.user.defaultName')}
               </p>
-              <p className="text-xs text-neutral-600 dark:text-neutral-600 truncate">
+              <p className="text-caption-2 text-neutral-600 dark:text-neutral-600 truncate">
                 {user?.role || t('sidebar.user.defaultRole')}
               </p>
             </div>
@@ -194,7 +194,7 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center px-3 py-2 rounded-lg text-subhead font-medium transition-colors ${
                     active
                       ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 border-r-2 border-primary-700 dark:border-primary-400'
                       : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white'
@@ -210,12 +210,12 @@ const Sidebar = ({ user, onLogout }: SidebarProps): React.ReactElement => {
                         <div className="flex items-center justify-between">
                           <span>{item.label}</span>
                           {item.badge && (
-                            <span className="bg-error-100 text-error-600 text-xs px-2 py-1 rounded-full">
+                            <span className="bg-error-100 text-error-600 text-caption-2 px-2 py-1 rounded-full">
                               {item.badge}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-neutral-600 dark:text-neutral-600 mt-1">
+                        <p className="text-caption-2 text-neutral-600 dark:text-neutral-600 mt-1">
                           {item.description}
                         </p>
                       </div>

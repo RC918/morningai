@@ -151,6 +151,77 @@ class TestCodeGenerationWorkflowSecurityValidation:
             for path in safe_paths:
                 assert workflow._is_safe_file_path(path) is True, f"Should allow: {path}"
 
+    def test_is_safe_file_path_rejects_absolute_paths(self):
+        """Test that absolute paths are rejected"""
+        mock_dev_agent = MagicMock()
+
+        with patch('common.config.settings.settings') as mock_settings:
+            mock_settings.workspace_path = "/tmp/test_workspace"
+
+            workflow = CodeGenerationWorkflow(mock_dev_agent)
+
+            dangerous_paths = [
+                "/etc/passwd",
+                "/root/.ssh/id_rsa",
+                "/sys/kernel/debug",
+                "/proc/self/environ",
+                "/dev/null"
+            ]
+
+            for path in dangerous_paths:
+                assert workflow._is_safe_file_path(path) is False, f"Should reject: {path}"
+
+    def test_is_safe_file_path_rejects_home_sensitive(self):
+        """Test that sensitive home paths are rejected when they exist outside repo"""
+        mock_dev_agent = MagicMock()
+
+        with patch('common.config.settings.settings') as mock_settings:
+            mock_settings.workspace_path = "/tmp/test_workspace"
+
+            workflow = CodeGenerationWorkflow(mock_dev_agent)
+
+            import os
+            home_dir = os.path.expanduser('~')
+            dangerous_paths = [
+                f"{home_dir}/.ssh/id_rsa",
+                f"{home_dir}/.aws/credentials",
+                f"{home_dir}/.config/secrets"
+            ]
+
+            for path in dangerous_paths:
+                assert workflow._is_safe_file_path(path) is False, f"Should reject: {path}"
+
+    def test_is_safe_file_path_rejects_git_directory(self):
+        """Test that .git directory writes are blocked when .git exists"""
+        mock_dev_agent = MagicMock()
+
+        with patch('common.config.settings.settings') as mock_settings:
+            test_workspace = "/tmp/test_workspace_git"
+            mock_settings.workspace_path = test_workspace
+
+            import os
+            import tempfile
+            with tempfile.TemporaryDirectory() as tmpdir:
+                git_dir = os.path.join(tmpdir, '.git')
+                os.makedirs(git_dir, exist_ok=True)
+
+                with patch.object(CodeGenerationWorkflow, '__init__', lambda self, agent: None):
+                    workflow = CodeGenerationWorkflow.__new__(CodeGenerationWorkflow)
+                    workflow.agent = mock_dev_agent
+                    workflow.repo_root = tmpdir
+                    workflow.classifier = MagicMock()
+                    workflow.test_generator = MagicMock()
+
+                    git_paths = [
+                        ".git/config",
+                        ".git/hooks/pre-commit",
+                        ".git/HEAD"
+                    ]
+
+                    for path in git_paths:
+                        result = workflow._is_safe_file_path(path)
+                        assert result is False, f"Should reject: {path}"
+
 
 class TestCodeGenerationWorkflowDangerousPatterns:
     """Test dangerous pattern detection in security validation"""
@@ -188,6 +259,117 @@ class TestCodeGenerationWorkflowDangerousPatterns:
         has_delete = any('DELETE' in pattern for pattern in patterns)
 
         assert has_drop or has_delete, "Should include SQL injection patterns"
+
+
+class TestCodeGenerationWorkflowSecurityBehavior:
+    """Test validate_security() actual behavior with async tests"""
+
+    async def test_validate_security_rejects_eval(self):
+        """Test that validate_security rejects eval()"""
+        mock_dev_agent = MagicMock()
+
+        with patch('common.config.settings.settings') as mock_settings:
+            mock_settings.workspace_path = "/tmp/test_workspace"
+
+            workflow = CodeGenerationWorkflow(mock_dev_agent)
+
+            state = {
+                "task_id": 1,
+                "generated_code": "result = eval(user_input)",
+                "target_files": ["safe/path.py"],
+                "security_validated": False,
+            }
+
+            result = await workflow.validate_security(state)
+
+            assert result["security_validated"] is False
+            assert result.get("error") is not None
+            assert "dangerous pattern" in result["error"].lower() or "security" in result["error"].lower()
+
+    async def test_validate_security_rejects_exec(self):
+        """Test that validate_security rejects exec()"""
+        mock_dev_agent = MagicMock()
+
+        with patch('common.config.settings.settings') as mock_settings:
+            mock_settings.workspace_path = "/tmp/test_workspace"
+
+            workflow = CodeGenerationWorkflow(mock_dev_agent)
+
+            state = {
+                "task_id": 2,
+                "generated_code": "exec(malicious_code)",
+                "target_files": ["safe/path.py"],
+                "security_validated": False,
+            }
+
+            result = await workflow.validate_security(state)
+
+            assert result["security_validated"] is False
+            assert result.get("error") is not None
+
+    async def test_validate_security_rejects_os_system(self):
+        """Test that validate_security rejects os.system()"""
+        mock_dev_agent = MagicMock()
+
+        with patch('common.config.settings.settings') as mock_settings:
+            mock_settings.workspace_path = "/tmp/test_workspace"
+
+            workflow = CodeGenerationWorkflow(mock_dev_agent)
+
+            state = {
+                "task_id": 3,
+                "generated_code": "import os\nos.system('rm -rf /')",
+                "target_files": ["safe/path.py"],
+                "security_validated": False,
+            }
+
+            result = await workflow.validate_security(state)
+
+            assert result["security_validated"] is False
+            assert result.get("error") is not None
+
+    async def test_validate_security_accepts_safe_code(self):
+        """Test that validate_security accepts safe code"""
+        mock_dev_agent = MagicMock()
+
+        with patch('common.config.settings.settings') as mock_settings:
+            mock_settings.workspace_path = "/tmp/test_workspace"
+
+            workflow = CodeGenerationWorkflow(mock_dev_agent)
+
+            state = {
+                "task_id": 4,
+                "generated_code": "def add(a, b):\n    return a + b",
+                "target_files": ["safe/path.py"],
+                "security_validated": False,
+            }
+
+            result = await workflow.validate_security(state)
+
+            assert result["security_validated"] is True
+            assert result.get("error") is None
+
+    async def test_validate_security_rejects_unsafe_file_paths(self):
+        """Test that validate_security rejects unsafe file paths"""
+        mock_dev_agent = MagicMock()
+
+        with patch('common.config.settings.settings') as mock_settings:
+            mock_settings.workspace_path = "/tmp/test_workspace"
+
+            workflow = CodeGenerationWorkflow(mock_dev_agent)
+
+            state = {
+                "task_id": 5,
+                "generated_code": "def safe_function():\n    pass",
+                "target_files": ["../../../etc/passwd"],
+                "security_validated": False,
+            }
+
+            result = await workflow.validate_security(state)
+
+            assert result["security_validated"] is False
+            assert result.get("error") is not None
+            assert "unsafe file path" in result["error"].lower() or "path" in result["error"].lower()
 
 
 class TestCodeGenerationWorkflowStateStructure:

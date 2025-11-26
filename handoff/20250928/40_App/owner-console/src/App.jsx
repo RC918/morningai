@@ -34,7 +34,7 @@ function AppContent() {
 
   return (
     <Router>
-      <div className="flex h-screen bg-gray-100">
+      <div className="flex h-screen bg-neutral-50">
         <Sidebar user={user} onLogout={logout} />
         
         <main id="main-content" className="flex-1 overflow-y-auto" role="main">
@@ -66,8 +66,8 @@ function App() {
   }, [])
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <div className="theme-morning-ai">
+    <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
+      <div className="theme-morning-ai theme-apple">
         <AuthProvider>
           <AppContent />
         </AuthProvider>
