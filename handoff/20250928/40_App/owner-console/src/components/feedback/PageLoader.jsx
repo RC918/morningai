@@ -5,7 +5,7 @@ export const PageLoader = ({ message }) => {
   const { t } = useTranslation()
   const displayMessage = message || t('feedback.loading')
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-calm-10 to-calm-20">
       <motion.div
         animate={{
           scale: [1, 1.2, 1],
@@ -38,7 +38,7 @@ export const PageLoader = ({ message }) => {
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              className="w-2 h-2 bg-blue-600 rounded-full"
+              className="w-2 h-2 bg-calm rounded-full"
               animate={{
                 y: [0, -10, 0],
                 opacity: [1, 0.5, 1]
