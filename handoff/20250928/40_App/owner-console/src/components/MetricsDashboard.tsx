@@ -356,12 +356,12 @@ export const MetricsDashboard: React.FC = () => {
           </AlertDescription>
         </Alert>
         {import.meta.env.DEV && (
-          <Alert variant="default" className="border-blue-600 bg-blue-50">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-800">{t('metricsDashboard.devInfo.title')}</AlertTitle>
-            <AlertDescription className="text-blue-700">
+          <Alert variant="default" className="border-calm bg-calm-10">
+            <AlertCircle className="h-4 w-4 text-calm" />
+            <AlertTitle className="text-calm">{t('metricsDashboard.devInfo.title')}</AlertTitle>
+            <AlertDescription className="text-calm">
               <p className="mb-2">{t('metricsDashboard.devInfo.description')}</p>
-              <code className="block bg-blue-100 p-2 rounded text-sm">
+              <code className="block bg-calm-20 p-2 rounded text-sm">
                 {t('metricsDashboard.devInfo.endpoint')}
               </code>
               <p className="mt-2 text-xs">

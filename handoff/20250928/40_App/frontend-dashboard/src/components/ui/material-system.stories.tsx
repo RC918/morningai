@@ -377,3 +377,192 @@ export const DashboardExample: Story = {
     </div>
   ),
 };
+
+/**
+ * Emotional Color System
+ * 
+ * Apple-inspired emotional color palette for status indicators and state communication.
+ * Each color conveys specific emotional meaning and follows WCAG AA accessibility standards.
+ */
+export const EmotionalColors: Story = {
+  render: () => (
+    <div className="p-8 space-y-8">
+      <div>
+        <h2 className="text-2xl font-bold mb-2">情感化色彩系統</h2>
+        <p className="text-neutral-600 mb-6">
+          基於 Apple 設計語言的情感色彩系統，每種顏色傳達特定的情感意義，所有顏色符合 WCAG AA 無障礙標準（對比度 ≥ 4.5:1）
+        </p>
+      </div>
+
+      {/* Color Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Calm - Blue */}
+        <div className="space-y-3">
+          <div className="bg-calm h-24 rounded-xl flex items-center justify-center">
+            <span className="text-white font-bold text-lg">Calm</span>
+          </div>
+          <div className="bg-calm-10 p-4 rounded-lg border border-calm">
+            <h3 className="font-semibold text-calm mb-1">平靜 / 穩定</h3>
+            <p className="text-sm text-neutral-600">用於正常狀態、資訊提示</p>
+            <div className="mt-2 text-xs text-calm">
+              <code>bg-calm</code> · <code>text-calm</code> · <code>bg-calm-10</code>
+            </div>
+          </div>
+        </div>
+
+        {/* Growth - Green */}
+        <div className="space-y-3">
+          <div className="bg-growth h-24 rounded-xl flex items-center justify-center">
+            <span className="text-white font-bold text-lg">Growth</span>
+          </div>
+          <div className="bg-growth-10 p-4 rounded-lg border border-growth">
+            <h3 className="font-semibold text-growth mb-1">成長 / 成功</h3>
+            <p className="text-sm text-neutral-600">用於成功狀態、完成操作</p>
+            <div className="mt-2 text-xs text-growth">
+              <code>bg-growth</code> · <code>text-growth</code> · <code>bg-growth-10</code>
+            </div>
+          </div>
+        </div>
+
+        {/* Joy - Orange */}
+        <div className="space-y-3">
+          <div className="bg-joy h-24 rounded-xl flex items-center justify-center">
+            <span className="text-white font-bold text-lg">Joy</span>
+          </div>
+          <div className="bg-joy-10 p-4 rounded-lg border border-joy">
+            <h3 className="font-semibold text-joy mb-1">警示 / 注意</h3>
+            <p className="text-sm text-neutral-600">用於警告狀態、需要關注</p>
+            <div className="mt-2 text-xs text-joy">
+              <code>bg-joy</code> · <code>text-joy</code> · <code>bg-joy-10</code>
+            </div>
+          </div>
+        </div>
+
+        {/* Energy - Red */}
+        <div className="space-y-3">
+          <div className="bg-energy h-24 rounded-xl flex items-center justify-center">
+            <span className="text-white font-bold text-lg">Energy</span>
+          </div>
+          <div className="bg-energy-10 p-4 rounded-lg border border-energy">
+            <h3 className="font-semibold text-energy mb-1">錯誤 / 失敗</h3>
+            <p className="text-sm text-neutral-600">用於錯誤狀態、失敗操作</p>
+            <div className="mt-2 text-xs text-energy">
+              <code>bg-energy</code> · <code>text-energy</code> · <code>bg-energy-10</code>
+            </div>
+          </div>
+        </div>
+
+        {/* Wisdom - Purple */}
+        <div className="space-y-3">
+          <div className="bg-wisdom h-24 rounded-xl flex items-center justify-center">
+            <span className="text-white font-bold text-lg">Wisdom</span>
+          </div>
+          <div className="bg-wisdom-10 p-4 rounded-lg border border-wisdom">
+            <h3 className="font-semibold text-wisdom mb-1">洞察 / 智慧</h3>
+            <p className="text-sm text-neutral-600">用於分析數據、智能功能</p>
+            <div className="mt-2 text-xs text-wisdom">
+              <code>bg-wisdom</code> · <code>text-wisdom</code> · <code>bg-wisdom-10</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Usage Examples */}
+      <div className="mt-12">
+        <h3 className="text-xl font-bold mb-4">使用範例</h3>
+        <div className="space-y-4">
+          {/* Status Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="material-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-calm-10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-calm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium">正常</span>
+              </div>
+              <p className="text-2xl font-bold text-calm">128</p>
+            </div>
+
+            <div className="material-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-growth-10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-growth" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium">成功</span>
+              </div>
+              <p className="text-2xl font-bold text-growth">95</p>
+            </div>
+
+            <div className="material-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-joy-10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-joy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium">警告</span>
+              </div>
+              <p className="text-2xl font-bold text-joy">12</p>
+            </div>
+
+            <div className="material-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-energy-10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-energy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium">錯誤</span>
+              </div>
+              <p className="text-2xl font-bold text-energy">3</p>
+            </div>
+          </div>
+
+          {/* Status Mapping Example */}
+          <div className="material-card p-6">
+            <h4 className="font-semibold mb-4">狀態映射規則</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1 rounded-full bg-calm-10 text-calm font-medium">default</span>
+                <span className="text-neutral-600">→ calm (藍) - 正常/穩定</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1 rounded-full bg-growth-10 text-growth font-medium">executed</span>
+                <span className="text-neutral-600">→ growth (綠) - 成功/完成</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1 rounded-full bg-joy-10 text-joy font-medium">pending</span>
+                <span className="text-neutral-600">→ joy (橙) - 警告/等待中</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1 rounded-full bg-energy-10 text-energy font-medium">failed</span>
+                <span className="text-neutral-600">→ energy (紅) - 錯誤/失敗</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1 rounded-full bg-wisdom-10 text-wisdom font-medium">analysis</span>
+                <span className="text-neutral-600">→ wisdom (紫) - 洞察/智慧</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Accessibility Note */}
+      <div className="material-card p-6 bg-neutral-50">
+        <h4 className="font-semibold mb-2 flex items-center gap-2">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          無障礙標準
+        </h4>
+        <p className="text-sm text-neutral-600">
+          所有情感色彩都符合 WCAG 2.1 AA 標準，對比度 ≥ 4.5:1，確保色盲用戶和低視力用戶都能清晰辨識。
+        </p>
+      </div>
+    </div>
+  ),
+};
