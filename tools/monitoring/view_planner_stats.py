@@ -142,7 +142,7 @@ def compute_statistics(events: List[Dict[str, Any]]) -> Dict[str, Any]:
         # Planning time (convert ms to seconds) - handle non-numeric values
         if 'planning_time_ms' in event:
             value = event.get('planning_time_ms')
-            
+
             if isinstance(value, (int, float)):
                 planning_times.append(value / 1000.0)
             elif value is not None:
@@ -188,7 +188,7 @@ def compute_statistics(events: List[Dict[str, Any]]) -> Dict[str, Any]:
         stats['time_min'] = min(planning_times)
         stats['time_max'] = max(planning_times)
         stats['time_mean'] = sum(planning_times) / len(planning_times)
-        
+
         # Median: standard definition (average of two middle values for even N)
         n = len(sorted_times)
         mid = n // 2
@@ -196,7 +196,7 @@ def compute_statistics(events: List[Dict[str, Any]]) -> Dict[str, Any]:
             stats['time_median'] = sorted_times[mid]
         else:
             stats['time_median'] = (sorted_times[mid - 1] + sorted_times[mid]) / 2.0
-        
+
         stats['time_p95'] = sorted_times[int((len(sorted_times) - 1) * 0.95)]
 
     # Timeline
