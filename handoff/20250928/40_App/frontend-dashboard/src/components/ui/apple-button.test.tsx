@@ -13,6 +13,9 @@ import '@testing-library/jest-dom';
 import { AppleButton } from './apple-button';
 import * as springAnimation from '@/lib/spring-animation';
 
+// Local i18n stub for test compliance with strict i18n check
+const t = (key: string) => key;
+
 vi.mock('@/lib/spring-animation', () => ({
   getSpringConfig: vi.fn(() => ({
     type: 'spring',
@@ -29,7 +32,7 @@ describe('AppleButton Adapter (frontend-dashboard)', () => {
 
   describe('Spring Animation Integration', () => {
     it('calls getSpringConfig with "snappy" on render', () => {
-      render(<AppleButton>Button</AppleButton>);
+      render(<AppleButton>{t('test.button.label')}</AppleButton>);
       
       expect(springAnimation.getSpringConfig).toHaveBeenCalledWith('snappy');
     });
@@ -43,7 +46,7 @@ describe('AppleButton Adapter (frontend-dashboard)', () => {
       };
       vi.mocked(springAnimation.getSpringConfig).mockReturnValue(mockConfig);
       
-      render(<AppleButton>Button</AppleButton>);
+      render(<AppleButton>{t('test.button.label')}</AppleButton>);
       
       expect(springAnimation.getSpringConfig).toHaveBeenCalled();
     });
