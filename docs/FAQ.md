@@ -1,42 +1,55 @@
-# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
+# Validating Email Addresses with Regex in Python
 
-In the context of developing with MorningAI, understanding how to perform basic operations such as creating simple Python functions is crucial. This FAQ entry will guide you through the process of creating a Python function that adds two numbers. This example is part of our validation tests to ensure developers can implement basic logic and integrate it within the MorningAI platform.
+Validating email addresses is a common requirement in web development, ensuring that the input received conforms to a standard format before being processed or stored. The MorningAI platform, specifically within the `RC918/morningai` repository, may require such validation to ensure data integrity and operational efficiency. This FAQ entry provides a comprehensive guide to creating a Python function for email address validation using regular expressions (regex).
 
-## Comprehensive Explanation
+## Explanation
 
-Creating a Python function involves defining a block of reusable code that performs a specific task—in this case, adding two numbers. This function will accept two parameters, perform the addition operation, and return the result. This basic example serves as a foundation for more complex operations and integrations within MorningAI.
+Regular expressions are a powerful tool for pattern matching and validation. By defining a regex pattern that matches valid email formats, we can create a Python function to check whether any given email address conforms to this pattern. 
 
-### Code Example
+The general criteria for a valid email address include:
+- A local part followed by an "@" symbol, and a domain part.
+- The local part may contain letters, numbers, dots, hyphens, and underscores.
+- The domain part must contain at least one dot, with letters, numbers, hyphens between the dots.
+- The top-level domain (TLD) must consist of letters only and be at least two characters long.
 
-Below is a simple Python function named `add_two_numbers` that takes two parameters (`number1` and `number2`) and returns their sum:
+## Code Example
+
+Below is an example of a Python function that uses regex to validate an email address:
 
 ```python
-def add_two_numbers(number1, number2):
-    """Add two numbers and return the result."""
-    return number1 + number2
+import re
 
-# Example usage:
-result = add_two_numbers(5, 7)
-print(f"The sum is: {result}")
+def validate_email(email):
+    # Define the regex pattern for validating an email
+    pattern = r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    
+    # Use re.match to see if the pattern matches the email
+    if re.match(pattern, email):
+        return True
+    else:
+        return False
+
+# Example usage
+if validate_email('example@test.com'):
+    print("Valid email")
+else:
+    print("Invalid email")
 ```
 
-### Related Documentation Links
+## Related Documentation
 
-For further reading and more advanced functionalities within MorningAI, consider exploring these resources:
+For more information on regular expressions in Python and their application in various scenarios including but not limited to email validation:
+- [Python's `re` module documentation](https://docs.python.org/3/library/re.html)
+- [Regular Expressions (Regex) Tutorial](https://www.regular-expressions.info/)
+- Additional guidance on validating emails according to RFC standards can be found [here](https://emailregex.com/)
 
-- [Python Functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions) - Official Python documentation on defining functions.
-- [MorningAI Architecture Overview](/docs/architecture.md) - Detailed information about how MorningAI's architecture supports custom functions and integrations.
-- [Integrating Custom Logic into MorningAI](/docs/integration/custom_logic.md) - Guidelines on integrating custom Python functions like `add_two_numbers` into your MorningAI projects.
+## Troubleshooting Tips
 
-### Common Troubleshooting Tips
+1. **Pattern Does Not Match Valid Emails**: Ensure your regex pattern accurately represents the criteria for valid emails. Testing your regex with various valid and invalid emails can help refine it.
+2. **False Positives/Negatives**: Due to the complexity of valid email formats defined by RFC specifications, consider if edge cases are important for your application's context. Adjust your regex accordingly.
+3. **Performance Issues**: Regex operations can be expensive in terms of performance. For high-volume validations, consider optimizing your function or using precompiled patterns with `re.compile()`.
 
-When implementing or executing Python functions in MorningAI, you might encounter some issues. Here are tips to resolve common problems:
-
-- **SyntaxError**: Ensure your Python syntax is correct. Common mistakes include missing colons (`:`) at the end of the `def` line or incorrect indentation.
-- **TypeError**: This occurs if the function arguments are not of compatible types (e.g., attempting to add a string and an integer). Make sure that the inputs to your function are of expected types.
-- **NameError**: If you see a message like "NameError: name 'add_two_numbers' is not defined", check that your function is correctly defined before you call it. Also, ensure there are no spelling errors in your function name.
-
-By following this guide, you should be able to create simple Python functions for use within the MorningAI platform. Remember, understanding these basic concepts lays the groundwork for developing more complex functionalities and workflows in your projects.
+Remember, while regex is powerful for format validation, it does not verify the existence or availability of an email address. Additional steps may be required for comprehensive verification.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -44,7 +57,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
-- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
+- Task: [Phase1-Test] Create a Python function that validates email addresses using regex
+- Trace ID: `phase1-stg-test-21f11db6-1aae-4476-9eed-f39a31eedb4a`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
