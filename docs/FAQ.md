@@ -1,64 +1,95 @@
-# Validating Email Addresses with Regex in Python
+# Convert JSON to YAML using a Python CLI Tool
 
-Validating email addresses is a common task in web development, ensuring that user input conforms to a standard email format before processing or storing it. In Python, this can be achieved using the `re` module, which provides support for regular expressions. This FAQ entry will guide you through creating a Python function to validate email addresses using regex, suitable for integration with MorningAI's autonomous agent system or any other part of your application requiring email validation.
+This FAQ provides guidance on creating and using a Python Command Line Interface (CLI) tool that converts JSON files to YAML format. This tool is particularly useful for developers working with MorningAI, facilitating easy data format transformations to accommodate various integration and configuration needs.
 
-## Explanation
+## Overview
 
-An email address has a standard format: it typically includes characters before and after an "@" symbol, with domain parts separated by dots. A regex (regular expression) pattern can be used to match this structure. The Python `re` module allows us to define such patterns and search strings for matches.
+The conversion tool leverages Python's rich library ecosystem, utilizing `json` and `PyYAML`, two powerful libraries for handling JSON and YAML data formats, respectively. The tool reads a JSON file, parses its content into a Python dictionary, and then outputs the equivalent YAML format.
 
-### Code Example
+### Prerequisites
 
-Here's a basic example of a Python function that uses regex to validate an email address:
+- Python 3.6 or newer
+- PyYAML package
 
-```python
-import re
+To install PyYAML, run:
 
-def validate_email(email):
-    # Define the regex pattern for validating an email
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    
-    # Use re.match() to check if the pattern matches the email
-    if re.match(pattern, email):
-        return True
-    else:
-        return False
+```bash
+pip install PyYAML
 ```
 
-In this example, `re.match()` checks if the entire string matches the regex pattern defined for a valid email address:
+## Code Example
 
-- Begins with letters (both cases), digits, dots, underscores, percent signs, plus signs, or hyphens.
-- Followed by an "@" symbol.
-- Then more letters (both cases), digits, dots, or hyphens.
-- Ends with a dot followed by two or more letters (the top-level domain).
+Below is a simple Python script that performs the conversion from JSON to YAML:
+
+```python
+# json_to_yaml.py
+
+import json
+import yaml
+import sys
+
+def convert_json_to_yaml(json_file_path, yaml_file_path):
+    try:
+        with open(json_file_path, 'r') as json_file:
+            json_data = json.load(json_file)
+        
+        with open(yaml_file_path, 'w') as yaml_file:
+            yaml.dump(json_data, yaml_file, default_flow_style=False)
+            
+        print(f"Successfully converted {json_file_path} to {yaml_file_path}")
+    except Exception as e:
+        print(f"Error during conversion: {e}")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: python json_to_yaml.py <input_json_file> <output_yaml_file>")
+        sys.exit(1)
+    
+    _, json_input, yaml_output = sys.argv
+    convert_json_to_yaml(json_input, yaml_output)
+```
+
+This script can be executed from the command line by providing the source JSON file and the target YAML file names as arguments:
+
+```bash
+python json_to_yaml.py input.json output.yaml
+```
 
 ### Related Documentation
 
-For further details on using regular expressions in Python:
-- Python's `re` module: [https://docs.python.org/3/library/re.html](https://docs.python.org/3/library/re.html)
-- Regular expression syntax: [https://docs.python.org/3/howto/regex.html#regex-howto](https://docs.python.org/3/howto/regex.html#regex-howto)
+- PyYAML Documentation: https://pyyaml.org/wiki/PyYAMLDocumentation
+- Official Python `json` library documentation: https://docs.python.org/3/library/json.html
 
-### Common Troubleshooting Tips
+## Common Troubleshooting Tips
 
-1. **Pattern Not Matching**: Ensure your regex pattern covers all valid email formats you expect. Regex patterns are case-sensitive by default. Use `re.IGNORECASE` flag if you want a case-insensitive match.
-2. **Special Characters**: Email standards allow for some special characters that might not be covered by a basic regex pattern. If necessary, update your pattern to include these.
-3. **Performance Issues**: Regex matching can be slow for complex patterns or large datasets. Consider pre-compiling your regex pattern with `re.compile()` if you're validating emails in bulk.
+**1. ImportError for PyYAML**
 
-To integrate this function into MorningAI's codebase:
-1. Clone the repository (`RC918/morningai`) and navigate to your local copy.
-2. Create or edit relevant Python modules under the appropriate directories (e.g., `src/validation`).
-3. Add your function and ensure it's imported where needed.
-4. Write unit tests to verify its functionality within `tests/validation`.
-5. Commit your changes with a meaningful message and push them to the repository.
+If you encounter an `ImportError` related to PyYAML, ensure that you have correctly installed PyYAML in your environment:
 
-For more detailed information on contributing to MorningAI, refer to our contribution guidelines in the repository documentation.
+```bash
+pip install PyYAML
+```
+
+**2. FileNotFoundError**
+
+Ensure both the source JSON file exists and the path is correct. Double-check the file name and directory path provided as arguments.
+
+**3. SyntaxError in JSON File**
+
+Invalid JSON format will cause a failure in conversion. Use online validators or IDE tools to check and fix any syntax errors in your JSON file before conversion.
+
+**4. Permission Issues**
+
+When saving the output YAML file, you might encounter permission-related errors depending on your operating system's security settings or if you're writing to a protected directory. Ensure you have write permissions for the target directory.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python function that validates email addresses using regex
-- Trace ID: `phase1-stg-test-5875d15e-a9f0-4907-9955-53b468a98ab9`
+- Task: [Phase1-Test] Generate a Python CLI tool that converts JSON to YAML format
+- Trace ID: `phase1-stg-test-c3afa545-abe9-4318-9d96-9ce757faa8c4`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
