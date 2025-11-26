@@ -1,55 +1,77 @@
-# Validating Email Addresses with Regex in Python
+# Managing a Simple In-Memory Cache with TTL in Python
 
-Validating email addresses is a common requirement for web applications, ensuring that inputs conform to a standard format before processing or storing them. In Python, this can be efficiently achieved using Regular Expressions (regex). This guide provides a comprehensive overview of creating a function to validate email addresses using regex within the MorningAI platform.
+This FAQ section aims to guide developers through the creation and management of a simple in-memory cache system in Python, specifically tailored for use within the MorningAI platform. This cache system will include Time-To-Live (TTL) functionality, ensuring data is automatically invalidated after a specified duration, promoting efficient memory usage and data freshness.
 
-## Explanation
+## Overview
 
-Regular expressions are a powerful tool for pattern matching in strings. For email validation, the regex pattern must account for the general structure of email addresses, which includes local parts, an "@" symbol, and domain parts. A robust regex pattern for emails should consider various valid characters in both local and domain parts and the limitations on their placement.
+An in-memory cache temporarily stores frequently accessed data in memory to reduce data fetching times from slower backend systems (e.g., databases or external APIs). Adding TTL to cached items helps prevent stale data by automatically removing expired items from the cache.
 
-### Code Example
+## Implementation
 
-Below is a Python function that utilizes the `re` module to validate an email address against a regex pattern:
+Below is a basic implementation of an in-memory cache class with TTL functionality in Python. This example uses a dictionary to store cache items and leverages the `time` module to manage expiration times.
 
 ```python
-import re
+import time
 
-def validate_email(email):
-    # Define a regex pattern for validating an email
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    
-    # Use re.match to see if the pattern matches the email
-    if re.match(pattern, email):
-        return True
-    else:
-        return False
+class SimpleCacheWithTTL:
+    def __init__(self):
+        self.cache = {}
+        self.ttl = {}
+
+    def set(self, key, value, ttl):
+        self.cache[key] = value
+        self.ttl[key] = time.time() + ttl
+
+    def get(self, key):
+        if key in self.cache and time.time() < self.ttl[key]:
+            return self.cache[key]
+        else:
+            # Remove expired item if present
+            self.cache.pop(key, None)
+            self.ttl.pop(key, None)
+            return None
+
+    def remove(self, key):
+        if key in self.cache:
+            del self.cache[key]
+            del self.ttl[key]
+
+    def clear(self):
+        self.cache.clear()
+        self.ttl.clear()
 ```
 
-To use this function within the MorningAI platform:
+### Usage Example
 
-1. Ensure your environment is set up with Python and necessary dependencies.
-2. Add this function to your utility module or directly within your relevant script file in the `RC918/morningai` repository. A good place might be under `utils/validators.py` if following standard project structure conventions.
+```python
+cache = SimpleCacheWithTTL()
+cache.set("key1", "value1", ttl=10)  # Sets key1 with TTL of 10 seconds
 
-### Related Documentation Links
+print(cache.get("key1"))  # Outputs 'value1'
 
-- Python's `re` module: [Python re documentation](https://docs.python.org/3/library/re.html)
-- Regular expression basics: [Regular Expressions (Regex) Tutorial](https://www.regular-expressions.info/tutorial.html)
-- Email standards: [RFC 5322 Section 3.4.1](https://tools.ietf.org/html/rfc5322#section-3.4.1)
+# Wait for more than 10 seconds before running the next line
+print(cache.get("key1"))  # Outputs 'None' since the item has expired
+```
 
-### Common Troubleshooting Tips
+## Related Documentation Links
 
-- **Pattern Not Matching Valid Emails**: Ensure your regex pattern accounts for all valid characters and structures within an email address. Testing with diverse email examples can help refine your pattern.
-- **False Positives**: While regex can validate format, it doesn't confirm an email address's existence or deliverability. Consider integrating additional checks if this is a requirement.
-- **Performance Issues**: Regex operations can be costly, especially with complex patterns and large datasets. Optimize your pattern for efficiency and consider limiting how often validation occurs based on application needs.
+- Python `time` module: [Python Time Module](https://docs.python.org/3/library/time.html)
+- Understanding caching mechanisms: [Caching in Python](https://realpython.com/lru-cache-python/)
 
-Remember, while the provided regex pattern covers many cases for email validation, it may need adjustments to comply with specific requirements or to reflect updates in email address standards.
+## Troubleshooting Tips
+
+- **Expired Data Still Being Returned**: Ensure your system's clock is synchronized. Time drift can affect TTL checks.
+- **Memory Usage High Despite TTL**: This simple cache does not automatically clean up expired items unless accessed. Implementing a background cleaner function that periodically removes expired items can help manage memory usage.
+- **Cache Misses**: Confirm that items are being set with an appropriate TTL and that you're accessing them before they expire.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a Python function that validates email addresses using regex
-- Trace ID: `phase1-stg-test-2de95163-c30f-44ac-9ff6-c5c86cf814a7`
+- Task: [Phase1-Test] Write a Python class for managing a simple in-memory cache with TTL
+- Trace ID: `phase1-stg-test-6f3fc6ae-9db6-4727-8c0f-b22ece31d44b`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
