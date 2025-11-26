@@ -391,6 +391,7 @@ MorningAI 使用 Pydantic 的 `Field(alias=...)` 功能來支援多個環境變�
 #### 基礎設施與監控
 - `REDIS_KEY_PREFIX` - Redis 鍵前綴（例如：`stg:` 用於 staging）
 - `RQ_QUEUE_NAME` - Redis Queue 隊列名稱（默認：`orchestrator`）
+- `RQ_JOB_TIMEOUT` - RQ worker job timeout 秒數（默認：`600`）- 控制 LLM Planner 等長時間運行任務的超時時間
 - `DB_POOL_MAX` - 數據庫連接池最大連接數
 - `SENTRY_DSN` - Sentry 錯誤追蹤 DSN
 - `SENTRY_ENVIRONMENT` - Sentry 環境標識（production/staging/development）
@@ -606,6 +607,7 @@ SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-key>
 REDIS_URL=rediss://default:[PASSWORD]@[HOST].upstash.io:6379
 REDIS_KEY_PREFIX=stg:
 RQ_QUEUE_NAME=orchestrator-staging
+RQ_JOB_TIMEOUT=600                      # Job timeout in seconds (default: 600 = 10 minutes)
 
 # Database Connection Pool
 DB_POOL_SIZE=5
@@ -644,6 +646,7 @@ ORCHESTRATOR_JWT_SECRET=<staging-orchestrator-secret-48-chars>
 REDIS_URL=rediss://default:[PASSWORD]@[HOST].upstash.io:6379
 REDIS_KEY_PREFIX=stg:
 RQ_QUEUE_NAME=orchestrator-staging
+RQ_JOB_TIMEOUT=600                      # Job timeout in seconds (default: 600 = 10 minutes)
 
 # Optional
 ORCHESTRATOR_CORS_ORIGINS=https://morningai-staging.vercel.app,http://localhost:5173
