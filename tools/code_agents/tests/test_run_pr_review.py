@@ -7,6 +7,10 @@ import subprocess
 import json
 import tempfile
 import os
+from pathlib import Path
+
+# Dynamically compute repo root
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 
@@ -19,7 +23,7 @@ class TestCLIBasic:
             ["python", "tools/code_agents/run_pr_review.py", "--help"],
             capture_output=True,
             text=True,
-            cwd="/home/ubuntu/repos/morningai"
+            cwd=str(REPO_ROOT)
         )
 
         assert result.returncode == 0
@@ -33,7 +37,7 @@ class TestCLIBasic:
             ["python", "tools/code_agents/run_pr_review.py"],
             capture_output=True,
             text=True,
-            cwd="/home/ubuntu/repos/morningai"
+            cwd=str(REPO_ROOT)
         )
 
         assert result.returncode == 2
@@ -47,10 +51,11 @@ class TestFileValidation:
         """Test with nonexistent file"""
         result = subprocess.run(
             ["python", "tools/code_agents/run_pr_review.py",
-             "--files", "/tmp/nonexistent_file_12345.py"],
+             "--files", "/tmp/nonexistent_file_12345.py",
+             "--repo-root", str(REPO_ROOT)],
             capture_output=True,
             text=True,
-            cwd="/home/ubuntu/repos/morningai"
+            cwd=str(REPO_ROOT)
         )
 
         assert result.returncode == 2
@@ -66,10 +71,11 @@ class TestFileValidation:
         try:
             result = subprocess.run(
                 ["python", "tools/code_agents/run_pr_review.py",
-                 "--files", temp_file],
+                 "--files", temp_file,
+                 "--repo-root", str(REPO_ROOT)],
                 capture_output=True,
                 text=True,
-                cwd="/home/ubuntu/repos/morningai",
+                cwd=str(REPO_ROOT),
                 timeout=30
             )
 
@@ -93,10 +99,11 @@ class TestOutputFormats:
         try:
             result = subprocess.run(
                 ["python", "tools/code_agents/run_pr_review.py",
-                 "--files", temp_file, "--format", "text"],
+                 "--files", temp_file, "--format", "text",
+                 "--repo-root", str(REPO_ROOT)],
                 capture_output=True,
                 text=True,
-                cwd="/home/ubuntu/repos/morningai",
+                cwd=str(REPO_ROOT),
                 timeout=30
             )
 
@@ -153,10 +160,11 @@ def process_data(user_input):
         try:
             result = subprocess.run(
                 ["python", "tools/code_agents/run_pr_review.py",
-                 "--files", temp_file, "--format", "json"],
+                 "--files", temp_file, "--format", "json",
+                 "--repo-root", str(REPO_ROOT)],
                 capture_output=True,
                 text=True,
-                cwd="/home/ubuntu/repos/morningai",
+                cwd=str(REPO_ROOT),
                 timeout=30
             )
 
@@ -189,10 +197,11 @@ class TestStrictMode:
         try:
             result = subprocess.run(
                 ["python", "tools/code_agents/run_pr_review.py",
-                 "--files", temp_file, "--strict"],
+                 "--files", temp_file, "--strict",
+                 "--repo-root", str(REPO_ROOT)],
                 capture_output=True,
                 text=True,
-                cwd="/home/ubuntu/repos/morningai",
+                cwd=str(REPO_ROOT),
                 timeout=30
             )
 
@@ -218,10 +227,10 @@ class TestMultipleFiles:
 
             result = subprocess.run(
                 ["python", "tools/code_agents/run_pr_review.py",
-                 "--files"] + temp_files,
+                 "--files"] + temp_files + ["--repo-root", str(REPO_ROOT)],
                 capture_output=True,
                 text=True,
-                cwd="/home/ubuntu/repos/morningai",
+                cwd=str(REPO_ROOT),
                 timeout=30
             )
 
@@ -242,7 +251,7 @@ class TestPRReview:
              "--pr", "1234"],
             capture_output=True,
             text=True,
-            cwd="/home/ubuntu/repos/morningai"
+            cwd=str(REPO_ROOT)
         )
 
         assert result.returncode == 2
