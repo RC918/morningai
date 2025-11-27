@@ -19,6 +19,15 @@ Phase 2 Step B Scope (future):
 - Expand whitelist based on success metrics
 - Add file path constraints
 - Add complexity limits
+
+Known Limitations:
+- TaskClassifier Mismatch: Currently only 2 of 9 safe task types 
+  (documentation_update, test_generation) are produced by TaskClassifier.
+  The other 7 types (update_readme, comment_enhancement, fix_lint, fix_typo,
+  env_sync, config_update, i18n_update) are reserved for future classifier
+  improvements in Phase 2 Step B. This conservative approach ensures we don't
+  create unsafe automation while we gather real-world data to improve the
+  classifier's task type granularity.
 """
 import logging
 from typing import Dict, Any, Set
@@ -29,23 +38,27 @@ logger = logging.getLogger(__name__)
 # Safe Task Types Whitelist
 # These task types are considered safe for automatic code generation
 # Using frozenset to ensure immutability
+#
+# NOTE: Currently only 2 of these 9 types (documentation_update, test_generation)
+# are produced by TaskClassifier. The other 7 types are reserved for future
+# classifier improvements in Phase 2 Step B. This is intentional and conservative.
 SAFE_TASK_TYPES: frozenset = frozenset({
     # Documentation tasks (lowest risk)
-    "documentation_update",     # Update README, docs, comments
-    "update_readme",            # Specifically README updates
-    "comment_enhancement",      # Add/improve code comments
+    "documentation_update",     # Update README, docs, comments [CLASSIFIER PRODUCES]
+    "update_readme",            # Specifically README updates [FUTURE]
+    "comment_enhancement",      # Add/improve code comments [FUTURE]
     
     # Testing tasks (low risk, high value)
-    "test_generation",          # Generate unit tests
+    "test_generation",          # Generate unit tests [CLASSIFIER PRODUCES]
     
     # Code quality tasks (low risk)
-    "fix_lint",                 # Fix linting errors
-    "fix_typo",                 # Fix typos in code/comments
+    "fix_lint",                 # Fix linting errors [FUTURE]
+    "fix_typo",                 # Fix typos in code/comments [FUTURE]
     
     # Configuration tasks (low risk)
-    "env_sync",                 # Sync environment variables
-    "config_update",            # Update configuration files
-    "i18n_update",              # Update internationalization files
+    "env_sync",                 # Sync environment variables [FUTURE]
+    "config_update",            # Update configuration files [FUTURE]
+    "i18n_update",              # Update internationalization files [FUTURE]
 })
 
 
