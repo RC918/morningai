@@ -442,7 +442,11 @@ Requirements:
         planning_time_ms: float
     ):
         """
-        Record planner event to JSONL file for agent_eval
+        Record planner event to both JSONL file and database
+
+        Dual-write strategy:
+        1. Write to JSONL file (backward compatibility, local dev)
+        2. Write to database (persistent storage, production)
 
         Args:
             trace_id: Trace ID
@@ -454,30 +458,60 @@ Requirements:
         """
         import json
         import os
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         from common.utils.path_utils import resolve_planner_events_path
+        from common.config.settings import settings
 
-        events_path = resolve_planner_events_path()
-        os.makedirs(os.path.dirname(events_path), exist_ok=True)
+        timestamp = datetime.now(timezone.utc)
 
-        event = {
-            "trace_id": trace_id,
-            "goal": goal,
-            "planner_type": planner_type,
-            "task_type": task_type,
-            "actual_plan_steps": actual_plan_steps,
-            "num_steps": len(actual_plan_steps),
-            "planning_time_ms": planning_time_ms,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-
+        # Write to JSONL file (backward compatibility)
         try:
+            events_path = resolve_planner_events_path()
+            os.makedirs(os.path.dirname(events_path), exist_ok=True)
+
+            event = {
+                "trace_id": trace_id,
+                "goal": goal,
+                "planner_type": planner_type,
+                "task_type": task_type,
+                "actual_plan_steps": actual_plan_steps,
+                "num_steps": len(actual_plan_steps),
+                "planning_time_ms": planning_time_ms,
+                "timestamp": timestamp.isoformat()
+            }
+
             with open(events_path, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(event) + '\n')
             logger.info(f"[LLM Planner] Recorded planner event to {events_path}")
         except Exception as e:
-            logger.warning(f"[LLM Planner] Failed to record planner event at {events_path}: {e}")
+            logger.warning(f"[LLM Planner] Failed to record planner event to JSONL at {events_path}: {e}")
+
+        # Write to database (persistent storage)
+        storage_mode = getattr(settings, 'planner_events_storage', 'db')
+        if storage_mode == 'db':
+            try:
+                from persistence.planner_events_store import insert_planner_event
+
+                success = insert_planner_event(
+                    trace_id=trace_id,
+                    goal=goal,
+                    planner_type=planner_type,
+                    task_type=task_type,
+                    actual_plan_steps=actual_plan_steps,
+                    planning_time_ms=planning_time_ms,
+                    timestamp=timestamp
+                )
+
+                if success:
+                    logger.info(f"[LLM Planner] Recorded planner event to database (trace_id={trace_id})")
+                else:
+                    logger.warning(f"[LLM Planner] Failed to record planner event to database (trace_id={trace_id})")
+            except Exception as e:
+                logger.warning(
+                    f"[LLM Planner] Failed to record planner event to database: {e}",
+                    exc_info=True
+                )
 
 
 def generate_llm_plan(

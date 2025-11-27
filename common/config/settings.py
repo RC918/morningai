@@ -913,6 +913,12 @@ class Settings(BaseSettings):
         description="Enable OpenAI JSON mode for LLM planner (ensures valid JSON responses)"
     )
 
+    planner_events_storage: Literal["db", "jsonl"] = Field(
+        default="db",
+        alias="PLANNER_EVENTS_STORAGE",
+        description="Storage backend for planner events (db or jsonl)"
+    )
+
     use_code_generation: bool = Field(
         default=False,
         alias="USE_CODE_GENERATION",

@@ -1,25 +1,29 @@
 #!/usr/bin/env python3
 """
-View planner_runs.jsonl statistics
+View planner events statistics
 
-Simple CLI tool to view statistics from planner_runs.jsonl file.
+CLI tool to view statistics from planner events (database or JSONL file).
 Designed for internal/admin use on staging and production environments.
 
 Usage:
-    # View all statistics
-    python tools/monitoring/view_planner_stats.py
+    # View all statistics (from database)
+    python -m tools.monitoring.view_planner_stats
 
     # Show last N entries
-    python tools/monitoring/view_planner_stats.py --last 10
+    python -m tools.monitoring.view_planner_stats --last 10
+
+    # Use JSONL file instead of database
+    python -m tools.monitoring.view_planner_stats --source jsonl
 
     # Use custom file path
-    python tools/monitoring/view_planner_stats.py --file /path/to/planner_runs.jsonl
+    python -m tools.monitoring.view_planner_stats --source jsonl --file /path/to/planner_runs.jsonl
 
     # Filter by Phase 1 tasks
-    python tools/monitoring/view_planner_stats.py --filter "[Phase1-Test]"
+    python -m tools.monitoring.view_planner_stats --filter "[Phase1-Test]"
 
 Environment Variables:
-    PLANNER_EVENTS_FILE: Override default planner_runs.jsonl path
+    PLANNER_EVENTS_STORAGE: Storage backend (db or jsonl, default: db)
+    PLANNER_EVENTS_FILE: Override default planner_runs.jsonl path (for jsonl source)
 """
 import argparse
 import json
@@ -30,9 +34,42 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from common.utils.path_utils import resolve_planner_events_path
+from common.config.settings import settings
 
 
-def load_planner_events(file_path: str, filter_goal: Optional[str] = None) -> List[Dict[str, Any]]:
+def load_planner_events_from_db(
+    limit: Optional[int] = None,
+    filter_goal: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Load planner events from database
+
+    Args:
+        limit: Maximum number of events to return (most recent first)
+        filter_goal: Optional substring to filter goals by
+
+    Returns:
+        List of planner event dictionaries
+    """
+    try:
+        # Import here to avoid requiring Supabase in all environments
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../handoff/20250928/40_App/orchestrator'))
+        from persistence.planner_events_store import query_planner_events
+
+        events = query_planner_events(limit=limit)
+
+        # Apply goal filter if specified
+        if filter_goal:
+            events = [e for e in events if filter_goal in e.get('goal', '')]
+
+        return events
+    except Exception as e:
+        print(f"Error loading events from database: {e}", file=sys.stderr)
+        print("Tip: Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set", file=sys.stderr)
+        return []
+
+
+def load_planner_events_from_jsonl(file_path: str, filter_goal: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Load planner events from JSONL file (streaming, line-by-line)
 
@@ -316,15 +353,22 @@ def show_recent_entries(events: List[Dict[str, Any]], count: int) -> str:
 def main():
     """Main CLI entry point"""
     parser = argparse.ArgumentParser(
-        description='View planner_runs.jsonl statistics',
+        description='View planner events statistics',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
     )
 
     parser.add_argument(
+        '--source',
+        type=str,
+        choices=['db', 'jsonl'],
+        help='Data source: db (database) or jsonl (file). Default: from PLANNER_EVENTS_STORAGE env var or db'
+    )
+
+    parser.add_argument(
         '--file',
         type=str,
-        help='Path to planner_runs.jsonl file (default: auto-detect using PLANNER_EVENTS_FILE or repo root)'
+        help='Path to planner_runs.jsonl file (only for --source jsonl)'
     )
 
     parser.add_argument(
@@ -343,24 +387,37 @@ def main():
 
     args = parser.parse_args()
 
-    # Resolve file path
-    if args.file:
-        file_path = args.file
+    # Determine source
+    if args.source:
+        source = args.source
     else:
-        file_path = resolve_planner_events_path()
+        source = getattr(settings, 'planner_events_storage', 'db')
 
-    # Check if file exists
-    if not os.path.exists(file_path):
-        print(f"Error: File not found: {file_path}", file=sys.stderr)
-        print("\nTip: Set PLANNER_EVENTS_FILE environment variable or use --file option", file=sys.stderr)
-        sys.exit(1)
+    # Load events based on source
+    if source == 'db':
+        print("Loading events from database...", file=sys.stderr)
+        events = load_planner_events_from_db(limit=args.last, filter_goal=args.filter)
+        source_label = "Database (Supabase)"
+    else:
+        # Resolve file path
+        if args.file:
+            file_path = args.file
+        else:
+            file_path = resolve_planner_events_path()
 
-    # Load events
-    events = load_planner_events(file_path, filter_goal=args.filter)
+        # Check if file exists
+        if not os.path.exists(file_path):
+            print(f"Error: File not found: {file_path}", file=sys.stderr)
+            print("\nTip: Set PLANNER_EVENTS_FILE environment variable or use --file option", file=sys.stderr)
+            sys.exit(1)
+
+        print("Loading events from JSONL file...", file=sys.stderr)
+        events = load_planner_events_from_jsonl(file_path, filter_goal=args.filter)
+        source_label = f"JSONL File: {file_path}"
 
     # Compute and display statistics
     stats = compute_statistics(events)
-    print(format_statistics(stats, file_path))
+    print(format_statistics(stats, source_label))
 
     # Show recent entries if requested
     if args.last and events:

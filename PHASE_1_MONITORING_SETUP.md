@@ -375,27 +375,67 @@ python tools/monitoring/canary_dashboard.py
 
 ## 3. Data Collection and Analysis
 
-### JSONL Data Collection
+### Data Storage: Database + JSONL (Dual-Write)
 
 **Current Status**:
-- ✅ JSONL recording implemented in `llm_planner_adapter.py`
-- ✅ Records to `tools/agent_eval/data/planner_runs.jsonl`
-- ✅ Includes: task_id, planner_type, success, plan_steps, planning_time
+- ✅ Database persistence implemented in `planner_events_store.py`
+- ✅ Dual-write strategy: JSONL (backward compatibility) + Database (persistent storage)
+- ✅ CLI tool supports both data sources
+- ✅ Migration: `migrations/024_create_planner_events_table.sql`
 
-**Data Fields**:
+**Storage Backends**:
+
+1. **Database (Supabase PostgreSQL)** - Recommended for Production
+   - **Pros**: Persistent across pod restarts, queryable, scalable
+   - **Cons**: Requires Supabase credentials
+   - **Table**: `planner_events`
+   - **Indexes**: `timestamp DESC`, `trace_id`, `planner_type + timestamp`
+
+2. **JSONL File** - Backward Compatibility / Local Dev
+   - **Pros**: Simple, no external dependencies
+   - **Cons**: Ephemeral (lost on pod restart in multi-pod deployments)
+   - **Path**: `tools/agent_eval/data/planner_runs.jsonl`
+
+**Configuration**:
+```bash
+# Environment variable (default: db)
+export PLANNER_EVENTS_STORAGE=db    # Use database (production)
+export PLANNER_EVENTS_STORAGE=jsonl # Use JSONL file (local dev)
+```
+
+**Data Fields** (stored in both backends):
 ```json
 {
-  "timestamp": "2025-11-24T14:02:15.123Z",
-  "task_id": "dd85a361-a6d1-46c1-aebe-9705423a75f4",
+  "trace_id": "dd85a361-a6d1-46c1-aebe-9705423a75f4",
+  "goal": "Fix bug in authentication flow",
   "planner_type": "llm",
-  "success": true,
-  "plan_steps": 7,
-  "planning_time_seconds": 13.03,
-  "model": "gpt-4-turbo-preview",
-  "prompt_tokens": 2000,
-  "completion_tokens": 500,
-  "cost_usd": 0.035
+  "task_type": "bugfix",
+  "actual_plan_steps": ["step1", "step2", "step3"],
+  "num_steps": 3,
+  "planning_time_ms": 1500.0,
+  "timestamp": "2025-11-27T01:00:00.000Z"
 }
+```
+
+**Database Schema**:
+```sql
+CREATE TABLE planner_events (
+    id BIGSERIAL PRIMARY KEY,
+    trace_id UUID NOT NULL,
+    goal TEXT NOT NULL,
+    planner_type VARCHAR(50) NOT NULL,
+    task_type VARCHAR(100),
+    actual_plan_steps JSONB NOT NULL,
+    num_steps INTEGER NOT NULL,
+    planning_time_ms DOUBLE PRECISION NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for query performance
+CREATE INDEX idx_planner_events_timestamp ON planner_events(timestamp DESC);
+CREATE INDEX idx_planner_events_trace_id ON planner_events(trace_id);
+CREATE INDEX idx_planner_events_planner_type_timestamp ON planner_events(planner_type, timestamp DESC);
 ```
 
 ### Data Collection Goals
@@ -413,6 +453,70 @@ python tools/monitoring/canary_dashboard.py
 1. **Increase Staging traffic**: Run more test tasks
 2. **Deploy to Production**: Enable 5% canary in Production
 3. **Manual testing**: Run controlled tests with various task types
+
+### Viewing Planner Statistics
+
+**CLI Tool**: `tools/monitoring/view_planner_stats.py`
+
+**Usage**:
+```bash
+# View statistics from database (default)
+python -m tools.monitoring.view_planner_stats
+
+# Show last 10 entries
+python -m tools.monitoring.view_planner_stats --last 10
+
+# Filter by goal substring
+python -m tools.monitoring.view_planner_stats --filter "[Phase1-Test]"
+
+# Use JSONL file instead of database
+python -m tools.monitoring.view_planner_stats --source jsonl
+
+# Use custom JSONL file path
+python -m tools.monitoring.view_planner_stats --source jsonl --file /path/to/planner_runs.jsonl
+```
+
+**Output**:
+```
+======================================================================
+Planner Statistics
+======================================================================
+
+Source: Database (Supabase)
+
+📊 Total Planner Runs: 15
+
+📅 Timeline
+  First: 2025-11-24 14:02:15 UTC
+  Last:  2025-11-27 01:00:00 UTC
+  Duration: 58.9 hours
+  Rate: 0.25 runs/hour
+
+⏱️  Planning Time
+  Min:    1.20s
+  Median: 1.50s
+  Mean:   1.65s
+  P95:    2.80s
+  Max:    3.50s
+  Status: ✅ Acceptable (< 30s target)
+
+📋 Plan Steps Distribution
+  3 steps:   5 (33.3%) ████████
+  4 steps:   4 (26.7%) ██████
+  5 steps:   3 (20.0%) █████
+  7 steps:   3 (20.0%) █████
+
+🤖 Planner Type Distribution
+  llm:    15 (100.0%)
+
+📝 Task Type Distribution (Top 10)
+  codegen:  5 (33.3%)
+  bugfix:   4 (26.7%)
+  refactor: 3 (20.0%)
+  unknown:  3 (20.0%)
+
+======================================================================
+```
 
 ### Data Analysis Script
 
@@ -713,4 +817,3 @@ cd /home/ubuntu/repos/morningai
 source .venv/bin/activate
 python -m pytest tools/monitoring/tests/test_view_planner_stats.py -v
 ```
-
