@@ -933,6 +933,12 @@ class Settings(BaseSettings):
         description="Percentage of tasks to use code generation workflow (0-100, for canary rollout)"
     )
 
+    enable_project_engineer_codegen: bool = Field(
+        default=False,
+        alias="ENABLE_PROJECT_ENGINEER_CODEGEN",
+        description="Enable ProjectEngineerAgent code generation execution mode (Phase 2 Step C)"
+    )
+
     allow_governance_mock: bool = Field(
         default=False,
         alias="ALLOW_GOVERNANCE_MOCK",
