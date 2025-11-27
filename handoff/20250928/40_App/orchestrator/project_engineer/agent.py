@@ -12,7 +12,6 @@ Features:
 """
 import logging
 import uuid
-import time
 from typing import List, Optional
 from dataclasses import dataclass
 
@@ -55,12 +54,15 @@ class ProjectEngineerAgent:
     - PR creation and monitoring ✅
     """
 
-    def __init__(self, enable_code_generation: bool = False, dev_agent=None):
+    def __init__(self, enable_code_generation: bool = None, dev_agent=None):
         """
         Initialize ProjectEngineerAgent with dependencies
 
         Args:
-            enable_code_generation: Enable code generation execution (default: False)
+            enable_code_generation: Enable code generation execution
+                                   If None, reads from ENABLE_PROJECT_ENGINEER_CODEGEN env var
+                                   If False, forces analysis-only mode
+                                   If True, enables execution mode (requires dev_agent)
             dev_agent: DevAgent instance for CodeGenerationWorkflow (required if enable_code_generation=True)
 
         Dependencies:
@@ -69,6 +71,31 @@ class ProjectEngineerAgent:
         - SafeTasks: For safe task validation
         - CodeGenerationWorkflow: For code generation execution (if enabled)
         """
+        # Phase 2 Step C: Read from feature flag if not explicitly set
+        if enable_code_generation is None:
+            try:
+                from common.config.settings import settings
+                enable_code_generation = settings.enable_project_engineer_codegen
+                logger.info(
+                    "[ProjectEngineerAgent] Using ENABLE_PROJECT_ENGINEER_CODEGEN=%s",
+                    enable_code_generation,
+                )
+            except (ImportError, AttributeError) as e:
+                # Expected non-fatal: settings module or field missing (e.g., partial deploy)
+                logger.warning(
+                    "[ProjectEngineerAgent] Failed to read feature flag from settings "
+                    "(import/attribute error: %s), defaulting to False",
+                    e,
+                )
+                enable_code_generation = False
+            except Exception as e:
+                # Unexpected error (e.g., ValidationError from misconfig): fail fast
+                logger.exception(
+                    "[ProjectEngineerAgent] Unexpected error while reading feature flag; "
+                    "not falling back silently: %s",
+                    e,
+                )
+                raise
         try:
             from llm_planner_adapter import LLMPlannerAdapter
             self.planner = LLMPlannerAdapter()
