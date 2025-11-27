@@ -79,6 +79,7 @@ def main():
         ('migrations/005_create_user_profiles_table.sql', 'Migration 005: Create user_profiles table'),
         ('migrations/006_update_rls_policies_true_tenant_isolation.sql', 'Migration 006: RLS Policies for Tenant Isolation'),
         ('migrations/backfill_user_profiles.sql', 'Backfill: Assign existing users to default tenant'),
+        ('migrations/024_create_planner_events_table.sql', 'Migration 024: Create planner_events table'),
     ]
     
     success_count = 0
