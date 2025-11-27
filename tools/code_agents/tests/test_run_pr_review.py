@@ -122,10 +122,11 @@ class TestOutputFormats:
         try:
             result = subprocess.run(
                 ["python", "tools/code_agents/run_pr_review.py",
-                 "--files", temp_file, "--format", "json"],
+                 "--files", temp_file, "--format", "json",
+                 "--repo-root", str(REPO_ROOT)],
                 capture_output=True,
                 text=True,
-                cwd="/home/ubuntu/repos/morningai",
+                cwd=str(REPO_ROOT),
                 timeout=30
             )
 
