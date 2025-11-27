@@ -7,6 +7,9 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
+  // Disable PWA for Storybook builds to prevent interference with iframe communication
+  const isStorybook = Boolean(process.env.STORYBOOK)
+  
   const enableSentry = Boolean(
     process.env.SENTRY_ORG && 
     process.env.SENTRY_PROJECT && 
@@ -32,12 +35,8 @@ export default defineConfig(({ mode }) => {
       )
     : null
 
-  return {
-    plugins: [
-      react(),
-      tailwindcss(),
-      ...(sentryPlugin ? [sentryPlugin] : []),
-      VitePWA({
+  // PWA plugin configuration - disabled for Storybook builds
+  const pwaPlugin = !isStorybook ? VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'],
       manifest: {
@@ -115,7 +114,14 @@ export default defineConfig(({ mode }) => {
       devOptions: {
         enabled: false
       }
-    })
+    }) : null
+
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      ...(sentryPlugin ? [sentryPlugin] : []),
+      ...(pwaPlugin ? [pwaPlugin] : []),
     ],
     resolve: {
       alias: {
