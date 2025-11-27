@@ -23,7 +23,6 @@ Phase 2 Step B Scope (future):
 import logging
 from typing import Dict, Any, Set
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

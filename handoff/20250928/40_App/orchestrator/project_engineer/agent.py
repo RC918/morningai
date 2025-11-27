@@ -14,7 +14,6 @@ import uuid
 from typing import List, Optional
 from dataclasses import dataclass
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
