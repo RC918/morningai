@@ -24,10 +24,14 @@ const config: StorybookConfig = {
     buildStoriesJson: true,
   },
   async viteFinal(config) {
+
+    // Filter out any remaining PWA plugin variants as a safety measure
+    // The main PWA disabling is done via STORYBOOK env var in vite.config.js
+    config.plugins = config.plugins?.filter(
+      (plugin: any) => plugin && !plugin.name?.includes('vite-plugin-pwa')
+    );
+
     return mergeConfig(config, {
-      plugins: config.plugins?.filter(
-        (plugin: any) => plugin && plugin.name !== 'vite-plugin-pwa'
-      ),
       optimizeDeps: {
         include: [
           'react',
@@ -35,16 +39,9 @@ const config: StorybookConfig = {
           '@storybook/react',
         ],
       },
-      build: {
-        rollupOptions: {
-          output: {
-            manualChunks: {
-              'react-vendor': ['react', 'react-dom'],
-              'storybook-vendor': ['@storybook/react'],
-            },
-          },
-        },
-      },
+      // NOTE: Do NOT use manualChunks for Storybook builds!
+      // Storybook relies on __STORYBOOK_MODULE_PREVIEW_API__ being defined as a global
+      // before other modules access it. Custom chunking breaks this module resolution.
     });
   },
 };
