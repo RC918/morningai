@@ -21,7 +21,7 @@ Phase 2 Step B Scope (future):
 - Add complexity limits
 
 Known Limitations:
-- TaskClassifier Mismatch: Currently only 2 of 9 safe task types 
+- TaskClassifier Mismatch: Currently only 2 of 9 safe task types
   (documentation_update, test_generation) are produced by TaskClassifier.
   The other 7 types (update_readme, comment_enhancement, fix_lint, fix_typo,
   env_sync, config_update, i18n_update) are reserved for future classifier
@@ -47,14 +47,14 @@ SAFE_TASK_TYPES: frozenset = frozenset({
     "documentation_update",     # Update README, docs, comments [CLASSIFIER PRODUCES]
     "update_readme",            # Specifically README updates [FUTURE]
     "comment_enhancement",      # Add/improve code comments [FUTURE]
-    
+
     # Testing tasks (low risk, high value)
     "test_generation",          # Generate unit tests [CLASSIFIER PRODUCES]
-    
+
     # Code quality tasks (low risk)
     "fix_lint",                 # Fix linting errors [FUTURE]
     "fix_typo",                 # Fix typos in code/comments [FUTURE]
-    
+
     # Configuration tasks (low risk)
     "env_sync",                 # Sync environment variables [FUTURE]
     "config_update",            # Update configuration files [FUTURE]
@@ -188,13 +188,13 @@ SAFE_TASK_METADATA: Dict[str, Dict[str, Any]] = {
 def is_safe_task(task_type: str) -> bool:
     """
     Check if a task type is safe for automatic code generation
-    
+
     Args:
         task_type: Task type from TaskClassifier (e.g., "documentation_update")
-        
+
     Returns:
         True if task is in safe whitelist, False otherwise
-        
+
     Example:
         >>> is_safe_task("documentation_update")
         True
@@ -202,26 +202,26 @@ def is_safe_task(task_type: str) -> bool:
         False
     """
     is_safe = task_type in SAFE_TASK_TYPES
-    
+
     if is_safe:
         logger.debug(f"[SafeTasks] Task type '{task_type}' is SAFE for code generation")
     else:
         logger.debug(f"[SafeTasks] Task type '{task_type}' is NOT SAFE for code generation")
-    
+
     return is_safe
 
 
 def get_safe_task_metadata(task_type: str) -> Dict[str, Any]:
     """
     Get metadata for a safe task type
-    
+
     Args:
         task_type: Task type from TaskClassifier
-        
+
     Returns:
         Dict with risk_level, max_files, requires_review, etc.
         Returns empty dict if task type is not in safe whitelist
-        
+
     Example:
         >>> metadata = get_safe_task_metadata("documentation_update")
         >>> print(metadata["risk_level"])
@@ -232,9 +232,9 @@ def get_safe_task_metadata(task_type: str) -> Dict[str, Any]:
     if task_type not in SAFE_TASK_TYPES:
         logger.warning(f"[SafeTasks] Task type '{task_type}' not in safe whitelist")
         return {}
-    
+
     metadata = SAFE_TASK_METADATA.get(task_type, {})
-    
+
     if not metadata:
         logger.warning(f"[SafeTasks] No metadata found for safe task '{task_type}'")
         # Return default metadata
@@ -247,7 +247,7 @@ def get_safe_task_metadata(task_type: str) -> Dict[str, Any]:
             "description": f"Safe task: {task_type}",
             "examples": []
         }
-    
+
     return metadata
 
 
@@ -258,15 +258,15 @@ def validate_task_constraints(
 ) -> tuple[bool, str]:
     """
     Validate that a task meets the constraints for its type
-    
+
     Args:
         task_type: Task type from TaskClassifier
         file_paths: List of file paths to be modified
         file_count: Optional file count (if file_paths not available)
-        
+
     Returns:
         Tuple of (is_valid, error_message)
-        
+
     Example:
         >>> is_valid, error = validate_task_constraints(
         ...     "documentation_update",
@@ -277,19 +277,19 @@ def validate_task_constraints(
     """
     if not is_safe_task(task_type):
         return False, f"Task type '{task_type}' is not in safe whitelist"
-    
+
     metadata = get_safe_task_metadata(task_type)
-    
+
     # Check file count
     actual_file_count = file_count if file_count is not None else len(file_paths)
     max_files = metadata.get("max_files", 1)
-    
+
     if actual_file_count > max_files:
         return False, (
             f"Task modifies {actual_file_count} files, "
             f"but max allowed for '{task_type}' is {max_files}"
         )
-    
+
     # Check file extensions
     allowed_extensions = metadata.get("allowed_extensions", [])
     if allowed_extensions and file_paths:
@@ -301,17 +301,17 @@ def validate_task_constraints(
                     f"File '{file_path}' has disallowed extension for '{task_type}'. "
                     f"Allowed: {allowed_extensions}"
                 )
-    
+
     return True, ""
 
 
 def get_all_safe_tasks() -> Set[str]:
     """
     Get all safe task types
-    
+
     Returns:
         Set of safe task type strings (mutable copy for external use)
-        
+
     Example:
         >>> safe_tasks = get_all_safe_tasks()
         >>> print(len(safe_tasks))
@@ -325,10 +325,10 @@ def get_all_safe_tasks() -> Set[str]:
 def get_safe_tasks_summary() -> Dict[str, Any]:
     """
     Get summary of safe tasks configuration
-    
+
     Returns:
         Dict with summary information
-        
+
     Example:
         >>> summary = get_safe_tasks_summary()
         >>> print(summary["total_safe_tasks"])
@@ -341,7 +341,7 @@ def get_safe_tasks_summary() -> Dict[str, Any]:
         metadata = get_safe_task_metadata(task_type)
         risk_level = metadata.get("risk_level", "unknown")
         risk_levels[risk_level] = risk_levels.get(risk_level, 0) + 1
-    
+
     return {
         "total_safe_tasks": len(SAFE_TASK_TYPES),
         "safe_task_types": list(SAFE_TASK_TYPES),
