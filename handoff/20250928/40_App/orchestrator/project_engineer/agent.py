@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """
 Project Engineer Agent - Devin-like Meta-Agent
-Phase 2 Step A Implementation
+Phase 2 Step B Implementation
 
 Features:
 - Task decomposition using LLM Planner
 - Safe task classification
+- Code generation execution for safe tasks
 - Structured result reporting
 - Integration with existing orchestrator components
 """
 import logging
 import uuid
+import time
 from typing import List, Optional
 from dataclasses import dataclass
 
@@ -47,20 +49,25 @@ class ProjectEngineerAgent:
     - Safe task classification ✅
     - Analysis-only mode (no code generation yet) ✅
 
-    Phase 2 Step B Scope (future):
-    - Code generation execution for safe tasks
-    - Integration with CodeGenerationWorkflow
-    - PR creation and monitoring
+    Phase 2 Step B Scope:
+    - Code generation execution for safe tasks ✅
+    - Integration with CodeGenerationWorkflow ✅
+    - PR creation and monitoring ✅
     """
 
-    def __init__(self):
+    def __init__(self, enable_code_generation: bool = False, dev_agent=None):
         """
         Initialize ProjectEngineerAgent with dependencies
+
+        Args:
+            enable_code_generation: Enable code generation execution (default: False)
+            dev_agent: DevAgent instance for CodeGenerationWorkflow (required if enable_code_generation=True)
 
         Dependencies:
         - LLMPlannerAdapter: For task decomposition
         - TaskClassifier: For task type identification
         - SafeTasks: For safe task validation
+        - CodeGenerationWorkflow: For code generation execution (if enabled)
         """
         try:
             from llm_planner_adapter import LLMPlannerAdapter
@@ -81,9 +88,26 @@ class ProjectEngineerAgent:
         from .safe_tasks import is_safe_task
         self.is_safe_task = is_safe_task
 
-        logger.info("[ProjectEngineerAgent] Initialized successfully")
+        # NEW: CodeGenerationWorkflow integration
+        self.enable_code_generation = enable_code_generation
+        self.workflow = None
 
-    def run_task(self, description: str, repo: str = "morningai/morningai") -> List[TaskResult]:
+        if enable_code_generation:
+            if not dev_agent:
+                raise ValueError("dev_agent required when enable_code_generation=True")
+
+            try:
+                from agents.dev_agent.workflows.code_generation_workflow import CodeGenerationWorkflow
+                self.workflow = CodeGenerationWorkflow(dev_agent)
+                logger.info("[ProjectEngineerAgent] CodeGenerationWorkflow initialized")
+            except ImportError as e:
+                logger.error(f"[ProjectEngineerAgent] Failed to import CodeGenerationWorkflow: {e}")
+                raise
+
+        self.mode = "execution" if enable_code_generation else "analysis_only"
+        logger.info(f"[ProjectEngineerAgent] Initialized successfully (mode: {self.mode})")
+
+    async def run_task(self, description: str, repo: str = "morningai/morningai") -> List[TaskResult]:
         """
         Execute a task based on natural language description
 
@@ -145,7 +169,7 @@ class ProjectEngineerAgent:
             for i, step in enumerate(plan_steps):
                 step_text = step if isinstance(step, str) else step.get("step", str(step))
 
-                result = self._process_step(
+                result = await self._process_step(
                     step_text=step_text,
                     step_index=i,
                     trace_id=trace_id
@@ -172,7 +196,7 @@ class ProjectEngineerAgent:
 
         return results
 
-    def _process_step(self, step_text: str, step_index: int, trace_id: str) -> TaskResult:
+    async def _process_step(self, step_text: str, step_index: int, trace_id: str) -> TaskResult:
         """
         Process a single step from the plan
 
@@ -211,20 +235,29 @@ class ProjectEngineerAgent:
                 f"is_safe={is_safe}, task_type={task_type}"
             )
 
-            # Step 5: Return result (analysis only in Phase 2 Step A)
+            # Step 5: Execute code generation if enabled and safe
+            if self.enable_code_generation and is_safe:
+                logger.info(f"[ProjectEngineerAgent] Executing code generation for step {step_index}")
+                return await self._execute_code_generation(
+                    step_text=step_text,
+                    task_type=task_type,
+                    task_id=task_id,
+                    trace_id=trace_id
+                )
+
+            # Return analysis-only result
             if is_safe:
                 status = "skipped"
                 details = (
                     f"Task classified as '{task_type}' (safe for code generation). "
-                    f"Code generation will be enabled in Phase 2 Step B. "
-                    f"Current mode: analysis only."
+                    f"Code generation disabled (mode: {self.mode}). "
+                    f"Set enable_code_generation=True to execute."
                 )
             else:
                 status = "skipped"
                 details = (
                     f"Task classified as '{task_type}' (not in safe whitelist). "
-                    f"This task requires manual review and cannot be automated. "
-                    f"Current mode: analysis only."
+                    f"This task requires manual review and cannot be automated."
                 )
 
             return TaskResult(
@@ -250,6 +283,92 @@ class ProjectEngineerAgent:
                 error=str(e)
             )
 
+    async def _execute_code_generation(
+        self,
+        step_text: str,
+        task_type: str,
+        task_id: str,
+        trace_id: str
+    ) -> TaskResult:
+        """
+        Execute code generation using CodeGenerationWorkflow
+
+        Args:
+            step_text: Task description
+            task_type: Classified task type
+            task_id: Unique task ID
+            trace_id: Trace ID for logging
+
+        Returns:
+            TaskResult with execution details
+        """
+        logger.info(f"[ProjectEngineerAgent] Executing code generation for task {task_id}")
+
+        try:
+            # Generate deterministic task ID (CTO review fix: use hashlib instead of hash())
+            import hashlib
+            task_id_int = int(hashlib.sha256(task_id.encode('utf-8')).hexdigest(), 16) & 0x7FFFFFFF
+
+            # Get task metadata for safe task constraints
+            from project_engineer.safe_tasks import get_safe_task_metadata
+            task_metadata = get_safe_task_metadata(task_type)
+
+            # Prepare task dict for CodeGenerationWorkflow.execute()
+            # Note: execute() expects "id", "title", "description" keys
+            task_dict = {
+                "id": task_id_int,
+                "title": step_text[:100],
+                "description": step_text,
+                "task_type": task_type,
+                "task_metadata": task_metadata if task_metadata else None,
+            }
+
+            # Execute workflow
+            logger.info("[ProjectEngineerAgent] Starting CodeGenerationWorkflow execution")
+            result_state = await self.workflow.execute(task_dict)
+
+            # Extract results
+            if result_state.get("error"):
+                logger.error(f"[ProjectEngineerAgent] Code generation failed: {result_state['error']}")
+                return TaskResult(
+                    task_id=task_id,
+                    task_type=task_type,
+                    status="failed",
+                    is_safe=True,
+                    details=f"Code generation failed: {result_state['error']}",
+                    error=result_state["error"]
+                )
+
+            # Success
+            logger.info(
+                f"[ProjectEngineerAgent] Code generation completed successfully. "
+                f"PR: {result_state.get('pr_url', 'N/A')}"
+            )
+            return TaskResult(
+                task_id=task_id,
+                task_type=task_type,
+                status="success",
+                is_safe=True,
+                details="Code generation completed successfully. PR created.",
+                pr_number=result_state.get("pr_number"),
+                pr_url=result_state.get("pr_url")
+            )
+
+        except Exception as e:
+            logger.error(
+                f"[ProjectEngineerAgent] Code generation failed for task {task_id}: {e}",
+                exc_info=True
+            )
+
+            return TaskResult(
+                task_id=task_id,
+                task_type=task_type,
+                status="failed",
+                is_safe=True,
+                details=f"Code generation execution failed: {str(e)}",
+                error=str(e)
+            )
+
     def get_status(self) -> dict:
         """
         Get agent status and configuration
@@ -259,20 +378,21 @@ class ProjectEngineerAgent:
         """
         return {
             "agent_type": "ProjectEngineerAgent",
-            "version": "1.0.0-phase2-step-a",
+            "version": "1.0.0-phase2-step-b",
             "planner_available": self.planner is not None,
             "classifier_available": self.classifier is not None,
-            "mode": "analysis_only",  # Will change to "execution" in Phase 2 Step B
+            "workflow_available": self.workflow is not None,
+            "mode": self.mode,
             "features": {
                 "task_decomposition": self.planner is not None,
                 "task_classification": self.classifier is not None,
                 "safe_task_gating": True,
-                "code_generation": False,  # Will be True in Phase 2 Step B
+                "code_generation": self.enable_code_generation,
             }
         }
 
 
-def run_task(description: str, repo: str = "morningai/morningai") -> List[TaskResult]:
+async def run_task(description: str, repo: str = "morningai/morningai") -> List[TaskResult]:
     """
     Convenience function to run a task using ProjectEngineerAgent
 
@@ -284,8 +404,8 @@ def run_task(description: str, repo: str = "morningai/morningai") -> List[TaskRe
         List of TaskResult objects
 
     Example:
-        >>> results = run_task("更新 README.md")
+        >>> results = await run_task("更新 README.md")
         >>> print(f"Processed {len(results)} steps")
     """
     agent = ProjectEngineerAgent()
-    return agent.run_task(description, repo)
+    return await agent.run_task(description, repo)
