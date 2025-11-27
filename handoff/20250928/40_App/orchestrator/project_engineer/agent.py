@@ -326,7 +326,7 @@ class ProjectEngineerAgent:
             }
 
             # Execute workflow
-            logger.info(f"[ProjectEngineerAgent] Starting CodeGenerationWorkflow execution")
+            logger.info("[ProjectEngineerAgent] Starting CodeGenerationWorkflow execution")
             result_state = await self.workflow.execute(state)
 
             # Extract results
@@ -351,7 +351,7 @@ class ProjectEngineerAgent:
                 task_type=task_type,
                 status="success",
                 is_safe=True,
-                details=f"Code generation completed successfully. PR created.",
+                details="Code generation completed successfully. PR created.",
                 pr_number=result_state.get("pr_number"),
                 pr_url=result_state.get("pr_url")
             )

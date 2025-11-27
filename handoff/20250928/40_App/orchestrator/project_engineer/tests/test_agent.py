@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 project_root = Path(__file__).parent.parent.parent.parent.parent.parent
 sys.path.insert(0, str(project_root / "handoff" / "20250928" / "40_App" / "orchestrator"))
 
-from project_engineer.agent import ProjectEngineerAgent, TaskResult
+from project_engineer.agent import ProjectEngineerAgent, TaskResult  # noqa: E402
 
 
 class TestProjectEngineerAgent:
@@ -254,7 +254,7 @@ class TestProjectEngineerAgentCodeGeneration:
     def test_init_with_code_generation_disabled(self):
         """Test initialization with code generation disabled (default)"""
         agent = ProjectEngineerAgent()
-        
+
         assert agent.enable_code_generation is False
         assert agent.mode == "analysis_only"
         assert agent.workflow is None
@@ -267,16 +267,16 @@ class TestProjectEngineerAgentCodeGeneration:
     def test_init_with_code_generation_enabled(self):
         """Test initialization with code generation enabled"""
         mock_dev_agent = MagicMock()
-        
+
         with patch('agents.dev_agent.workflows.code_generation_workflow.CodeGenerationWorkflow') as MockWorkflow:
             mock_workflow_instance = MagicMock()
             MockWorkflow.return_value = mock_workflow_instance
-            
+
             agent = ProjectEngineerAgent(
                 enable_code_generation=True,
                 dev_agent=mock_dev_agent
             )
-            
+
             assert agent.enable_code_generation is True
             assert agent.mode == "execution"
             assert agent.workflow is not None
@@ -285,15 +285,15 @@ class TestProjectEngineerAgentCodeGeneration:
     def test_get_status_execution_mode(self):
         """Test get_status() in execution mode"""
         mock_dev_agent = MagicMock()
-        
+
         with patch('agents.dev_agent.workflows.code_generation_workflow.CodeGenerationWorkflow'):
             agent = ProjectEngineerAgent(
                 enable_code_generation=True,
                 dev_agent=mock_dev_agent
             )
-            
+
             status = agent.get_status()
-            
+
             assert status["mode"] == "execution"
             assert status["workflow_available"] is True
             assert status["features"]["code_generation"] is True
@@ -302,7 +302,7 @@ class TestProjectEngineerAgentCodeGeneration:
     async def test_execute_code_generation_success(self):
         """Test successful code generation execution"""
         mock_dev_agent = MagicMock()
-        
+
         with patch('agents.dev_agent.workflows.code_generation_workflow.CodeGenerationWorkflow') as MockWorkflow:
             mock_workflow = MagicMock()
             mock_workflow.execute = AsyncMock(return_value={
@@ -311,19 +311,19 @@ class TestProjectEngineerAgentCodeGeneration:
                 "pr_url": "https://github.com/test/repo/pull/1234"
             })
             MockWorkflow.return_value = mock_workflow
-            
+
             agent = ProjectEngineerAgent(
                 enable_code_generation=True,
                 dev_agent=mock_dev_agent
             )
-            
+
             result = await agent._execute_code_generation(
                 step_text="Add unit tests",
                 task_type="test_generation",
                 task_id="test-123",
                 trace_id="trace-456"
             )
-            
+
             assert result.status == "success"
             assert result.pr_number == 1234
             assert result.pr_url == "https://github.com/test/repo/pull/1234"
@@ -333,26 +333,26 @@ class TestProjectEngineerAgentCodeGeneration:
     async def test_execute_code_generation_failure(self):
         """Test code generation execution failure"""
         mock_dev_agent = MagicMock()
-        
+
         with patch('agents.dev_agent.workflows.code_generation_workflow.CodeGenerationWorkflow') as MockWorkflow:
             mock_workflow = MagicMock()
             mock_workflow.execute = AsyncMock(return_value={
                 "error": "Security validation failed"
             })
             MockWorkflow.return_value = mock_workflow
-            
+
             agent = ProjectEngineerAgent(
                 enable_code_generation=True,
                 dev_agent=mock_dev_agent
             )
-            
+
             result = await agent._execute_code_generation(
                 step_text="Add unit tests",
                 task_type="test_generation",
                 task_id="test-123",
                 trace_id="trace-456"
             )
-            
+
             assert result.status == "failed"
             assert result.error == "Security validation failed"
             assert result.is_safe is True
@@ -361,24 +361,24 @@ class TestProjectEngineerAgentCodeGeneration:
     async def test_execute_code_generation_exception(self):
         """Test code generation execution with exception"""
         mock_dev_agent = MagicMock()
-        
+
         with patch('agents.dev_agent.workflows.code_generation_workflow.CodeGenerationWorkflow') as MockWorkflow:
             mock_workflow = MagicMock()
             mock_workflow.execute = AsyncMock(side_effect=Exception("Workflow crashed"))
             MockWorkflow.return_value = mock_workflow
-            
+
             agent = ProjectEngineerAgent(
                 enable_code_generation=True,
                 dev_agent=mock_dev_agent
             )
-            
+
             result = await agent._execute_code_generation(
                 step_text="Add unit tests",
                 task_type="test_generation",
                 task_id="test-123",
                 trace_id="trace-456"
             )
-            
+
             assert result.status == "failed"
             assert "Workflow crashed" in result.error
             assert result.is_safe is True
@@ -387,7 +387,7 @@ class TestProjectEngineerAgentCodeGeneration:
     async def test_process_step_execution_mode_safe_task(self):
         """Test step processing in execution mode with safe task"""
         mock_dev_agent = MagicMock()
-        
+
         with patch('agents.dev_agent.workflows.code_generation_workflow.CodeGenerationWorkflow') as MockWorkflow:
             mock_workflow = MagicMock()
             mock_workflow.execute = AsyncMock(return_value={
@@ -396,24 +396,24 @@ class TestProjectEngineerAgentCodeGeneration:
                 "pr_url": "https://github.com/test/repo/pull/5678"
             })
             MockWorkflow.return_value = mock_workflow
-            
+
             agent = ProjectEngineerAgent(
                 enable_code_generation=True,
                 dev_agent=mock_dev_agent
             )
-            
+
             # Mock classifier to return safe task type
             if agent.classifier:
                 with patch.object(agent.classifier, 'classify') as mock_classify:
                     from agents.dev_agent.workflows.task_classifier import TaskType
                     mock_classify.return_value = TaskType.TEST_GENERATION
-                    
+
                     result = await agent._process_step(
                         step_text="Add unit tests for utils.py",
                         step_index=0,
                         trace_id="test-trace"
                     )
-                    
+
                     assert result.status == "success"
                     assert result.pr_number == 5678
 
@@ -421,25 +421,25 @@ class TestProjectEngineerAgentCodeGeneration:
     async def test_process_step_execution_mode_unsafe_task(self):
         """Test step processing in execution mode with unsafe task"""
         mock_dev_agent = MagicMock()
-        
+
         with patch('agents.dev_agent.workflows.code_generation_workflow.CodeGenerationWorkflow'):
             agent = ProjectEngineerAgent(
                 enable_code_generation=True,
                 dev_agent=mock_dev_agent
             )
-            
+
             # Mock classifier to return unsafe task type
             if agent.classifier:
                 with patch.object(agent.classifier, 'classify') as mock_classify:
                     from agents.dev_agent.workflows.task_classifier import TaskType
                     mock_classify.return_value = TaskType.UNKNOWN
-                    
+
                     result = await agent._process_step(
                         step_text="Refactor entire codebase",
                         step_index=0,
                         trace_id="test-trace"
                     )
-                    
+
                     # Unsafe tasks should be skipped even in execution mode
                     assert result.status == "skipped"
                     assert result.is_safe is False
@@ -449,19 +449,19 @@ class TestProjectEngineerAgentCodeGeneration:
     async def test_process_step_analysis_mode_safe_task(self):
         """Test step processing in analysis mode with safe task"""
         agent = ProjectEngineerAgent()  # analysis mode by default
-        
+
         # Mock classifier to return safe task type
         if agent.classifier:
             with patch.object(agent.classifier, 'classify') as mock_classify:
                 from agents.dev_agent.workflows.task_classifier import TaskType
                 mock_classify.return_value = TaskType.DOCUMENTATION_UPDATE
-                
+
                 result = await agent._process_step(
                     step_text="Update README.md",
                     step_index=0,
                     trace_id="test-trace"
                 )
-                
+
                 # Safe tasks should be skipped in analysis mode
                 assert result.status == "skipped"
                 assert result.is_safe is True

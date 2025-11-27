@@ -10,7 +10,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent.parent.parent.parent
 sys.path.insert(0, str(project_root / "handoff" / "20250928" / "40_App" / "orchestrator"))
 
-from project_engineer.safe_tasks import (
+from project_engineer.safe_tasks import (  # noqa: E402
     is_safe_task,
     get_safe_task_metadata,
     validate_task_constraints,
