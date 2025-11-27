@@ -278,24 +278,27 @@ class TestGetSafeTasksSummary:
 class TestSafeTaskTypes:
     """Test suite for SAFE_TASK_TYPES constant"""
     
-    def test_is_set(self):
-        """Test that SAFE_TASK_TYPES is a set"""
-        assert isinstance(SAFE_TASK_TYPES, set)
+    def test_is_frozenset(self):
+        """Test that SAFE_TASK_TYPES is a frozenset (immutable)"""
+        from collections.abc import Set as AbstractSet
+        
+        # Should be a frozenset
+        assert isinstance(SAFE_TASK_TYPES, frozenset)
+        
+        # Should also be an abstract Set
+        assert isinstance(SAFE_TASK_TYPES, AbstractSet)
     
     def test_immutability(self):
-        """Test that SAFE_TASK_TYPES cannot be easily modified"""
+        """Test that SAFE_TASK_TYPES is truly immutable"""
         original_size = len(SAFE_TASK_TYPES)
         
-        # Try to add a task (this will modify the set, but we can't prevent it in Python)
-        # The test is more about documenting expected behavior
-        try:
+        # Try to add a task - should raise AttributeError
+        with pytest.raises(AttributeError):
             SAFE_TASK_TYPES.add("dangerous_task")
-            # If we get here, the set was modified
-            # Remove it to restore original state
-            SAFE_TASK_TYPES.discard("dangerous_task")
-        except Exception:
-            # If an exception is raised, that's good (immutable)
-            pass
+        
+        # Try to discard - should raise AttributeError
+        with pytest.raises(AttributeError):
+            SAFE_TASK_TYPES.discard("documentation_update")
         
         # Verify size is still the same
         assert len(SAFE_TASK_TYPES) == original_size

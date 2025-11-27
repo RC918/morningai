@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 # Safe Task Types Whitelist
 # These task types are considered safe for automatic code generation
-SAFE_TASK_TYPES: Set[str] = {
+# Using frozenset to ensure immutability
+SAFE_TASK_TYPES: frozenset = frozenset({
     # Documentation tasks (lowest risk)
     "documentation_update",     # Update README, docs, comments
     "update_readme",            # Specifically README updates
@@ -45,7 +46,7 @@ SAFE_TASK_TYPES: Set[str] = {
     "env_sync",                 # Sync environment variables
     "config_update",            # Update configuration files
     "i18n_update",              # Update internationalization files
-}
+})
 
 
 # Task Metadata
@@ -296,7 +297,7 @@ def get_all_safe_tasks() -> Set[str]:
     Get all safe task types
     
     Returns:
-        Set of safe task type strings
+        Set of safe task type strings (mutable copy for external use)
         
     Example:
         >>> safe_tasks = get_all_safe_tasks()
@@ -305,7 +306,7 @@ def get_all_safe_tasks() -> Set[str]:
         >>> print("documentation_update" in safe_tasks)
         True
     """
-    return SAFE_TASK_TYPES.copy()
+    return set(SAFE_TASK_TYPES)
 
 
 def get_safe_tasks_summary() -> Dict[str, Any]:
