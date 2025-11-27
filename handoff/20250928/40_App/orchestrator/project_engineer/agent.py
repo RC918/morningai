@@ -305,29 +305,27 @@ class ProjectEngineerAgent:
         logger.info(f"[ProjectEngineerAgent] Executing code generation for task {task_id}")
 
         try:
-            # Prepare state for CodeGenerationWorkflow
-            state = {
-                "task_id": hash(task_id) & 0x7FFFFFFF,  # Convert to positive int
-                "task_title": step_text[:100],
-                "task_description": step_text,
+            # Generate deterministic task ID (CTO review fix: use hashlib instead of hash())
+            import hashlib
+            task_id_int = int(hashlib.sha256(task_id.encode('utf-8')).hexdigest(), 16) & 0x7FFFFFFF
+
+            # Get task metadata for safe task constraints
+            from project_engineer.safe_tasks import get_safe_task_metadata
+            task_metadata = get_safe_task_metadata(task_type)
+
+            # Prepare task dict for CodeGenerationWorkflow.execute()
+            # Note: execute() expects "id", "title", "description" keys
+            task_dict = {
+                "id": task_id_int,
+                "title": step_text[:100],
+                "description": step_text,
                 "task_type": task_type,
-                "task_metadata": None,
-                "target_files": [],
-                "generated_code": None,
-                "generated_tests": None,
-                "code_diff": None,
-                "test_results": None,
-                "pr_number": None,
-                "pr_url": None,
-                "error": None,
-                "execution_start": time.time(),
-                "file_backups": {},
-                "security_validated": False,
+                "task_metadata": task_metadata if task_metadata else None,
             }
 
             # Execute workflow
             logger.info("[ProjectEngineerAgent] Starting CodeGenerationWorkflow execution")
-            result_state = await self.workflow.execute(state)
+            result_state = await self.workflow.execute(task_dict)
 
             # Extract results
             if result_state.get("error"):
