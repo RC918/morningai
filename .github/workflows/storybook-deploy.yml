@@ -97,7 +97,9 @@ jobs:
           EOF
       
       - name: Deploy to GitHub Pages (main branch only)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        # Deploy on push to main OR manual workflow_dispatch trigger
+        # PR events have github.ref == 'refs/pull/<number>/merge', so they won't deploy
+        if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
