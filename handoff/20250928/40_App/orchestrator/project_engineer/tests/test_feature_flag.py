@@ -91,24 +91,16 @@ class TestFeatureFlagIntegration:
                 ProjectEngineerAgent(enable_code_generation=None, dev_agent=None)
 
     def test_feature_flag_fallback_on_settings_error(self):
-        """Test that feature flag falls back to False on settings error"""
-        # Mock the import to raise an exception
-        import sys
-        original_modules = sys.modules.copy()
+        """Test that feature flag falls back to False when settings module or attribute is missing"""
+        # Mock settings object to raise AttributeError when accessing the flag
+        mock_settings = MagicMock()
+        del mock_settings.enable_project_engineer_codegen  # Remove attribute to trigger AttributeError
 
-        # Remove settings from sys.modules to force re-import
-        if 'common.config.settings' in sys.modules:
-            del sys.modules['common.config.settings']
+        with patch('common.config.settings.settings', mock_settings):
+            agent = ProjectEngineerAgent()
 
-        try:
-            with patch.dict('sys.modules', {'common.config.settings': None}):
-                agent = ProjectEngineerAgent()
-
-                assert agent.enable_code_generation is False
-                assert agent.workflow is None
-        finally:
-            # Restore original modules
-            sys.modules.update(original_modules)
+            assert agent.enable_code_generation is False
+            assert agent.workflow is None
 
     def test_backward_compatibility_explicit_false(self):
         """Test backward compatibility with explicit False (Phase 2 Step B)"""

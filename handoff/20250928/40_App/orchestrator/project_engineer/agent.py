@@ -76,10 +76,26 @@ class ProjectEngineerAgent:
             try:
                 from common.config.settings import settings
                 enable_code_generation = settings.enable_project_engineer_codegen
-                logger.info(f"[ProjectEngineerAgent] Using ENABLE_PROJECT_ENGINEER_CODEGEN={enable_code_generation}")
-            except Exception as e:
-                logger.warning(f"[ProjectEngineerAgent] Failed to read feature flag: {e}, defaulting to False")
+                logger.info(
+                    "[ProjectEngineerAgent] Using ENABLE_PROJECT_ENGINEER_CODEGEN=%s",
+                    enable_code_generation,
+                )
+            except (ImportError, AttributeError) as e:
+                # Expected non-fatal: settings module or field missing (e.g., partial deploy)
+                logger.warning(
+                    "[ProjectEngineerAgent] Failed to read feature flag from settings "
+                    "(import/attribute error: %s), defaulting to False",
+                    e,
+                )
                 enable_code_generation = False
+            except Exception as e:
+                # Unexpected error (e.g., ValidationError from misconfig): fail fast
+                logger.exception(
+                    "[ProjectEngineerAgent] Unexpected error while reading feature flag; "
+                    "not falling back silently: %s",
+                    e,
+                )
+                raise
         try:
             from llm_planner_adapter import LLMPlannerAdapter
             self.planner = LLMPlannerAdapter()

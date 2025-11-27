@@ -261,6 +261,15 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
   - `USE_CODEGEN_WORKFLOW_PERCENT` (integer 0-100) - Percentage rollout for code generation workflow (Phase 2)
   - `USE_LANGGRAPH` (boolean) - Enable LangGraph orchestrator mode
   - `USE_LANGGRAPH_PERCENT` (integer 0-100) - Percentage rollout for LangGraph
+  - ⚠️ `ENABLE_PROJECT_ENGINEER_CODEGEN` (boolean) - **PRIVILEGED SWITCH** - Enable ProjectEngineerAgent code generation execution mode (Phase 2 Step C)
+    - **Default**: `false` (analysis-only mode)
+    - **Security Level**: High-risk feature flag
+    - **Production Use**: ⚠️ **DO NOT enable in production except for controlled rollouts with monitoring**
+    - **Purpose**: Controls whether ProjectEngineerAgent can execute code generation for safe tasks
+    - **Requires**: `dev_agent` instance must be provided to ProjectEngineerAgent
+    - **Safe Tasks Only**: Only affects whitelisted safe tasks (documentation_update, test_generation, etc.)
+    - **Unsafe Tasks**: Always skipped regardless of this setting
+    - **Documentation**: See `PHASE_2_STEP_C_FEATURE_FLAG.md` for detailed implementation guide
 - **Rate Limiting**: `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_BY_USER`, `RATE_LIMIT_FAIL_FAST`, `RATE_LIMIT_REDIS_MAX_RETRIES`, `RATE_LIMIT_REDIS_RETRY_DELAY`
 - **Testing** (⚠️ **TEST ENVIRONMENTS ONLY** - NEVER SET IN PRODUCTION):
   - `TESTING` (boolean) - Enables test mode behaviors
@@ -316,6 +325,8 @@ USE_LANGGRAPH_PERCENT=5                 # 5% traffic to LangGraph mode (0-100)
 # Phase 1-2 Feature Flags
 USE_LLM_PLANNER=true                    # Enable LLM-based task planning (Phase 1)
 USE_CODEGEN_WORKFLOW_PERCENT=0          # Percentage rollout for code generation (Phase 2, 0-100)
+ENABLE_PROJECT_ENGINEER_CODEGEN=false   # ⚠️ PRIVILEGED - ProjectEngineerAgent execution mode (Phase 2 Step C)
+                                        # DO NOT enable in production without controlled rollout
 
 # Configuration Examples:
 # - Kill Switch (100% Simple):    USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=0
