@@ -95,11 +95,11 @@ class TestFeatureFlagIntegration:
         # Mock the import to raise an exception
         import sys
         original_modules = sys.modules.copy()
-        
+
         # Remove settings from sys.modules to force re-import
         if 'common.config.settings' in sys.modules:
             del sys.modules['common.config.settings']
-        
+
         try:
             with patch.dict('sys.modules', {'common.config.settings': None}):
                 agent = ProjectEngineerAgent()
