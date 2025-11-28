@@ -59,7 +59,10 @@ class AutoFixer:
         Uses canary rollout logic based on:
         1. ENABLE_PROJECT_ENGINEER_FIXER flag (must be true)
         2. PROJECT_ENGINEER_FIXER_PERCENT (0-100, deterministic hash routing)
-        3. Environment check (staging only recommended)
+
+        Note: Recommended to enable in staging first with 5-10% canary,
+        then gradually increase in production after validation.
+        Requires ENABLE_PROJECT_ENGINEER_CODEGEN=true to actually execute fixes.
 
         Args:
             state: AgentState dict with trace_id, pr_number, etc.
@@ -67,17 +70,40 @@ class AutoFixer:
         Returns:
             True if auto-fix should be attempted, False otherwise
         """
+        trace_id = state.get("trace_id", "unknown")
+
         if not self.settings.enable_project_engineer_fixer:
-            logger.debug("[AutoFixer] Auto-fix disabled by ENABLE_PROJECT_ENGINEER_FIXER=false")
+            logger.debug(
+                "[AutoFixer] Auto-fix disabled by ENABLE_PROJECT_ENGINEER_FIXER=false",
+                extra={
+                    "trace_id": trace_id,
+                    "autofixer_enabled": False,
+                    "autofixer_disabled_reason": "flag_disabled"
+                }
+            )
             return False
 
         percent = self.settings.project_engineer_fixer_percent
         if percent <= 0:
-            logger.debug("[AutoFixer] Auto-fix disabled by PROJECT_ENGINEER_FIXER_PERCENT=0")
+            logger.debug(
+                "[AutoFixer] Auto-fix disabled by PROJECT_ENGINEER_FIXER_PERCENT=0",
+                extra={
+                    "trace_id": trace_id,
+                    "autofixer_enabled": False,
+                    "autofixer_disabled_reason": "percent_zero"
+                }
+            )
             return False
 
         if percent >= 100:
-            logger.info("[AutoFixer] Auto-fix enabled for all tasks (percent=100)")
+            logger.info(
+                "[AutoFixer] Auto-fix enabled for all tasks (percent=100)",
+                extra={
+                    "trace_id": trace_id,
+                    "autofixer_enabled": True,
+                    "autofixer_disabled_reason": None
+                }
+            )
             return True
 
         key = str(state.get("pr_number") or state.get("trace_id") or "unknown")
@@ -87,7 +113,15 @@ class AutoFixer:
         should_run = bucket < percent
         logger.info(
             "[AutoFixer] Canary check: key=%s, bucket=%d, percent=%d, should_run=%s",
-            key, bucket, percent, should_run
+            key, bucket, percent, should_run,
+            extra={
+                "trace_id": trace_id,
+                "autofixer_enabled": should_run,
+                "autofixer_disabled_reason": None if should_run else "canary_bucket_excluded",
+                "canary_key": key,
+                "canary_bucket": bucket,
+                "canary_percent": percent
+            }
         )
         return should_run
 

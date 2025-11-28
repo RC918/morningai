@@ -277,12 +277,19 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
     - **Purpose**: Controls whether fixer_node can use ReviewerAgent + ProjectEngineerAgent for auto-fix
     - **Requires**: `ENABLE_PROJECT_ENGINEER_CODEGEN=true` to actually execute fixes
     - **Canary Rollout**: Use `PROJECT_ENGINEER_FIXER_PERCENT` for gradual rollout
+    - **Recommended Values**:
+      - Staging: `true` (with `PROJECT_ENGINEER_FIXER_PERCENT=5-10`)
+      - Production: `false` initially, then `true` after staging validation
     - **Documentation**: See `handoff/20250928/40_App/orchestrator/project_engineer/fixer_integration.py`
   - `PROJECT_ENGINEER_FIXER_PERCENT` (integer 0-100) - Percentage rollout for auto-fix in fixer_node (Phase 2 Step C Fixer Node)
     - **Default**: `0` (no auto-fix)
     - **Purpose**: Canary rollout mechanism for auto-fix in fixer_node
     - **Algorithm**: MD5 hash routing based on pr_number or trace_id for deterministic task assignment
     - **Only effective when**: `ENABLE_PROJECT_ENGINEER_FIXER=true`
+    - **Recommended Values**:
+      - Staging: `5-10` (start with 5-10% canary)
+      - Production: `0` initially, then gradually increase (`5 → 10 → 25 → 50 → 100`)
+    - **Max Retries**: Fixer node will retry up to `MAX_FIXER_RETRIES` (default 3) times before giving up
 - **Rate Limiting**: `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_BY_USER`, `RATE_LIMIT_FAIL_FAST`, `RATE_LIMIT_REDIS_MAX_RETRIES`, `RATE_LIMIT_REDIS_RETRY_DELAY`
 - **Testing** (⚠️ **TEST ENVIRONMENTS ONLY** - NEVER SET IN PRODUCTION):
   - `TESTING` (boolean) - Enables test mode behaviors
