@@ -980,11 +980,237 @@ for result in results:
 
 ---
 
+## Appendix C: Phase 2 Step B-1 Follow-up Improvements
+
+### Overview
+
+After completing Phase 2 Step B-1 MVP (PR #1664), three follow-up improvements were implemented based on Gemini Code Assist feedback (PR #1665):
+
+1. **Refactor project_root detection** - More robust test setup
+2. **Add comprehensive security tests** - Path traversal attack prevention
+3. **Separate allowed_files and allowed_directories** - Granular permission control
+
+### C.1 Project Root Detection Refactoring
+
+**Problem**: E2E tests used fragile 6-level `os.path.dirname()` chain to find project root:
+```python
+# Old approach (brittle)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+)))
+```
+
+**Solution**: Implemented `find_project_root()` helper function using `.git` marker:
+```python
+def find_project_root(start_path: str) -> str:
+    """Find project root by searching for .git directory"""
+    current = Path(start_path).resolve()
+    while current != current.parent:
+        if (current / ".git").exists():
+            return str(current)
+        current = current.parent
+    raise RuntimeError("Could not find project root (.git not found)")
+```
+
+**Benefits**:
+- Resilient to directory structure changes
+- Works from any subdirectory
+- Clear error message if `.git` not found
+- Standard pattern used across projects
+
+**Files Modified**:
+- `handoff/20250928/40_App/orchestrator/project_engineer/tests/test_project_engineer_e2e.py`
+
+### C.2 Security Tests for Path Traversal Prevention
+
+**Problem**: PR #1664 fixed a critical path traversal vulnerability where `docs-exploit/` could bypass `docs/` whitelist, but lacked dedicated security tests.
+
+**Solution**: Created comprehensive security test suite with 15 tests covering:
+
+**Test Categories**:
+
+1. **Path Traversal Attack Prevention** (8 tests)
+   - `docs-exploit/` bypass attack (the critical vulnerability)
+   - `tests-malicious/` bypass attack
+   - Exact file match vs similar directory names
+   - Subdirectory prefix attacks
+   - Nested directory handling
+   - Multiple whitelists with similar names
+   - Whitelist without trailing slash
+   - Cross-platform path separator handling
+
+2. **Global Deny List Enforcement** (3 tests)
+   - `.git/` blocked even if whitelisted
+   - `migrations/` blocked even if whitelisted
+   - `.env` blocked even if whitelisted
+
+3. **Edge Cases** (4 tests)
+   - Empty whitelist allows all files
+   - No whitelist allows all files (except deny list)
+   - None task_metadata allows all files
+   - Symlink resolution with whitelist
+
+**Key Security Test Example**:
+```python
+def test_docs_exploit_bypass_attack_blocked(self, workflow):
+    """Test that 'docs-exploit/' does NOT bypass 'docs/' whitelist"""
+    # Create directories
+    docs_dir = Path(workflow.repo_root) / "docs"
+    docs_exploit_dir = Path(workflow.repo_root) / "docs-exploit"
+    
+    # Task metadata with 'docs/' whitelist
+    task_metadata = {"allowed_directories": ["docs/"]}
+    
+    # Safe file should be allowed
+    assert workflow._is_safe_file_path(str(docs_dir / "README.md"), task_metadata) is True
+    
+    # Exploit file should be BLOCKED
+    assert workflow._is_safe_file_path(str(docs_exploit_dir / "malicious.md"), task_metadata) is False
+```
+
+**Files Added**:
+- `agents/dev_agent/workflows/tests/__init__.py`
+- `agents/dev_agent/workflows/tests/test_code_generation_security.py` (353 lines, 15 tests)
+
+**Test Results**:
+- ✅ All 15 security tests pass (1.41s)
+- ✅ All 6 E2E tests pass (1.14s)
+- ✅ All 90 project_engineer tests pass
+
+### C.3 Separate allowed_files and allowed_directories
+
+**Problem**: Original implementation used single `allowed_directories` field for both files and directories, making configuration less clear.
+
+**Solution**: Split into two separate fields for granular control:
+
+**Configuration Structure**:
+```python
+SAFE_TASK_METADATA = {
+    "documentation_update": {
+        "allowed_files": ["README.md", "CHANGELOG.md"],  # Exact file matches
+        "allowed_directories": ["docs/", "guides/"]      # Directory prefixes
+    },
+    "test_generation": {
+        "allowed_files": [],
+        "allowed_directories": ["tests/", "test/"]
+    }
+}
+```
+
+**Validation Logic**:
+```python
+def _is_safe_file_path(self, file_path: str, task_metadata: dict) -> bool:
+    allowed_dirs = task_metadata.get('allowed_directories', [])
+    allowed_files = task_metadata.get('allowed_files', [])
+    
+    # If both empty, no restriction
+    if not allowed_dirs and not allowed_files:
+        return True
+    
+    # Check exact file match
+    is_allowed_as_file = any(rel_path == os.path.normpath(f) for f in allowed_files)
+    
+    # Check directory prefix match
+    is_allowed_in_dir = any(
+        rel_path.startswith(os.path.join(os.path.normpath(d), '')) for d in allowed_dirs
+    )
+    
+    return is_allowed_as_file or is_allowed_in_dir
+```
+
+**Benefits**:
+- **Clarity**: Explicit distinction between file and directory permissions
+- **Flexibility**: Can whitelist specific files without entire directories
+- **Security**: More precise control over allowed paths
+- **Maintainability**: Easier to understand and modify configurations
+
+**Behavior Change**:
+- **Old**: Empty `allowed_directories` = block all files
+- **New**: Empty `allowed_files` AND `allowed_directories` = allow all files (no restriction)
+- This makes empty whitelist mean "no constraints" rather than "block everything"
+
+**Files Modified**:
+- `agents/dev_agent/workflows/code_generation_workflow.py` (lines 593-636)
+- `handoff/20250928/40_App/orchestrator/project_engineer/safe_tasks.py` (all 9 task types updated)
+
+### C.4 Code Quality Improvements (Gemini Suggestions)
+
+After PR #1665 was created, Gemini Code Assist provided two MEDIUM priority code quality suggestions that were implemented:
+
+**1. Use `any()` for Loop Simplification**
+
+**Before**:
+```python
+is_allowed = False
+for allowed_file in allowed_files:
+    if rel_path == os.path.normpath(allowed_file):
+        is_allowed = True
+        break
+
+if not is_allowed:
+    for allowed_dir in allowed_dirs:
+        dir_prefix = os.path.join(os.path.normpath(allowed_dir), '')
+        if rel_path.startswith(dir_prefix):
+            is_allowed = True
+            break
+```
+
+**After**:
+```python
+is_allowed_as_file = any(rel_path == os.path.normpath(f) for f in allowed_files)
+is_allowed_in_dir = any(
+    rel_path.startswith(os.path.join(os.path.normpath(d), '')) for d in allowed_dirs
+)
+is_allowed = is_allowed_as_file or is_allowed_in_dir
+```
+
+**Benefits**: More Pythonic, clearer intent, easier to read
+
+**2. Move Duplicate Fixture to Module Level (DRY)**
+
+**Before**: Three identical `workflow` fixtures in three test classes
+**After**: Single module-level fixture shared by all test classes
+
+**Benefits**: Follows DRY principle, easier maintenance, pytest best practice
+
+**Commit**: 4f9878b4
+
+### C.5 Summary of Changes
+
+**PRs**:
+- PR #1664: Phase 2 Step B-1 MVP (E2E tests, per-task whitelist)
+- PR #1665: Phase 2 Step B-1 Follow-up (3 improvements + 2 code quality fixes)
+
+**Commits**:
+- 90fd51b8: Three main improvements (project_root, security tests, config separation)
+- 4f9878b4: Gemini code quality improvements (any(), DRY fixture)
+
+**Test Coverage**:
+- 15 new security tests (path traversal, deny list, edge cases)
+- 6 E2E tests (updated with robust project_root detection)
+- 90 project_engineer tests (all passing)
+
+**Files Changed** (PR #1665):
+- `agents/dev_agent/workflows/code_generation_workflow.py` (+16, -46 lines)
+- `agents/dev_agent/workflows/tests/__init__.py` (new file)
+- `agents/dev_agent/workflows/tests/test_code_generation_security.py` (new file, 353 lines)
+- `handoff/20250928/40_App/orchestrator/project_engineer/safe_tasks.py` (+19, -10 lines)
+- `handoff/20250928/40_App/orchestrator/project_engineer/tests/test_project_engineer_e2e.py` (+28, -18 lines)
+
+**Security Impact**:
+- ✅ Path traversal vulnerability thoroughly tested
+- ✅ Global deny list enforcement verified
+- ✅ Granular file/directory permissions implemented
+- ✅ All 40 CI checks pass
+
+---
+
 ## Revision History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2025-11-27 | Devin AI | Initial draft |
+| 1.1.0 | 2025-11-28 | Devin AI | Added Appendix C: Phase 2 Step B-1 Follow-up improvements |
 
 ---
 
