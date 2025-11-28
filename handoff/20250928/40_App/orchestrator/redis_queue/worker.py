@@ -627,7 +627,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
 
 
 @job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=JOB_TIMEOUT)
-def run_project_engineer_task(task_id: str, description: str, repo: str):
+def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_id: str):
     """
     Execute ProjectEngineerAgent task for human-initiated requests (Phase 3 PR-3)
 
@@ -638,6 +638,7 @@ def run_project_engineer_task(task_id: str, description: str, repo: str):
         task_id: Unique task identifier (also used as trace_id)
         description: Natural language task description
         repo: GitHub repository (owner/repo format)
+        tenant_id: Tenant UUID for multi-tenant isolation
 
     Returns:
         dict: {"task_id": str, "status": str, "results": list, "trace_id": str}
@@ -657,6 +658,7 @@ def run_project_engineer_task(task_id: str, description: str, repo: str):
             "task_id": task_id,
             "job_id": job_id,
             "trace_id": task_id,
+            "tenant_id": tenant_id,
             "description": description[:100] if description else "",
             "repo": repo
         }
@@ -665,12 +667,13 @@ def run_project_engineer_task(task_id: str, description: str, repo: str):
     if SENTRY_DSN:
         sentry_sdk.set_tag("trace_id", task_id)
         sentry_sdk.set_tag("task_id", task_id)
+        sentry_sdk.set_tag("tenant_id", tenant_id)
         sentry_sdk.set_tag("operation", "project_engineer_task")
         sentry_sdk.add_breadcrumb(
             category='task',
             message='Starting ProjectEngineerAgent task',
             level='info',
-            data={'task_id': task_id, 'job_id': job_id, 'trace_id': task_id, 'description': description[:100], 'repo': repo}
+            data={'task_id': task_id, 'job_id': job_id, 'trace_id': task_id, 'tenant_id': tenant_id, 'description': description[:100], 'repo': repo}
         )
 
     try:
@@ -691,13 +694,13 @@ def run_project_engineer_task(task_id: str, description: str, repo: str):
 
         # Update DB status to running
         try:
-            upsert_task_running(task_id=task_id, trace_id=task_id)
+            upsert_task_running(task_id=task_id, trace_id=task_id, tenant_id=tenant_id)
             if SENTRY_DSN:
                 sentry_sdk.add_breadcrumb(
                     category='agent_task',
                     message='Task status updated to running in DB',
                     level='info',
-                    data={'task_id': task_id, 'trace_id': task_id, 'status': 'running'}
+                    data={'task_id': task_id, 'trace_id': task_id, 'tenant_id': tenant_id, 'status': 'running'}
                 )
         except Exception as e:
             logger.error(f"DB write failed for task {task_id} (running): {e}")
@@ -721,8 +724,22 @@ def run_project_engineer_task(task_id: str, description: str, repo: str):
             }
         )
 
-        # Initialize agent (dev_agent=None for analysis-only mode)
-        agent = ProjectEngineerAgent(enable_code_generation=enable_codegen, dev_agent=None)
+        # Initialize agent. A DevAgent instance is required for execution mode.
+        # Pattern from fixer_integration.py: AutoFixer._create_dev_agent()
+        dev_agent_instance = None
+        if enable_codegen:
+            try:
+                from agents.dev_agent.dev_agent_wrapper import DevAgent
+                dev_agent_instance = DevAgent(openai_api_key=settings.openai_api_key)
+                logger.info("[ProjectEngineerAgent] DevAgent initialized for execution mode")
+            except ImportError as e:
+                logger.error(f"[ProjectEngineerAgent] Failed to import DevAgent: {e}")
+                raise ImportError(f"DevAgent required for execution mode but not available: {e}")
+            except Exception as e:
+                logger.error(f"[ProjectEngineerAgent] Failed to create DevAgent: {e}")
+                raise
+
+        agent = ProjectEngineerAgent(enable_code_generation=enable_codegen, dev_agent=dev_agent_instance)
 
         # Run the task asynchronously
         start_time_ns = time.monotonic_ns()
@@ -804,9 +821,9 @@ def run_project_engineer_task(task_id: str, description: str, repo: str):
         # Update DB with final status
         try:
             if pr_url:
-                upsert_task_done(task_id=task_id, trace_id=task_id, pr_url=pr_url)
+                upsert_task_done(task_id=task_id, trace_id=task_id, pr_url=pr_url, tenant_id=tenant_id)
             else:
-                upsert_task_done(task_id=task_id, trace_id=task_id, pr_url="")
+                upsert_task_done(task_id=task_id, trace_id=task_id, pr_url="", tenant_id=tenant_id)
             if SENTRY_DSN:
                 sentry_sdk.add_breadcrumb(
                     category='agent_task',
@@ -815,6 +832,7 @@ def run_project_engineer_task(task_id: str, description: str, repo: str):
                     data={
                         'task_id': task_id,
                         'trace_id': task_id,
+                        'tenant_id': tenant_id,
                         'status': overall_status,
                         'pr_url': pr_url
                     }
@@ -876,7 +894,7 @@ def run_project_engineer_task(task_id: str, description: str, repo: str):
 
         # Update DB with error status
         try:
-            upsert_task_error(task_id=task_id, trace_id=task_id, error_msg=error_msg)
+            upsert_task_error(task_id=task_id, trace_id=task_id, error_msg=error_msg, tenant_id=tenant_id)
             if SENTRY_DSN:
                 sentry_sdk.add_breadcrumb(
                     category='agent_task',
@@ -885,6 +903,7 @@ def run_project_engineer_task(task_id: str, description: str, repo: str):
                     data={
                         'task_id': task_id,
                         'trace_id': task_id,
+                        'tenant_id': tenant_id,
                         'status': 'error',
                         'error_msg': error_msg[:200]
                     }

@@ -451,12 +451,13 @@ def create_project_engineer_task():
         enable_codegen = settings.enable_project_engineer_codegen
         mode = "execution" if enable_codegen else "analysis_only"
 
-        # Enqueue the task
+        # Enqueue the task (pass tenant_id for multi-tenant isolation)
         job = get_agent_queue().enqueue(
             run_project_engineer_task,
             task_id,
             description,
             repo,
+            tenant_id,
             job_id=task_id,
             ttl=600,
             result_ttl=86400,
