@@ -71,19 +71,23 @@ class TestProjectEngineerEndpoint:
     """Test suite for ProjectEngineerAgent endpoint"""
 
     def test_create_task_success(self, client, mock_redis_project_engineer, mock_tenant_resolution):
-        """Test successful task creation returns 202 with task_id"""
+        """Test successful task creation returns 202 with task_id
+        
+        Note: We don't mock fetch_user_tenant_id because the endpoint has a built-in
+        ImportError fallback that uses a default tenant_id when orchestrator module
+        is not available (which is the case in API backend tests).
+        """
         mock_client, mock_queue, tasks = mock_redis_project_engineer
         token = create_user_token()
 
-        with patch('orchestrator.persistence.db_writer.fetch_user_tenant_id', return_value='test-tenant-id'):
-            response = client.post(
-                '/api/agent/project-engineer/task',
-                json={'description': 'Fix the login bug in the authentication module'},
-                headers={
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {token}'
-                }
-            )
+        response = client.post(
+            '/api/agent/project-engineer/task',
+            json={'description': 'Fix the login bug in the authentication module'},
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {token}'
+            }
+        )
 
         assert response.status_code == 202
         data = json.loads(response.data)
@@ -92,22 +96,24 @@ class TestProjectEngineerEndpoint:
         assert data['mode'] == 'analysis_only'
 
     def test_create_task_with_repo(self, client, mock_redis_project_engineer, mock_tenant_resolution):
-        """Test task creation with custom repo"""
+        """Test task creation with custom repo
+        
+        Note: Endpoint uses ImportError fallback for tenant resolution in test environment.
+        """
         mock_client, mock_queue, tasks = mock_redis_project_engineer
         token = create_user_token()
 
-        with patch('orchestrator.persistence.db_writer.fetch_user_tenant_id', return_value='test-tenant-id'):
-            response = client.post(
-                '/api/agent/project-engineer/task',
-                json={
-                    'description': 'Add unit tests for the API',
-                    'repo': 'myorg/myrepo'
-                },
-                headers={
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {token}'
-                }
-            )
+        response = client.post(
+            '/api/agent/project-engineer/task',
+            json={
+                'description': 'Add unit tests for the API',
+                'repo': 'myorg/myrepo'
+            },
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {token}'
+            }
+        )
 
         assert response.status_code == 202
         data = json.loads(response.data)
@@ -115,12 +121,14 @@ class TestProjectEngineerEndpoint:
         assert data['status'] == 'queued'
 
     def test_create_task_execution_mode(self, client, mock_redis_project_engineer):
-        """Test task creation in execution mode when codegen is enabled"""
+        """Test task creation in execution mode when codegen is enabled
+        
+        Note: Endpoint uses ImportError fallback for tenant resolution in test environment.
+        """
         mock_client, mock_queue, tasks = mock_redis_project_engineer
         token = create_user_token()
 
-        with patch('src.routes.agent.settings') as mock_settings, \
-             patch('orchestrator.persistence.db_writer.fetch_user_tenant_id', return_value='test-tenant-id'):
+        with patch('src.routes.agent.settings') as mock_settings:
             mock_settings.enable_project_engineer_codegen = True
 
             response = client.post(
