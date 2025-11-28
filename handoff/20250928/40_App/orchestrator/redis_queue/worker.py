@@ -61,6 +61,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _canary_metrics = None
+_phase3_metrics = None
 
 
 def sanitize_redis_mapping(mapping: dict) -> dict:
@@ -650,6 +651,18 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
     """
     import asyncio
 
+    # Phase 3 PR-5: Initialize Phase 3 metrics
+    global _phase3_metrics
+    if _phase3_metrics is None:
+        try:
+            from phase3_metrics import create_phase3_metrics
+            phase3_metrics_enabled = getattr(settings, 'phase3_metrics_enabled', True)
+            _phase3_metrics = create_phase3_metrics(redis, enabled=phase3_metrics_enabled)
+            logger.info(f"[Phase3Metrics] Initialized: enabled={phase3_metrics_enabled}")
+        except Exception as e:
+            logger.warning(f"[Phase3Metrics] Failed to initialize: {e}")
+            _phase3_metrics = None
+
     job_id = task_id
     logger.info(
         "[ProjectEngineerAgent] Starting task",
@@ -775,6 +788,18 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
                     "elapsed_ms": elapsed_ms
                 }
             )
+            
+            # Phase 3 PR-5: Record timeout metrics
+            if _phase3_metrics:
+                try:
+                    _phase3_metrics.record_timeout(
+                        task_id=task_id,
+                        timeout_seconds=task_timeout,
+                        elapsed_ms=elapsed_ms
+                    )
+                except Exception as metrics_error:
+                    logger.warning(f"[Phase3Metrics] Failed to record timeout: {metrics_error}")
+            
             # Return timeout error result
             from project_engineer.agent import TaskResult
             results = [TaskResult(
@@ -839,6 +864,36 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
                 "pr_url": pr_url
             }
         )
+
+        # Phase 3 PR-5: Record task execution metrics
+        if _phase3_metrics:
+            try:
+                # Determine task type from results (use first result's task_type or "general")
+                task_type = "general"
+                if results and len(results) > 0:
+                    task_type = results[0].task_type or "general"
+                
+                # Determine status for metrics
+                if overall_status == "done":
+                    metrics_status = "success"
+                elif overall_status == "partial_success":
+                    metrics_status = "success"  # Count partial success as success for metrics
+                else:
+                    metrics_status = "failed"
+                
+                # Determine mode
+                mode = "execution" if enable_codegen else "analysis_only"
+                
+                _phase3_metrics.record_task_execution(
+                    task_id=task_id,
+                    status=metrics_status,
+                    task_type=task_type,
+                    elapsed_ms=elapsed_ms,
+                    mode=mode,
+                    tenant_id=tenant_id
+                )
+            except Exception as metrics_error:
+                logger.warning(f"[Phase3Metrics] Failed to record task execution: {metrics_error}")
 
         # Update Redis with final status
         redis.hset(
@@ -908,6 +963,21 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
                 "error": error_msg
             }
         )
+
+        # Phase 3 PR-5: Record failed task metrics
+        if _phase3_metrics:
+            try:
+                mode = "execution" if enable_codegen else "analysis_only"
+                _phase3_metrics.record_task_execution(
+                    task_id=task_id,
+                    status="failed",
+                    task_type="general",
+                    elapsed_ms=0,  # Unknown elapsed time on exception
+                    mode=mode,
+                    tenant_id=tenant_id
+                )
+            except Exception as metrics_error:
+                logger.warning(f"[Phase3Metrics] Failed to record failed task: {metrics_error}")
 
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
