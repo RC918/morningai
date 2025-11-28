@@ -9,10 +9,12 @@ This module provides:
 3. ReviewerAgent integration for analyzing CI failures
 4. ProjectEngineerAgent integration for generating fixes
 """
+import atexit
 import asyncio
 import concurrent.futures
 import hashlib
 import logging
+import threading
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Module-level executor for async-to-sync bridging (reused across calls)
 _autofixer_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+_autofixer_executor_lock = threading.Lock()
 
 
 def _get_autofixer_executor() -> concurrent.futures.ThreadPoolExecutor:
@@ -31,16 +34,38 @@ def _get_autofixer_executor() -> concurrent.futures.ThreadPoolExecutor:
     This avoids the overhead of creating a new executor for each call to
     run_auto_fix_sync when called from within a running event loop.
 
+    Uses double-checked locking pattern for thread safety.
+
     Returns:
         ThreadPoolExecutor instance (reused across calls)
     """
     global _autofixer_executor
     if _autofixer_executor is None:
-        _autofixer_executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=1,
-            thread_name_prefix="autofixer"
-        )
+        with _autofixer_executor_lock:
+            # Double-check inside the lock to prevent re-creation
+            if _autofixer_executor is None:
+                _autofixer_executor = concurrent.futures.ThreadPoolExecutor(
+                    max_workers=1,
+                    thread_name_prefix="autofixer"
+                )
     return _autofixer_executor
+
+
+def _shutdown_autofixer_executor() -> None:
+    """
+    Shutdown the global ThreadPoolExecutor on application exit.
+
+    This ensures worker threads are properly terminated and resources
+    are released when the application exits.
+    """
+    global _autofixer_executor
+    if _autofixer_executor is not None:
+        _autofixer_executor.shutdown(wait=True)
+        _autofixer_executor = None
+
+
+# Register shutdown handler to clean up executor on exit
+atexit.register(_shutdown_autofixer_executor)
 
 
 class AutoFixer:
