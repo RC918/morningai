@@ -261,7 +261,7 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
   - `USE_CODEGEN_WORKFLOW_PERCENT` (integer 0-100) - Percentage rollout for code generation workflow (Phase 2)
   - `USE_LANGGRAPH` (boolean) - Enable LangGraph orchestrator mode
   - `USE_LANGGRAPH_PERCENT` (integer 0-100) - Percentage rollout for LangGraph
-  - ⚠️ `ENABLE_PROJECT_ENGINEER_CODEGEN` (boolean) - **PRIVILEGED SWITCH** - Enable ProjectEngineerAgent code generation execution mode (Phase 2 Step C)
+  - ⚠️ `ENABLE_PROJECT_ENGINEER_CODEGEN` (boolean) - **PRIVILEGED SWITCH** - Enable ProjectEngineerAgent code generation execution mode (Phase 2 Step B-1)
     - **Default**: `false` (analysis-only mode)
     - **Security Level**: High-risk feature flag
     - **Production Use**: ⚠️ **DO NOT enable in production except for controlled rollouts with monitoring**
@@ -270,6 +270,19 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
     - **Safe Tasks Only**: Only affects whitelisted safe tasks (documentation_update, test_generation, etc.)
     - **Unsafe Tasks**: Always skipped regardless of this setting
     - **Documentation**: See `PHASE_2_STEP_C_FEATURE_FLAG.md` for detailed implementation guide
+  - ⚠️ `ENABLE_PROJECT_ENGINEER_FIXER` (boolean) - **PRIVILEGED SWITCH** - Enable AutoFixer in fixer_node (Phase 2 Step C Fixer Node)
+    - **Default**: `false` (no auto-fix)
+    - **Security Level**: High-risk feature flag
+    - **Production Use**: ⚠️ **DO NOT enable in production - staging only at first**
+    - **Purpose**: Controls whether fixer_node can use ReviewerAgent + ProjectEngineerAgent for auto-fix
+    - **Requires**: `ENABLE_PROJECT_ENGINEER_CODEGEN=true` to actually execute fixes
+    - **Canary Rollout**: Use `PROJECT_ENGINEER_FIXER_PERCENT` for gradual rollout
+    - **Documentation**: See `handoff/20250928/40_App/orchestrator/project_engineer/fixer_integration.py`
+  - `PROJECT_ENGINEER_FIXER_PERCENT` (integer 0-100) - Percentage rollout for auto-fix in fixer_node (Phase 2 Step C Fixer Node)
+    - **Default**: `0` (no auto-fix)
+    - **Purpose**: Canary rollout mechanism for auto-fix in fixer_node
+    - **Algorithm**: MD5 hash routing based on pr_number or trace_id for deterministic task assignment
+    - **Only effective when**: `ENABLE_PROJECT_ENGINEER_FIXER=true`
 - **Rate Limiting**: `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_BY_USER`, `RATE_LIMIT_FAIL_FAST`, `RATE_LIMIT_REDIS_MAX_RETRIES`, `RATE_LIMIT_REDIS_RETRY_DELAY`
 - **Testing** (⚠️ **TEST ENVIRONMENTS ONLY** - NEVER SET IN PRODUCTION):
   - `TESTING` (boolean) - Enables test mode behaviors
@@ -325,8 +338,13 @@ USE_LANGGRAPH_PERCENT=5                 # 5% traffic to LangGraph mode (0-100)
 # Phase 1-2 Feature Flags
 USE_LLM_PLANNER=true                    # Enable LLM-based task planning (Phase 1)
 USE_CODEGEN_WORKFLOW_PERCENT=0          # Percentage rollout for code generation (Phase 2, 0-100)
-ENABLE_PROJECT_ENGINEER_CODEGEN=false   # ⚠️ PRIVILEGED - ProjectEngineerAgent execution mode (Phase 2 Step C)
+ENABLE_PROJECT_ENGINEER_CODEGEN=false   # ⚠️ PRIVILEGED - ProjectEngineerAgent execution mode (Phase 2 Step B-1)
                                         # DO NOT enable in production without controlled rollout
+
+# Phase 2 Step C Fixer Node (Auto-Fix)
+ENABLE_PROJECT_ENGINEER_FIXER=false     # ⚠️ PRIVILEGED - AutoFixer in fixer_node (Phase 2 Step C)
+PROJECT_ENGINEER_FIXER_PERCENT=0        # Percentage rollout for auto-fix (0-100)
+                                        # Uses MD5 hash routing for deterministic task assignment
 
 # Configuration Examples:
 # - Kill Switch (100% Simple):    USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=0

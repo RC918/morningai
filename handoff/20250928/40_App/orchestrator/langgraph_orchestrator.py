@@ -244,30 +244,85 @@ def ci_monitor_node(state: AgentState) -> AgentState:
 def fixer_node(state: AgentState) -> AgentState:
     """
     Fixer node: Attempts to fix CI failures
+
+    Phase 2 Step C Enhancement:
+    - Integrates AutoFixer for automated fix attempts
+    - Uses ReviewerAgent to analyze code issues
+    - Uses ProjectEngineerAgent to generate fixes
+    - Supports canary rollout via PROJECT_ENGINEER_FIXER_PERCENT
     """
+    from common.config.settings import settings
+
     trace_id = state["trace_id"]
-    ci_checks = state.get("ci_checks", {})
     retry_count = state.get("retry_count", 0)
-    
+
     logger.info(f"[Fixer] Attempting to fix CI failures (retry {retry_count})", extra={
         "operation": "fixer",
         "trace_id": trace_id,
         "retry_count": retry_count
     })
-    
+
     if retry_count >= 3:
         logger.warning(f"[Fixer] Max retries reached, giving up", extra={
             "operation": "fixer",
             "trace_id": trace_id,
             "retry_count": retry_count
         })
-        state["error"] = "Max retries exceeded"
+        state["error"] = state.get("error") or "Max retries exceeded"
         return state
-    
-    state["messages"] = state.get("messages", []) + [
-        AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/3)")
-    ]
-    
+
+    try:
+        from project_engineer.fixer_integration import AutoFixer
+
+        auto_fixer = AutoFixer(settings=settings)
+
+        if auto_fixer.should_run_for_task(state):
+            logger.info(f"[Fixer] Running AutoFixer for task", extra={
+                "operation": "fixer",
+                "trace_id": trace_id,
+                "retry_count": retry_count
+            })
+
+            state = auto_fixer.run_auto_fix_sync(state)
+
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"AutoFixer attempt {retry_count + 1}/3 completed")
+            ]
+        else:
+            logger.info(f"[Fixer] AutoFixer disabled or not selected for this task", extra={
+                "operation": "fixer",
+                "trace_id": trace_id,
+                "retry_count": retry_count
+            })
+
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/3) - AutoFixer disabled")
+            ]
+
+    except ImportError as e:
+        logger.warning(f"[Fixer] AutoFixer not available: {e}", extra={
+            "operation": "fixer",
+            "trace_id": trace_id,
+            "error": str(e)
+        })
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/3)")
+        ]
+
+    except Exception as e:
+        logger.error(f"[Fixer] AutoFixer failed: {e}", extra={
+            "operation": "fixer",
+            "trace_id": trace_id,
+            "error": str(e)
+        }, exc_info=True)
+
+        state["error"] = f"AutoFixer error: {str(e)}"
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"AutoFixer failed: {str(e)}")
+        ]
+
+    state["retry_count"] = retry_count + 1
     return state
 
 def finalizer_node(state: AgentState) -> AgentState:
