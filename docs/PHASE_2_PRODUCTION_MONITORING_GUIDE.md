@@ -42,7 +42,7 @@ This guide provides monitoring procedures for Phase 2 ProjectEngineerAgent deplo
 | Task Success Rate | > 95% | < 90% | < 80% | Percentage of tasks completed successfully |
 | Average Task Duration | < 5 min | > 10 min | > 15 min | Time from task start to completion |
 | Task Classification Accuracy | > 90% | < 85% | < 75% | Correct task type classification rate |
-| Safe Task Execution Rate | 100% | < 100% | < 100% | Only safe tasks should execute |
+| Safe Task Execution Rate | 100% | N/A | < 100% | Only safe tasks should execute |
 | Path Traversal Blocks | 0 expected | > 0 | > 5/day | Security violations blocked |
 
 **Monitoring Commands**:
@@ -174,7 +174,7 @@ if __name__ == "__main__":
 3. Whitelist bypass attempts
 
 **Log Patterns to Monitor**:
-```python
+```text
 # Warning logs from code_generation_workflow.py
 "Blocked path outside allowed constraints"
 "Path contains dangerous pattern"
@@ -199,8 +199,8 @@ grep "Blocked path" /var/log/morningai/orchestrator.log | \
 **Expected Behavior**: Only tasks in `SAFE_TASKS` should execute
 
 **Monitoring**:
-```python
-# Check for unsafe task execution attempts
+```sql
+-- Check for unsafe task execution attempts
 SELECT task_type, COUNT(*) as attempts
 FROM task_execution_logs
 WHERE status = 'rejected_unsafe'
@@ -280,11 +280,10 @@ GROUP BY task_type;
 ### 5.1 Common Error Patterns
 
 **1. Task Classification Errors**
-```python
-# Log pattern
-"[TaskClassifier] Classification failed"
+```sql
+-- Log pattern: "[TaskClassifier] Classification failed"
 
-# Monitoring query
+-- Monitoring query
 SELECT error_message, COUNT(*) as occurrences
 FROM error_logs
 WHERE component = 'TaskClassifier'
@@ -293,11 +292,10 @@ GROUP BY error_message;
 ```
 
 **2. Code Generation Failures**
-```python
-# Log pattern
-"[CodeGenerationWorkflow] Workflow execution failed"
+```text
+Log pattern: "[CodeGenerationWorkflow] Workflow execution failed"
 
-# Common causes
+Common causes:
 - LLM API timeout
 - Security validation failure
 - File write permission denied
@@ -305,11 +303,10 @@ GROUP BY error_message;
 ```
 
 **3. PR Creation Failures**
-```python
-# Log pattern
-"[CodeGenerationWorkflow] Failed to create PR"
+```text
+Log pattern: "[CodeGenerationWorkflow] Failed to create PR"
 
-# Common causes
+Common causes:
 - GitHub API rate limit
 - Invalid branch name
 - Merge conflict
