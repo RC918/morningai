@@ -122,37 +122,38 @@ class TestPlannerMetrics:
             events_file = os.path.join(tmpdir, "planner_runs.jsonl")
 
             with patch.dict(os.environ, {'PLANNER_EVENTS_FILE': events_file}):
-                with patch('llm_planner_adapter.settings') as mock_settings:
-                    mock_settings.openai_api_key = "test-key"
+                with patch('llm_planner_adapter.LLMClient') as mock_llm_client_class:
+                    mock_client = MagicMock()
+                    mock_llm_client_class.return_value = mock_client
+                    mock_client.is_available.return_value = True
+                    mock_client.provider_name = "openai"
 
-                    with patch('llm_planner_adapter.OpenAI') as mock_openai_class:
-                        mock_client = MagicMock()
-                        mock_openai_class.return_value = mock_client
+                    valid_plan = [
+                        {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+                        {"step": "Step 2", "rationale": "Reason 2", "risk": "low"},
+                        {"step": "Step 3", "rationale": "Reason 3", "risk": "low"}
+                    ]
 
-                        valid_plan = [
-                            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
-                            {"step": "Step 2", "rationale": "Reason 2", "risk": "low"},
-                            {"step": "Step 3", "rationale": "Reason 3", "risk": "low"}
-                        ]
+                    mock_response = MagicMock()
+                    mock_response.content = json.dumps(valid_plan)
+                    mock_response.provider = "openai"
+                    mock_response.model = "gpt-4-turbo-preview"
+                    mock_response.usage = {"total_tokens": 100}
+                    mock_client.generate.return_value = mock_response
 
-                        mock_response = MagicMock()
-                        mock_response.choices = [MagicMock()]
-                        mock_response.choices[0].message.content = json.dumps(valid_plan)
-                        mock_client.chat.completions.create.return_value = mock_response
+                    adapter = LLMPlannerAdapter()
+                    result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
 
-                        adapter = LLMPlannerAdapter()
-                        result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+                    assert result["planner_type"] == "llm"
+                    assert os.path.exists(events_file)
 
-                        assert result["planner_type"] == "llm"
-                        assert os.path.exists(events_file)
+                    with open(events_file, 'r') as f:
+                        line = f.readline()
+                        event = json.loads(line)
 
-                        with open(events_file, 'r') as f:
-                            line = f.readline()
-                            event = json.loads(line)
-
-                        assert event["trace_id"] == "trace-123"
-                        assert event["planner_type"] == "llm"
-                        assert len(event["actual_plan_steps"]) == 3
+                    assert event["trace_id"] == "trace-123"
+                    assert event["planner_type"] == "llm"
+                    assert len(event["actual_plan_steps"]) == 3
 
     def test_record_planner_event_default_path(self):
         """Test that record_planner_event uses default relative path when env var not set"""

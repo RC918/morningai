@@ -530,6 +530,24 @@ class Settings(BaseSettings):
         description="Dev agent API endpoint"
     )
 
+    llm_provider: Literal["openai", "gemini", "auto"] = Field(
+        default="openai",
+        alias="LLM_PROVIDER",
+        description="LLM provider for text generation (openai, gemini, auto)"
+    )
+
+    gemini_api_key_secret: Optional[SecretStr] = Field(
+        None,
+        alias="GEMINI_API_KEY",
+        description="Google Gemini API key for LLM operations (Phase 2 Extra)",
+        repr=False
+    )
+
+    @property
+    def gemini_api_key(self) -> Optional[str]:
+        """Gemini API key (unwrapped from SecretStr)"""
+        return self.gemini_api_key_secret.get_secret_value() if self.gemini_api_key_secret else None
+
     slack_webhook_url: Optional[str] = Field(
         None,
         alias="SLACK_WEBHOOK_URL",

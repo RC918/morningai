@@ -4,19 +4,26 @@ LLM Planner Adapter - Phase 1 Implementation
 Integrates LLM-powered dynamic planning into LangGraph orchestrator
 
 This module provides:
-1. LLM-based plan generation using GPT-4
+1. LLM-based plan generation using multiple providers (OpenAI, Gemini)
 2. Task classification integration
 3. Code context extraction
 4. Plan validation and fallback logic
 5. Planner accuracy metric recording
+
+Updated in Phase 2 Extra to use LLMClient abstraction layer.
 """
 import json
 import logging
 import time
 from typing import Dict, List, Any, Optional
-from openai import OpenAI
 
 from common.config.settings import settings
+from llm.client import LLMClient
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +34,7 @@ class LLMPlannerAdapter:
     Adapter for LLM-powered dynamic planning in LangGraph orchestrator
 
     Features:
-    - GPT-4 based plan generation
+    - Multi-provider LLM support via LLMClient (OpenAI, Gemini)
     - Task classification integration
     - Code context extraction (<2000 tokens)
     - Plan validation (3-7 steps)
@@ -35,13 +42,35 @@ class LLMPlannerAdapter:
     - Planner accuracy metric recording
     """
 
-    def __init__(self):
-        """Initialize LLM planner adapter"""
-        self.client = None
-        if settings.openai_api_key:
-            self.client = OpenAI(api_key=settings.openai_api_key)
-        else:
-            logger.warning("OpenAI API key not found, LLM planner will not be available")
+    def __init__(self, provider: Optional[str] = None):
+        """
+        Initialize LLM planner adapter
+
+        Args:
+            provider: LLM provider to use (openai, gemini, auto)
+                     If None, uses LLM_PROVIDER env var or defaults to openai
+        """
+        self.llm_client = None
+        self._openai_client = None
+        try:
+            self.llm_client = LLMClient(provider=provider)
+            logger.info(
+                f"[LLM Planner] Initialized with provider={self.llm_client.provider_name}"
+            )
+            if self.llm_client.provider_name == "openai" and OpenAI and settings.openai_api_key:
+                self._openai_client = OpenAI(api_key=settings.openai_api_key)
+        except ValueError as e:
+            logger.warning(f"LLM client not available: {e}")
+
+    @property
+    def client(self):
+        """
+        Backward compatibility: Return OpenAI client for tests that expect it
+
+        Returns:
+            OpenAI client instance or None if not available
+        """
+        return self._openai_client
 
     def generate_plan(
         self,
@@ -64,8 +93,8 @@ class LLMPlannerAdapter:
         Returns:
             Dict with plan, planner_type, and metadata
         """
-        if not self.client:
-            logger.warning("[LLM Planner] OpenAI client not available, using static plan")
+        if not self.llm_client or not self.llm_client.is_available():
+            logger.warning("[LLM Planner] LLM client not available, using static plan")
             return self._get_static_plan(task_type)
 
         try:
@@ -173,7 +202,7 @@ class LLMPlannerAdapter:
         trace_id: str
     ) -> Dict[str, Any]:
         """
-        Call GPT-4 to generate plan
+        Call LLM to generate plan using LLMClient abstraction
 
         Args:
             goal: User's goal
@@ -184,7 +213,31 @@ class LLMPlannerAdapter:
         Returns:
             Dict with plan and planning_time_ms
         """
-        system_prompt = """You are a senior software engineer creating executable plans for code tasks.
+        use_json_mode = settings.planner_json_mode
+
+        if use_json_mode:
+            system_prompt = """You are a senior software engineer creating executable plans for code tasks.
+
+Generate a plan with 3-7 steps that are specific, actionable, and ordered correctly.
+
+Return a JSON object with a "plan" key containing an array of steps.
+
+Output format (strict JSON):
+{
+  "plan": [
+    {"step": "Step description", "rationale": "Why this step", "risk": "low|medium|high"},
+    ...
+  ]
+}
+
+Requirements:
+- 3-7 steps only
+- Each step must have: step, rationale, risk
+- Steps must be specific and actionable
+- Risk must be one of: low, medium, high
+"""
+        else:
+            system_prompt = """You are a senior software engineer creating executable plans for code tasks.
 
 Generate a plan with 3-7 steps that are specific, actionable, and ordered correctly.
 
@@ -215,53 +268,37 @@ Generate a 3-7 step plan to accomplish this goal. Return ONLY the JSON array."""
 
         start_time = time.time()
 
-        use_json_mode = settings.planner_json_mode
-
         try:
-            api_params = {
-                "model": "gpt-4-turbo-preview",
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "temperature": 0.7,
-                "max_tokens": 1000,
-                "timeout": 25  # 25 second timeout (leave 5 sec buffer for 30 sec target)
-            }
-
             if use_json_mode:
-                api_params["response_format"] = {"type": "json_object"}
-                api_params["messages"][0]["content"] = """You are a senior software engineer creating executable plans for code tasks.
-
-Generate a plan with 3-7 steps that are specific, actionable, and ordered correctly.
-
-Return a JSON object with a "plan" key containing an array of steps.
-
-Output format (strict JSON):
-{
-  "plan": [
-    {"step": "Step description", "rationale": "Why this step", "risk": "low|medium|high"},
-    ...
-  ]
-}
-
-Requirements:
-- 3-7 steps only
-- Each step must have: step, rationale, risk
-- Steps must be specific and actionable
-- Risk must be one of: low, medium, high
-"""
                 logger.info(f"[LLM Planner] Using JSON mode for trace_id={trace_id}")
 
-            response = self.client.chat.completions.create(**api_params)
+            response = self.llm_client.generate(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
+                temperature=0.7,
+                max_tokens=1000,
+                json_mode=use_json_mode,
+                timeout=25
+            )
 
             planning_time_ms = (time.time() - start_time) * 1000
 
-            content = response.choices[0].message.content
+            content = response.content
 
             plan = self._parse_json_with_retry(content, use_json_mode, trace_id)
 
             self._record_planning_time(trace_id, planning_time_ms)
+
+            logger.info(
+                f"[LLM Planner] Generated plan using {response.provider}/{response.model}",
+                extra={
+                    "operation": "llm_planner",
+                    "trace_id": trace_id,
+                    "provider": response.provider,
+                    "model": response.model,
+                    "usage": response.usage
+                }
+            )
 
             return {
                 "plan": plan,
