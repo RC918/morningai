@@ -14,17 +14,18 @@ from unittest.mock import Mock
 from workflows.code_generation_workflow import CodeGenerationWorkflow
 
 
+@pytest.fixture
+def workflow():
+    """Create a CodeGenerationWorkflow instance for testing"""
+    mock_dev_agent = Mock()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workflow = CodeGenerationWorkflow(mock_dev_agent)
+        workflow.repo_root = tmpdir
+        yield workflow
+
+
 class TestCodeGenerationSecurityPathTraversal:
     """Test path traversal attack prevention in per-task directory whitelist"""
-
-    @pytest.fixture
-    def workflow(self):
-        """Create a CodeGenerationWorkflow instance for testing"""
-        mock_dev_agent = Mock()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workflow = CodeGenerationWorkflow(mock_dev_agent)
-            workflow.repo_root = tmpdir
-            yield workflow
 
     def test_docs_exploit_bypass_attack_blocked(self, workflow):
         """
@@ -227,15 +228,6 @@ class TestCodeGenerationSecurityPathTraversal:
 class TestCodeGenerationSecurityGlobalDenyList:
     """Test global deny list still works with per-task whitelist"""
 
-    @pytest.fixture
-    def workflow(self):
-        """Create a CodeGenerationWorkflow instance for testing"""
-        mock_dev_agent = Mock()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workflow = CodeGenerationWorkflow(mock_dev_agent)
-            workflow.repo_root = tmpdir
-            yield workflow
-
     def test_git_directory_blocked_even_with_whitelist(self, workflow):
         """Test that .git/ is blocked even if whitelisted"""
         # Create .git directory
@@ -287,15 +279,6 @@ class TestCodeGenerationSecurityGlobalDenyList:
 
 class TestCodeGenerationSecurityEdgeCases:
     """Test edge cases in path validation"""
-
-    @pytest.fixture
-    def workflow(self):
-        """Create a CodeGenerationWorkflow instance for testing"""
-        mock_dev_agent = Mock()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            workflow = CodeGenerationWorkflow(mock_dev_agent)
-            workflow.repo_root = tmpdir
-            yield workflow
 
     def test_empty_whitelist_allows_all(self, workflow):
         """Test that empty whitelist allows all files (no restriction)"""
