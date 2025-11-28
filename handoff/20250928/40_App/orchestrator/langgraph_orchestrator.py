@@ -16,7 +16,8 @@ Multi-Agent Flow:
 """
 
 import logging
-from typing import TypedDict, Annotated, Sequence
+import time
+from typing import TypedDict, Annotated, Sequence, Optional
 from datetime import datetime
 import operator
 
@@ -24,7 +25,32 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
+from orchestrator_metrics import get_orchestrator_metrics, OrchestratorMetrics
+
 logger = logging.getLogger(__name__)
+
+# Global metrics instance (lazy initialization)
+_metrics: Optional[OrchestratorMetrics] = None
+
+
+def _get_metrics() -> OrchestratorMetrics:
+    """Get or initialize the global metrics instance"""
+    global _metrics
+    if _metrics is None:
+        try:
+            import os
+            import redis
+            redis_url = os.environ.get("REDIS_URL")
+            if redis_url:
+                redis_client = redis.from_url(redis_url)
+                _metrics = get_orchestrator_metrics(redis_client=redis_client, enabled=True)
+            else:
+                _metrics = get_orchestrator_metrics(redis_client=None, enabled=False)
+        except Exception as e:
+            logger.warning(f"Failed to initialize metrics: {e}")
+            _metrics = get_orchestrator_metrics(redis_client=None, enabled=False)
+    return _metrics
+
 
 # Maximum number of fix retries before giving up
 MAX_FIXER_RETRIES = 3
@@ -86,9 +112,14 @@ def planner_node(state: AgentState) -> AgentState:
     """
     from common.config.settings import settings
 
+    start_time = time.time()
+    metrics = _get_metrics()
+
     goal = state["goal"]
     repo = state.get("repo", "RC918/morningai")
     trace_id = state.get("trace_id", "unknown")
+
+    metrics.record_node_start("planner", trace_id)
 
     logger.info("[Planner] Analyzing goal", extra={
         "operation": "planner",
@@ -125,6 +156,8 @@ def planner_node(state: AgentState) -> AgentState:
                 "planning_time_ms": plan_data.get("planning_time_ms", 0)
             })
 
+            latency_ms = (time.time() - start_time) * 1000
+            metrics.record_node_complete("planner", trace_id, success=True, latency_ms=latency_ms)
             return state
 
         except Exception as e:
@@ -133,6 +166,7 @@ def planner_node(state: AgentState) -> AgentState:
                 "trace_id": trace_id,
                 "error": str(e)
             })
+            metrics.record_node_complete("planner", trace_id, success=False)
 
     plan = [
         "Analyze codebase and requirements",
@@ -158,6 +192,8 @@ def planner_node(state: AgentState) -> AgentState:
         "planner_type": "static"
     })
 
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("planner", trace_id, success=True, latency_ms=latency_ms)
     return state
 
 
@@ -167,11 +203,16 @@ def executor_node(state: AgentState) -> AgentState:
     """
     from graph import execute
 
+    start_time = time.time()
+    metrics = _get_metrics()
+
     trace_id = state["trace_id"]
     goal = state["goal"]
     repo = state["repo"]
     current_step = state["current_step"]
     plan = state["plan"]
+
+    metrics.record_node_start("executor", trace_id)
 
     logger.info(f"[Executor] Executing step {current_step + 1}/{len(plan)}", extra={
         "operation": "executor",
@@ -179,6 +220,7 @@ def executor_node(state: AgentState) -> AgentState:
         "step": plan[current_step] if current_step < len(plan) else "unknown"
     })
 
+    success = True
     try:
         pr_url, ci_state, trace_id = execute(goal, repo, trace_id=trace_id)
 
@@ -197,6 +239,7 @@ def executor_node(state: AgentState) -> AgentState:
         })
 
     except Exception as e:
+        success = False
         error_msg = str(e)
         logger.error(f"[Executor] Step failed: {error_msg}", extra={
             "operation": "executor",
@@ -211,6 +254,8 @@ def executor_node(state: AgentState) -> AgentState:
         ]
 
     state["current_step"] = current_step + 1
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("executor", trace_id, success=success, latency_ms=latency_ms)
     return state
 
 
@@ -220,8 +265,13 @@ def ci_monitor_node(state: AgentState) -> AgentState:
     """
     from tools.github_api import get_repo, get_pr_checks
 
+    start_time = time.time()
+    metrics = _get_metrics()
+
     trace_id = state["trace_id"]
     pr_number = state.get("pr_number")
+
+    metrics.record_node_start("ci_monitor", trace_id)
 
     if not pr_number:
         logger.warning("[CI Monitor] No PR number available", extra={
@@ -229,6 +279,8 @@ def ci_monitor_node(state: AgentState) -> AgentState:
             "trace_id": trace_id
         })
         state["ci_state"] = "unknown"
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
         return state
 
     logger.info(f"[CI Monitor] Checking CI for PR #{pr_number}", extra={
@@ -237,6 +289,7 @@ def ci_monitor_node(state: AgentState) -> AgentState:
         "pr_number": pr_number
     })
 
+    success = True
     try:
         repo = get_repo()
         ci_state, checks = get_pr_checks(repo, pr_number)
@@ -256,6 +309,7 @@ def ci_monitor_node(state: AgentState) -> AgentState:
         })
 
     except Exception as e:
+        success = False
         error_msg = str(e)
         logger.error(f"[CI Monitor] Failed to check CI: {error_msg}", extra={
             "operation": "ci_monitor",
@@ -265,6 +319,8 @@ def ci_monitor_node(state: AgentState) -> AgentState:
         state["ci_state"] = "error"
         state["error"] = error_msg
 
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("ci_monitor", trace_id, success=success, latency_ms=latency_ms)
     return state
 
 
@@ -280,8 +336,13 @@ def fixer_node(state: AgentState) -> AgentState:
     """
     from common.config.settings import settings
 
+    start_time = time.time()
+    metrics = _get_metrics()
+
     trace_id = state["trace_id"]
     retry_count = state.get("retry_count", 0)
+
+    metrics.record_node_start("fixer", trace_id)
 
     AutoFixer = None
     max_retries = MAX_FIXER_RETRIES
@@ -317,6 +378,9 @@ def fixer_node(state: AgentState) -> AgentState:
         state["messages"] = state.get("messages", []) + [
             AIMessage(content=f"AutoFixer gave up after {retry_count} retries. Last error: {last_error}")
         ]
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_fixer_attempt(trace_id, retry_count, success=False)
+        metrics.record_node_complete("fixer", trace_id, success=False, latency_ms=latency_ms)
         return state
 
     try:
@@ -372,6 +436,10 @@ def fixer_node(state: AgentState) -> AgentState:
         ]
 
     state["retry_count"] = retry_count + 1
+    latency_ms = (time.time() - start_time) * 1000
+    success = state.get("error") is None
+    metrics.record_fixer_attempt(trace_id, retry_count, success=success)
+    metrics.record_node_complete("fixer", trace_id, success=success, latency_ms=latency_ms)
     return state
 
 
@@ -388,9 +456,14 @@ def reviewer_node(state: AgentState) -> AgentState:
     Returns:
         Updated state with review_result, review_comments, review_severity, code_quality_score
     """
+    start_time = time.time()
+    metrics = _get_metrics()
+
     trace_id = state.get("trace_id", "unknown")
     pr_number = state.get("pr_number")
     pr_url = state.get("pr_url")
+
+    metrics.record_node_start("reviewer", trace_id)
 
     logger.info("[Reviewer] Starting code review", extra={
         "operation": "reviewer",
@@ -414,8 +487,11 @@ def reviewer_node(state: AgentState) -> AgentState:
         state["messages"] = state.get("messages", []) + [
             AIMessage(content="No PR available for review, skipping reviewer step")
         ]
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("reviewer", trace_id, success=True, latency_ms=latency_ms)
         return state
 
+    success = True
     try:
         # CI-based review (ReviewerAgent integration planned for Phase 3 PR-4)
         ci_state = state.get("ci_state", "unknown")
@@ -446,6 +522,7 @@ def reviewer_node(state: AgentState) -> AgentState:
         ]
 
     except Exception as e:
+        success = False
         logger.error(f"[Reviewer] Review failed: {e}", extra={
             "operation": "reviewer",
             "trace_id": trace_id,
@@ -459,6 +536,8 @@ def reviewer_node(state: AgentState) -> AgentState:
             AIMessage(content=f"Code review failed: {str(e)}")
         ]
 
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("reviewer", trace_id, success=success, latency_ms=latency_ms)
     return state
 
 
@@ -479,11 +558,16 @@ def decision_node(state: AgentState) -> AgentState:
     Returns:
         Updated state with merge_decision
     """
+    start_time = time.time()
+    metrics = _get_metrics()
+
     trace_id = state.get("trace_id", "unknown")
     ci_state = state.get("ci_state", "unknown")
     review_severity = state.get("review_severity", "none")
     code_quality_score = state.get("code_quality_score", 100)
     error = state.get("error")
+
+    metrics.record_node_start("decision", trace_id)
 
     logger.info("[Decision] Evaluating merge decision", extra={
         "operation": "decision",
@@ -588,6 +672,14 @@ def decision_node(state: AgentState) -> AgentState:
         AIMessage(content=f"Merge decision: {merge_decision}. Reason: {decision_reason}")
     ]
 
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_decision(
+        decision=merge_decision,
+        trace_id=trace_id,
+        quality_score=code_quality_score,
+        review_severity=review_severity
+    )
+    metrics.record_node_complete("decision", trace_id, success=True, latency_ms=latency_ms)
     return state
 
 
@@ -620,10 +712,15 @@ def finalizer_node(state: AgentState) -> AgentState:
     """
     Finalizer node: Prepares final result
     """
+    start_time = time.time()
+    metrics = _get_metrics()
+
     trace_id = state["trace_id"]
     pr_url = state.get("pr_url")
     ci_state = state.get("ci_state")
     error = state.get("error")
+
+    metrics.record_node_start("finalizer", trace_id)
 
     logger.info("[Finalizer] Preparing final result", extra={
         "operation": "finalizer",
@@ -647,6 +744,8 @@ def finalizer_node(state: AgentState) -> AgentState:
         AIMessage(content=f"Workflow completed. Status: {final_result['status']}")
     ]
 
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("finalizer", trace_id, success=True, latency_ms=latency_ms)
     return state
 
 
@@ -783,12 +882,17 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
     Returns:
         dict: Final result containing pr_url, ci_state, status, etc.
     """
+    start_time = time.time()
+    metrics = _get_metrics()
+
     logger.info("Starting LangGraph orchestrator", extra={
         "operation": "run_orchestrator",
         "trace_id": trace_id,
         "goal": goal[:50],
         "repo": repo
     })
+
+    metrics.record_workflow_start(trace_id, goal)
 
     app = create_orchestrator_graph()
 
@@ -828,6 +932,9 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
             "pr_url": final_result.get("pr_url")
         })
 
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
+
         return final_result
 
     except Exception as e:
@@ -837,6 +944,9 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
             "trace_id": trace_id,
             "error": error_msg
         })
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
 
         return {
             "trace_id": trace_id,
