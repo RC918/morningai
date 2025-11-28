@@ -20,8 +20,11 @@ from typing import Optional
 from langgraph_orchestrator import (
     AgentState,
     fixer_node,
+    reviewer_node,
+    decision_node,
     should_continue_execution,
     should_retry_or_finish,
+    should_fix_or_finalize,
     create_orchestrator_graph,
     MAX_FIXER_RETRIES
 )
@@ -43,9 +46,12 @@ def create_test_state(
     retry_count: int = 0,
     error: Optional[str] = None,
     ci_state: str = "failure",
-    pr_number: int = 123
+    pr_number: int = 123,
+    review_severity: str = "none",
+    code_quality_score: int = 100,
+    merge_decision: str = "pending"
 ) -> AgentState:
-    """Create a test AgentState with common defaults"""
+    """Create a test AgentState with common defaults (Phase 3 compatible)"""
     return {
         "messages": [],
         "goal": "Fix CI failures",
@@ -60,7 +66,12 @@ def create_test_state(
         "ci_checks": {"lint": "failure"},
         "error": error,
         "retry_count": retry_count,
-        "final_result": {}
+        "final_result": {},
+        "review_result": {},
+        "review_comments": [],
+        "review_severity": review_severity,
+        "merge_decision": merge_decision,
+        "code_quality_score": code_quality_score
     }
 
 
@@ -1067,6 +1078,295 @@ class TestSmokeTestGraphExecution:
         # Verify retry routing
         assert should_retry_or_finish(state_success) == "finalize"
         assert should_retry_or_finish(state_max_retry) == "finalize"
+
+
+class TestPhase3ReviewerNode:
+    """Tests for Phase 3 reviewer_node functionality"""
+
+    def test_reviewer_node_initializes_review_state(self):
+        """Test that reviewer_node initializes review state fields"""
+        state = create_test_state(ci_state="success")
+        result = reviewer_node(state)
+
+        assert "review_result" in result
+        assert "review_comments" in result
+        assert "review_severity" in result
+        assert "code_quality_score" in result
+
+    def test_reviewer_node_skips_when_no_pr(self):
+        """Test that reviewer_node skips when no PR exists"""
+        state = create_test_state(pr_number=0)
+        state["pr_url"] = ""
+        result = reviewer_node(state)
+
+        assert result["review_severity"] == "none"
+        assert result["code_quality_score"] == 100
+
+    def test_reviewer_node_fallback_on_ci_success(self):
+        """Test reviewer fallback behavior when CI passes"""
+        state = create_test_state(ci_state="success")
+        result = reviewer_node(state)
+
+        assert result["code_quality_score"] >= 60
+        assert result["review_severity"] in ["none", "low", "medium"]
+
+    def test_reviewer_node_fallback_on_ci_failure(self):
+        """Test reviewer fallback behavior when CI fails"""
+        state = create_test_state(ci_state="failure")
+        result = reviewer_node(state)
+
+        assert result["code_quality_score"] <= 60
+        assert result["review_severity"] in ["high", "critical", "medium"]
+
+    def test_reviewer_node_adds_message(self):
+        """Test that reviewer_node adds a message to state"""
+        state = create_test_state(ci_state="success")
+        initial_message_count = len(state["messages"])
+        result = reviewer_node(state)
+
+        assert len(result["messages"]) > initial_message_count
+
+    def test_reviewer_node_preserves_trace_id(self):
+        """Test that reviewer_node preserves trace_id"""
+        trace_id = "test-trace-reviewer-123"
+        state = create_test_state(trace_id=trace_id, ci_state="success")
+        result = reviewer_node(state)
+
+        assert result["trace_id"] == trace_id
+
+
+class TestPhase3DecisionNode:
+    """Tests for Phase 3 decision_node functionality"""
+
+    def test_decision_node_approves_on_success(self):
+        """Test that decision_node approves when CI passes and quality is high"""
+        state = create_test_state(
+            ci_state="success",
+            code_quality_score=80,
+            review_severity="none",
+            error=None
+        )
+        result = decision_node(state)
+
+        assert result["merge_decision"] == "approve"
+
+    def test_decision_node_needs_fix_on_ci_failure(self):
+        """Test that decision_node returns needs_fix when CI fails"""
+        state = create_test_state(
+            ci_state="failure",
+            code_quality_score=80,
+            review_severity="none"
+        )
+        result = decision_node(state)
+
+        assert result["merge_decision"] == "needs_fix"
+
+    def test_decision_node_needs_fix_on_critical_issues(self):
+        """Test that decision_node returns needs_fix on critical issues"""
+        state = create_test_state(
+            ci_state="success",
+            code_quality_score=80,
+            review_severity="critical"
+        )
+        result = decision_node(state)
+
+        assert result["merge_decision"] == "needs_fix"
+
+    def test_decision_node_needs_fix_on_low_quality(self):
+        """Test that decision_node returns needs_fix on low quality score"""
+        state = create_test_state(
+            ci_state="success",
+            code_quality_score=30,
+            review_severity="none"
+        )
+        result = decision_node(state)
+
+        assert result["merge_decision"] == "needs_fix"
+
+    def test_decision_node_request_changes_on_high_severity(self):
+        """Test that decision_node returns request_changes on high severity"""
+        state = create_test_state(
+            ci_state="success",
+            code_quality_score=80,
+            review_severity="high"
+        )
+        result = decision_node(state)
+
+        assert result["merge_decision"] == "request_changes"
+
+    def test_decision_node_request_changes_on_medium_quality(self):
+        """Test that decision_node returns request_changes on medium quality"""
+        state = create_test_state(
+            ci_state="success",
+            code_quality_score=60,
+            review_severity="none"
+        )
+        result = decision_node(state)
+
+        assert result["merge_decision"] == "request_changes"
+
+    def test_decision_node_needs_fix_on_error(self):
+        """Test that decision_node returns needs_fix when error exists"""
+        state = create_test_state(
+            ci_state="success",
+            code_quality_score=80,
+            review_severity="none",
+            error="Some error occurred"
+        )
+        result = decision_node(state)
+
+        assert result["merge_decision"] == "needs_fix"
+
+    def test_decision_node_adds_message(self):
+        """Test that decision_node adds a message to state"""
+        state = create_test_state(ci_state="success", code_quality_score=80)
+        initial_message_count = len(state["messages"])
+        result = decision_node(state)
+
+        assert len(result["messages"]) > initial_message_count
+
+
+class TestPhase3ShouldFixOrFinalize:
+    """Tests for Phase 3 should_fix_or_finalize routing function"""
+
+    def test_routes_to_fix_when_needs_fix(self):
+        """Test routing to fix when merge_decision is needs_fix"""
+        state = create_test_state(merge_decision="needs_fix", retry_count=0)
+        result = should_fix_or_finalize(state)
+
+        assert result == "fix"
+
+    def test_routes_to_finalize_when_approved(self):
+        """Test routing to finalize when merge_decision is approve"""
+        state = create_test_state(merge_decision="approve", retry_count=0)
+        result = should_fix_or_finalize(state)
+
+        assert result == "finalize"
+
+    def test_routes_to_finalize_when_request_changes(self):
+        """Test routing to finalize when merge_decision is request_changes"""
+        state = create_test_state(merge_decision="request_changes", retry_count=0)
+        result = should_fix_or_finalize(state)
+
+        assert result == "finalize"
+
+    def test_routes_to_finalize_on_max_retries(self):
+        """Test routing to finalize when max retries reached"""
+        state = create_test_state(
+            merge_decision="needs_fix",
+            retry_count=MAX_FIXER_RETRIES
+        )
+        result = should_fix_or_finalize(state)
+
+        assert result == "finalize"
+
+    def test_routes_to_monitor_ci_when_pending(self):
+        """Test routing to monitor_ci when merge_decision is pending (CI still running)"""
+        state = create_test_state(merge_decision="pending", retry_count=0)
+        result = should_fix_or_finalize(state)
+
+        assert result == "monitor_ci"
+
+
+class TestPhase3GraphStructure:
+    """Tests for Phase 3 multi-agent graph structure"""
+
+    def test_graph_contains_reviewer_node(self):
+        """Test that orchestrator graph contains reviewer node"""
+        app = create_orchestrator_graph()
+        graph_dict = app.get_graph().to_json()
+        nodes = graph_dict.get("nodes", [])
+        node_ids = [node.get("id") for node in nodes]
+
+        assert any("reviewer" in node_id for node_id in node_ids), \
+            "Reviewer node not found in orchestrator graph"
+
+    def test_graph_contains_decision_node(self):
+        """Test that orchestrator graph contains decision node"""
+        app = create_orchestrator_graph()
+        graph_dict = app.get_graph().to_json()
+        nodes = graph_dict.get("nodes", [])
+        node_ids = [node.get("id") for node in nodes]
+
+        assert any("decision" in node_id for node_id in node_ids), \
+            "Decision node not found in orchestrator graph"
+
+    def test_graph_has_seven_nodes(self):
+        """Test that Phase 3 graph has 7 nodes (planner, executor, ci_monitor, reviewer, decision, fixer, finalizer)"""
+        app = create_orchestrator_graph()
+        graph_dict = app.get_graph().to_json()
+        nodes = graph_dict.get("nodes", [])
+
+        # Filter out __start__ and __end__ nodes
+        actual_nodes = [n for n in nodes if not n.get("id", "").startswith("__")]
+        assert len(actual_nodes) == 7, f"Expected 7 nodes, got {len(actual_nodes)}: {[n.get('id') for n in actual_nodes]}"
+
+    def test_reviewer_node_can_be_invoked_directly(self):
+        """Test that reviewer_node can be invoked directly with valid state"""
+        state = create_test_state(ci_state="success")
+        result = reviewer_node(state)
+
+        assert result is not None
+        assert "review_result" in result
+        assert "merge_decision" not in result or result["merge_decision"] == "pending"
+
+    def test_decision_node_can_be_invoked_directly(self):
+        """Test that decision_node can be invoked directly with valid state"""
+        state = create_test_state(
+            ci_state="success",
+            code_quality_score=80,
+            review_severity="none"
+        )
+        result = decision_node(state)
+
+        assert result is not None
+        assert "merge_decision" in result
+        assert result["merge_decision"] in ["approve", "needs_fix", "request_changes", "pending"]
+
+
+class TestPhase3MultiAgentFlow:
+    """Tests for Phase 3 complete multi-agent flow"""
+
+    def test_full_flow_with_success_path(self):
+        """Test that full flow works with success path"""
+        state = create_test_state(ci_state="success", code_quality_score=80)
+
+        # Simulate flow: reviewer -> decision
+        state = reviewer_node(state)
+        state = decision_node(state)
+
+        assert state["merge_decision"] == "approve"
+
+    def test_full_flow_with_failure_path(self):
+        """Test that full flow works with failure path"""
+        state = create_test_state(ci_state="failure", code_quality_score=40)
+
+        # Simulate flow: reviewer -> decision
+        state = reviewer_node(state)
+        state = decision_node(state)
+
+        assert state["merge_decision"] == "needs_fix"
+
+    def test_flow_preserves_all_state_fields(self):
+        """Test that flow preserves all state fields through nodes"""
+        state = create_test_state(
+            trace_id="test-flow-123",
+            ci_state="success",
+            pr_number=456
+        )
+
+        # Run through reviewer and decision
+        state = reviewer_node(state)
+        state = decision_node(state)
+
+        # Verify original fields preserved
+        assert state["trace_id"] == "test-flow-123"
+        assert state["pr_number"] == 456
+        assert state["ci_state"] == "success"
+
+        # Verify new fields added
+        assert "review_result" in state
+        assert "merge_decision" in state
 
 
 if __name__ == "__main__":
