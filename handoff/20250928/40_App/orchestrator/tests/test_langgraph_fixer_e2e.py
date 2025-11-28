@@ -478,7 +478,7 @@ class TestLoggingAndObservability:
                 assert mock_logger.info.called or mock_logger.warning.called
 
     def test_autofixer_logs_disabled_reason(self):
-        """Test that AutoFixer logs disabled reason"""
+        """Test that AutoFixer logs disabled reason with specific content"""
         from project_engineer.fixer_integration import AutoFixer
 
         settings = MockSettings(
@@ -492,7 +492,77 @@ class TestLoggingAndObservability:
             fixer.should_run_for_task(state)
 
             # Verify debug log was called with disabled reason
-            assert mock_logger.debug.called or mock_logger.info.called
+            assert mock_logger.debug.called
+
+            # Verify the log message contains the specific disabled reason
+            call_args = mock_logger.debug.call_args
+            log_message = call_args[0][0] if call_args[0] else ""
+            assert "ENABLE_PROJECT_ENGINEER_FIXER=false" in log_message
+
+            # Verify extra contains autofixer_disabled_reason=flag_disabled
+            extra = call_args[1].get("extra", {}) if call_args[1] else {}
+            assert extra.get("autofixer_disabled_reason") == "flag_disabled"
+            assert extra.get("autofixer_enabled") is False
+
+    def test_autofixer_logs_disabled_reason_percent_zero(self):
+        """Test that AutoFixer logs disabled reason when percent is zero"""
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=0
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        with patch("project_engineer.fixer_integration.logger") as mock_logger:
+            fixer.should_run_for_task(state)
+
+            # Verify debug log was called
+            assert mock_logger.debug.called
+
+            # Verify the log message contains the specific disabled reason
+            call_args = mock_logger.debug.call_args
+            log_message = call_args[0][0] if call_args[0] else ""
+            assert "PROJECT_ENGINEER_FIXER_PERCENT=0" in log_message
+
+            # Verify extra contains autofixer_disabled_reason=percent_zero
+            extra = call_args[1].get("extra", {}) if call_args[1] else {}
+            assert extra.get("autofixer_disabled_reason") == "percent_zero"
+            assert extra.get("autofixer_enabled") is False
+
+    def test_autofixer_logs_disabled_reason_canary_excluded(self):
+        """Test that AutoFixer logs disabled reason when excluded by canary bucket"""
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=1  # Very low percent to likely exclude
+        )
+        fixer = AutoFixer(settings=settings)
+        # Use a specific trace_id that will hash to a bucket >= 1
+        state = create_test_state(trace_id="test-trace-excluded-bucket")
+
+        with patch("project_engineer.fixer_integration.logger") as mock_logger:
+            result = fixer.should_run_for_task(state)
+
+            # If excluded by canary, verify the log
+            if not result:
+                # Verify info log was called (canary check uses info level)
+                assert mock_logger.info.called
+
+                # Find the canary check log call
+                info_calls = mock_logger.info.call_args_list
+                canary_log_found = False
+                for call in info_calls:
+                    log_message = call[0][0] if call[0] else ""
+                    if "Canary check" in log_message:
+                        canary_log_found = True
+                        extra = call[1].get("extra", {}) if call[1] else {}
+                        assert extra.get("autofixer_disabled_reason") == "canary_bucket_excluded"
+                        assert extra.get("autofixer_enabled") is False
+                        break
+                assert canary_log_found, "Expected canary check log not found"
 
     def test_fixer_node_logs_max_retries_reached(self):
         """Test that fixer_node logs autofixer_max_retries_reached when max retries exceeded"""
@@ -541,7 +611,7 @@ class TestSafetyRulesEnforcement:
     def test_autofixer_logs_whitelist_enforcement_when_enabled(self):
         """Test that AutoFixer logs whitelist enforcement and runs the agent when codegen is enabled"""
         import asyncio
-        from unittest.mock import MagicMock, AsyncMock
+        from unittest.mock import MagicMock
         from project_engineer.fixer_integration import AutoFixer
 
         settings = MockSettings(
@@ -642,6 +712,361 @@ class TestSafetyRulesEnforcement:
         result = asyncio.run(fixer_disabled._run_project_engineer("Fix lint", "RC918/morningai", state))
         assert result.get("success") is False
         assert "Code generation disabled" in result.get("error", "")
+
+
+class TestAsyncWrapperOptimization:
+    """Tests for PR-C: Async wrapper optimization in run_auto_fix_sync"""
+
+    def test_run_auto_fix_sync_uses_direct_path_when_no_loop(self):
+        """Test that run_auto_fix_sync uses asyncio.run when no event loop is running"""
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=False
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        with patch("project_engineer.fixer_integration.logger") as mock_logger:
+            # Call run_auto_fix_sync from outside any event loop
+            # This should use the "direct" path (asyncio.run)
+            fixer.run_auto_fix_sync(state)
+
+            # Verify debug log for direct path was called
+            debug_calls = mock_logger.debug.call_args_list
+            direct_log_found = any(
+                "autofixer_async_bridge=direct" in str(call)
+                for call in debug_calls
+            )
+            assert direct_log_found, "Expected direct path log not found"
+
+    def test_run_auto_fix_sync_uses_thread_path_when_in_loop(self):
+        """Test that run_auto_fix_sync uses background thread when called from running loop"""
+        import asyncio
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=False
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        async def call_from_async_context():
+            with patch("project_engineer.fixer_integration.logger") as mock_logger:
+                # Call run_auto_fix_sync from within a running event loop
+                # This should use the "thread" path
+                result = fixer.run_auto_fix_sync(state)
+
+                # Verify info log for thread path was called
+                info_calls = mock_logger.info.call_args_list
+                thread_log_found = any(
+                    "autofixer_async_bridge=thread" in str(call)
+                    for call in info_calls
+                )
+                return thread_log_found, result
+
+        thread_log_found, result = asyncio.run(call_from_async_context())
+        assert thread_log_found, "Expected thread path log not found"
+
+    def test_get_autofixer_executor_reuses_executor(self):
+        """Test that _get_autofixer_executor returns the same executor instance"""
+        from project_engineer.fixer_integration import _get_autofixer_executor
+
+        executor1 = _get_autofixer_executor()
+        executor2 = _get_autofixer_executor()
+
+        # Should return the same instance (reused)
+        assert executor1 is executor2
+
+    def test_run_auto_fix_sync_returns_state(self):
+        """Test that run_auto_fix_sync returns updated state correctly"""
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=False
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        result = fixer.run_auto_fix_sync(state)
+
+        # Should return a dict (the state)
+        assert isinstance(result, dict)
+        # Should have trace_id preserved
+        assert result.get("trace_id") == state.get("trace_id")
+
+
+class TestRealIntegrationScenarios:
+    """Tests for real integration scenarios with AutoFixer, GitHub API, and CI"""
+
+    def test_autofixer_handles_github_api_error(self):
+        """Test that AutoFixer handles GitHub API errors gracefully"""
+        import asyncio
+        from unittest.mock import MagicMock
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=True
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        # Create mock for ProjectEngineerAgent that raises GitHub API error
+        mock_agent_instance = MagicMock()
+
+        async def mock_run_task_github_error(*args, **kwargs):
+            raise Exception("GitHub API rate limit exceeded")
+
+        mock_agent_instance.run_task = mock_run_task_github_error
+
+        with patch("project_engineer.fixer_integration.logger"), \
+             patch("project_engineer.agent.ProjectEngineerAgent", return_value=mock_agent_instance), \
+             patch.object(fixer, "_create_dev_agent", return_value=MagicMock()):
+
+            result = asyncio.run(fixer._run_project_engineer("Fix lint", "RC918/morningai", state))
+
+            # Verify error is captured
+            assert result.get("success") is False
+            assert "GitHub API rate limit exceeded" in result.get("error", "")
+
+    def test_autofixer_handles_pr_creation_failure(self):
+        """Test that AutoFixer handles PR creation failure gracefully"""
+        import asyncio
+        from unittest.mock import MagicMock
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=True
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        # Create mock for ProjectEngineerAgent that returns failure
+        mock_agent_instance = MagicMock()
+        mock_result = MagicMock()
+        mock_result.status = "failed"
+        mock_result.pr_number = None
+        mock_result.pr_url = None
+        mock_result.error = "Failed to create PR: branch already exists"
+
+        async def mock_run_task_pr_failure(*args, **kwargs):
+            return [mock_result]
+
+        mock_agent_instance.run_task = mock_run_task_pr_failure
+
+        with patch("project_engineer.fixer_integration.logger"), \
+             patch("project_engineer.agent.ProjectEngineerAgent", return_value=mock_agent_instance), \
+             patch.object(fixer, "_create_dev_agent", return_value=MagicMock()):
+
+            result = asyncio.run(fixer._run_project_engineer("Fix lint", "RC918/morningai", state))
+
+            # Verify failure is captured
+            assert result.get("success") is False or result.get("pr_number") is None
+
+    def test_autofixer_handles_empty_agent_result(self):
+        """Test that AutoFixer handles empty agent result gracefully"""
+        import asyncio
+        from unittest.mock import MagicMock
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=True
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        # Create mock for ProjectEngineerAgent that returns empty result
+        mock_agent_instance = MagicMock()
+
+        async def mock_run_task_empty(*args, **kwargs):
+            return []
+
+        mock_agent_instance.run_task = mock_run_task_empty
+
+        with patch("project_engineer.fixer_integration.logger"), \
+             patch("project_engineer.agent.ProjectEngineerAgent", return_value=mock_agent_instance), \
+             patch.object(fixer, "_create_dev_agent", return_value=MagicMock()):
+
+            result = asyncio.run(fixer._run_project_engineer("Fix lint", "RC918/morningai", state))
+
+            # Verify empty result is handled
+            assert result.get("success") is False
+            assert "No results" in result.get("error", "") or result.get("pr_number") is None
+
+    def test_fixer_node_integration_with_ci_failure_state(self):
+        """Test fixer_node integration when state has CI failure"""
+        state = create_test_state(
+            error="CI check failed: test_main.py::test_login FAILED",
+            retry_count=0
+        )
+
+        with patch("langgraph_orchestrator.logger"):
+            result = fixer_node(state)
+
+            # Verify retry count is incremented
+            assert result.get("retry_count") == 1
+            # Verify error is preserved
+            assert result.get("error") is not None
+
+    def test_fixer_node_integration_with_multiple_retries(self):
+        """Test fixer_node integration with multiple retry attempts"""
+        # First retry
+        state1 = create_test_state(error="CI failed: lint", retry_count=0)
+        result1 = fixer_node(state1)
+        assert result1.get("retry_count") == 1
+
+        # Second retry
+        state2 = create_test_state(error="CI failed: lint", retry_count=1)
+        result2 = fixer_node(state2)
+        assert result2.get("retry_count") == 2
+
+        # Third retry (max)
+        state3 = create_test_state(error="CI failed: lint", retry_count=2)
+        result3 = fixer_node(state3)
+        assert result3.get("retry_count") == MAX_FIXER_RETRIES
+
+
+class TestConstantSynchronization:
+    """Tests to ensure MAX_FIXER_RETRIES constant is used consistently"""
+
+    def test_max_retries_constant_matches_fixer_node_logic(self):
+        """Test that MAX_FIXER_RETRIES is used in fixer_node logic"""
+        # Verify the constant is imported and used
+        from langgraph_orchestrator import MAX_FIXER_RETRIES as ORCHESTRATOR_MAX_RETRIES
+
+        # Verify fixer_node respects the constant
+        state = create_test_state(retry_count=ORCHESTRATOR_MAX_RETRIES, error="Test error")
+        result = fixer_node(state)
+
+        # At max retries, should not increment further
+        assert result.get("retry_count") == ORCHESTRATOR_MAX_RETRIES
+
+    def test_max_retries_constant_matches_routing_logic(self):
+        """Test that MAX_FIXER_RETRIES is used in routing logic"""
+        from langgraph_orchestrator import (
+            MAX_FIXER_RETRIES as ORCHESTRATOR_MAX_RETRIES,
+            should_continue_execution,
+            should_retry_or_finish
+        )
+
+        # Test should_continue_execution at max retries
+        state_max = create_test_state(retry_count=ORCHESTRATOR_MAX_RETRIES, error="Test")
+        route = should_continue_execution(state_max)
+        assert route == "finalize"
+
+        # Test should_retry_or_finish at max retries
+        state_max_ci = create_test_state(
+            retry_count=ORCHESTRATOR_MAX_RETRIES,
+            ci_state="failure"
+        )
+        route_ci = should_retry_or_finish(state_max_ci)
+        assert route_ci == "finalize"
+
+    def test_max_retries_constant_is_positive_integer(self):
+        """Test that MAX_FIXER_RETRIES is a valid positive integer"""
+        assert isinstance(MAX_FIXER_RETRIES, int)
+        assert MAX_FIXER_RETRIES > 0
+        assert MAX_FIXER_RETRIES <= 10  # Reasonable upper bound
+
+    def test_changing_max_retries_affects_all_logic(self):
+        """Test that all logic paths use the same MAX_FIXER_RETRIES constant"""
+        from langgraph_orchestrator import (
+            MAX_FIXER_RETRIES,
+            should_continue_execution,
+            should_retry_or_finish
+        )
+
+        # All these should use the same constant
+        # Test at MAX_FIXER_RETRIES - 1 (should still allow retry)
+        state_below_max = create_test_state(
+            retry_count=MAX_FIXER_RETRIES - 1,
+            error="Test error"
+        )
+        result = fixer_node(state_below_max)
+        assert result.get("retry_count") == MAX_FIXER_RETRIES
+
+        # Test at MAX_FIXER_RETRIES (should finalize)
+        state_at_max = create_test_state(
+            retry_count=MAX_FIXER_RETRIES,
+            error="Test error"
+        )
+        route = should_continue_execution(state_at_max)
+        assert route == "finalize"
+
+        # Test should_retry_or_finish also respects MAX_FIXER_RETRIES
+        route_retry = should_retry_or_finish(state_at_max)
+        assert route_retry == "finalize"
+
+
+class TestSmokeTestGraphExecution:
+    """Smoke tests for full graph execution with app.invoke()"""
+
+    def test_graph_can_be_compiled(self):
+        """Test that the orchestrator graph can be compiled"""
+        from langgraph_orchestrator import create_orchestrator_graph
+
+        # Verify graph can be created
+        app = create_orchestrator_graph()
+        assert app is not None
+        assert hasattr(app, "invoke")
+
+    def test_graph_has_fixer_node(self):
+        """Test that the compiled graph contains fixer_node"""
+        from langgraph_orchestrator import create_orchestrator_graph
+
+        # Get the graph structure
+        app = create_orchestrator_graph()
+        graph = app.get_graph()
+        nodes = graph.nodes
+
+        # Verify fixer_node exists (node is named "fixer" in the graph)
+        assert "fixer" in nodes
+
+    def test_fixer_node_can_be_invoked_directly(self):
+        """Test that fixer_node can be invoked directly with valid state"""
+        state = create_test_state(error="Test CI failure")
+
+        # Direct invocation should work
+        result = fixer_node(state)
+
+        # Verify result is valid state
+        assert isinstance(result, dict)
+        assert "retry_count" in result
+        assert "messages" in result
+
+    def test_graph_routing_functions_work_with_state(self):
+        """Test that routing functions work correctly with state"""
+        from langgraph_orchestrator import should_continue_execution, should_retry_or_finish
+
+        # Test various state configurations
+        state_success = create_test_state(error=None, ci_state="success")
+        state_failure = create_test_state(error="CI failed", ci_state="failure")
+        state_max_retry = create_test_state(
+            error="CI failed",
+            retry_count=MAX_FIXER_RETRIES
+        )
+
+        # Verify routing decisions - routing can return various valid routes
+        valid_routes = ["execute", "finalize", "fix", "monitor_ci"]
+        assert should_continue_execution(state_success) in valid_routes
+        assert should_continue_execution(state_failure) in valid_routes
+        assert should_continue_execution(state_max_retry) == "finalize"
+
+        # Verify retry routing
+        assert should_retry_or_finish(state_success) == "finalize"
+        assert should_retry_or_finish(state_max_retry) == "finalize"
 
 
 if __name__ == "__main__":

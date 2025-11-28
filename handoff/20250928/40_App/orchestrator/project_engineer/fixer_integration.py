@@ -9,14 +9,64 @@ This module provides:
 3. ReviewerAgent integration for analyzing CI failures
 4. ProjectEngineerAgent integration for generating fixes
 """
+import atexit
+import asyncio
+import concurrent.futures
 import hashlib
 import logging
+import threading
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from common.config.settings import Settings
 
 logger = logging.getLogger(__name__)
+
+# Module-level executor for async-to-sync bridging (reused across calls)
+_autofixer_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+_autofixer_executor_lock = threading.Lock()
+
+
+def _get_autofixer_executor() -> concurrent.futures.ThreadPoolExecutor:
+    """
+    Get or create a reusable ThreadPoolExecutor for async-to-sync bridging.
+
+    This avoids the overhead of creating a new executor for each call to
+    run_auto_fix_sync when called from within a running event loop.
+
+    Uses double-checked locking pattern for thread safety.
+
+    Returns:
+        ThreadPoolExecutor instance (reused across calls)
+    """
+    global _autofixer_executor
+    if _autofixer_executor is None:
+        with _autofixer_executor_lock:
+            # Double-check inside the lock to prevent re-creation
+            if _autofixer_executor is None:
+                _autofixer_executor = concurrent.futures.ThreadPoolExecutor(
+                    max_workers=1,
+                    thread_name_prefix="autofixer"
+                )
+    return _autofixer_executor
+
+
+def _shutdown_autofixer_executor() -> None:
+    """
+    Shutdown the global ThreadPoolExecutor on application exit.
+
+    This ensures worker threads are properly terminated and resources
+    are released when the application exits.
+    """
+    global _autofixer_executor
+    with _autofixer_executor_lock:
+        if _autofixer_executor is not None:
+            _autofixer_executor.shutdown(wait=True)
+            _autofixer_executor = None
+
+
+# Register shutdown handler to clean up executor on exit
+atexit.register(_shutdown_autofixer_executor)
 
 
 class AutoFixer:
@@ -132,24 +182,50 @@ class AutoFixer:
         This is a wrapper for async run_auto_fix that can be called from
         synchronous code (like fixer_node).
 
+        Implementation uses two paths:
+        1. Primary path: asyncio.run() when no event loop is running (most common)
+        2. Fallback path: Background thread when called from within a running event loop
+
+        The fallback path uses a reusable ThreadPoolExecutor to avoid overhead
+        of creating a new executor for each call.
+
         Args:
             state: AgentState dict
 
         Returns:
             Updated AgentState dict
         """
-        import asyncio
+        trace_id = state.get("trace_id", "unknown")
 
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, self.run_auto_fix(state))
-                    return future.result()
-            else:
-                return loop.run_until_complete(self.run_auto_fix(state))
+            # Check if we're inside a running event loop
+            asyncio.get_running_loop()
+            # If we get here, we're in a running loop - use background thread
+            logger.info(
+                "[AutoFixer] run_auto_fix_sync called from running event loop, "
+                "offloading to background thread. autofixer_async_bridge=thread trace_id=%s",
+                trace_id,
+                extra={
+                    "operation": "auto_fix",
+                    "trace_id": trace_id,
+                    "autofixer_async_bridge": "thread"
+                }
+            )
+            executor = _get_autofixer_executor()
+            future = executor.submit(asyncio.run, self.run_auto_fix(state))
+            return future.result()
         except RuntimeError:
+            # No running event loop - safe to use asyncio.run directly
+            logger.debug(
+                "[AutoFixer] run_auto_fix_sync using asyncio.run (no running loop). "
+                "autofixer_async_bridge=direct trace_id=%s",
+                trace_id,
+                extra={
+                    "operation": "auto_fix",
+                    "trace_id": trace_id,
+                    "autofixer_async_bridge": "direct"
+                }
+            )
             return asyncio.run(self.run_auto_fix(state))
 
     async def run_auto_fix(self, state: Dict[str, Any]) -> Dict[str, Any]:
