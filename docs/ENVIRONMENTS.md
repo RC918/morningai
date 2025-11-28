@@ -1,7 +1,7 @@
 # MorningAI Environment Architecture
 
-**Last Updated**: 2025-11-26  
-**Document Version**: 2.3  
+**Last Updated**: 2025-11-28  
+**Document Version**: 2.4  
 **Related Documents**: 
 - [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
 - [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
@@ -290,6 +290,8 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
       - Staging: `5-10` (start with 5-10% canary)
       - Production: `0` initially, then gradually increase (`5 → 10 → 25 → 50 → 100`)
     - **Max Retries**: Fixer node will retry up to `MAX_FIXER_RETRIES` (default 3) times before giving up
+    - **Observability**: When max retries reached, logs `autofixer_max_retries_reached=true` with `last_error` for monitoring
+    - **Safety**: AutoFixer uses Phase 2 Step B `safe_tasks` whitelist via ProjectEngineerAgent - logs `autofixer_safety_check` key
 - **Rate Limiting**: `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_BY_USER`, `RATE_LIMIT_FAIL_FAST`, `RATE_LIMIT_REDIS_MAX_RETRIES`, `RATE_LIMIT_REDIS_RETRY_DELAY`
 - **Testing** (⚠️ **TEST ENVIRONMENTS ONLY** - NEVER SET IN PRODUCTION):
   - `TESTING` (boolean) - Enables test mode behaviors

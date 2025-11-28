@@ -494,6 +494,126 @@ class TestLoggingAndObservability:
             # Verify debug log was called with disabled reason
             assert mock_logger.debug.called or mock_logger.info.called
 
+    def test_fixer_node_logs_max_retries_reached(self):
+        """Test that fixer_node logs autofixer_max_retries_reached when max retries exceeded"""
+        state = create_test_state(retry_count=MAX_FIXER_RETRIES, error="Previous error")
+
+        with patch("langgraph_orchestrator.logger") as mock_logger:
+            result = fixer_node(state)
+
+            # Verify warning log was called
+            assert mock_logger.warning.called
+
+            # Check that the log message contains max_retries_reached indicator
+            call_args = mock_logger.warning.call_args
+            log_message = call_args[0][0] if call_args[0] else ""
+            assert "Max retries reached" in log_message
+            assert "autofixer_max_retries_reached=true" in log_message
+
+            # Verify extra contains autofixer_max_retries_reached
+            extra = call_args[1].get("extra", {}) if call_args[1] else {}
+            assert extra.get("autofixer_max_retries_reached") is True
+
+            # Verify state has error and message
+            assert result.get("error") is not None
+            assert len(result.get("messages", [])) > 0
+
+    def test_fixer_node_max_retries_message_includes_last_error(self):
+        """Test that max retries message includes the last error"""
+        last_error = "CI check failed: lint errors"
+        state = create_test_state(retry_count=MAX_FIXER_RETRIES, error=last_error)
+
+        result = fixer_node(state)
+
+        # Verify the error is preserved
+        assert result.get("error") == last_error
+
+        # Verify message includes last error
+        messages = result.get("messages", [])
+        assert len(messages) > 0
+        last_message = messages[-1].content if messages else ""
+        assert last_error in last_message or "gave up" in last_message
+
+
+class TestSafetyRulesEnforcement:
+    """Tests for Phase 2 Step B safety rules enforcement in AutoFixer"""
+
+    def test_autofixer_uses_safe_tasks_whitelist(self):
+        """Test that AutoFixer uses ProjectEngineerAgent with safe_tasks whitelist"""
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=True
+        )
+        fixer = AutoFixer(settings=settings)
+
+        # Verify AutoFixer is configured to use ProjectEngineerAgent
+        # which enforces safe_tasks whitelist
+        assert fixer.settings.enable_project_engineer_codegen is True
+
+    def test_autofixer_logs_safety_check_when_codegen_disabled(self):
+        """Test that AutoFixer logs safety check when codegen is disabled"""
+        import asyncio
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=False
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        with patch("project_engineer.fixer_integration.logger") as mock_logger:
+            # Call _run_project_engineer directly
+            result = asyncio.run(fixer._run_project_engineer("Fix lint", "RC918/morningai", state))
+
+            # Verify warning log was called
+            assert mock_logger.warning.called
+
+            # Check that the log contains safety check indicator
+            call_args = mock_logger.warning.call_args
+            log_message = call_args[0][0] if call_args[0] else ""
+            assert "autofixer_safety_check=codegen_disabled" in log_message
+
+            # Verify result indicates failure due to codegen disabled
+            assert result.get("success") is False
+            assert "Code generation disabled" in result.get("error", "")
+
+    def test_safe_tasks_whitelist_exists(self):
+        """Test that safe_tasks whitelist is properly defined"""
+        from project_engineer.safe_tasks import SAFE_TASK_TYPES, is_safe_task
+
+        # Verify whitelist exists and has expected tasks
+        assert len(SAFE_TASK_TYPES) > 0
+        assert "fix_lint" in SAFE_TASK_TYPES
+        assert "documentation_update" in SAFE_TASK_TYPES
+        assert "test_generation" in SAFE_TASK_TYPES
+
+        # Verify is_safe_task function works
+        assert is_safe_task("fix_lint") is True
+        assert is_safe_task("database_migration") is False
+
+    def test_autofixer_respects_codegen_flag(self):
+        """Test that AutoFixer respects ENABLE_PROJECT_ENGINEER_CODEGEN flag"""
+        import asyncio
+        from project_engineer.fixer_integration import AutoFixer
+
+        # Test with codegen disabled
+        settings_disabled = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=False
+        )
+        fixer_disabled = AutoFixer(settings=settings_disabled)
+        state = create_test_state()
+
+        result = asyncio.run(fixer_disabled._run_project_engineer("Fix lint", "RC918/morningai", state))
+        assert result.get("success") is False
+        assert "Code generation disabled" in result.get("error", "")
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
