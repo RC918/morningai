@@ -1260,6 +1260,13 @@ class TestPhase3ShouldFixOrFinalize:
 
         assert result == "finalize"
 
+    def test_routes_to_monitor_ci_when_pending(self):
+        """Test routing to monitor_ci when merge_decision is pending (CI still running)"""
+        state = create_test_state(merge_decision="pending", retry_count=0)
+        result = should_fix_or_finalize(state)
+
+        assert result == "monitor_ci"
+
 
 class TestPhase3GraphStructure:
     """Tests for Phase 3 multi-agent graph structure"""

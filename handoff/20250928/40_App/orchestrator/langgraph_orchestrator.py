@@ -380,9 +380,9 @@ def reviewer_node(state: AgentState) -> AgentState:
     Reviewer node: Analyzes code changes and provides review feedback
 
     Phase 3 Enhancement:
-    - Uses ReviewerAgent to analyze PR diff
-    - Identifies code quality issues, security concerns, and best practices
-    - Provides structured review comments with severity levels
+    - Uses CI state as primary review signal (ReviewerAgent integration planned for Phase 3 PR-4)
+    - Identifies code quality issues based on CI results
+    - Provides structured review with severity levels
     - Calculates code quality score
 
     Returns:
@@ -391,7 +391,6 @@ def reviewer_node(state: AgentState) -> AgentState:
     trace_id = state.get("trace_id", "unknown")
     pr_number = state.get("pr_number")
     pr_url = state.get("pr_url")
-    repo = state.get("repo", "RC918/morningai")
 
     logger.info("[Reviewer] Starting code review", extra={
         "operation": "reviewer",
@@ -418,81 +417,29 @@ def reviewer_node(state: AgentState) -> AgentState:
         return state
 
     try:
-        # Try to use ReviewerAgent for analysis
-        ReviewerAgent = None
-        try:
-            from agents.reviewer_agent.agent import ReviewerAgent as _ReviewerAgent
-            ReviewerAgent = _ReviewerAgent
-        except ImportError:
-            logger.warning("[Reviewer] ReviewerAgent not available, using fallback", extra={
-                "operation": "reviewer",
-                "trace_id": trace_id
-            })
+        # CI-based review (ReviewerAgent integration planned for Phase 3 PR-4)
+        ci_state = state.get("ci_state", "unknown")
 
-        if ReviewerAgent:
-            # Use ReviewerAgent for comprehensive review
-            reviewer = ReviewerAgent()
-
-            # Get PR diff for review
-            try:
-                from tools.github_api import get_repo, get_pr_diff
-                github_repo = get_repo()
-                diff = get_pr_diff(github_repo, pr_number)
-
-                # Run review
-                review_result = reviewer.review_diff(diff, context={
-                    "pr_number": pr_number,
-                    "repo": repo,
-                    "trace_id": trace_id
-                })
-
-                state["review_result"] = review_result
-                state["review_comments"] = review_result.get("comments", [])
-                state["review_severity"] = review_result.get("severity", "none")
-                state["code_quality_score"] = review_result.get("quality_score", 100)
-
-                logger.info("[Reviewer] Review completed", extra={
-                    "operation": "reviewer",
-                    "trace_id": trace_id,
-                    "pr_number": pr_number,
-                    "severity": state["review_severity"],
-                    "quality_score": state["code_quality_score"],
-                    "comments_count": len(state["review_comments"])
-                })
-
-            except Exception as e:
-                logger.warning(f"[Reviewer] Failed to get PR diff: {e}", extra={
-                    "operation": "reviewer",
-                    "trace_id": trace_id,
-                    "error": str(e)
-                })
-                # Continue with basic review
-                state["review_result"] = {"status": "skipped", "reason": str(e)}
-
+        if ci_state == "success":
+            state["review_result"] = {"status": "passed", "reason": "CI passed"}
+            state["code_quality_score"] = 80
+            state["review_severity"] = "none"
+        elif ci_state == "failure":
+            state["review_result"] = {"status": "needs_attention", "reason": "CI failed"}
+            state["code_quality_score"] = 40
+            state["review_severity"] = "high"
+            state["review_comments"] = [{"severity": "high", "message": "CI checks failed"}]
         else:
-            # Fallback: Basic review based on CI state
-            ci_state = state.get("ci_state", "unknown")
+            state["review_result"] = {"status": "pending", "reason": "CI pending"}
+            state["code_quality_score"] = 60
+            state["review_severity"] = "medium"
 
-            if ci_state == "success":
-                state["review_result"] = {"status": "passed", "reason": "CI passed"}
-                state["code_quality_score"] = 80
-                state["review_severity"] = "none"
-            elif ci_state == "failure":
-                state["review_result"] = {"status": "needs_attention", "reason": "CI failed"}
-                state["code_quality_score"] = 40
-                state["review_severity"] = "high"
-                state["review_comments"] = [{"severity": "high", "message": "CI checks failed"}]
-            else:
-                state["review_result"] = {"status": "pending", "reason": "CI pending"}
-                state["code_quality_score"] = 60
-                state["review_severity"] = "medium"
-
-            logger.info("[Reviewer] Fallback review completed", extra={
-                "operation": "reviewer",
-                "trace_id": trace_id,
-                "ci_state": ci_state,
-                "quality_score": state["code_quality_score"]
-            })
+        logger.info("[Reviewer] Review completed", extra={
+            "operation": "reviewer",
+            "trace_id": trace_id,
+            "ci_state": ci_state,
+            "quality_score": state["code_quality_score"]
+        })
 
         state["messages"] = state.get("messages", []) + [
             AIMessage(content=f"Code review completed. Quality score: {state['code_quality_score']}, Severity: {state['review_severity']}")
@@ -650,17 +597,22 @@ def should_fix_or_finalize(state: AgentState) -> str:
 
     Routes to:
     - fix: If merge_decision is needs_fix and retries available
+    - monitor_ci: If merge_decision is pending (waiting for CI)
     - finalize: If approved, request_changes, or max retries reached
     """
     merge_decision = state.get("merge_decision", "pending")
     retry_count = state.get("retry_count", 0)
+
+    # If decision is pending (CI still running), go back to monitor CI
+    if merge_decision == "pending":
+        return "monitor_ci"
 
     if merge_decision == "needs_fix":
         if retry_count >= MAX_FIXER_RETRIES:
             return "finalize"
         return "fix"
 
-    # approve, request_changes, or pending all go to finalize
+    # approve, request_changes all go to finalize
     return "finalize"
 
 
@@ -793,12 +745,13 @@ def create_orchestrator_graph():
     # reviewer → decision
     workflow.add_edge("reviewer", "decision")
 
-    # decision → (fix | finalize)
+    # decision → (fix | monitor_ci | finalize)
     workflow.add_conditional_edges(
         "decision",
         should_fix_or_finalize,
         {
             "fix": "fixer",
+            "monitor_ci": "ci_monitor",
             "finalize": "finalizer"
         }
     )
