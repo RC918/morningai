@@ -1,61 +1,85 @@
-# Creating a Simple Python Function to Add Two Numbers
+# Testing Gemini Integration - Phase 2 Extra Verification
 
-In the context of using MorningAI, developers may need to create simple or complex functions as part of their autonomous agent system development or while generating code for specific tasks. A foundational skill in this process involves creating basic functions in Python, such as one that adds two numbers. This FAQ entry will guide you through the process of creating such a function, which can serve as a building block for more complex operations within the MorningAI platform.
+The integration of Gemini within the MorningAI platform is a crucial step towards enhancing the platform's capabilities. This section is designed to assist developers in understanding and implementing the Phase 2 extra verification process for Gemini integration effectively.
 
-## Explanation and Code Example
+## Understanding Gemini Integration - Phase 2 Extra Verification
 
-To create a Python function that adds two numbers, you define a function using the `def` keyword, followed by the name of the function, parentheses containing any parameters the function will take, and a colon. The body of the function contains the operational code. In this case, our operation is simply adding two numbers passed as arguments to the function.
+Gemini integration involves connecting MorningAI's functionalities with the Gemini service to leverage its features for enhanced performance and capabilities. Phase 2 of this integration focuses on extra verification processes that ensure secure and efficient communication between MorningAI and Gemini services.
 
-Here’s a step-by-step example:
+### Key Objectives:
+- Ensure secure API communication.
+- Validate data integrity and confidentiality.
+- Implement additional verification steps to prevent unauthorized access.
+
+## Implementation Steps
+
+Below are the steps to implement Phase 2 extra verification for Gemini integration within the MorningAI platform:
+
+### Step 1: Secure API Keys
+
+Ensure you have generated secure API keys from the Gemini platform. Store these keys securely in your environment variables or a secure vault accessible by your application.
 
 ```python
-# Function to add two numbers
-def add_two_numbers(number1, number2):
-    # Calculate the sum
-    result = number1 + number2
-    # Return the result
-    return result
+import os
 
-# Example usage
-if __name__ == "__main__":
-    sum_result = add_two_numbers(3, 5)
-    print(f"The sum of the numbers is: {sum_result}")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_SECRET = os.getenv("GEMINI_API_SECRET")
 ```
 
-### Detailed Breakdown:
-- `def add_two_numbers(number1, number2):` defines a new function with two parameters.
-- `result = number1 + number2` calculates the sum of `number1` and `number2`, storing it in variable `result`.
-- `return result` sends the result back to the caller.
-- The `if __name__ == "__main__":` block allows this script to be run directly or imported without immediately executing.
+### Step 2: Enhance Authentication
 
-## Related Documentation
+Implement HMAC (Hash-Based Message Authentication Code) for enhancing the security of API requests. This involves creating a signature using your API secret key and including it in your request headers.
 
-For more details on defining functions in Python and understanding their scope and arguments, refer to:
-- [Python Official Documentation on Functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions)
-- MorningAI Developer Guide: `/docs/DeveloperGuide.md` (specific sections on Python scripting within MorningAI projects).
+```python
+import hmac
+import hashlib
+import base64
+from time import time
+
+def create_signature(api_secret):
+    timestamp = str(int(time()))
+    payload = timestamp + "GET" + "/v1/order/status"
+    signature = hmac.new(api_secret.encode(), payload.encode(), hashlib.sha384).digest()
+    return base64.b64encode(signature).decode()
+
+headers = {
+    "X-GEMINI-APIKEY": GEMINI_API_KEY,
+    "X-GEMINI-PAYLOAD": base64.b64encode(payload.encode()).decode(),
+    "X-GEMINI-SIGNATURE": create_signature(GEMINI_API_SECRET),
+}
+```
+
+### Step 3: Implement Nonce System
+
+Use a nonce value (a unique, increasing number) for each request to prevent replay attacks.
+
+```python
+def get_nonce():
+    return int(time() * 1000)
+```
+
+Include this nonce in your request payloads or headers as required by the Gemini API documentation.
+
+### Related Documentation Links:
+- [Gemini API Documentation](https://docs.gemini.com/rest-api/)
+- [Python HMAC Module](https://docs.python.org/3/library/hmac.html)
 
 ## Common Troubleshooting Tips
 
-### SyntaxError: invalid syntax
-Ensure you've used proper syntax for defining functions with `def` and ending your function header with a colon (`:`).
+- **API Key Permissions**: Ensure that your Gemini API keys have the correct permissions for the actions you are trying to perform.
+- **Timestamps and Timezones**: Verify that your system's timezone is correctly configured. Gemini may reject requests with timestamps that are too far from its server time.
+- **Handling Nonces**: Make sure nonces are always increasing and never reused. A simple strategy is to use timestamps, but ensure they are synchronized with NTP (Network Time Protocol) for accuracy.
+- **Signature Mismatch**: If you encounter signature mismatches, double-check your signing method. Ensure you are using the correct order of operations and encoding as required by Gemini.
 
-### TypeError: add_two_numbers() missing 2 required positional arguments
-When calling `add_two_numbers`, ensure you are passing exactly two arguments.
-
-### NameError: name 'add_two_numbers' is not defined
-This error occurs if you try to call `add_two_numbers` before it's defined or if there's a typo in its definition/call. Ensure your function is defined before it's called and check for typos.
-
-### ImportErrors when running your script
-If your script is part of a larger project and depends on other modules within MorningAI, ensure all dependencies are correctly installed and import paths are correct. Refer to `/docs/SetupAndInstallation.md` for setup instructions.
+For further assistance or more complex issues not covered here, please refer to the official [Gemini support](https://support.gemini.com/hc/en-us) or submit an issue in the RC918/morningai repository under `docs/FAQ.md`.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: [Phase1-Test] Create a simple Python function that adds two numbers
-- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
+- Task: 測試 Gemini 整合 - Phase 2 Extra 驗證
+- Trace ID: `1a04dd7e-6eb5-4f64-be88-54256f943d62`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
