@@ -560,6 +560,8 @@ pytest handoff/20250928/40_App/orchestrator/tests/test_langgraph_fixer_e2e.py::T
 - **TestAutoFixerCanaryRollout**: Tests canary deployment with deterministic bucket assignment
 - **TestMaxRetriesEnforcement**: Ensures MAX_FIXER_RETRIES constant is used consistently
 - **TestStateTransitions**: Verifies state preservation and message handling
+- **TestOrchestratorWorkflowPaths**: Tests workflow paths (success, failure, fixer, max retries)
+- **TestErrorRecovery**: Tests error recovery from AutoFixer errors and missing settings
 - **TestLoggingAndObservability**: Tests structured logging with autofixer_disabled_reason
 - **TestSafetyRulesEnforcement**: Verifies whitelist enforcement and codegen flag respect
 - **TestAsyncWrapperOptimization**: Tests async-to-sync bridging with thread-safe executor

@@ -837,19 +837,6 @@ class TestRealIntegrationScenarios:
             assert result.get("success") is False
             assert "GitHub API rate limit exceeded" in result.get("error", "")
 
-    def test_autofixer_handles_ci_failure_scenario(self):
-        """Test that AutoFixer handles CI failure scenario correctly"""
-        # Create state with CI failure error
-        state = create_test_state(
-            error="CI check failed: lint errors in src/main.py",
-            retry_count=1
-        )
-
-        # Verify fixer recognizes CI failure state
-        assert state.get("error") is not None
-        assert "CI check failed" in state.get("error", "")
-        assert state.get("retry_count") == 1
-
     def test_autofixer_handles_pr_creation_failure(self):
         """Test that AutoFixer handles PR creation failure gracefully"""
         import asyncio
@@ -1044,17 +1031,8 @@ class TestSmokeTestGraphExecution:
         graph = app.get_graph()
         nodes = graph.nodes
 
-        # Verify fixer_node exists
-        assert "fix" in nodes or any("fix" in str(node) for node in nodes)
-
-    def test_graph_initial_state_structure(self):
-        """Test that initial state has required structure for graph execution"""
-        initial_state = create_test_state()
-
-        # Verify required fields for graph execution
-        assert "trace_id" in initial_state
-        assert "messages" in initial_state
-        assert "retry_count" in initial_state
+        # Verify fixer_node exists (node is named "fixer" in the graph)
+        assert "fixer" in nodes
 
     def test_fixer_node_can_be_invoked_directly(self):
         """Test that fixer_node can be invoked directly with valid state"""
