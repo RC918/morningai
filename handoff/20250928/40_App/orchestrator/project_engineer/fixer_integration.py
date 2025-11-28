@@ -59,14 +59,14 @@ def _shutdown_autofixer_executor() -> None:
     are released when the application exits.
     """
     global _autofixer_executor
-    if _autofixer_executor is not None:
-        _autofixer_executor.shutdown(wait=True)
-        _autofixer_executor = None
+    with _autofixer_executor_lock:
+        if _autofixer_executor is not None:
+            _autofixer_executor.shutdown(wait=True)
+            _autofixer_executor = None
 
 
 # Register shutdown handler to clean up executor on exit
 atexit.register(_shutdown_autofixer_executor)
-
 
 class AutoFixer:
     """

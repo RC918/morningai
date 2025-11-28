@@ -108,10 +108,10 @@ class TestLLMPlannerAdapter:
         estimated_tokens = len(context) // 4
         assert estimated_tokens <= 2100  # Allow some buffer for token estimation
 
-    @patch('llm_planner_adapter.settings')
-    def test_generate_plan_no_client(self, mock_settings):
-        """Test plan generation without OpenAI client"""
-        mock_settings.openai_api_key = None
+    @patch('llm_planner_adapter.LLMClient')
+    def test_generate_plan_no_client(self, mock_llm_client_class):
+        """Test plan generation without LLM client"""
+        mock_llm_client_class.side_effect = ValueError("No LLM provider available")
         adapter = LLMPlannerAdapter()
 
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
@@ -119,15 +119,13 @@ class TestLLMPlannerAdapter:
         assert result["planner_type"] == "static"
         assert isinstance(result["plan"], list)
 
-    @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.OpenAI')
-    def test_generate_plan_with_llm_success(self, mock_openai_class, mock_settings):
+    @patch('llm_planner_adapter.LLMClient')
+    def test_generate_plan_with_llm_success(self, mock_llm_client_class):
         """Test successful LLM plan generation"""
-        mock_settings.openai_api_key = "test-key"
-        mock_settings.use_llm_planner = True
-
         mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
 
         valid_plan = [
             {"step": "Analyze requirements", "rationale": "Understand the task", "risk": "low"},
@@ -136,9 +134,11 @@ class TestLLMPlannerAdapter:
         ]
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(valid_plan)
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = json.dumps(valid_plan)
+        mock_response.provider = "openai"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
 
         adapter = LLMPlannerAdapter()
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
@@ -147,41 +147,39 @@ class TestLLMPlannerAdapter:
         assert len(result["plan"]) == 3
         assert "planning_time_ms" in result
 
-    @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.OpenAI')
-    def test_generate_plan_with_llm_invalid_response(self, mock_openai_class, mock_settings):
+    @patch('llm_planner_adapter.LLMClient')
+    def test_generate_plan_with_llm_invalid_response(self, mock_llm_client_class):
         """Test LLM plan generation with invalid response"""
-        mock_settings.openai_api_key = "test-key"
-        mock_settings.use_llm_planner = True
-
         mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
 
         invalid_plan = [
             {"step": "Only one step", "rationale": "Not enough", "risk": "low"}
         ]
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(invalid_plan)
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = json.dumps(invalid_plan)
+        mock_response.provider = "openai"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.usage = {"total_tokens": 50}
+        mock_client.generate.return_value = mock_response
 
         adapter = LLMPlannerAdapter()
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
 
         assert result["planner_type"] == "static"
 
-    @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.OpenAI')
-    def test_generate_plan_with_llm_exception(self, mock_openai_class, mock_settings):
+    @patch('llm_planner_adapter.LLMClient')
+    def test_generate_plan_with_llm_exception(self, mock_llm_client_class):
         """Test LLM plan generation with exception"""
-        mock_settings.openai_api_key = "test-key"
-        mock_settings.use_llm_planner = True
-
         mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
 
-        mock_client.chat.completions.create.side_effect = Exception("API error")
+        mock_client.generate.side_effect = Exception("API error")
 
         adapter = LLMPlannerAdapter()
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
@@ -200,14 +198,13 @@ class TestLLMPlannerAdapter:
             assert "planner_type" in result
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.OpenAI')
-    def test_classifier_import_failure(self, mock_openai_class, mock_settings):
+    @patch('llm_planner_adapter.LLMClient')
+    def test_classifier_import_failure(self, mock_llm_client_class, mock_settings):
         """Test classifier import failure fallback to unknown"""
-        mock_settings.openai_api_key = "test-key"
-        mock_settings.use_llm_planner = True
-
         mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
 
         valid_plan = [
             {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
@@ -216,9 +213,11 @@ class TestLLMPlannerAdapter:
         ]
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(valid_plan)
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = json.dumps(valid_plan)
+        mock_response.provider = "openai"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
 
         adapter = LLMPlannerAdapter()
 
@@ -312,15 +311,15 @@ Hope this helps!'''
         assert len(parsed) == 3
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.OpenAI')
-    def test_json_mode_enabled(self, mock_openai_class, mock_settings):
+    @patch('llm_planner_adapter.LLMClient')
+    def test_json_mode_enabled(self, mock_llm_client_class, mock_settings):
         """Test LLM plan generation with JSON mode enabled"""
-        mock_settings.openai_api_key = "test-key"
-        mock_settings.use_llm_planner = True
         mock_settings.planner_json_mode = True
 
         mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
 
         valid_plan = [
             {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
@@ -329,9 +328,11 @@ Hope this helps!'''
         ]
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps({"plan": valid_plan})
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = json.dumps({"plan": valid_plan})
+        mock_response.provider = "openai"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
 
         adapter = LLMPlannerAdapter()
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
@@ -339,19 +340,19 @@ Hope this helps!'''
         assert result["planner_type"] == "llm"
         assert len(result["plan"]) == 3
 
-        call_args = mock_client.chat.completions.create.call_args
-        assert call_args[1]["response_format"] == {"type": "json_object"}
+        call_args = mock_client.generate.call_args
+        assert call_args.kwargs["json_mode"] is True
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.OpenAI')
-    def test_json_mode_disabled(self, mock_openai_class, mock_settings):
+    @patch('llm_planner_adapter.LLMClient')
+    def test_json_mode_disabled(self, mock_llm_client_class, mock_settings):
         """Test LLM plan generation with JSON mode disabled"""
-        mock_settings.openai_api_key = "test-key"
-        mock_settings.use_llm_planner = True
         mock_settings.planner_json_mode = False
 
         mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
 
         valid_plan = [
             {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
@@ -360,9 +361,11 @@ Hope this helps!'''
         ]
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(valid_plan)
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = json.dumps(valid_plan)
+        mock_response.provider = "openai"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
 
         adapter = LLMPlannerAdapter()
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
@@ -370,19 +373,19 @@ Hope this helps!'''
         assert result["planner_type"] == "llm"
         assert len(result["plan"]) == 3
 
-        call_args = mock_client.chat.completions.create.call_args
-        assert "response_format" not in call_args[1]
+        call_args = mock_client.generate.call_args
+        assert call_args.kwargs["json_mode"] is False
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.OpenAI')
-    def test_parse_json_with_retry_success_first_attempt(self, mock_openai_class, mock_settings):
+    @patch('llm_planner_adapter.LLMClient')
+    def test_parse_json_with_retry_success_first_attempt(self, mock_llm_client_class, mock_settings):
         """Test JSON parsing succeeds on first attempt"""
-        mock_settings.openai_api_key = "test-key"
-        mock_settings.use_llm_planner = True
         mock_settings.planner_json_mode = False
 
         mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
 
         valid_plan = [
             {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
@@ -391,9 +394,11 @@ Hope this helps!'''
         ]
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(valid_plan)
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = json.dumps(valid_plan)
+        mock_response.provider = "openai"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
 
         adapter = LLMPlannerAdapter()
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
@@ -402,15 +407,15 @@ Hope this helps!'''
         assert len(result["plan"]) == 3
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.OpenAI')
-    def test_parse_json_with_retry_success_second_attempt(self, mock_openai_class, mock_settings):
+    @patch('llm_planner_adapter.LLMClient')
+    def test_parse_json_with_retry_success_second_attempt(self, mock_llm_client_class, mock_settings):
         """Test JSON parsing succeeds on second attempt after cleaning"""
-        mock_settings.openai_api_key = "test-key"
-        mock_settings.use_llm_planner = True
         mock_settings.planner_json_mode = False
 
         mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
 
         valid_plan = [
             {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
@@ -423,9 +428,11 @@ Hope this helps!'''
 ```'''
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = markdown_wrapped
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = markdown_wrapped
+        mock_response.provider = "openai"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
 
         adapter = LLMPlannerAdapter()
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
@@ -434,15 +441,15 @@ Hope this helps!'''
         assert len(result["plan"]) == 3
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.OpenAI')
-    def test_parse_json_mode_with_retry(self, mock_openai_class, mock_settings):
+    @patch('llm_planner_adapter.LLMClient')
+    def test_parse_json_mode_with_retry(self, mock_llm_client_class, mock_settings):
         """Test JSON mode parsing with retry logic"""
-        mock_settings.openai_api_key = "test-key"
-        mock_settings.use_llm_planner = True
         mock_settings.planner_json_mode = True
 
         mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
 
         valid_plan = [
             {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
@@ -455,9 +462,11 @@ Hope this helps!'''
 ```'''
 
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = markdown_wrapped
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = markdown_wrapped
+        mock_response.provider = "openai"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
 
         adapter = LLMPlannerAdapter()
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
