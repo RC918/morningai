@@ -1,7 +1,7 @@
 {
-  "generated_at": "2025-11-27T15:58:03.693Z",
+  "generated_at": "2025-11-28T16:58:09.372Z",
   "repo": "RC918/morningai",
-  "total_prs": 26,
+  "total_prs": 30,
   "thresholds": {
     "i18n": {
       "target": 95,
@@ -27,6 +27,519 @@
   },
   "metrics": [
     {
+      "pr": 1680,
+      "title": "fix(orchestrator): Add google-generativeai dependency for Gemini Provider",
+      "merged_at": "2025-11-28T16:56:33Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1680",
+      "sha": "1322e49d6fc26a7b9e11bc5e9756f8057a814de0",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1681,
+      "title": "feat(phase3): PR-1 Core orchestrator multi-agent flow",
+      "merged_at": "2025-11-28T15:57:51Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1681",
+      "sha": "fa0e324bf9d5bf136bebeb7d4da7cbda346d0a3e",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56647525123
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1670,
+      "title": "refactor(phase2): PR-C Async Wrapper Optimization for run_auto_fix_sync",
+      "merged_at": "2025-11-28T14:46:56Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1670",
+      "sha": "be39a91b5507db3e4ca3450028223ff67006d8cc",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56642312115
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1676,
+      "title": "docs: Update FAQ (trace-id: 1a04dd7e)",
+      "merged_at": "2025-11-28T14:32:56Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1676",
+      "sha": "53f805e0cac4e8a8f872d340faef0079671c8827",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1673,
+      "title": "docs: Update FAQ (trace-id: 1a04dd7e)",
+      "merged_at": "2025-11-28T14:30:21Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1673",
+      "sha": "b8b0cac6d8af34f5d2b0b3cc47db1a80a76783d8",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1672,
+      "title": "feat(llm): Add LLMClient abstraction layer for multi-provider support",
+      "merged_at": "2025-11-28T12:32:00Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1672",
+      "sha": "39b291da70e16b81ca8cf5e48d5dd8faf3fb8c6c",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": {
+            "status": "parsed",
+            "value": 100,
+            "unit": "%",
+            "passed": true,
+            "comment_id": 3589125975
+          },
+          "a11y": {
+            "status": "parsed",
+            "critical": 0,
+            "serious": 0,
+            "passed": true,
+            "comment_id": 3589131910
+          },
+          "motion": {
+            "status": "available",
+            "check_run_id": 56632122542
+          },
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": {
+            "status": "parsed",
+            "value": 100,
+            "unit": "%",
+            "passed": true,
+            "comment_id": 3589126065
+          },
+          "a11y": {
+            "status": "parsed",
+            "critical": 0,
+            "serious": 0,
+            "passed": true,
+            "comment_id": 3589131558
+          },
+          "motion": {
+            "status": "available",
+            "check_run_id": 56632122540
+          },
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": {
+        "fcp": 770,
+        "lcp": 1620,
+        "comment_url": "https://github.com/RC918/morningai/pull/1672#issuecomment-3589132687"
+      }
+    },
+    {
+      "pr": 1671,
+      "title": "test(phase2): Phase 2 Step C follow-up improvements - Enhanced tests and documentation",
+      "merged_at": "2025-11-28T10:27:33Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1671",
+      "sha": "a627efc1319b8dc95c311ac02285780f6cc1db53",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56622923652
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1669,
+      "title": "feat(phase2): PR-B Safety rules enforcement + failure fallback logging",
+      "merged_at": "2025-11-28T09:20:50Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1669",
+      "sha": "942ef258696b081187112823f527a2ec9587ae87",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56617771904
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1668,
+      "title": "test(phase2): PR-A LangGraph E2E integration tests for fixer_node",
+      "merged_at": "2025-11-28T08:51:17Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1668",
+      "sha": "4ce88a961f75f8596a0eb11c652e6c7ef2ddf158",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56615568155
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1667,
+      "title": "feat(phase2): Phase 2 Step C Fixer Node - AutoFixer integration with ReviewerAgent",
+      "merged_at": "2025-11-28T05:17:08Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1667",
+      "sha": "e74c75faca83c7c278862009fb785864846f6bd6",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": {
+            "status": "parsed",
+            "value": 100,
+            "unit": "%",
+            "passed": true,
+            "comment_id": 3587941686
+          },
+          "a11y": {
+            "status": "parsed",
+            "critical": 0,
+            "serious": 0,
+            "passed": true,
+            "comment_id": 3587944129
+          },
+          "motion": {
+            "status": "available",
+            "check_run_id": 56604488061
+          },
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": {
+            "status": "parsed",
+            "value": 100,
+            "unit": "%",
+            "passed": true,
+            "comment_id": 3587942278
+          },
+          "a11y": {
+            "status": "parsed",
+            "critical": 0,
+            "serious": 0,
+            "passed": true,
+            "comment_id": 3587942985
+          },
+          "motion": {
+            "status": "available",
+            "check_run_id": 56604488064
+          },
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": {
+        "fcp": 770,
+        "lcp": 1610,
+        "comment_url": "https://github.com/RC918/morningai/pull/1667#issuecomment-3587890040"
+      }
+    },
+    {
+      "pr": 1666,
+      "title": "docs: Add Phase 2 Step B-1 Follow-up documentation and production monitoring guides",
+      "merged_at": "2025-11-28T04:42:33Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1666",
+      "sha": "fa673c49b443c1b245831d0394d17f55557ffd9d",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56603085074
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1665,
+      "title": "feat(phase2): Phase 2 Step B-1 Follow-up - Refactor project_root detection, add security tests, separate allowed_files/allowed_directories",
+      "merged_at": "2025-11-28T04:14:42Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1665",
+      "sha": "6f13f6dea1ac64947e2ffc8a28530c63de9d391f",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56602015509
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1664,
+      "title": "feat(phase2): Phase 2 Step B-1 MVP - E2E Tests and Per-Task Directory Whitelist",
+      "merged_at": "2025-11-28T03:12:04Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1664",
+      "sha": "6fe4ddaaee011762a5bfffb4a872ca141b0a3ae0",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56599280019
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1663,
+      "title": "feat(phase2): Phase 2 Step C - Feature Flag for ProjectEngineerAgent",
+      "merged_at": "2025-11-27T18:18:33Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1663",
+      "sha": "7991b102b12fc1f7fa241425f53eee98c8a845bb",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": {
+            "status": "parsed",
+            "value": 100,
+            "unit": "%",
+            "passed": true,
+            "comment_id": 3586919356
+          },
+          "a11y": {
+            "status": "parsed",
+            "critical": 0,
+            "serious": 0,
+            "passed": true,
+            "comment_id": 3586921321
+          },
+          "motion": {
+            "status": "available",
+            "check_run_id": 56577373347
+          },
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": {
+            "status": "parsed",
+            "value": 100,
+            "unit": "%",
+            "passed": true,
+            "comment_id": 3586919667
+          },
+          "a11y": {
+            "status": "parsed",
+            "critical": 0,
+            "serious": 0,
+            "passed": true,
+            "comment_id": 3586922461
+          },
+          "motion": {
+            "status": "available",
+            "check_run_id": 56577373345
+          },
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": {
+        "fcp": 770,
+        "lcp": 1610,
+        "comment_url": "https://github.com/RC918/morningai/pull/1663#issuecomment-3586879318"
+      }
+    },
+    {
+      "pr": 1661,
+      "title": "feat(phase2): Phase 2 Step B - Code Generation + CTO Security Fixes",
+      "merged_at": "2025-11-27T17:16:24Z",
+      "author": "RC918",
+      "url": "https://github.com/RC918/morningai/pull/1661",
+      "sha": "7ac7cfe4f5c9149f487b8c986e277dd40c4eb5a7",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56573669838
+          },
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
+      "pr": 1632,
+      "title": "chore: Update UX metrics",
+      "merged_at": "2025-11-27T16:50:39Z",
+      "author": "github-actions[bot]",
+      "url": "https://github.com/RC918/morningai/pull/1632",
+      "sha": "f4666af6bb05b9ccb27a0e961f19fcb1a5811a4c",
+      "apps": {
+        "frontend-dashboard": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        },
+        "owner-console": {
+          "i18n": null,
+          "a11y": null,
+          "motion": null,
+          "vrt": null
+        }
+      },
+      "bundleSize": null,
+      "lighthouse": null
+    },
+    {
       "pr": 1660,
       "title": "feat(phase2): Add Phase 2 Step A infrastructure - ProjectEngineerAgent, Safe Tasks, PR Review CLI",
       "merged_at": "2025-11-27T15:56:46Z",
@@ -42,7 +555,10 @@
         },
         "owner-console": {
           "i18n": null,
-          "a11y": null,
+          "a11y": {
+            "status": "available",
+            "check_run_id": 56567562091
+          },
           "motion": null,
           "vrt": null
         }
@@ -435,445 +951,21 @@
         "lcp": 1620,
         "comment_url": "https://github.com/RC918/morningai/pull/1615#issuecomment-3581824127"
       }
-    },
-    {
-      "pr": 1633,
-      "title": "docs: Update FAQ (trace-id: dd85a361)",
-      "merged_at": "2025-11-26T15:24:33Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1633",
-      "sha": "1b426381a43bbc53f22c2eb104360cfb37e78287",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1630,
-      "title": "feat(ui): Complete P1 remaining tasks - PageLoader color migration and spring animation audit",
-      "merged_at": "2025-11-26T15:18:49Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1630",
-      "sha": "658d704a34d9ce93214096498dc14950974b793c",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3581527003
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3581529782
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56462938391
-          },
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3581522357
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3581526106
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56462938371
-          },
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": {
-        "fcp": 780,
-        "lcp": 1630,
-        "comment_url": "https://github.com/RC918/morningai/pull/1630#issuecomment-3581531030"
-      }
-    },
-    {
-      "pr": 1617,
-      "title": "feat(ui): Complete P1 tasks - emotional color Storybook, color migration, spring animation tests",
-      "merged_at": "2025-11-26T13:59:56Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1617",
-      "sha": "a9f9e1c49d359732fd4d55da2914bd20cf28825f",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3581455703
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3581465827
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56454617660
-          },
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3581454700
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3581465763
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56454617779
-          },
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": {
-        "fcp": 770,
-        "lcp": 1620,
-        "comment_url": "https://github.com/RC918/morningai/pull/1617#issuecomment-3580955890"
-      }
-    },
-    {
-      "pr": 1616,
-      "title": "feat(monitoring): Add planner statistics CLI tool for Phase 1 data collection",
-      "merged_at": "2025-11-26T13:47:58Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1616",
-      "sha": "9f5cb5d6837cf43d7231954cbe76e9c1ba300c44",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": {
-            "status": "available",
-            "check_run_id": 56453378397
-          },
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1626,
-      "title": "docs: Update FAQ (trace-id: phase1-s)",
-      "merged_at": "2025-11-26T12:14:16Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1626",
-      "sha": "e279558ed49c7ee008f4e375828f074adc16d3e5",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1623,
-      "title": "docs: Update FAQ (trace-id: phase1-s)",
-      "merged_at": "2025-11-26T12:11:01Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1623",
-      "sha": "005c1470a792b673e3824606abfeb85b6a12999b",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1621,
-      "title": "docs: Update FAQ (trace-id: phase1-s)",
-      "merged_at": "2025-11-26T12:08:17Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1621",
-      "sha": "8cea8ccb1805fe9572f61f2ff56793847c6b70a7",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1618,
-      "title": "docs: Update FAQ (trace-id: phase1-s)",
-      "merged_at": "2025-11-26T12:06:04Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1618",
-      "sha": "9173b46485800ce9395b1fe6283f151ad9845d25",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1572,
-      "title": "feat(ui): LoginPage UX improvements - static labels, sharp icons, accessibility, mobile RWD",
-      "merged_at": "2025-11-26T11:28:43Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1572",
-      "sha": "8fc24368383ebe10c9914a9c842163351c66acac",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3580877295
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3580888532
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56440951329
-          },
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3580877733
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3580885571
-          },
-          "motion": {
-            "status": "available",
-            "check_run_id": 56440951326
-          },
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": {
-        "fcp": 770,
-        "lcp": 1610,
-        "comment_url": "https://github.com/RC918/morningai/pull/1572#issuecomment-3579361237"
-      }
-    },
-    {
-      "pr": 1594,
-      "title": "chore: Update UX metrics",
-      "merged_at": "2025-11-26T11:07:49Z",
-      "author": "github-actions[bot]",
-      "url": "https://github.com/RC918/morningai/pull/1594",
-      "sha": "730bfb41cf0e25c62758edb1ab2a13caff04ecfa",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3580829526
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3580828430
-          },
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": {
-            "status": "parsed",
-            "value": 100,
-            "unit": "%",
-            "passed": true,
-            "comment_id": 3580829362
-          },
-          "a11y": {
-            "status": "parsed",
-            "critical": 0,
-            "serious": 0,
-            "passed": true,
-            "comment_id": 3580829593
-          },
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": {
-        "fcp": 770,
-        "lcp": 1610,
-        "comment_url": "https://github.com/RC918/morningai/pull/1594#issuecomment-3580804098"
-      }
-    },
-    {
-      "pr": 1593,
-      "title": "docs: Update documentation with recent PRs (Nov 25-26) and paths alignment",
-      "merged_at": "2025-11-26T11:04:20Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1593",
-      "sha": "72e87e3ce3e6c2b9fcff9b303423b5a2a9af86b2",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": {
-            "status": "available",
-            "check_run_id": 56438741413
-          },
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
-    },
-    {
-      "pr": 1605,
-      "title": "docs: Update FAQ (trace-id: phase1-s)",
-      "merged_at": "2025-11-26T11:01:09Z",
-      "author": "RC918",
-      "url": "https://github.com/RC918/morningai/pull/1605",
-      "sha": "06cd749e466b0e2971cc6b699b1bad5279665665",
-      "apps": {
-        "frontend-dashboard": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        },
-        "owner-console": {
-          "i18n": null,
-          "a11y": null,
-          "motion": null,
-          "vrt": null
-        }
-      },
-      "bundleSize": null,
-      "lighthouse": null
     }
   ],
   "summary": {
     "apps": {
       "frontend-dashboard": {
-        "total_prs": 26,
+        "total_prs": 30,
         "i18n": {
-          "available": 6,
-          "parsed": 6,
+          "available": 5,
+          "parsed": 5,
           "avg_coverage": 100,
           "pass_rate": 100
         },
         "a11y": {
-          "available": 6,
-          "parsed": 6,
+          "available": 5,
+          "parsed": 5,
           "avg_critical": 0,
           "avg_serious": 0,
           "pass_rate": 100
@@ -892,16 +984,16 @@
         }
       },
       "owner-console": {
-        "total_prs": 26,
+        "total_prs": 30,
         "i18n": {
-          "available": 6,
-          "parsed": 6,
+          "available": 5,
+          "parsed": 5,
           "avg_coverage": 100,
           "pass_rate": 100
         },
         "a11y": {
-          "available": 12,
-          "parsed": 6,
+          "available": 19,
+          "parsed": 5,
           "avg_critical": 0,
           "avg_serious": 0,
           "pass_rate": 100
@@ -924,113 +1016,113 @@
       "frontend-dashboard": {
         "i18n": [
           {
-            "pr": 1640,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1643,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1639,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1649,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1646,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1654,
+            "pr": 1667,
             "value": 100,
             "passed": true
           },
           {
-            "pr": 1653,
+            "pr": 1668,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1655,
+            "pr": 1669,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1658,
+            "pr": 1671,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1660,
+            "pr": 1672,
+            "value": 100,
+            "passed": true
+          },
+          {
+            "pr": 1673,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1676,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1670,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1681,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1680,
             "value": null,
             "passed": null
           }
         ],
         "a11y": [
           {
-            "pr": 1640,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1643,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1639,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1649,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1646,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1654,
+            "pr": 1667,
             "critical": null,
             "serious": null,
             "passed": true
           },
           {
-            "pr": 1653,
+            "pr": 1668,
             "critical": null,
             "serious": null,
             "passed": null
           },
           {
-            "pr": 1655,
+            "pr": 1669,
             "critical": null,
             "serious": null,
             "passed": null
           },
           {
-            "pr": 1658,
+            "pr": 1671,
             "critical": null,
             "serious": null,
             "passed": null
           },
           {
-            "pr": 1660,
+            "pr": 1672,
+            "critical": null,
+            "serious": null,
+            "passed": true
+          },
+          {
+            "pr": 1673,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1676,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1670,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1681,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1680,
             "critical": null,
             "serious": null,
             "passed": null
@@ -1038,104 +1130,104 @@
         ],
         "motion": [
           {
-            "pr": 1640,
+            "pr": 1667,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1643,
+            "pr": 1668,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1639,
+            "pr": 1669,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1649,
+            "pr": 1671,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1646,
+            "pr": 1672,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1654,
+            "pr": 1673,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1653,
+            "pr": 1676,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1655,
+            "pr": 1670,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1658,
+            "pr": 1681,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1660,
+            "pr": 1680,
             "value": null,
             "passed": null
           }
         ],
         "vrt": [
           {
-            "pr": 1640,
+            "pr": 1667,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1643,
+            "pr": 1668,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1639,
+            "pr": 1669,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1649,
+            "pr": 1671,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1646,
+            "pr": 1672,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1654,
+            "pr": 1673,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1653,
+            "pr": 1676,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1655,
+            "pr": 1670,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1658,
+            "pr": 1681,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1660,
+            "pr": 1680,
             "value": null,
             "passed": null
           }
@@ -1144,113 +1236,113 @@
       "owner-console": {
         "i18n": [
           {
-            "pr": 1640,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1643,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1639,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1649,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1646,
-            "value": null,
-            "passed": null
-          },
-          {
-            "pr": 1654,
+            "pr": 1667,
             "value": 100,
             "passed": true
           },
           {
-            "pr": 1653,
+            "pr": 1668,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1655,
+            "pr": 1669,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1658,
+            "pr": 1671,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1660,
+            "pr": 1672,
+            "value": 100,
+            "passed": true
+          },
+          {
+            "pr": 1673,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1676,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1670,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1681,
+            "value": null,
+            "passed": null
+          },
+          {
+            "pr": 1680,
             "value": null,
             "passed": null
           }
         ],
         "a11y": [
           {
-            "pr": 1640,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1643,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1639,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1649,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1646,
-            "critical": null,
-            "serious": null,
-            "passed": null
-          },
-          {
-            "pr": 1654,
+            "pr": 1667,
             "critical": null,
             "serious": null,
             "passed": true
           },
           {
-            "pr": 1653,
+            "pr": 1668,
             "critical": null,
             "serious": null,
             "passed": null
           },
           {
-            "pr": 1655,
+            "pr": 1669,
             "critical": null,
             "serious": null,
             "passed": null
           },
           {
-            "pr": 1658,
+            "pr": 1671,
             "critical": null,
             "serious": null,
             "passed": null
           },
           {
-            "pr": 1660,
+            "pr": 1672,
+            "critical": null,
+            "serious": null,
+            "passed": true
+          },
+          {
+            "pr": 1673,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1676,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1670,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1681,
+            "critical": null,
+            "serious": null,
+            "passed": null
+          },
+          {
+            "pr": 1680,
             "critical": null,
             "serious": null,
             "passed": null
@@ -1258,104 +1350,104 @@
         ],
         "motion": [
           {
-            "pr": 1640,
+            "pr": 1667,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1643,
+            "pr": 1668,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1639,
+            "pr": 1669,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1649,
+            "pr": 1671,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1646,
+            "pr": 1672,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1654,
+            "pr": 1673,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1653,
+            "pr": 1676,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1655,
+            "pr": 1670,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1658,
+            "pr": 1681,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1660,
+            "pr": 1680,
             "value": null,
             "passed": null
           }
         ],
         "vrt": [
           {
-            "pr": 1640,
+            "pr": 1667,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1643,
+            "pr": 1668,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1639,
+            "pr": 1669,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1649,
+            "pr": 1671,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1646,
+            "pr": 1672,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1654,
+            "pr": 1673,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1653,
+            "pr": 1676,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1655,
+            "pr": 1670,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1658,
+            "pr": 1681,
             "value": null,
             "passed": null
           },
           {
-            "pr": 1660,
+            "pr": 1680,
             "value": null,
             "passed": null
           }
@@ -1363,61 +1455,61 @@
       },
       "lighthouse": [
         {
-          "pr": 1640,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1643,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1639,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1649,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1646,
-          "fcp": null,
-          "lcp": null
-        },
-        {
-          "pr": 1654,
-          "fcp": 760,
+          "pr": 1667,
+          "fcp": 770,
           "lcp": 1610
         },
         {
-          "pr": 1653,
+          "pr": 1668,
           "fcp": null,
           "lcp": null
         },
         {
-          "pr": 1655,
+          "pr": 1669,
           "fcp": null,
           "lcp": null
         },
         {
-          "pr": 1658,
+          "pr": 1671,
           "fcp": null,
           "lcp": null
         },
         {
-          "pr": 1660,
+          "pr": 1672,
+          "fcp": 770,
+          "lcp": 1620
+        },
+        {
+          "pr": 1673,
+          "fcp": null,
+          "lcp": null
+        },
+        {
+          "pr": 1676,
+          "fcp": null,
+          "lcp": null
+        },
+        {
+          "pr": 1670,
+          "fcp": null,
+          "lcp": null
+        },
+        {
+          "pr": 1681,
+          "fcp": null,
+          "lcp": null
+        },
+        {
+          "pr": 1680,
           "fcp": null,
           "lcp": null
         }
       ]
     },
     "lighthouse": {
-      "total_prs": 6,
-      "fcp_avg": 770,
-      "lcp_avg": 1616.6666666666667,
+      "total_prs": 5,
+      "fcp_avg": 768,
+      "lcp_avg": 1614,
       "fcp_pass_rate": 100,
       "lcp_pass_rate": 100
     }
