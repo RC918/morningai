@@ -19,6 +19,9 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 
 logger = logging.getLogger(__name__)
 
+# Maximum number of fix retries before giving up
+MAX_FIXER_RETRIES = 3
+
 class AgentState(TypedDict):
     """
     State of the agent workflow
@@ -244,30 +247,95 @@ def ci_monitor_node(state: AgentState) -> AgentState:
 def fixer_node(state: AgentState) -> AgentState:
     """
     Fixer node: Attempts to fix CI failures
+
+    Phase 2 Step C Enhancement:
+    - Integrates AutoFixer for automated fix attempts
+    - Uses ReviewerAgent to analyze code issues
+    - Uses ProjectEngineerAgent to generate fixes
+    - Supports canary rollout via PROJECT_ENGINEER_FIXER_PERCENT
     """
+    from common.config.settings import settings
+
     trace_id = state["trace_id"]
-    ci_checks = state.get("ci_checks", {})
     retry_count = state.get("retry_count", 0)
-    
+
+    AutoFixer = None
+    max_retries = MAX_FIXER_RETRIES
+    try:
+        from project_engineer.fixer_integration import AutoFixer as _AutoFixer
+        AutoFixer = _AutoFixer
+        max_retries = getattr(AutoFixer, "MAX_FIX_RETRIES", MAX_FIXER_RETRIES)
+    except ImportError:
+        pass
+
     logger.info(f"[Fixer] Attempting to fix CI failures (retry {retry_count})", extra={
         "operation": "fixer",
         "trace_id": trace_id,
         "retry_count": retry_count
     })
-    
-    if retry_count >= 3:
+
+    if retry_count >= max_retries:
         logger.warning(f"[Fixer] Max retries reached, giving up", extra={
             "operation": "fixer",
             "trace_id": trace_id,
             "retry_count": retry_count
         })
-        state["error"] = "Max retries exceeded"
+        state["error"] = state.get("error") or "Max retries exceeded"
         return state
-    
-    state["messages"] = state.get("messages", []) + [
-        AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/3)")
-    ]
-    
+
+    try:
+        if AutoFixer is None:
+            raise ImportError("AutoFixer not available")
+
+        auto_fixer = AutoFixer(settings=settings)
+
+        if auto_fixer.should_run_for_task(state):
+            logger.info(f"[Fixer] Running AutoFixer for task", extra={
+                "operation": "fixer",
+                "trace_id": trace_id,
+                "retry_count": retry_count
+            })
+
+            state = auto_fixer.run_auto_fix_sync(state)
+
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"AutoFixer attempt {retry_count + 1}/{max_retries} completed")
+            ]
+        else:
+            logger.info(f"[Fixer] AutoFixer disabled or not selected for this task", extra={
+                "operation": "fixer",
+                "trace_id": trace_id,
+                "retry_count": retry_count
+            })
+
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/{max_retries}) - AutoFixer disabled")
+            ]
+
+    except ImportError as e:
+        logger.warning(f"[Fixer] AutoFixer not available: {e}", extra={
+            "operation": "fixer",
+            "trace_id": trace_id,
+            "error": str(e)
+        })
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/{max_retries})")
+        ]
+
+    except Exception as e:
+        logger.error(f"[Fixer] AutoFixer failed: {e}", extra={
+            "operation": "fixer",
+            "trace_id": trace_id,
+            "error": str(e)
+        }, exc_info=True)
+
+        state["error"] = f"AutoFixer error: {str(e)}"
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"AutoFixer failed: {str(e)}")
+        ]
+
+    state["retry_count"] = retry_count + 1
     return state
 
 def finalizer_node(state: AgentState) -> AgentState:
@@ -313,7 +381,7 @@ def should_continue_execution(state: AgentState) -> str:
     
     if error:
         retry_count = state.get("retry_count", 0)
-        if retry_count >= 3:
+        if retry_count >= MAX_FIXER_RETRIES:
             return "finalize"
         return "fix"
     
@@ -336,7 +404,7 @@ def should_retry_or_finish(state: AgentState) -> str:
         return "finalize"
     elif ci_state in ["failure", "error"]:
         retry_count = state.get("retry_count", 0)
-        if retry_count >= 3:
+        if retry_count >= MAX_FIXER_RETRIES:
             return "finalize"
         return "fix"
     else:

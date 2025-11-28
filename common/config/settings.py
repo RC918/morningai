@@ -939,6 +939,20 @@ class Settings(BaseSettings):
         description="Enable ProjectEngineerAgent code generation execution mode (Phase 2 Step C)"
     )
 
+    enable_project_engineer_fixer: bool = Field(
+        default=False,
+        alias="ENABLE_PROJECT_ENGINEER_FIXER",
+        description="Enable ProjectEngineerAgent auto-fix mode in fixer_node (Phase 2 Step C Fixer Node)"
+    )
+
+    project_engineer_fixer_percent: int = Field(
+        default=0,
+        ge=0,
+        le=100,
+        alias="PROJECT_ENGINEER_FIXER_PERCENT",
+        description="Percentage of tasks to use auto-fix in fixer_node (0-100, for canary rollout)"
+    )
+
     allow_governance_mock: bool = Field(
         default=False,
         alias="ALLOW_GOVERNANCE_MOCK",
