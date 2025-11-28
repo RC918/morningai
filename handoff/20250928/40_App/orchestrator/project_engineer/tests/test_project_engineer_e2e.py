@@ -7,15 +7,39 @@ Tests the complete flow from ProjectEngineerAgent through CodeGenerationWorkflow
 with safe tasks (documentation_update, test_generation).
 """
 import pytest
-import os
 import sys
 import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock, patch
 
+
+def find_project_root(marker: str = ".git") -> Path:
+    """
+    Find the project root by searching upwards for a marker file/directory.
+    
+    This is more robust than chaining os.path.dirname() calls, as it works
+    regardless of the test file's location in the directory structure.
+    
+    Args:
+        marker: Marker file or directory to search for (default: ".git")
+    
+    Returns:
+        Path to project root
+    
+    Raises:
+        FileNotFoundError: If project root cannot be found
+    """
+    current_path = Path(__file__).resolve()
+    while current_path != current_path.parent:
+        if (current_path / marker).exists():
+            return current_path
+        current_path = current_path.parent
+    raise FileNotFoundError(f"Project root with marker '{marker}' not found.")
+
+
 # Add project root to path for imports
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
+project_root = str(find_project_root())
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
