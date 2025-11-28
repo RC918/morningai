@@ -75,7 +75,7 @@ class TestProjectEngineerEndpoint:
         mock_client, mock_queue, tasks = mock_redis_project_engineer
         token = create_user_token()
 
-        with patch('src.routes.agent.fetch_user_tenant_id', return_value='test-tenant-id'):
+        with patch('orchestrator.persistence.db_writer.fetch_user_tenant_id', return_value='test-tenant-id'):
             response = client.post(
                 '/api/agent/project-engineer/task',
                 json={'description': 'Fix the login bug in the authentication module'},
@@ -96,7 +96,7 @@ class TestProjectEngineerEndpoint:
         mock_client, mock_queue, tasks = mock_redis_project_engineer
         token = create_user_token()
 
-        with patch('src.routes.agent.fetch_user_tenant_id', return_value='test-tenant-id'):
+        with patch('orchestrator.persistence.db_writer.fetch_user_tenant_id', return_value='test-tenant-id'):
             response = client.post(
                 '/api/agent/project-engineer/task',
                 json={
@@ -120,7 +120,7 @@ class TestProjectEngineerEndpoint:
         token = create_user_token()
 
         with patch('src.routes.agent.settings') as mock_settings, \
-             patch('src.routes.agent.fetch_user_tenant_id', return_value='test-tenant-id'):
+             patch('orchestrator.persistence.db_writer.fetch_user_tenant_id', return_value='test-tenant-id'):
             mock_settings.enable_project_engineer_codegen = True
 
             response = client.post(
