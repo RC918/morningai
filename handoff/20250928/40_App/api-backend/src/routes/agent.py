@@ -13,7 +13,7 @@ from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
 from src.utils.redis_config import get_secure_redis_url
 from pydantic import BaseModel, Field, ValidationError, field_validator
-from redis_queue.worker import run_orchestrator_task
+from redis_queue.worker import run_orchestrator_task, run_project_engineer_task
 from common.config.settings import settings
 
 logging.basicConfig(
@@ -42,6 +42,34 @@ class FAQRequest(BaseModel):
             raise ValueError('question cannot be empty or whitespace only')
         return v
 
+
+class ProjectEngineerTaskRequest(BaseModel):
+    """Request model for ProjectEngineerAgent task (Phase 3 PR-3)"""
+    description: str = Field(..., description="Natural language task description")
+    repo: str = Field(default="RC918/morningai", description="GitHub repository (owner/repo format)")
+
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v: str) -> str:
+        """Strip whitespace and validate description is not empty"""
+        if isinstance(v, str):
+            v = v.strip()
+        if not v:
+            raise ValueError('description cannot be empty or whitespace only')
+        return v
+
+    @field_validator('repo')
+    @classmethod
+    def validate_repo(cls, v: str) -> str:
+        """Validate repo format (owner/repo)"""
+        if isinstance(v, str):
+            v = v.strip()
+        if not v:
+            raise ValueError('repo cannot be empty')
+        if '/' not in v:
+            raise ValueError('repo must be in owner/repo format')
+        return v
+
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
 
 retry = Retry(ExponentialBackoff(base=1, cap=10), retries=3)
@@ -57,6 +85,81 @@ def _is_testing_mode():
     except Exception:
         pass
     return (os.getenv("TESTING", "").lower() in ("1", "true", "yes", "on"))
+
+
+def resolve_tenant_or_error(user_id: str, task_id: str, operation: str = "task"):
+    """
+    Resolve tenant_id for a user or return an error response (Phase 3 PR-4: DRY refactor)
+
+    This shared helper extracts the common tenant resolution logic used by
+    /faq and /project-engineer/task endpoints.
+
+    Args:
+        user_id: User ID from authenticated request
+        task_id: Task ID for logging context
+        operation: Operation name for logging (e.g., "faq", "project_engineer")
+
+    Returns:
+        tuple: (tenant_id, None) on success, or (None, (response, status_code)) on error
+
+    Usage:
+        tenant_id, error_response = resolve_tenant_or_error(user_id, task_id, "faq")
+        if error_response:
+            return error_response
+        # Continue with tenant_id
+    """
+    try:
+        from orchestrator.persistence.db_writer import fetch_user_tenant_id
+        tenant_id = fetch_user_tenant_id(user_id)
+
+        if not tenant_id:
+            logger.error(f"User {user_id} not assigned to any tenant for {operation} task {task_id}")
+            return None, (jsonify({
+                "error": {
+                    "code": "tenant_not_found",
+                    "message": "User is not assigned to any organization. Please contact support."
+                }
+            }), 403)
+
+        logger.info(f"{operation.capitalize()} task {task_id} assigned to tenant={tenant_id} for user={user_id}")
+        return tenant_id, None
+
+    except ImportError as e:
+        # Expected in testing environment where orchestrator module is not available
+        logger.warning(f"orchestrator module not available (testing environment?): {e}")
+        if _is_testing_mode():
+            return "00000000-0000-0000-0000-000000000001", None
+
+        logger.error(f"CRITICAL: orchestrator module failed to import in a non-testing environment: {e}")
+        if sentry_sdk:
+            sentry_sdk.capture_exception(e)
+        return None, (jsonify({
+            "error": {
+                "code": "server_configuration_error",
+                "message": "A server configuration error occurred. Please contact support."
+            }
+        }), 500)
+
+    except ValueError as e:
+        logger.error(f"User {user_id} not in user_profiles: {e}")
+        return None, (jsonify({
+            "error": {
+                "code": "tenant_not_found",
+                "message": "User is not assigned to any organization. Please contact support."
+            }
+        }), 403)
+
+    except Exception as e:
+        logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
+        if sentry_sdk:
+            sentry_sdk.capture_exception(e)
+        return None, (jsonify({
+            "error": {
+                "code": "tenant_resolution_failed",
+                "message": "Unable to resolve organization membership. Please try again or contact support."
+            }
+        }), 500)
+
 
 AGENT_REDIS_URL = get_secure_redis_url(allow_local=_is_testing_mode())
 
@@ -159,7 +262,7 @@ def create_faq_task():
         task_id = str(uuid.uuid4())
         
         user_id = getattr(request, 'user_id', None)
-        
+
         if not user_id:
             logger.error(f"No user_id found in authenticated request for task {task_id}")
             return jsonify({
@@ -168,49 +271,18 @@ def create_faq_task():
                     "message": "User ID not found in authenticated request. Please re-authenticate."
                 }
             }), 401
-        
-        try:
-            from orchestrator.persistence.db_writer import fetch_user_tenant_id
-            tenant_id = fetch_user_tenant_id(user_id)
-            
-            if not tenant_id:
-                logger.error(f"User {user_id} not assigned to any tenant for task {task_id}")
-                return jsonify({
-                    "error": {
-                        "code": "tenant_not_found",
-                        "message": "User is not assigned to any organization. Please contact support."
-                    }
-                }), 403
-            
-            logger.info(f"Task {task_id} assigned to tenant={tenant_id} for user={user_id}")
-        except ImportError as e:
-            logger.warning(f"orchestrator module not available (testing environment?): {e}")
-            tenant_id = "00000000-0000-0000-0000-000000000001"
-        except ValueError as e:
-            logger.error(f"User {user_id} not in user_profiles: {e}")
-            return jsonify({
-                "error": {
-                    "code": "tenant_not_found",
-                    "message": "User is not assigned to any organization. Please contact support."
-                }
-            }), 403
-        except Exception as e:
-            logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
-            if sentry_sdk:
-                sentry_sdk.capture_exception(e)
-            return jsonify({
-                "error": {
-                    "code": "tenant_resolution_failed",
-                    "message": "Unable to resolve organization membership. Please try again or contact support."
-                }
-            }), 500
-        
+
+        # Use shared tenant resolution helper (Phase 3 PR-4: DRY refactor)
+        tenant_id, error_response = resolve_tenant_or_error(user_id, task_id, "faq")
+        if error_response:
+            return error_response
+
         if sentry_sdk:
             sentry_sdk.set_tag("trace_id", task_id)
             sentry_sdk.set_tag("task_id", task_id)
             sentry_sdk.set_tag("operation", "faq_create")
             sentry_sdk.set_tag("tenant_id", tenant_id)
-        
+
         job = get_agent_queue().enqueue(
             run_orchestrator_task,
             task_id,
@@ -309,6 +381,196 @@ def create_faq_task():
                 "message": "Service temporarily unavailable. Please try again later."
             }
         }), 503
+
+
+@bp.route("/project-engineer/task", methods=["GET"])
+def project_engineer_task_method_not_allowed():
+    """Return 405 for GET requests to prevent misuse"""
+    return jsonify({
+        "error": "Method Not Allowed",
+        "message": "This endpoint only accepts POST requests. Please use POST with a JSON body containing 'description' field."
+    }), 405, {"Allow": "POST"}
+
+
+@bp.route("/project-engineer/task", methods=["POST"])
+@jwt_required
+def create_project_engineer_task():
+    """
+    Create ProjectEngineerAgent task (Phase 3 PR-3: Human Entry Point)
+
+    This endpoint allows humans to submit natural language task descriptions
+    to ProjectEngineerAgent for analysis and optional code generation.
+
+    Request Body:
+        {
+            "description": "Natural language task description",
+            "repo": "owner/repo" (optional, defaults to RC918/morningai)
+        }
+
+    Response (202 Accepted):
+        {
+            "task_id": "uuid",
+            "status": "queued",
+            "mode": "analysis_only" | "execution"
+        }
+
+    Feature Flags:
+        - ENABLE_PROJECT_ENGINEER_CODEGEN: Controls code generation mode
+          - false: Analysis-only mode (safe, no code changes)
+          - true: Execution mode (can create PRs)
+    """
+    try:
+        payload = request.get_json(silent=True) or {}
+        validated_request = ProjectEngineerTaskRequest(**payload)
+        description = validated_request.description
+        repo = validated_request.repo
+    except ValidationError as e:
+        error_details = json.loads(e.json())
+        return jsonify({
+            "error": {
+                "code": "invalid_input",
+                "message": "Invalid request parameters",
+                "details": error_details
+            }
+        }), 400
+
+    try:
+        task_id = str(uuid.uuid4())
+
+        user_id = getattr(request, 'user_id', None)
+
+        if not user_id:
+            logger.error(f"No user_id found in authenticated request for task {task_id}")
+            return jsonify({
+                "error": {
+                    "code": "authentication_error",
+                    "message": "User ID not found in authenticated request. Please re-authenticate."
+                }
+            }), 401
+
+        # Use shared tenant resolution helper (Phase 3 PR-4: DRY refactor)
+        tenant_id, error_response = resolve_tenant_or_error(user_id, task_id, "project_engineer")
+        if error_response:
+            return error_response
+
+        if sentry_sdk:
+            sentry_sdk.set_tag("trace_id", task_id)
+            sentry_sdk.set_tag("task_id", task_id)
+            sentry_sdk.set_tag("operation", "project_engineer_create")
+            sentry_sdk.set_tag("tenant_id", tenant_id)
+
+        # Determine mode based on feature flag
+        enable_codegen = settings.enable_project_engineer_codegen
+        mode = "execution" if enable_codegen else "analysis_only"
+
+        # Enqueue the task (pass tenant_id for multi-tenant isolation)
+        job = get_agent_queue().enqueue(
+            run_project_engineer_task,
+            task_id,
+            description,
+            repo,
+            tenant_id,
+            job_id=task_id,
+            ttl=600,
+            result_ttl=86400,
+            failure_ttl=3600
+        )
+
+        # Store initial status in Redis
+        get_agent_redis_client().hset(
+            f"agent:task:{task_id}",
+            mapping={
+                "status": "queued",
+                "description": description,
+                "repo": repo,
+                "job_id": job.id,
+                "task_type": "project_engineer",
+                "mode": mode,
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        )
+        get_agent_redis_client().expire(f"agent:task:{task_id}", 3600)
+
+        # Store in DB
+        try:
+            from orchestrator.persistence.db_writer import upsert_task_queued
+            upsert_task_queued(
+                task_id=task_id,
+                trace_id=task_id,
+                question=description,  # Reuse question field for description
+                job_id=job.id,
+                tenant_id=tenant_id
+            )
+
+            if sentry_sdk:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='ProjectEngineer task enqueued to DB',
+                    level='info',
+                    data={
+                        'task_id': task_id,
+                        'trace_id': task_id,
+                        'status': 'queued',
+                        'mode': mode
+                    }
+                )
+        except Exception as e:
+            logger.error(f"DB write failed for task {task_id}: {e}")
+
+        logger.info(f"enqueued project_engineer task_id={task_id} job_id={job.id} mode={mode}")
+
+        return jsonify({
+            "task_id": task_id,
+            "status": "queued",
+            "mode": mode
+        }), 202
+    except RedisConnectionError as e:
+        logger.error(f"Redis connection failed for ProjectEngineer task creation", extra={
+            "op": "project_engineer",
+            "error": str(e),
+            "task_id": task_id if 'task_id' in locals() else None,
+            "error_type": "redis_connection"
+        })
+
+        if sentry_sdk:
+            if 'task_id' in locals():
+                sentry_sdk.set_tag("trace_id", task_id)
+                sentry_sdk.set_tag("task_id", task_id)
+            sentry_sdk.add_breadcrumb(
+                category='redis',
+                message='Redis connection failed during ProjectEngineer task creation',
+                level='error',
+                data={'task_id': task_id if 'task_id' in locals() else None, 'description': description[:100]}
+            )
+            sentry_sdk.capture_exception(e)
+
+        return jsonify({
+            "error": {
+                "code": "redis_unavailable",
+                "message": "Service temporarily unavailable. Please try again later."
+            }
+        }), 503
+    except Exception as e:
+        logger.exception("Failed to enqueue ProjectEngineer task", extra={
+            "op": "project_engineer",
+            "error": str(e),
+            "task_id": task_id if 'task_id' in locals() else None
+        })
+
+        if sentry_sdk:
+            if 'task_id' in locals():
+                sentry_sdk.set_tag("trace_id", task_id)
+                sentry_sdk.set_tag("task_id", task_id)
+            sentry_sdk.capture_exception(e)
+
+        return jsonify({
+            "error": {
+                "code": "queue_unavailable",
+                "message": "Service temporarily unavailable. Please try again later."
+            }
+        }), 503
+
 
 @bp.get("/tasks/<task_id>")
 def get_task_status(task_id):

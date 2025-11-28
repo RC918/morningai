@@ -625,6 +625,337 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
         
         raise
 
+
+@job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=JOB_TIMEOUT)
+def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_id: str):
+    """
+    Execute ProjectEngineerAgent task for human-initiated requests (Phase 3 PR-3)
+
+    This is the human entry point for ProjectEngineerAgent, allowing users to submit
+    natural language task descriptions through the API.
+
+    Args:
+        task_id: Unique task identifier (also used as trace_id)
+        description: Natural language task description
+        repo: GitHub repository (owner/repo format)
+        tenant_id: Tenant UUID for multi-tenant isolation
+
+    Returns:
+        dict: {"task_id": str, "status": str, "results": list, "trace_id": str}
+
+    Feature Flags:
+        - ENABLE_PROJECT_ENGINEER_CODEGEN: Controls code generation mode
+          - false: Analysis-only mode (safe, no code changes)
+          - true: Execution mode (can create PRs)
+    """
+    import asyncio
+
+    job_id = task_id
+    logger.info(
+        "[ProjectEngineerAgent] Starting task",
+        extra={
+            "operation": "run_project_engineer_task",
+            "task_id": task_id,
+            "job_id": job_id,
+            "trace_id": task_id,
+            "tenant_id": tenant_id,
+            "description": description[:100] if description else "",
+            "repo": repo
+        }
+    )
+
+    if SENTRY_DSN:
+        sentry_sdk.set_tag("trace_id", task_id)
+        sentry_sdk.set_tag("task_id", task_id)
+        sentry_sdk.set_tag("tenant_id", tenant_id)
+        sentry_sdk.set_tag("operation", "project_engineer_task")
+        sentry_sdk.add_breadcrumb(
+            category='task',
+            message='Starting ProjectEngineerAgent task',
+            level='info',
+            data={'task_id': task_id, 'job_id': job_id, 'trace_id': task_id, 'tenant_id': tenant_id, 'description': description[:100], 'repo': repo}
+        )
+
+    try:
+        # Update Redis status to running
+        redis_key = f"agent:task:{task_id}"
+        redis.hset(
+            redis_key,
+            mapping=sanitize_redis_mapping({
+                "status": "running",
+                "description": description,
+                "trace_id": task_id,
+                "job_id": job_id,
+                "task_type": "project_engineer",
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            })
+        )
+        redis.expire(redis_key, 3600)
+
+        # Update DB status to running
+        try:
+            upsert_task_running(task_id=task_id, trace_id=task_id, tenant_id=tenant_id)
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task status updated to running in DB',
+                    level='info',
+                    data={'task_id': task_id, 'trace_id': task_id, 'tenant_id': tenant_id, 'status': 'running'}
+                )
+        except Exception as e:
+            logger.error(f"DB write failed for task {task_id} (running): {e}")
+
+        # Initialize and run ProjectEngineerAgent
+        try:
+            from project_engineer.agent import ProjectEngineerAgent
+        except ImportError as e:
+            logger.error(f"[ProjectEngineerAgent] Failed to import: {e}")
+            raise ImportError(f"ProjectEngineerAgent not available: {e}")
+
+        # Respect existing feature flags
+        enable_codegen = settings.enable_project_engineer_codegen
+        logger.info(
+            "[ProjectEngineerAgent] Initializing agent",
+            extra={
+                "operation": "run_project_engineer_task",
+                "task_id": task_id,
+                "enable_codegen": enable_codegen,
+                "mode": "execution" if enable_codegen else "analysis_only"
+            }
+        )
+
+        # Initialize agent. A DevAgent instance is required for execution mode.
+        # Pattern from fixer_integration.py: AutoFixer._create_dev_agent()
+        dev_agent_instance = None
+        if enable_codegen:
+            try:
+                from agents.dev_agent.dev_agent_wrapper import DevAgent
+                dev_agent_instance = DevAgent(openai_api_key=settings.openai_api_key)
+                logger.info("[ProjectEngineerAgent] DevAgent initialized for execution mode")
+            except ImportError as e:
+                logger.error(f"[ProjectEngineerAgent] Failed to import DevAgent: {e}")
+                raise ImportError(f"DevAgent required for execution mode but not available: {e}")
+            except Exception as e:
+                logger.error(f"[ProjectEngineerAgent] Failed to create DevAgent: {e}")
+                raise
+
+        agent = ProjectEngineerAgent(enable_code_generation=enable_codegen, dev_agent=dev_agent_instance)
+
+        # Phase 3 PR-4: Get task timeout from agent settings
+        task_timeout = agent._get_task_timeout()
+        logger.info(
+            "[ProjectEngineerAgent] Running task with timeout",
+            extra={
+                "operation": "run_project_engineer_task",
+                "task_id": task_id,
+                "timeout_seconds": task_timeout
+            }
+        )
+
+        # Run the task asynchronously with timeout (Phase 3 PR-4: Agent-level timeout)
+        start_time_ns = time.monotonic_ns()
+
+        async def run_with_timeout():
+            """Wrapper to enforce task timeout"""
+            return await asyncio.wait_for(
+                agent.run_task(description, repo),
+                timeout=task_timeout
+            )
+
+        try:
+            results = asyncio.run(run_with_timeout())
+        except asyncio.TimeoutError:
+            elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
+            logger.error(
+                "[ProjectEngineerAgent] Task timed out",
+                extra={
+                    "operation": "run_project_engineer_task",
+                    "task_id": task_id,
+                    "timeout_seconds": task_timeout,
+                    "elapsed_ms": elapsed_ms
+                }
+            )
+            # Return timeout error result
+            from project_engineer.agent import TaskResult
+            results = [TaskResult(
+                task_id=task_id,
+                task_type="timeout",
+                status="failed",
+                is_safe=False,
+                details=f"Task execution timed out after {task_timeout} seconds",
+                error=f"TimeoutError: Task exceeded {task_timeout}s limit"
+            )]
+
+        elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
+
+        # Process results
+        success_count = sum(1 for r in results if r.status == "success")
+        failed_count = sum(1 for r in results if r.status == "failed")
+        skipped_count = sum(1 for r in results if r.status == "skipped")
+
+        # Extract PR URL if any task created one
+        pr_url = None
+        pr_number = None
+        for r in results:
+            if r.pr_url:
+                pr_url = r.pr_url
+                pr_number = r.pr_number
+                break
+
+        # Determine overall status
+        if failed_count > 0:
+            overall_status = "partial_success" if success_count > 0 else "failed"
+        elif success_count > 0:
+            overall_status = "done"
+        else:
+            overall_status = "done"  # All skipped is still "done" (analysis-only mode)
+
+        # Serialize results for storage
+        results_serialized = [
+            {
+                "task_id": r.task_id,
+                "task_type": r.task_type,
+                "status": r.status,
+                "is_safe": r.is_safe,
+                "details": r.details,
+                "pr_number": r.pr_number,
+                "pr_url": r.pr_url,
+                "error": r.error
+            }
+            for r in results
+        ]
+
+        logger.info(
+            "[ProjectEngineerAgent] Task completed",
+            extra={
+                "operation": "run_project_engineer_task",
+                "task_id": task_id,
+                "trace_id": task_id,
+                "overall_status": overall_status,
+                "success_count": success_count,
+                "failed_count": failed_count,
+                "skipped_count": skipped_count,
+                "elapsed_ms": elapsed_ms,
+                "pr_url": pr_url
+            }
+        )
+
+        # Update Redis with final status
+        redis.hset(
+            redis_key,
+            mapping=sanitize_redis_mapping({
+                "status": overall_status,
+                "description": description,
+                "trace_id": task_id,
+                "job_id": job_id,
+                "task_type": "project_engineer",
+                "pr_url": pr_url,
+                "pr_number": pr_number,
+                "success_count": success_count,
+                "failed_count": failed_count,
+                "skipped_count": skipped_count,
+                "elapsed_ms": int(elapsed_ms),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            })
+        )
+        redis.expire(redis_key, 3600)
+
+        # Update DB with final status
+        try:
+            if pr_url:
+                upsert_task_done(task_id=task_id, trace_id=task_id, pr_url=pr_url, tenant_id=tenant_id)
+            else:
+                upsert_task_done(task_id=task_id, trace_id=task_id, pr_url="", tenant_id=tenant_id)
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task completed and persisted to DB',
+                    level='info',
+                    data={
+                        'task_id': task_id,
+                        'trace_id': task_id,
+                        'tenant_id': tenant_id,
+                        'status': overall_status,
+                        'pr_url': pr_url
+                    }
+                )
+        except Exception as e:
+            logger.error(f"DB write failed for task {task_id} (done): {e}")
+
+        return {
+            "task_id": task_id,
+            "status": overall_status,
+            "results": results_serialized,
+            "trace_id": task_id,
+            "pr_url": pr_url,
+            "pr_number": pr_number,
+            "success_count": success_count,
+            "failed_count": failed_count,
+            "skipped_count": skipped_count,
+            "elapsed_ms": int(elapsed_ms)
+        }
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.exception(
+            "[ProjectEngineerAgent] Task failed",
+            extra={
+                "operation": "run_project_engineer_task",
+                "task_id": task_id,
+                "job_id": job_id,
+                "trace_id": task_id,
+                "status": "error",
+                "error": error_msg
+            }
+        )
+
+        if SENTRY_DSN:
+            sentry_sdk.add_breadcrumb(
+                category='error',
+                message='ProjectEngineerAgent task execution failed',
+                level='error',
+                data={'task_id': task_id, 'trace_id': task_id, 'error': error_msg}
+            )
+            sentry_sdk.capture_exception(e)
+
+        # Update Redis with error status
+        redis.hset(
+            f"agent:task:{task_id}",
+            mapping=sanitize_redis_mapping({
+                "status": "error",
+                "description": description,
+                "trace_id": task_id,
+                "job_id": job_id,
+                "task_type": "project_engineer",
+                "error_code": "PROJECT_ENGINEER_FAILED",
+                "error_message": error_msg,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            })
+        )
+        redis.expire(f"agent:task:{task_id}", 3600)
+
+        # Update DB with error status
+        try:
+            upsert_task_error(task_id=task_id, trace_id=task_id, error_msg=error_msg, tenant_id=tenant_id)
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task error persisted to DB',
+                    level='error',
+                    data={
+                        'task_id': task_id,
+                        'trace_id': task_id,
+                        'tenant_id': tenant_id,
+                        'status': 'error',
+                        'error_msg': error_msg[:200]
+                    }
+                )
+        except Exception as db_error:
+            logger.error(f"DB write failed for task {task_id} (error): {db_error}")
+
+        raise
+
+
 def cleanup_stale_legacy_worker():
     """
     Defensive cleanup for stale legacy 'worker-local' registrations.
