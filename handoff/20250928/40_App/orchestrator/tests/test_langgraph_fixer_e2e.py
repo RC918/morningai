@@ -538,8 +538,10 @@ class TestLoggingAndObservability:
 class TestSafetyRulesEnforcement:
     """Tests for Phase 2 Step B safety rules enforcement in AutoFixer"""
 
-    def test_autofixer_uses_safe_tasks_whitelist(self):
-        """Test that AutoFixer uses ProjectEngineerAgent with safe_tasks whitelist"""
+    def test_autofixer_logs_whitelist_enforcement_when_enabled(self):
+        """Test that AutoFixer logs whitelist enforcement and runs the agent when codegen is enabled"""
+        import asyncio
+        from unittest.mock import MagicMock, AsyncMock
         from project_engineer.fixer_integration import AutoFixer
 
         settings = MockSettings(
@@ -548,10 +550,37 @@ class TestSafetyRulesEnforcement:
             enable_project_engineer_codegen=True
         )
         fixer = AutoFixer(settings=settings)
+        state = create_test_state()
 
-        # Verify AutoFixer is configured to use ProjectEngineerAgent
-        # which enforces safe_tasks whitelist
-        assert fixer.settings.enable_project_engineer_codegen is True
+        # Create mock for ProjectEngineerAgent
+        mock_agent_instance = MagicMock()
+        mock_result = MagicMock()
+        mock_result.status = "success"
+        mock_result.pr_number = 123
+        mock_result.pr_url = "http://example.com/pr/123"
+
+        async def mock_run_task(*args, **kwargs):
+            return [mock_result]
+
+        mock_agent_instance.run_task = mock_run_task
+
+        with patch("project_engineer.fixer_integration.logger") as mock_logger, \
+             patch("project_engineer.agent.ProjectEngineerAgent", return_value=mock_agent_instance), \
+             patch.object(fixer, "_create_dev_agent", return_value=MagicMock()):
+
+            result = asyncio.run(fixer._run_project_engineer("Fix lint", "RC918/morningai", state))
+
+            # Verify info log for whitelist enforcement was called
+            info_calls = mock_logger.info.call_args_list
+            whitelist_log_found = any(
+                "autofixer_safety_check=whitelist_enforced" in str(call)
+                for call in info_calls
+            )
+            assert whitelist_log_found, "Expected whitelist enforcement log not found"
+
+            # Verify result indicates success
+            assert result.get("success") is True
+            assert result.get("pr_number") == 123
 
     def test_autofixer_logs_safety_check_when_codegen_disabled(self):
         """Test that AutoFixer logs safety check when codegen is disabled"""
