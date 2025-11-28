@@ -257,6 +257,15 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
   - `PREAUTH_TOKEN_TTL` (integer seconds, safe to log)
   - 🔒 `TOTP_ENCRYPTION_KEY` (**SECRET** - DO NOT LOG/COMMIT - 32 bytes base64 encoded)
 - **AI Orchestration** (Phase 1-2):
+  - `LLM_PROVIDER` (string: openai/gemini/auto) - LLM provider for text generation (Phase 2 Extra)
+    - **Default**: `openai`
+    - **Options**: `openai`, `gemini`, `auto`
+    - **Purpose**: Controls which LLM provider is used for text generation
+    - **Auto Mode**: Automatically selects available provider (OpenAI first, then Gemini)
+    - **Requires**: Corresponding API key (`OPENAI_API_KEY` or `GEMINI_API_KEY`)
+  - 🔒 `GEMINI_API_KEY` (**SECRET**) - Google Gemini API key for LLM operations (Phase 2 Extra)
+    - **Required when**: `LLM_PROVIDER=gemini` or `LLM_PROVIDER=auto`
+    - **Get API key**: https://makersuite.google.com/app/apikey
   - `USE_LLM_PLANNER` (boolean) - Enable LLM-based task planning (Phase 1)
   - `USE_CODEGEN_WORKFLOW_PERCENT` (integer 0-100) - Percentage rollout for code generation workflow (Phase 2)
   - `USE_LANGGRAPH` (boolean) - Enable LangGraph orchestrator mode
