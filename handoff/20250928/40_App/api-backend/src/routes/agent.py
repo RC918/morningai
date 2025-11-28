@@ -86,6 +86,70 @@ def _is_testing_mode():
         pass
     return (os.getenv("TESTING", "").lower() in ("1", "true", "yes", "on"))
 
+
+def resolve_tenant_or_error(user_id: str, task_id: str, operation: str = "task"):
+    """
+    Resolve tenant_id for a user or return an error response (Phase 3 PR-4: DRY refactor)
+
+    This shared helper extracts the common tenant resolution logic used by
+    /faq and /project-engineer/task endpoints.
+
+    Args:
+        user_id: User ID from authenticated request
+        task_id: Task ID for logging context
+        operation: Operation name for logging (e.g., "faq", "project_engineer")
+
+    Returns:
+        tuple: (tenant_id, None) on success, or (None, (response, status_code)) on error
+
+    Usage:
+        tenant_id, error_response = resolve_tenant_or_error(user_id, task_id, "faq")
+        if error_response:
+            return error_response
+        # Continue with tenant_id
+    """
+    try:
+        from orchestrator.persistence.db_writer import fetch_user_tenant_id
+        tenant_id = fetch_user_tenant_id(user_id)
+
+        if not tenant_id:
+            logger.error(f"User {user_id} not assigned to any tenant for {operation} task {task_id}")
+            return None, (jsonify({
+                "error": {
+                    "code": "tenant_not_found",
+                    "message": "User is not assigned to any organization. Please contact support."
+                }
+            }), 403)
+
+        logger.info(f"{operation.capitalize()} task {task_id} assigned to tenant={tenant_id} for user={user_id}")
+        return tenant_id, None
+
+    except ImportError as e:
+        # Expected in testing environment where orchestrator module is not available
+        logger.warning(f"orchestrator module not available (testing environment?): {e}")
+        return "00000000-0000-0000-0000-000000000001", None
+
+    except ValueError as e:
+        logger.error(f"User {user_id} not in user_profiles: {e}")
+        return None, (jsonify({
+            "error": {
+                "code": "tenant_not_found",
+                "message": "User is not assigned to any organization. Please contact support."
+            }
+        }), 403)
+
+    except Exception as e:
+        logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
+        if sentry_sdk:
+            sentry_sdk.capture_exception(e)
+        return None, (jsonify({
+            "error": {
+                "code": "tenant_resolution_failed",
+                "message": "Unable to resolve organization membership. Please try again or contact support."
+            }
+        }), 500)
+
+
 AGENT_REDIS_URL = get_secure_redis_url(allow_local=_is_testing_mode())
 
 _UNSET = object()
@@ -187,7 +251,7 @@ def create_faq_task():
         task_id = str(uuid.uuid4())
         
         user_id = getattr(request, 'user_id', None)
-        
+
         if not user_id:
             logger.error(f"No user_id found in authenticated request for task {task_id}")
             return jsonify({
@@ -196,49 +260,18 @@ def create_faq_task():
                     "message": "User ID not found in authenticated request. Please re-authenticate."
                 }
             }), 401
-        
-        try:
-            from orchestrator.persistence.db_writer import fetch_user_tenant_id
-            tenant_id = fetch_user_tenant_id(user_id)
-            
-            if not tenant_id:
-                logger.error(f"User {user_id} not assigned to any tenant for task {task_id}")
-                return jsonify({
-                    "error": {
-                        "code": "tenant_not_found",
-                        "message": "User is not assigned to any organization. Please contact support."
-                    }
-                }), 403
-            
-            logger.info(f"Task {task_id} assigned to tenant={tenant_id} for user={user_id}")
-        except ImportError as e:
-            logger.warning(f"orchestrator module not available (testing environment?): {e}")
-            tenant_id = "00000000-0000-0000-0000-000000000001"
-        except ValueError as e:
-            logger.error(f"User {user_id} not in user_profiles: {e}")
-            return jsonify({
-                "error": {
-                    "code": "tenant_not_found",
-                    "message": "User is not assigned to any organization. Please contact support."
-                }
-            }), 403
-        except Exception as e:
-            logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
-            if sentry_sdk:
-                sentry_sdk.capture_exception(e)
-            return jsonify({
-                "error": {
-                    "code": "tenant_resolution_failed",
-                    "message": "Unable to resolve organization membership. Please try again or contact support."
-                }
-            }), 500
-        
+
+        # Use shared tenant resolution helper (Phase 3 PR-4: DRY refactor)
+        tenant_id, error_response = resolve_tenant_or_error(user_id, task_id, "faq")
+        if error_response:
+            return error_response
+
         if sentry_sdk:
             sentry_sdk.set_tag("trace_id", task_id)
             sentry_sdk.set_tag("task_id", task_id)
             sentry_sdk.set_tag("operation", "faq_create")
             sentry_sdk.set_tag("tenant_id", tenant_id)
-        
+
         job = get_agent_queue().enqueue(
             run_orchestrator_task,
             task_id,
@@ -404,42 +437,10 @@ def create_project_engineer_task():
                 }
             }), 401
 
-        # Tenant resolution (same pattern as /faq endpoint)
-        try:
-            from orchestrator.persistence.db_writer import fetch_user_tenant_id
-            tenant_id = fetch_user_tenant_id(user_id)
-
-            if not tenant_id:
-                logger.error(f"User {user_id} not assigned to any tenant for task {task_id}")
-                return jsonify({
-                    "error": {
-                        "code": "tenant_not_found",
-                        "message": "User is not assigned to any organization. Please contact support."
-                    }
-                }), 403
-
-            logger.info(f"ProjectEngineer task {task_id} assigned to tenant={tenant_id} for user={user_id}")
-        except ImportError as e:
-            logger.warning(f"orchestrator module not available (testing environment?): {e}")
-            tenant_id = "00000000-0000-0000-0000-000000000001"
-        except ValueError as e:
-            logger.error(f"User {user_id} not in user_profiles: {e}")
-            return jsonify({
-                "error": {
-                    "code": "tenant_not_found",
-                    "message": "User is not assigned to any organization. Please contact support."
-                }
-            }), 403
-        except Exception as e:
-            logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
-            if sentry_sdk:
-                sentry_sdk.capture_exception(e)
-            return jsonify({
-                "error": {
-                    "code": "tenant_resolution_failed",
-                    "message": "Unable to resolve organization membership. Please try again or contact support."
-                }
-            }), 500
+        # Use shared tenant resolution helper (Phase 3 PR-4: DRY refactor)
+        tenant_id, error_response = resolve_tenant_or_error(user_id, task_id, "project_engineer")
+        if error_response:
+            return error_response
 
         if sentry_sdk:
             sentry_sdk.set_tag("trace_id", task_id)

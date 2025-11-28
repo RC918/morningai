@@ -741,9 +741,51 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
 
         agent = ProjectEngineerAgent(enable_code_generation=enable_codegen, dev_agent=dev_agent_instance)
 
-        # Run the task asynchronously
+        # Phase 3 PR-4: Get task timeout from agent settings
+        task_timeout = agent._get_task_timeout()
+        logger.info(
+            "[ProjectEngineerAgent] Running task with timeout",
+            extra={
+                "operation": "run_project_engineer_task",
+                "task_id": task_id,
+                "timeout_seconds": task_timeout
+            }
+        )
+
+        # Run the task asynchronously with timeout (Phase 3 PR-4: Agent-level timeout)
         start_time_ns = time.monotonic_ns()
-        results = asyncio.run(agent.run_task(description, repo))
+
+        async def run_with_timeout():
+            """Wrapper to enforce task timeout"""
+            return await asyncio.wait_for(
+                agent.run_task(description, repo),
+                timeout=task_timeout
+            )
+
+        try:
+            results = asyncio.run(run_with_timeout())
+        except asyncio.TimeoutError:
+            elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
+            logger.error(
+                "[ProjectEngineerAgent] Task timed out",
+                extra={
+                    "operation": "run_project_engineer_task",
+                    "task_id": task_id,
+                    "timeout_seconds": task_timeout,
+                    "elapsed_ms": elapsed_ms
+                }
+            )
+            # Return timeout error result
+            from project_engineer.agent import TaskResult
+            results = [TaskResult(
+                task_id=task_id,
+                task_type="timeout",
+                status="failed",
+                is_safe=False,
+                details=f"Task execution timed out after {task_timeout} seconds",
+                error=f"TimeoutError: Task exceeded {task_timeout}s limit"
+            )]
+
         elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
 
         # Process results

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Project Engineer Agent - Devin-like Meta-Agent
-Phase 2 Step B Implementation
+Phase 2 Step B Implementation + Phase 3 PR-4 Enhancements
 
 Features:
 - Task decomposition using LLM Planner
@@ -9,7 +9,10 @@ Features:
 - Code generation execution for safe tasks
 - Structured result reporting
 - Integration with existing orchestrator components
+- Agent-level timeout (Phase 3 PR-4)
+- Semantic task rules: repo/directory/task type restrictions (Phase 3 PR-4)
 """
+import asyncio
 import logging
 import uuid
 from typing import List, Optional
@@ -134,16 +137,67 @@ class ProjectEngineerAgent:
         self.mode = "execution" if enable_code_generation else "analysis_only"
         logger.info(f"[ProjectEngineerAgent] Initialized successfully (mode: {self.mode})")
 
+    def _validate_repo_allowed(self, repo: str) -> tuple[bool, str]:
+        """
+        Validate if repository is in the allowed list (Phase 3 PR-4: Semantic task rules)
+
+        Args:
+            repo: Repository name (owner/repo format)
+
+        Returns:
+            Tuple of (is_allowed, error_message)
+        """
+        try:
+            from common.config.settings import settings
+            allowed_repos_str = settings.project_engineer_allowed_repos
+            allowed_repos = [r.strip() for r in allowed_repos_str.split(",") if r.strip()]
+
+            if not allowed_repos:
+                # Empty list means all repos allowed
+                return True, ""
+
+            if repo in allowed_repos:
+                return True, ""
+
+            return False, (
+                f"Repository '{repo}' is not in the allowed list. "
+                f"Allowed repositories: {', '.join(allowed_repos)}"
+            )
+        except (ImportError, AttributeError) as e:
+            logger.warning(f"[ProjectEngineerAgent] Failed to read allowed repos from settings: {e}")
+            # Default to allowing RC918/morningai only
+            if repo == "RC918/morningai":
+                return True, ""
+            return False, f"Repository '{repo}' is not allowed (default: RC918/morningai only)"
+
+    def _get_task_timeout(self) -> int:
+        """
+        Get task timeout from settings (Phase 3 PR-4: Agent-level timeout)
+
+        Returns:
+            Timeout in seconds (default: 300)
+        """
+        try:
+            from common.config.settings import settings
+            return settings.project_engineer_task_timeout_seconds
+        except (ImportError, AttributeError) as e:
+            logger.warning(f"[ProjectEngineerAgent] Failed to read timeout from settings: {e}")
+            return 300  # Default 5 minutes
+
     async def run_task(self, description: str, repo: str = "morningai/morningai") -> List[TaskResult]:
         """
         Execute a task based on natural language description
 
         Workflow:
-        1. Validate input
+        1. Validate input and semantic rules (repo allowed)
         2. Use LLM Planner to decompose task into steps
         3. Classify each step's task type
         4. Check if task is safe for code generation
         5. Return structured results (analysis only in Phase 2 Step A)
+
+        Phase 3 PR-4 Enhancements:
+        - Agent-level timeout (configurable via PROJECT_ENGINEER_TASK_TIMEOUT_SECONDS)
+        - Semantic task rules: repo validation (configurable via PROJECT_ENGINEER_ALLOWED_REPOS)
 
         Args:
             description: Natural language task description
@@ -154,6 +208,7 @@ class ProjectEngineerAgent:
 
         Raises:
             ValueError: If description is empty or invalid
+            asyncio.TimeoutError: If task exceeds configured timeout
 
         Example:
             >>> agent = ProjectEngineerAgent()
@@ -164,6 +219,19 @@ class ProjectEngineerAgent:
         # Step 1: Validate input
         if not description or not description.strip():
             raise ValueError("Task description cannot be empty")
+
+        # Phase 3 PR-4: Validate repository is allowed
+        repo_allowed, repo_error = self._validate_repo_allowed(repo)
+        if not repo_allowed:
+            logger.warning(f"[ProjectEngineerAgent] Repository validation failed: {repo_error}")
+            return [TaskResult(
+                task_id=str(uuid.uuid4()),
+                task_type="validation_error",
+                status="failed",
+                is_safe=False,
+                details=repo_error,
+                error=repo_error
+            )]
 
         logger.info(f"[ProjectEngineerAgent] Running task: {description[:100]}...")
 

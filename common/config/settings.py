@@ -971,6 +971,27 @@ class Settings(BaseSettings):
         description="Percentage of tasks to use auto-fix in fixer_node (0-100, for canary rollout)"
     )
 
+    # Phase 3 PR-4: Agent-level timeout and semantic task rules
+    project_engineer_task_timeout_seconds: int = Field(
+        default=300,
+        ge=30,
+        le=1800,
+        alias="PROJECT_ENGINEER_TASK_TIMEOUT_SECONDS",
+        description="Maximum execution time for ProjectEngineerAgent.run_task() in seconds (30-1800, default 300)"
+    )
+
+    project_engineer_allowed_repos: str = Field(
+        default="RC918/morningai",
+        alias="PROJECT_ENGINEER_ALLOWED_REPOS",
+        description="Comma-separated list of allowed repositories for ProjectEngineerAgent (e.g., 'RC918/morningai,RC918/other-repo')"
+    )
+
+    project_engineer_allowed_directories: str = Field(
+        default="docs/,tests/,handoff/",
+        alias="PROJECT_ENGINEER_ALLOWED_DIRECTORIES",
+        description="Comma-separated list of allowed directory prefixes for code generation (e.g., 'docs/,tests/')"
+    )
+
     allow_governance_mock: bool = Field(
         default=False,
         alias="ALLOW_GOVERNANCE_MOCK",
