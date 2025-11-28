@@ -184,7 +184,7 @@ class ProjectEngineerAgent:
             logger.warning(f"[ProjectEngineerAgent] Failed to read timeout from settings: {e}")
             return 300  # Default 5 minutes
 
-    async def run_task(self, description: str, repo: str = "morningai/morningai") -> List[TaskResult]:
+    async def run_task(self, description: str, repo: str = "RC918/morningai") -> List[TaskResult]:
         """
         Execute a task based on natural language description
 
@@ -201,7 +201,7 @@ class ProjectEngineerAgent:
 
         Args:
             description: Natural language task description
-            repo: Repository name (default: morningai/morningai)
+            repo: Repository name (default: RC918/morningai)
 
         Returns:
             List of TaskResult objects with execution details
@@ -487,7 +487,7 @@ class ProjectEngineerAgent:
         }
 
 
-async def run_task(description: str, repo: str = "morningai/morningai") -> List[TaskResult]:
+async def run_task(description: str, repo: str = "RC918/morningai") -> List[TaskResult]:
     """
     Convenience function to run a task using ProjectEngineerAgent
 

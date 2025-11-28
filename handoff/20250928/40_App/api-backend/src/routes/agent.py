@@ -127,7 +127,18 @@ def resolve_tenant_or_error(user_id: str, task_id: str, operation: str = "task")
     except ImportError as e:
         # Expected in testing environment where orchestrator module is not available
         logger.warning(f"orchestrator module not available (testing environment?): {e}")
-        return "00000000-0000-0000-0000-000000000001", None
+        if _is_testing_mode():
+            return "00000000-0000-0000-0000-000000000001", None
+
+        logger.error(f"CRITICAL: orchestrator module failed to import in a non-testing environment: {e}")
+        if sentry_sdk:
+            sentry_sdk.capture_exception(e)
+        return None, (jsonify({
+            "error": {
+                "code": "server_configuration_error",
+                "message": "A server configuration error occurred. Please contact support."
+            }
+        }), 500)
 
     except ValueError as e:
         logger.error(f"User {user_id} not in user_profiles: {e}")

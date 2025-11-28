@@ -375,6 +375,9 @@ class TestHumanEntryFlowE2E:
 
         call_kwargs = mock_queue.enqueue.call_args
         assert call_kwargs is not None
+        # Verify tenant_id is passed as the 5th argument (index 4) to run_project_engineer_task
+        # Args order: run_project_engineer_task(task_id, description, repo, enable_codegen, tenant_id)
+        assert call_kwargs.args[4] == '00000000-0000-0000-0000-000000000001'
 
     def test_e2e_redis_status_tracking(self, client, mock_redis_project_engineer, mock_tenant_resolution):
         """Test Redis status is set correctly during task submission"""
