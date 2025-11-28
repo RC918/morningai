@@ -13,7 +13,7 @@ from rq.serializers import JSONSerializer
 from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
 from src.utils.redis_config import get_secure_redis_url
 from pydantic import BaseModel, Field, ValidationError, field_validator
-from redis_queue.worker import run_orchestrator_task
+from redis_queue.worker import run_orchestrator_task, run_project_engineer_task
 from common.config.settings import settings
 
 logging.basicConfig(
@@ -40,6 +40,34 @@ class FAQRequest(BaseModel):
             v = v.strip()
         if not v:
             raise ValueError('question cannot be empty or whitespace only')
+        return v
+
+
+class ProjectEngineerTaskRequest(BaseModel):
+    """Request model for ProjectEngineerAgent task (Phase 3 PR-3)"""
+    description: str = Field(..., description="Natural language task description")
+    repo: str = Field(default="RC918/morningai", description="GitHub repository (owner/repo format)")
+
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v: str) -> str:
+        """Strip whitespace and validate description is not empty"""
+        if isinstance(v, str):
+            v = v.strip()
+        if not v:
+            raise ValueError('description cannot be empty or whitespace only')
+        return v
+
+    @field_validator('repo')
+    @classmethod
+    def validate_repo(cls, v: str) -> str:
+        """Validate repo format (owner/repo)"""
+        if isinstance(v, str):
+            v = v.strip()
+        if not v:
+            raise ValueError('repo cannot be empty')
+        if '/' not in v:
+            raise ValueError('repo must be in owner/repo format')
         return v
 
 bp = Blueprint("agent", __name__, url_prefix="/api/agent")
@@ -309,6 +337,227 @@ def create_faq_task():
                 "message": "Service temporarily unavailable. Please try again later."
             }
         }), 503
+
+
+@bp.route("/project-engineer/task", methods=["GET"])
+def project_engineer_task_method_not_allowed():
+    """Return 405 for GET requests to prevent misuse"""
+    return jsonify({
+        "error": "Method Not Allowed",
+        "message": "This endpoint only accepts POST requests. Please use POST with a JSON body containing 'description' field."
+    }), 405, {"Allow": "POST"}
+
+
+@bp.route("/project-engineer/task", methods=["POST"])
+@jwt_required
+def create_project_engineer_task():
+    """
+    Create ProjectEngineerAgent task (Phase 3 PR-3: Human Entry Point)
+
+    This endpoint allows humans to submit natural language task descriptions
+    to ProjectEngineerAgent for analysis and optional code generation.
+
+    Request Body:
+        {
+            "description": "Natural language task description",
+            "repo": "owner/repo" (optional, defaults to RC918/morningai)
+        }
+
+    Response (202 Accepted):
+        {
+            "task_id": "uuid",
+            "status": "queued",
+            "mode": "analysis_only" | "execution"
+        }
+
+    Feature Flags:
+        - ENABLE_PROJECT_ENGINEER_CODEGEN: Controls code generation mode
+          - false: Analysis-only mode (safe, no code changes)
+          - true: Execution mode (can create PRs)
+    """
+    try:
+        payload = request.get_json(silent=True) or {}
+        validated_request = ProjectEngineerTaskRequest(**payload)
+        description = validated_request.description
+        repo = validated_request.repo
+    except ValidationError as e:
+        error_details = json.loads(e.json())
+        return jsonify({
+            "error": {
+                "code": "invalid_input",
+                "message": "Invalid request parameters",
+                "details": error_details
+            }
+        }), 400
+
+    try:
+        task_id = str(uuid.uuid4())
+
+        user_id = getattr(request, 'user_id', None)
+
+        if not user_id:
+            logger.error(f"No user_id found in authenticated request for task {task_id}")
+            return jsonify({
+                "error": {
+                    "code": "authentication_error",
+                    "message": "User ID not found in authenticated request. Please re-authenticate."
+                }
+            }), 401
+
+        # Tenant resolution (same pattern as /faq endpoint)
+        try:
+            from orchestrator.persistence.db_writer import fetch_user_tenant_id
+            tenant_id = fetch_user_tenant_id(user_id)
+
+            if not tenant_id:
+                logger.error(f"User {user_id} not assigned to any tenant for task {task_id}")
+                return jsonify({
+                    "error": {
+                        "code": "tenant_not_found",
+                        "message": "User is not assigned to any organization. Please contact support."
+                    }
+                }), 403
+
+            logger.info(f"ProjectEngineer task {task_id} assigned to tenant={tenant_id} for user={user_id}")
+        except ImportError as e:
+            logger.warning(f"orchestrator module not available (testing environment?): {e}")
+            tenant_id = "00000000-0000-0000-0000-000000000001"
+        except ValueError as e:
+            logger.error(f"User {user_id} not in user_profiles: {e}")
+            return jsonify({
+                "error": {
+                    "code": "tenant_not_found",
+                    "message": "User is not assigned to any organization. Please contact support."
+                }
+            }), 403
+        except Exception as e:
+            logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
+            if sentry_sdk:
+                sentry_sdk.capture_exception(e)
+            return jsonify({
+                "error": {
+                    "code": "tenant_resolution_failed",
+                    "message": "Unable to resolve organization membership. Please try again or contact support."
+                }
+            }), 500
+
+        if sentry_sdk:
+            sentry_sdk.set_tag("trace_id", task_id)
+            sentry_sdk.set_tag("task_id", task_id)
+            sentry_sdk.set_tag("operation", "project_engineer_create")
+            sentry_sdk.set_tag("tenant_id", tenant_id)
+
+        # Determine mode based on feature flag
+        enable_codegen = settings.enable_project_engineer_codegen
+        mode = "execution" if enable_codegen else "analysis_only"
+
+        # Enqueue the task
+        job = get_agent_queue().enqueue(
+            run_project_engineer_task,
+            task_id,
+            description,
+            repo,
+            job_id=task_id,
+            ttl=600,
+            result_ttl=86400,
+            failure_ttl=3600
+        )
+
+        # Store initial status in Redis
+        get_agent_redis_client().hset(
+            f"agent:task:{task_id}",
+            mapping={
+                "status": "queued",
+                "description": description,
+                "repo": repo,
+                "job_id": job.id,
+                "task_type": "project_engineer",
+                "mode": mode,
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        )
+        get_agent_redis_client().expire(f"agent:task:{task_id}", 3600)
+
+        # Store in DB
+        try:
+            from orchestrator.persistence.db_writer import upsert_task_queued
+            upsert_task_queued(
+                task_id=task_id,
+                trace_id=task_id,
+                question=description,  # Reuse question field for description
+                job_id=job.id,
+                tenant_id=tenant_id
+            )
+
+            if sentry_sdk:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='ProjectEngineer task enqueued to DB',
+                    level='info',
+                    data={
+                        'task_id': task_id,
+                        'trace_id': task_id,
+                        'status': 'queued',
+                        'mode': mode
+                    }
+                )
+        except Exception as e:
+            logger.error(f"DB write failed for task {task_id}: {e}")
+
+        logger.info(f"enqueued project_engineer task_id={task_id} job_id={job.id} mode={mode}")
+
+        return jsonify({
+            "task_id": task_id,
+            "status": "queued",
+            "mode": mode
+        }), 202
+    except RedisConnectionError as e:
+        logger.error(f"Redis connection failed for ProjectEngineer task creation", extra={
+            "op": "project_engineer",
+            "error": str(e),
+            "task_id": task_id if 'task_id' in locals() else None,
+            "error_type": "redis_connection"
+        })
+
+        if sentry_sdk:
+            if 'task_id' in locals():
+                sentry_sdk.set_tag("trace_id", task_id)
+                sentry_sdk.set_tag("task_id", task_id)
+            sentry_sdk.add_breadcrumb(
+                category='redis',
+                message='Redis connection failed during ProjectEngineer task creation',
+                level='error',
+                data={'task_id': task_id if 'task_id' in locals() else None, 'description': description[:100]}
+            )
+            sentry_sdk.capture_exception(e)
+
+        return jsonify({
+            "error": {
+                "code": "redis_unavailable",
+                "message": "Service temporarily unavailable. Please try again later."
+            }
+        }), 503
+    except Exception as e:
+        logger.exception("Failed to enqueue ProjectEngineer task", extra={
+            "op": "project_engineer",
+            "error": str(e),
+            "task_id": task_id if 'task_id' in locals() else None
+        })
+
+        if sentry_sdk:
+            if 'task_id' in locals():
+                sentry_sdk.set_tag("trace_id", task_id)
+                sentry_sdk.set_tag("task_id", task_id)
+            sentry_sdk.capture_exception(e)
+
+        return jsonify({
+            "error": {
+                "code": "queue_unavailable",
+                "message": "Service temporarily unavailable. Please try again later."
+            }
+        }), 503
+
 
 @bp.get("/tasks/<task_id>")
 def get_task_status(task_id):
