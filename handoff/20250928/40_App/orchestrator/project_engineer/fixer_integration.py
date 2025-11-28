@@ -68,7 +68,6 @@ def _shutdown_autofixer_executor() -> None:
 # Register shutdown handler to clean up executor on exit
 atexit.register(_shutdown_autofixer_executor)
 
-
 class AutoFixer:
     """
     Orchestrates auto-fix attempts using ReviewerAgent and ProjectEngineerAgent.
