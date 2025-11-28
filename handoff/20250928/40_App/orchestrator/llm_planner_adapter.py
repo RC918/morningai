@@ -20,6 +20,11 @@ from typing import Dict, List, Any, Optional
 from common.config.settings import settings
 from llm.client import LLMClient
 
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -46,13 +51,26 @@ class LLMPlannerAdapter:
                      If None, uses LLM_PROVIDER env var or defaults to openai
         """
         self.llm_client = None
+        self._openai_client = None
         try:
             self.llm_client = LLMClient(provider=provider)
             logger.info(
                 f"[LLM Planner] Initialized with provider={self.llm_client.provider_name}"
             )
+            if self.llm_client.provider_name == "openai" and OpenAI and settings.openai_api_key:
+                self._openai_client = OpenAI(api_key=settings.openai_api_key)
         except ValueError as e:
             logger.warning(f"LLM client not available: {e}")
+
+    @property
+    def client(self):
+        """
+        Backward compatibility: Return OpenAI client for tests that expect it
+
+        Returns:
+            OpenAI client instance or None if not available
+        """
+        return self._openai_client
 
     def generate_plan(
         self,
