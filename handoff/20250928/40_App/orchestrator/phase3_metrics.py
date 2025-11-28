@@ -99,16 +99,12 @@ class Phase3Metrics:
             else:
                 bucket_label = "inf"
 
-            # Record overall latency
+            # Record overall and per-task-type latency in a single pipeline
             key = self._get_minute_key(f"pe.latency.bucket_{bucket_label}")
+            task_key = self._get_minute_key(f"pe.latency.{task_type}.bucket_{bucket_label}")
             with self.redis.pipeline(transaction=True) as pipe:
                 pipe.set(key, 0, ex=self.ttl_seconds, nx=True)
                 pipe.incr(key)
-                pipe.execute()
-
-            # Record per-task-type latency
-            task_key = self._get_minute_key(f"pe.latency.{task_type}.bucket_{bucket_label}")
-            with self.redis.pipeline(transaction=True) as pipe:
                 pipe.set(task_key, 0, ex=self.ttl_seconds, nx=True)
                 pipe.incr(task_key)
                 pipe.execute()
@@ -243,15 +239,10 @@ class Phase3Metrics:
 
         try:
             now = datetime.utcnow()
-            total = 0
-
-            for i in range(window_minutes):
-                timestamp = now - timedelta(minutes=i)
-                key = self._get_minute_key(metric_name, timestamp)
-                value = self.redis.get(key)
-                if value:
-                    total += int(value)
-
+            # Use MGET to retrieve all values in one network round-trip
+            keys = [self._get_minute_key(metric_name, now - timedelta(minutes=i)) for i in range(window_minutes)]
+            values = self.redis.mget(keys)
+            total = sum(int(v) for v in values if v is not None)
             return total
         except Exception as e:
             logger.warning(f"Failed to get window counts for {metric_name}: {e}")

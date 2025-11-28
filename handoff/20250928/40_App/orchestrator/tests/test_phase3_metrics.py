@@ -292,20 +292,20 @@ class TestPhase3WindowCounts:
         assert count == 0
 
     def test_get_window_counts_aggregates_minutes(self):
-        """Should aggregate counts across minute buckets"""
+        """Should aggregate counts across minute buckets using MGET"""
         redis_mock = Mock()
-        # Return 10 for each minute bucket
-        redis_mock.get.return_value = "10"
+        # Return 10 for each minute bucket (MGET returns a list)
+        redis_mock.mget.return_value = ["10"] * 15
         metrics = Phase3Metrics(redis_mock, enabled=True)
         count = metrics.get_window_counts("pe.task.success", window_minutes=15)
         # 15 minutes * 10 per minute = 150
         assert count == 150
 
     def test_get_window_counts_handles_none_values(self):
-        """Should handle None values in buckets"""
+        """Should handle None values in buckets using MGET"""
         redis_mock = Mock()
-        # Alternate between 10 and None
-        redis_mock.get.side_effect = [
+        # Alternate between 10 and None (MGET returns a list)
+        redis_mock.mget.return_value = [
             "10", None, "10", None, "10", None, "10", None,
             "10", None, "10", None, "10", None, "10"
         ]
