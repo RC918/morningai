@@ -132,13 +132,15 @@ class OpenAIProvider(BaseLLMProvider):
                     "total_tokens": response.usage.total_tokens
                 }
 
-            return LLMResponse(
+            llm_response = LLMResponse(
                 content=content,
                 model=use_model,
                 provider=self.provider_name,
                 usage=usage,
                 raw_response=response
             )
+            self._log_generation(prompt=prompt, response=llm_response)
+            return llm_response
 
         except Exception as e:
             logger.error(

@@ -27,6 +27,7 @@ Usage:
     response = client.generate("Generate unit tests")
 """
 import logging
+import threading
 from typing import Optional, Literal
 
 from common.config.settings import settings
@@ -37,6 +38,8 @@ from .providers.gemini_provider import GeminiProvider
 logger = logging.getLogger(__name__)
 
 ProviderType = Literal["openai", "gemini", "auto"]
+
+_default_client_lock = threading.Lock()
 
 
 class LLMClient:
@@ -83,21 +86,12 @@ class LLMClient:
 
         Priority:
         1. Explicit provider parameter
-        2. LLM_PROVIDER environment variable
-        3. Default: openai
+        2. LLM_PROVIDER environment variable (has default: openai)
         """
-        if provider:
-            if provider == "auto":
-                return self._auto_select_provider()
-            return provider
-
-        env_provider = getattr(settings, 'llm_provider', None)
-        if env_provider:
-            if env_provider == "auto":
-                return self._auto_select_provider()
-            return env_provider
-
-        return "openai"
+        provider_name = provider or getattr(settings, 'llm_provider', None) or "openai"
+        if provider_name == "auto":
+            return self._auto_select_provider()
+        return provider_name
 
     def _auto_select_provider(self) -> str:
         """
@@ -191,13 +185,15 @@ class LLMClient:
     @classmethod
     def get_default_client(cls) -> "LLMClient":
         """
-        Get a default LLMClient instance
+        Get a default LLMClient instance (thread-safe)
 
         Uses settings from environment variables.
         Cached for reuse across calls.
         """
         if not hasattr(cls, '_default_client'):
-            cls._default_client = cls()
+            with _default_client_lock:
+                if not hasattr(cls, '_default_client'):
+                    cls._default_client = cls()
         return cls._default_client
 
     @classmethod

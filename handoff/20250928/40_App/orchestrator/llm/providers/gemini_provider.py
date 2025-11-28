@@ -39,7 +39,30 @@ class GeminiProvider(BaseLLMProvider):
             model: Model to use (default: gemini-pro)
         """
         self.model = model or self.default_model
-        self._client = None
+        self._genai = None
+        self._configured = False
+
+    def _get_genai(self):
+        """Lazy initialization of Gemini SDK"""
+        if self._genai is None:
+            try:
+                import google.generativeai as genai
+                self._genai = genai
+            except ImportError:
+                raise NotImplementedError(
+                    "Gemini SDK not installed. "
+                    "Install with: pip install google-generativeai"
+                )
+        if not self._configured:
+            if not self.is_available():
+                raise ValueError(
+                    "Gemini API key not configured. "
+                    "Set GEMINI_API_KEY environment variable."
+                )
+            gemini_key = getattr(settings, 'gemini_api_key', None)
+            self._genai.configure(api_key=gemini_key)
+            self._configured = True
+        return self._genai
 
     def is_available(self) -> bool:
         """
@@ -81,24 +104,8 @@ class GeminiProvider(BaseLLMProvider):
             NotImplementedError: If Gemini SDK not installed
             Exception: If API call fails
         """
-        if not self.is_available():
-            raise ValueError(
-                "Gemini API key not configured. "
-                "Set GEMINI_API_KEY environment variable."
-            )
-
         use_model = model or self.model
-
-        try:
-            import google.generativeai as genai
-        except ImportError:
-            raise NotImplementedError(
-                "Gemini SDK not installed. "
-                "Install with: pip install google-generativeai"
-            )
-
-        gemini_key = getattr(settings, 'gemini_api_key', None)
-        genai.configure(api_key=gemini_key)
+        genai = self._get_genai()
 
         generation_config = {
             "temperature": temperature,
@@ -141,13 +148,15 @@ class GeminiProvider(BaseLLMProvider):
                     )
                 }
 
-            return LLMResponse(
+            llm_response = LLMResponse(
                 content=content,
                 model=use_model,
                 provider=self.provider_name,
                 usage=usage,
                 raw_response=response
             )
+            self._log_generation(prompt=full_prompt, response=llm_response)
+            return llm_response
 
         except Exception as e:
             logger.error(
