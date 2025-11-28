@@ -541,7 +541,7 @@ class TestSafetyRulesEnforcement:
     def test_autofixer_logs_whitelist_enforcement_when_enabled(self):
         """Test that AutoFixer logs whitelist enforcement and runs the agent when codegen is enabled"""
         import asyncio
-        from unittest.mock import MagicMock, AsyncMock
+        from unittest.mock import MagicMock
         from project_engineer.fixer_integration import AutoFixer
 
         settings = MockSettings(
@@ -642,6 +642,94 @@ class TestSafetyRulesEnforcement:
         result = asyncio.run(fixer_disabled._run_project_engineer("Fix lint", "RC918/morningai", state))
         assert result.get("success") is False
         assert "Code generation disabled" in result.get("error", "")
+
+
+class TestAsyncWrapperOptimization:
+    """Tests for PR-C: Async wrapper optimization in run_auto_fix_sync"""
+
+    def test_run_auto_fix_sync_uses_direct_path_when_no_loop(self):
+        """Test that run_auto_fix_sync uses asyncio.run when no event loop is running"""
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=False
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        with patch("project_engineer.fixer_integration.logger") as mock_logger:
+            # Call run_auto_fix_sync from outside any event loop
+            # This should use the "direct" path (asyncio.run)
+            fixer.run_auto_fix_sync(state)
+
+            # Verify debug log for direct path was called
+            debug_calls = mock_logger.debug.call_args_list
+            direct_log_found = any(
+                "autofixer_async_bridge=direct" in str(call)
+                for call in debug_calls
+            )
+            assert direct_log_found, "Expected direct path log not found"
+
+    def test_run_auto_fix_sync_uses_thread_path_when_in_loop(self):
+        """Test that run_auto_fix_sync uses background thread when called from running loop"""
+        import asyncio
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=False
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        async def call_from_async_context():
+            with patch("project_engineer.fixer_integration.logger") as mock_logger:
+                # Call run_auto_fix_sync from within a running event loop
+                # This should use the "thread" path
+                result = fixer.run_auto_fix_sync(state)
+
+                # Verify info log for thread path was called
+                info_calls = mock_logger.info.call_args_list
+                thread_log_found = any(
+                    "autofixer_async_bridge=thread" in str(call)
+                    for call in info_calls
+                )
+                return thread_log_found, result
+
+        thread_log_found, result = asyncio.run(call_from_async_context())
+        assert thread_log_found, "Expected thread path log not found"
+
+    def test_get_autofixer_executor_reuses_executor(self):
+        """Test that _get_autofixer_executor returns the same executor instance"""
+        from project_engineer.fixer_integration import _get_autofixer_executor
+
+        executor1 = _get_autofixer_executor()
+        executor2 = _get_autofixer_executor()
+
+        # Should return the same instance (reused)
+        assert executor1 is executor2
+
+    def test_run_auto_fix_sync_returns_state(self):
+        """Test that run_auto_fix_sync returns updated state correctly"""
+        from project_engineer.fixer_integration import AutoFixer
+
+        settings = MockSettings(
+            enable_project_engineer_fixer=True,
+            project_engineer_fixer_percent=100,
+            enable_project_engineer_codegen=False
+        )
+        fixer = AutoFixer(settings=settings)
+        state = create_test_state()
+
+        result = fixer.run_auto_fix_sync(state)
+
+        # Should return a dict (the state)
+        assert isinstance(result, dict)
+        # Should have trace_id preserved
+        assert result.get("trace_id") == state.get("trace_id")
 
 
 if __name__ == "__main__":
