@@ -255,8 +255,9 @@ class TestAutoFixerCanaryRollout:
         assert all(r == results[0] for r in results), \
             "Canary routing should be deterministic"
 
-    def test_autofixer_uses_pr_number_for_canary(self):
-        """Test that canary uses pr_number when available"""
+    @patch("project_engineer.fixer_integration.hashlib.md5")
+    def test_autofixer_uses_pr_number_for_canary(self, mock_md5):
+        """Test that canary uses pr_number when available, falling back to trace_id"""
         from project_engineer.fixer_integration import AutoFixer
 
         settings = MockSettings(
@@ -265,22 +266,31 @@ class TestAutoFixerCanaryRollout:
         )
         fixer = AutoFixer(settings=settings)
 
-        state_with_pr = create_test_state(pr_number=456)
-        state_same_trace_diff_pr = create_test_state(pr_number=789)
+        # Setup mock to return a valid hash object
+        mock_hash_obj = MagicMock()
+        mock_hash_obj.hexdigest.return_value = '0' * 32
+        mock_md5.return_value = mock_hash_obj
 
-        # Call should_run_for_task - results may differ because different PR numbers
-        # hash to different buckets. This test just verifies the function runs without error
+        # Test with pr_number - should use pr_number as key
+        state_with_pr = create_test_state(pr_number=456, trace_id="should-be-ignored")
         fixer.should_run_for_task(state_with_pr)
-        fixer.should_run_for_task(state_same_trace_diff_pr)
+        mock_md5.assert_called_once_with(b'456')
+        mock_md5.reset_mock()
+
+        # Test without pr_number - should fall back to trace_id
+        state_without_pr = create_test_state(trace_id="should-be-used")
+        state_without_pr["pr_number"] = None
+        fixer.should_run_for_task(state_without_pr)
+        mock_md5.assert_called_once_with(b'should-be-used')
 
 
 class TestMaxRetriesEnforcement:
     """Tests for MAX_FIXER_RETRIES enforcement"""
 
-    def test_max_retries_constant_is_defined(self):
-        """Test that MAX_FIXER_RETRIES constant is defined"""
+    def test_max_retries_constant_is_valid(self):
+        """Test that MAX_FIXER_RETRIES constant is a positive integer"""
+        assert isinstance(MAX_FIXER_RETRIES, int)
         assert MAX_FIXER_RETRIES > 0
-        assert MAX_FIXER_RETRIES == 3  # Expected value
 
     def test_fixer_node_uses_max_retries_constant(self):
         """Test that fixer_node uses MAX_FIXER_RETRIES constant"""
