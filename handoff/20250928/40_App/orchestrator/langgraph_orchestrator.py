@@ -275,12 +275,24 @@ def fixer_node(state: AgentState) -> AgentState:
     })
 
     if retry_count >= max_retries:
-        logger.warning(f"[Fixer] Max retries reached, giving up", extra={
-            "operation": "fixer",
-            "trace_id": trace_id,
-            "retry_count": retry_count
-        })
-        state["error"] = state.get("error") or "Max retries exceeded"
+        last_error = state.get("error") or "Unknown error"
+        logger.warning(
+            "[Fixer] Max retries reached (%d/%d), giving up. "
+            "autofixer_max_retries_reached=true last_error=%s trace_id=%s",
+            retry_count, max_retries, last_error, trace_id,
+            extra={
+                "operation": "fixer",
+                "trace_id": trace_id,
+                "retry_count": retry_count,
+                "max_retries": max_retries,
+                "autofixer_max_retries_reached": True,
+                "last_error": last_error
+            }
+        )
+        state["error"] = last_error if last_error != "Unknown error" else "Max retries exceeded"
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"AutoFixer gave up after {retry_count} retries. Last error: {last_error}")
+        ]
         return state
 
     try:

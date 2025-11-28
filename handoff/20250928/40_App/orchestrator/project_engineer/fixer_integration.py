@@ -409,6 +409,10 @@ class AutoFixer:
         """
         Run ProjectEngineerAgent to generate fix.
 
+        This method uses ProjectEngineerAgent which enforces Phase 2 Step B
+        safe_tasks whitelist. Only tasks classified as safe (e.g., fix_lint,
+        documentation_update, test_generation) will have code generation enabled.
+
         Args:
             fix_description: Natural language task description
             repo: Repository name
@@ -417,16 +421,35 @@ class AutoFixer:
         Returns:
             Dict with success, pr_number, pr_url, error
         """
+        trace_id = state.get("trace_id", "unknown")
+
         try:
             if not self.settings.enable_project_engineer_codegen:
                 logger.warning(
                     "[AutoFixer] ENABLE_PROJECT_ENGINEER_CODEGEN=false, "
-                    "cannot execute fix"
+                    "cannot execute fix. autofixer_safety_check=codegen_disabled trace_id=%s",
+                    trace_id,
+                    extra={
+                        "trace_id": trace_id,
+                        "autofixer_safety_check": "codegen_disabled"
+                    }
                 )
                 return {
                     "success": False,
                     "error": "Code generation disabled (ENABLE_PROJECT_ENGINEER_CODEGEN=false)"
                 }
+
+            # Log safety check: ProjectEngineerAgent uses safe_tasks whitelist
+            logger.info(
+                "[AutoFixer] Running ProjectEngineerAgent with safe_tasks whitelist enforcement. "
+                "autofixer_safety_check=whitelist_enforced trace_id=%s",
+                trace_id,
+                extra={
+                    "trace_id": trace_id,
+                    "autofixer_safety_check": "whitelist_enforced",
+                    "safety_mechanism": "Phase 2 Step B safe_tasks whitelist"
+                }
+            )
 
             from project_engineer.agent import ProjectEngineerAgent
 
