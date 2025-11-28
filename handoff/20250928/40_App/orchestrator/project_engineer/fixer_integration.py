@@ -138,7 +138,7 @@ class AutoFixer:
         """
         trace_id = state.get("trace_id", "unknown")
         pr_number = state.get("pr_number")
-        repo = state.get("repo", "RC918/morningai")
+        repo = state.get("repo") or getattr(self.settings, "github_repo", None) or "RC918/morningai"
 
         logger.info(
             "[AutoFixer] Starting auto-fix attempt",
@@ -239,7 +239,7 @@ class AutoFixer:
             List of file paths
         """
         pr_number = state.get("pr_number")
-        repo = state.get("repo", "RC918/morningai")
+        repo = state.get("repo") or getattr(self.settings, "github_repo", None) or "RC918/morningai"
 
         if pr_number:
             try:
@@ -329,7 +329,7 @@ class AutoFixer:
         else:
             parts.append("Fix code issues found by automated review.")
 
-        summary = getattr(review_result, "summary", {})
+        summary = review_result.summary if hasattr(review_result, "summary") else {}
         error_count = summary.get("error", 0)
         warning_count = summary.get("warning", 0)
         lint_count = summary.get("lint", 0)
@@ -345,16 +345,16 @@ class AutoFixer:
         if security_count:
             parts.append(f"Security issues: {security_count}.")
 
-        comments = getattr(review_result, "comments", [])
-        error_comments = [c for c in comments if getattr(c, "severity", "") == "error"]
+        comments = review_result.comments if hasattr(review_result, "comments") else []
+        error_comments = [c for c in comments if c.severity == "error"]
 
         if error_comments:
             parts.append("Critical issues to fix:")
             for i, comment in enumerate(error_comments[:5]):
-                file_path = getattr(comment, "file_path", "unknown")
-                line_num = getattr(comment, "line_number", "?")
-                message = getattr(comment, "message", "")
-                suggestion = getattr(comment, "suggestion", "")
+                file_path = comment.file_path if hasattr(comment, "file_path") else "unknown"
+                line_num = comment.line_number if hasattr(comment, "line_number") else "?"
+                message = comment.message if hasattr(comment, "message") else ""
+                suggestion = comment.suggestion if hasattr(comment, "suggestion") else ""
 
                 issue_desc = f"- {file_path}:{line_num}: {message}"
                 if suggestion:

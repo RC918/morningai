@@ -19,6 +19,9 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 
 logger = logging.getLogger(__name__)
 
+# Maximum number of fix retries before giving up
+MAX_FIXER_RETRIES = 3
+
 class AgentState(TypedDict):
     """
     State of the agent workflow
@@ -256,13 +259,22 @@ def fixer_node(state: AgentState) -> AgentState:
     trace_id = state["trace_id"]
     retry_count = state.get("retry_count", 0)
 
+    AutoFixer = None
+    max_retries = MAX_FIXER_RETRIES
+    try:
+        from project_engineer.fixer_integration import AutoFixer as _AutoFixer
+        AutoFixer = _AutoFixer
+        max_retries = getattr(AutoFixer, "MAX_FIX_RETRIES", MAX_FIXER_RETRIES)
+    except ImportError:
+        pass
+
     logger.info(f"[Fixer] Attempting to fix CI failures (retry {retry_count})", extra={
         "operation": "fixer",
         "trace_id": trace_id,
         "retry_count": retry_count
     })
 
-    if retry_count >= 3:
+    if retry_count >= max_retries:
         logger.warning(f"[Fixer] Max retries reached, giving up", extra={
             "operation": "fixer",
             "trace_id": trace_id,
@@ -272,7 +284,8 @@ def fixer_node(state: AgentState) -> AgentState:
         return state
 
     try:
-        from project_engineer.fixer_integration import AutoFixer
+        if AutoFixer is None:
+            raise ImportError("AutoFixer not available")
 
         auto_fixer = AutoFixer(settings=settings)
 
@@ -286,7 +299,7 @@ def fixer_node(state: AgentState) -> AgentState:
             state = auto_fixer.run_auto_fix_sync(state)
 
             state["messages"] = state.get("messages", []) + [
-                AIMessage(content=f"AutoFixer attempt {retry_count + 1}/3 completed")
+                AIMessage(content=f"AutoFixer attempt {retry_count + 1}/{max_retries} completed")
             ]
         else:
             logger.info(f"[Fixer] AutoFixer disabled or not selected for this task", extra={
@@ -296,7 +309,7 @@ def fixer_node(state: AgentState) -> AgentState:
             })
 
             state["messages"] = state.get("messages", []) + [
-                AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/3) - AutoFixer disabled")
+                AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/{max_retries}) - AutoFixer disabled")
             ]
 
     except ImportError as e:
@@ -307,7 +320,7 @@ def fixer_node(state: AgentState) -> AgentState:
         })
 
         state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/3)")
+            AIMessage(content=f"Attempting to fix CI failures (attempt {retry_count + 1}/{max_retries})")
         ]
 
     except Exception as e:
@@ -368,7 +381,7 @@ def should_continue_execution(state: AgentState) -> str:
     
     if error:
         retry_count = state.get("retry_count", 0)
-        if retry_count >= 3:
+        if retry_count >= MAX_FIXER_RETRIES:
             return "finalize"
         return "fix"
     
@@ -391,7 +404,7 @@ def should_retry_or_finish(state: AgentState) -> str:
         return "finalize"
     elif ci_state in ["failure", "error"]:
         retry_count = state.get("retry_count", 0)
-        if retry_count >= 3:
+        if retry_count >= MAX_FIXER_RETRIES:
             return "finalize"
         return "fix"
     else:

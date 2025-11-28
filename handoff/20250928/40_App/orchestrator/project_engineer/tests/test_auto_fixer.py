@@ -371,9 +371,6 @@ class TestFixerNodeIntegration:
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_increments_retry_count(self):
         """Test that fixer_node increments retry_count"""
-        import sys
-        sys.path.insert(0, "/home/ubuntu/repos/morningai/handoff/20250928/40_App/orchestrator")
-
         from langgraph_orchestrator import fixer_node
 
         state = {
@@ -394,9 +391,6 @@ class TestFixerNodeIntegration:
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_gives_up_after_max_retries(self):
         """Test that fixer_node gives up after max retries"""
-        import sys
-        sys.path.insert(0, "/home/ubuntu/repos/morningai/handoff/20250928/40_App/orchestrator")
-
         from langgraph_orchestrator import fixer_node
 
         state = {
@@ -412,9 +406,6 @@ class TestFixerNodeIntegration:
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_calls_auto_fixer_when_enabled(self):
         """Test that fixer_node calls AutoFixer when enabled"""
-        import sys
-        sys.path.insert(0, "/home/ubuntu/repos/morningai/handoff/20250928/40_App/orchestrator")
-
         from langgraph_orchestrator import fixer_node
 
         state = {
