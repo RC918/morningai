@@ -61,6 +61,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _canary_metrics = None
+_phase3_metrics = None
 
 
 def sanitize_redis_mapping(mapping: dict) -> dict:
@@ -650,6 +651,18 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
     """
     import asyncio
 
+    # Phase 3 PR-5: Initialize Phase 3 metrics
+    global _phase3_metrics
+    if _phase3_metrics is None:
+        try:
+            from phase3_metrics import create_phase3_metrics
+            phase3_metrics_enabled = getattr(settings, 'phase3_metrics_enabled', True)
+            _phase3_metrics = create_phase3_metrics(redis, enabled=phase3_metrics_enabled)
+            logger.info(f"[Phase3Metrics] Initialized: enabled={phase3_metrics_enabled}")
+        except Exception as e:
+            logger.warning(f"[Phase3Metrics] Failed to initialize: {e}")
+            _phase3_metrics = None
+
     job_id = task_id
     logger.info(
         "[ProjectEngineerAgent] Starting task",
@@ -675,6 +688,9 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
             level='info',
             data={'task_id': task_id, 'job_id': job_id, 'trace_id': task_id, 'tenant_id': tenant_id, 'description': description[:100], 'repo': repo}
         )
+
+    # Phase 3 PR-5: Start timing before try block to capture elapsed time on exceptions
+    start_time_ns = time.monotonic_ns()
 
     try:
         # Update Redis status to running
@@ -753,7 +769,7 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
         )
 
         # Run the task asynchronously with timeout (Phase 3 PR-4: Agent-level timeout)
-        start_time_ns = time.monotonic_ns()
+        # Note: start_time_ns is set before the main try block (line 693)
 
         async def run_with_timeout():
             """Wrapper to enforce task timeout"""
@@ -775,6 +791,15 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
                     "elapsed_ms": elapsed_ms
                 }
             )
+            
+            # Phase 3 PR-5: Record timeout metrics (Phase3Metrics has internal error handling)
+            if _phase3_metrics:
+                _phase3_metrics.record_timeout(
+                    task_id=task_id,
+                    timeout_seconds=task_timeout,
+                    elapsed_ms=elapsed_ms
+                )
+            
             # Return timeout error result
             from project_engineer.agent import TaskResult
             results = [TaskResult(
@@ -839,6 +864,33 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
                 "pr_url": pr_url
             }
         )
+
+        # Phase 3 PR-5: Record task execution metrics (Phase3Metrics has internal error handling)
+        if _phase3_metrics:
+            # Determine task type from results (use first result's task_type or "general")
+            task_type = "general"
+            if results and len(results) > 0:
+                task_type = results[0].task_type or "general"
+
+            # Determine status for metrics
+            if overall_status == "done":
+                metrics_status = "success"
+            elif overall_status == "partial_success":
+                metrics_status = "success"  # Count partial success as success for metrics
+            else:
+                metrics_status = "failed"
+
+            # Determine mode
+            mode = "execution" if enable_codegen else "analysis_only"
+
+            _phase3_metrics.record_task_execution(
+                task_id=task_id,
+                status=metrics_status,
+                task_type=task_type,
+                elapsed_ms=elapsed_ms,
+                mode=mode,
+                tenant_id=tenant_id
+            )
 
         # Update Redis with final status
         redis.hset(
@@ -908,6 +960,20 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
                 "error": error_msg
             }
         )
+
+        # Phase 3 PR-5: Record failed task metrics (Phase3Metrics has internal error handling)
+        # Note: start_time_ns is set before the main try block (line 693)
+        if _phase3_metrics:
+            elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
+            mode = "execution" if enable_codegen else "analysis_only"
+            _phase3_metrics.record_task_execution(
+                task_id=task_id,
+                status="failed",
+                task_type="general",
+                elapsed_ms=elapsed_ms,
+                mode=mode,
+                tenant_id=tenant_id
+            )
 
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
