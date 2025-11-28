@@ -358,9 +358,17 @@ class TestAutoFixerRunProjectEngineer:
         assert "ENABLE_PROJECT_ENGINEER_CODEGEN=false" in result["error"]
 
 
+try:
+    from langgraph.graph import StateGraph, END
+    HAS_LANGGRAPH = True
+except ImportError:
+    HAS_LANGGRAPH = False
+
+
 class TestFixerNodeIntegration:
     """Integration tests for fixer_node with AutoFixer"""
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_increments_retry_count(self):
         """Test that fixer_node increments retry_count"""
         import sys
@@ -383,6 +391,7 @@ class TestFixerNodeIntegration:
 
             assert result["retry_count"] == 1
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_gives_up_after_max_retries(self):
         """Test that fixer_node gives up after max retries"""
         import sys
@@ -400,6 +409,7 @@ class TestFixerNodeIntegration:
 
         assert "Max retries" in (result.get("error") or "")
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_calls_auto_fixer_when_enabled(self):
         """Test that fixer_node calls AutoFixer when enabled"""
         import sys
