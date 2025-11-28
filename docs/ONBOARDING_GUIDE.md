@@ -517,6 +517,68 @@ python -m pytest tests/test_worker.py::TestCanaryDeployment
 # Expected: ~5% show use_langgraph=True, ~95% show use_langgraph=False
 ```
 
+### Running LangGraph E2E Tests
+
+The LangGraph E2E tests verify the fixer_node integration, AutoFixer canary rollout, safety rules enforcement, and async wrapper optimization. These tests are located in `handoff/20250928/40_App/orchestrator/tests/test_langgraph_fixer_e2e.py`.
+
+**Prerequisites**:
+- Python 3.12+ with virtual environment activated
+- PYTHONPATH configured to include orchestrator and api-backend paths
+
+**Running All E2E Tests**:
+```bash
+cd ~/repos/morningai
+source .venv/bin/activate
+export PYTHONPATH="$PWD/handoff/20250928/40_App/orchestrator:$PWD/handoff/20250928/40_App/api-backend/src:$PYTHONPATH"
+pytest handoff/20250928/40_App/orchestrator/tests/test_langgraph_fixer_e2e.py -v
+```
+
+**Running Specific Test Classes**:
+```bash
+# Fixer node routing tests
+pytest handoff/20250928/40_App/orchestrator/tests/test_langgraph_fixer_e2e.py::TestFixerNodeRouting -v
+
+# AutoFixer canary rollout tests
+pytest handoff/20250928/40_App/orchestrator/tests/test_langgraph_fixer_e2e.py::TestAutoFixerCanaryRollout -v
+
+# Safety rules enforcement tests
+pytest handoff/20250928/40_App/orchestrator/tests/test_langgraph_fixer_e2e.py::TestSafetyRulesEnforcement -v
+
+# Async wrapper optimization tests
+pytest handoff/20250928/40_App/orchestrator/tests/test_langgraph_fixer_e2e.py::TestAsyncWrapperOptimization -v
+
+# Logging and observability tests
+pytest handoff/20250928/40_App/orchestrator/tests/test_langgraph_fixer_e2e.py::TestLoggingAndObservability -v
+
+# Smoke tests for full graph execution
+pytest handoff/20250928/40_App/orchestrator/tests/test_langgraph_fixer_e2e.py::TestSmokeTestGraphExecution -v
+```
+
+**Test Coverage Summary**:
+- **TestFixerNodeRouting**: Verifies fixer_node is in the graph and routing logic works correctly
+- **TestFixerNodeBehavior**: Tests retry count increment, max retries, AutoFixer integration
+- **TestAutoFixerCanaryRollout**: Tests canary deployment with deterministic bucket assignment
+- **TestMaxRetriesEnforcement**: Ensures MAX_FIXER_RETRIES constant is used consistently
+- **TestStateTransitions**: Verifies state preservation and message handling
+- **TestLoggingAndObservability**: Tests structured logging with autofixer_disabled_reason
+- **TestSafetyRulesEnforcement**: Verifies whitelist enforcement and codegen flag respect
+- **TestAsyncWrapperOptimization**: Tests async-to-sync bridging with thread-safe executor
+- **TestRealIntegrationScenarios**: Tests GitHub API errors, CI failures, PR creation failures
+- **TestConstantSynchronization**: Ensures MAX_FIXER_RETRIES is synchronized across all logic
+- **TestSmokeTestGraphExecution**: Verifies full graph compilation and routing functions
+
+**Related Environment Variables**:
+```bash
+# Enable/disable AutoFixer
+ENABLE_PROJECT_ENGINEER_FIXER=true
+
+# Canary percentage (0-100)
+PROJECT_ENGINEER_FIXER_PERCENT=5
+
+# Enable code generation (required for AutoFixer to run)
+ENABLE_PROJECT_ENGINEER_CODEGEN=true
+```
+
 ### Common Pitfalls
 
 1. **❌ "I'll just update the orchestrator"**
