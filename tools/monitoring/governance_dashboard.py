@@ -12,10 +12,11 @@ Example:
     python governance_dashboard.py --json
 """
 import sys
+import os
 import argparse
 import json
 
-sys.path.insert(0, '/home/ubuntu/repos/morningai/handoff/20250928/40_App/orchestrator')
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'handoff', '20250928', '40_App', 'orchestrator')))
 
 try:
     from governance_dashboard import (

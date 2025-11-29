@@ -19,6 +19,14 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+ADVISORY_CATEGORIES = {
+    "security": "security_advisory",
+    "governance": "governance_advisory",
+    "cost": "cost_advisory",
+    "permission": "permission_advisory",
+    "reputation": "reputation_advisory",
+}
+
 
 class DashboardRiskLevel(Enum):
     """Dashboard risk level classification"""
@@ -137,8 +145,7 @@ def _extract_recommendations(state: Dict[str, Any]) -> List[str]:
     """Extract recommendations from all advisories"""
     recommendations = []
 
-    for advisory_key in ["security_advisory", "governance_advisory", "cost_advisory",
-                         "permission_advisory", "reputation_advisory"]:
+    for advisory_key in ADVISORY_CATEGORIES.values():
         advisory = state.get(advisory_key, {})
         if isinstance(advisory, dict):
             recs = advisory.get("recommendations", [])
@@ -191,13 +198,7 @@ def build_governance_dashboard(state: Dict[str, Any]) -> GovernanceDashboardSumm
     total_findings = 0
     high_risk_findings = 0
 
-    for category, advisory_key in [
-        ("security", "security_advisory"),
-        ("governance", "governance_advisory"),
-        ("cost", "cost_advisory"),
-        ("permission", "permission_advisory"),
-        ("reputation", "reputation_advisory")
-    ]:
+    for category, advisory_key in ADVISORY_CATEGORIES.items():
         advisory = state.get(advisory_key, {})
         if isinstance(advisory, dict):
             count, high_count = _count_findings(advisory)
@@ -209,7 +210,7 @@ def build_governance_dashboard(state: Dict[str, Any]) -> GovernanceDashboardSumm
 
     metadata = {
         "task_type": state.get("task_type", "unknown"),
-        "goal": state.get("goal", "")[:100] if state.get("goal") else "",
+        "goal": (state.get("goal") or "")[:100],
         "plan_steps": len(state.get("plan", [])),
         "agent_id": state.get("agent_id", "orchestrator"),
         "environment": state.get("environment", "sandbox")
@@ -256,9 +257,11 @@ def format_dashboard_text(summary: GovernanceDashboardSummary) -> str:
     lines.append("=" * 70)
     lines.append("")
 
-    risk_status = "PASS" if summary.overall_risk == DashboardRiskLevel.INFO else (
-        "WARN" if summary.overall_risk == DashboardRiskLevel.LOW else "FAIL"
-    )
+    risk_status_map = {
+        DashboardRiskLevel.INFO: "PASS",
+        DashboardRiskLevel.LOW: "WARN",
+    }
+    risk_status = risk_status_map.get(summary.overall_risk, "FAIL")
     lines.append(f"Overall Risk: {summary.overall_risk.value.upper()} [{risk_status}]")
     lines.append(f"Human Approval Required: {'YES' if summary.requires_human_approval else 'NO'}")
     lines.append("")
