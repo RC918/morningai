@@ -385,13 +385,22 @@ class AgentEvalIntegration:
             )
 
             metrics_list = []
-            for trace_id in trace_ids:
-                if isinstance(trace_id, bytes):
-                    trace_id = trace_id.decode('utf-8')
+            if not trace_ids:
+                return metrics_list
 
-                metrics = self.get_metrics(trace_id)
-                if metrics:
-                    metrics_list.append(metrics)
+            record_keys = [
+                f"{self.metrics_key}:{tid.decode('utf-8') if isinstance(tid, bytes) else tid}"
+                for tid in trace_ids
+            ]
+            records_data = self.redis.mget(record_keys)
+
+            for record_data in records_data:
+                if record_data:
+                    try:
+                        data = json.loads(record_data)
+                        metrics_list.append(EvalMetrics.from_dict(data))
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.warning(f"[AgentEval] Failed to parse metric data: {e}")
 
             return metrics_list
 
@@ -479,7 +488,14 @@ class AgentEvalIntegration:
         try:
             import uuid
 
-            failure_id = failure_record.get("id", str(uuid.uuid4()))
+            failure_id = failure_record.get("id")
+            if not failure_id:
+                logger.error(
+                    "[AgentEval] Failure record is missing 'id' field",
+                    extra={"failure_record_keys": list(failure_record.keys())}
+                )
+                return None
+
             goal = failure_record.get("goal", "")
             task_type = failure_record.get("task_type", "unknown")
             error_type = failure_record.get("error_type", "unknown")
@@ -512,7 +528,7 @@ class AgentEvalIntegration:
                 difficulty=difficulty,
                 expected_outcome=expected_outcome,
                 input={
-                    "repo": failure_record.get("metadata", {}).get("repo", "RC918/morningai"),
+                    "repo": failure_record.get("metadata", {}).get("repo"),
                     "affected_files": [],
                     "original_error_type": error_type,
                     "original_fixer_retries": fixer_retries
@@ -567,16 +583,22 @@ class AgentEvalIntegration:
             )
 
             tasks = []
-            for task_id in task_ids:
-                if isinstance(task_id, bytes):
-                    task_id = task_id.decode('utf-8')
+            if not task_ids:
+                return tasks
 
-                record_key = f"{self.tasks_key}:{task_id}"
-                record_data = self.redis.get(record_key)
+            record_keys = [
+                f"{self.tasks_key}:{tid.decode('utf-8') if isinstance(tid, bytes) else tid}"
+                for tid in task_ids
+            ]
+            records_data = self.redis.mget(record_keys)
 
+            for record_data in records_data:
                 if record_data:
-                    data = json.loads(record_data)
-                    tasks.append(EvalTask.from_dict(data))
+                    try:
+                        data = json.loads(record_data)
+                        tasks.append(EvalTask.from_dict(data))
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.warning(f"[AgentEval] Failed to parse eval task data: {e}")
 
             return tasks
 

@@ -312,6 +312,25 @@ class TestAgentEvalIntegration:
         assert task is not None
         assert task.difficulty == "hard"
 
+    def test_generate_eval_task_missing_id_returns_none(self):
+        """Test that generating eval task without id returns None"""
+        from agent_eval_integration import AgentEvalIntegration
+
+        mock_redis = MagicMock()
+        integration = AgentEvalIntegration(redis_client=mock_redis, enabled=True)
+
+        failure_record = {
+            "goal": "Fix the bug",
+            "task_type": "bug_fix",
+            "error_type": "timeout",
+            "fixer_retries": 1,
+            "metadata": {}
+        }
+
+        task = integration.generate_eval_task_from_failure(failure_record)
+
+        assert task is None
+
     def test_export_eval_tasks_jsonl(self):
         """Test exporting eval tasks in JSONL format"""
         from agent_eval_integration import AgentEvalIntegration, EvalTask
