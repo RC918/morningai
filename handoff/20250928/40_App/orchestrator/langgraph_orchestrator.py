@@ -60,6 +60,19 @@ GOAL_TOKEN_MULTIPLIER = 2
 PLAN_STEP_TOKEN_MULTIPLIER = 100
 
 
+def _planner_success(
+    state: "AgentState",
+    metrics: OrchestratorMetrics,
+    start_time: float,
+    trace_id: str
+) -> "AgentState":
+    """Helper to record planner success metrics and transition"""
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("planner", trace_id, success=True, latency_ms=latency_ms)
+    metrics.record_transition("planner", "security_advisor", trace_id)
+    return state
+
+
 class AgentState(TypedDict):
     """
     State of the agent workflow
@@ -200,9 +213,7 @@ def planner_node(state: AgentState) -> AgentState:
                 "planning_time_ms": plan_data.get("planning_time_ms", 0)
             })
 
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_node_complete("planner", trace_id, success=True, latency_ms=latency_ms)
-            return state
+            return _planner_success(state, metrics, start_time, trace_id)
 
         except Exception as e:
             logger.error(f"[Planner] LLM planner failed, falling back to static: {e}", extra={
@@ -236,9 +247,7 @@ def planner_node(state: AgentState) -> AgentState:
         "planner_type": "static"
     })
 
-    latency_ms = (time.time() - start_time) * 1000
-    metrics.record_node_complete("planner", trace_id, success=True, latency_ms=latency_ms)
-    return state
+    return _planner_success(state, metrics, start_time, trace_id)
 
 
 def security_advisor_node(state: AgentState) -> AgentState:
@@ -333,6 +342,8 @@ def security_advisor_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("security_advisor", trace_id, success=success, latency_ms=latency_ms)
+    if success:
+        metrics.record_transition("security_advisor", "governance_advisor", trace_id)
     return state
 
 
@@ -432,6 +443,8 @@ def governance_advisor_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("governance_advisor", trace_id, success=success, latency_ms=latency_ms)
+    if success:
+        metrics.record_transition("governance_advisor", "cost_advisor", trace_id)
     return state
 
 
@@ -524,6 +537,8 @@ def cost_advisor_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("cost_advisor", trace_id, success=success, latency_ms=latency_ms)
+    if success:
+        metrics.record_transition("cost_advisor", "permission_advisor", trace_id)
     return state
 
 
@@ -613,6 +628,8 @@ def permission_advisor_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("permission_advisor", trace_id, success=success, latency_ms=latency_ms)
+    if success:
+        metrics.record_transition("permission_advisor", "reputation_advisor", trace_id)
     return state
 
 
@@ -714,6 +731,8 @@ def reputation_advisor_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("reputation_advisor", trace_id, success=success, latency_ms=latency_ms)
+    if success:
+        metrics.record_transition("reputation_advisor", "executor", trace_id)
     return state
 
 
@@ -841,6 +860,8 @@ def ci_monitor_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("ci_monitor", trace_id, success=success, latency_ms=latency_ms)
+    if success:
+        metrics.record_transition("ci_monitor", "reviewer", trace_id)
     return state
 
 
@@ -960,6 +981,7 @@ def fixer_node(state: AgentState) -> AgentState:
     success = state.get("error") is None
     metrics.record_fixer_attempt(trace_id, retry_count, success=success)
     metrics.record_node_complete("fixer", trace_id, success=success, latency_ms=latency_ms)
+    metrics.record_transition("fixer", "executor", trace_id)
     return state
 
 
@@ -1058,6 +1080,8 @@ def reviewer_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("reviewer", trace_id, success=success, latency_ms=latency_ms)
+    if success:
+        metrics.record_transition("reviewer", "decision", trace_id)
     return state
 
 
@@ -1214,18 +1238,30 @@ def should_fix_or_finalize(state: AgentState) -> str:
     """
     merge_decision = state.get("merge_decision", "pending")
     retry_count = state.get("retry_count", 0)
+    trace_id = state.get("trace_id", "unknown")
+    metrics = _get_metrics()
+
+    outcome_to_node = {
+        "fix": "fixer",
+        "monitor_ci": "ci_monitor",
+        "finalize": "finalizer",
+    }
 
     # If decision is pending (CI still running), go back to monitor CI
     if merge_decision == "pending":
-        return "monitor_ci"
-
-    if merge_decision == "needs_fix":
+        outcome = "monitor_ci"
+    elif merge_decision == "needs_fix":
         if retry_count >= MAX_FIXER_RETRIES:
-            return "finalize"
-        return "fix"
+            outcome = "finalize"
+        else:
+            outcome = "fix"
+    else:
+        # approve, request_changes all go to finalize
+        outcome = "finalize"
 
-    # approve, request_changes all go to finalize
-    return "finalize"
+    to_node = outcome_to_node[outcome]
+    metrics.record_transition("decision", to_node, trace_id)
+    return outcome
 
 
 def finalizer_node(state: AgentState) -> AgentState:
@@ -1276,17 +1312,30 @@ def should_continue_execution(state: AgentState) -> str:
     error = state.get("error")
     current_step = state.get("current_step", 0)
     plan = state.get("plan", [])
+    trace_id = state.get("trace_id", "unknown")
+    metrics = _get_metrics()
+
+    outcome_to_node = {
+        "execute": "executor",
+        "monitor_ci": "ci_monitor",
+        "fix": "fixer",
+        "finalize": "finalizer",
+    }
 
     if error:
         retry_count = state.get("retry_count", 0)
         if retry_count >= MAX_FIXER_RETRIES:
-            return "finalize"
-        return "fix"
+            outcome = "finalize"
+        else:
+            outcome = "fix"
+    elif current_step >= len(plan):
+        outcome = "monitor_ci"
+    else:
+        outcome = "execute"
 
-    if current_step >= len(plan):
-        return "monitor_ci"
-
-    return "execute"
+    to_node = outcome_to_node[outcome]
+    metrics.record_transition("executor", to_node, trace_id)
+    return outcome
 
 
 def should_retry_or_finish(state: AgentState) -> str:
