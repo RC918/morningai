@@ -7,9 +7,10 @@ This abstraction layer enables:
 - Consistent API across providers
 - Automatic fallback handling
 - Centralized logging and monitoring
+- A/B testing support via ExperimentManager (Phase 5 PR-5)
 
 Usage:
-    from llm.client import LLMClient
+    from llm.client import LLMClient, get_client_for_component
 
     # Default provider (OpenAI)
     client = LLMClient()
@@ -25,6 +26,10 @@ Usage:
     # Auto provider selection (uses available provider)
     client = LLMClient(provider="auto")
     response = client.generate("Generate unit tests")
+
+    # Experiment-aware client for component (Phase 5 PR-5)
+    client = get_client_for_component("reviewer", trace_id="abc123")
+    response = client.generate("Review this PR")
 """
 import logging
 import threading
@@ -201,3 +206,67 @@ class LLMClient:
         """Reset the default client (useful for testing)"""
         if hasattr(cls, '_default_client'):
             delattr(cls, '_default_client')
+
+
+def get_client_for_component(
+    component: str,
+    trace_id: str,
+    default_provider: str = "openai",
+    model: Optional[str] = None
+) -> LLMClient:
+    """
+    Get an LLMClient configured based on active experiments for a component.
+
+    This function integrates with ExperimentManager to enable A/B testing
+    of different LLM providers for specific components (planner, reviewer, etc.).
+
+    In production, this is a no-op and returns the default provider.
+    In staging, it checks for active experiments and routes accordingly.
+
+    Args:
+        component: Component name (e.g., "planner", "reviewer")
+        trace_id: Unique trace identifier for consistent variant assignment
+        default_provider: Default provider if no experiment is active
+        model: Optional model override
+
+    Returns:
+        LLMClient configured with the appropriate provider
+
+    Usage:
+        # In reviewer code:
+        client = get_client_for_component("reviewer", trace_id)
+        response = client.generate("Review this code...")
+    """
+    try:
+        from experiment_manager import get_provider_for_component
+
+        provider = get_provider_for_component(
+            component=component,
+            trace_id=trace_id,
+            default_provider=default_provider
+        )
+
+        logger.info(
+            f"[LLMClient] Creating client for component={component}, "
+            f"provider={provider}, trace_id={trace_id}",
+            extra={
+                "operation": "get_client_for_component",
+                "component": component,
+                "provider": provider,
+                "trace_id": trace_id
+            }
+        )
+
+        return LLMClient(provider=provider, model=model)
+
+    except ImportError:
+        logger.debug(
+            "[LLMClient] ExperimentManager not available, using default provider"
+        )
+        return LLMClient(provider=default_provider, model=model)
+    except Exception as e:
+        logger.warning(
+            f"[LLMClient] Failed to get experiment provider: {e}, "
+            f"using default provider={default_provider}"
+        )
+        return LLMClient(provider=default_provider, model=model)
