@@ -309,43 +309,8 @@ def recall_recent_failures(limit: int = 50) -> List[Dict[str, Any]]:
     Returns:
         List of recent failure memory records
     """
-    try:
-        client = _get_supabase_client()
-        if client is None:
-            logger.debug("[FailureMemory] Supabase client not available")
-            return []
-
-        result = client.table(FAILURE_MEMORY_TABLE).select("*").like(
-            "key", f"{FAILURE_KEY_PREFIX}:%"
-        ).order("id", desc=True).limit(limit).execute()
-
-        records = result.data or []
-
-        parsed_records = []
-        for record in records:
-            parsed = {
-                "id": record.get("id"),
-                "key": record.get("key"),
-                "text": record.get("text"),
-            }
-            if record.get("metadata"):
-                try:
-                    parsed["metadata"] = json.loads(record["metadata"])
-                except (json.JSONDecodeError, TypeError):
-                    parsed["metadata"] = {}
-            else:
-                parsed["metadata"] = {}
-            parsed_records.append(parsed)
-
-        logger.debug(f"[FailureMemory] Recalled {len(parsed_records)} recent failures")
-        return parsed_records
-
-    except Exception as e:
-        logger.warning(f"[FailureMemory] Failed to recall recent failures: {e}", extra={
-            "operation": "recall_recent_failures",
-            "error": str(e)
-        })
-        return []
+    prefix = f"{FAILURE_KEY_PREFIX}:"
+    return recall_failures_by_prefix(prefix, limit=limit)
 
 
 def get_failure_memory_stats() -> Dict[str, Any]:
@@ -370,8 +335,8 @@ def get_failure_memory_stats() -> Dict[str, Any]:
         recent = recall_recent_failures(limit=100)
         for record in recent:
             metadata = record.get("metadata", {})
-            error_type = metadata.get("error_type", "unknown")
-            if ":" not in record.get("key", "").split(":", 2)[-1]:
+            if "primary_key" not in metadata:
+                error_type = metadata.get("error_type", "unknown")
                 error_types[error_type] = error_types.get(error_type, 0) + 1
 
         return {
