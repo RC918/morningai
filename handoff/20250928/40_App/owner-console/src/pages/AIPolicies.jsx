@@ -358,7 +358,6 @@ const AIPolicies = () => {
                 setPolicyToDelete(policy)
                 setDeleteDialogOpen(true)
               }}
-              t={t}
             />
           ) : (
             <Card className="material-card">
@@ -404,7 +403,8 @@ const AIPolicies = () => {
   )
 }
 
-const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, onCancel, onDelete, t }) => {
+const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, onCancel, onDelete }) => {
+  const { t } = useTranslation()
   const [name, setName] = useState(policy?.name || '')
   const [description, setDescription] = useState(policy?.description || '')
   const [policyType, setPolicyType] = useState(policy?.policy_type || '')
