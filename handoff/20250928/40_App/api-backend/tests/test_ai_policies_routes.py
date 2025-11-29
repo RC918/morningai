@@ -217,15 +217,13 @@ class TestAIPoliciesCreateEndpoint:
         assert 'error' in data
 
     @patch('src.routes.ai_policies.AI_POLICY_AVAILABLE', True)
-    @patch('src.routes.ai_policies.get_user_tenant_id')
-    @patch('src.routes.ai_policies.get_user_role')
+    @patch('src.routes.ai_policies.get_user_profile')
     @patch('src.routes.ai_policies.get_ai_policy_manager')
     def test_create_policy_success(
-        self, mock_get_manager, mock_get_role, mock_get_tenant, client, admin_headers
+        self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test successful create policy"""
-        mock_get_tenant.return_value = 'tenant-123'
-        mock_get_role.return_value = 'admin'
+        mock_get_profile.return_value = ('tenant-123', 'admin')
         mock_manager = MagicMock()
         mock_policy = MagicMock()
         mock_policy.to_dict.return_value = {
@@ -252,14 +250,12 @@ class TestAIPoliciesCreateEndpoint:
         assert data['id'] == 'new-policy-1'
 
     @patch('src.routes.ai_policies.AI_POLICY_AVAILABLE', True)
-    @patch('src.routes.ai_policies.get_user_tenant_id')
-    @patch('src.routes.ai_policies.get_user_role')
+    @patch('src.routes.ai_policies.get_user_profile')
     def test_create_policy_missing_fields(
-        self, mock_get_role, mock_get_tenant, client, admin_headers
+        self, mock_get_profile, client, admin_headers
     ):
         """Test create policy with missing required fields"""
-        mock_get_tenant.return_value = 'tenant-123'
-        mock_get_role.return_value = 'admin'
+        mock_get_profile.return_value = ('tenant-123', 'admin')
 
         response = client.post(
             '/api/ai-policies',
@@ -272,14 +268,12 @@ class TestAIPoliciesCreateEndpoint:
         assert 'error' in data
 
     @patch('src.routes.ai_policies.AI_POLICY_AVAILABLE', True)
-    @patch('src.routes.ai_policies.get_user_tenant_id')
-    @patch('src.routes.ai_policies.get_user_role')
+    @patch('src.routes.ai_policies.get_user_profile')
     def test_create_policy_invalid_type(
-        self, mock_get_role, mock_get_tenant, client, admin_headers
+        self, mock_get_profile, client, admin_headers
     ):
         """Test create policy with invalid policy type"""
-        mock_get_tenant.return_value = 'tenant-123'
-        mock_get_role.return_value = 'admin'
+        mock_get_profile.return_value = ('tenant-123', 'admin')
 
         response = client.post(
             '/api/ai-policies',
@@ -296,15 +290,13 @@ class TestAIPoliciesCreateEndpoint:
         assert 'error' in data
 
     @patch('src.routes.ai_policies.AI_POLICY_AVAILABLE', True)
-    @patch('src.routes.ai_policies.get_user_tenant_id')
-    @patch('src.routes.ai_policies.get_user_role')
+    @patch('src.routes.ai_policies.get_user_profile')
     @patch('src.routes.ai_policies.get_ai_policy_manager')
     def test_create_policy_db_failure(
-        self, mock_get_manager, mock_get_role, mock_get_tenant, client, admin_headers
+        self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test create policy returns 503 when database persistence fails"""
-        mock_get_tenant.return_value = 'tenant-123'
-        mock_get_role.return_value = 'admin'
+        mock_get_profile.return_value = ('tenant-123', 'admin')
         mock_manager = MagicMock()
         mock_manager.create_policy.return_value = None
         mock_get_manager.return_value = mock_manager
@@ -342,15 +334,13 @@ class TestAIPoliciesUpdateEndpoint:
         assert 'error' in data
 
     @patch('src.routes.ai_policies.AI_POLICY_AVAILABLE', True)
-    @patch('src.routes.ai_policies.get_user_tenant_id')
-    @patch('src.routes.ai_policies.get_user_role')
+    @patch('src.routes.ai_policies.get_user_profile')
     @patch('src.routes.ai_policies.get_ai_policy_manager')
     def test_update_policy_success(
-        self, mock_get_manager, mock_get_role, mock_get_tenant, client, admin_headers
+        self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test successful update policy"""
-        mock_get_tenant.return_value = 'tenant-123'
-        mock_get_role.return_value = 'admin'
+        mock_get_profile.return_value = ('tenant-123', 'admin')
         mock_manager = MagicMock()
 
         mock_existing = MagicMock()
@@ -377,15 +367,13 @@ class TestAIPoliciesUpdateEndpoint:
         assert data['name'] == 'Updated Policy'
 
     @patch('src.routes.ai_policies.AI_POLICY_AVAILABLE', True)
-    @patch('src.routes.ai_policies.get_user_tenant_id')
-    @patch('src.routes.ai_policies.get_user_role')
+    @patch('src.routes.ai_policies.get_user_profile')
     @patch('src.routes.ai_policies.get_ai_policy_manager')
     def test_update_policy_not_found(
-        self, mock_get_manager, mock_get_role, mock_get_tenant, client, admin_headers
+        self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test update policy when not found"""
-        mock_get_tenant.return_value = 'tenant-123'
-        mock_get_role.return_value = 'admin'
+        mock_get_profile.return_value = ('tenant-123', 'admin')
         mock_manager = MagicMock()
         mock_manager.get_policy.return_value = None
         mock_get_manager.return_value = mock_manager
@@ -417,15 +405,13 @@ class TestAIPoliciesDeleteEndpoint:
         assert 'error' in data
 
     @patch('src.routes.ai_policies.AI_POLICY_AVAILABLE', True)
-    @patch('src.routes.ai_policies.get_user_tenant_id')
-    @patch('src.routes.ai_policies.get_user_role')
+    @patch('src.routes.ai_policies.get_user_profile')
     @patch('src.routes.ai_policies.get_ai_policy_manager')
     def test_delete_policy_success(
-        self, mock_get_manager, mock_get_role, mock_get_tenant, client, admin_headers
+        self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test successful delete policy (requires owner role)"""
-        mock_get_tenant.return_value = 'tenant-123'
-        mock_get_role.return_value = 'owner'
+        mock_get_profile.return_value = ('tenant-123', 'owner')
         mock_manager = MagicMock()
 
         mock_existing = MagicMock()
@@ -445,15 +431,13 @@ class TestAIPoliciesDeleteEndpoint:
         assert data['policy_id'] == 'policy-1'
 
     @patch('src.routes.ai_policies.AI_POLICY_AVAILABLE', True)
-    @patch('src.routes.ai_policies.get_user_tenant_id')
-    @patch('src.routes.ai_policies.get_user_role')
+    @patch('src.routes.ai_policies.get_user_profile')
     @patch('src.routes.ai_policies.get_ai_policy_manager')
     def test_delete_policy_not_found(
-        self, mock_get_manager, mock_get_role, mock_get_tenant, client, admin_headers
+        self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test delete policy when not found (requires owner role)"""
-        mock_get_tenant.return_value = 'tenant-123'
-        mock_get_role.return_value = 'owner'
+        mock_get_profile.return_value = ('tenant-123', 'owner')
         mock_manager = MagicMock()
         mock_manager.get_policy.return_value = None
         mock_get_manager.return_value = mock_manager
