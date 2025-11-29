@@ -100,7 +100,7 @@ class SemanticRulesValidator:
         # Detect obvious traversal patterns before normalization
         traversal_patterns = [
             r'\.\.',           # .. anywhere
-            r'\./',            # ./ at start or after /
+            r'^\./',           # ./ at start only
             r'/\./',           # /./ anywhere
             r'//+',            # multiple slashes
             r'%2e%2e',         # URL-encoded ..
@@ -169,20 +169,16 @@ class SemanticRulesValidator:
         
         # Check if path starts with any allowed directory prefix
         for allowed_dir in self.allowed_directories:
-            # Normalize the allowed directory too
-            allowed_normalized = allowed_dir.strip('/')
+            # Normalize the allowed directory. An empty or root-only entry allows all paths.
+            allowed_normalized = allowed_dir.strip().strip('/')
             if not allowed_normalized:
-                continue
-            
+                logger.debug(f"[SemanticRules] Path '{file_path}' allowed by root-level rule ('{allowed_dir}')")
+                return True, None
+
             # Check if the file path starts with the allowed directory
             if normalized_path.startswith(allowed_normalized + '/') or normalized_path == allowed_normalized:
                 logger.debug(f"[SemanticRules] Path '{file_path}' allowed (matches '{allowed_dir}')")
                 return True, None
-            
-            # Also check if the file is directly in the allowed directory
-            if '/' not in normalized_path and allowed_normalized == '':
-                # Root-level file, check if root is allowed
-                continue
         
         # Path not in any allowed directory
         return False, SemanticRuleViolation(
@@ -229,21 +225,27 @@ class SemanticRulesValidator:
         """
         Check if task type is in safe whitelist.
         Wrapper to handle import issues in different contexts.
+        Uses importlib for cleaner import path iteration.
         """
-        try:
-            from .safe_tasks import is_safe_task
-            return is_safe_task(task_type)
-        except ImportError:
+        from importlib import import_module
+
+        import_paths = [
+            ('.safe_tasks', __package__),  # Relative import
+            ('safe_tasks', None),          # Absolute import
+            ('project_engineer.safe_tasks', None)  # Full path import
+        ]
+
+        for module_name, package in import_paths:
             try:
-                from safe_tasks import is_safe_task
-                return is_safe_task(task_type)
-            except ImportError:
-                try:
-                    from project_engineer.safe_tasks import is_safe_task
-                    return is_safe_task(task_type)
-                except ImportError:
-                    logger.warning("[SemanticRules] Could not import is_safe_task, defaulting to False")
-                    return False
+                module = import_module(module_name, package=package)
+                if hasattr(module, 'is_safe_task'):
+                    return module.is_safe_task(task_type)
+            except (ImportError, ModuleNotFoundError, ValueError, TypeError):
+                # ValueError/TypeError can occur if __package__ is None for relative imports
+                continue
+
+        logger.warning("[SemanticRules] Could not import is_safe_task, defaulting to False")
+        return False
     
     def validate_repo(self, repo: str) -> Tuple[bool, Optional[SemanticRuleViolation]]:
         """
