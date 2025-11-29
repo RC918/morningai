@@ -237,6 +237,10 @@ class ExperimentManager:
         """
         Get active experiment for a component
 
+        Note: Returns the first matching active experiment for the component.
+        If multiple experiments target the same component, iteration order determines
+        which is returned.
+
         Args:
             component: Component name (e.g., "planner", "reviewer")
             trace_id: Unique trace identifier
@@ -347,7 +351,7 @@ def get_experiment_manager(
     Get or create the global ExperimentManager instance
 
     Args:
-        environment: Environment to use (defaults to settings.env)
+        environment: Environment to use (defaults to settings.environment)
 
     Returns:
         ExperimentManager instance
