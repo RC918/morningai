@@ -45,34 +45,36 @@ logger = logging.getLogger(__name__)
 bp = Blueprint('ai_policies', __name__, url_prefix='/api/ai-policies')
 
 
-def get_user_tenant_id(user_id: str):
-    """Get tenant_id for a user"""
+def get_user_profile(user_id: str):
+    """
+    Get tenant_id and role for a user in a single query.
+
+    Returns:
+        tuple: (tenant_id, role) or (None, None) if not found
+    """
     try:
         from orchestrator.persistence.db_client import get_client
         client = get_client()
-        response = client.table('user_profiles').select('tenant_id').eq(
-            'id', user_id
-        ).single().execute()
+        response = client.table('user_profiles').select(
+            'tenant_id, role'
+        ).eq('id', user_id).single().execute()
         if response.data:
-            return response.data.get('tenant_id')
-    except Exception as e:
-        logger.error(f"Failed to get tenant_id for user {user_id}: {e}")
-    return None
+            return response.data.get('tenant_id'), response.data.get('role')
+    except Exception:
+        logger.exception(f"Failed to get profile for user {user_id}")
+    return None, None
+
+
+def get_user_tenant_id(user_id: str):
+    """Get tenant_id for a user (wrapper for backward compatibility)"""
+    tenant_id, _ = get_user_profile(user_id)
+    return tenant_id
 
 
 def get_user_role(user_id: str):
-    """Get role for a user"""
-    try:
-        from orchestrator.persistence.db_client import get_client
-        client = get_client()
-        response = client.table('user_profiles').select('role').eq(
-            'id', user_id
-        ).single().execute()
-        if response.data:
-            return response.data.get('role')
-    except Exception as e:
-        logger.error(f"Failed to get role for user {user_id}: {e}")
-    return None
+    """Get role for a user (wrapper for backward compatibility)"""
+    _, role = get_user_profile(user_id)
+    return role
 
 
 def _parse_policy_type(policy_type_str):
@@ -107,11 +109,10 @@ def _parse_policy_status(status_str):
 
 def _validate_user_context(user_id, required_roles=None):
     """Validate user context and return tenant_id, role, and any error"""
-    tenant_id = get_user_tenant_id(user_id)
+    tenant_id, user_role = get_user_profile(user_id)
     if not tenant_id:
         return None, None, ('Tenant not found for user', 404)
 
-    user_role = get_user_role(user_id)
     if required_roles and user_role not in required_roles:
         return None, None, (
             f'Only {", ".join(required_roles)} can perform this action', 403
@@ -177,23 +178,13 @@ def list_policies():
         limit = min(int(request.args.get('limit', 50)), 100)
         offset = int(request.args.get('offset', 0))
 
-        policy_type = None
-        if policy_type_str:
-            try:
-                policy_type = PolicyType(policy_type_str)
-            except ValueError:
-                return jsonify({
-                    'error': f'Invalid policy_type: {policy_type_str}'
-                }), 400
+        policy_type, err = _parse_policy_type(policy_type_str)
+        if err:
+            return jsonify({'error': err}), 400
 
-        status = None
-        if status_str:
-            try:
-                status = PolicyStatus(status_str)
-            except ValueError:
-                return jsonify({
-                    'error': f'Invalid status: {status_str}'
-                }), 400
+        status, err = _parse_policy_status(status_str)
+        if err:
+            return jsonify({'error': err}), 400
 
         manager = get_ai_policy_manager()
         policies = manager.list_policies(
@@ -212,7 +203,7 @@ def list_policies():
         })
 
     except Exception as e:
-        logger.error(f"Failed to list policies: {e}")
+        logger.exception("Failed to list policies")
         return jsonify({'error': str(e)}), 500
 
 
@@ -252,7 +243,7 @@ def get_policy(policy_id):
         return jsonify(policy.to_dict())
 
     except Exception as e:
-        logger.error(f"Failed to get policy {policy_id}: {e}")
+        logger.exception(f"Failed to get policy {policy_id}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -332,7 +323,7 @@ def create_policy():
         return jsonify(policy.to_dict()), 201
 
     except Exception as e:
-        logger.error(f"Failed to create policy: {e}")
+        logger.exception("Failed to create policy")
         return jsonify({'error': str(e)}), 500
 
 
@@ -397,7 +388,7 @@ def update_policy(policy_id):
         return jsonify(updated_policy.to_dict())
 
     except Exception as e:
-        logger.error(f"Failed to update policy {policy_id}: {e}")
+        logger.exception(f"Failed to update policy {policy_id}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -422,8 +413,7 @@ def delete_policy(policy_id):
 
     try:
         user_id = request.user_id
-        tenant_id = get_user_tenant_id(user_id)
-        user_role = get_user_role(user_id)
+        tenant_id, user_role = get_user_profile(user_id)
 
         if not tenant_id:
             return jsonify({'error': 'Tenant not found for user'}), 404
@@ -453,7 +443,7 @@ def delete_policy(policy_id):
         })
 
     except Exception as e:
-        logger.error(f"Failed to delete policy {policy_id}: {e}")
+        logger.exception(f"Failed to delete policy {policy_id}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -480,7 +470,7 @@ def get_templates():
         })
 
     except Exception as e:
-        logger.error(f"Failed to get templates: {e}")
+        logger.exception("Failed to get templates")
         return jsonify({'error': str(e)}), 500
 
 
@@ -528,5 +518,5 @@ def evaluate_request():
         return jsonify(result)
 
     except Exception as e:
-        logger.error(f"Failed to evaluate request: {e}")
+        logger.exception("Failed to evaluate request")
         return jsonify({'error': str(e)}), 500
