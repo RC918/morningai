@@ -16,6 +16,15 @@ from .cost_tracker import CostTracker, CostBudgetExceeded, get_cost_tracker
 from .reputation_engine import ReputationEngine, get_reputation_engine
 from .permission_checker import PermissionChecker, PermissionDenied, get_permission_checker
 from .violation_detector import ViolationDetector, ViolationError, get_violation_detector
+from .ai_policy import (
+    AIPolicy,
+    AIPolicyManager,
+    PolicyType,
+    PolicyScope,
+    PolicyStatus,
+    get_ai_policy_manager,
+    DEFAULT_POLICY_TEMPLATES
+)
 
 __all__ = [
     'PolicyGuard',
@@ -31,4 +40,11 @@ __all__ = [
     'ViolationDetector',
     'ViolationError',
     'get_violation_detector',
+    'AIPolicy',
+    'AIPolicyManager',
+    'PolicyType',
+    'PolicyScope',
+    'PolicyStatus',
+    'get_ai_policy_manager',
+    'DEFAULT_POLICY_TEMPLATES',
 ]
