@@ -27,12 +27,17 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 
 from orchestrator_metrics import get_orchestrator_metrics, OrchestratorMetrics
 from failure_recorder import init_failure_recorder_from_env, FailureRecorder
+from agent_eval_integration import (
+    init_agent_eval_from_env,
+    AgentEvalIntegration
+)
 
 logger = logging.getLogger(__name__)
 
 # Global metrics instance (lazy initialization)
 _metrics: Optional[OrchestratorMetrics] = None
 _failure_recorder: Optional[FailureRecorder] = None
+_agent_eval: Optional[AgentEvalIntegration] = None
 
 
 def _get_metrics() -> OrchestratorMetrics:
@@ -60,6 +65,14 @@ def _get_failure_recorder() -> FailureRecorder:
     if _failure_recorder is None:
         _failure_recorder = init_failure_recorder_from_env()
     return _failure_recorder
+
+
+def _get_agent_eval() -> AgentEvalIntegration:
+    """Get or initialize the global agent eval integration instance"""
+    global _agent_eval
+    if _agent_eval is None:
+        _agent_eval = init_agent_eval_from_env()
+    return _agent_eval
 
 
 # Maximum number of fix retries before giving up
@@ -352,6 +365,15 @@ def security_advisor_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("security_advisor", trace_id, success=success, latency_ms=latency_ms)
+
+    agent_eval = _get_agent_eval()
+    agent_eval.record_node_latency(trace_id, "security_advisor", latency_ms)
+    agent_eval.record_security_advisory(
+        trace_id,
+        state.get("security_risk", "info"),
+        len(state.get("security_findings", []))
+    )
+
     if success:
         metrics.record_transition("security_advisor", "governance_advisor", trace_id)
     return state
@@ -453,6 +475,15 @@ def governance_advisor_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("governance_advisor", trace_id, success=success, latency_ms=latency_ms)
+
+    agent_eval = _get_agent_eval()
+    agent_eval.record_node_latency(trace_id, "governance_advisor", latency_ms)
+    agent_eval.record_governance_advisory(
+        trace_id,
+        state.get("governance_risk", "info"),
+        len(state.get("governance_findings", []))
+    )
+
     if success:
         metrics.record_transition("governance_advisor", "cost_advisor", trace_id)
     return state
@@ -992,6 +1023,11 @@ def fixer_node(state: AgentState) -> AgentState:
     metrics.record_fixer_attempt(trace_id, retry_count, success=success)
     metrics.record_node_complete("fixer", trace_id, success=success, latency_ms=latency_ms)
     metrics.record_transition("fixer", "executor", trace_id)
+
+    agent_eval = _get_agent_eval()
+    agent_eval.record_node_latency(trace_id, "fixer", latency_ms)
+    agent_eval.record_fixer_iteration(trace_id, retry_count + 1, success)
+
     return state
 
 
@@ -1522,6 +1558,9 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
 
     metrics.record_workflow_start(trace_id, goal)
 
+    agent_eval = _get_agent_eval()
+    agent_eval.start_workflow_metrics(trace_id, goal)
+
     app = create_orchestrator_graph()
 
     initial_state = {
@@ -1580,6 +1619,15 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
 
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="success",
+            pr_created=bool(final_result.get("pr_url")),
+            ci_passed=final_result.get("ci_state") == "success",
+            code_quality_score=result.get("code_quality_score", 100)
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
+
         return final_result
 
     except Exception as e:
@@ -1599,6 +1647,14 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
             error_type="workflow_exception",
             error_message=error_msg
         )
+
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="error",
+            pr_created=False,
+            ci_passed=False
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
 
         return {
             "trace_id": trace_id,

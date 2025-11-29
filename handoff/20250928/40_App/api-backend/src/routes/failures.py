@@ -23,6 +23,13 @@ except ImportError as e:
     logger.warning(f"Failure recorder module not available: {e}")
     FAILURE_RECORDER_AVAILABLE = False
 
+try:
+    from agent_eval_integration import init_agent_eval_from_env, AgentEvalIntegration
+    AGENT_EVAL_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Agent eval integration module not available: {e}")
+    AGENT_EVAL_AVAILABLE = False
+
 from src.middleware.auth_middleware import jwt_required  # noqa: E402
 
 bp = Blueprint('failures', __name__, url_prefix='/api/failures')
@@ -31,6 +38,11 @@ bp = Blueprint('failures', __name__, url_prefix='/api/failures')
 def _get_recorder() -> "FailureRecorder":
     """Get failure recorder instance with Redis connection"""
     return init_failure_recorder_from_env()
+
+
+def _get_agent_eval() -> "AgentEvalIntegration":
+    """Get agent eval integration instance with Redis connection"""
+    return init_agent_eval_from_env()
 
 
 @bp.route('', methods=['GET'])
@@ -195,6 +207,7 @@ def health_check():
     try:
         status = {
             'failure_recorder_available': FAILURE_RECORDER_AVAILABLE,
+            'agent_eval_available': AGENT_EVAL_AVAILABLE,
             'components': {}
         }
 
@@ -209,4 +222,148 @@ def health_check():
 
         return jsonify(status)
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/<failure_id>/generate-eval-task', methods=['POST'])
+@jwt_required
+def generate_eval_task(failure_id):
+    """
+    Generate an evaluation task from a failure record (Phase 5 PR-3)
+
+    This endpoint creates an evaluation task that can be used by the
+    agent_eval harness to test the agent's ability to handle similar tasks.
+
+    Returns:
+    - task_id: Generated evaluation task ID
+    - failure_id: Original failure record ID
+    - description: Task description
+    - difficulty: Estimated difficulty level
+    """
+    if not FAILURE_RECORDER_AVAILABLE:
+        return jsonify({'error': 'Failure recorder not available'}), 503
+
+    if not AGENT_EVAL_AVAILABLE:
+        return jsonify({'error': 'Agent eval integration not available'}), 503
+
+    try:
+        recorder = _get_recorder()
+        failure = recorder.get_failure(failure_id)
+
+        if not failure:
+            return jsonify({'error': 'Failure not found'}), 404
+
+        agent_eval = _get_agent_eval()
+        task = agent_eval.generate_eval_task_from_failure(failure.to_dict())
+
+        if not task:
+            return jsonify({'error': 'Failed to generate eval task'}), 500
+
+        return jsonify({
+            'task': task.to_dict(),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to generate eval task from failure {failure_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/eval/tasks', methods=['GET'])
+@jwt_required
+def list_eval_tasks():
+    """
+    List generated evaluation tasks (Phase 5 PR-3)
+
+    Query parameters:
+    - limit: Number of tasks to return (default: 50, max: 100)
+    - offset: Pagination offset (default: 0)
+    - format: Output format ('json' or 'jsonl', default: 'json')
+
+    Returns list of evaluation tasks
+    """
+    if not AGENT_EVAL_AVAILABLE:
+        return jsonify({'error': 'Agent eval integration not available'}), 503
+
+    try:
+        limit = min(int(request.args.get('limit', 50)), 100)
+        offset = int(request.args.get('offset', 0))
+        output_format = request.args.get('format', 'json')
+
+        agent_eval = _get_agent_eval()
+
+        if output_format == 'jsonl':
+            jsonl_data = agent_eval.export_eval_tasks_jsonl(limit=limit)
+            return jsonl_data, 200, {'Content-Type': 'application/x-ndjson'}
+
+        tasks = agent_eval.list_eval_tasks(limit=limit, offset=offset)
+        tasks_data = [task.to_dict() for task in tasks]
+
+        return jsonify({
+            'tasks': tasks_data,
+            'count': len(tasks_data),
+            'limit': limit,
+            'offset': offset,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to list eval tasks: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/eval/metrics', methods=['GET'])
+@jwt_required
+def get_eval_metrics():
+    """
+    Get evaluation metrics summary (Phase 5 PR-3)
+
+    Returns:
+    - success_rate: Workflow success rate
+    - fixer_metrics: Fixer iteration statistics
+    - security_risk_distribution: Security risk level distribution
+    - governance_risk_distribution: Governance risk level distribution
+    """
+    if not AGENT_EVAL_AVAILABLE:
+        return jsonify({'error': 'Agent eval integration not available'}), 503
+
+    try:
+        agent_eval = _get_agent_eval()
+        summary = agent_eval.get_metrics_summary()
+
+        return jsonify({
+            'metrics': summary,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get eval metrics: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/eval/metrics/<trace_id>', methods=['GET'])
+@jwt_required
+def get_workflow_eval_metrics(trace_id):
+    """
+    Get evaluation metrics for a specific workflow (Phase 5 PR-3)
+
+    Returns detailed metrics for a single workflow execution
+    """
+    if not AGENT_EVAL_AVAILABLE:
+        return jsonify({'error': 'Agent eval integration not available'}), 503
+
+    try:
+        agent_eval = _get_agent_eval()
+        metrics = agent_eval.get_metrics(trace_id)
+
+        if not metrics:
+            return jsonify({'error': 'Metrics not found for trace_id'}), 404
+
+        return jsonify({
+            'metrics': metrics.to_dict(),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get eval metrics for {trace_id}: {e}")
         return jsonify({'error': str(e)}), 500
