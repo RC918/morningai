@@ -51,6 +51,9 @@ def get_user_profile(user_id: str):
 
     Returns:
         tuple: (tenant_id, role) or (None, None) if not found
+
+    Raises:
+        Exception: Re-raises database/network errors after logging
     """
     try:
         from orchestrator.persistence.db_client import get_client
@@ -60,9 +63,10 @@ def get_user_profile(user_id: str):
         ).eq('id', user_id).single().execute()
         if response.data:
             return response.data.get('tenant_id'), response.data.get('role')
+        return None, None
     except Exception:
         logger.exception(f"Failed to get profile for user {user_id}")
-    return None, None
+        raise
 
 
 def get_user_tenant_id(user_id: str):
