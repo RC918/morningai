@@ -418,7 +418,7 @@ const FailureExperimentDashboard = () => {
                         </div>
                         <div>
                           <p className="text-neutral-500">{t('failureExperiment.charts.avgLatency', 'Avg Latency')}</p>
-                          <p className="font-medium">{exp.metrics.control.avg_latency_ms}ms</p>
+                          <p className="font-medium">{t('failureExperiment.charts.latencyMs', '{{value}}ms', { value: exp.metrics.control.avg_latency_ms })}</p>
                         </div>
                       </div>
                     </div>
@@ -438,7 +438,7 @@ const FailureExperimentDashboard = () => {
                         </div>
                         <div>
                           <p className="text-neutral-500">{t('failureExperiment.charts.avgLatency', 'Avg Latency')}</p>
-                          <p className="font-medium">{exp.metrics.treatment.avg_latency_ms}ms</p>
+                          <p className="font-medium">{t('failureExperiment.charts.latencyMs', '{{value}}ms', { value: exp.metrics.treatment.avg_latency_ms })}</p>
                         </div>
                       </div>
                     </div>
