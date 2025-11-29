@@ -299,7 +299,15 @@ const AIPolicies = () => {
                     return (
                       <div
                         key={policy.id}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => handleSelectPolicy(policy)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            handleSelectPolicy(policy)
+                          }
+                        }}
                         className={`p-3 rounded-lg border cursor-pointer transition-all ${
                           isSelected
                             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
@@ -528,7 +536,7 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
             placeholder={t('aiPolicies.editor.rulesHelp')}
             rows={3}
           />
-          <p className="text-caption-2 text-neutral-500">One item per line</p>
+          <p className="text-caption-2 text-neutral-500">{t('aiPolicies.editor.oneItemPerLine')}</p>
         </div>
       )
     }
@@ -624,7 +632,16 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
               return (
                 <div
                   key={type}
+                  role="button"
+                  tabIndex={isDisabled ? -1 : 0}
                   onClick={() => !isDisabled && setPolicyType(type)}
+                  onKeyDown={(e) => {
+                    if (!isDisabled && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault()
+                      setPolicyType(type)
+                    }
+                  }}
+                  aria-disabled={isDisabled}
                   className={`p-3 rounded-lg border cursor-pointer transition-all ${
                     isSelected
                       ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'

@@ -410,6 +410,7 @@
         "priorityLabel": "Priority",
         "rulesLabel": "Rules Configuration",
         "rulesHelp": "Configure the rules for this policy type",
+        "oneItemPerLine": "One item per line",
         "jsonEditor": "Advanced JSON Editor",
         "jsonEditorHelp": "Edit rules as raw JSON (for advanced users)",
         "save": "Save Policy",

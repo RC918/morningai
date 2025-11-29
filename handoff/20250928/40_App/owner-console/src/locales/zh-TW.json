@@ -417,6 +417,7 @@
         "priorityLabel": "優先級",
         "rulesLabel": "規則配置",
         "rulesHelp": "配置此政策類型的規則",
+        "oneItemPerLine": "每行一個項目",
         "jsonEditor": "進階 JSON 編輯器",
         "jsonEditorHelp": "以原始 JSON 編輯規則（進階用戶）",
         "save": "儲存政策",
