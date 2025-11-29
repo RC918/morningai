@@ -359,18 +359,22 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         Returns:
             Cleaned JSON string
         """
-        import re
-
-        content = re.sub(r'^```json\s*', '', content, flags=re.MULTILINE)
-        content = re.sub(r'^```\s*$', '', content, flags=re.MULTILINE)
-        content = re.sub(r'```$', '', content)
-
-        match = re.search(r'\{.*\}', content, flags=re.DOTALL)
-        if match:
-            content = match.group(0)
-
         content = content.strip()
-        return content
+
+        if content.startswith("```json"):
+            content = content[7:]
+        elif content.startswith("```"):
+            content = content[3:]
+
+        if content.endswith("```"):
+            content = content[:-3]
+
+        start = content.find("{")
+        end = content.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            content = content[start:end + 1]
+
+        return content.strip()
 
     def _get_fallback_result(
         self,
@@ -387,11 +391,16 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         Returns:
             Dict with fallback review results
         """
+        if base_severity == "none":
+            decision = "approve"
+        else:
+            decision = "needs_changes"
+
         return {
             "quality_score": base_quality_score,
             "severity": base_severity,
             "summary": "LLM review unavailable, using CI-based assessment",
-            "decision": "needs_changes" if base_severity in ("high", "critical") else "approve" if base_severity == "none" else "needs_changes",
+            "decision": decision,
             "comments": [],
             "llm_used": False,
             "provider": None,
