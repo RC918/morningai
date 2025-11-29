@@ -324,6 +324,11 @@ def create_policy():
             metadata=data.get('metadata')
         )
 
+        if not policy:
+            return jsonify({
+                'error': 'Failed to persist policy to database'
+            }), 503
+
         return jsonify(policy.to_dict()), 201
 
     except Exception as e:

@@ -295,6 +295,35 @@ class TestAIPoliciesCreateEndpoint:
         data = response.get_json()
         assert 'error' in data
 
+    @patch('src.routes.ai_policies.AI_POLICY_AVAILABLE', True)
+    @patch('src.routes.ai_policies.get_user_tenant_id')
+    @patch('src.routes.ai_policies.get_user_role')
+    @patch('src.routes.ai_policies.get_ai_policy_manager')
+    def test_create_policy_db_failure(
+        self, mock_get_manager, mock_get_role, mock_get_tenant, client, admin_headers
+    ):
+        """Test create policy returns 503 when database persistence fails"""
+        mock_get_tenant.return_value = 'tenant-123'
+        mock_get_role.return_value = 'admin'
+        mock_manager = MagicMock()
+        mock_manager.create_policy.return_value = None
+        mock_get_manager.return_value = mock_manager
+
+        response = client.post(
+            '/api/ai-policies',
+            headers=admin_headers,
+            json={
+                'name': 'New Policy',
+                'policy_type': 'rate_limit',
+                'rules': {'requests_per_minute': 60}
+            }
+        )
+
+        assert response.status_code == 503
+        data = response.get_json()
+        assert 'error' in data
+        assert 'persist' in data['error'].lower() or 'database' in data['error'].lower()
+
 
 class TestAIPoliciesUpdateEndpoint:
     """Test update policy endpoint"""

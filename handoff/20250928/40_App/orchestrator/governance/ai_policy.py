@@ -217,7 +217,7 @@ class AIPolicyManager:
         priority: int = 0,
         status: PolicyStatus = PolicyStatus.DRAFT,
         metadata: Optional[Dict[str, Any]] = None
-    ) -> AIPolicy:
+    ) -> Optional[AIPolicy]:
         """
         Create a new AI policy
 
@@ -234,7 +234,7 @@ class AIPolicyManager:
             metadata: Additional metadata
 
         Returns:
-            Created AIPolicy instance
+            Created AIPolicy instance if successful, None if persistence failed
         """
         policy = AIPolicy(
             name=name,
@@ -250,21 +250,31 @@ class AIPolicyManager:
         )
 
         supabase = self._get_supabase()
-        if supabase:
-            try:
-                response = supabase.table('ai_policies').insert(
-                    policy.to_dict()
-                ).execute()
+        if not supabase:
+            logger.error(
+                "Failed to create policy: Supabase client not available"
+            )
+            return None
 
-                if response.data:
-                    logger.info(
-                        f"Created AI policy {policy.id} for tenant {tenant_id}"
-                    )
-                    self._invalidate_cache(tenant_id)
-            except Exception as e:
-                logger.error(f"Failed to save policy to database: {e}")
+        try:
+            response = supabase.table('ai_policies').insert(
+                policy.to_dict()
+            ).execute()
 
-        return policy
+            if response.data:
+                logger.info(
+                    f"Created AI policy {policy.id} for tenant {tenant_id}"
+                )
+                self._invalidate_cache(tenant_id)
+                return policy
+            else:
+                logger.error(
+                    f"Failed to create policy: No data returned from insert"
+                )
+                return None
+        except Exception as e:
+            logger.error(f"Failed to save policy to database: {e}")
+            return None
 
     def get_policy(self, policy_id: str) -> Optional[AIPolicy]:
         """
