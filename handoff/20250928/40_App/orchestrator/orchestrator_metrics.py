@@ -10,6 +10,7 @@ multi-agent workflow including:
 - Review quality score tracking
 - Fixer retry metrics
 - End-to-end workflow metrics
+- A/B experiment metrics (Phase 5 PR-5)
 
 All metrics operations are wrapped in try/except to never break the job path.
 """
@@ -320,6 +321,126 @@ class OrchestratorMetrics:
             "status": status,
             "latency_ms": latency_ms
         })
+
+    # ==================== Experiment Metrics (Phase 5 PR-5) ====================
+
+    def record_experiment_assignment(
+        self,
+        experiment_name: str,
+        variant: str,
+        trace_id: str,
+        component: str
+    ) -> None:
+        """
+        Record experiment variant assignment
+
+        Args:
+            experiment_name: Name of the experiment
+            variant: Assigned variant (control/treatment)
+            trace_id: Unique trace identifier
+            component: Component being experimented on (planner, reviewer, etc.)
+        """
+        if not self.enabled:
+            return
+
+        key = self._get_minute_key(f"experiment.{experiment_name}.{variant}")
+        self._safe_incr(key)
+
+        component_key = self._get_minute_key(
+            f"experiment.{experiment_name}.component.{component}"
+        )
+        self._safe_incr(component_key)
+
+        logger.debug("[Metrics] Experiment assignment recorded", extra={
+            "operation": "metrics_experiment_assignment",
+            "experiment_name": experiment_name,
+            "variant": variant,
+            "trace_id": trace_id,
+            "component": component
+        })
+
+    def record_experiment_outcome(
+        self,
+        experiment_name: str,
+        variant: str,
+        trace_id: str,
+        success: bool,
+        latency_ms: Optional[float] = None
+    ) -> None:
+        """
+        Record experiment outcome for A/B analysis
+
+        Args:
+            experiment_name: Name of the experiment
+            variant: Variant that was used (control/treatment)
+            trace_id: Unique trace identifier
+            success: Whether the operation succeeded
+            latency_ms: Optional latency in milliseconds
+        """
+        if not self.enabled:
+            return
+
+        status = "success" if success else "failure"
+        key = self._get_minute_key(f"experiment.{experiment_name}.{variant}.{status}")
+        self._safe_incr(key)
+
+        if latency_ms is not None:
+            self._record_latency(
+                f"experiment.{experiment_name}.{variant}",
+                latency_ms
+            )
+
+        logger.debug("[Metrics] Experiment outcome recorded", extra={
+            "operation": "metrics_experiment_outcome",
+            "experiment_name": experiment_name,
+            "variant": variant,
+            "trace_id": trace_id,
+            "success": success,
+            "latency_ms": latency_ms
+        })
+
+    def get_experiment_summary(
+        self,
+        experiment_name: str,
+        window_minutes: int = 15
+    ) -> Dict:
+        """
+        Get summary of experiment metrics for A/B analysis
+
+        Args:
+            experiment_name: Name of the experiment
+            window_minutes: Time window in minutes
+
+        Returns:
+            Dict with control/treatment metrics for comparison
+        """
+        if not self.enabled:
+            return {"enabled": False}
+
+        def _get_variant_summary(variant: str) -> Dict:
+            """Helper to get metrics summary for a variant"""
+            total = self.get_window_count(
+                f"experiment.{experiment_name}.{variant}", window_minutes
+            )
+            success = self.get_window_count(
+                f"experiment.{experiment_name}.{variant}.success", window_minutes
+            )
+            failure = self.get_window_count(
+                f"experiment.{experiment_name}.{variant}.failure", window_minutes
+            )
+            return {
+                "total": total,
+                "success": success,
+                "failure": failure,
+                "success_rate": round(success / total * 100, 2) if total > 0 else 0
+            }
+
+        return {
+            "experiment_name": experiment_name,
+            "window_minutes": window_minutes,
+            "control": _get_variant_summary("control"),
+            "treatment": _get_variant_summary("treatment")
+        }
 
     # ==================== Latency Metrics ====================
 
