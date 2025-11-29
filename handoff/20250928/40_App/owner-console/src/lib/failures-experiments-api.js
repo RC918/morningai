@@ -3,7 +3,14 @@
  * 
  * Provides functions to interact with the failures and experiments API endpoints.
  * Phase 5 PR-6: Owner Console Dashboard
+ * 
+ * Auth Fix: Uses getAccessToken() from auth.ts for consistent token handling
+ * - Production: token stored in-memory only (security)
+ * - E2E tests: token stored in localStorage under 'morningai_access_token'
+ * - Previous bug: used localStorage.getItem('token') which was never set
  */
+
+import { getAccessToken } from './auth.ts';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
@@ -12,7 +19,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  * @returns {Promise<{summary: Object, timestamp: string}>}
  */
 export async function getFailureSummary() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   
   const response = await fetch(`${API_BASE_URL}/api/failures/summary`, {
     method: 'GET',
@@ -40,7 +47,7 @@ export async function getFailureSummary() {
  * @returns {Promise<{failures: Array, count: number, limit: number, offset: number}>}
  */
 export async function getFailures({ limit = 50, offset = 0, error_type, task_type } = {}) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() })
   if (error_type) params.append('error_type', error_type)
@@ -67,7 +74,7 @@ export async function getFailures({ limit = 50, offset = 0, error_type, task_typ
  * @returns {Promise<{metrics: Object, timestamp: string}>}
  */
 export async function getEvalMetrics() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   
   const response = await fetch(`${API_BASE_URL}/api/failures/eval/metrics`, {
     method: 'GET',
@@ -93,7 +100,7 @@ export async function getEvalMetrics() {
  * @returns {Promise<Object>}
  */
 export async function replayFailure(failureId, { repo } = {}) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   
   const response = await fetch(`${API_BASE_URL}/api/failures/${failureId}/replay`, {
     method: 'POST',
@@ -117,7 +124,7 @@ export async function replayFailure(failureId, { repo } = {}) {
  * @returns {Promise<{summary: Object, timestamp: string}>}
  */
 export async function getExperimentSummary() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   
   const response = await fetch(`${API_BASE_URL}/api/experiments/summary`, {
     method: 'GET',
@@ -140,7 +147,7 @@ export async function getExperimentSummary() {
  * @returns {Promise<{experiments: Object, environment: string, active_experiments: Array}>}
  */
 export async function getExperiments() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   
   const response = await fetch(`${API_BASE_URL}/api/experiments`, {
     method: 'GET',
@@ -163,7 +170,7 @@ export async function getExperiments() {
  * @returns {Promise<{comparisons: Array, environment: string, active_experiments: Array}>}
  */
 export async function getExperimentComparison() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   
   const response = await fetch(`${API_BASE_URL}/api/experiments/comparison`, {
     method: 'GET',
