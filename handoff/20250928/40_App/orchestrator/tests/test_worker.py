@@ -116,7 +116,8 @@ class TestRunOrchestratorTask:
         """Test orchestrator task in simple mode (non-LangGraph)"""
         mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
         
-        result = run_orchestrator_task("task-123", "Create FAQ", "owner/repo")
+        task_id = f"task-123-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "Create FAQ", "owner/repo")
         
         assert result["pr_url"] == "https://github.com/pr/1"
         assert result["trace_id"] == "trace-123"
@@ -137,13 +138,14 @@ class TestRunOrchestratorTask:
             "trace_id": "trace-456"
         }
         
-        result = run_orchestrator_task("task-456", "Generate docs", "owner/repo")
+        task_id = f"task-456-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "Generate docs", "owner/repo")
         
         assert result["pr_url"] == "https://github.com/pr/2"
         assert result["state"] == "success"
         assert result["trace_id"] == "trace-456"
         
-        mock_run_orch.assert_called_once_with("Generate docs", "owner/repo", "task-456")
+        mock_run_orch.assert_called_once_with("Generate docs", "owner/repo", task_id)
     
     @patch('redis_queue.worker.redis')
     @patch('graph.execute')
@@ -301,7 +303,8 @@ class TestCanaryDeployment:
         mock_settings.use_langgraph_percent = 0
         mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
         
-        result = run_orchestrator_task("task-123", "Test", "owner/repo")
+        task_id = f"task-123-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "Test", "owner/repo")
         
         assert result["pr_url"] == "https://github.com/pr/1"
         mock_execute.assert_called_once()
@@ -319,7 +322,8 @@ class TestCanaryDeployment:
             "trace_id": "trace-456"
         }
         
-        result = run_orchestrator_task("task-456", "Test", "owner/repo")
+        task_id = f"task-456-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "Test", "owner/repo")
         
         assert result["pr_url"] == "https://github.com/pr/2"
         mock_run_orch.assert_called_once()
@@ -343,7 +347,7 @@ class TestCanaryDeployment:
         simple_count = 0
         
         for i in range(100):
-            task_id = f"task-{i:03d}"
+            task_id = f"task-{i:03d}-{uuid.uuid4()}"
             mock_execute.reset_mock()
             mock_run_orch.reset_mock()
             
