@@ -372,6 +372,7 @@
     "workers": "Workers"
   },
     "nav": {
+      "aiPolicies": "AI 政策",
       "dashboard": "儀表板",
       "failureExperiments": "失敗與實驗",
       "governance": "Agent 治理",
@@ -381,6 +382,110 @@
       "settings": "平台設定",
       "tenants": "租戶管理",
       "uxMetrics": "UX 指標"
+    },
+    "aiPolicies": {
+      "title": "AI 政策",
+      "subtitle": "為您的租戶配置 AI 使用規則與限制",
+      "newPolicy": "新增政策",
+      "refresh": "重新整理",
+      "error": {
+        "loadFailed": "載入政策失敗",
+        "saveFailed": "儲存政策失敗",
+        "deleteFailed": "刪除政策失敗",
+        "templatesFailed": "載入政策範本失敗"
+      },
+      "list": {
+        "title": "政策列表",
+        "empty": "尚未配置任何政策",
+        "columns": {
+          "name": "名稱",
+          "type": "類型",
+          "status": "狀態",
+          "priority": "優先級",
+          "updatedAt": "更新時間"
+        }
+      },
+      "editor": {
+        "titleNew": "建立新政策",
+        "titleEdit": "編輯政策",
+        "nameLabel": "政策名稱",
+        "namePlaceholder": "輸入政策名稱",
+        "descriptionLabel": "描述",
+        "descriptionPlaceholder": "輸入政策描述（選填）",
+        "typeLabel": "政策類型",
+        "statusLabel": "狀態",
+        "priorityLabel": "優先級",
+        "rulesLabel": "規則配置",
+        "rulesHelp": "配置此政策類型的規則",
+        "jsonEditor": "進階 JSON 編輯器",
+        "jsonEditorHelp": "以原始 JSON 編輯規則（進階用戶）",
+        "save": "儲存政策",
+        "saving": "儲存中...",
+        "cancel": "取消",
+        "delete": "刪除政策",
+        "deleteConfirm": "確定要刪除此政策嗎？",
+        "selectType": "選擇政策類型以開始"
+      },
+      "types": {
+        "capability_whitelist": {
+          "title": "允許的功能",
+          "description": "定義允許使用的 AI 功能"
+        },
+        "capability_blacklist": {
+          "title": "封鎖的功能",
+          "description": "定義封鎖的 AI 功能"
+        },
+        "content_filter": {
+          "title": "內容過濾",
+          "description": "配置內容過濾規則"
+        },
+        "usage_limit": {
+          "title": "使用限制",
+          "description": "設定使用限制與配額"
+        },
+        "rate_limit": {
+          "title": "速率限制",
+          "description": "配置速率限制規則"
+        },
+        "model_restriction": {
+          "title": "模型限制",
+          "description": "限制可使用的 AI 模型"
+        }
+      },
+      "status": {
+        "active": "啟用",
+        "inactive": "停用",
+        "draft": "草稿"
+      },
+      "validation": {
+        "nameRequired": "政策名稱為必填",
+        "invalidJson": "無效的 JSON：{{message}}",
+        "rulesRequired": "規則配置為必填"
+      },
+      "fields": {
+        "allowed_capabilities": "允許的功能",
+        "blocked_capabilities": "封鎖的功能",
+        "require_human_approval": "需要人工審核",
+        "auto_approve": "自動核准",
+        "blocked_file_patterns": "封鎖的檔案模式",
+        "blocked_domains": "封鎖的網域",
+        "filter_pii": "過濾個人識別資訊",
+        "filter_profanity": "過濾不當用語",
+        "filter_sensitive_data": "過濾敏感資料",
+        "custom_blocked_terms": "自訂封鎖詞彙",
+        "output_max_length": "輸出最大長度",
+        "daily_request_limit": "每日請求限制",
+        "monthly_token_limit": "每月 Token 限制",
+        "max_concurrent_tasks": "最大並行任務數",
+        "max_task_duration_seconds": "最大任務時長（秒）",
+        "requests_per_minute": "每分鐘請求數",
+        "requests_per_hour": "每小時請求數",
+        "burst_limit": "突發限制",
+        "allowed_providers": "允許的供應商",
+        "allowed_models": "允許的模型",
+        "default_provider": "預設供應商",
+        "default_model": "預設模型"
+      }
     },
     "failureExperiment": {
       "title": "失敗與實驗儀表板",

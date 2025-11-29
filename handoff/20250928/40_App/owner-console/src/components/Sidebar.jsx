@@ -5,6 +5,7 @@ import {
   LayoutDashboard, 
   Settings, 
   Shield,
+  ShieldCheck,
   Users,
   Activity,
   BarChart3,
@@ -29,14 +30,20 @@ const Sidebar = ({ user, onLogout }) => {
       labelKey: 'nav.dashboard',
       descriptionKey: 'dashboard.subtitle'
     },
-    {
-      path: '/governance',
-      icon: Shield,
-      labelKey: 'nav.governance',
-      descriptionKey: 'governance.subtitle'
-    },
-    {
-      path: '/tenants',
+        {
+          path: '/governance',
+          icon: Shield,
+          labelKey: 'nav.governance',
+          descriptionKey: 'governance.subtitle'
+        },
+        {
+          path: '/ai-policies',
+          icon: ShieldCheck,
+          labelKey: 'nav.aiPolicies',
+          descriptionKey: 'aiPolicies.subtitle'
+        },
+        {
+          path: '/tenants',
       icon: Users,
       labelKey: 'nav.tenants',
       descriptionKey: 'tenants.subtitle'
