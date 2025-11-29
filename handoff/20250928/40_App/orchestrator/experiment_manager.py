@@ -239,6 +239,10 @@ class ExperimentManager:
         """
         Get active experiment for a component
 
+        Note: Returns the first matching active experiment for the component.
+        If multiple experiments target the same component, iteration order determines
+        which is returned.
+
         Args:
             component: Component name (e.g., "planner", "reviewer")
             trace_id: Unique trace identifier
@@ -249,7 +253,12 @@ class ExperimentManager:
         for name, config in self.experiments.items():
             if config.target_component == component and self.is_experiment_active(name):
                 variant = self.get_variant(name, trace_id)
-                provider = self.get_provider_for_experiment(name, trace_id)
+                provider = config.treatment_provider if variant == "treatment" else config.control_provider
+
+                logger.debug(
+                    f"[ExperimentManager] Provider={provider} for "
+                    f"experiment={name}, variant={variant}"
+                )
 
                 return {
                     "experiment_name": name,
@@ -344,7 +353,7 @@ def get_experiment_manager(
     Get or create the global ExperimentManager instance
 
     Args:
-        environment: Environment to use (defaults to settings.env)
+        environment: Environment to use (defaults to settings.environment)
 
     Returns:
         ExperimentManager instance
@@ -355,7 +364,7 @@ def get_experiment_manager(
         if environment is None:
             try:
                 from common.config.settings import settings
-                environment = getattr(settings, "env", "production")
+                environment = getattr(settings, "environment", "production")
             except ImportError:
                 environment = "production"
 
