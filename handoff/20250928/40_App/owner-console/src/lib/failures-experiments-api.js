@@ -4,13 +4,13 @@
  * Provides functions to interact with the failures and experiments API endpoints.
  * Phase 5 PR-6: Owner Console Dashboard
  * 
- * Auth Fix: Uses getAccessToken() from auth.ts for consistent token handling
- * - Production: token stored in-memory only (security)
- * - E2E tests: token stored in localStorage under 'morningai_access_token'
- * - Previous bug: used localStorage.getItem('token') which was never set
+ * Auth Fix: Uses authenticatedFetch() from auth.ts for proper cookie-based auth
+ * - Owner Console uses HttpOnly cookie-based authentication (not Bearer tokens)
+ * - authenticatedFetch handles: cookies, CSRF tokens, automatic token refresh
+ * - Previous bug: used raw fetch with Bearer token which doesn't work with cookie auth
  */
 
-import { getAccessToken } from './auth.ts';
+import { authenticatedFetch } from './auth.ts';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
@@ -19,13 +19,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  * @returns {Promise<{summary: Object, timestamp: string}>}
  */
 export async function getFailureSummary() {
-  const token = getAccessToken()
-  
-  const response = await fetch(`${API_BASE_URL}/api/failures/summary`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/failures/summary`, {
     method: 'GET',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     }
   })
 
@@ -47,17 +44,14 @@ export async function getFailureSummary() {
  * @returns {Promise<{failures: Array, count: number, limit: number, offset: number}>}
  */
 export async function getFailures({ limit = 50, offset = 0, error_type, task_type } = {}) {
-  const token = getAccessToken()
-  
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() })
   if (error_type) params.append('error_type', error_type)
   if (task_type) params.append('task_type', task_type)
   
-  const response = await fetch(`${API_BASE_URL}/api/failures?${params}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/failures?${params}`, {
     method: 'GET',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     }
   })
 
@@ -74,13 +68,10 @@ export async function getFailures({ limit = 50, offset = 0, error_type, task_typ
  * @returns {Promise<{metrics: Object, timestamp: string}>}
  */
 export async function getEvalMetrics() {
-  const token = getAccessToken()
-  
-  const response = await fetch(`${API_BASE_URL}/api/failures/eval/metrics`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/failures/eval/metrics`, {
     method: 'GET',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     }
   })
 
@@ -100,13 +91,10 @@ export async function getEvalMetrics() {
  * @returns {Promise<Object>}
  */
 export async function replayFailure(failureId, { repo } = {}) {
-  const token = getAccessToken()
-  
-  const response = await fetch(`${API_BASE_URL}/api/failures/${failureId}/replay`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/failures/${failureId}/replay`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({ repo })
   })
@@ -124,13 +112,10 @@ export async function replayFailure(failureId, { repo } = {}) {
  * @returns {Promise<{summary: Object, timestamp: string}>}
  */
 export async function getExperimentSummary() {
-  const token = getAccessToken()
-  
-  const response = await fetch(`${API_BASE_URL}/api/experiments/summary`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/experiments/summary`, {
     method: 'GET',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     }
   })
 
@@ -147,13 +132,10 @@ export async function getExperimentSummary() {
  * @returns {Promise<{experiments: Object, environment: string, active_experiments: Array}>}
  */
 export async function getExperiments() {
-  const token = getAccessToken()
-  
-  const response = await fetch(`${API_BASE_URL}/api/experiments`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/experiments`, {
     method: 'GET',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     }
   })
 
@@ -170,13 +152,10 @@ export async function getExperiments() {
  * @returns {Promise<{comparisons: Array, environment: string, active_experiments: Array}>}
  */
 export async function getExperimentComparison() {
-  const token = getAccessToken()
-  
-  const response = await fetch(`${API_BASE_URL}/api/experiments/comparison`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/experiments/comparison`, {
     method: 'GET',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     }
   })
 
