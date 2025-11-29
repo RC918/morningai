@@ -55,6 +55,10 @@ def _get_metrics() -> OrchestratorMetrics:
 # Maximum number of fix retries before giving up
 MAX_FIXER_RETRIES = 3
 
+# Token estimation multipliers for cost analysis
+GOAL_TOKEN_MULTIPLIER = 2
+PLAN_STEP_TOKEN_MULTIPLIER = 100
+
 
 class AgentState(TypedDict):
     """
@@ -471,7 +475,7 @@ def cost_advisor_node(state: AgentState) -> AgentState:
 
         agent = get_governance_agent()
 
-        estimated_tokens = len(goal) * 2 + len(plan) * 100
+        estimated_tokens = len(goal) * GOAL_TOKEN_MULTIPLIER + len(plan) * PLAN_STEP_TOKEN_MULTIPLIER
 
         advisory = agent.analyze_cost_budget(
             trace_id=trace_id,
@@ -563,9 +567,9 @@ def permission_advisor_node(state: AgentState) -> AgentState:
         agent = get_governance_agent()
 
         advisory = agent.analyze_permissions(
-            agent_id="orchestrator",
+            agent_id=state.get("agent_id", "orchestrator"),
             operations=plan,
-            environment="sandbox"
+            environment=state.get("environment", "sandbox")
         )
 
         advisory_dict = advisory.to_dict()
@@ -658,19 +662,22 @@ def reputation_advisor_node(state: AgentState) -> AgentState:
 
         if agent.reputation_engine:
             try:
-                reputation_data = agent.reputation_engine.get_reputation("orchestrator")
+                reputation_data = agent.reputation_engine.get_reputation("orchestrator") or reputation_data
             except Exception as e:
                 logger.warning(f"[ReputationAdvisor] ReputationEngine query failed: {e}")
 
+        score = reputation_data.get("score", 100)
+        level = reputation_data.get("level", "trusted")
+
         state["reputation_advisory"] = {
             "agent_id": reputation_data.get("agent_id", "orchestrator"),
-            "score": reputation_data.get("score", 100),
-            "level": reputation_data.get("level", "trusted"),
+            "score": score,
+            "level": level,
             "history": reputation_data.get("history", []),
             "recommendations": []
         }
-        state["reputation_score"] = reputation_data.get("score", 100)
-        state["reputation_level"] = reputation_data.get("level", "trusted")
+        state["reputation_score"] = score
+        state["reputation_level"] = level
 
         logger.info("[ReputationAdvisor] Analysis complete", extra={
             "operation": "reputation_advisor",
