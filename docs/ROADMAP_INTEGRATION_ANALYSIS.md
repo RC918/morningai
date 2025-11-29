@@ -6,17 +6,82 @@
 
 ---
 
+## 🔄 2025-11-29 狀態更新：Phase 2-4 已完成
+
+> **重要**：本報告撰寫於 2025-11-18，以下為截至 2025-11-29 的最新狀態更新。
+
+### 當前 LangGraph Orchestrator 架構（9 節點工作流）
+
+**檔案**: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py` (1191 行)
+
+```
+planner → security_advisor → governance_advisor → executor → ci_monitor → reviewer → decision → fixer → finalizer
+```
+
+| 節點 | 功能 | Phase | 狀態 |
+|------|------|-------|------|
+| `planner` | LLM 動態計畫生成 (USE_LLM_PLANNER) | Phase 1 | ✅ 完成 |
+| `security_advisor` | SecurityAgent 安全分析 (advisory-only) | Phase 4 PR-2 | ✅ 完成 |
+| `governance_advisor` | GovernanceAgent 治理合規分析 (advisory-only) | Phase 4 PR-3 | ✅ 完成 |
+| `executor` | 代碼生成執行 (調用 graph.execute()) | Phase 1 | ✅ 完成 |
+| `ci_monitor` | CI 狀態監控 | Phase 1 | ✅ 完成 |
+| `reviewer` | ReviewerAgent 代碼審查 | Phase 3 | ✅ 完成 |
+| `decision` | 合併決策 (approve/request_changes/needs_fix) | Phase 3 | ✅ 完成 |
+| `fixer` | AutoFixer 自動修復 (整合 ReviewerAgent) | Phase 2 | ✅ 完成 |
+| `finalizer` | 整理最終結果 | Phase 1 | ✅ 完成 |
+
+### 已完成的關鍵 PRs
+
+**Phase 2 (Fixer Node + Safety Rules)**:
+- PR #1660: Phase 2 Step A infrastructure - ProjectEngineerAgent, Safe Tasks, PR Review CLI
+- PR #1667: Phase 2 Step C Fixer Node - AutoFixer integration with ReviewerAgent
+- PR #1668: LangGraph E2E integration tests for fixer_node
+- PR #1669: Safety rules enforcement + failure fallback logging
+
+**Phase 3 (Multi-Agent Flow)**:
+- PR #1681: Core orchestrator multi-agent flow
+- PR #1682: Metrics for orchestrator multi-agent flow
+- PR #1683: ProjectEngineerAgent human entry point
+- PR #1685: Code-Audit Pipeline - timeout, semantic rules, E2E tests
+- PR #1686: Staging rollout & monitoring
+
+**Phase 4 (Security/Governance)**:
+- PR #1688: Semantic Rules v2 - directory + task type restrictions
+- PR #1689: SecurityAgent skeleton + integration
+- PR #1690: GovernanceAgent skeleton + integration
+
+**LLM 抽象層**:
+- PR #1672: LLMClient abstraction layer for multi-provider support
+- PR #1680: Gemini Provider support
+
+### 原報告狀態對照
+
+| 原報告狀態 (2025-11-18) | 當前狀態 (2025-11-29) |
+|------------------------|----------------------|
+| ❌ Phase 1.5 偏離路線圖 | ✅ 已整合進 Phase 3 multi-agent flow |
+| ❌ Phase 2 方法錯誤 | ✅ 已重建為整合方法 (PRs #1660-1669) |
+| ⚠️ planner_node 靜態計畫 | ✅ 已整合 LLM Planner (USE_LLM_PLANNER) |
+| ⚠️ fixer_node 缺少 ReviewerAgent | ✅ 已整合 ReviewerAgent |
+| ❌ 缺少 SecurityAgent | ✅ 已實現 (PR #1689) |
+| ❌ 缺少 GovernanceAgent | ✅ 已實現 (PR #1690) |
+
+---
+
+> **以下為原報告內容（2025-11-18 撰寫），保留作為歷史參考。**
+
+---
+
 ## 📊 執行摘要
 
 本報告深度分析 MorningAI 專案當前狀態、架構與資源，並整合 4 條路線（成功指標、優化策略、當前狀態、原始路線圖）為一條完整可執行的路線圖。
 
-**關鍵發現**：
+**關鍵發現**（2025-11-18 狀態，已過時）：
 - ✅ Phase 0 部分完成（金絲雀邏輯完整，但測試覆蓋率不足）
 - ⚠️ Phase 1 部分完成（基礎設施就緒，但 LLM 未整合進 planner_node）
 - ❌ Phase 1.5 偏離路線圖（監控儀表板不在原定計畫內）
 - ❌ Phase 2 方法錯誤（PR #1347 建立平行系統而非整合 LangGraph）
 
-**整合路線圖時程**：
+**整合路線圖時程**（2025-11-18 預估，已完成）：
 - Phase 0 補完：2-3 天（測試覆蓋率 → 25-30%）
 - Phase 1 完成：3-5 天（LLM 整合 + 金絲雀啟用）
 - Phase 2 重建：5-7 天（整合方法，非平行系統）
