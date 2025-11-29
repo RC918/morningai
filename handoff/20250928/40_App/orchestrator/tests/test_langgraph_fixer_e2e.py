@@ -1291,15 +1291,31 @@ class TestPhase3GraphStructure:
         assert any("decision" in node_id for node_id in node_ids), \
             "Decision node not found in orchestrator graph"
 
-    def test_graph_has_nine_nodes(self):
-        """Test that Phase 4 graph has 9 nodes (planner, security_advisor, governance_advisor, executor, ci_monitor, reviewer, decision, fixer, finalizer)"""
+    def test_graph_has_expected_nodes(self):
+        """Test that Phase 4 PR-4 graph has 12 nodes (5-Agent Advisory Pipeline + core nodes)"""
         app = create_orchestrator_graph()
         graph_dict = app.get_graph().to_json()
         nodes = graph_dict.get("nodes", [])
 
-        # Filter out __start__ and __end__ nodes
         actual_nodes = [n for n in nodes if not n.get("id", "").startswith("__")]
-        assert len(actual_nodes) == 9, f"Expected 9 nodes, got {len(actual_nodes)}: {[n.get('id') for n in actual_nodes]}"
+        actual_node_ids = {n.get("id") for n in actual_nodes}
+
+        expected_nodes = {
+            "planner",
+            "security_advisor",
+            "governance_advisor",
+            "cost_advisor",
+            "permission_advisor",
+            "reputation_advisor",
+            "executor",
+            "ci_monitor",
+            "reviewer",
+            "decision",
+            "fixer",
+            "finalizer",
+        }
+
+        assert actual_node_ids == expected_nodes, f"Expected {expected_nodes}, got {actual_node_ids}"
 
     def test_reviewer_node_can_be_invoked_directly(self):
         """Test that reviewer_node can be invoked directly with valid state"""
