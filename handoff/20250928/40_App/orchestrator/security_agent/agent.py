@@ -105,7 +105,7 @@ class SecurityAgent:
         (r'(?i)os\.system\s*\(', "OS command execution", "CWE-78"),
         (r'(?i)__import__\s*\(', "Dynamic import", "CWE-94"),
         (r'(?i)pickle\.(load|loads)\s*\(', "Unsafe deserialization", "CWE-502"),
-        (r'(?i)yaml\.(load|unsafe_load)\s*\([^)]*Loader\s*=\s*yaml\.Loader', "Unsafe YAML loading", "CWE-502"),
+        (r'(?i)yaml\.(load|unsafe_load)\s*\(', "Potentially unsafe YAML loading", "CWE-502"),
     ]
 
     TRAVERSAL_PATTERNS = [

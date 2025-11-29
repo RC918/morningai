@@ -256,18 +256,12 @@ def security_advisor_node(state: AgentState) -> AgentState:
             code_changes=goal
         )
 
-        state["security_advisory"] = advisory.to_dict()
-        state["security_risk"] = advisory.overall_risk.value
-        state["security_findings"] = [
-            {
-                "category": f.category,
-                "risk_level": f.risk_level.value,
-                "title": f.title,
-                "description": f.description,
-            }
-            for f in advisory.findings
-        ]
-        state["security_is_safe"] = advisory.is_safe
+        # Use advisory.to_dict() to populate state fields (preserves all finding details)
+        advisory_dict = advisory.to_dict()
+        state["security_advisory"] = advisory_dict
+        state["security_risk"] = advisory_dict["overall_risk"]
+        state["security_findings"] = advisory_dict["findings"]
+        state["security_is_safe"] = advisory_dict["is_safe"]
 
         logger.info("[SecurityAdvisor] Analysis complete", extra={
             "operation": "security_advisor",
