@@ -148,27 +148,80 @@ class ProjectEngineerAgent:
             Tuple of (is_allowed, error_message)
         """
         try:
-            from common.config.settings import settings
-            allowed_repos_str = settings.project_engineer_allowed_repos
-            allowed_repos = [r.strip() for r in allowed_repos_str.split(",") if r.strip()]
+            from .semantic_rules import validate_repo
+            is_valid, error = validate_repo(repo)
+            if not is_valid:
+                return False, error or f"Repository '{repo}' is not allowed"
+            return True, ""
+        except ImportError:
+            # Fallback to original implementation
+            try:
+                from common.config.settings import settings
+                allowed_repos_str = settings.project_engineer_allowed_repos
+                allowed_repos = [r.strip() for r in allowed_repos_str.split(",") if r.strip()]
 
-            if not allowed_repos:
-                # Empty list means all repos allowed
-                return True, ""
+                if not allowed_repos:
+                    return True, ""
 
-            if repo in allowed_repos:
-                return True, ""
+                if repo in allowed_repos:
+                    return True, ""
 
-            return False, (
-                f"Repository '{repo}' is not in the allowed list. "
-                f"Allowed repositories: {', '.join(allowed_repos)}"
-            )
-        except (ImportError, AttributeError) as e:
-            logger.warning(f"[ProjectEngineerAgent] Failed to read allowed repos from settings: {e}")
-            # Default to allowing RC918/morningai only
-            if repo == "RC918/morningai":
-                return True, ""
-            return False, f"Repository '{repo}' is not allowed (default: RC918/morningai only)"
+                return False, (
+                    f"Repository '{repo}' is not in the allowed list. "
+                    f"Allowed repositories: {', '.join(allowed_repos)}"
+                )
+            except (ImportError, AttributeError) as e:
+                logger.warning(f"[ProjectEngineerAgent] Failed to read allowed repos from settings: {e}")
+                if repo == "RC918/morningai":
+                    return True, ""
+                return False, f"Repository '{repo}' is not allowed (default: RC918/morningai only)"
+
+    def _validate_directories_allowed(self, file_paths: list) -> tuple[bool, str]:
+        """
+        Validate if file paths are in allowed directories (Phase 4 PR-1: Semantic Rules v2)
+
+        Args:
+            file_paths: List of file paths to validate
+
+        Returns:
+            Tuple of (is_allowed, error_message)
+        """
+        if not file_paths:
+            return True, ""
+
+        try:
+            from .semantic_rules import get_validator
+            validator = get_validator()
+            is_valid, violations = validator.validate_file_paths(file_paths)
+            if not is_valid:
+                error_messages = [v.message for v in violations]
+                return False, "; ".join(error_messages)
+            return True, ""
+        except ImportError as e:
+            logger.warning(f"[ProjectEngineerAgent] Failed to import semantic_rules: {e}")
+            # Fallback: allow all paths (less secure but maintains backward compatibility)
+            return True, ""
+
+    def _validate_task_type_allowed(self, task_type: str) -> tuple[bool, str]:
+        """
+        Validate if task type is allowed (Phase 4 PR-1: Semantic Rules v2)
+
+        Args:
+            task_type: Task type to validate
+
+        Returns:
+            Tuple of (is_allowed, error_message)
+        """
+        try:
+            from .semantic_rules import validate_task_type
+            is_valid, error = validate_task_type(task_type)
+            if not is_valid:
+                return False, error or f"Task type '{task_type}' is not allowed"
+            return True, ""
+        except ImportError as e:
+            logger.warning(f"[ProjectEngineerAgent] Failed to import semantic_rules: {e}")
+            # Fallback to safe_tasks check
+            return self.is_safe_task(task_type), f"Task type '{task_type}' is not in safe whitelist"
 
     def _get_task_timeout(self) -> int:
         """
@@ -322,13 +375,19 @@ class ProjectEngineerAgent:
                 task_type = "unknown"
                 logger.warning(f"[ProjectEngineerAgent] No classifier available for step {step_index}")
 
-            # Step 4: Check if task is safe
-            is_safe = self.is_safe_task(task_type)
+            # Step 4: Check if task is safe (Phase 4 PR-1: Use semantic rules validation)
+            task_type_allowed, task_type_error = self._validate_task_type_allowed(task_type)
+            is_safe = task_type_allowed
 
             logger.info(
                 f"[ProjectEngineerAgent] Step {step_index} safety check: "
                 f"is_safe={is_safe}, task_type={task_type}"
             )
+
+            if not is_safe and task_type_error:
+                logger.warning(
+                    f"[ProjectEngineerAgent] Task type validation failed: {task_type_error}"
+                )
 
             # Step 5: Execute code generation if enabled and safe
             if self.enable_code_generation and is_safe:
@@ -473,7 +532,7 @@ class ProjectEngineerAgent:
         """
         return {
             "agent_type": "ProjectEngineerAgent",
-            "version": "1.0.0-phase2-step-b",
+            "version": "1.1.0-phase4-pr1",
             "planner_available": self.planner is not None,
             "classifier_available": self.classifier is not None,
             "workflow_available": self.workflow is not None,
@@ -483,6 +542,9 @@ class ProjectEngineerAgent:
                 "task_classification": self.classifier is not None,
                 "safe_task_gating": True,
                 "code_generation": self.enable_code_generation,
+                "semantic_rules_v2": True,
+                "directory_validation": True,
+                "task_type_validation": True,
             }
         }
 

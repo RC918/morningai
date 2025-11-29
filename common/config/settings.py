@@ -992,6 +992,13 @@ class Settings(BaseSettings):
         description="Comma-separated list of allowed directory prefixes for code generation (e.g., 'docs/,tests/')"
     )
 
+    # Phase 4 PR-1: Task type restrictions
+    project_engineer_allowed_task_types: str = Field(
+        default="",
+        alias="PROJECT_ENGINEER_ALLOWED_TASK_TYPES",
+        description="Comma-separated list of allowed task types for code generation (empty = all safe task types allowed)"
+    )
+
     allow_governance_mock: bool = Field(
         default=False,
         alias="ALLOW_GOVERNANCE_MOCK",
