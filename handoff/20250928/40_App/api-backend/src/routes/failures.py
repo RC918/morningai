@@ -12,33 +12,25 @@ orchestrator_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestr
 if orchestrator_path not in sys.path:
     sys.path.insert(0, orchestrator_path)
 
-try:
-    from failure_recorder import get_failure_recorder, FailureRecorder
-    FAILURE_RECORDER_AVAILABLE = True
-except ImportError as e:
-    print(f"Warning: Failure recorder module not available: {e}")
-    FAILURE_RECORDER_AVAILABLE = False
-
-from src.middleware.auth_middleware import jwt_required  # noqa: E402
 import logging  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+try:
+    from failure_recorder import init_failure_recorder_from_env, FailureRecorder
+    FAILURE_RECORDER_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Failure recorder module not available: {e}")
+    FAILURE_RECORDER_AVAILABLE = False
+
+from src.middleware.auth_middleware import jwt_required  # noqa: E402
 
 bp = Blueprint('failures', __name__, url_prefix='/api/failures')
 
 
 def _get_recorder() -> "FailureRecorder":
     """Get failure recorder instance with Redis connection"""
-    try:
-        import redis
-        redis_url = os.environ.get("REDIS_URL")
-        if redis_url:
-            redis_client = redis.from_url(redis_url)
-            return get_failure_recorder(redis_client=redis_client, enabled=True)
-        return get_failure_recorder(redis_client=None, enabled=False)
-    except Exception as e:
-        logger.warning(f"Failed to initialize failure recorder: {e}")
-        return get_failure_recorder(redis_client=None, enabled=False)
+    return init_failure_recorder_from_env()
 
 
 @bp.route('', methods=['GET'])
@@ -77,21 +69,8 @@ def list_failures():
 
         failures_data = []
         for failure in failures:
-            failure_dict = {
-                'id': failure.id,
-                'trace_id': failure.trace_id,
-                'goal': failure.goal,
-                'error_type': failure.error_type,
-                'error_message': failure.error_message,
-                'task_type': failure.task_type,
-                'fixer_retries': failure.fixer_retries,
-                'merge_decision': failure.merge_decision,
-                'pr_url': failure.pr_url,
-                'status': failure.status,
-                'created_at': failure.created_at,
-                'env': failure.env,
-                'pipeline': failure.pipeline
-            }
+            failure_dict = failure.to_dict()
+            failure_dict.pop('metadata', None)
             failures_data.append(failure_dict)
 
         return jsonify({
@@ -129,24 +108,7 @@ def get_failure(failure_id):
         if not failure:
             return jsonify({'error': 'Failure not found'}), 404
 
-        failure_dict = {
-            'id': failure.id,
-            'trace_id': failure.trace_id,
-            'goal': failure.goal,
-            'error_type': failure.error_type,
-            'error_message': failure.error_message,
-            'task_type': failure.task_type,
-            'fixer_retries': failure.fixer_retries,
-            'merge_decision': failure.merge_decision,
-            'pr_url': failure.pr_url,
-            'status': failure.status,
-            'created_at': failure.created_at,
-            'env': failure.env,
-            'pipeline': failure.pipeline,
-            'metadata': failure.metadata
-        }
-
-        return jsonify(failure_dict)
+        return jsonify(failure.to_dict())
     except Exception as e:
         logger.error(f"Failed to get failure {failure_id}: {e}")
         return jsonify({'error': str(e)}), 500

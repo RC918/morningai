@@ -176,7 +176,7 @@ class FailureRecorder:
         try:
             from common.config.settings import settings
             env = "staging" if settings.environment == "staging" else "production"
-        except Exception:
+        except (ImportError, AttributeError):
             env = "production"
 
         failure = FailureRecord(
@@ -302,10 +302,16 @@ class FailureRecorder:
 
     def get_failure_summary(self) -> Dict[str, Any]:
         """
-        Get summary statistics of failures
+        Get summary statistics over the last 100 failures
 
         Returns:
-            Dictionary with failure statistics
+            Dictionary with failure statistics including:
+            - enabled: Whether the recorder is enabled
+            - total: Total number of recorded failures
+            - recent_count: Number of failures in the sample (up to 100)
+            - error_types: Count by error type
+            - task_types: Count by task type
+            - retry_distribution: Count by number of fixer retries
         """
         if not self.enabled:
             return {"enabled": False, "total": 0}
@@ -385,3 +391,25 @@ def create_failure_recorder(
         redis_client=redis_client,
         enabled=enabled
     )
+
+
+def init_failure_recorder_from_env() -> FailureRecorder:
+    """
+    Initialize failure recorder from environment variables
+
+    This is a shared utility function that can be used by both
+    the orchestrator and API routes to avoid code duplication.
+
+    Returns:
+        FailureRecorder instance configured from REDIS_URL env var
+    """
+    import os
+    try:
+        redis_url = os.environ.get("REDIS_URL")
+        if redis_url and redis is not None:
+            redis_client = redis.from_url(redis_url)
+            return get_failure_recorder(redis_client=redis_client, enabled=True)
+        return get_failure_recorder(redis_client=None, enabled=False)
+    except Exception as e:
+        logger.warning(f"Failed to initialize failure recorder: {e}")
+        return get_failure_recorder(redis_client=None, enabled=False)

@@ -1,6 +1,7 @@
 """Tests for failure_recorder module (Phase 5 PR-1)"""
 import sys
 import os
+import json
 from unittest.mock import MagicMock
 from datetime import datetime
 
@@ -184,7 +185,11 @@ class TestFailureRecorder:
     def test_get_failure_success(self):
         """Test getting a failure record by ID"""
         mock_redis = MagicMock()
-        mock_redis.get.return_value = b'{"id": "test-id", "trace_id": "t1", "goal": "g1", "error_type": "e1", "status": "error", "created_at": "2025-01-01T00:00:00", "env": "production", "pipeline": "test", "fixer_retries": 0, "metadata": {}}'
+        test_record = FailureRecord(
+            id="test-id", trace_id="t1", goal="g1", error_type="e1",
+            created_at="2025-01-01T00:00:00", env="production", pipeline="test"
+        )
+        mock_redis.get.return_value = json.dumps(test_record.to_dict()).encode('utf-8')
 
         recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
 
@@ -218,9 +223,17 @@ class TestFailureRecorder:
         """Test listing failure records"""
         mock_redis = MagicMock()
         mock_redis.lrange.return_value = [b"id1", b"id2"]
+        record1 = FailureRecord(
+            id="id1", trace_id="t1", goal="g1", error_type="e1",
+            created_at="2025-01-01T00:00:00", env="production", pipeline="test"
+        )
+        record2 = FailureRecord(
+            id="id2", trace_id="t2", goal="g2", error_type="e2",
+            created_at="2025-01-01T00:00:00", env="production", pipeline="test"
+        )
         mock_redis.get.side_effect = [
-            b'{"id": "id1", "trace_id": "t1", "goal": "g1", "error_type": "e1", "status": "error", "created_at": "2025-01-01T00:00:00", "env": "production", "pipeline": "test", "fixer_retries": 0, "metadata": {}}',
-            b'{"id": "id2", "trace_id": "t2", "goal": "g2", "error_type": "e2", "status": "error", "created_at": "2025-01-01T00:00:00", "env": "production", "pipeline": "test", "fixer_retries": 0, "metadata": {}}'
+            json.dumps(record1.to_dict()).encode('utf-8'),
+            json.dumps(record2.to_dict()).encode('utf-8')
         ]
 
         recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
@@ -235,9 +248,17 @@ class TestFailureRecorder:
         """Test listing failures with trace_id filter"""
         mock_redis = MagicMock()
         mock_redis.lrange.return_value = [b"id1", b"id2"]
+        record1 = FailureRecord(
+            id="id1", trace_id="target-trace", goal="g1", error_type="e1",
+            created_at="2025-01-01T00:00:00", env="production", pipeline="test"
+        )
+        record2 = FailureRecord(
+            id="id2", trace_id="other-trace", goal="g2", error_type="e2",
+            created_at="2025-01-01T00:00:00", env="production", pipeline="test"
+        )
         mock_redis.get.side_effect = [
-            b'{"id": "id1", "trace_id": "target-trace", "goal": "g1", "error_type": "e1", "status": "error", "created_at": "2025-01-01T00:00:00", "env": "production", "pipeline": "test", "fixer_retries": 0, "metadata": {}}',
-            b'{"id": "id2", "trace_id": "other-trace", "goal": "g2", "error_type": "e2", "status": "error", "created_at": "2025-01-01T00:00:00", "env": "production", "pipeline": "test", "fixer_retries": 0, "metadata": {}}'
+            json.dumps(record1.to_dict()).encode('utf-8'),
+            json.dumps(record2.to_dict()).encode('utf-8')
         ]
 
         recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
@@ -280,9 +301,19 @@ class TestFailureRecorder:
         mock_redis = MagicMock()
         mock_redis.llen.return_value = 5
         mock_redis.lrange.return_value = [b"id1", b"id2"]
+        record1 = FailureRecord(
+            id="id1", trace_id="t1", goal="g1", error_type="ci_failure",
+            task_type="code_gen", created_at="2025-01-01T00:00:00",
+            env="production", pipeline="test"
+        )
+        record2 = FailureRecord(
+            id="id2", trace_id="t2", goal="g2", error_type="workflow_error",
+            task_type="code_review", created_at="2025-01-01T00:00:00",
+            env="production", pipeline="test"
+        )
         mock_redis.get.side_effect = [
-            b'{"id": "id1", "trace_id": "t1", "goal": "g1", "error_type": "ci_failure", "task_type": "code_gen", "status": "error", "created_at": "2025-01-01T00:00:00", "env": "production", "pipeline": "test", "fixer_retries": 0, "metadata": {}}',
-            b'{"id": "id2", "trace_id": "t2", "goal": "g2", "error_type": "workflow_error", "task_type": "code_review", "status": "error", "created_at": "2025-01-01T00:00:00", "env": "production", "pipeline": "test", "fixer_retries": 0, "metadata": {}}'
+            json.dumps(record1.to_dict()).encode('utf-8'),
+            json.dumps(record2.to_dict()).encode('utf-8')
         ]
 
         recorder = FailureRecorder(redis_client=mock_redis, enabled=True)

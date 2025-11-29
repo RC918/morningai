@@ -26,7 +26,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
 from orchestrator_metrics import get_orchestrator_metrics, OrchestratorMetrics
-from failure_recorder import get_failure_recorder, FailureRecorder
+from failure_recorder import init_failure_recorder_from_env, FailureRecorder
 
 logger = logging.getLogger(__name__)
 
@@ -58,18 +58,7 @@ def _get_failure_recorder() -> FailureRecorder:
     """Get or initialize the global failure recorder instance"""
     global _failure_recorder
     if _failure_recorder is None:
-        try:
-            import os
-            import redis
-            redis_url = os.environ.get("REDIS_URL")
-            if redis_url:
-                redis_client = redis.from_url(redis_url)
-                _failure_recorder = get_failure_recorder(redis_client=redis_client, enabled=True)
-            else:
-                _failure_recorder = get_failure_recorder(redis_client=None, enabled=False)
-        except Exception as e:
-            logger.warning(f"Failed to initialize failure recorder: {e}")
-            _failure_recorder = get_failure_recorder(redis_client=None, enabled=False)
+        _failure_recorder = init_failure_recorder_from_env()
     return _failure_recorder
 
 
