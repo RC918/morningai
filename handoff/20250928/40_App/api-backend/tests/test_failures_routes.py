@@ -237,6 +237,14 @@ class TestFailuresReplayEndpoint:
         mock_result.failure_id = 'test-id'
         mock_result.new_trace_id = 'replay-test-12345678'
         mock_result.job_id = 'job-123'
+        mock_result.error = None
+        mock_result.to_dict.return_value = {
+            'success': True,
+            'failure_id': 'test-id',
+            'new_trace_id': 'replay-test-12345678',
+            'job_id': 'job-123',
+            'error': None
+        }
         mock_recorder.replay_failure.return_value = mock_result
         mock_get_recorder.return_value = mock_recorder
 
@@ -269,6 +277,14 @@ class TestFailuresReplayEndpoint:
         mock_result.failure_id = 'test-id'
         mock_result.new_trace_id = 'replay-test-abcd1234'
         mock_result.job_id = 'job-456'
+        mock_result.error = None
+        mock_result.to_dict.return_value = {
+            'success': True,
+            'failure_id': 'test-id',
+            'new_trace_id': 'replay-test-abcd1234',
+            'job_id': 'job-456',
+            'error': None
+        }
         mock_recorder.replay_failure.return_value = mock_result
         mock_get_recorder.return_value = mock_recorder
 
@@ -293,7 +309,16 @@ class TestFailuresReplayEndpoint:
         mock_result = MagicMock()
         mock_result.success = False
         mock_result.failure_id = 'test-id'
+        mock_result.new_trace_id = None
+        mock_result.job_id = None
         mock_result.error = 'RQ not available'
+        mock_result.to_dict.return_value = {
+            'success': False,
+            'failure_id': 'test-id',
+            'new_trace_id': None,
+            'job_id': None,
+            'error': 'RQ not available'
+        }
         mock_recorder.replay_failure.return_value = mock_result
         mock_get_recorder.return_value = mock_recorder
 
