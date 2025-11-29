@@ -34,7 +34,7 @@ COMMENT ON POLICY "service_role_planner_events_all" ON public.planner_events IS
 CREATE POLICY "authenticated_planner_events_read" ON public.planner_events
     FOR SELECT
     TO authenticated
-    USING (true);
+    USING (auth.uid() IS NOT NULL);
 
 COMMENT ON POLICY "authenticated_planner_events_read" ON public.planner_events IS 
     'Authenticated users can read planner events for monitoring dashboard and analytics';
