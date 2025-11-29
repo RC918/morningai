@@ -1,51 +1,66 @@
-# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
+# Phase 1 Canary Final Validation Test: Creating a Simple Python Function to Add Two Numbers
 
-In the context of the MorningAI platform, understanding how to create and test simple Python functions is crucial for developers who are looking to integrate custom logic or algorithms into their autonomous agent systems or other parts of the platform. This FAQ entry will guide you through the process of creating a basic Python function that adds two numbers, a fundamental skill that forms the basis for more complex programming tasks within the MorningAI ecosystem.
+## Overview
+In the context of MorningAI, the Phase 1 Canary Final Validation Test includes demonstrating basic functionality through simple programming tasks. One such task is creating a Python function that adds two numbers. This serves as an initial step to ensure developers are familiar with Python syntax and the repository's structure before diving into more complex features of MorningAI.
 
-## Comprehensive Explanation
+## Implementation
 
-A Python function is a block of reusable code designed to perform a single, related action. Functions help improve the modularity of your application and allow for code reuse. In this example, we'll define a simple function that takes two numbers as input parameters, adds them together, and returns the result. This operation is fundamental in many programming tasks and serves as an excellent entry point for understanding function creation and usage in Python.
+### Step 1: Clone the Repository
+Before you start, ensure you have cloned the RC918/morningai repository to your local machine. Use the following command in your terminal:
 
-### Code Example
-
-Below is a straightforward example of how to define and call a function in Python that adds two numbers:
-
-```python
-# Define the function
-def add_two_numbers(number1, number2):
-    """Add two numbers and return the result."""
-    result = number1 + number2
-    return result
-
-# Calling the function with sample inputs
-sum_result = add_two_numbers(5, 7)
-
-print(f"The sum of 5 and 7 is: {sum_result}")
+```bash
+git clone https://github.com/RC918/morningai.git
+cd morningai
 ```
 
-In this example:
-- We define a function named `add_two_numbers` that accepts two parameters: `number1` and `number2`.
-- Inside the function, we add these two numbers together and store their sum in the variable `result`.
-- The function then returns this result.
-- We call this function with two sample inputs (5 and 7) and print out the sum.
+### Step 2: Creating the Function
+Navigate to the appropriate directory within the cloned repository where you intend to add your Python script. For demonstration purposes, we'll create a new file named `add_numbers.py` in the root of the project.
 
-### Related Documentation Links
+```bash
+touch add_numbers.py
+```
 
-For further reading and more advanced topics related to functions in Python, you can visit:
-- Official Python Functions Documentation: [Python Function Definitions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions)
-- MorningAI Developer Guide (specifically sections related to integrating custom logic with Python): `docs/DeveloperGuide.md` in the RC918/morningai repository.
+Open `add_numbers.py` in your preferred code editor and input the following Python function:
 
-### Common Troubleshooting Tips
+```python
+def add_two_numbers(num1, num2):
+    """Function to add two numbers."""
+    return num1 + num2
 
-1. **SyntaxError**: Ensure you have correctly defined your function with no syntax errors. Common mistakes include forgetting colons (`:`) at the end of the `def` line or mismatched parentheses.
-   
-2. **IndentationError**: Python uses indentation to define blocks of code. Make sure your function body is correctly indented.
+# Example usage
+if __name__ == "__main__":
+    result = add_two_numbers(3, 5)
+    print(f"The result is {result}")
+```
 
-3. **TypeError**: If you encounter a TypeError when calling your function, check that you're passing arguments of compatible types (e.g., integers or floats for addition).
+This code defines a simple function, `add_two_numbers`, which takes two arguments (`num1` and `num2`) and returns their sum. The example usage at the bottom demonstrates how to call this function and print the result.
 
-4. **NameError**: If you get a NameError saying your function is not defined, ensure that you've defined your function before calling it in your script.
+### Step 3: Testing Your Function
+To ensure your function works as expected, run it from your terminal:
 
-By mastering simple functions like this one, developers can build more complex functionalities within the MorningAI platform, enhancing their autonomous agents' capabilities or contributing to other parts of the system.
+```bash
+python add_numbers.py
+```
+
+You should see output similar to:
+
+```
+The result is 8
+```
+
+## Related Documentation Links
+
+- [Python Official Documentation](https://docs.python.org/3/): For more details on Python syntax and functions.
+- [Git and GitHub Documentation](https://docs.github.com/en): For more information on cloning repositories and managing files within GitHub.
+
+## Common Troubleshooting Tips
+
+- **SyntaxError**: Ensure you have not missed any colons (`:`) or parentheses `()`. These are common mistakes that can lead to syntax errors.
+- **IndentationError**: Python is indentation-sensitive. Ensure all code blocks are correctly indented.
+- **NameError**: This occurs if you try to use a variable or function name that has not been defined. Check for typos in your function name when calling it.
+- **FileNotFoundError**: If running `python add_numbers.py` results in an error stating the file cannot be found, ensure you're in the correct directory where `add_numbers.py` resides.
+
+For further assistance or to report issues with MorningAI integration, please visit our [GitHub Issues](https://github.com/RC918/morningai/issues) page.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
