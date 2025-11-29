@@ -142,6 +142,53 @@ def get_failure_summary():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/<failure_id>/replay', methods=['POST'])
+@jwt_required
+def replay_failure(failure_id):
+    """
+    Replay a failed workflow by re-enqueuing it to the job queue
+
+    This endpoint retrieves the original failure record and creates a new
+    orchestrator task with the same goal but a new trace_id.
+
+    Request body (optional):
+    - repo: Override repository (uses original if not provided)
+
+    Returns:
+    - success: Whether the replay was successfully enqueued
+    - failure_id: ID of the original failure record
+    - new_trace_id: New trace ID for the replayed workflow
+    - job_id: RQ job ID if successfully enqueued
+    """
+    if not FAILURE_RECORDER_AVAILABLE:
+        return jsonify({'error': 'Failure recorder not available'}), 503
+
+    try:
+        recorder = _get_recorder()
+
+        failure = recorder.get_failure(failure_id)
+        if not failure:
+            return jsonify({'error': 'Failure not found'}), 404
+
+        data = request.get_json() or {}
+        repo = data.get('repo')
+
+        result = recorder.replay_failure(failure_id, repo=repo)
+
+        response_data = result.to_dict()
+        response_data['timestamp'] = datetime.utcnow().isoformat()
+
+        if result.success:
+            response_data['original_goal'] = failure.goal[:100]
+            return jsonify(response_data)
+        else:
+            return jsonify(response_data), 500
+
+    except Exception as e:
+        logger.error(f"Failed to replay failure {failure_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/health', methods=['GET'])
 def health_check():
     """Health check for failure recorder system"""

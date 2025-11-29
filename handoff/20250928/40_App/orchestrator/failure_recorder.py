@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 FAILURE_KEY_PREFIX = "orchestrator:failures"
 FAILURE_LIST_KEY = f"{FAILURE_KEY_PREFIX}:list"
 FAILURE_TTL_SECONDS = 86400 * 30
+DEFAULT_REPLAY_REPO = "RC918/morningai"
 
 
 @dataclass
@@ -77,6 +78,29 @@ class FailureRecord:
     def from_dict(cls, data: Dict[str, Any]) -> "FailureRecord":
         """Create FailureRecord from dictionary"""
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
+class ReplayResult:
+    """
+    Result of a replay operation
+
+    Attributes:
+        success: Whether the replay was successfully enqueued
+        failure_id: ID of the original failure record
+        new_trace_id: New trace ID for the replayed workflow
+        job_id: RQ job ID if successfully enqueued
+        error: Error message if replay failed
+    """
+    success: bool
+    failure_id: str
+    new_trace_id: Optional[str] = None
+    job_id: Optional[str] = None
+    error: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return asdict(self)
 
 
 class FailureRecorder:
@@ -343,6 +367,115 @@ class FailureRecorder:
         except Exception as e:
             logger.warning(f"[FailureRecorder] Failed to get summary: {e}")
             return {"enabled": True, "total": 0, "error": str(e)}
+
+    def replay_failure(self, failure_id: str, repo: Optional[str] = None) -> ReplayResult:
+        """
+        Replay a failed workflow by re-enqueuing it to the job queue
+
+        This method retrieves the original failure record and creates a new
+        orchestrator task with the same goal but a new trace_id.
+
+        Args:
+            failure_id: ID of the failure record to replay
+            repo: Optional override for the repository (uses original if not provided)
+
+        Returns:
+            ReplayResult with success status, new trace_id, and job_id
+        """
+        if not self.enabled:
+            return ReplayResult(
+                success=False,
+                failure_id=failure_id,
+                error="Failure recorder is disabled"
+            )
+
+        try:
+            failure = self.get_failure(failure_id)
+            if failure is None:
+                return ReplayResult(
+                    success=False,
+                    failure_id=failure_id,
+                    error=f"Failure record not found: {failure_id}"
+                )
+
+            new_trace_id = f"replay-{failure_id[:8]}-{str(uuid.uuid4())[:8]}"
+
+            target_repo = repo or failure.metadata.get("repo") or DEFAULT_REPLAY_REPO
+
+            try:
+                from rq import Queue
+                from rq.serializers import JSONSerializer
+
+                try:
+                    from common.config.settings import settings
+                    redis_url = getattr(settings, "redis_url", None)
+                except (ImportError, AttributeError):
+                    redis_url = None
+
+                if not redis_url:
+                    import os
+                    redis_url = os.environ.get("REDIS_URL")
+
+                if not redis_url or redis is None:
+                    return ReplayResult(
+                        success=False,
+                        failure_id=failure_id,
+                        error="Redis URL not configured for replay"
+                    )
+
+                redis_client_rq = redis.from_url(redis_url, decode_responses=False)
+
+                q = Queue(
+                    "orchestrator",
+                    connection=redis_client_rq,
+                    serializer=JSONSerializer()
+                )
+
+                job = q.enqueue(
+                    "redis_queue.worker.run_orchestrator_task",
+                    new_trace_id,
+                    failure.goal,
+                    target_repo,
+                    job_timeout=600,
+                    result_ttl=86400,
+                    failure_ttl=3600
+                )
+
+                logger.info(f"[FailureRecorder] Replayed failure: {failure_id}", extra={
+                    "operation": "replay_failure",
+                    "failure_id": failure_id,
+                    "new_trace_id": new_trace_id,
+                    "job_id": job.id,
+                    "original_trace_id": failure.trace_id,
+                    "goal": failure.goal[:50]
+                })
+
+                return ReplayResult(
+                    success=True,
+                    failure_id=failure_id,
+                    new_trace_id=new_trace_id,
+                    job_id=job.id
+                )
+
+            except ImportError as e:
+                logger.warning(f"[FailureRecorder] RQ not available for replay: {e}")
+                return ReplayResult(
+                    success=False,
+                    failure_id=failure_id,
+                    error=f"RQ not available: {e}"
+                )
+
+        except Exception as e:
+            logger.error(f"[FailureRecorder] Failed to replay failure: {e}", extra={
+                "operation": "replay_failure",
+                "failure_id": failure_id,
+                "error": str(e)
+            })
+            return ReplayResult(
+                success=False,
+                failure_id=failure_id,
+                error=str(e)
+            )
 
 
 _failure_recorder: Optional[FailureRecorder] = None
