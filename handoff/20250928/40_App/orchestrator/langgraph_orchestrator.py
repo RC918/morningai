@@ -31,6 +31,8 @@ from agent_eval_integration import (
     init_agent_eval_from_env,
     AgentEvalIntegration
 )
+from common.config.settings import settings
+from llm_reviewer_adapter import generate_llm_review
 
 logger = logging.getLogger(__name__)
 
@@ -1031,15 +1033,50 @@ def fixer_node(state: AgentState) -> AgentState:
     return state
 
 
+def _ci_only_review(ci_state: str) -> dict:
+    """
+    Generate CI-only review results based on CI state
+
+    Args:
+        ci_state: CI check state (success, failure, pending, unknown)
+
+    Returns:
+        Dict with review_result, code_quality_score, review_severity, review_comments
+    """
+    if ci_state == "success":
+        return {
+            "review_result": {"status": "passed", "reason": "CI passed"},
+            "code_quality_score": 80,
+            "review_severity": "none",
+            "review_comments": []
+        }
+    elif ci_state == "failure":
+        return {
+            "review_result": {"status": "needs_attention", "reason": "CI failed"},
+            "code_quality_score": 40,
+            "review_severity": "high",
+            "review_comments": [{"severity": "high", "message": "CI checks failed"}]
+        }
+    else:
+        return {
+            "review_result": {"status": "pending", "reason": "CI pending"},
+            "code_quality_score": 60,
+            "review_severity": "medium",
+            "review_comments": []
+        }
+
+
 def reviewer_node(state: AgentState) -> AgentState:
     """
     Reviewer node: Analyzes code changes and provides review feedback
 
-    Phase 3 Enhancement:
-    - Uses CI state as primary review signal (ReviewerAgent integration planned for Phase 3 PR-4)
-    - Identifies code quality issues based on CI results
-    - Provides structured review with severity levels
-    - Calculates code quality score
+    Phase 6 PR-3 Enhancement:
+    - LLM-powered code review with A/B testing support (OpenAI vs Gemini)
+    - Uses CI state as baseline, LLM provides additional risk assessment
+    - CI score acts as ceiling (LLM cannot claim higher quality than CI)
+    - Graceful fallback to CI-only review if LLM unavailable
+
+    Feature Flag: USE_LLM_REVIEWER (default: False)
 
     Returns:
         Updated state with review_result, review_comments, review_severity, code_quality_score
@@ -1057,16 +1094,15 @@ def reviewer_node(state: AgentState) -> AgentState:
         "operation": "reviewer",
         "trace_id": trace_id,
         "pr_number": pr_number,
-        "pr_url": pr_url
+        "pr_url": pr_url,
+        "use_llm_reviewer": getattr(settings, 'use_llm_reviewer', False)
     })
 
-    # Initialize review state
     state["review_result"] = {}
     state["review_comments"] = []
     state["review_severity"] = "none"
     state["code_quality_score"] = 100
 
-    # Skip review if no PR exists
     if not pr_number and not pr_url:
         logger.info("[Reviewer] No PR to review, skipping", extra={
             "operation": "reviewer",
@@ -1080,33 +1116,97 @@ def reviewer_node(state: AgentState) -> AgentState:
         return state
 
     success = True
-    try:
-        # CI-based review (ReviewerAgent integration planned for Phase 3 PR-4)
-        ci_state = state.get("ci_state", "unknown")
+    llm_used = False
+    llm_provider = None
 
-        if ci_state == "success":
-            state["review_result"] = {"status": "passed", "reason": "CI passed"}
-            state["code_quality_score"] = 80
-            state["review_severity"] = "none"
-        elif ci_state == "failure":
-            state["review_result"] = {"status": "needs_attention", "reason": "CI failed"}
-            state["code_quality_score"] = 40
-            state["review_severity"] = "high"
-            state["review_comments"] = [{"severity": "high", "message": "CI checks failed"}]
-        else:
-            state["review_result"] = {"status": "pending", "reason": "CI pending"}
-            state["code_quality_score"] = 60
-            state["review_severity"] = "medium"
+    try:
+        ci_state = state.get("ci_state", "unknown")
+        ci_review = _ci_only_review(ci_state)
+
+        state["review_result"] = ci_review["review_result"]
+        state["code_quality_score"] = ci_review["code_quality_score"]
+        state["review_severity"] = ci_review["review_severity"]
+        state["review_comments"] = ci_review["review_comments"]
+
+        use_llm = getattr(settings, 'use_llm_reviewer', False)
+
+        if use_llm:
+            logger.info("[Reviewer] LLM reviewer enabled, attempting LLM review", extra={
+                "operation": "reviewer",
+                "trace_id": trace_id
+            })
+
+            try:
+                goal = state.get("goal", "")
+                repo = state.get("repo", "")
+
+                llm_review = generate_llm_review(
+                    pr_number=pr_number,
+                    pr_url=pr_url,
+                    ci_state=ci_state,
+                    goal=goal,
+                    repo=repo,
+                    trace_id=trace_id,
+                    base_quality_score=ci_review["code_quality_score"],
+                    base_severity=ci_review["review_severity"]
+                )
+
+                if llm_review.get("llm_used", False):
+                    llm_used = True
+                    llm_provider = llm_review.get("provider")
+
+                    state["code_quality_score"] = llm_review["quality_score"]
+                    state["review_severity"] = llm_review["severity"]
+
+                    if llm_review.get("comments"):
+                        state["review_comments"] = (
+                            state["review_comments"] + llm_review["comments"]
+                        )
+
+                    llm_decision = llm_review.get("decision", "needs_changes")
+                    llm_summary = llm_review.get("summary", "")
+
+                    state["review_result"] = {
+                        "status": ci_review["review_result"]["status"],
+                        "reason": ci_review["review_result"]["reason"],
+                        "llm_decision": llm_decision,
+                        "llm_summary": llm_summary,
+                        "llm_provider": llm_provider
+                    }
+
+                    logger.info("[Reviewer] LLM review completed", extra={
+                        "operation": "reviewer",
+                        "trace_id": trace_id,
+                        "llm_provider": llm_provider,
+                        "llm_score": llm_review["quality_score"],
+                        "llm_severity": llm_review["severity"],
+                        "review_time_ms": llm_review.get("review_time_ms", 0)
+                    })
+                else:
+                    logger.info("[Reviewer] LLM not available, using CI-only review", extra={
+                        "operation": "reviewer",
+                        "trace_id": trace_id
+                    })
+
+            except Exception as llm_error:
+                logger.warning(f"[Reviewer] LLM review failed, using CI-only: {llm_error}", extra={
+                    "operation": "reviewer",
+                    "trace_id": trace_id,
+                    "error": str(llm_error)
+                })
 
         logger.info("[Reviewer] Review completed", extra={
             "operation": "reviewer",
             "trace_id": trace_id,
             "ci_state": ci_state,
-            "quality_score": state["code_quality_score"]
+            "quality_score": state["code_quality_score"],
+            "llm_used": llm_used,
+            "llm_provider": llm_provider
         })
 
+        review_method = f"LLM ({llm_provider})" if llm_used else "CI-only"
         state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"Code review completed. Quality score: {state['code_quality_score']}, Severity: {state['review_severity']}")
+            AIMessage(content=f"Code review completed ({review_method}). Quality score: {state['code_quality_score']}, Severity: {state['review_severity']}")
         ]
 
     except Exception as e:
