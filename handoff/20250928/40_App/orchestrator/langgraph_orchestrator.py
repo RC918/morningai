@@ -60,6 +60,19 @@ GOAL_TOKEN_MULTIPLIER = 2
 PLAN_STEP_TOKEN_MULTIPLIER = 100
 
 
+def _planner_success(
+    state: "AgentState",
+    metrics: OrchestratorMetrics,
+    start_time: float,
+    trace_id: str
+) -> "AgentState":
+    """Helper to record planner success metrics and transition"""
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("planner", trace_id, success=True, latency_ms=latency_ms)
+    metrics.record_transition("planner", "security_advisor", trace_id)
+    return state
+
+
 class AgentState(TypedDict):
     """
     State of the agent workflow
@@ -200,10 +213,7 @@ def planner_node(state: AgentState) -> AgentState:
                 "planning_time_ms": plan_data.get("planning_time_ms", 0)
             })
 
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_node_complete("planner", trace_id, success=True, latency_ms=latency_ms)
-            metrics.record_transition("planner", "security_advisor", trace_id)
-            return state
+            return _planner_success(state, metrics, start_time, trace_id)
 
         except Exception as e:
             logger.error(f"[Planner] LLM planner failed, falling back to static: {e}", extra={
@@ -237,10 +247,7 @@ def planner_node(state: AgentState) -> AgentState:
         "planner_type": "static"
     })
 
-    latency_ms = (time.time() - start_time) * 1000
-    metrics.record_node_complete("planner", trace_id, success=True, latency_ms=latency_ms)
-    metrics.record_transition("planner", "security_advisor", trace_id)
-    return state
+    return _planner_success(state, metrics, start_time, trace_id)
 
 
 def security_advisor_node(state: AgentState) -> AgentState:
