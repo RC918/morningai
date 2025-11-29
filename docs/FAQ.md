@@ -1,84 +1,61 @@
-# Understanding and Utilizing MorningAI
+# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
 
-MorningAI is designed to streamline the development process by leveraging advanced AI for code generation, documentation management, and real-time task orchestration. This FAQ aims to provide developers with a comprehensive understanding of how to effectively use MorningAI within their projects.
+## Overview
 
-## Comprehensive Explanation
+This FAQ entry aims to guide developers through the process of creating a simple Python function to add two numbers. This task is part of the Phase 1 Canary Final Validation Test for MorningAI, designed to ensure that developers have a foundational understanding of Python functions within the context of MorningAI's development environment.
 
-MorningAI integrates multiple technologies to provide an autonomous agent system capable of generating code, managing FAQs and documentation, and facilitating multi-platform integration. With its robust backend architecture, including Python, Flask, Gunicorn, and PostgreSQL (via Supabase), MorningAI offers a scalable solution for modern development needs. The platform's use of Redis Queue for task orchestration and pgvector/Supabase for vector memory storage further enhances its capability to handle complex operations efficiently.
+## Creating the Function
 
-### Key Features:
-
-- **Autonomous Code Generation**: Utilizes AI to generate code snippets based on user queries or tasks.
-- **Documentation Management**: Automates the creation and updating of documentation, ensuring it remains current with project developments.
-- **Multi-Platform Integration**: Supports integration with various messaging platforms like Telegram, LINE, and Messenger for wider accessibility.
-- **Real-Time Task Orchestration**: Leverages Redis Queue for managing tasks in real-time, ensuring high performance and reliability.
-- **Vector Memory Storage**: Employs pgvector/Supabase for efficient storage and retrieval of vector data, enhancing search capabilities within the platform.
-
-### Getting Started:
-
-1. **Initial Setup**:
-   Clone the repository `RC918/morningai` to get started. Ensure you have all the necessary dependencies installed by running:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Configuration**:
-   Configure your environment variables as required in `.env` files for database connections, API keys, and other services.
-
-3. **Database Setup**:
-   Utilize Supabase/PostgreSQL setup instructions found in `docs/database_setup.md` to properly configure your database instances with Row Level Security.
-
-4. **Running MorningAI**:
-   Launch the application using Gunicorn with multi-worker support for optimal performance:
-   ```bash
-   gunicorn app:app --workers=4 --worker-class=gthread
-   ```
-
-5. **Integration**:
-   Refer to `docs/integration_guide.md` for detailed instructions on integrating MorningAI with Telegram, LINE, Messenger, etc.
-
-### Code Example:
-
-Here is a simple example of initiating a task orchestration process using Redis Queue:
+To create a Python function that adds two numbers, you will need to understand basic Python syntax and function definition. Here’s a straightforward example:
 
 ```python
-from redis import Redis
-from rq import Queue
-
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
-
-def my_task():
-    print("Executing task...")
-    # Task implementation here
-
-job = q.enqueue(my_task)
+def add_two_numbers(number1, number2):
+    """Add two numbers and return the result."""
+    return number1 + number2
 ```
 
-### Related Documentation Links:
+### Code Example Usage
 
-- Database Setup: [Database Setup Guide](docs/database_setup.md)
-- Integration Guide: [Integration Guide](docs/integration_guide.md)
-- API Reference: [API Documentation](docs/api_reference.md)
+To use this function, you simply call it with two arguments (the numbers you wish to add), like so:
 
-### Common Troubleshooting Tips:
+```python
+result = add_two_numbers(3, 5)
+print(f"The result is {result}")
+```
 
-- **Issue**: Application not connecting to PostgreSQL database.
-  - **Solution**: Ensure your `.env` file contains the correct database credentials and that Row Level Security is configured as per `docs/database_setup.md`.
+This code should output: `The result is 8`.
 
-- **Issue**: Tasks not executing in real-time.
-  - **Solution**: Verify that Redis is running and correctly configured. Check the heartbeat monitoring in the Redis Queue dashboard for any worker issues.
+## Integration into MorningAI
 
-For further assistance or more complex issues, please consult the project's issue tracker or contact support.
+For integration into the MorningAI platform:
+- Place your Python script in the appropriate directory within the `RC918/morningai` repository. For instance, utility functions can be stored in `/utils`.
+- Ensure your script is documented clearly. Use docstrings and comments where necessary to explain what each part of your code does.
+- Follow the coding standards and guidelines as defined in the repository's CONTRIBUTING.md file.
+
+## Related Documentation Links
+
+For further reading and related documentation, consider these resources:
+- [Python Functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions)
+- [MorningAI Repository Guidelines](https://github.com/RC918/morningai/blob/main/CONTRIBUTING.md) (Replace with actual URL)
+- [MorningAI Developer Guide](https://morningai.dev/docs/developer-guide) (Replace with actual URL)
+
+## Common Troubleshooting Tips
+
+Here are some common issues developers might face while implementing this function within MorningAI:
+
+- **Syntax Errors**: Ensure that your syntax matches Python’s requirements—check for missing colons or incorrect indentation.
+- **Type Errors**: When calling `add_two_numbers`, make sure both arguments are numeric (integers or floats). If you're passing variables containing user input, validate or convert them before use.
+- **Module Not Found**: If placing this function in a separate module, ensure that the module is correctly imported where you intend to use it. Check for typos in your import statement.
+
+Remember, testing your function thoroughly in different scenarios will help catch most errors before integration. For more complex debugging, Python’s built-in `pdb` debugger can be an invaluable tool.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Test goal
-- Trace ID: `replay-abcd1234-a5f35e32`
+- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
+- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
