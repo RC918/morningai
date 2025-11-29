@@ -398,7 +398,7 @@ class FailureRecorder:
                     error=f"Failure record not found: {failure_id}"
                 )
 
-            new_trace_id = f"replay-{failure_id[:8]}-{str(uuid.uuid4())[:8]}"
+            new_trace_id = f"replay-{failure_id[:8]}-{uuid.uuid4()}"
 
             target_repo = repo or failure.metadata.get("repo") or DEFAULT_REPLAY_REPO
 

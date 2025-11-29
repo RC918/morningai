@@ -5,6 +5,7 @@ import pytest
 import json
 import time
 import threading
+import uuid
 from unittest.mock import Mock, patch, MagicMock, call
 from datetime import datetime, timezone
 
@@ -400,7 +401,7 @@ class TestCanaryDeployment:
         simple_count = 0
         
         for i in range(100):
-            task_id = f"boundary-task-{i:03d}"
+            task_id = f"boundary-task-{i:03d}-{uuid.uuid4()}"
             mock_execute.reset_mock()
             mock_run_orch.reset_mock()
             
@@ -427,7 +428,8 @@ class TestCanaryDeployment:
             delattr(mock_settings, 'use_langgraph_percent')
         mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
         
-        result = run_orchestrator_task("task-killswitch", "Test", "owner/repo")
+        task_id = f"task-killswitch-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "Test", "owner/repo")
         
         assert result["pr_url"] == "https://github.com/pr/1"
         mock_execute.assert_called_once()
@@ -445,7 +447,8 @@ class TestCanaryDeployment:
             "trace_id": "trace-456"
         }
         
-        result = run_orchestrator_task("task-override", "Test", "owner/repo")
+        task_id = f"task-override-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "Test", "owner/repo")
         
         assert result["pr_url"] == "https://github.com/pr/2"
         mock_run_orch.assert_called_once()
