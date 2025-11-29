@@ -365,6 +365,7 @@
     "workers": "Workers"
   },
     "nav": {
+      "aiPolicies": "AI Policies",
       "dashboard": "Dashboard",
       "failureExperiments": "Failures & Experiments",
       "governance": "Agent Governance",
@@ -374,6 +375,111 @@
       "settings": "Platform Settings",
       "tenants": "Tenant Management",
       "uxMetrics": "UX Metrics"
+    },
+    "aiPolicies": {
+      "title": "AI Policies",
+      "subtitle": "Configure AI usage rules and restrictions for your tenant",
+      "newPolicy": "New Policy",
+      "refresh": "Refresh",
+      "error": {
+        "loadFailed": "Failed to load policies",
+        "saveFailed": "Failed to save policy",
+        "deleteFailed": "Failed to delete policy",
+        "templatesFailed": "Failed to load policy templates"
+      },
+      "list": {
+        "title": "Policies",
+        "empty": "No policies configured yet",
+        "columns": {
+          "name": "Name",
+          "type": "Type",
+          "status": "Status",
+          "priority": "Priority",
+          "updatedAt": "Updated"
+        }
+      },
+      "editor": {
+        "titleNew": "Create New Policy",
+        "titleEdit": "Edit Policy",
+        "nameLabel": "Policy Name",
+        "namePlaceholder": "Enter policy name",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Enter policy description (optional)",
+        "typeLabel": "Policy Type",
+        "statusLabel": "Status",
+        "priorityLabel": "Priority",
+        "rulesLabel": "Rules Configuration",
+        "rulesHelp": "Configure the rules for this policy type",
+        "oneItemPerLine": "One item per line",
+        "jsonEditor": "Advanced JSON Editor",
+        "jsonEditorHelp": "Edit rules as raw JSON (for advanced users)",
+        "save": "Save Policy",
+        "saving": "Saving...",
+        "cancel": "Cancel",
+        "delete": "Delete Policy",
+        "deleteConfirm": "Are you sure you want to delete this policy?",
+        "selectType": "Select a policy type to get started"
+      },
+      "types": {
+        "capability_whitelist": {
+          "title": "Allowed Capabilities",
+          "description": "Define which AI capabilities are allowed"
+        },
+        "capability_blacklist": {
+          "title": "Blocked Capabilities",
+          "description": "Define which AI capabilities are blocked"
+        },
+        "content_filter": {
+          "title": "Content Filter",
+          "description": "Configure content filtering rules"
+        },
+        "usage_limit": {
+          "title": "Usage Limits",
+          "description": "Set usage limits and quotas"
+        },
+        "rate_limit": {
+          "title": "Rate Limiting",
+          "description": "Configure rate limiting rules"
+        },
+        "model_restriction": {
+          "title": "Model Restrictions",
+          "description": "Restrict which AI models can be used"
+        }
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "draft": "Draft"
+      },
+      "validation": {
+        "nameRequired": "Policy name is required",
+        "invalidJson": "Invalid JSON: {{message}}",
+        "rulesRequired": "Rules configuration is required"
+      },
+      "fields": {
+        "allowed_capabilities": "Allowed Capabilities",
+        "blocked_capabilities": "Blocked Capabilities",
+        "require_human_approval": "Require Human Approval",
+        "auto_approve": "Auto Approve",
+        "blocked_file_patterns": "Blocked File Patterns",
+        "blocked_domains": "Blocked Domains",
+        "filter_pii": "Filter PII",
+        "filter_profanity": "Filter Profanity",
+        "filter_sensitive_data": "Filter Sensitive Data",
+        "custom_blocked_terms": "Custom Blocked Terms",
+        "output_max_length": "Output Max Length",
+        "daily_request_limit": "Daily Request Limit",
+        "monthly_token_limit": "Monthly Token Limit",
+        "max_concurrent_tasks": "Max Concurrent Tasks",
+        "max_task_duration_seconds": "Max Task Duration (seconds)",
+        "requests_per_minute": "Requests Per Minute",
+        "requests_per_hour": "Requests Per Hour",
+        "burst_limit": "Burst Limit",
+        "allowed_providers": "Allowed Providers",
+        "allowed_models": "Allowed Models",
+        "default_provider": "Default Provider",
+        "default_model": "Default Model"
+      }
     },
     "failureExperiment": {
       "title": "Failure & Experiment Dashboard",
