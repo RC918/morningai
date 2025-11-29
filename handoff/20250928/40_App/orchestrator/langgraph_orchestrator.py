@@ -88,6 +88,12 @@ class AgentState(TypedDict):
         security_risk: Overall security risk level (critical, high, medium, low, info)
         security_findings: List of security findings
         security_is_safe: Boolean indicating if task is safe to proceed
+
+    Phase 4 New Fields (PR-3 GovernanceAgent):
+        governance_advisory: GovernanceAdvisory result from GovernanceAgent
+        governance_risk: Overall governance risk level (critical, high, medium, low, info)
+        governance_findings: List of governance findings
+        governance_is_compliant: Boolean indicating if task is compliant with policies
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     goal: str
@@ -112,6 +118,10 @@ class AgentState(TypedDict):
     security_risk: str
     security_findings: list
     security_is_safe: bool
+    governance_advisory: dict
+    governance_risk: str
+    governance_findings: list
+    governance_is_compliant: bool
 
 
 def planner_node(state: AgentState) -> AgentState:
@@ -299,6 +309,105 @@ def security_advisor_node(state: AgentState) -> AgentState:
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("security_advisor", trace_id, success=success, latency_ms=latency_ms)
+    return state
+
+
+def governance_advisor_node(state: AgentState) -> AgentState:
+    """
+    Governance Advisor node: Analyzes task for governance compliance
+
+    Phase 4 PR-3 Enhancement:
+    - Provides governance advisory for planned tasks
+    - Integrates with PolicyGuard, ViolationDetector, CostTracker, PermissionChecker
+    - Analyzes policy compliance, cost budget, and permissions
+    - Advisory role: provides recommendations but does not block execution
+
+    Returns:
+        Updated state with governance_advisory, governance_risk, governance_findings, governance_is_compliant
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    trace_id = state.get("trace_id", "unknown")
+    goal = state.get("goal", "")
+    repo = state.get("repo", "")
+    plan = state.get("plan", [])
+    task_type = state.get("task_type", "unknown")
+
+    metrics.record_node_start("governance_advisor", trace_id)
+
+    logger.info("[GovernanceAdvisor] Starting governance analysis", extra={
+        "operation": "governance_advisor",
+        "trace_id": trace_id,
+        "repo": repo,
+        "task_type": task_type,
+        "plan_steps": len(plan)
+    })
+
+    state["governance_advisory"] = {}
+    state["governance_risk"] = "info"
+    state["governance_findings"] = []
+    state["governance_is_compliant"] = True
+
+    success = True
+    try:
+        from governance_agent import get_governance_agent
+
+        agent = get_governance_agent()
+
+        advisory = agent.analyze_task(
+            task_type=task_type,
+            trace_id=trace_id,
+            agent_id="orchestrator",
+            file_paths=[],
+            operations=plan,
+            content=goal,
+            labels=[],
+            environment="sandbox"
+        )
+
+        advisory_dict = advisory.to_dict()
+        state["governance_advisory"] = advisory_dict
+        state["governance_risk"] = advisory_dict["overall_risk"]
+        state["governance_findings"] = advisory_dict["findings"]
+        state["governance_is_compliant"] = advisory_dict["is_compliant"]
+
+        logger.info("[GovernanceAdvisor] Analysis complete", extra={
+            "operation": "governance_advisor",
+            "trace_id": trace_id,
+            "is_compliant": advisory.is_compliant,
+            "risk_level": advisory.overall_risk.value,
+            "findings_count": len(advisory.findings)
+        })
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Governance analysis: risk={advisory.overall_risk.value}, findings={len(advisory.findings)}, compliant={advisory.is_compliant}")
+        ]
+
+    except ImportError as e:
+        logger.warning(f"[GovernanceAdvisor] GovernanceAgent not available: {e}", extra={
+            "operation": "governance_advisor",
+            "trace_id": trace_id,
+            "error": str(e)
+        })
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content="Governance analysis skipped (GovernanceAgent not available)")
+        ]
+
+    except Exception as e:
+        success = False
+        logger.error(f"[GovernanceAdvisor] Analysis failed: {e}", extra={
+            "operation": "governance_advisor",
+            "trace_id": trace_id,
+            "error": str(e)
+        }, exc_info=True)
+        state["governance_advisory"] = {"error": str(e)}
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Governance analysis failed: {str(e)}")
+        ]
+
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("governance_advisor", trace_id, success=success, latency_ms=latency_ms)
     return state
 
 
@@ -899,12 +1008,13 @@ def create_orchestrator_graph():
     """
     Creates the LangGraph StateGraph for orchestration
 
-    Phase 4 Multi-Agent Flow (PR-2 SecurityAgent):
-        planner → security_advisor → executor → ci_monitor → reviewer → decision → (fixer if needed) → finalizer
+    Phase 4 Multi-Agent Flow (PR-3 GovernanceAgent):
+        planner → security_advisor → governance_advisor → executor → ci_monitor → reviewer → decision → (fixer if needed) → finalizer
 
     Nodes:
         - planner: Task decomposition using LLM Planner
         - security_advisor: Security analysis (Phase 4 PR-2)
+        - governance_advisor: Governance compliance analysis (Phase 4 PR-3)
         - executor: Code generation execution
         - ci_monitor: CI status monitoring
         - reviewer: Code review and analysis
@@ -920,6 +1030,7 @@ def create_orchestrator_graph():
     # Add all nodes
     workflow.add_node("planner", planner_node)
     workflow.add_node("security_advisor", security_advisor_node)
+    workflow.add_node("governance_advisor", governance_advisor_node)
     workflow.add_node("executor", executor_node)
     workflow.add_node("ci_monitor", ci_monitor_node)
     workflow.add_node("reviewer", reviewer_node)
@@ -933,8 +1044,11 @@ def create_orchestrator_graph():
     # planner → security_advisor (Phase 4 PR-2)
     workflow.add_edge("planner", "security_advisor")
 
-    # security_advisor → executor (Phase 4 PR-2: advisory only, always proceeds)
-    workflow.add_edge("security_advisor", "executor")
+    # security_advisor → governance_advisor (Phase 4 PR-3)
+    workflow.add_edge("security_advisor", "governance_advisor")
+
+    # governance_advisor → executor (Phase 4 PR-3: advisory only, always proceeds)
+    workflow.add_edge("governance_advisor", "executor")
 
     # executor → (execute | monitor_ci | fix | finalize)
     workflow.add_conditional_edges(
@@ -1029,7 +1143,11 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         "security_advisory": {},
         "security_risk": "info",
         "security_findings": [],
-        "security_is_safe": True
+        "security_is_safe": True,
+        "governance_advisory": {},
+        "governance_risk": "info",
+        "governance_findings": [],
+        "governance_is_compliant": True
     }
 
     config = {"configurable": {"thread_id": trace_id}}
