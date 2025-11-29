@@ -925,6 +925,18 @@ class Settings(BaseSettings):
         description="Enable LLM-powered planner in LangGraph orchestrator (Phase 1)"
     )
 
+    use_llm_reviewer: bool = Field(
+        default=False,
+        alias="USE_LLM_REVIEWER",
+        description="Enable LLM-powered reviewer in LangGraph orchestrator (Phase 6 PR-3)"
+    )
+
+    reviewer_json_mode: bool = Field(
+        default=True,
+        alias="REVIEWER_JSON_MODE",
+        description="Enable JSON mode for LLM reviewer (ensures valid JSON responses)"
+    )
+
     planner_json_mode: bool = Field(
         default=True,
         alias="PLANNER_JSON_MODE",
