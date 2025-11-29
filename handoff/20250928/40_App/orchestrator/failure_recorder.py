@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 FAILURE_KEY_PREFIX = "orchestrator:failures"
 FAILURE_LIST_KEY = f"{FAILURE_KEY_PREFIX}:list"
 FAILURE_TTL_SECONDS = 86400 * 30
+DEFAULT_REPLAY_REPO = "RC918/morningai"
 
 
 @dataclass
@@ -79,6 +80,7 @@ class FailureRecord:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
+@dataclass
 class ReplayResult:
     """
     Result of a replay operation
@@ -90,30 +92,15 @@ class ReplayResult:
         job_id: RQ job ID if successfully enqueued
         error: Error message if replay failed
     """
-
-    def __init__(
-        self,
-        success: bool,
-        failure_id: str,
-        new_trace_id: Optional[str] = None,
-        job_id: Optional[str] = None,
-        error: Optional[str] = None
-    ):
-        self.success = success
-        self.failure_id = failure_id
-        self.new_trace_id = new_trace_id
-        self.job_id = job_id
-        self.error = error
+    success: bool
+    failure_id: str
+    new_trace_id: Optional[str] = None
+    job_id: Optional[str] = None
+    error: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
-        return {
-            "success": self.success,
-            "failure_id": self.failure_id,
-            "new_trace_id": self.new_trace_id,
-            "job_id": self.job_id,
-            "error": self.error
-        }
+        return asdict(self)
 
 
 class FailureRecorder:
@@ -413,19 +400,30 @@ class FailureRecorder:
 
             new_trace_id = f"replay-{failure_id[:8]}-{str(uuid.uuid4())[:8]}"
 
-            target_repo = repo or failure.metadata.get("repo") or "RC918/morningai"
+            target_repo = repo or failure.metadata.get("repo") or DEFAULT_REPLAY_REPO
 
             try:
                 from rq import Queue
                 from rq.serializers import JSONSerializer
 
-                redis_client_rq = self.redis
-                if hasattr(self.redis, 'connection_pool'):
-                    import redis as redis_module
-                    redis_client_rq = redis_module.Redis(
-                        connection_pool=self.redis.connection_pool,
-                        decode_responses=False
+                try:
+                    from common.config.settings import settings
+                    redis_url = getattr(settings, "redis_url", None)
+                except (ImportError, AttributeError):
+                    redis_url = None
+
+                if not redis_url:
+                    import os
+                    redis_url = os.environ.get("REDIS_URL")
+
+                if not redis_url or redis is None:
+                    return ReplayResult(
+                        success=False,
+                        failure_id=failure_id,
+                        error="Redis URL not configured for replay"
                     )
+
+                redis_client_rq = redis.from_url(redis_url, decode_responses=False)
 
                 q = Queue(
                     "orchestrator",

@@ -2,7 +2,7 @@
 import sys
 import os
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -473,6 +473,27 @@ class TestReplayFailure:
 
     def test_replay_failure_success_with_mock_queue(self):
         """Test successful replay with mocked RQ queue"""
+        import sys
+
+        mock_rq = MagicMock()
+        mock_queue_cls = MagicMock()
+        mock_queue = MagicMock()
+        mock_job = MagicMock()
+        mock_job.id = "job-123"
+        mock_queue.enqueue.return_value = mock_job
+        mock_queue_cls.return_value = mock_queue
+        mock_rq.Queue = mock_queue_cls
+        mock_rq.serializers.JSONSerializer = MagicMock()
+
+        mock_settings_module = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.redis_url = "redis://localhost:6379"
+        mock_settings_module.settings = mock_settings
+
+        mock_redis_module = MagicMock()
+        mock_redis_client_rq = MagicMock()
+        mock_redis_module.from_url.return_value = mock_redis_client_rq
+
         mock_redis = MagicMock()
         test_record = FailureRecord(
             id="test-failure-id",
@@ -485,13 +506,44 @@ class TestReplayFailure:
 
         recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
 
-        result = recorder.replay_failure("test-failure-id")
+        with patch.dict(sys.modules, {
+            "rq": mock_rq,
+            "rq.serializers": mock_rq.serializers,
+            "common.config.settings": mock_settings_module,
+            "redis": mock_redis_module
+        }):
+            with patch.dict(os.environ, {"REDIS_URL": "redis://localhost:6379"}):
+                result = recorder.replay_failure("test-failure-id")
 
+        assert result.success is True
         assert result.failure_id == "test-failure-id"
-        assert result.new_trace_id is not None or result.error is not None
+        assert result.job_id == "job-123"
+        assert result.error is None
+        mock_queue.enqueue.assert_called_once()
 
     def test_replay_failure_with_repo_override(self):
         """Test replay_failure with repository override"""
+        import sys
+
+        mock_rq = MagicMock()
+        mock_queue_cls = MagicMock()
+        mock_queue = MagicMock()
+        mock_job = MagicMock()
+        mock_job.id = "job-456"
+        mock_queue.enqueue.return_value = mock_job
+        mock_queue_cls.return_value = mock_queue
+        mock_rq.Queue = mock_queue_cls
+        mock_rq.serializers.JSONSerializer = MagicMock()
+
+        mock_settings_module = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.redis_url = "redis://localhost:6379"
+        mock_settings_module.settings = mock_settings
+
+        mock_redis_module = MagicMock()
+        mock_redis_client_rq = MagicMock()
+        mock_redis_module.from_url.return_value = mock_redis_client_rq
+
         mock_redis = MagicMock()
         test_record = FailureRecord(
             id="test-failure-id",
@@ -503,9 +555,21 @@ class TestReplayFailure:
 
         recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
 
-        result = recorder.replay_failure("test-failure-id", repo="custom/repo")
+        with patch.dict(sys.modules, {
+            "rq": mock_rq,
+            "rq.serializers": mock_rq.serializers,
+            "common.config.settings": mock_settings_module,
+            "redis": mock_redis_module
+        }):
+            with patch.dict(os.environ, {"REDIS_URL": "redis://localhost:6379"}):
+                result = recorder.replay_failure("test-failure-id", repo="custom/repo")
 
+        assert result.success is True
         assert result.failure_id == "test-failure-id"
+        assert result.error is None
+        mock_queue.enqueue.assert_called_once()
+        call_args = mock_queue.enqueue.call_args
+        assert call_args[0][3] == "custom/repo"
 
     def test_replay_failure_generates_new_trace_id(self):
         """Test that replay generates a new trace_id with replay prefix"""

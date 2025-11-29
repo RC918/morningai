@@ -175,22 +175,14 @@ def replay_failure(failure_id):
 
         result = recorder.replay_failure(failure_id, repo=repo)
 
+        response_data = result.to_dict()
+        response_data['timestamp'] = datetime.utcnow().isoformat()
+
         if result.success:
-            return jsonify({
-                'success': True,
-                'failure_id': result.failure_id,
-                'new_trace_id': result.new_trace_id,
-                'job_id': result.job_id,
-                'original_goal': failure.goal[:100],
-                'timestamp': datetime.utcnow().isoformat()
-            })
+            response_data['original_goal'] = failure.goal[:100]
+            return jsonify(response_data)
         else:
-            return jsonify({
-                'success': False,
-                'failure_id': result.failure_id,
-                'error': result.error,
-                'timestamp': datetime.utcnow().isoformat()
-            }), 500
+            return jsonify(response_data), 500
 
     except Exception as e:
         logger.error(f"Failed to replay failure {failure_id}: {e}")
