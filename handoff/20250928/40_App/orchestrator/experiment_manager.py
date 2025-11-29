@@ -109,7 +109,7 @@ class ExperimentManager:
         """
         self.environment = environment
         self.experiments = experiments or EXPERIMENT_CONFIGS.copy()
-        self._assignment_cache: Dict[str, Dict[str, VariantType]] = {}
+        self._assignment_cache: Dict[str, VariantType] = {}
 
         logger.info(
             f"[ExperimentManager] Initialized with environment={environment}, "
@@ -168,9 +168,7 @@ class ExperimentManager:
 
         cache_key = f"{experiment_name}:{trace_id}"
         if cache_key in self._assignment_cache:
-            cached = self._assignment_cache.get(cache_key, {})
-            if "variant" in cached:
-                return cached["variant"]
+            return self._assignment_cache[cache_key]
 
         config = self.experiments[experiment_name]
 
@@ -184,7 +182,7 @@ class ExperimentManager:
             bucket = hash_value % 100
             variant = "treatment" if bucket < config.treatment_percent else "control"
 
-        self._assignment_cache[cache_key] = {"variant": variant}
+        self._assignment_cache[cache_key] = variant
 
         logger.info(
             f"[ExperimentManager] Assigned variant={variant} for "
@@ -249,7 +247,12 @@ class ExperimentManager:
         for name, config in self.experiments.items():
             if config.target_component == component and self.is_experiment_active(name):
                 variant = self.get_variant(name, trace_id)
-                provider = self.get_provider_for_experiment(name, trace_id)
+                provider = config.treatment_provider if variant == "treatment" else config.control_provider
+
+                logger.debug(
+                    f"[ExperimentManager] Component={component} assigned to "
+                    f"experiment={name}, variant={variant}, provider={provider}"
+                )
 
                 return {
                     "experiment_name": name,
@@ -355,7 +358,7 @@ def get_experiment_manager(
         if environment is None:
             try:
                 from common.config.settings import settings
-                environment = getattr(settings, "env", "production")
+                environment = getattr(settings, "environment", "production")
             except ImportError:
                 environment = "production"
 

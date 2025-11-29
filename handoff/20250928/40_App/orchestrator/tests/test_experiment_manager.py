@@ -351,15 +351,25 @@ class TestGlobalExperimentManager:
     """Tests for global experiment manager functions"""
 
     def test_get_experiment_manager_creates_instance(self):
-        """Test get_experiment_manager creates instance"""
+        """Test get_experiment_manager creates instance with correct environment"""
         reset_experiment_manager()
 
-        with patch("experiment_manager.get_experiment_manager") as mock_get:
-            mock_manager = MagicMock()
-            mock_get.return_value = mock_manager
-
-            manager = get_experiment_manager()
+        with patch("experiment_manager.ExperimentManager") as mock_manager_class:
+            manager = get_experiment_manager(environment="test")
+            mock_manager_class.assert_called_once_with(environment="test")
             assert manager is not None
+
+    def test_get_experiment_manager_from_settings(self):
+        """Test get_experiment_manager reads environment from settings.environment"""
+        reset_experiment_manager()
+
+        with patch("experiment_manager.ExperimentManager") as mock_manager_class:
+            mock_settings = MagicMock()
+            mock_settings.environment = "staging"
+
+            with patch.dict("sys.modules", {"common.config.settings": MagicMock(settings=mock_settings)}):
+                get_experiment_manager()
+                mock_manager_class.assert_called_once_with(environment="staging")
 
     def test_reset_experiment_manager(self):
         """Test reset_experiment_manager clears instance"""

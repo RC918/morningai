@@ -417,46 +417,29 @@ class OrchestratorMetrics:
         if not self.enabled:
             return {"enabled": False}
 
-        control_total = self.get_window_count(
-            f"experiment.{experiment_name}.control", window_minutes
-        )
-        treatment_total = self.get_window_count(
-            f"experiment.{experiment_name}.treatment", window_minutes
-        )
-
-        control_success = self.get_window_count(
-            f"experiment.{experiment_name}.control.success", window_minutes
-        )
-        treatment_success = self.get_window_count(
-            f"experiment.{experiment_name}.treatment.success", window_minutes
-        )
-
-        control_failure = self.get_window_count(
-            f"experiment.{experiment_name}.control.failure", window_minutes
-        )
-        treatment_failure = self.get_window_count(
-            f"experiment.{experiment_name}.treatment.failure", window_minutes
-        )
+        def _get_variant_summary(variant: str) -> Dict:
+            """Helper to get metrics summary for a variant"""
+            total = self.get_window_count(
+                f"experiment.{experiment_name}.{variant}", window_minutes
+            )
+            success = self.get_window_count(
+                f"experiment.{experiment_name}.{variant}.success", window_minutes
+            )
+            failure = self.get_window_count(
+                f"experiment.{experiment_name}.{variant}.failure", window_minutes
+            )
+            return {
+                "total": total,
+                "success": success,
+                "failure": failure,
+                "success_rate": round(success / total * 100, 2) if total > 0 else 0
+            }
 
         return {
             "experiment_name": experiment_name,
             "window_minutes": window_minutes,
-            "control": {
-                "total": control_total,
-                "success": control_success,
-                "failure": control_failure,
-                "success_rate": round(
-                    control_success / control_total * 100, 2
-                ) if control_total > 0 else 0
-            },
-            "treatment": {
-                "total": treatment_total,
-                "success": treatment_success,
-                "failure": treatment_failure,
-                "success_rate": round(
-                    treatment_success / treatment_total * 100, 2
-                ) if treatment_total > 0 else 0
-            }
+            "control": _get_variant_summary("control"),
+            "treatment": _get_variant_summary("treatment")
         }
 
     # ==================== Latency Metrics ====================
