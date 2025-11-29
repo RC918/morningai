@@ -35,6 +35,7 @@ from src.routes.governance import bp as governance_bp, admin_bp as admin_agents_
 from src.routes.agent_registry import bp as agent_registry_bp
 from src.routes.admin import bp as admin_bp
 from src.routes.failures import bp as failures_bp
+from src.routes.experiments import bp as experiments_bp
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
@@ -306,6 +307,7 @@ app.register_blueprint(governance_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(admin_agents_bp)
 app.register_blueprint(failures_bp)
+app.register_blueprint(experiments_bp)
 
 from src.routes.dashboard import get_dashboard_data as monitoring_dashboard_handler
 
