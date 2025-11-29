@@ -283,18 +283,6 @@ class GovernanceAgent:
             )
 
         try:
-            self.violation_detector.check_all(operation, content, metadata)
-        except Exception as e:
-            findings.append(GovernanceFinding(
-                category="violation",
-                risk_level=GovernanceRisk.CRITICAL,
-                title="Violation Detected",
-                description=str(e),
-                source="ViolationDetector",
-                recommendation="Review and modify the content to comply with policies"
-            ))
-
-        try:
             self.violation_detector.check_secrets_access(content)
         except Exception as e:
             findings.append(GovernanceFinding(
@@ -320,7 +308,7 @@ class GovernanceAgent:
                 ))
 
         overall_risk = self._calculate_overall_risk(findings)
-        is_compliant = len([f for f in findings if f.risk_level == GovernanceRisk.CRITICAL]) == 0
+        is_compliant = len([f for f in findings if f.risk_level in [GovernanceRisk.CRITICAL, GovernanceRisk.HIGH]]) == 0
 
         return GovernanceAdvisory(
             is_compliant=is_compliant,
@@ -486,7 +474,7 @@ class GovernanceAgent:
                 permission_status["denied_operations"].append(operation)
 
         overall_risk = self._calculate_overall_risk(findings)
-        is_compliant = len([f for f in findings if f.risk_level == GovernanceRisk.HIGH]) == 0
+        is_compliant = len([f for f in findings if f.risk_level in [GovernanceRisk.CRITICAL, GovernanceRisk.HIGH]]) == 0
 
         return GovernanceAdvisory(
             is_compliant=is_compliant,

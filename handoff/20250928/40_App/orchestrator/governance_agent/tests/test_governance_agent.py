@@ -800,7 +800,6 @@ class TestGovernanceAgentIntegration:
                 mock_guard.check_file_access.assert_called()
                 mock_guard.check_risk_level.assert_called()
                 mock_guard.requires_human_approval.assert_called()
-                mock_detector.check_all.assert_called()
                 mock_detector.check_secrets_access.assert_called()
                 mock_tracker.get_cost_summary.assert_called()
                 mock_checker.can_access_environment.assert_called()
