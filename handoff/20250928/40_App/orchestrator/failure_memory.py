@@ -152,7 +152,7 @@ def save_failure_to_memory(
         record_data = {
             "key": primary_key,
             "text": text_content,
-            "embedding": [],
+            "embedding": None,
             "metadata": json.dumps({
                 "failure_id": failure_dict.get("id"),
                 "trace_id": trace_id,
@@ -184,7 +184,7 @@ def save_failure_to_memory(
                 category_record = {
                     "key": category_key,
                     "text": text_content,
-                    "embedding": [],
+                    "embedding": None,
                     "metadata": json.dumps({
                         "failure_id": failure_dict.get("id"),
                         "trace_id": trace_id,
@@ -335,8 +335,8 @@ def get_failure_memory_stats() -> Dict[str, Any]:
         recent = recall_recent_failures(limit=100)
         for record in recent:
             metadata = record.get("metadata", {})
+            error_type = metadata.get("error_type", "unknown")
             if "primary_key" not in metadata:
-                error_type = metadata.get("error_type", "unknown")
                 error_types[error_type] = error_types.get(error_type, 0) + 1
 
         return {
