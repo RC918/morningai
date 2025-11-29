@@ -8,6 +8,7 @@ import {
   Users,
   Activity,
   BarChart3,
+  Beaker,
   LogOut,
   ChevronLeft,
   ChevronRight
@@ -46,14 +47,20 @@ const Sidebar = ({ user, onLogout }) => {
       labelKey: 'nav.monitoring',
       descriptionKey: 'monitoring.subtitle'
     },
-    {
-      path: '/ux-metrics',
-      icon: BarChart3,
-      labelKey: 'nav.uxMetrics',
-      descriptionKey: 'uxMetrics.subtitle'
-    },
-    {
-      path: '/settings',
+        {
+          path: '/ux-metrics',
+          icon: BarChart3,
+          labelKey: 'nav.uxMetrics',
+          descriptionKey: 'uxMetrics.subtitle'
+        },
+        {
+          path: '/failure-experiments',
+          icon: Beaker,
+          labelKey: 'nav.failureExperiments',
+          descriptionKey: 'failureExperiment.subtitle'
+        },
+        {
+          path: '/settings',
       icon: Settings,
       labelKey: 'nav.settings',
       descriptionKey: 'settings.subtitle'

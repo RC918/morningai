@@ -364,16 +364,56 @@
     "usedTotal": "Used/Total",
     "workers": "Workers"
   },
-  "nav": {
-    "dashboard": "Dashboard",
-    "governance": "Agent Governance",
-    "logout": "Logout",
-    "mainNavigation": "Main navigation",
-    "monitoring": "System Monitoring",
-    "settings": "Platform Settings",
-    "tenants": "Tenant Management",
-    "uxMetrics": "UX Metrics"
-  },
+    "nav": {
+      "dashboard": "Dashboard",
+      "failureExperiments": "Failures & Experiments",
+      "governance": "Agent Governance",
+      "logout": "Logout",
+      "mainNavigation": "Main navigation",
+      "monitoring": "System Monitoring",
+      "settings": "Platform Settings",
+      "tenants": "Tenant Management",
+      "uxMetrics": "UX Metrics"
+    },
+    "failureExperiment": {
+      "title": "Failure & Experiment Dashboard",
+      "subtitle": "Monitor workflow failures and A/B testing experiments",
+      "error": {
+        "loadFailed": "Failed to load dashboard data"
+      },
+      "metrics": {
+        "totalFailures": "Total Failures",
+        "last24h": "Last 24 hours",
+        "successRate": "Success Rate",
+        "improving": "+2.1% from last week",
+        "activeExperiments": "Active Experiments",
+        "ofTotal": "of {{total}} total",
+        "avgFixerIterations": "Avg Fixer Iterations",
+        "perWorkflow": "per workflow"
+      },
+      "charts": {
+        "topFailureTypes": "Top Failure Types",
+        "topFailureTypesDesc": "Distribution of error types in failed workflows",
+        "noFailureData": "No failure data available",
+        "fixerRetryDist": "Fixer Retry Distribution",
+        "fixerRetryDistDesc": "Number of fixer iterations per workflow",
+        "iteration": "Iteration {{n}}",
+        "noFixerData": "No fixer metrics available",
+        "experimentComparison": "Experiment Comparison",
+        "experimentComparisonDesc": "Control vs Treatment performance metrics",
+        "treatmentPercent": "{{percent}}% treatment",
+        "control": "Control",
+        "treatment": "Treatment",
+        "successRate": "Success Rate",
+        "avgLatency": "Avg Latency",
+        "noExperimentData": "No experiment data available",
+        "stagingOnly": "Experiments are only active in staging environment",
+        "recentFailures": "Recent Failures",
+        "recentFailuresDesc": "Latest workflow failures for investigation",
+        "noRecentFailures": "No recent failures",
+        "allWorkflowsSuccessful": "All workflows completed successfully"
+      }
+    },
   "settings": {
     "2fa": {
       "actions": {
