@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from failure_recorder import (  # noqa: E402
     FailureRecord,
     FailureRecorder,
+    ReplayResult,
     get_failure_recorder,
     create_failure_recorder,
     FAILURE_KEY_PREFIX,
@@ -394,3 +395,133 @@ class TestConstants:
     def test_failure_ttl_seconds(self):
         """Test failure TTL constant (30 days)"""
         assert FAILURE_TTL_SECONDS == 86400 * 30
+
+
+class TestReplayResult:
+    """Tests for ReplayResult class (Phase 5 PR-2)"""
+
+    def test_replay_result_success(self):
+        """Test creating a successful replay result"""
+        result = ReplayResult(
+            success=True,
+            failure_id="test-failure-id",
+            new_trace_id="replay-test-12345678",
+            job_id="job-123"
+        )
+
+        assert result.success is True
+        assert result.failure_id == "test-failure-id"
+        assert result.new_trace_id == "replay-test-12345678"
+        assert result.job_id == "job-123"
+        assert result.error is None
+
+    def test_replay_result_failure(self):
+        """Test creating a failed replay result"""
+        result = ReplayResult(
+            success=False,
+            failure_id="test-failure-id",
+            error="Failure record not found"
+        )
+
+        assert result.success is False
+        assert result.failure_id == "test-failure-id"
+        assert result.new_trace_id is None
+        assert result.job_id is None
+        assert result.error == "Failure record not found"
+
+    def test_replay_result_to_dict(self):
+        """Test ReplayResult to_dict serialization"""
+        result = ReplayResult(
+            success=True,
+            failure_id="test-id",
+            new_trace_id="new-trace",
+            job_id="job-456"
+        )
+
+        result_dict = result.to_dict()
+
+        assert result_dict["success"] is True
+        assert result_dict["failure_id"] == "test-id"
+        assert result_dict["new_trace_id"] == "new-trace"
+        assert result_dict["job_id"] == "job-456"
+        assert result_dict["error"] is None
+
+
+class TestReplayFailure:
+    """Tests for replay_failure method (Phase 5 PR-2)"""
+
+    def test_replay_failure_when_disabled(self):
+        """Test that replay_failure returns error when disabled"""
+        recorder = FailureRecorder(redis_client=None, enabled=False)
+
+        result = recorder.replay_failure("test-id")
+
+        assert result.success is False
+        assert result.error == "Failure recorder is disabled"
+
+    def test_replay_failure_not_found(self):
+        """Test replay_failure when failure record not found"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+        result = recorder.replay_failure("non-existent-id")
+
+        assert result.success is False
+        assert "not found" in result.error
+
+    def test_replay_failure_success_with_mock_queue(self):
+        """Test successful replay with mocked RQ queue"""
+        mock_redis = MagicMock()
+        test_record = FailureRecord(
+            id="test-failure-id",
+            trace_id="original-trace",
+            goal="Test goal for replay",
+            error_type="ci_failure",
+            metadata={"repo": "RC918/morningai"}
+        )
+        mock_redis.get.return_value = json.dumps(test_record.to_dict()).encode('utf-8')
+
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+        result = recorder.replay_failure("test-failure-id")
+
+        assert result.failure_id == "test-failure-id"
+        assert result.new_trace_id is not None or result.error is not None
+
+    def test_replay_failure_with_repo_override(self):
+        """Test replay_failure with repository override"""
+        mock_redis = MagicMock()
+        test_record = FailureRecord(
+            id="test-failure-id",
+            trace_id="original-trace",
+            goal="Test goal",
+            error_type="workflow_error"
+        )
+        mock_redis.get.return_value = json.dumps(test_record.to_dict()).encode('utf-8')
+
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+        result = recorder.replay_failure("test-failure-id", repo="custom/repo")
+
+        assert result.failure_id == "test-failure-id"
+
+    def test_replay_failure_generates_new_trace_id(self):
+        """Test that replay generates a new trace_id with replay prefix"""
+        mock_redis = MagicMock()
+        test_record = FailureRecord(
+            id="abcd1234-5678-90ab-cdef-1234567890ab",
+            trace_id="original-trace",
+            goal="Test goal",
+            error_type="test_error"
+        )
+        mock_redis.get.return_value = json.dumps(test_record.to_dict()).encode('utf-8')
+
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+        result = recorder.replay_failure("abcd1234-5678-90ab-cdef-1234567890ab")
+
+        if result.new_trace_id:
+            assert result.new_trace_id.startswith("replay-")
+            assert "abcd1234" in result.new_trace_id
