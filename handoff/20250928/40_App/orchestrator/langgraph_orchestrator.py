@@ -26,11 +26,13 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
 from orchestrator_metrics import get_orchestrator_metrics, OrchestratorMetrics
+from failure_recorder import init_failure_recorder_from_env, FailureRecorder
 
 logger = logging.getLogger(__name__)
 
 # Global metrics instance (lazy initialization)
 _metrics: Optional[OrchestratorMetrics] = None
+_failure_recorder: Optional[FailureRecorder] = None
 
 
 def _get_metrics() -> OrchestratorMetrics:
@@ -50,6 +52,14 @@ def _get_metrics() -> OrchestratorMetrics:
             logger.warning(f"Failed to initialize metrics: {e}")
             _metrics = get_orchestrator_metrics(redis_client=None, enabled=False)
     return _metrics
+
+
+def _get_failure_recorder() -> FailureRecorder:
+    """Get or initialize the global failure recorder instance"""
+    global _failure_recorder
+    if _failure_recorder is None:
+        _failure_recorder = init_failure_recorder_from_env()
+    return _failure_recorder
 
 
 # Maximum number of fix retries before giving up
@@ -1267,14 +1277,18 @@ def should_fix_or_finalize(state: AgentState) -> str:
 def finalizer_node(state: AgentState) -> AgentState:
     """
     Finalizer node: Prepares final result
+
+    Phase 5 PR-1: Records failures when status=error or fixer exhausted retries
     """
     start_time = time.time()
     metrics = _get_metrics()
+    failure_recorder = _get_failure_recorder()
 
     trace_id = state["trace_id"]
     pr_url = state.get("pr_url")
     ci_state = state.get("ci_state")
     error = state.get("error")
+    retry_count = state.get("retry_count", 0)
 
     metrics.record_node_start("finalizer", trace_id)
 
@@ -1286,14 +1300,29 @@ def finalizer_node(state: AgentState) -> AgentState:
         "has_error": bool(error)
     })
 
+    final_status = "success" if not error else "error"
+
     final_result = {
         "trace_id": trace_id,
         "pr_url": pr_url,
         "ci_state": ci_state,
-        "status": "success" if not error else "error",
+        "status": final_status,
         "error": error,
         "timestamp": datetime.utcnow().isoformat()
     }
+
+    if final_status == "error":
+        error_type = "workflow_error"
+        if retry_count >= MAX_FIXER_RETRIES:
+            error_type = "fixer_exhausted"
+        elif ci_state in ["failure", "error"]:
+            error_type = "ci_failure"
+
+        failure_recorder.record_failure_from_state(
+            state=dict(state),
+            error_type=error_type,
+            error_message=error
+        )
 
     state["final_result"] = final_result
     state["messages"] = state.get("messages", []) + [
@@ -1563,6 +1592,13 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
 
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+
+        failure_recorder = _get_failure_recorder()
+        failure_recorder.record_failure_from_state(
+            state={"trace_id": trace_id, "goal": goal, "repo": repo},
+            error_type="workflow_exception",
+            error_message=error_msg
+        )
 
         return {
             "trace_id": trace_id,
