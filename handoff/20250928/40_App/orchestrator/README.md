@@ -23,7 +23,32 @@ This worker engine demonstrates:
 - GitHub API (open PR, read CI status)
 - Redis Queue (RQ) for task slicing
 - Supabase pgvector (long-term memory)
-- LangGraph-style loop (planner → executor → CI analyzer → fixer)
+- **Phase 4 LangGraph 12-Node Workflow**:
+  ```text
+  planner → security_advisor → governance_advisor → cost_advisor → permission_advisor → reputation_advisor → executor → ci_monitor → reviewer → decision → fixer → finalizer
+  ```
+
+### Phase 4 Multi-Agent Flow (Current)
+
+| Node | Description | Phase |
+|------|-------------|-------|
+| `planner` | Task decomposition using LLM Planner | Phase 1 |
+| `security_advisor` | SecurityAgent security analysis (advisory-only) | Phase 4 PR-2 |
+| `governance_advisor` | GovernanceAgent compliance analysis (advisory-only) | Phase 4 PR-3 |
+| `cost_advisor` | CostAdvisor budget/cost analysis (advisory-only) | Phase 4 PR-4 |
+| `permission_advisor` | PermissionAdvisor access control analysis (advisory-only) | Phase 4 PR-4 |
+| `reputation_advisor` | ReputationAdvisor agent reputation analysis (advisory-only) | Phase 4 PR-4 |
+| `executor` | Code generation execution via shared core `graph.execute()` | Phase 1 |
+| `ci_monitor` | CI status monitoring | Phase 1 |
+| `reviewer` | Code review and analysis (ReviewerAgent) | Phase 3 |
+| `decision` | Merge decision logic (approve/request_changes/needs_fix) | Phase 3 |
+| `fixer` | Auto-fix CI failures (AutoFixer + ReviewerAgent) | Phase 2 |
+| `finalizer` | Prepare final result | Phase 1 |
+
+**Key PRs**:
+- Phase 2: #1660, #1667, #1668, #1669 (Fixer Node, Safety Rules)
+- Phase 3: #1681, #1682, #1683, #1685, #1686 (Multi-Agent Flow, Metrics, Staging Rollout)
+- Phase 4: #1688, #1689, #1690, #1691, #1692 (Semantic Rules v2, SecurityAgent, GovernanceAgent, 5-Agent Pipeline, Governance Dashboard)
 
 ## 0) Install (recommended in a venv)
 ```bash
