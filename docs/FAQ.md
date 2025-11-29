@@ -1,75 +1,84 @@
-# Understanding and Utilizing MorningAI for Development
+# Understanding and Utilizing MorningAI
 
-MorningAI is designed to streamline the development process by offering a suite of tools that leverage autonomous agent systems for code generation, FAQ generation, documentation management, and more. This guide aims to help developers understand how to effectively use MorningAI within their projects.
+MorningAI is designed to streamline the development process by leveraging advanced AI for code generation, documentation management, and real-time task orchestration. This FAQ aims to provide developers with a comprehensive understanding of how to effectively use MorningAI within their projects.
 
-## Getting Started with MorningAI
+## Comprehensive Explanation
 
-To begin using MorningAI, ensure you have access to the RC918/morningai repository. This section will guide you through the initial setup and configuration necessary to integrate MorningAI into your development workflow.
+MorningAI integrates multiple technologies to provide an autonomous agent system capable of generating code, managing FAQs and documentation, and facilitating multi-platform integration. With its robust backend architecture, including Python, Flask, Gunicorn, and PostgreSQL (via Supabase), MorningAI offers a scalable solution for modern development needs. The platform's use of Redis Queue for task orchestration and pgvector/Supabase for vector memory storage further enhances its capability to handle complex operations efficiently.
 
-### Initial Setup
+### Key Features:
 
-1. **Clone the Repository**: Start by cloning the RC918/morningai repository to your local machine. Use Git or GitHub CLI for this step.
+- **Autonomous Code Generation**: Utilizes AI to generate code snippets based on user queries or tasks.
+- **Documentation Management**: Automates the creation and updating of documentation, ensuring it remains current with project developments.
+- **Multi-Platform Integration**: Supports integration with various messaging platforms like Telegram, LINE, and Messenger for wider accessibility.
+- **Real-Time Task Orchestration**: Leverages Redis Queue for managing tasks in real-time, ensuring high performance and reliability.
+- **Vector Memory Storage**: Employs pgvector/Supabase for efficient storage and retrieval of vector data, enhancing search capabilities within the platform.
 
-    ```bash
-    git clone https://github.com/RC918/morningai.git
-    ```
+### Getting Started:
 
-2. **Install Dependencies**: Navigate into the cloned repository directory and install the required dependencies.
+1. **Initial Setup**:
+   Clone the repository `RC918/morningai` to get started. Ensure you have all the necessary dependencies installed by running:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-    ```bash
-    cd morningai
-    npm install # If using Node.js environment
-    # or
-    pip install -r requirements.txt # If Python environment is required
-    ```
+2. **Configuration**:
+   Configure your environment variables as required in `.env` files for database connections, API keys, and other services.
 
-3. **Configuration**: Configure the `.env` file according to your environment specifics. This includes setting up database connections, API keys for external services (like OpenAI GPT-4), and other platform-specific configurations.
+3. **Database Setup**:
+   Utilize Supabase/PostgreSQL setup instructions found in `docs/database_setup.md` to properly configure your database instances with Row Level Security.
 
-### Utilizing Autonomous Agent System for Code Generation
+4. **Running MorningAI**:
+   Launch the application using Gunicorn with multi-worker support for optimal performance:
+   ```bash
+   gunicorn app:app --workers=4 --worker-class=gthread
+   ```
 
-MorningAI's autonomous agent system can generate code snippets and entire modules based on high-level descriptions. Here's a basic example:
+5. **Integration**:
+   Refer to `docs/integration_guide.md` for detailed instructions on integrating MorningAI with Telegram, LINE, Messenger, etc.
 
-```python
-from morningai.codegen import AgentCodeGenerator
+### Code Example:
 
-agent = AgentCodeGenerator(api_key="your_openai_api_key")
-code_snippet = agent.generate("Create a Flask app with a basic home route", language="python")
-print(code_snippet)
-```
-
-This code utilizes MorningAI's backend Python interface to communicate with an AI-powered code generator, producing a ready-to-use Flask app snippet.
-
-### Integrating FAQ Generation and Documentation Management
-
-MorningAI simplifies generating dynamic FAQ sections and managing documentation through its AI-driven interfaces. To add or update FAQs programmatically, use the following pattern:
+Here is a simple example of initiating a task orchestration process using Redis Queue:
 
 ```python
-from morningai.faq import FAQManager
+from redis import Redis
+from rq import Queue
 
-faq_manager = FAQManager()
-new_faq = faq_manager.create_faq(question="How do I start with MorningAI?", answer="Follow the initial setup guide in our documentation.")
-faq_manager.save(new_faq)
+redis_conn = Redis()
+q = Queue(connection=redis_conn)
+
+def my_task():
+    print("Executing task...")
+    # Task implementation here
+
+job = q.enqueue(my_task)
 ```
 
-### Multi-Platform Integration
+### Related Documentation Links:
 
-Integrating MorningAI with platforms like Telegram, LINE, or Messenger can be achieved through webhooks and API configurations detailed in `/docs/integration_guides.md`.
+- Database Setup: [Database Setup Guide](docs/database_setup.md)
+- Integration Guide: [Integration Guide](docs/integration_guide.md)
+- API Reference: [API Documentation](docs/api_reference.md)
 
-### Troubleshooting Common Issues
+### Common Troubleshooting Tips:
 
-- **Dependency Installation Issues**: Ensure you are using compatible versions of Python/Node.js. Refer to `/requirements.txt` or `package.json` for version specifics.
-- **Database Connection Errors**: Verify your PostgreSQL (Supabase) credentials and network permissions. Consult `/docs/database_setup.md` for guidance.
-- **Redis Queue (RQ) Worker Issues**: Check worker status and logs if tasks are not being executed as expected. Restarting workers or debugging with RQ Dashboard might be necessary.
+- **Issue**: Application not connecting to PostgreSQL database.
+  - **Solution**: Ensure your `.env` file contains the correct database credentials and that Row Level Security is configured as per `docs/database_setup.md`.
 
-For more detailed explanations, troubleshooting tips, and advanced usage examples, please refer to the documentation located at `/docs/FAQ.md` within the RC918/morningai repository.
+- **Issue**: Tasks not executing in real-time.
+  - **Solution**: Verify that Redis is running and correctly configured. Check the heartbeat monitoring in the Redis Queue dashboard for any worker issues.
+
+For further assistance or more complex issues, please consult the project's issue tracker or contact support.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
 - Task: Test goal
-- Trace ID: `replay-abcd1234-4f93230c`
+- Trace ID: `replay-abcd1234-a5f35e32`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
