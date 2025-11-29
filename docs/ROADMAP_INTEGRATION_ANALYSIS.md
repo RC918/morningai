@@ -14,7 +14,7 @@
 
 **檔案**: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py` (1191 行)
 
-```
+```text
 planner → security_advisor → governance_advisor → executor → ci_monitor → reviewer → decision → fixer → finalizer
 ```
 

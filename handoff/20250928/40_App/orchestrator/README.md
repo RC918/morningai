@@ -24,7 +24,7 @@ This worker engine demonstrates:
 - Redis Queue (RQ) for task slicing
 - Supabase pgvector (long-term memory)
 - **Phase 4 LangGraph 9-Node Workflow**:
-  ```
+  ```text
   planner → security_advisor → governance_advisor → executor → ci_monitor → reviewer → decision → fixer → finalizer
   ```
 
