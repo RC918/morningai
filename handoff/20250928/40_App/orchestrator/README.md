@@ -46,9 +46,9 @@ This worker engine demonstrates:
 | `finalizer` | Prepare final result | Phase 1 |
 
 **Key PRs**:
-- Phase 2: #1660-1669 (Fixer Node, Safety Rules)
-- Phase 3: #1681-1686 (Multi-Agent Flow, Metrics, Staging Rollout)
-- Phase 4: #1688-1692 (Semantic Rules v2, SecurityAgent, GovernanceAgent, 5-Agent Pipeline, Governance Dashboard)
+- Phase 2: #1660, #1667, #1668, #1669 (Fixer Node, Safety Rules)
+- Phase 3: #1681, #1682, #1683, #1685, #1686 (Multi-Agent Flow, Metrics, Staging Rollout)
+- Phase 4: #1688, #1689, #1690, #1691, #1692 (Semantic Rules v2, SecurityAgent, GovernanceAgent, 5-Agent Pipeline, Governance Dashboard)
 
 ## 0) Install (recommended in a venv)
 ```bash
