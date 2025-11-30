@@ -17,7 +17,7 @@ Environment Variables:
 - GEMINI_API_KEY: Google AI API key
 """
 import logging
-from typing import Optional, Literal
+from typing import Optional, Literal, Dict, Any, Set
 
 from common.config.settings import settings
 from .base import BaseLLMProvider, LLMResponse
@@ -37,6 +37,10 @@ ThinkingLevel = Literal["low", "high"]
 
 # Fallback model for Gemini 3 failures
 FALLBACK_MODEL = "gemini-pro"
+
+# Allowed extra config keys that can be passed via **kwargs
+# These are passed directly to GenerateContentConfig
+EXTRA_CONFIG_KEYS: Set[str] = {"top_p", "top_k", "stop_sequences", "candidate_count"}
 
 
 class GeminiProvider(BaseLLMProvider):
@@ -106,22 +110,22 @@ class GeminiProvider(BaseLLMProvider):
 
     def _call_model(
         self,
-        client,
+        client: Any,
         model_name: str,
         full_prompt: str,
-        config_dict: dict,
-    ):
+        config_dict: Dict[str, Any],
+    ) -> Any:
         """
         Internal method to call the Gemini API
 
         Args:
-            client: Gemini client instance
+            client: Gemini client instance (genai.Client when SDK installed)
             model_name: Model to use
             full_prompt: Combined system + user prompt
             config_dict: Generation configuration dictionary
 
         Returns:
-            API response object
+            API response object (types.GenerateContentResponse when SDK installed)
         """
         return client.models.generate_content(
             model=model_name,
@@ -152,7 +156,11 @@ class GeminiProvider(BaseLLMProvider):
             json_mode: If True, request JSON-formatted response
             thinking_level: "low" for speed, "high" for depth (Gemini 3 only)
             model: Override default model
-            **kwargs: Additional parameters
+            **kwargs: Additional Gemini API parameters
+                - top_p: Nucleus sampling parameter (0.0-1.0)
+                - top_k: Top-k sampling parameter
+                - stop_sequences: List of stop sequences
+                - candidate_count: Number of candidates to generate
 
         Returns:
             LLMResponse with generated content
@@ -180,6 +188,11 @@ class GeminiProvider(BaseLLMProvider):
 
         if json_mode:
             config_dict["response_mime_type"] = "application/json"
+
+        # Apply allowed extra config options from kwargs (e.g. top_p, top_k)
+        for key in EXTRA_CONFIG_KEYS:
+            if key in kwargs and kwargs[key] is not None:
+                config_dict[key] = kwargs[key]
 
         # Combine system prompt with user prompt
         full_prompt = prompt
