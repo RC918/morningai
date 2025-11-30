@@ -136,6 +136,7 @@ class LLMPlannerAdapter:
                 })
 
                 plan_steps = [step["step"] for step in plan_data["plan"]]
+                provider = plan_data.get("provider")
 
                 self.record_planner_event(
                     trace_id=trace_id,
@@ -143,7 +144,8 @@ class LLMPlannerAdapter:
                     planner_type="llm",
                     task_type=task_type,
                     actual_plan_steps=plan_steps,
-                    planning_time_ms=plan_data["planning_time_ms"]
+                    planning_time_ms=plan_data["planning_time_ms"],
+                    provider=provider
                 )
 
                 return {
@@ -151,7 +153,8 @@ class LLMPlannerAdapter:
                     "plan_details": plan_data["plan"],
                     "planner_type": "llm",
                     "task_type": task_type,
-                    "planning_time_ms": plan_data["planning_time_ms"]
+                    "planning_time_ms": plan_data["planning_time_ms"],
+                    "provider": provider
                 }
             else:
                 logger.warning("[LLM Planner] Generated invalid plan, falling back to static")
@@ -302,7 +305,8 @@ Generate a 3-7 step plan to accomplish this goal. Return ONLY the JSON array."""
 
             return {
                 "plan": plan,
-                "planning_time_ms": planning_time_ms
+                "planning_time_ms": planning_time_ms,
+                "provider": response.provider
             }
 
         except json.JSONDecodeError as e:
@@ -476,7 +480,8 @@ Generate a 3-7 step plan to accomplish this goal. Return ONLY the JSON array."""
         planner_type: str,
         task_type: str,
         actual_plan_steps: List[str],
-        planning_time_ms: float
+        planning_time_ms: float,
+        provider: Optional[str] = None
     ):
         """
         Record planner event to both JSONL file and database
@@ -492,6 +497,7 @@ Generate a 3-7 step plan to accomplish this goal. Return ONLY the JSON array."""
             task_type: Task type from classifier
             actual_plan_steps: List of plan steps
             planning_time_ms: Planning time in milliseconds
+            provider: LLM provider used (e.g., "openai", "gemini"). None for static plans.
         """
         import json
         import os
@@ -515,7 +521,8 @@ Generate a 3-7 step plan to accomplish this goal. Return ONLY the JSON array."""
                 "actual_plan_steps": actual_plan_steps,
                 "num_steps": len(actual_plan_steps),
                 "planning_time_ms": planning_time_ms,
-                "timestamp": timestamp.isoformat()
+                "timestamp": timestamp.isoformat(),
+                "provider": provider
             }
 
             with open(events_path, 'a', encoding='utf-8') as f:
@@ -537,7 +544,8 @@ Generate a 3-7 step plan to accomplish this goal. Return ONLY the JSON array."""
                     task_type=task_type,
                     actual_plan_steps=actual_plan_steps,
                     planning_time_ms=planning_time_ms,
-                    timestamp=timestamp
+                    timestamp=timestamp,
+                    provider=provider
                 )
 
                 if success:

@@ -76,7 +76,8 @@ class OpsAgentWorker:
             self.redis_url = redis_url
         else:
             self.redis_url = get_secure_redis_url(allow_local=os.getenv("TESTING") == "true")
-        self.vercel_token = vercel_token or os.getenv("VERCEL_TOKEN_NEW")
+        # Use VERCEL_TOKEN as primary, fall back to VERCEL_TOKEN_NEW for backward compatibility
+        self.vercel_token = vercel_token or os.getenv("VERCEL_TOKEN") or os.getenv("VERCEL_TOKEN_NEW")
         self.team_id = team_id or os.getenv("VERCEL_TEAM_ID")
         self.poll_interval = poll_interval
         
