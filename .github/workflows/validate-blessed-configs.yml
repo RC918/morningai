@@ -1,0 +1,53 @@
+name: Validate Blessed Configs
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'render.yaml'
+      - 'config/blessed_configs.yaml'
+      - 'scripts/validate_blessed_configs.py'
+      - '.github/workflows/validate-blessed-configs.yml'
+
+jobs:
+  validate:
+    name: Validate render.yaml against blessed configs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install pyyaml
+      
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML syntax..."
+          python3 -c "import yaml; yaml.safe_load(open('render.yaml'))" || exit 1
+          echo "render.yaml: Valid"
+          python3 -c "import yaml; yaml.safe_load(open('config/blessed_configs.yaml'))" || exit 1
+          echo "config/blessed_configs.yaml: Valid"
+      
+      - name: Validate Production configs
+        run: |
+          echo "Validating Production environment..."
+          python scripts/validate_blessed_configs.py --env production
+      
+      - name: Generate validation summary
+        if: always()
+        run: |
+          echo "## Blessed Configs Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files Validated" >> $GITHUB_STEP_SUMMARY
+          echo "- \`render.yaml\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`config/blessed_configs.yaml\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validation Results" >> $GITHUB_STEP_SUMMARY
+          python scripts/validate_blessed_configs.py --env production 2>&1 | head -50 >> $GITHUB_STEP_SUMMARY || true
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See [blessed_configs.yaml](../blob/main/config/blessed_configs.yaml) for approved configurations." >> $GITHUB_STEP_SUMMARY
