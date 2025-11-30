@@ -46,7 +46,7 @@ from agents.ops_agent.tools.deployment_tool import DeploymentTool
 
 # 初始化
 tool = DeploymentTool(
-    token=os.getenv('VERCEL_TOKEN_NEW'),
+    token=os.getenv('VERCEL_TOKEN'),  # Primary token (falls back to VERCEL_TOKEN_NEW)
     team_id=None
 )
 
@@ -184,7 +184,7 @@ await alert_tool.create_alert_rule(
 
 ```python
 # 1. 獲取部署詳情
-tool = DeploymentTool(token=os.getenv('VERCEL_TOKEN_NEW'))
+tool = DeploymentTool(token=os.getenv('VERCEL_TOKEN'))
 deployments = await tool.list_deployments(limit=5)
 
 # 2. 查看失敗的部署
@@ -336,8 +336,11 @@ cat agents/ops_agent/NOTIFICATION_SETUP_GUIDE.md
 ### 必需
 
 ```bash
-# Vercel
-export VERCEL_TOKEN_NEW="your-vercel-token"
+# Vercel (Token 語義說明)
+# - VERCEL_TOKEN: 主要 token，用於所有 Vercel 操作（推薦）
+# - VERCEL_TOKEN_NEW: 輪換時的臨時 token（可選）
+# - VERCEL_TOKEN_2: 測試/沙盒用途（可選）
+export VERCEL_TOKEN="your-vercel-token"
 
 # Database (如需)
 export DATABASE_URL_2="your-supabase-url"
@@ -424,7 +427,7 @@ curl https://morningai-sandbox-ops-agent.fly.dev/health
 cat agents/ops_agent/OPERATIONS_RUNBOOK.md
 
 # 檢查環境變數
-echo $VERCEL_TOKEN_NEW
+echo $VERCEL_TOKEN
 
 # 清理日誌
 find /var/log -name "*.log" -mtime +7 -delete
