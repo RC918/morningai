@@ -18,8 +18,9 @@ from src.middleware.auth_middleware import jwt_required, admin_required
 
 # Add the 40_App directory to sys.path so that 'orchestrator' package can be imported
 # The import 'from orchestrator.persistence.db_client' requires the parent of 'orchestrator' in sys.path
+# Path: routes -> src -> api-backend -> 40_App (3 levels up)
 app_dir = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '../../../..')
+    os.path.join(os.path.dirname(__file__), '../../..')
 )
 if app_dir not in sys.path:
     sys.path.insert(0, app_dir)
