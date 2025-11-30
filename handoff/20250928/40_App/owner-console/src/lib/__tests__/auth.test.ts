@@ -363,6 +363,9 @@ describe('Auth Module', () => {
         isFeatureEnabled: () => true,
         AVAILABLE_FEATURES: [],
       }));
+      // Set up CSRF token to prevent ensureCsrfToken() from being called during refresh
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+      document.cookie = 'csrf_token=test-csrf-token';
     });
 
     it('should refresh access token successfully', async () => {
@@ -371,7 +374,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          tokens: { expiresAt: newExpiresAt },
+          tokens: { accessToken: 'new-token', expiresAt: newExpiresAt },
         }),
       });
 
@@ -397,7 +400,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          tokens: { expiresAt: Date.now() + 3600000 },
+          tokens: { accessToken: 'new-token', expiresAt: Date.now() + 3600000 },
         }),
       });
 
@@ -528,6 +531,9 @@ describe('Auth Module', () => {
   describe('401 Refresh-and-Retry (P0)', () => {
     beforeEach(() => {
       localStorage.setItem('feature_flag_OWNER_CONSOLE_API', 'true');
+      // Set up CSRF token to prevent ensureCsrfToken() from being called during refresh
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+      document.cookie = 'csrf_token=test-csrf-token';
     });
 
     it('should retry request after refreshing token on 401', async () => {
@@ -544,7 +550,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({ tokens: { expiresAt: Date.now() + 3600000 } }),
+        json: async () => ({ tokens: { accessToken: 'new-token', expiresAt: Date.now() + 3600000 } }),
       });
       
       mockFetch.mockResolvedValueOnce({
@@ -580,7 +586,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({ tokens: { expiresAt: Date.now() + 3600000 } }),
+        json: async () => ({ tokens: { accessToken: 'new-token', expiresAt: Date.now() + 3600000 } }),
       });
       
       mockFetch.mockResolvedValueOnce({
@@ -653,7 +659,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({ tokens: { expiresAt: Date.now() + 3600000 } }),
+        json: async () => ({ tokens: { accessToken: 'new-token', expiresAt: Date.now() + 3600000 } }),
       });
       
       mockFetch.mockResolvedValueOnce({
@@ -684,7 +690,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({ tokens: { expiresAt: newExpiry } }),
+        json: async () => ({ tokens: { accessToken: 'new-token', expiresAt: newExpiry } }),
       });
       
       mockFetch.mockResolvedValueOnce({
@@ -705,6 +711,10 @@ describe('Auth Module', () => {
         isFeatureEnabled: () => true,
         AVAILABLE_FEATURES: [],
       }));
+      // Set up CSRF token to prevent ensureCsrfToken() from being called
+      // This simulates a normal browser session where CSRF token is already bootstrapped
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+      document.cookie = 'csrf_token=test-csrf-token';
     });
 
     it('should return existing token without calling refresh when in-memory token exists', async () => {
@@ -741,6 +751,8 @@ describe('Auth Module', () => {
       // Clear in-memory token but keep valid session
       clearTokens();
       storeTokenExpiry(Date.now() + 3600000);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
 
       const newAccessToken = 'new-access-token';
       mockFetch.mockResolvedValueOnce({
@@ -768,6 +780,8 @@ describe('Auth Module', () => {
       clearTokens();
       const validExpiry = Date.now() + 3600000;
       storeTokenExpiry(validExpiry);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
 
       // Simulate network error (fetch throws)
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
@@ -784,6 +798,8 @@ describe('Auth Module', () => {
       clearTokens();
       const validExpiry = Date.now() + 3600000;
       storeTokenExpiry(validExpiry);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
 
       // Simulate 500 server error
       mockFetch.mockResolvedValueOnce({
@@ -802,6 +818,8 @@ describe('Auth Module', () => {
       // Set up valid session without in-memory token
       clearTokens();
       storeTokenExpiry(Date.now() + 3600000);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
 
       // Simulate 401 unauthorized
       mockFetch.mockResolvedValueOnce({
@@ -820,11 +838,20 @@ describe('Auth Module', () => {
       // Set up valid session without in-memory token
       clearTokens();
       storeTokenExpiry(Date.now() + 3600000);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
 
-      // Simulate 403 forbidden
+      // Simulate 403 forbidden (non-CSRF error - e.g., authorization failure)
+      // Must include headers.get() method for isCsrfFailure() to work
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 403,
+        headers: {
+          get: (name: string) => name === 'Content-Type' ? 'application/json' : null,
+        },
+        clone: () => ({
+          json: async () => ({ error: 'Forbidden' }), // Non-CSRF error message
+        }),
       });
 
       const token = await getOrRefreshAccessToken();
@@ -838,6 +865,8 @@ describe('Auth Module', () => {
       // Set up valid session without in-memory token
       clearTokens();
       storeTokenExpiry(Date.now() + 3600000);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
 
       const newAccessToken = 'single-flight-token';
       mockFetch.mockResolvedValueOnce({

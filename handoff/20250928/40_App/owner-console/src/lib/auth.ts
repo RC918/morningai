@@ -843,6 +843,12 @@ export async function logout(): Promise<void> {
 /**
  * Refresh access token using refresh token
  * Backend handles token rotation automatically
+ * 
+ * P1 Enhancement: CSRF-aware token refresh
+ * - Ensures CSRF token exists before making the request
+ * - Handles 403 CSRF failures with automatic token refresh and retry
+ * - Discriminates between CSRF failures and real session invalid errors
+ * - Prevents token refresh from failing due to missing or expired CSRF tokens
  */
 export async function refreshAccessToken(): Promise<AuthTokens> {
   if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
@@ -853,12 +859,19 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
     return newTokens;
   }
   
+  // Ensure CSRF token is bootstrapped before making the request
+  // This handles the case where page reload clears in-memory token
+  // and sessionStorage might not have the token yet
+  if (!getCsrfToken()) {
+    await ensureCsrfToken();
+  }
+  
   // Build headers with CSRF token for cross-origin requests
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
   
-  // Include CSRF token if available (required when SameSite=None)
+  // Include CSRF token (required when SameSite=None)
   const csrfToken = getCsrfToken();
   if (csrfToken) {
     headers['X-CSRF-Token'] = csrfToken;
@@ -881,9 +894,77 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
     );
   }
   
+  // Handle 403 CSRF failures with retry logic (mirrors authenticatedFetch pattern)
+  if (response.status === 403) {
+    const isCsrf = await isCsrfFailure(response);
+    
+    if (isCsrf) {
+      // CSRF failure - try to re-bootstrap CSRF token and retry once
+      try {
+        clearCsrfToken();
+        await ensureCsrfToken();
+        
+        // Build retry headers with fresh CSRF token
+        const retryHeaders: HeadersInit = {
+          'Content-Type': 'application/json',
+        };
+        const freshCsrfToken = getCsrfToken();
+        if (freshCsrfToken) {
+          retryHeaders['X-CSRF-Token'] = freshCsrfToken;
+        }
+        
+        const retryResponse = await fetch(`${API_BASE_URL}/api/auth/v2/refresh`, {
+          method: 'POST',
+          headers: retryHeaders,
+          credentials: 'include',
+        });
+        
+        if (retryResponse.ok) {
+          // Retry succeeded - process the response
+          const data: RefreshTokenResponse = await retryResponse.json();
+          const newTokens: AuthTokens = {
+            accessToken: data.tokens.accessToken,
+            expiresAt: data.tokens.expiresAt,
+          };
+          storeTokenExpiry(newTokens.expiresAt);
+          if (data.tokens.accessToken) {
+            storeAccessToken(data.tokens.accessToken);
+          }
+          return newTokens;
+        }
+        
+        // Retry also failed - check if it's still a CSRF issue
+        if (retryResponse.status === 403) {
+          const isRetryCsrf = await isCsrfFailure(retryResponse);
+          if (isRetryCsrf) {
+            // CSRF still failing after retry - treat as network error, don't clear tokens
+            throw new RefreshAccessTokenError(
+              'network_error',
+              'CSRF token validation failed. Please refresh the page.',
+              403
+            );
+          }
+        }
+        
+        // Retry failed with non-CSRF error - fall through to normal error handling
+        response = retryResponse;
+      } catch (error) {
+        if (error instanceof RefreshAccessTokenError) {
+          throw error;
+        }
+        // CSRF re-bootstrap failed - treat as network error
+        throw new RefreshAccessTokenError(
+          'network_error',
+          'Failed to refresh CSRF token',
+          undefined
+        );
+      }
+    }
+  }
+  
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      // Backend explicitly rejected the session - clear tokens
+      // Backend explicitly rejected the session (not CSRF) - clear tokens
       clearTokens();
       throw new RefreshAccessTokenError(
         'session_invalid',
