@@ -47,19 +47,14 @@ class TestRedisRealConnection:
         test_value = "integration_test_value"
 
         try:
-            # SET operation
-            if hasattr(client, 'set'):
-                client.set(test_key, test_value)
-                # GET operation
-                result = client.get(test_key)
-                assert result == test_value
-            else:
-                # Upstash client
-                client.set(test_key, test_value)
-                result = client.get(test_key)
-                assert result == test_value
+            client.set(test_key, test_value)
+            result = client.get(test_key)
+
+            if isinstance(result, bytes):
+                result = result.decode("utf-8")
+
+            assert result == test_value
         finally:
-            # Cleanup
             if hasattr(client, 'delete'):
                 client.delete(test_key)
 
@@ -196,21 +191,20 @@ class TestRedisPerformance:
         test_key = f"test:latency:{int(time.time())}"
 
         try:
-            # Measure SET latency
+            # Measure SET latency (call directly, fail if method missing)
             start = time.time()
-            if hasattr(client, 'set'):
-                client.set(test_key, "latency_test")
+            client.set(test_key, "latency_test")
             set_latency = time.time() - start
 
-            # Measure GET latency
+            # Measure GET latency (call directly, fail if method missing)
             start = time.time()
-            if hasattr(client, 'get'):
-                client.get(test_key)
+            client.get(test_key)
             get_latency = time.time() - start
 
-            # Operations should complete within 1 second each
-            assert set_latency < 1.0, f"SET took {set_latency:.2f}s"
-            assert get_latency < 1.0, f"GET took {get_latency:.2f}s"
+            # Operations should complete within 2 seconds each
+            # (allowing for network latency with cloud Redis)
+            assert set_latency < 2.0, f"SET took {set_latency:.2f}s"
+            assert get_latency < 2.0, f"GET took {get_latency:.2f}s"
         finally:
             if hasattr(client, 'delete'):
                 client.delete(test_key)
