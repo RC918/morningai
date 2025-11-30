@@ -5,6 +5,8 @@
  * Phase 5 PR-6: Owner Console Dashboard
  */
 
+import { getAccessToken } from './auth'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
 /**
@@ -12,14 +14,17 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  * @returns {Promise<{summary: Object, timestamp: string}>}
  */
 export async function getFailureSummary() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/failures/summary`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -40,18 +45,21 @@ export async function getFailureSummary() {
  * @returns {Promise<{failures: Array, count: number, limit: number, offset: number}>}
  */
 export async function getFailures({ limit = 50, offset = 0, error_type, task_type } = {}) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() })
   if (error_type) params.append('error_type', error_type)
   if (task_type) params.append('task_type', task_type)
   
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
   const response = await fetch(`${API_BASE_URL}/api/failures?${params}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -67,14 +75,17 @@ export async function getFailures({ limit = 50, offset = 0, error_type, task_typ
  * @returns {Promise<{metrics: Object, timestamp: string}>}
  */
 export async function getEvalMetrics() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/failures/eval/metrics`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -93,14 +104,17 @@ export async function getEvalMetrics() {
  * @returns {Promise<Object>}
  */
 export async function replayFailure(failureId, { repo } = {}) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/failures/${failureId}/replay`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers,
+    credentials: 'include',
     body: JSON.stringify({ repo })
   })
 
@@ -117,14 +131,17 @@ export async function replayFailure(failureId, { repo } = {}) {
  * @returns {Promise<{summary: Object, timestamp: string}>}
  */
 export async function getExperimentSummary() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/experiments/summary`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -140,14 +157,17 @@ export async function getExperimentSummary() {
  * @returns {Promise<{experiments: Object, environment: string, active_experiments: Array}>}
  */
 export async function getExperiments() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/experiments`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -163,14 +183,17 @@ export async function getExperiments() {
  * @returns {Promise<{comparisons: Array, environment: string, active_experiments: Array}>}
  */
 export async function getExperimentComparison() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/experiments/comparison`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {

@@ -4,6 +4,8 @@
  * Provides functions to interact with the agent evaluation API endpoints.
  */
 
+import { getAccessToken } from './auth'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
 /**
@@ -12,14 +14,17 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  * @returns {Promise<{evaluations: Array, latest: Object, count: number, timestamp: string}>}
  */
 export async function getAgentEvaluationResults(limit = 10) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/agent-evaluation/results?limit=${limit}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -35,14 +40,17 @@ export async function getAgentEvaluationResults(limit = 10) {
  * @returns {Promise<{metrics: Object, targets: Object, last_evaluation: string, timestamp: string}>}
  */
 export async function getAgentEvaluationMetrics() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/agent-evaluation/metrics`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {

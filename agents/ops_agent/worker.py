@@ -61,7 +61,7 @@ class OpsAgentWorker:
         redis_url: Optional[str] = None,
         vercel_token: Optional[str] = None,
         team_id: Optional[str] = None,
-        poll_interval: int = 2
+        poll_interval: int = 10
     ):
         """
         Initialize Ops Agent Worker
@@ -70,7 +70,8 @@ class OpsAgentWorker:
             redis_url: Redis connection URL
             vercel_token: Vercel API token
             team_id: Vercel team ID
-            poll_interval: Polling interval in seconds
+            poll_interval: Polling interval in seconds (default: 10, configurable via POLL_INTERVAL env)
+                          Increased from 2s to 10s to reduce Redis command volume by ~80%
         """
         if redis_url:
             self.redis_url = redis_url

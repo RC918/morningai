@@ -931,6 +931,12 @@ class Settings(BaseSettings):
         description="Enable LLM-powered reviewer in LangGraph orchestrator (Phase 6 PR-3)"
     )
 
+    security_enforcement_mode: Literal["advisory", "block_critical", "block_high", "block_all"] = Field(
+        default="advisory",
+        alias="SECURITY_ENFORCEMENT_MODE",
+        description="Security policy enforcement mode for advisory nodes in LangGraph orchestrator"
+    )
+
     reviewer_json_mode: bool = Field(
         default=True,
         alias="REVIEWER_JSON_MODE",
