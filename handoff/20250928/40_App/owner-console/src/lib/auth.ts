@@ -66,6 +66,30 @@ export interface RefreshTokenResponse {
   };
 }
 
+/**
+ * Error codes for token refresh failures
+ * - 'network_error': Transient network issues (fetch failed, timeout, 5xx errors)
+ * - 'session_invalid': Backend explicitly rejected the session (401/403)
+ * - 'unknown': Other unexpected errors
+ */
+export type RefreshErrorCode = 'network_error' | 'session_invalid' | 'unknown';
+
+/**
+ * Custom error class for token refresh failures
+ * Allows callers to distinguish between transient network errors and invalid sessions
+ */
+export class RefreshAccessTokenError extends Error {
+  code: RefreshErrorCode;
+  status?: number;
+
+  constructor(code: RefreshErrorCode, message: string, status?: number) {
+    super(message);
+    this.code = code;
+    this.status = status;
+    this.name = 'RefreshAccessTokenError';
+  }
+}
+
 
 const TOKEN_EXPIRY_KEY = 'morningai_token_expiry';
 const USER_STORAGE_KEY = 'morningai_user';
@@ -194,13 +218,23 @@ export async function getOrRefreshAccessToken(): Promise<string | null> {
   
   tokenRefreshPromise = (async () => {
     try {
-      // Import refreshAccessToken dynamically to avoid circular dependency issues
       const newTokens = await refreshAccessToken();
       return newTokens.accessToken ?? null;
     } catch (error) {
-      console.error('Failed to refresh access token:', error);
-      // Clear tokens on refresh failure - user needs to login again
-      clearTokens();
+      // Handle different error types appropriately
+      if (error instanceof RefreshAccessTokenError) {
+        if (error.code === 'session_invalid') {
+          // Session is invalid - tokens already cleared by refreshAccessToken
+          console.warn('Session invalid during token refresh');
+        } else if (error.code === 'network_error') {
+          // Transient network error - do NOT clear tokens
+          // User stays logged in, but this API call will fail
+          console.warn('Network error during token refresh, keeping session:', error.message);
+        }
+      } else {
+        // Unexpected error - log but don't clear tokens to be safe
+        console.error('Unexpected error while refreshing access token:', error);
+      }
       return null;
     } finally {
       tokenRefreshPromise = null;
@@ -819,17 +853,42 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
     return newTokens;
   }
   
-  const response = await fetch(`${API_BASE_URL}/api/auth/v2/refresh`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/auth/v2/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+  } catch (error) {
+    // Network error (fetch failed, timeout, DNS error, etc.)
+    // Do NOT clear tokens - this is a transient error
+    throw new RefreshAccessTokenError(
+      'network_error',
+      'Network error while refreshing access token',
+      undefined
+    );
+  }
   
   if (!response.ok) {
-    clearTokens();
-    throw new Error('Token refresh failed. Please login again.');
+    if (response.status === 401 || response.status === 403) {
+      // Backend explicitly rejected the session - clear tokens
+      clearTokens();
+      throw new RefreshAccessTokenError(
+        'session_invalid',
+        'Session is invalid or expired. Please login again.',
+        response.status
+      );
+    }
+    
+    // Other HTTP errors (5xx, etc.) - treat as transient, do NOT clear tokens
+    throw new RefreshAccessTokenError(
+      'network_error',
+      `Token refresh failed with status ${response.status}`,
+      response.status
+    );
   }
   
   const data: RefreshTokenResponse = await response.json();
