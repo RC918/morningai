@@ -1,5 +1,6 @@
 import os, argparse, time, uuid, hashlib
-from typing import Optional
+import logging
+from typing import Optional, Dict, Any
 from pathlib import Path
 import sys
 
@@ -22,6 +23,124 @@ from governance.cost_tracker import get_cost_tracker, CostBudgetExceeded
 from governance.reputation_engine import get_reputation_engine
 from common.config.settings import settings
 
+logger = logging.getLogger(__name__)
+
+RISK_SEVERITY = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+
+
+def evaluate_simple_mode_policy(
+    trace_id: str,
+    cost_risk: str = "info",
+    rate_limit_risk: str = "info",
+    goal: str = "",
+    repo: str = ""
+) -> Dict[str, Any]:
+    """
+    PR-3: Simple Mode Policy Observability
+
+    Evaluates what the policy enforcement WOULD have done in Simple Mode.
+    This is observability-only - Simple Mode never blocks, but we record
+    what would have happened if enforcement was enabled.
+
+    Uses the same schema as LangGraph policy_enforcement_node for unified
+    observability across both orchestrator modes.
+
+    Args:
+        trace_id: Unique task identifier
+        cost_risk: Risk level from cost evaluation (info/low/medium/high/critical)
+        rate_limit_risk: Risk level from rate limit check
+        goal: Task goal/description
+        repo: Repository being operated on
+
+    Returns:
+        Dict with policy evaluation results in unified schema
+    """
+    from common.config.settings import get_settings
+
+    settings_obj = get_settings()
+    mode = settings_obj.security_enforcement_mode
+
+    advisor_risks = {
+        "cost": cost_risk,
+        "rate_limit": rate_limit_risk,
+        "security": "info",
+        "governance": "info",
+        "permission": "info",
+    }
+
+    mode_thresholds = {
+        "block_critical": 4,
+        "block_high": 3,
+        "block_all": 1,
+    }
+
+    threshold = mode_thresholds.get(mode, 5)
+
+    worst_risk = "info"
+    worst_severity = 0
+    worst_advisor = "none"
+
+    for advisor, risk in advisor_risks.items():
+        severity = RISK_SEVERITY.get(risk, 0)
+        if severity > worst_severity:
+            worst_severity = severity
+            worst_risk = risk
+            worst_advisor = advisor
+
+    would_block = worst_severity >= threshold and mode != "advisory"
+
+    severity_to_risk = {v: k for k, v in RISK_SEVERITY.items()}
+    threshold_name = severity_to_risk.get(threshold, "none")
+
+    policy_event = {
+        "event_type": "simple_mode_policy_evaluation",
+        "trace_id": trace_id,
+        "orchestrator_mode": "simple",
+        "enforcement_mode": mode,
+        "advisor_risks": advisor_risks,
+        "worst_advisor": worst_advisor,
+        "worst_risk": worst_risk,
+        "worst_severity": worst_severity,
+        "threshold": threshold,
+        "threshold_name": threshold_name,
+        "would_block": would_block,
+        "actual_blocked": False,
+        "goal": goal[:100] if goal else "",
+        "repo": repo,
+        "timestamp": time.time(),
+    }
+
+    logger.info(
+        "[SimpleMode][PolicyObservability] Policy evaluation",
+        extra={
+            "operation": "simple_mode_policy_evaluation",
+            "trace_id": trace_id,
+            "enforcement_mode": mode,
+            "worst_advisor": worst_advisor,
+            "worst_risk": worst_risk,
+            "would_block": would_block,
+            "actual_blocked": False,
+        }
+    )
+
+    if would_block:
+        logger.warning(
+            "[SimpleMode][PolicyObservability] Would have blocked execution",
+            extra={
+                "operation": "simple_mode_policy_would_block",
+                "trace_id": trace_id,
+                "enforcement_mode": mode,
+                "worst_advisor": worst_advisor,
+                "worst_risk": worst_risk,
+                "block_reason": (
+                    f"{worst_advisor}_risk={worst_risk} "
+                    f"(mode={mode}, threshold={threshold_name})"
+                ),
+            }
+        )
+
+    return policy_event
+
 def planner(goal:str):
     steps = ["analyze", "patch", "open PR", "check CI"]
     save_text("goal", goal)
@@ -35,11 +154,22 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     reputation_engine = get_reputation_engine()
     agent_id = reputation_engine.get_or_create_agent('meta_agent')
     
+    cost_risk = "info"
+    rate_limit_risk = "info"
+    
     try:
         cost_tracker.enforce_budget(trace_id, period='daily')
         cost_tracker.enforce_budget(trace_id, period='hourly')
     except CostBudgetExceeded as e:
         print(f"[Cost] Budget exceeded: {e}")
+        cost_risk = "critical"
+        evaluate_simple_mode_policy(
+            trace_id=trace_id,
+            cost_risk=cost_risk,
+            rate_limit_risk=rate_limit_risk,
+            goal=goal,
+            repo=repo_full
+        )
         if agent_id:
             reputation_engine.record_event(agent_id, 'cost_overrun', trace_id=trace_id, reason=str(e))
         return None, "budget_exceeded", trace_id
@@ -47,7 +177,23 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     allowed, count = check_pr_rate_limit(trace_id, max_per_hour=10, redis_url=settings.redis_url)
     if not allowed:
         print(f"[Rate Limit] BLOCKED - Already created {count} PRs this hour")
+        rate_limit_risk = "high"
+        evaluate_simple_mode_policy(
+            trace_id=trace_id,
+            cost_risk=cost_risk,
+            rate_limit_risk=rate_limit_risk,
+            goal=goal,
+            repo=repo_full
+        )
         return None, "rate_limited", trace_id
+    
+    evaluate_simple_mode_policy(
+        trace_id=trace_id,
+        cost_risk=cost_risk,
+        rate_limit_risk=rate_limit_risk,
+        goal=goal,
+        repo=repo_full
+    )
     
     repo = get_repo()
     timestamp = int(time.time())
