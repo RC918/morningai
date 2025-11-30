@@ -28,6 +28,10 @@ class RedisQueue:
     EVENT_CHANNEL_PREFIX = "orchestrator:events:"
     TASK_STORAGE_PREFIX = "orchestrator:task:"
     
+    # Task storage TTL - prevents indefinite accumulation of task data
+    # Default: 86400 seconds (24 hours), configurable via ORCHESTRATOR_TASK_TTL env var
+    DEFAULT_TASK_TTL = int(os.getenv("ORCHESTRATOR_TASK_TTL", "86400"))
+    
     def __init__(
         self,
         redis_url: Optional[str] = None,
@@ -134,9 +138,10 @@ class RedisQueue:
             task_data = json.dumps(task.to_dict())
             priority_score = self._get_priority_score(task.priority.value if isinstance(task.priority, TaskPriority) else task.priority)
             
+            task_key = f"{self.TASK_STORAGE_PREFIX}{task.task_id}"
             pipeline = self.redis_client.pipeline()
             pipeline.hset(
-                f"{self.TASK_STORAGE_PREFIX}{task.task_id}",
+                task_key,
                 mapping={
                     "data": task_data,
                     "status": task.status.value if hasattr(task.status, 'value') else task.status,
@@ -144,6 +149,7 @@ class RedisQueue:
                     "priority": task.priority.value if hasattr(task.priority, 'value') else task.priority
                 }
             )
+            pipeline.expire(task_key, self.DEFAULT_TASK_TTL)
             pipeline.zadd(
                 self.TASK_QUEUE_KEY,
                 {task.task_id: priority_score}
@@ -227,15 +233,19 @@ class RedisQueue:
         """Update task in storage"""
         try:
             task_data = json.dumps(task.to_dict())
+            task_key = f"{self.TASK_STORAGE_PREFIX}{task.task_id}"
             
-            await self.redis_client.hset(
-                f"{self.TASK_STORAGE_PREFIX}{task.task_id}",
+            pipeline = self.redis_client.pipeline()
+            pipeline.hset(
+                task_key,
                 mapping={
                     "data": task_data,
                     "status": task.status.value if hasattr(task.status, 'value') else task.status,
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
             )
+            pipeline.expire(task_key, self.DEFAULT_TASK_TTL)
+            await pipeline.execute()
             
             if (task.status if hasattr(task.status, 'value') else str(task.status)) in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
                 await self.redis_client.srem(self.TASK_PROCESSING_KEY, task.task_id)
@@ -295,9 +305,6 @@ class RedisQueue:
             
             channel = f"{self.EVENT_CHANNEL_PREFIX}{event_type}"
             await self.redis_client.publish(channel, event_data)
-            
-            wildcard_channel = f"{self.EVENT_CHANNEL_PREFIX}*"
-            await self.redis_client.publish(wildcard_channel, event_data)
             
             logger.debug(f"Published event {event_type} from {source_agent}")
             return True

@@ -147,6 +147,10 @@ class AgentState(TypedDict):
         reputation_advisory: Reputation analysis result
         reputation_score: Agent reputation score (0-100)
         reputation_level: Reputation level (trusted, standard, restricted, new)
+
+    Policy Enforcement Fields (PR-2 Policy Enforcement):
+        policy_blocked: Boolean indicating if task was blocked by policy enforcement
+        policy_block_reason: Human-readable reason for blocking (empty if not blocked)
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     goal: str
@@ -184,6 +188,8 @@ class AgentState(TypedDict):
     reputation_advisory: dict
     reputation_score: int
     reputation_level: str
+    policy_blocked: bool
+    policy_block_reason: str
 
 
 def planner_node(state: AgentState) -> AgentState:
@@ -775,8 +781,147 @@ def reputation_advisor_node(state: AgentState) -> AgentState:
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("reputation_advisor", trace_id, success=success, latency_ms=latency_ms)
     if success:
-        metrics.record_transition("reputation_advisor", "executor", trace_id)
+        metrics.record_transition("reputation_advisor", "policy_enforcement", trace_id)
     return state
+
+
+RISK_SEVERITY = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+
+
+def policy_enforcement_node(state: AgentState) -> AgentState:
+    """
+    Policy Enforcement node: Evaluates advisory results and enforces security policy
+
+    PR-2 Policy Enforcement Integration:
+    - Reads SECURITY_ENFORCEMENT_MODE from settings
+    - Evaluates risk levels from all advisory nodes
+    - Blocks execution if risk exceeds threshold for the configured mode
+    - Modes:
+        - advisory: Never block, only log (default)
+        - block_critical: Block if any advisor returns critical risk
+        - block_high: Block if any advisor returns high or critical risk
+        - block_all: Block if any advisor returns non-info risk
+
+    Returns:
+        Updated state with policy_blocked and policy_block_reason
+    """
+    from common.config.settings import get_settings
+
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    trace_id = state.get("trace_id", "unknown")
+
+    metrics.record_node_start("policy_enforcement", trace_id)
+
+    state["policy_blocked"] = False
+    state["policy_block_reason"] = ""
+
+    settings = get_settings()
+    mode = settings.security_enforcement_mode
+
+    logger.info("[PolicyEnforcement] Evaluating policy", extra={
+        "operation": "policy_enforcement",
+        "trace_id": trace_id,
+        "enforcement_mode": mode
+    })
+
+    if mode == "advisory":
+        logger.info("[PolicyEnforcement] Advisory mode - no blocking", extra={
+            "operation": "policy_enforcement",
+            "trace_id": trace_id,
+            "enforcement_mode": mode
+        })
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Policy enforcement: mode={mode}, no blocking")
+        ]
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("policy_enforcement", trace_id, success=True, latency_ms=latency_ms)
+        metrics.record_transition("policy_enforcement", "executor", trace_id)
+        return state
+
+    advisor_risks = {
+        "security": state.get("security_risk", "info"),
+        "governance": state.get("governance_risk", "info"),
+        "cost": state.get("cost_risk", "info"),
+        "permission": state.get("permission_risk", "info"),
+    }
+
+    mode_thresholds = {
+        "block_critical": 4,
+        "block_high": 3,
+        "block_all": 1,
+    }
+
+    threshold = mode_thresholds.get(mode, 5)
+
+    worst_risk = "info"
+    worst_severity = 0
+    worst_advisor = "none"
+
+    for advisor, risk in advisor_risks.items():
+        severity = RISK_SEVERITY.get(risk, 0)
+        if severity > worst_severity:
+            worst_severity = severity
+            worst_risk = risk
+            worst_advisor = advisor
+
+    should_block = worst_severity >= threshold
+
+    severity_to_risk = {v: k for k, v in RISK_SEVERITY.items()}
+    threshold_name = severity_to_risk.get(threshold, "none")
+
+    if should_block:
+        block_reason = f"{worst_advisor}_risk={worst_risk} (mode={mode}, threshold={threshold_name})"
+        state["policy_blocked"] = True
+        state["policy_block_reason"] = block_reason
+
+        logger.warning("[PolicyEnforcement] Blocking execution", extra={
+            "operation": "policy_enforcement",
+            "trace_id": trace_id,
+            "enforcement_mode": mode,
+            "worst_advisor": worst_advisor,
+            "worst_risk": worst_risk,
+            "block_reason": block_reason
+        })
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Policy enforcement: BLOCKED - {block_reason}")
+        ]
+    else:
+        logger.info("[PolicyEnforcement] Allowing execution", extra={
+            "operation": "policy_enforcement",
+            "trace_id": trace_id,
+            "enforcement_mode": mode,
+            "worst_advisor": worst_advisor,
+            "worst_risk": worst_risk
+        })
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Policy enforcement: mode={mode}, worst_risk={worst_risk} from {worst_advisor}, allowing execution")
+        ]
+
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("policy_enforcement", trace_id, success=True, latency_ms=latency_ms)
+
+    if should_block:
+        metrics.record_transition("policy_enforcement", "finalizer", trace_id)
+    else:
+        metrics.record_transition("policy_enforcement", "executor", trace_id)
+
+    return state
+
+
+def should_proceed_after_policy(state: AgentState) -> str:
+    """
+    Determines if execution should proceed after policy enforcement
+
+    Returns:
+        "executor" if not blocked, "finalizer" if blocked by policy
+    """
+    if state.get("policy_blocked", False):
+        return "finalize"
+    return "execute"
 
 
 def executor_node(state: AgentState) -> AgentState:
@@ -1415,6 +1560,7 @@ def finalizer_node(state: AgentState) -> AgentState:
     Finalizer node: Prepares final result
 
     Phase 5 PR-1: Records failures when status=error or fixer exhausted retries
+    PR-2: Handles policy-blocked tasks with status="blocked"
     """
     start_time = time.time()
     metrics = _get_metrics()
@@ -1425,6 +1571,8 @@ def finalizer_node(state: AgentState) -> AgentState:
     ci_state = state.get("ci_state")
     error = state.get("error")
     retry_count = state.get("retry_count", 0)
+    policy_blocked = state.get("policy_blocked", False)
+    policy_block_reason = state.get("policy_block_reason", "")
 
     metrics.record_node_start("finalizer", trace_id)
 
@@ -1433,10 +1581,16 @@ def finalizer_node(state: AgentState) -> AgentState:
         "trace_id": trace_id,
         "pr_url": pr_url,
         "ci_state": ci_state,
-        "has_error": bool(error)
+        "has_error": bool(error),
+        "policy_blocked": policy_blocked
     })
 
-    final_status = "success" if not error else "error"
+    if policy_blocked:
+        final_status = "blocked"
+    elif error:
+        final_status = "error"
+    else:
+        final_status = "success"
 
     final_result = {
         "trace_id": trace_id,
@@ -1447,7 +1601,20 @@ def finalizer_node(state: AgentState) -> AgentState:
         "timestamp": datetime.utcnow().isoformat()
     }
 
-    if final_status == "error":
+    if policy_blocked:
+        final_result["policy_block_reason"] = policy_block_reason
+        final_result["security_risk"] = state.get("security_risk", "info")
+        final_result["governance_risk"] = state.get("governance_risk", "info")
+        final_result["cost_risk"] = state.get("cost_risk", "info")
+        final_result["permission_risk"] = state.get("permission_risk", "info")
+
+        failure_recorder.record_failure_from_state(
+            state=dict(state),
+            error_type="policy_blocked",
+            error_message=policy_block_reason
+        )
+
+    elif final_status == "error":
         error_type = "workflow_error"
         if retry_count >= MAX_FIXER_RETRIES:
             error_type = "fixer_exhausted"
@@ -1528,8 +1695,8 @@ def create_orchestrator_graph():
     """
     Creates the LangGraph StateGraph for orchestration
 
-    Phase 4 PR-4: 5-Agent Advisory Pipeline:
-        planner → security_advisor → governance_advisor → cost_advisor → permission_advisor → reputation_advisor → executor → ci_monitor → reviewer → decision → (fixer if needed) → finalizer
+    PR-2 Policy Enforcement Update:
+        planner → security_advisor → governance_advisor → cost_advisor → permission_advisor → reputation_advisor → policy_enforcement → (executor | finalizer) → ci_monitor → reviewer → decision → (fixer if needed) → finalizer
 
     5-Agent Advisory Pipeline Nodes:
         1. security_advisor: Security analysis (Phase 4 PR-2)
@@ -1537,6 +1704,10 @@ def create_orchestrator_graph():
         3. cost_advisor: Cost budget analysis (Phase 4 PR-4)
         4. permission_advisor: Permission verification (Phase 4 PR-4)
         5. reputation_advisor: Reputation assessment (Phase 4 PR-4)
+
+    Policy Enforcement Node (PR-2):
+        - policy_enforcement: Evaluates advisory results and enforces SECURITY_ENFORCEMENT_MODE
+        - Routes to executor if allowed, finalizer if blocked
 
     Other Nodes:
         - planner: Task decomposition using LLM Planner
@@ -1560,6 +1731,8 @@ def create_orchestrator_graph():
     workflow.add_node("cost_advisor", cost_advisor_node)
     workflow.add_node("permission_advisor", permission_advisor_node)
     workflow.add_node("reputation_advisor", reputation_advisor_node)
+    # Policy Enforcement node (PR-2)
+    workflow.add_node("policy_enforcement", policy_enforcement_node)
     # Execution nodes
     workflow.add_node("executor", executor_node)
     workflow.add_node("ci_monitor", ci_monitor_node)
@@ -1587,8 +1760,18 @@ def create_orchestrator_graph():
     # permission_advisor → reputation_advisor (Phase 4 PR-4)
     workflow.add_edge("permission_advisor", "reputation_advisor")
 
-    # reputation_advisor → executor (Phase 4 PR-4: advisory only, always proceeds)
-    workflow.add_edge("reputation_advisor", "executor")
+    # reputation_advisor → policy_enforcement (PR-2: policy enforcement gate)
+    workflow.add_edge("reputation_advisor", "policy_enforcement")
+
+    # policy_enforcement → (executor | finalizer) based on policy decision (PR-2)
+    workflow.add_conditional_edges(
+        "policy_enforcement",
+        should_proceed_after_policy,
+        {
+            "execute": "executor",
+            "finalize": "finalizer"
+        }
+    )
 
     # executor → (execute | monitor_ci | fix | finalize)
     workflow.add_conditional_edges(
@@ -1699,7 +1882,9 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         "permission_granted": True,
         "reputation_advisory": {},
         "reputation_score": 100,
-        "reputation_level": "trusted"
+        "reputation_level": "trusted",
+        "policy_blocked": False,
+        "policy_block_reason": ""
     }
 
     config = {"configurable": {"thread_id": trace_id}}

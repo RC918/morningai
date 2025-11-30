@@ -1,0 +1,352 @@
+# Blessed Configurations for MorningAI Environments
+# ================================================
+# This file defines the approved configuration combinations for each environment.
+# PR-5 validation script will verify render.yaml matches these blessed configs.
+#
+# Version: 1.0.0
+# Last Updated: 2025-11-30
+# Related: config/env.schema.yaml, render.yaml, docs/ENVIRONMENTS.md
+
+version: "1.0"
+description: "Approved configuration combinations for Production, Staging, and Development environments"
+
+# Environment Definitions
+# -----------------------
+# Each environment has required and optional configurations.
+# Required configs MUST match exactly; optional configs have recommended values.
+
+environments:
+  production:
+    description: "Live user-facing services on main branch"
+    branch: main
+    auto_deploy: true
+    
+    # Orchestrator Mode Configuration
+    orchestrator:
+      USE_LANGGRAPH:
+        value: false
+        required: true
+        reason: "Production uses Simple Mode with canary rollout via USE_LANGGRAPH_PERCENT"
+      USE_LANGGRAPH_PERCENT:
+        value: 5
+        required: false
+        min: 0
+        max: 20
+        reason: "Canary rollout percentage; keep low for production stability"
+      USE_LLM_PLANNER:
+        value: true
+        required: false
+        reason: "LLM planner enabled for LangGraph tasks"
+      
+    # Security Enforcement Configuration
+    security:
+      SECURITY_ENFORCEMENT_MODE:
+        value: advisory
+        required: true
+        reason: "Production starts with advisory mode; upgrade to block_critical after Staging validation"
+        allowed_values:
+          - advisory
+          - block_critical
+      ENABLE_MOCK_USERS:
+        value: false
+        required: true
+        reason: "Mock users must be disabled in production"
+      SANDBOX_ENABLED:
+        value: false
+        required: true
+        reason: "Sandbox disabled in production for security"
+        
+    # Feature Flags
+    feature_flags:
+      DEMO_MODE:
+        value: false
+        required: true
+        reason: "Demo mode must be disabled in production"
+      ORCHESTRATOR_TEST_MODE:
+        value: false
+        required: true
+        reason: "Test mode must be disabled in production"
+      ENABLE_PROJECT_ENGINEER_CODEGEN:
+        value: false
+        required: true
+        reason: "Code generation disabled in production until fully validated"
+      ENABLE_PROJECT_ENGINEER_FIXER:
+        value: false
+        required: true
+        reason: "Auto-fixer disabled in production"
+        
+    # Environment Identification
+    environment:
+      ENVIRONMENT:
+        value: production
+        required: true
+      FLASK_ENV:
+        value: production
+        required: true
+
+  staging:
+    description: "Pre-production testing environment on develop branch"
+    branch: develop
+    auto_deploy: true
+    
+    # Orchestrator Mode Configuration
+    orchestrator:
+      USE_LANGGRAPH:
+        value: true
+        required: true
+        reason: "Staging uses 100% LangGraph for validation before production rollout"
+      USE_LANGGRAPH_PERCENT:
+        value: 100
+        required: false
+        reason: "Ignored when USE_LANGGRAPH=true"
+      USE_LLM_PLANNER:
+        value: true
+        required: true
+        reason: "LLM planner must be enabled to validate full pipeline"
+        
+    # Security Enforcement Configuration
+    security:
+      SECURITY_ENFORCEMENT_MODE:
+        value: block_critical
+        required: true
+        reason: "Staging validates enforcement logic with block_critical mode"
+        allowed_values:
+          - block_critical
+          - block_high
+          - block_all
+      ENABLE_MOCK_USERS:
+        value: false
+        required: true
+        reason: "Mock users disabled for realistic testing"
+      SANDBOX_ENABLED:
+        value: true
+        required: false
+        reason: "Sandbox can be enabled for testing"
+        
+    # Feature Flags
+    feature_flags:
+      DEMO_MODE:
+        value: false
+        required: true
+        reason: "Demo mode disabled for realistic testing"
+      ORCHESTRATOR_TEST_MODE:
+        value: false
+        required: true
+        reason: "Test mode disabled for realistic testing"
+      ENABLE_PROJECT_ENGINEER_CODEGEN:
+        value: true
+        required: false
+        reason: "Code generation can be enabled for validation"
+      ENABLE_PROJECT_ENGINEER_FIXER:
+        value: true
+        required: false
+        reason: "Auto-fixer can be enabled for validation"
+        
+    # Environment Identification
+    environment:
+      ENVIRONMENT:
+        value: staging
+        required: true
+      FLASK_ENV:
+        value: staging
+        required: true
+
+  development:
+    description: "Local development environment"
+    branch: any
+    auto_deploy: false
+    
+    # Orchestrator Mode Configuration
+    orchestrator:
+      USE_LANGGRAPH:
+        value: false
+        required: false
+        reason: "Developers can choose either mode"
+      USE_LANGGRAPH_PERCENT:
+        value: 0
+        required: false
+        reason: "Default to Simple Mode for faster iteration"
+      USE_LLM_PLANNER:
+        value: false
+        required: false
+        reason: "Optional; saves API costs during development"
+        
+    # Security Enforcement Configuration
+    security:
+      SECURITY_ENFORCEMENT_MODE:
+        value: advisory
+        required: false
+        reason: "Advisory mode recommended for development"
+        allowed_values:
+          - advisory
+          - block_critical
+          - block_high
+          - block_all
+      ENABLE_MOCK_USERS:
+        value: true
+        required: false
+        reason: "Mock users can be enabled for local testing"
+      SANDBOX_ENABLED:
+        value: false
+        required: false
+        reason: "Sandbox optional for development"
+        
+    # Feature Flags
+    feature_flags:
+      DEMO_MODE:
+        value: false
+        required: false
+        reason: "Optional for development"
+      ORCHESTRATOR_TEST_MODE:
+        value: true
+        required: false
+        reason: "Test mode can be enabled for development"
+      ENABLE_PROJECT_ENGINEER_CODEGEN:
+        value: false
+        required: false
+        reason: "Optional for development"
+      ENABLE_PROJECT_ENGINEER_FIXER:
+        value: false
+        required: false
+        reason: "Optional for development"
+        
+    # Environment Identification
+    environment:
+      ENVIRONMENT:
+        value: development
+        required: false
+      FLASK_ENV:
+        value: development
+        required: false
+
+# Validation Rules
+# ----------------
+# These rules define cross-environment constraints and dependencies.
+
+validation_rules:
+  - name: "security_enforcement_progression"
+    description: "Security enforcement mode must be equal or stricter in Staging than Production"
+    rule: "staging.SECURITY_ENFORCEMENT_MODE severity >= production.SECURITY_ENFORCEMENT_MODE severity"
+    severity_order:
+      - advisory      # 0 - least strict
+      - block_critical # 1
+      - block_high    # 2
+      - block_all     # 3 - most strict
+      
+  - name: "langgraph_staging_validation"
+    description: "LangGraph must be enabled in Staging before increasing Production percentage"
+    rule: "if production.USE_LANGGRAPH_PERCENT > 0 then staging.USE_LANGGRAPH = true"
+    
+  - name: "mock_users_production_disabled"
+    description: "Mock users must never be enabled in Production"
+    rule: "production.ENABLE_MOCK_USERS = false"
+    severity: critical
+    
+  - name: "demo_mode_production_disabled"
+    description: "Demo mode must never be enabled in Production"
+    rule: "production.DEMO_MODE = false"
+    severity: critical
+
+# Service-Specific Configurations
+# -------------------------------
+# Maps render.yaml service names to their expected configurations.
+
+services:
+  production:
+    - name: morningai-backend-v2
+      type: web
+      configs:
+        - ENVIRONMENT=production
+        - FLASK_ENV=production
+        - USE_LANGGRAPH=false
+        - ENABLE_MOCK_USERS=false
+        - SANDBOX_ENABLED=false
+        
+    - name: morningai-agent-worker
+      type: worker
+      configs:
+        - ENVIRONMENT=production
+        - DEMO_MODE=false
+        - ORCHESTRATOR_TEST_MODE=false
+        - ENABLE_MOCK_USERS=false
+        - SANDBOX_ENABLED=false
+        
+    - name: morningai-orchestrator-api
+      type: web
+      configs:
+        - ENVIRONMENT=production
+        
+    - name: morningai-worker-dashboard
+      type: web
+      configs: []
+      
+    - name: morningai-ops-agent-worker
+      type: worker
+      configs:
+        - ENVIRONMENT=production
+
+# Rollout Strategy
+# ----------------
+# Recommended progression for enabling new features.
+
+rollout_strategy:
+  security_enforcement:
+    phase_1:
+      description: "Initial deployment - advisory everywhere"
+      production: advisory
+      staging: advisory
+      duration: "1 week"
+      
+    phase_2:
+      description: "Enable enforcement in Staging"
+      production: advisory
+      staging: block_critical
+      duration: "1-2 weeks"
+      validation:
+        - "Monitor Staging for false positives"
+        - "Review blocked tasks in logs"
+        - "Adjust advisor thresholds if needed"
+        
+    phase_3:
+      description: "Enable enforcement in Production"
+      production: block_critical
+      staging: block_high
+      duration: "2-4 weeks"
+      validation:
+        - "Monitor Production for unexpected blocks"
+        - "Review user feedback"
+        - "Ensure rollback plan is ready"
+        
+    phase_4:
+      description: "Increase enforcement strictness"
+      production: block_high
+      staging: block_all
+      duration: "ongoing"
+      validation:
+        - "Continuous monitoring"
+        - "Regular policy review"
+
+  langgraph_migration:
+    phase_1:
+      description: "Current state - 5% canary"
+      production_percent: 5
+      staging: true
+      
+    phase_2:
+      description: "Increase canary after validation"
+      production_percent: 20
+      staging: true
+      criteria:
+        - "No increase in error rate"
+        - "Latency within 10% of Simple Mode"
+        - "All advisory nodes functioning correctly"
+        
+    phase_3:
+      description: "Majority traffic"
+      production_percent: 80
+      staging: true
+      
+    phase_4:
+      description: "Full migration"
+      production_percent: 100
+      staging: true

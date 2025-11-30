@@ -4,8 +4,8 @@
 
 ## 📊 總覽統計
 
-- **總工作流數量**: 20
-- **支援 workflow_dispatch**: 20 (100%)
+- **總工作流數量**: 21
+- **支援 workflow_dispatch**: 21 (100%)
 - **Branch Protection 必須檢查**: 4
 
 ---
@@ -546,6 +546,38 @@
 
 ---
 
+### 21. `migration-health-check` (Validate migration files)
+**檔案**: `.github/workflows/migration-health-check.yml`
+
+**用途**: Migration 檔案健康檢查，驗證 migration 檔案命名規範與完整性
+
+**觸發條件**:
+- ✅ `workflow_dispatch` - 手動觸發
+- ✅ `push` - main 分支推送（僅當 `migrations/` 變更時）
+- ✅ `pull_request` - 所有 PR（僅當 `migrations/` 或 `scripts/run_migrations.sh` 變更時）
+
+**執行內容**:
+- 檢查 migration runner 腳本存在且可執行
+- 使用統一 runner 列出所有 migrations
+- 檢測重複的 migration 編號（警告模式）
+- 驗證命名規範（`NNN_*.sql`）
+- 檢測 migration 序號中的大間隙（>5）
+- 驗證 dry-run 模式可正常運作
+- 生成包含統計資訊的 summary
+
+**為何非 Required**: Migration 健康檢查為輔助工具，失敗不阻擋開發流程
+
+**注意事項**:
+- 重複編號檢查設為警告而非錯誤，因目前存在既有的重複（024_create_failure_memory_table.sql 和 024_create_planner_events_table.sql）
+- 命名規範排除特殊檔案：`PRE_DEPLOYMENT`、`backfill`、`rollback` 開頭的檔案
+- 依賴 `scripts/run_migrations.sh`（PR-6 新增的統一 migration runner）
+
+**相關 PR**:
+- PR #1756: 統一 Migration Runner（PR-6）
+- PR #1757: Migration Health Check CI（PR-7）
+
+---
+
 ## 📋 Branch Protection 規則說明
 
 **目前配置的 4 個 Required Checks**:
@@ -623,7 +655,8 @@ main 分支合併條件
 ├── frontend-ci (建置 + lint + 煙測)
 ├── openapi-verify (API 規格驗證)
 ├── agent-mvp-smoke (快速煙測)
-└── agent-mvp-e2e (完整 E2E)
+├── agent-mvp-e2e (完整 E2E)
+└── migration-health-check (Migration 檔案健康檢查)
 
 部署流程
 ├── vercel-deploy (前端部署)

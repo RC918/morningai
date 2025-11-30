@@ -369,18 +369,18 @@ class TestAdvisoryPipelineEdges:
         )
         assert permission_to_reputation, "permission_advisor should connect to reputation_advisor"
 
-    def test_reputation_advisor_connects_to_executor(self):
-        """Test that reputation_advisor connects to executor"""
+    def test_reputation_advisor_connects_to_policy_enforcement(self):
+        """Test that reputation_advisor connects to policy_enforcement (PR-2)"""
         app = create_orchestrator_graph()
         graph_dict = app.get_graph().to_json()
         edges = graph_dict.get("edges", [])
 
-        reputation_to_executor = any(
+        reputation_to_policy = any(
             "reputation_advisor" in str(e.get("source", "")) and
-            "executor" in str(e.get("target", ""))
+            "policy_enforcement" in str(e.get("target", ""))
             for e in edges
         )
-        assert reputation_to_executor, "reputation_advisor should connect to executor"
+        assert reputation_to_policy, "reputation_advisor should connect to policy_enforcement"
 
 
 class TestAdvisoryPipelineIntegration:
