@@ -174,9 +174,9 @@ class TestGeminiProvider:
         assert provider.get_provider_name() == "gemini"
 
     def test_default_model(self):
-        """Test default model is gemini-pro"""
+        """Test default model is gemini-2.0-flash"""
         provider = GeminiProvider()
-        assert provider.model == "gemini-pro"
+        assert provider.model == "gemini-2.0-flash"
 
     def test_custom_model(self):
         """Test custom model initialization"""
