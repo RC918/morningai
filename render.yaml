@@ -13,6 +13,8 @@ services:
     startCommand: cd handoff/20250928/40_App/api-backend && gunicorn -c gunicorn.conf.py src.main:app
     healthCheckPath: /health
     envVars:
+      - key: PYTHONPATH
+        value: /opt/render/project/src/handoff/20250928/40_App/orchestrator:/opt/render/project/src/handoff/20250928/40_App/api-backend/src
       - key: FLASK_ENV
         value: production
       - key: ENVIRONMENT
