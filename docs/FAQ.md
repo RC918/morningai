@@ -1,64 +1,92 @@
-# Fix Authentication Timeout Issue
+# Extracting Duplicate API Client Code into a Shared Utility
 
-When working with MorningAI, you may encounter an authentication timeout issue. This problem typically occurs when the authentication token used by the platform expires or when there is a misconfiguration in the system settings related to session management. This FAQ aims to guide developers through understanding and resolving authentication timeout issues within the MorningAI platform.
+When working with the MorningAI platform, particularly in the development of integrations or extensions, it's common to encounter scenarios where similar or identical API client code is used across multiple modules or components. Consolidating this duplicate code into a shared utility not only enhances code maintainability and readability but also simplifies updates and bug fixes. This FAQ aims to guide developers through the process of identifying duplicate API client code, extracting it into a shared utility, and refactoring existing code to utilize this newly created utility.
 
-## Understanding Authentication Timeout
+## Understanding the Need for a Shared API Client Utility
 
-Authentication timeouts are mechanisms designed to improve security by limiting the duration of an active session. When a user logs in, they are granted a token that expires after a set period. If the session lasts longer than this period without renewal, the user is automatically logged out, requiring re-authentication.
+MorningAI's architecture involves interacting with various APIs, both internal (such as task orchestration or vector memory storage) and external (e.g., integration with third-party services). Often, developers find themselves writing similar code to handle API requests, responses, error handling, and connection management across different parts of the application. A shared API client utility centralizes these common functionalities, ensuring consistency and reducing boilerplate code.
 
-In MorningAI, authentication timeouts can affect both the web interface and API calls, leading to interrupted workflows and decreased productivity.
+## Creating a Shared API Client Utility
 
-## Configuration Settings
+Below is a step-by-step guide to creating a shared API client utility within the MorningAI platform's codebase:
 
-First, check the configuration settings related to authentication timeout:
+### Step 1: Identify Common Patterns
+
+Review your existing modules and identify patterns in API interactions. Common aspects include request setup (headers, payload), execution (HTTP method, endpoint), response handling (success, error), and retry logic.
+
+### Step 2: Design the Utility Interface
+
+Design a simple yet flexible interface for your utility that accommodates different use cases. Consider methods for standard CRUD operations (Create, Read, Update, Delete) as well as any specialized operations your application requires.
+
+### Step 3: Implement the Utility
+
+Create a new file in your repository (`RC918/morningai`) under `utils/api_client.py`. Implement the designed interface using Python's `requests` library for simplicity and efficiency.
+
+**Example Implementation:**
 
 ```python
-# Configuration file path: morningai/config.py
+# utils/api_client.py
+import requests
 
-# Example configuration for session timeout
-SESSION_TIMEOUT = 3600  # Timeout in seconds (e.g., 3600 seconds = 1 hour)
+class APIClient:
+    BASE_URL = 'https://api.morningai.com/'
+
+    def get(self, path, **kwargs):
+        return self.request('GET', path, **kwargs)
+
+    def post(self, path, data=None, **kwargs):
+        return self.request('POST', path, json=data, **kwargs)
+
+    def request(self, method, path, **kwargs):
+        url = f"{self.BASE_URL}{path}"
+        response = requests.request(method, url, **kwargs)
+        response.raise_for_status()  # Raises HTTPError for bad responses
+        return response.json()
+
+# Example usage
+client = APIClient()
+response = client.get('path/to/resource')
 ```
 
-Ensure that the `SESSION_TIMEOUT` value is set appropriately for your use case. A too-short timeout period may lead to frequent re-authentications, while a too-long period might compromise security.
+### Step 4: Refactor Existing Code
 
-## Refreshing Tokens
+Once your shared API client utility is ready and tested, start refactoring existing code to use this utility. Replace direct `requests` calls with calls to your new utility's methods.
 
-For API usage and integrations, ensure that your implementation accounts for token expiration by implementing a token refresh mechanism:
+**Refactoring Example:**
+
+Before:
 
 ```python
 import requests
-from morningai.credentials import get_refresh_token
 
-def refresh_access_token():
-    refresh_token = get_refresh_token()
-    response = requests.post('https://api.morningai.com/auth/refresh', data={'refresh_token': refresh_token})
-    if response.status_code == 200:
-        new_access_token = response.json()['access_token']
-        # Update your stored access token here
-        return new_access_token
-    else:
-        raise Exception("Failed to refresh token")
-
-try:
-    # Attempt to use access token
-except TokenExpiredError:
-    # Token has expired; attempt to refresh it
-    refresh_access_token()
+def fetch_data():
+    response = requests.get('https://api.morningai.com/path/to/data')
+    return response.json()
 ```
 
-## Troubleshooting Tips
+After:
 
-- **Check Server Time**: Ensure that the server hosting MorningAI has synchronized time settings. Time drift can cause premature token expirations.
-- **Review Token Expiry Settings**: In some cases, adjusting the lifetime of tokens via MorningAI's administrative settings can resolve frequent timeout issues.
-- **Monitor for Errors**: Look out for `401 Unauthorized` or `403 Forbidden` responses from API calls, as these can indicate expired tokens.
-- **Logs and Debugging**: Check the application logs for any errors related to authentication or tokens. These logs can often provide insights into what might be causing timeouts.
+```python
+from utils.api_client import APIClient
+
+def fetch_data():
+    client = APIClient()
+    return client.get('path/to/data')
+```
 
 ## Related Documentation Links
 
-- [MorningAI Authentication Overview](https://docs.morningai.com/authentication)
-- [API Integration Guide](https://docs.morningai.com/api/integration)
+- Python `requests` library documentation: [Requests: HTTP for Humans](https://docs.python-requests.org/en/master/)
+- MorningAI Developer Guide: Please refer to `docs/developer_guide.md` in the `RC918/morningai` repository for more information on coding standards and best practices.
 
-By following these guidelines and ensuring proper configuration and handling of authentication tokens, developers can mitigate and resolve authentication timeout issues within MorningAI, thereby enhancing both security and user experience.
+## Common Troubleshooting Tips
+
+- Ensure that all dependencies are correctly installed (`pip install requests`).
+- Verify that the BASE_URL in `api_client.py` matches MorningAI's current API endpoint.
+- If encountering SSL errors during local development, consider whether you need to bypass SSL verification (not recommended for production).
+- Use logging or debugging tools to inspect HTTP request details if you're not getting expected responses.
+
+For further assistance or if you encounter specific issues not covered here, please reach out through our developer support channels or consult the broader documentation available in the `RC918/morningai/docs` directory.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -66,7 +94,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Extract duplicate API client code into shared utility
+- Trace ID: `task-003`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
