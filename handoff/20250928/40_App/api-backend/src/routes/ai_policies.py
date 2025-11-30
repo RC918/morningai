@@ -47,10 +47,10 @@ bp = Blueprint('ai_policies', __name__, url_prefix='/api/ai-policies')
 
 def get_user_profile(user_id: str):
     """
-    Get tenant_id and role for a user in a single query.
+    Get tenant_id, role, and is_platform_admin for a user in a single query.
 
     Returns:
-        tuple: (tenant_id, role) or (None, None) if not found
+        tuple: (tenant_id, role, is_platform_admin) or (None, None, False) if not found
 
     Raises:
         Exception: Re-raises database/network errors after logging
@@ -59,11 +59,15 @@ def get_user_profile(user_id: str):
         from orchestrator.persistence.db_client import get_client
         client = get_client()
         response = client.table('user_profiles').select(
-            'tenant_id, role'
+            'tenant_id, role, is_platform_admin'
         ).eq('id', user_id).single().execute()
         if response.data:
-            return response.data.get('tenant_id'), response.data.get('role')
-        return None, None
+            return (
+                response.data.get('tenant_id'),
+                response.data.get('role'),
+                response.data.get('is_platform_admin', False)
+            )
+        return None, None, False
     except Exception:
         logger.exception(f"Failed to get profile for user {user_id}")
         raise
@@ -71,14 +75,20 @@ def get_user_profile(user_id: str):
 
 def get_user_tenant_id(user_id: str):
     """Get tenant_id for a user (wrapper for backward compatibility)"""
-    tenant_id, _ = get_user_profile(user_id)
+    tenant_id, _, _ = get_user_profile(user_id)
     return tenant_id
 
 
 def get_user_role(user_id: str):
     """Get role for a user (wrapper for backward compatibility)"""
-    _, role = get_user_profile(user_id)
+    _, role, _ = get_user_profile(user_id)
     return role
+
+
+def is_user_platform_admin(user_id: str):
+    """Check if user is a platform admin"""
+    _, _, is_platform_admin = get_user_profile(user_id)
+    return is_platform_admin
 
 
 def _parse_policy_type(policy_type_str):
@@ -112,17 +122,25 @@ def _parse_policy_status(status_str):
 
 
 def _validate_user_context(user_id, required_roles=None):
-    """Validate user context and return tenant_id, role, and any error"""
-    tenant_id, user_role = get_user_profile(user_id)
+    """
+    Validate user context and return tenant_id, role, is_platform_admin, and any error.
+
+    Platform admins bypass role checks and can access any tenant's data.
+    """
+    tenant_id, user_role, is_platform_admin = get_user_profile(user_id)
+
+    if is_platform_admin:
+        return tenant_id, user_role, is_platform_admin, None
+
     if not tenant_id:
-        return None, None, ('Tenant not found for user', 404)
+        return None, None, False, ('Tenant not found for user', 404)
 
     if required_roles and user_role not in required_roles:
-        return None, None, (
+        return None, None, False, (
             f'Only {", ".join(required_roles)} can perform this action', 403
         )
 
-    return tenant_id, user_role, None
+    return tenant_id, user_role, is_platform_admin, None
 
 
 def _build_policy_updates(data):
@@ -279,7 +297,7 @@ def create_policy():
 
     try:
         user_id = request.user_id
-        tenant_id, _, error = _validate_user_context(
+        tenant_id, _, is_platform_admin, error = _validate_user_context(
             user_id, required_roles=['owner', 'admin']
         )
         if error:
@@ -305,9 +323,15 @@ def create_policy():
         if err:
             return jsonify({'error': err}), 400
 
+        target_tenant_id = data.get('tenant_id', tenant_id)
+        if target_tenant_id != tenant_id and not is_platform_admin:
+            return jsonify({
+                'error': 'Only platform admins can create policies for other tenants'
+            }), 403
+
         manager = get_ai_policy_manager()
         policy = manager.create_policy(
-            tenant_id=tenant_id,
+            tenant_id=target_tenant_id,
             name=data['name'],
             policy_type=policy_type,
             rules=data['rules'],
@@ -360,7 +384,7 @@ def update_policy(policy_id):
 
     try:
         user_id = request.user_id
-        tenant_id, _, error = _validate_user_context(
+        tenant_id, _, is_platform_admin, error = _validate_user_context(
             user_id, required_roles=['owner', 'admin']
         )
         if error:
@@ -369,7 +393,10 @@ def update_policy(policy_id):
         manager = get_ai_policy_manager()
         existing_policy = manager.get_policy(policy_id)
 
-        if not existing_policy or existing_policy.tenant_id != tenant_id:
+        if not existing_policy:
+            return jsonify({'error': 'Policy not found'}), 404
+
+        if existing_policy.tenant_id != tenant_id and not is_platform_admin:
             return jsonify({'error': 'Policy not found'}), 404
 
         data = request.get_json()
@@ -408,7 +435,7 @@ def delete_policy(policy_id):
 
     Returns:
         200: Success message
-        403: Insufficient permissions (only owners can delete)
+        403: Insufficient permissions (only owners or platform admins can delete)
         404: Policy not found
         503: AI Policy system not available
     """
@@ -417,14 +444,14 @@ def delete_policy(policy_id):
 
     try:
         user_id = request.user_id
-        tenant_id, user_role = get_user_profile(user_id)
+        tenant_id, user_role, is_platform_admin = get_user_profile(user_id)
 
-        if not tenant_id:
+        if not tenant_id and not is_platform_admin:
             return jsonify({'error': 'Tenant not found for user'}), 404
 
-        if user_role != 'owner':
+        if user_role != 'owner' and not is_platform_admin:
             return jsonify({
-                'error': 'Only owners can delete policies'
+                'error': 'Only owners or platform admins can delete policies'
             }), 403
 
         manager = get_ai_policy_manager()
@@ -433,7 +460,7 @@ def delete_policy(policy_id):
         if not existing_policy:
             return jsonify({'error': 'Policy not found'}), 404
 
-        if existing_policy.tenant_id != tenant_id:
+        if existing_policy.tenant_id != tenant_id and not is_platform_admin:
             return jsonify({'error': 'Policy not found'}), 404
 
         success = manager.delete_policy(policy_id, deleted_by=user_id)
