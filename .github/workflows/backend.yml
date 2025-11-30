@@ -11,6 +11,11 @@ on:
     paths-ignore:
       - 'handoff/20250928/50_Infra/**'
       - 'handoff/20250928/60_Design/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   validate-env-schema:
     runs-on: ubuntu-latest
@@ -122,7 +127,7 @@ jobs:
           TESTING: true
         run: |
           cd handoff/20250928/40_App/api-backend
-          python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=74 -v
+          python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-report=json --cov-fail-under=74 -v
           echo "### Coverage Summary" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           python -m coverage report >> $GITHUB_STEP_SUMMARY
@@ -131,5 +136,80 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: handoff/20250928/40_App/api-backend/coverage.xml
+          path: |
+            handoff/20250928/40_App/api-backend/coverage.xml
+            handoff/20250928/40_App/api-backend/coverage.json
           retention-days: 30
+      
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Read coverage JSON
+            const coveragePath = path.join(process.cwd(), 'handoff/20250928/40_App/api-backend/coverage.json');
+            let coverage;
+            try {
+              coverage = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
+            } catch (e) {
+              console.log('Could not read coverage.json:', e.message);
+              return;
+            }
+            
+            const totals = coverage.totals;
+            const threshold = 74;
+            
+            // Helper functions
+            const getStatus = (pct) => pct >= threshold ? '✅' : '❌';
+            
+            // Build comment
+            const comment = `## 📊 API Backend 測試覆蓋率報告
+            
+            | 指標 | 覆蓋率 | 狀態 |
+            |------|--------|------|
+            | Lines | ${totals.percent_covered.toFixed(2)}% | ${getStatus(totals.percent_covered)} |
+            | Covered Lines | ${totals.covered_lines} / ${totals.num_statements} | - |
+            | Missing Lines | ${totals.missing_lines} | - |
+            
+            **門檻要求**: ${threshold}% 最低標準
+            
+            ${totals.percent_covered >= threshold 
+              ? '✅ **覆蓋率門檻已達標！**' 
+              : '❌ **覆蓋率未達標，請補充測試。**'}
+            
+            ---
+            
+            [查看完整覆蓋率報告](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            `;
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('API Backend 測試覆蓋率報告')
+            );
+            
+            // Update or create comment
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
