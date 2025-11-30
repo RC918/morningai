@@ -1,64 +1,70 @@
-# Fix Authentication Timeout Issue
+# Fixing RLS Policy Recursion in the `user_profiles` Table
 
-When working with MorningAI, you may encounter an authentication timeout issue. This problem typically occurs when the authentication token used by the platform expires or when there is a misconfiguration in the system settings related to session management. This FAQ aims to guide developers through understanding and resolving authentication timeout issues within the MorningAI platform.
+Row Level Security (RLS) policies in PostgreSQL provide a powerful mechanism for controlling access to rows in a database table based on the user accessing them. However, when improperly configured, these policies can lead to recursion issues, especially in scenarios where data access patterns involve self-referencing or interconnected tables like `user_profiles`. This FAQ aims to guide developers through fixing RLS policy recursion in the `user_profiles` table within the MorningAI platform.
 
-## Understanding Authentication Timeout
+## Understanding RLS Policy Recursion
 
-Authentication timeouts are mechanisms designed to improve security by limiting the duration of an active session. When a user logs in, they are granted a token that expires after a set period. If the session lasts longer than this period without renewal, the user is automatically logged out, requiring re-authentication.
+RLS policy recursion occurs when an RLS policy on a table inadvertently triggers another query to the same table that also needs to be filtered by the RLS policy, creating a loop. This is particularly problematic in self-referencing tables or when using functions or triggers that query back into the same table with RLS policies applied.
 
-In MorningAI, authentication timeouts can affect both the web interface and API calls, leading to interrupted workflows and decreased productivity.
+### Example Scenario
 
-## Configuration Settings
+Consider an RLS policy on the `user_profiles` table that limits users to only seeing their own profile. If there's a function or trigger that, as part of its operation, queries the `user_profiles` table (e.g., to check for related data), this could initiate an endless loop if not correctly managed.
 
-First, check the configuration settings related to authentication timeout:
+## Code Examples
 
-```python
-# Configuration file path: morningai/config.py
+### Setting Up Basic RLS Policy
 
-# Example configuration for session timeout
-SESSION_TIMEOUT = 3600  # Timeout in seconds (e.g., 3600 seconds = 1 hour)
+```sql
+-- Enable RLS on the user_profiles table
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Create a policy that ensures users can only see their own profiles
+CREATE POLICY user_profile_access ON user_profiles
+USING (user_id = current_user_id());
 ```
 
-Ensure that the `SESSION_TIMEOUT` value is set appropriately for your use case. A too-short timeout period may lead to frequent re-authentications, while a too-long period might compromise security.
+In this example, `current_user_id()` is a placeholder function that you would replace with your actual logic/mechanism for determining the current user's ID.
 
-## Refreshing Tokens
+### Preventing Recursion
 
-For API usage and integrations, ensure that your implementation accounts for token expiration by implementing a token refresh mechanism:
+To prevent recursion, you can use a session variable to indicate whether your policy should apply. Here's how:
 
-```python
-import requests
-from morningai.credentials import get_refresh_token
+```sql
+-- Set up a session variable defaulting to true (meaning RLS should apply)
+SET myapp.apply_rls TO true;
 
-def refresh_access_token():
-    refresh_token = get_refresh_token()
-    response = requests.post('https://api.morningai.com/auth/refresh', data={'refresh_token': refresh_token})
-    if response.status_code == 200:
-        new_access_token = response.json()['access_token']
-        # Update your stored access token here
-        return new_access_token
-    else:
-        raise Exception("Failed to refresh token")
+-- Modify your RLS policy to consider this variable
+CREATE OR REPLACE POLICY user_profile_access ON user_profiles
+USING (
+  user_id = current_user_id()
+  AND current_setting('myapp.apply_rls')::boolean
+);
 
-try:
-    # Attempt to use access token
-except TokenExpiredError:
-    # Token has expired; attempt to refresh it
-    refresh_access_token()
+-- In your function/trigger code where recursion might occur:
+BEGIN;
+  -- Temporarily disable RLS for this session
+  SET LOCAL myapp.apply_rls TO false;
+  
+  -- Your query here
+  
+  -- Remember, the change to myapp.apply_rls is scoped to this transaction only
+END;
 ```
 
-## Troubleshooting Tips
-
-- **Check Server Time**: Ensure that the server hosting MorningAI has synchronized time settings. Time drift can cause premature token expirations.
-- **Review Token Expiry Settings**: In some cases, adjusting the lifetime of tokens via MorningAI's administrative settings can resolve frequent timeout issues.
-- **Monitor for Errors**: Look out for `401 Unauthorized` or `403 Forbidden` responses from API calls, as these can indicate expired tokens.
-- **Logs and Debugging**: Check the application logs for any errors related to authentication or tokens. These logs can often provide insights into what might be causing timeouts.
+This approach ensures that within specific transactions where you anticipate recursion might occur, you can selectively disable RLS enforcement.
 
 ## Related Documentation Links
 
-- [MorningAI Authentication Overview](https://docs.morningai.com/authentication)
-- [API Integration Guide](https://docs.morningai.com/api/integration)
+- PostgreSQL Row Level Security: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+- PostgreSQL Configuration Functions: [https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADMIN-SET-TABLE](https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADMIN-SET-TABLE)
 
-By following these guidelines and ensuring proper configuration and handling of authentication tokens, developers can mitigate and resolve authentication timeout issues within MorningAI, thereby enhancing both security and user experience.
+## Common Troubleshooting Tips
+
+1. **Infinite Recursion**: If you encounter server errors indicating infinite recursion or stack depth limit exceeded errors, review your triggers, functions, and policies for unintended loops.
+2. **Policy Not Applying**: Ensure that RLS is enabled on the table (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY;`) and that your policies are correctly defined.
+3. **Session Variables Ignored**: Verify that session variables are set correctly within your session and that they're being accurately referenced in your policies.
+
+Remember, testing and validating your RLS policies in a controlled environment before deploying them into production is crucial to avoid disrupting application functionality.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -66,7 +72,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Fix RLS policy recursion in user_profiles table
+- Trace ID: `task-005`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
