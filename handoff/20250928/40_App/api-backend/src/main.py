@@ -14,17 +14,14 @@ if str(repo_root) not in sys.path:
     logging.basicConfig(level=logging.INFO)
     logging.info(f"Added repo root to sys.path: {repo_root}")
 
-# Add BOTH 40_App and orchestrator directories to sys.path:
-# - 40_App is needed for 'from orchestrator.persistence.db_client' imports
-# - orchestrator is needed for 'from governance.ai_policy' imports (governance is inside orchestrator)
+# Add 40_App directory to sys.path so that 'orchestrator' package can be imported
+# The import 'from orchestrator.xxx' requires the parent of 'orchestrator' in sys.path
 app_dir = app_settings.orchestrator_path
 if not app_dir:
     # Point to 40_App directory (parent of orchestrator), not orchestrator itself
     app_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../..")
     )
-
-orchestrator_dir = os.path.join(app_dir, "orchestrator")
 
 if os.path.exists(app_dir) and app_dir not in sys.path:
     sys.path.insert(0, app_dir)
@@ -33,10 +30,6 @@ elif not os.path.exists(app_dir):
     logging.warning(
         f"App directory does not exist: {app_dir}. Orchestrator features may not work."
     )
-
-if os.path.exists(orchestrator_dir) and orchestrator_dir not in sys.path:
-    sys.path.insert(0, orchestrator_dir)
-    logging.info(f"Added orchestrator directory to sys.path: {orchestrator_dir}")
 
 from src.routes.billing import bp as billing_bp
 from src.routes.tenant import bp as tenant_bp
