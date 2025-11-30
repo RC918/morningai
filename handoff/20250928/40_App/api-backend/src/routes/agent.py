@@ -151,6 +151,14 @@ def resolve_tenant_or_error(user_id: str, task_id: str, operation: str = "task")
 
     except Exception as e:
         logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
+        
+        # In testing mode, fall back to default tenant when database is unavailable
+        # This handles the case where orchestrator module imports successfully but
+        # Supabase credentials are not configured (common in CI environments)
+        if _is_testing_mode():
+            logger.warning(f"Testing mode: falling back to default tenant due to database error: {e}")
+            return "00000000-0000-0000-0000-000000000001", None
+        
         if sentry_sdk:
             sentry_sdk.capture_exception(e)
         return None, (jsonify({
