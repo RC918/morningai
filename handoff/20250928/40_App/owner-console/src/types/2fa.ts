@@ -87,6 +87,7 @@ export interface TwoFAVerifyEnrollResponse {
     avatar?: string;
   };
   tokens: {
+    accessToken: string;
     expiresAt: number;
   };
 }
@@ -94,6 +95,18 @@ export interface TwoFAVerifyEnrollResponse {
 export interface TwoFALoginResponse {
   success: boolean;
   user_id: string;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    tenantId: string;
+    avatar?: string;
+  };
+  tokens?: {
+    accessToken: string;
+    expiresAt: number;
+  };
   backup_codes_remaining?: number;
   device_trusted?: boolean;
 }
@@ -109,6 +122,7 @@ export interface TwoFAChallengeResponse {
     avatar?: string;
   };
   tokens: {
+    accessToken: string;
     expiresAt: number;
   };
   backup_codes_remaining?: number;
