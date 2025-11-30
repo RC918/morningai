@@ -1,65 +1,96 @@
-# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
+# Add Export Functionality to Metrics Dashboard
 
-This FAQ entry is designed to guide developers through the process of creating a simple Python function as part of the Phase 1 Canary Final Validation Test for the MorningAI platform. The objective is to ensure that developers can effectively contribute to the `RC918/morningai` repository by understanding how to implement basic functionalities in Python, which is crucial for backend development and AI scripting within the platform.
+This FAQ entry is designed to guide developers through the process of adding export functionality to the metrics dashboard within the MorningAI platform. This functionality enables users to export dashboard data, such as charts and reports, in various formats (e.g., CSV, Excel, PDF). Implementing this feature enhances the platform's usability by allowing users to analyze and share metrics data more efficiently.
 
-## Overview
+## Comprehensive Explanation
 
-A fundamental skill in Python programming is creating functions. Functions are reusable blocks of code that perform a specific task. In this example, we'll create a simple function to add two numbers. This basic functionality is essential in many development tasks and serves as a great starting point for more complex operations within the MorningAI platform.
+Export functionality can be integrated into the MorningAI metrics dashboard by creating a service that serializes dashboard data into the desired file format and then triggers a download on the client side. The implementation involves both backend and frontend changes. On the backend, we'll set up an endpoint to handle export requests. On the frontend, we'll add a user interface element that lets users select their export format and initiates the download.
 
-## Code Example
+### Backend Setup
 
-Below is a straightforward example of how to define and use a function in Python that adds two numbers:
+1. **Create an Export Endpoint**: In your Flask application (located at `backend/api/metrics.py`), define a new route `/export`. This endpoint should accept parameters such as `format` (the desired export format) and `metrics` (a list of metric identifiers to be exported).
 
 ```python
-def add_two_numbers(number1, number2):
-    """Add two numbers and return the result."""
-    result = number1 + number2
-    return result
+from flask import Blueprint, request, send_file
+import pandas as pd
 
-# Example usage
-sum_result = add_two_numbers(3, 5)
-print(f"The sum of 3 and 5 is {sum_result}.")
+metrics_blueprint = Blueprint('metrics', __name__)
+
+@metrics_blueprint.route('/export', methods=['GET'])
+def export_metrics():
+    # Example: Extract query parameters
+    export_format = request.args.get('format', 'csv')
+    # Assuming metrics_data is a function that fetches your data based on params
+    data = metrics_data()
+
+    if export_format == 'csv':
+        output = data.to_csv(index=False)
+        mimetype = "text/csv"
+        filename = "metrics_export.csv"
+    elif export_format == 'excel':
+        output = save_excel(data)
+        mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        filename = "metrics_export.xlsx"
+    else:
+        return {"message": "Format not supported"}, 400
+
+    return send_file(output, mimetype=mimetype, as_attachment=True, attachment_filename=filename)
+
+def save_excel(data):
+    output = BytesIO()
+    writer = pd.ExcelWriter(output)
+    data.to_excel(writer)
+    writer.save()
+    output.seek(0)
+    return output
 ```
 
-In this example, `add_two_numbers` is a function that takes two parameters, `number1` and `number2`, adds them together, and returns the result. The `print` statement then displays the result of calling this function with `3` and `5` as arguments.
+2. **Data Preparation**: Ensure that your `metrics_data` function properly fetches and formats the data for export based on the given parameters.
 
-## Related Documentation Links
+### Frontend Setup
 
-For developers looking to deepen their understanding of Python functions or explore more advanced features, the following resources may be helpful:
+In your React frontend application (located at `frontend/src/components/MetricsDashboard.js`), add an export button with a dropdown for selecting the export format.
 
-- Python Official Documentation on Functions: [Python 3.x Function Definitions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions)
-- Real Python Tutorial on Functions: [Defining Your Own Python Function](https://realpython.com/defining-your-own-python-function/)
+```jsx
+import React from 'react';
+
+function MetricsDashboard() {
+  const handleExport = (format) => {
+    window.open(`${process.env.REACT_APP_BACKEND_URL}/export?format=${format}`);
+  };
+
+  return (
+    <div>
+      <button onClick={() => handleExport('csv')}>Export as CSV</button>
+      <button onClick={() => handleExport('excel')}>Export as Excel</button>
+      {/* Add additional formats as needed */}
+    </div>
+  );
+}
+
+export default MetricsDashboard;
+```
+
+### Related Documentation Links
+
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- pandas DataFrame.to_csv: [https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html)
 
 ## Common Troubleshooting Tips
 
-When working with functions in Python, here are some common issues you might encounter and how to resolve them:
-
-1. **SyntaxError**: Ensure you have used proper syntax for defining functions (`def`) and calling them. Remember that Python uses indentation to define code blocks.
-2. **TypeError**: This occurs when you pass arguments of the wrong type or omit required arguments. Double-check that you are passing numbers (integers or floats) in this context.
-3. **NameError**: If you encounter a NameError stating that your function name is not defined, ensure you have defined your function before attempting to call it.
-
-### Example Issue Resolution
-
-If you're encountering a TypeError for mistakenly passing strings instead of integers:
-
-```python
-# Incorrect call leading to TypeError
-result = add_two_numbers("3", "5")
-
-# Correct usage
-result = add_two_numbers(3, 5)
-```
-
-Ensure arguments passed into `add_two_numbers` are integers or floats for numerical operations.
+- **Export Format Not Supported**: Ensure that all requested formats are properly handled in your backend endpoint.
+- **Data Fetching Issues**: Verify that your `metrics_data` function correctly accesses and queries your database or data source.
+- **File Download Not Triggering**: Check that your frontend correctly constructs the request URL and that CORS policies on your backend allow for such requests.
+- **Incorrect File Format or Corrupted Files**: Double-check the serialization logic in your backend for each file format. For Excel exports, ensure that you're using a library compatible with your data structure.
 
 ---
-
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
-- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
+- Task: Add export functionality to metrics dashboard
+- Trace ID: `task-002`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
