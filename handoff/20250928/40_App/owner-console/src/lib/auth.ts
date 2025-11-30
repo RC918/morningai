@@ -91,16 +91,27 @@ let inMemoryAccessToken: string | null = null;
  * - E2E tests need reliable token persistence across page navigations
  * - Production builds are protected by IS_E2E gate (VITE_E2E defaults to false)
  */
-export function storeAccessToken(token: string | null): void {
+export function storeAccessToken(token: string | null | undefined): void {
+  // Treat falsy and bad sentinel values as "no token"
+  // This prevents storing literal "null" or "undefined" strings which would
+  // cause "Authorization: Bearer null" to be sent in API requests
+  if (!token || token === 'null' || token === 'undefined') {
+    inMemoryAccessToken = null;
+    if (IS_E2E && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+      } catch (error) {
+        console.error('Failed to clear access token from localStorage:', error);
+      }
+    }
+    return;
+  }
+  
   inMemoryAccessToken = token;
   
   if (IS_E2E && typeof localStorage !== 'undefined') {
     try {
-      if (token) {
-        localStorage.setItem(ACCESS_TOKEN_KEY, token);
-      } else {
-        localStorage.removeItem(ACCESS_TOKEN_KEY);
-      }
+      localStorage.setItem(ACCESS_TOKEN_KEY, token);
     } catch (error) {
       console.error('Failed to store access token in localStorage:', error);
     }
@@ -114,16 +125,19 @@ export function storeAccessToken(token: string | null): void {
  * - Always prefer in-memory token first
  * - Only read from localStorage in E2E test environment (VITE_E2E=true)
  * - Production builds never read tokens from localStorage to prevent XSS attacks
+ * - Filters out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
  */
 export function getAccessToken(): string | null {
-  if (inMemoryAccessToken) {
+  // Check in-memory token first, filtering out bad sentinel values
+  if (inMemoryAccessToken && inMemoryAccessToken !== 'null' && inMemoryAccessToken !== 'undefined') {
     return inMemoryAccessToken;
   }
   
   if (IS_E2E && typeof localStorage !== 'undefined') {
     try {
       const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-      if (storedToken) {
+      // Filter out bad sentinel values from localStorage
+      if (storedToken && storedToken !== 'null' && storedToken !== 'undefined') {
         inMemoryAccessToken = storedToken;
         return storedToken;
       }
@@ -523,8 +537,10 @@ async function authenticatedFetch(
     }
   }
   
+  // Only add Authorization header if we have a valid token
+  // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
   const accessToken = getAccessToken();
-  if (accessToken) {
+  if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
   
@@ -553,8 +569,9 @@ async function authenticatedFetch(
         }
       }
       
+      // Only add Authorization header if we have a valid token
       const accessToken = getAccessToken();
-      if (accessToken) {
+      if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
         retryHeaders.set('Authorization', `Bearer ${accessToken}`);
       }
       
@@ -594,8 +611,9 @@ async function authenticatedFetch(
         }
       }
       
+      // Only add Authorization header if we have a valid token
       const accessToken = getAccessToken();
-      if (accessToken) {
+      if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
         retryHeaders.set('Authorization', `Bearer ${accessToken}`);
       }
       

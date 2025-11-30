@@ -54,8 +54,10 @@ export async function apiClient<T>(
     }
   }
   
+  // Only add Authorization header if we have a valid token
+  // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
   const accessToken = getAccessToken();
-  if (accessToken) {
+  if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
   
@@ -320,8 +322,10 @@ export async function apiClientWithMeta<T>(
     }
   }
   
+  // Only add Authorization header if we have a valid token
+  // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
   const accessToken = getAccessToken();
-  if (accessToken) {
+  if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
