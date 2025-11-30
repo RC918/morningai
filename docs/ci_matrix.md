@@ -4,8 +4,8 @@
 
 ## 📊 總覽統計
 
-- **總工作流數量**: 18
-- **支援 workflow_dispatch**: 18 (100%)
+- **總工作流數量**: 20
+- **支援 workflow_dispatch**: 20 (100%)
 - **Branch Protection 必須檢查**: 4
 
 ---
@@ -473,6 +473,79 @@
 
 ---
 
+### 19. `coverage-trend` (Coverage Trend Tracking)
+**檔案**: `.github/workflows/coverage-trend.yml`
+
+**用途**: 覆蓋率趨勢追蹤，自動記錄覆蓋率數據到 Redis
+
+**觸發條件**:
+- ✅ `workflow_dispatch` - 手動觸發
+- ✅ `workflow_run` - 在 `backend-ci` 或 `test-apps` workflow 成功完成後觸發（僅 main 分支）
+
+**執行內容**:
+- 下載 `backend-ci` 和 `test-apps` 的覆蓋率 artifacts
+- 解析 `coverage.json` 獲取覆蓋率百分比
+- 使用 `coverage_dashboard.py` 記錄覆蓋率到 Redis
+- 生成 GitHub Actions Summary 顯示當前覆蓋率狀態
+
+**環境變數**:
+- `REDIS_URL`: Redis 連接 URL（必需，用於存儲趨勢數據）
+
+**為何非 Required**: 趨勢追蹤工具，失敗不影響開發流程
+
+**相關工具**:
+- `tools/monitoring/coverage_dashboard.py`: 覆蓋率趨勢 dashboard 腳本
+- 支援 `--record MODULE COVERAGE` 記錄覆蓋率
+- 支援 `--days N` 查看 N 天趨勢
+- 支援 `--summary` 顯示摘要表格
+
+**覆蓋率門檻**:
+| 模組 | 門檻 |
+|------|------|
+| API Backend | 74% |
+| Orchestrator | 50% |
+| Shared-UI | 60% |
+| Frontend Dashboard | 80% |
+| Owner Console | 70% |
+
+---
+
+### 20. `redis-security-check` (Redis Security Check)
+**檔案**: `.github/workflows/redis-security-check.yml`
+
+**用途**: Redis 安全性檢查，定期檢查 Redis 版本是否存在已知漏洞
+
+**觸發條件**:
+- ✅ `workflow_dispatch` - 手動觸發（支援 `force_check` 參數）
+- ✅ `schedule` - 每週一 09:00 UTC (17:00 台北時間)
+- ✅ `push` - main 分支推送（僅當 Redis 相關檔案變更時）
+
+**執行內容**:
+- 檢查 Redis Python 套件版本是否過時
+- 連接 Redis 伺服器檢查實際版本
+- 驗證是否受 CVE-2025-49844 (RediShell) 影響
+- 檢查 TLS 加密是否啟用
+- 如發現漏洞，自動創建 GitHub Issue
+
+**環境變數**:
+- `REDIS_URL`: Redis 連接 URL（可選）
+- `UPSTASH_REDIS_REST_URL`: Upstash Redis URL（可選，優先使用）
+
+**CVE-2025-49844 檢查**:
+- **受影響版本**: Redis < 8.2.2
+- **風險等級**: Critical
+- **Upstash 用戶**: 低風險（雲端管理，自動更新）
+- **自建 Redis**: 需手動升級到 8.2.2+
+
+**為何非 Required**: 安全監控工具，失敗不阻擋開發流程
+
+**自動 Issue 創建**:
+- 當檢測到漏洞時，自動創建帶有 `security`, `redis`, `cve`, `critical` 標籤的 Issue
+- 包含修復建議和參考連結
+- 避免重複創建（檢查現有 open issues）
+
+---
+
 ## 📋 Branch Protection 規則說明
 
 **目前配置的 4 個 Required Checks**:
@@ -650,6 +723,9 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ## 📝 版本歷史
 
+- **2025-11-30**: 新增 `coverage-trend` 和 `redis-security-check` 工作流文檔
+- **2025-11-30**: 記錄覆蓋率趨勢追蹤機制（Redis 存儲、dashboard 工具）
+- **2025-11-30**: 記錄 Redis CVE-2025-49844 安全監控機制
 - **2025-11-23**: 新增 `tolgee-sync` 和 `ux-metrics-update` 工作流文檔
 - **2025-11-23**: 記錄 PR #1449 和 #1454 的 i18n check 自動設置機制（解決 GITHUB_TOKEN 抑制問題）
 - **2025-11-23**: 記錄 PR #1436 的 per-project bootstrap flags（OC/FD 獨立運行）
@@ -663,6 +739,6 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ---
 
-**最後更新**: 2025-11-23  
+**最後更新**: 2025-11-30  
 **維護者**: @RC918 (Ryan Chen)  
-**文件版本**: 1.3.0
+**文件版本**: 1.4.0

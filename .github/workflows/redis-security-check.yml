@@ -1,0 +1,252 @@
+name: Redis Security Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_check:
+        description: 'Force security check even if no Redis changes'
+        required: false
+        default: 'false'
+        type: boolean
+  schedule:
+    # Run weekly on Monday at 09:00 UTC (17:00 Taiwan time)
+    - cron: '0 9 * * 1'
+  push:
+    branches: [main]
+    paths:
+      - '**/redis*.py'
+      - '**/requirements*.txt'
+      - 'pyproject.toml'
+      - 'poetry.lock'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-redis-version:
+    name: Check Redis Version Security
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install redis requests packaging
+      
+      - name: Check Redis package version
+        id: check_package
+        run: |
+          python << 'EOF'
+          import subprocess
+          import json
+          import sys
+          from packaging import version
+          
+          # Get installed redis package version
+          result = subprocess.run(['pip', 'show', 'redis'], capture_output=True, text=True)
+          pkg_version = None
+          for line in result.stdout.split('\n'):
+              if line.startswith('Version:'):
+                  pkg_version = line.split(':')[1].strip()
+                  break
+          
+          print(f"Redis Python package version: {pkg_version}")
+          
+          # CVE-2025-49844 affects Redis server < 8.2.2
+          # The Python redis package itself is not directly affected,
+          # but we should ensure we're using a recent version
+          
+          if pkg_version:
+              v = version.parse(pkg_version)
+              # Recommend redis-py >= 5.0.0 for best security practices
+              if v < version.parse("5.0.0"):
+                  print("::warning::Redis Python package is outdated. Recommend upgrading to >= 5.0.0")
+                  with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+                      f.write("package_outdated=true\n")
+              else:
+                  print("Redis Python package version is acceptable")
+                  with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+                      f.write("package_outdated=false\n")
+          EOF
+      
+      - name: Check for CVE-2025-49844 vulnerability
+        id: check_cve
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+        run: |
+          python << 'EOF'
+          import os
+          import sys
+          
+          redis_url = os.environ.get('REDIS_URL', '')
+          upstash_url = os.environ.get('UPSTASH_REDIS_REST_URL', '')
+          
+          results = {
+              'status': 'unknown',
+              'message': '',
+              'recommendations': []
+          }
+          
+          # Check if using Upstash (cloud-managed, auto-patched)
+          if upstash_url:
+              print("Using Upstash Redis (cloud-managed)")
+              print("CVE-2025-49844 Risk: LOW (Upstash auto-patches)")
+              results['status'] = 'secure'
+              results['message'] = 'Upstash Redis is cloud-managed and auto-patched'
+          elif redis_url:
+              print("Using standard Redis connection")
+              
+              # Check if TLS is enabled
+              if not redis_url.startswith('rediss://'):
+                  print("::warning::Redis connection is not using TLS (rediss://)")
+                  results['recommendations'].append('Enable TLS encryption')
+              
+              # Try to connect and check version
+              try:
+                  import redis
+                  client = redis.from_url(redis_url, socket_connect_timeout=5)
+                  info = client.info('server')
+                  version_str = info.get('redis_version', 'unknown')
+                  print(f"Redis server version: {version_str}")
+                  
+                  # Parse version
+                  parts = version_str.split('.')
+                  major = int(parts[0]) if len(parts) > 0 else 0
+                  minor = int(parts[1]) if len(parts) > 1 else 0
+                  patch_str = parts[2].split('-')[0] if len(parts) > 2 else '0'
+                  patch = int(patch_str) if patch_str.isdigit() else 0
+                  
+                  version_tuple = (major, minor, patch)
+                  
+                  # CVE-2025-49844 fixed in Redis 8.2.2
+                  if version_tuple < (8, 2, 2):
+                      print(f"::error::Redis {version_str} is VULNERABLE to CVE-2025-49844")
+                      print("::error::Upgrade to Redis 8.2.2 or later immediately!")
+                      results['status'] = 'vulnerable'
+                      results['message'] = f'Redis {version_str} is vulnerable to CVE-2025-49844'
+                      results['recommendations'].append('Upgrade Redis to 8.2.2+')
+                      results['recommendations'].append('Temporary: Disable Lua scripts via ACL')
+                      sys.exit(1)
+                  else:
+                      print(f"Redis {version_str} is NOT vulnerable to CVE-2025-49844")
+                      results['status'] = 'secure'
+                      results['message'] = f'Redis {version_str} is patched'
+                      
+              except Exception as e:
+                  print(f"::warning::Could not connect to Redis to check version: {e}")
+                  results['status'] = 'unknown'
+                  results['message'] = f'Could not verify: {str(e)}'
+          else:
+              print("No Redis configuration found in secrets")
+              print("Skipping server version check")
+              results['status'] = 'skipped'
+              results['message'] = 'No Redis secrets configured'
+          
+          # Output results
+          print(f"\n=== Security Check Results ===")
+          print(f"Status: {results['status']}")
+          print(f"Message: {results['message']}")
+          if results['recommendations']:
+              print("Recommendations:")
+              for rec in results['recommendations']:
+                  print(f"  - {rec}")
+          EOF
+      
+      - name: Create issue on vulnerability
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚨 CRITICAL: Redis CVE-2025-49844 Vulnerability Detected';
+            const body = `## Security Alert
+            
+            The Redis Security Check workflow has detected a potential vulnerability.
+            
+            ### CVE-2025-49844 (RediShell)
+            
+            **Severity**: Critical
+            **Affected Versions**: Redis < 8.2.2
+            
+            ### Immediate Actions Required
+            
+            1. **Upgrade Redis** to version 8.2.2 or later
+            2. **Temporary Mitigation**: Disable Lua scripts via ACL if upgrade is not immediately possible
+            3. **Review Access**: Ensure Redis is not exposed to untrusted networks
+            
+            ### References
+            
+            - [Redis Security Advisory](https://redis.io/docs/management/security/)
+            - [CVE-2025-49844 Details](https://nvd.nist.gov/vuln/detail/CVE-2025-49844)
+            
+            ---
+            
+            *This issue was automatically created by the Redis Security Check workflow.*
+            *Workflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}*
+            `;
+            
+            // Check if issue already exists
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security,redis,cve'
+            });
+            
+            const existingIssue = issues.find(i => i.title.includes('CVE-2025-49844'));
+            
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['security', 'redis', 'cve', 'critical']
+              });
+              console.log('Created new security issue');
+            } else {
+              console.log('Security issue already exists:', existingIssue.number);
+            }
+
+  check-dependencies:
+    name: Check Redis Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Check for outdated Redis packages
+        run: |
+          echo "Checking Redis-related packages in requirements files..."
+          
+          # Find all requirements files
+          find . -name "requirements*.txt" -type f | while read file; do
+            echo "Checking $file..."
+            if grep -i "redis" "$file" 2>/dev/null; then
+              echo "Found Redis dependency in $file"
+            fi
+          done
+          
+          # Check pyproject.toml if exists
+          if [ -f "pyproject.toml" ]; then
+            echo "Checking pyproject.toml..."
+            if grep -i "redis" pyproject.toml 2>/dev/null; then
+              echo "Found Redis dependency in pyproject.toml"
+            fi
+          fi
+          
+          echo "Dependency check complete"
