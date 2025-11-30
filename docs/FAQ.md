@@ -1,70 +1,43 @@
-# Adding End-to-End Tests for Complete Agent Execution Flow
+# Phase 1 Canary Final Validation Test: Creating a Simple Python Function to Add Two Numbers
 
-End-to-end (E2E) testing is crucial in ensuring that the MorningAI platform's autonomous agent system performs as expected from start to finish. This involves testing the entire process of code generation, task orchestration, and integration with other platforms, ensuring all components work together seamlessly.
+The Phase 1 Canary Final Validation Test involves creating a simple Python function that adds two numbers. This test is designed to validate the basic setup and functionality of your development environment within the MorningAI platform. It ensures that you can create, run, and understand simple Python scripts, which is essential for developing more complex functionalities in later stages.
 
-## Overview
+## Comprehensive Explanation
 
-Implementing E2E tests for the complete agent execution flow requires a comprehensive approach, focusing on scenarios that mimic real-world usage. These tests should cover the initiation of an agent task, the execution of code generation, interaction with external platforms (if applicable), and the final output verification.
+The task of adding two numbers in Python is straightforward yet fundamental for developers, especially those new to the platform or programming. Python functions allow us to encapsulate code into reusable blocks, enhancing code readability and maintainability.
 
-### Tools and Technologies
+## Code Example
 
-While there are several tools available for E2E testing, for a stack involving React for the frontend and Flask for the backend, we recommend using Cypress for frontend testing and PyTest for backend testing. Both tools are widely supported and offer extensive documentation.
-
-### Code Examples
-
-Below are simplified examples of how you might structure your E2E tests for both frontend and backend components.
-
-#### Frontend Testing with Cypress
-
-For testing a user interaction flow in React:
-
-```javascript
-// cypress/integration/agentFlow.spec.js
-
-describe('Agent Execution Flow', () => {
-  it('successfully executes an agent task', () => {
-    cy.visit('/'); // Assuming '/' is where the task initiation happens
-    cy.get('input[name="task-input"]').type('Generate README.md');
-    cy.contains('Submit').click();
-    cy.contains('Task successfully executed', { timeout: 10000 });
-  });
-});
-```
-
-#### Backend Testing with PyTest
-
-For simulating an agent execution flow in Flask:
+Below is a simple Python function named `add_numbers` which takes two parameters, `num1` and `num2`, and returns their sum:
 
 ```python
-# tests/test_agent_flow.py
+def add_numbers(num1, num2):
+    return num1 + num2
 
-def test_agent_execution_flow(client):
-    response = client.post('/execute-task', json={'task': 'Generate README.md'})
-    assert response.status_code == 200
-    assert 'execution_id' in response.json
-    # Further checks can include querying the database or checking output files
+# Example usage
+result = add_numbers(5, 3)
+print(f"The sum is {result}")
 ```
 
-### Setup and Configuration
+To implement this function in your MorningAI project:
 
-1. **Cypress**: Follow the [official Cypress documentation](https://docs.cypress.io/guides/getting-started/installing-cypress) to set it up in your project.
-2. **PyTest**: Install pytest using pip (`pip install pytest`) and follow the [PyTest documentation](https://docs.pytest.org/en/latest/) to configure it for your Flask application.
+1. Navigate to your local clone of the RC918/morningai repository.
+2. Create a new Python file under a suitable directory (e.g., `src/utils/math_functions.py`).
+3. Insert the code example above into this file.
+4. Run the script from your terminal or IDE to verify its functionality.
 
-### Related Documentation Links
+## Related Documentation Links
 
-- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
-- PyTest Documentation: [https://docs.pytest.org/en/latest/](https://docs.pytest.org/en/latest/)
-- Flask Testing: [https://flask.palletsprojects.com/en/2.0.x/testing/](https://flask.palletsprojects.com/en/2.0.x/testing/)
-- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
+- For more information on writing functions in Python: [Python Functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions)
+- To learn more about setting up your development environment for MorningAI: [Setup Development Environment](https://github.com/RC918/morningai/docs/setup_environment.md)
 
-### Common Troubleshooting Tips
+## Common Troubleshooting Tips
 
-- **Timeout Issues**: Ensure that your timeouts in tests are adjusted based on the expected duration of tasks. Tasks that involve heavy processing might need longer timeouts.
-- **Environment Consistency**: Run your tests in an environment as close to production as possible to avoid discrepancies.
-- **Data Clean-up**: After each test run, ensure to clean up any data or state to avoid interference between tests.
-- **Debugging Flaky Tests**: If encountering flaky tests (tests that sometimes pass and sometimes fail), increase logging verbosity and consider using tools like Cypress Dashboard for better insights.
+- **Syntax Errors**: Ensure that you have not missed any colons, parentheses, or indentation errors, as these are common mistakes in Python syntax.
+- **Environment Issues**: If the script does not run, make sure your Python environment is correctly set up and activated. Refer to [Python Environment Setup](https://docs.python.org/3/tutorial/venv.html) for guidance.
+- **Function Not Found Errors**: Ensure that you are running the script which contains your `add_numbers` function definition. If the function is in a separate module, verify that it's being correctly imported.
 
-Implementing comprehensive E2E tests will not only help in maintaining high-quality code but also ensure that all components of the MorningAI platform work harmoniously together.
+Remember, this simple test serves as a stepping stone for more complex development tasks on the MorningAI platform. Ensuring you understand how to create and execute such basic functionalities is crucial for leveraging the full potential of MorningAI's capabilities.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -72,7 +45,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Add E2E tests for complete agent execution flow
-- Trace ID: `task-009`
+- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
+- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
