@@ -17,7 +17,7 @@ Signal Handling:
   4. Cleans up heartbeat key and exits
 
 Heartbeat:
-- Updates worker:heartbeat:<worker_id> every 30s with 120s TTL
+- Updates worker:heartbeat:<worker_id> every WORKER_HEARTBEAT_INTERVAL (default 60s) with WORKER_HEARTBEAT_TTL (default 180s)
 - Payload: {"state": "running|shutting_down", "last_heartbeat": "...", "timestamp": ...}
 - Key deleted on clean shutdown or expires via TTL
 
@@ -181,14 +181,25 @@ logger.info(
     }
 )
 
+# Heartbeat configuration - optimized to reduce Redis command volume
+# Interval increased from 30s to 60s to reduce commands by 50%
+# TTL increased from 120s to 180s to maintain 3x safety margin
+HEARTBEAT_INTERVAL = int(os.getenv("WORKER_HEARTBEAT_INTERVAL", "60"))
+HEARTBEAT_TTL = int(os.getenv("WORKER_HEARTBEAT_TTL", "180"))
+
+
 def update_worker_heartbeat():
     """
     Background thread to update worker heartbeat in Redis with TTL.
     Runs until shutdown_event is set.
     Updates state to 'shutting_down' when shutdown is initiated.
     Uses HEARTBEAT_ID for stable monitoring identity.
+    
+    Configuration (via environment variables):
+    - WORKER_HEARTBEAT_INTERVAL: Heartbeat interval in seconds (default: 60)
+    - WORKER_HEARTBEAT_TTL: Heartbeat key TTL in seconds (default: 180)
     """
-    logger.info(f"Heartbeat thread started", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
+    logger.info(f"Heartbeat thread started (interval={HEARTBEAT_INTERVAL}s, ttl={HEARTBEAT_TTL}s)", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
     
     while not shutdown_event.is_set():
         try:
@@ -197,7 +208,7 @@ def update_worker_heartbeat():
                 state = "shutting_down" if shutting_down else "running"
                 redis.setex(
                     heartbeat_key,
-                    120,
+                    HEARTBEAT_TTL,
                     json.dumps({
                         "state": state,
                         "last_heartbeat": datetime.now(timezone.utc).isoformat() + "Z",
@@ -209,7 +220,7 @@ def update_worker_heartbeat():
                 )
                 logger.debug(f"Heartbeat updated", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME, "state": state})
             
-            shutdown_event.wait(30)
+            shutdown_event.wait(HEARTBEAT_INTERVAL)
         except RedisConnectionError as e:
             logger.error(f"Heartbeat Redis connection error: {e}", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID})
             if SENTRY_DSN:

@@ -22,7 +22,8 @@ from redis_queue.worker import (
     run_orchestrator_task,
     WORKER_ID,
     shutdown_event,
-    shutting_down
+    shutting_down,
+    HEARTBEAT_TTL,
 )
 
 
@@ -209,7 +210,7 @@ class TestHeartbeat:
         
         assert "worker:heartbeat:" in call_args[0][0]
         
-        assert call_args[0][1] == 120
+        assert call_args[0][1] == HEARTBEAT_TTL
         
         payload = json.loads(call_args[0][2])
         assert payload["state"] == "running"
