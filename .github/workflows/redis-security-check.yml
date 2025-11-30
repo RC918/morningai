@@ -45,6 +45,7 @@ jobs:
         id: check_package
         run: |
           python << 'EOF'
+          import os
           import subprocess
           import json
           import sys
