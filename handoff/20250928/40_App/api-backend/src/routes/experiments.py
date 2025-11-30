@@ -4,12 +4,16 @@ import sys
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 
-# Add the 40_App directory to sys.path so that 'orchestrator' package can be imported
-# The import 'from orchestrator.xxx' requires the parent of 'orchestrator' in sys.path
+# Add BOTH 40_App and orchestrator directories to sys.path:
+# - 40_App is needed for 'from orchestrator.persistence.db_client' imports
+# - orchestrator is needed for 'from experiment_manager' imports (experiment_manager is inside orchestrator)
 # Path: routes -> src -> api-backend -> 40_App (3 levels up)
 app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+orchestrator_dir = os.path.join(app_dir, 'orchestrator')
 if app_dir not in sys.path:
     sys.path.insert(0, app_dir)
+if orchestrator_dir not in sys.path:
+    sys.path.insert(0, orchestrator_dir)
 
 import logging  # noqa: E402
 
