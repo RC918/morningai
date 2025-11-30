@@ -260,7 +260,9 @@ def admin_required(f):
         
         raw_role = payload.get('role', 'user')
         normalized_role = normalize_role(raw_role)
-        if normalized_role not in ['admin'] and raw_role not in ['超級管理員']:
+        # Allow admin, owner, and super admin roles to access admin endpoints
+        # Owner role is the tenant owner who should have full access to Owner Console
+        if normalized_role not in ['admin', 'owner'] and raw_role not in ['超級管理員']:
             return jsonify({
                 'error': 'Insufficient privileges',
                 'message': 'Admin access required for this endpoint.'
