@@ -223,7 +223,7 @@ class TestAIPoliciesCreateEndpoint:
         self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test successful create policy"""
-        mock_get_profile.return_value = ('tenant-123', 'admin')
+        mock_get_profile.return_value = ('tenant-123', 'admin', False)
         mock_manager = MagicMock()
         mock_policy = MagicMock()
         mock_policy.to_dict.return_value = {
@@ -255,7 +255,7 @@ class TestAIPoliciesCreateEndpoint:
         self, mock_get_profile, client, admin_headers
     ):
         """Test create policy with missing required fields"""
-        mock_get_profile.return_value = ('tenant-123', 'admin')
+        mock_get_profile.return_value = ('tenant-123', 'admin', False)
 
         response = client.post(
             '/api/ai-policies',
@@ -273,7 +273,7 @@ class TestAIPoliciesCreateEndpoint:
         self, mock_get_profile, client, admin_headers
     ):
         """Test create policy with invalid policy type"""
-        mock_get_profile.return_value = ('tenant-123', 'admin')
+        mock_get_profile.return_value = ('tenant-123', 'admin', False)
 
         response = client.post(
             '/api/ai-policies',
@@ -296,7 +296,7 @@ class TestAIPoliciesCreateEndpoint:
         self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test create policy returns 503 when database persistence fails"""
-        mock_get_profile.return_value = ('tenant-123', 'admin')
+        mock_get_profile.return_value = ('tenant-123', 'admin', False)
         mock_manager = MagicMock()
         mock_manager.create_policy.return_value = None
         mock_get_manager.return_value = mock_manager
@@ -340,7 +340,7 @@ class TestAIPoliciesUpdateEndpoint:
         self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test successful update policy"""
-        mock_get_profile.return_value = ('tenant-123', 'admin')
+        mock_get_profile.return_value = ('tenant-123', 'admin', False)
         mock_manager = MagicMock()
 
         mock_existing = MagicMock()
@@ -373,7 +373,7 @@ class TestAIPoliciesUpdateEndpoint:
         self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test update policy when not found"""
-        mock_get_profile.return_value = ('tenant-123', 'admin')
+        mock_get_profile.return_value = ('tenant-123', 'admin', False)
         mock_manager = MagicMock()
         mock_manager.get_policy.return_value = None
         mock_get_manager.return_value = mock_manager
@@ -411,7 +411,7 @@ class TestAIPoliciesDeleteEndpoint:
         self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test successful delete policy (requires owner role)"""
-        mock_get_profile.return_value = ('tenant-123', 'owner')
+        mock_get_profile.return_value = ('tenant-123', 'owner', False)
         mock_manager = MagicMock()
 
         mock_existing = MagicMock()
@@ -437,7 +437,7 @@ class TestAIPoliciesDeleteEndpoint:
         self, mock_get_manager, mock_get_profile, client, admin_headers
     ):
         """Test delete policy when not found (requires owner role)"""
-        mock_get_profile.return_value = ('tenant-123', 'owner')
+        mock_get_profile.return_value = ('tenant-123', 'owner', False)
         mock_manager = MagicMock()
         mock_manager.get_policy.return_value = None
         mock_get_manager.return_value = mock_manager
