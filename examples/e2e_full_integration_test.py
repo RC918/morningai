@@ -6,7 +6,12 @@ Tests the complete flow with actual Ops Agent Worker
 Prerequisites:
 1. Redis server running
 2. Orchestrator API running (optional, for full test)
-3. Environment variables set (REDIS_URL, VERCEL_TOKEN_NEW)
+3. Environment variables set (REDIS_URL, VERCEL_TOKEN)
+
+Token semantics:
+- VERCEL_TOKEN: Primary token for all Vercel operations (recommended)
+- VERCEL_TOKEN_NEW: Temporary token during rotation (optional)
+- VERCEL_TOKEN_2: Secondary token for testing/sandbox (optional)
 
 This test demonstrates:
 - Task submission to Orchestrator
@@ -36,11 +41,12 @@ async def test_full_integration():
     print()
     
     redis_url = settings.redis_url or "redis://localhost:6379"
-    vercel_token = settings.vercel_token_new
+    # Use VERCEL_TOKEN as primary, fall back to VERCEL_TOKEN_NEW for backward compatibility
+    vercel_token = settings.vercel_token or settings.vercel_token_new
     
     if not vercel_token:
-        print("⚠️  Warning: VERCEL_TOKEN_NEW not set. Deployment will fail.")
-        print("   Set it with: export VERCEL_TOKEN_NEW=your-token")
+        print("⚠️  Warning: VERCEL_TOKEN not set. Deployment will fail.")
+        print("   Set it with: export VERCEL_TOKEN=your-token")
         print()
     
     print("📡 Step 1: Connecting to Orchestrator...")
@@ -201,7 +207,7 @@ if __name__ == "__main__":
     print()
     print("  2. Environment variables:")
     print("     export REDIS_URL=redis://localhost:6379")
-    print("     export VERCEL_TOKEN_NEW=your-token  # Optional for monitoring tasks")
+    print("     export VERCEL_TOKEN=your-token  # Optional for monitoring tasks")
     print()
     print("Starting test in 2 seconds...")
     print()
