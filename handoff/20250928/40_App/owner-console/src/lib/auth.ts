@@ -150,6 +150,67 @@ export function getAccessToken(): string | null {
 }
 
 /**
+ * Single-flight promise for token refresh
+ * Prevents concurrent API calls from triggering multiple refresh requests
+ */
+let tokenRefreshPromise: Promise<string | null> | null = null;
+
+/**
+ * Get access token, refreshing if necessary
+ * 
+ * This function handles the case where the in-memory token is lost after page refresh
+ * but the session is still valid (expiresAt in localStorage). In this case, it will
+ * automatically call /api/auth/v2/refresh to get a new access token.
+ * 
+ * Uses single-flight pattern to prevent concurrent refresh requests.
+ * 
+ * @returns Promise<string | null> - The access token or null if not authenticated
+ */
+export async function getOrRefreshAccessToken(): Promise<string | null> {
+  // First, check if we already have a valid token in memory
+  const existingToken = getAccessToken();
+  if (existingToken) {
+    return existingToken;
+  }
+  
+  // Check if we have a valid session (expiresAt in localStorage)
+  const expiresAt = getStoredTokenExpiry();
+  if (!expiresAt) {
+    // No session at all, user needs to login
+    return null;
+  }
+  
+  // Check if the session has expired
+  if (isTokenExpired(expiresAt)) {
+    // Session expired, user needs to login again
+    return null;
+  }
+  
+  // We have a valid session but no token in memory - need to refresh
+  // Use single-flight pattern to prevent concurrent refresh requests
+  if (tokenRefreshPromise) {
+    return tokenRefreshPromise;
+  }
+  
+  tokenRefreshPromise = (async () => {
+    try {
+      // Import refreshAccessToken dynamically to avoid circular dependency issues
+      const newTokens = await refreshAccessToken();
+      return newTokens.accessToken ?? null;
+    } catch (error) {
+      console.error('Failed to refresh access token:', error);
+      // Clear tokens on refresh failure - user needs to login again
+      clearTokens();
+      return null;
+    } finally {
+      tokenRefreshPromise = null;
+    }
+  })();
+  
+  return tokenRefreshPromise;
+}
+
+/**
  * Store token expiry time
  * Note: Actual tokens are stored in HttpOnly cookies by the backend
  */

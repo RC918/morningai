@@ -1,4 +1,4 @@
-import { getAccessToken } from './auth.ts';
+import { getAccessToken, getOrRefreshAccessToken } from './auth.ts';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || '';
 
@@ -54,9 +54,9 @@ export async function apiClient<T>(
     }
   }
   
-  // Only add Authorization header if we have a valid token
+  // Get access token, refreshing if necessary (handles page refresh case)
   // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
-  const accessToken = getAccessToken();
+  const accessToken = await getOrRefreshAccessToken();
   if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
@@ -322,9 +322,9 @@ export async function apiClientWithMeta<T>(
     }
   }
   
-  // Only add Authorization header if we have a valid token
+  // Get access token, refreshing if necessary (handles page refresh case)
   // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
-  const accessToken = getAccessToken();
+  const accessToken = await getOrRefreshAccessToken();
   if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
