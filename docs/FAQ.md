@@ -1,72 +1,109 @@
-# Fix Authentication Timeout Issue
+# Add Dark Mode Toggle to System Monitoring Page
 
-When working with MorningAI, you may encounter an authentication timeout issue. This problem typically occurs when the authentication token used by the platform expires or when there is a misconfiguration in the system settings related to session management. This FAQ aims to guide developers through understanding and resolving authentication timeout issues within the MorningAI platform.
+This FAQ aims to guide developers on integrating a dark mode toggle into the system monitoring page of the MorningAI platform. The implementation involves frontend modifications using React, TailwindCSS, and managing user preferences for theme selection.
 
-## Understanding Authentication Timeout
+## Explanation
 
-Authentication timeouts are mechanisms designed to improve security by limiting the duration of an active session. When a user logs in, they are granted a token that expires after a set period. If the session lasts longer than this period without renewal, the user is automatically logged out, requiring re-authentication.
+Dark mode provides a darker color scheme that reduces eye strain in low-light conditions and offers an aesthetic choice for users. To implement this feature, you'll need to update the React component responsible for the system monitoring page and utilize TailwindCSS for styling. The process includes creating a toggle button, managing user preferences (possibly through local storage or user settings stored in Supabase), and applying the corresponding CSS classes based on the selected theme.
 
-In MorningAI, authentication timeouts can affect both the web interface and API calls, leading to interrupted workflows and decreased productivity.
+### Code Examples
 
-## Configuration Settings
+**1. Creating the Toggle Component:**
 
-First, check the configuration settings related to authentication timeout:
+First, add a toggle switch in your system monitoring page component. This can be a simple button or a custom switch component.
 
-```python
-# Configuration file path: morningai/config.py
+`/src/components/SystemMonitoringPage.js`
+```jsx
+import React, { useState, useEffect } from 'react';
+import { useTheme } from '../hooks/useTheme'; // Custom hook to manage theme
 
-# Example configuration for session timeout
-SESSION_TIMEOUT = 3600  # Timeout in seconds (e.g., 3600 seconds = 1 hour)
+const SystemMonitoringPage = () => {
+  const [theme, setTheme] = useTheme(); // Assumes a hook to manage and retrieve current theme
+  
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+  
+  return (
+    <div className={`page ${theme}`}>
+      <button onClick={toggleTheme}>
+        Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
+      </button>
+      {/* Rest of your system monitoring page */}
+    </div>
+  );
+};
+
+export default SystemMonitoringPage;
 ```
 
-Ensure that the `SESSION_TIMEOUT` value is set appropriately for your use case. A too-short timeout period may lead to frequent re-authentications, while a too-long period might compromise security.
+**2. Implementing `useTheme` Hook:**
 
-## Refreshing Tokens
+You might store user's theme preference in local storage or fetch it from their profile settings in Supabase.
 
-For API usage and integrations, ensure that your implementation accounts for token expiration by implementing a token refresh mechanism:
+`/src/hooks/useTheme.js`
+```jsx
+import { useState, useEffect } from 'react';
 
-```python
-import requests
-from morningai.credentials import get_refresh_token
-
-def refresh_access_token():
-    refresh_token = get_refresh_token()
-    response = requests.post('https://api.morningai.com/auth/refresh', data={'refresh_token': refresh_token})
-    if response.status_code == 200:
-        new_access_token = response.json()['access_token']
-        # Update your stored access token here
-        return new_access_token
-    else:
-        raise Exception("Failed to refresh token")
-
-try:
-    # Attempt to use access token
-except TokenExpiredError:
-    # Token has expired; attempt to refresh it
-    refresh_access_token()
+export const useTheme = () => {
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    document.body.className = theme; // Apply class at body level for global styling
+  }, [theme]);
+  
+  return [theme, setTheme];
+};
 ```
 
-## Troubleshooting Tips
+**3. TailwindCSS Configuration:**
 
-- **Check Server Time**: Ensure that the server hosting MorningAI has synchronized time settings. Time drift can cause premature token expirations.
-- **Review Token Expiry Settings**: In some cases, adjusting the lifetime of tokens via MorningAI's administrative settings can resolve frequent timeout issues.
-- **Monitor for Errors**: Look out for `401 Unauthorized` or `403 Forbidden` responses from API calls, as these can indicate expired tokens.
-- **Logs and Debugging**: Check the application logs for any errors related to authentication or tokens. These logs can often provide insights into what might be causing timeouts.
+Ensure your `tailwind.config.js` supports dark mode via class strategy and includes necessary colors.
 
-## Related Documentation Links
+```js
+module.exports = {
+  darkMode: 'class',
+  // other configurations...
+};
+```
 
-- [MorningAI Authentication Overview](https://docs.morningai.com/authentication)
-- [API Integration Guide](https://docs.morningai.com/api/integration)
+**4. Applying Dark Mode Styles:**
 
-By following these guidelines and ensuring proper configuration and handling of authentication tokens, developers can mitigate and resolve authentication timeout issues within MorningAI, thereby enhancing both security and user experience.
+Use Tailwind's `dark:` prefix to apply styles conditionally based on the current theme.
+
+```css
+/* Example in your CSS file */
+.page.dark {
+  background-color: #333;
+  color: #fff;
+}
+.page.light {
+  background-color: #fff;
+  color: #000;
+}
+```
+
+### Related Documentation Links
+
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [TailwindCSS Dark Mode](https://tailwindcss.com/docs/dark-mode)
+- [Using Local Storage in React](https://reactjs.org/docs/hooks-effect.html)
+
+### Common Troubleshooting Tips
+
+1. **Toggle Not Working**: Ensure the `useTheme` hook properly updates both local storage and state. Also, verify that these changes trigger re-renders as expected.
+2. **Styles Not Applied**: Check if your TailwindCSS configuration correctly enables dark mode and if you're using the `dark:` prefix correctly in your style definitions.
+3. **Persisting User Preferences**: If using Supabase for storing user preferences, ensure that your API calls are correctly implemented and that you're handling both loading states and errors.
 
 ---
+
 Generated by MorningAI Orchestrator using GPT-4
 
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Add dark mode toggle to system monitoring page
+- Trace ID: `task-006`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
