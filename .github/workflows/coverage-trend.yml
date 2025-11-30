@@ -1,0 +1,164 @@
+name: Coverage Trend Tracking
+
+on:
+  workflow_run:
+    workflows: ["backend-ci", "App Tests"]
+    types:
+      - completed
+    branches: [main]
+
+jobs:
+  record-coverage:
+    name: Record Coverage Trends
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download API Backend coverage artifact
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ${{ github.event.workflow_run.workflow_id }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: coverage-report
+          path: ./coverage-api-backend
+        continue-on-error: true
+      
+      - name: Download Orchestrator coverage artifact
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: ${{ github.event.workflow_run.workflow_id }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: orchestrator-coverage
+          path: ./coverage-orchestrator
+        continue-on-error: true
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install redis
+      
+      - name: Record coverage trends
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          python - <<'EOF'
+          import os
+          import json
+          import redis
+          from datetime import datetime, timedelta
+          
+          redis_url = os.getenv('REDIS_URL')
+          commit_sha = os.getenv('COMMIT_SHA', 'unknown')
+          
+          if not redis_url:
+              print("Warning: REDIS_URL not set, skipping trend recording")
+              exit(0)
+          
+          try:
+              r = redis.from_url(redis_url)
+          except Exception as e:
+              print(f"Warning: Could not connect to Redis: {e}")
+              exit(0)
+          
+          def record_coverage(module, coverage_pct):
+              timestamp = datetime.utcnow().isoformat()
+              data = {
+                  'timestamp': timestamp,
+                  'coverage': coverage_pct,
+                  'commit': commit_sha,
+              }
+              
+              key = f'coverage:history:{module}'
+              score = datetime.utcnow().timestamp()
+              r.zadd(key, {json.dumps(data): score})
+              
+              # Keep only last 90 days
+              cutoff = (datetime.utcnow() - timedelta(days=90)).timestamp()
+              r.zremrangebyscore(key, '-inf', cutoff)
+              
+              print(f"Recorded {module}: {coverage_pct}%")
+          
+          # Try to read API Backend coverage
+          try:
+              with open('./coverage-api-backend/coverage.json', 'r') as f:
+                  data = json.load(f)
+                  coverage = data['totals']['percent_covered']
+                  record_coverage('api-backend', coverage)
+          except Exception as e:
+              print(f"Could not read API Backend coverage: {e}")
+          
+          # Try to read Orchestrator coverage
+          try:
+              with open('./coverage-orchestrator/coverage.json', 'r') as f:
+                  data = json.load(f)
+                  coverage = data['totals']['percent_covered']
+                  record_coverage('orchestrator', coverage)
+          except Exception as e:
+              print(f"Could not read Orchestrator coverage: {e}")
+          
+          print("Coverage trend recording complete")
+          EOF
+      
+      - name: Generate coverage trend summary
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          python - <<'EOF'
+          import os
+          import json
+          import redis
+          from datetime import datetime, timedelta
+          
+          redis_url = os.getenv('REDIS_URL')
+          if not redis_url:
+              print("REDIS_URL not set")
+              exit(0)
+          
+          try:
+              r = redis.from_url(redis_url)
+          except Exception as e:
+              print(f"Could not connect to Redis: {e}")
+              exit(0)
+          
+          thresholds = {
+              'api-backend': 74,
+              'orchestrator': 50,
+          }
+          
+          print("## Coverage Trend Summary")
+          print()
+          print("| Module | Current | Threshold | Status | 7-Day Trend |")
+          print("|--------|---------|-----------|--------|-------------|")
+          
+          for module, threshold in thresholds.items():
+              key = f'coverage:history:{module}'
+              
+              # Get last 7 days
+              cutoff = (datetime.utcnow() - timedelta(days=7)).timestamp()
+              entries = r.zrangebyscore(key, cutoff, '+inf')
+              
+              if not entries:
+                  print(f"| {module} | N/A | {threshold}% | - | No data |")
+                  continue
+              
+              history = [json.loads(e) for e in entries]
+              current = history[-1]['coverage']
+              status = '✅' if current >= threshold else '❌'
+              
+              if len(history) >= 2:
+                  change = current - history[0]['coverage']
+                  trend = f"+{change:.1f}%" if change >= 0 else f"{change:.1f}%"
+              else:
+                  trend = "N/A"
+              
+              print(f"| {module} | {current:.1f}% | {threshold}% | {status} | {trend} |")
+          
+          EOF >> $GITHUB_STEP_SUMMARY

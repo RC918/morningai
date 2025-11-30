@@ -13,6 +13,10 @@ on:
       - 'handoff/20250928/40_App/**'
       - '.github/workflows/test-apps.yml'
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test-api-backend:
     name: API Backend Tests
@@ -111,7 +115,7 @@ jobs:
       - name: Run Orchestrator tests with coverage
         working-directory: handoff/20250928/40_App/orchestrator
         run: |
-          pytest tests/ -v --tb=short --disable-warnings --cov=. --cov-report=xml --cov-report=term-missing --cov-fail-under=50
+          pytest tests/ -v --tb=short --disable-warnings --cov=. --cov-report=xml --cov-report=json --cov-report=term-missing --cov-fail-under=50
         env:
           PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0
@@ -121,8 +125,83 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: orchestrator-coverage
-          path: handoff/20250928/40_App/orchestrator/coverage.xml
+          path: |
+            handoff/20250928/40_App/orchestrator/coverage.xml
+            handoff/20250928/40_App/orchestrator/coverage.json
           retention-days: 30
+      
+      - name: Comment PR with Orchestrator coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Read coverage JSON
+            const coveragePath = path.join(process.cwd(), 'handoff/20250928/40_App/orchestrator/coverage.json');
+            let coverage;
+            try {
+              coverage = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
+            } catch (e) {
+              console.log('Could not read coverage.json:', e.message);
+              return;
+            }
+            
+            const totals = coverage.totals;
+            const threshold = 50;
+            
+            // Helper functions
+            const getStatus = (pct) => pct >= threshold ? '✅' : '❌';
+            
+            // Build comment
+            const comment = `## 📊 Orchestrator 測試覆蓋率報告
+            
+            | 指標 | 覆蓋率 | 狀態 |
+            |------|--------|------|
+            | Lines | ${totals.percent_covered.toFixed(2)}% | ${getStatus(totals.percent_covered)} |
+            | Covered Lines | ${totals.covered_lines} / ${totals.num_statements} | - |
+            | Missing Lines | ${totals.missing_lines} | - |
+            
+            **門檻要求**: ${threshold}% 最低標準
+            
+            ${totals.percent_covered >= threshold 
+              ? '✅ **覆蓋率門檻已達標！**' 
+              : '❌ **覆蓋率未達標，請補充測試。**'}
+            
+            ---
+            
+            [查看完整覆蓋率報告](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            `;
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Orchestrator 測試覆蓋率報告')
+            );
+            
+            // Update or create comment
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
   
   test-frontend-dashboard:
     name: Frontend Dashboard Tests
