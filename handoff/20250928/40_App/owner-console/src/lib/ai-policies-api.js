@@ -8,18 +8,33 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
 /**
+ * Get a valid access token, filtering out bad sentinel values
+ * @returns {string|null} Valid token or null
+ */
+function getValidToken() {
+  const token = localStorage.getItem('token')
+  // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
+  if (!token || token === 'null' || token === 'undefined') {
+    return null
+  }
+  return token
+}
+
+/**
  * Get policy templates for guided editor
  * @returns {Promise<{templates: Object, count: number}>}
  */
 export async function getPolicyTemplates() {
-  const token = localStorage.getItem('token')
+  const token = getValidToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/templates`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers
   })
 
   if (!response.ok) {
@@ -40,18 +55,20 @@ export async function getPolicyTemplates() {
  * @returns {Promise<{policies: Array, count: number, limit: number, offset: number}>}
  */
 export async function listPolicies({ limit = 50, offset = 0, policy_type, status } = {}) {
-  const token = localStorage.getItem('token')
+  const token = getValidToken()
   
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() })
   if (policy_type) params.append('policy_type', policy_type)
   if (status) params.append('status', status)
   
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
   const response = await fetch(`${API_BASE_URL}/api/ai-policies?${params}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers
   })
 
   if (!response.ok) {
@@ -68,14 +85,16 @@ export async function listPolicies({ limit = 50, offset = 0, policy_type, status
  * @returns {Promise<Object>} Policy object
  */
 export async function getPolicy(policyId) {
-  const token = localStorage.getItem('token')
+  const token = getValidToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/${policyId}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers
   })
 
   if (!response.ok) {
@@ -98,14 +117,16 @@ export async function getPolicy(policyId) {
  * @returns {Promise<Object>} Created policy
  */
 export async function createPolicy(policy) {
-  const token = localStorage.getItem('token')
+  const token = getValidToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers,
     body: JSON.stringify(policy)
   })
 
@@ -129,14 +150,16 @@ export async function createPolicy(policy) {
  * @returns {Promise<Object>} Updated policy
  */
 export async function updatePolicy(policyId, updates) {
-  const token = localStorage.getItem('token')
+  const token = getValidToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/${policyId}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers,
     body: JSON.stringify(updates)
   })
 
@@ -154,14 +177,16 @@ export async function updatePolicy(policyId, updates) {
  * @returns {Promise<{message: string, policy_id: string}>}
  */
 export async function deletePolicy(policyId) {
-  const token = localStorage.getItem('token')
+  const token = getValidToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/${policyId}`, {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers
   })
 
   if (!response.ok) {
@@ -179,14 +204,16 @@ export async function deletePolicy(policyId) {
  * @returns {Promise<{allowed: boolean, reason: string, applied_policies: Array}>}
  */
 export async function evaluateRequest(capability, context = {}) {
-  const token = localStorage.getItem('token')
+  const token = getValidToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/evaluate`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers,
     body: JSON.stringify({ capability, context })
   })
 
