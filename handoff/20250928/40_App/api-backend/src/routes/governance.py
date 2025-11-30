@@ -572,3 +572,95 @@ def _get_mock_executions(agent_id, limit=50):
             }
         })
     return mock_executions
+
+
+@admin_bp.route('/config/summary', methods=['GET'])
+@jwt_required
+@admin_required
+def get_config_summary():
+    """
+    Get a summary of all orchestrator, LLM, canary, and enforcement configurations.
+
+    This endpoint dumps all relevant configuration settings in a single response
+    for operational visibility and debugging purposes.
+
+    Returns:
+    - orchestrator: Orchestrator mode and settings
+    - llm: LLM provider and feature flags
+    - canary: Canary deployment settings and thresholds
+    - enforcement: Security policy enforcement configuration
+    - environment: Current environment information
+
+    Requires: Owner role
+    """
+    try:
+        config_summary = {
+            'orchestrator': {
+                'use_langgraph': settings.use_langgraph,
+                'use_langgraph_percent': settings.use_langgraph_percent,
+                'enable_orchestrator': settings.enable_orchestrator,
+                'orchestrator_path': settings.orchestrator_path,
+                'orchestrator_test_mode': settings.orchestrator_test_mode,
+                'orchestrator_shutdown_timeout': settings.orchestrator_shutdown_timeout,
+            },
+            'llm': {
+                'provider': settings.llm_provider,
+                'use_llm_planner': settings.use_llm_planner,
+                'use_llm_reviewer': settings.use_llm_reviewer,
+                'planner_json_mode': settings.planner_json_mode,
+                'reviewer_json_mode': settings.reviewer_json_mode,
+                'dev_agent_model': settings.dev_agent_model,
+                'use_tiktoken_estimator': settings.use_tiktoken_estimator,
+                'planner_events_storage': settings.planner_events_storage,
+            },
+            'canary': {
+                'metrics_enabled': settings.canary_metrics_enabled,
+                'alerting_enabled': settings.canary_alerting_enabled,
+                'window_minutes': settings.canary_window_minutes,
+                'p95_ms_threshold': settings.canary_p95_ms_threshold,
+                '5xx_rate_threshold': settings.canary_5xx_rate_threshold,
+                'failure_rate_threshold': settings.canary_failure_rate_threshold,
+                'buckets_ms': settings.canary_buckets_ms,
+            },
+            'enforcement': {
+                'security_enforcement_mode': settings.security_enforcement_mode,
+                'policies_path': settings.policies_path,
+            },
+            'code_generation': {
+                'use_code_generation': settings.use_code_generation,
+                'use_codegen_workflow_percent': settings.use_codegen_workflow_percent,
+                'enable_project_engineer_codegen': settings.enable_project_engineer_codegen,
+                'enable_project_engineer_fixer': settings.enable_project_engineer_fixer,
+                'project_engineer_fixer_percent': settings.project_engineer_fixer_percent,
+            },
+            'agents': {
+                'ops_agent_enabled': settings.ops_agent_enabled,
+                'growth_strategist_enabled': settings.growth_strategist_enabled,
+                'pm_agent_enabled': settings.pm_agent_enabled,
+                'hitl_approval_enabled': settings.hitl_approval_enabled,
+                'sandbox_enabled': settings.sandbox_enabled,
+            },
+            'environment': {
+                'environment': settings.environment,
+                'flask_env': settings.flask_env,
+                'app_version': settings.app_version,
+                'app_phase': settings.app_phase,
+                'debug': settings.debug,
+                'log_level': settings.log_level,
+            },
+            'rate_limiting': {
+                'rate_limit_requests': settings.rate_limit_requests,
+                'rate_limit_window': settings.rate_limit_window,
+                'rate_limit_by_user': settings.rate_limit_by_user,
+                'rate_limit_fail_fast': settings.rate_limit_fail_fast,
+            },
+            'timestamp': datetime.utcnow().isoformat(),
+        }
+
+        return jsonify(config_summary)
+    except Exception as e:
+        logger.error(f"Failed to get config summary: {e}")
+        return jsonify({
+            'error': 'Failed to get config summary',
+            'message': 'An internal error occurred while retrieving the configuration summary'
+        }), 500
