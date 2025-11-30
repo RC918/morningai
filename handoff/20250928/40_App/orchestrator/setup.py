@@ -1,18 +1,10 @@
 from setuptools import setup, find_packages
 
-# Find all packages and prefix them with 'orchestrator'
-# This ensures imports like 'from orchestrator.persistence import ...' work correctly
-packages = find_packages(exclude=['tests', 'tests.*'])
-orchestrator_packages = ['orchestrator'] + [f'orchestrator.{pkg}' for pkg in packages if pkg != 'orchestrator']
-
 setup(
     name="morningai-orchestrator",
     version="0.1.0",
-    packages=orchestrator_packages,
-    package_dir={
-        'orchestrator': '.',
-    },
-    py_modules=['orchestrator.graph'],
+    packages=find_packages(),
+    py_modules=['graph'],
     install_requires=[
         "langchain-community>=0.2.16",
         "langchain-openai>=0.1.23",
