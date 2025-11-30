@@ -4,7 +4,7 @@ redis>=5.2.0,<6.0.0
 rq==1.16.2
 supabase==2.6.0
 openai==1.52.2
-google-genai>=1.50.0
+google-genai==1.52.0
 requests==2.32.3
 sentry-sdk==2.19.2
 pydantic-settings>=2.0.0
