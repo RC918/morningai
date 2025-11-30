@@ -1,64 +1,68 @@
-# Fix Authentication Timeout Issue
+# Fix Memory Leak in Redis Queue Worker
 
-When working with MorningAI, you may encounter an authentication timeout issue. This problem typically occurs when the authentication token used by the platform expires or when there is a misconfiguration in the system settings related to session management. This FAQ aims to guide developers through understanding and resolving authentication timeout issues within the MorningAI platform.
+When using the MorningAI platform, especially the Redis Queue (RQ) for task orchestration, developers might encounter memory leaks within their workers over time. This can lead to degraded performance or crashes, impacting the reliability of your autonomous agent system and real-time task management. This FAQ aims to guide you through identifying, troubleshooting, and resolving memory leaks in Redis Queue workers.
 
-## Understanding Authentication Timeout
+## Understanding the Problem
 
-Authentication timeouts are mechanisms designed to improve security by limiting the duration of an active session. When a user logs in, they are granted a token that expires after a set period. If the session lasts longer than this period without renewal, the user is automatically logged out, requiring re-authentication.
+Memory leaks in Redis Queue workers occur when the Python garbage collector fails to reclaim memory that is no longer needed because references to objects persist unintentionally. This is often due to circular references or the creation of large objects within tasks that are not properly disposed of after completion.
 
-In MorningAI, authentication timeouts can affect both the web interface and API calls, leading to interrupted workflows and decreased productivity.
+## Identifying Memory Leaks
 
-## Configuration Settings
+Before fixing a memory leak, it's crucial to confirm its existence and pinpoint its source. Use monitoring tools like `memory_profiler` in Python to observe memory usage over time. A steadily increasing memory usage pattern, especially when the worker should be idle or handling a consistent load, is a primary indicator of a leak.
 
-First, check the configuration settings related to authentication timeout:
+### Example: Monitoring a Worker Process
 
 ```python
-# Configuration file path: morningai/config.py
+from memory_profiler import profile
 
-# Example configuration for session timeout
-SESSION_TIMEOUT = 3600  # Timeout in seconds (e.g., 3600 seconds = 1 hour)
+@profile
+def my_task():
+    # Task implementation that may cause memory leak
+    pass
 ```
 
-Ensure that the `SESSION_TIMEOUT` value is set appropriately for your use case. A too-short timeout period may lead to frequent re-authentications, while a too-long period might compromise security.
+Add the `@profile` decorator to tasks suspected of causing leaks and monitor the output for unexpected increases in memory usage.
 
-## Refreshing Tokens
+## Common Causes and Fixes
 
-For API usage and integrations, ensure that your implementation accounts for token expiration by implementing a token refresh mechanism:
+### Circular References
+
+Circular references can prevent Python's garbage collector from reclaiming allocated memory. Use weak references (`weakref` module) where circular references are necessary or redesign to avoid such patterns.
+
+### Large Objects in Global Scope
+
+Storing large objects in global scope or within long-lived classes can lead to memory leaks. Ensure that large objects are scoped only as necessary and explicitly deleted or dereferenced after use.
+
+### Improper Cleanup in Exception Handling
+
+Ensure that all resources are correctly cleaned up in exception handling blocks. Use `try/finally` blocks or context managers (`with` statement) for resource management.
+
+### Code Example: Proper Resource Management
 
 ```python
-import requests
-from morningai.credentials import get_refresh_token
-
-def refresh_access_token():
-    refresh_token = get_refresh_token()
-    response = requests.post('https://api.morningai.com/auth/refresh', data={'refresh_token': refresh_token})
-    if response.status_code == 200:
-        new_access_token = response.json()['access_token']
-        # Update your stored access token here
-        return new_access_token
-    else:
-        raise Exception("Failed to refresh token")
-
-try:
-    # Attempt to use access token
-except TokenExpiredError:
-    # Token has expired; attempt to refresh it
-    refresh_access_token()
+def process_data():
+    try:
+        # Potentially problematic code here
+        pass
+    finally:
+        # Cleanup code here
+        cleanup_resources()
 ```
 
 ## Troubleshooting Tips
 
-- **Check Server Time**: Ensure that the server hosting MorningAI has synchronized time settings. Time drift can cause premature token expirations.
-- **Review Token Expiry Settings**: In some cases, adjusting the lifetime of tokens via MorningAI's administrative settings can resolve frequent timeout issues.
-- **Monitor for Errors**: Look out for `401 Unauthorized` or `403 Forbidden` responses from API calls, as these can indicate expired tokens.
-- **Logs and Debugging**: Check the application logs for any errors related to authentication or tokens. These logs can often provide insights into what might be causing timeouts.
+- **Isolate Tasks**: Run suspected tasks individually to confirm which ones cause memory growth.
+- **Use Logging**: Add detailed logging around task execution and object creation/destruction.
+- **Profile Regularly**: Regularly profile your workers under different loads to identify leaks early.
+- **Review Dependencies**: External libraries used within tasks could also introduce leaks. Review their issues and documentation for known problems.
 
 ## Related Documentation Links
 
-- [MorningAI Authentication Overview](https://docs.morningai.com/authentication)
-- [API Integration Guide](https://docs.morningai.com/api/integration)
+- [Redis Queue Documentation](https://python-rq.org/docs/)
+- [Python Memory Management](https://docs.python.org/3/c-api/memory.html)
+- [Python `weakref` Module](https://docs.python.org/3/library/weakref.html)
 
-By following these guidelines and ensuring proper configuration and handling of authentication tokens, developers can mitigate and resolve authentication timeout issues within MorningAI, thereby enhancing both security and user experience.
+By following these guidelines, developers can significantly reduce the risk of encountering memory leaks within their Redis Queue workers, leading to a more stable and efficient operation of MorningAI's autonomous agent system and real-time task orchestration functionalities.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -66,7 +70,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Fix memory leak in Redis queue worker
+- Trace ID: `task-007`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
