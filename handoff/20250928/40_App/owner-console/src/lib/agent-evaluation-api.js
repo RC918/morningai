@@ -4,20 +4,9 @@
  * Provides functions to interact with the agent evaluation API endpoints.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+import { getAccessToken } from './auth'
 
-/**
- * Get a valid access token, filtering out bad sentinel values
- * @returns {string|null} Valid token or null
- */
-function getValidToken() {
-  const token = localStorage.getItem('token')
-  // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
-  if (!token || token === 'null' || token === 'undefined') {
-    return null
-  }
-  return token
-}
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
 /**
  * Get agent evaluation results
@@ -25,7 +14,7 @@ function getValidToken() {
  * @returns {Promise<{evaluations: Array, latest: Object, count: number, timestamp: string}>}
  */
 export async function getAgentEvaluationResults(limit = 10) {
-  const token = getValidToken()
+  const token = getAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -34,7 +23,8 @@ export async function getAgentEvaluationResults(limit = 10) {
   
   const response = await fetch(`${API_BASE_URL}/api/agent-evaluation/results?limit=${limit}`, {
     method: 'GET',
-    headers
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -50,7 +40,7 @@ export async function getAgentEvaluationResults(limit = 10) {
  * @returns {Promise<{metrics: Object, targets: Object, last_evaluation: string, timestamp: string}>}
  */
 export async function getAgentEvaluationMetrics() {
-  const token = getValidToken()
+  const token = getAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -59,7 +49,8 @@ export async function getAgentEvaluationMetrics() {
   
   const response = await fetch(`${API_BASE_URL}/api/agent-evaluation/metrics`, {
     method: 'GET',
-    headers
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
