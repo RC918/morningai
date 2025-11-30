@@ -17,11 +17,16 @@
 
 ```bash
 # Required environment variables
-export VERCEL_TOKEN_NEW="your-vercel-token"
+export VERCEL_TOKEN="your-vercel-token"          # Primary Vercel API token
 export MAILTRAP_API_TOKEN="your-mailtrap-token"  # Optional
 export SLACK_WEBHOOK_URL="your-slack-webhook"    # Optional
 export SUPABASE_URL="your-supabase-url"
 export SUPABASE_SERVICE_ROLE_KEY="your-key"
+
+# Token semantics:
+# - VERCEL_TOKEN: Primary token for all Vercel operations (recommended)
+# - VERCEL_TOKEN_NEW: Temporary token during rotation (optional)
+# - VERCEL_TOKEN_2: Secondary token for testing/sandbox (optional)
 ```
 
 ### Health Check Commands
@@ -88,7 +93,7 @@ asyncio.run(check())
    from tools.deployment_tool import DeploymentTool
    
    async def review():
-       tool = DeploymentTool(token=os.getenv('VERCEL_TOKEN_NEW'))
+       tool = DeploymentTool(token=os.getenv('VERCEL_TOKEN'))
        result = await tool.list_deployments(limit=10)
        for dep in result['deployments']:
            print(f\"{dep['name']}: {dep['state']} - {dep['url']}\")
@@ -207,7 +212,7 @@ Common mitigation strategies:
    from agents/ops_agent/tools/deployment_tool import DeploymentTool
    
    async def rollback():
-       tool = DeploymentTool(token=os.getenv('VERCEL_TOKEN_NEW'))
+       tool = DeploymentTool(token=os.getenv('VERCEL_TOKEN'))
        # Get previous deployment
        deployments = await tool.list_deployments(limit=5)
        if deployments['success'] and len(deployments['deployments']) > 1:
@@ -511,7 +516,7 @@ curl -H "Authorization: Bearer $MAILTRAP_API_TOKEN" \
 1. Verify Mailtrap token is valid
 2. Check token has correct permissions
 3. Regenerate token if needed
-4. Update VERCEL_TOKEN_NEW environment variable
+4. Update VERCEL_TOKEN environment variable
 
 ## Maintenance Tasks
 
