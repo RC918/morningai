@@ -63,7 +63,7 @@ Duration: 18.08s
 #### Vercel API
 
 - **Status**: ✅ Fully functional
-- **Token**: VERCEL_TOKEN_NEW configured
+- **Token**: VERCEL_TOKEN configured (primary token, with VERCEL_TOKEN_NEW as fallback)
 - **Team ID**: None (personal account)
 
 **Test Results**:
@@ -434,8 +434,11 @@ All success criteria have been met:
 ### Environment Variables Required
 
 ```bash
-# Vercel
-VERCEL_TOKEN_NEW=<vercel-token>
+# Vercel (Token semantics)
+# - VERCEL_TOKEN: Primary token for all Vercel operations (recommended)
+# - VERCEL_TOKEN_NEW: Temporary token during rotation (optional fallback)
+# - VERCEL_TOKEN_2: Secondary token for testing/sandbox (optional)
+VERCEL_TOKEN=<vercel-token>
 
 # Notifications (Optional)
 MAILTRAP_API_TOKEN=<mailtrap-token>
