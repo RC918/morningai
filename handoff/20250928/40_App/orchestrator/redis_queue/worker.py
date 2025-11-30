@@ -17,7 +17,7 @@ Signal Handling:
   4. Cleans up heartbeat key and exits
 
 Heartbeat:
-- Updates worker:heartbeat:<worker_id> every 30s with 120s TTL
+- Updates worker:heartbeat:<worker_id> every WORKER_HEARTBEAT_INTERVAL (default 60s) with WORKER_HEARTBEAT_TTL (default 180s)
 - Payload: {"state": "running|shutting_down", "last_heartbeat": "...", "timestamp": ...}
 - Key deleted on clean shutdown or expires via TTL
 
