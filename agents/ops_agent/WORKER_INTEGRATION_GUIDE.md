@@ -86,7 +86,11 @@ pip install -r orchestrator/requirements.txt
 export REDIS_URL="redis://localhost:6379"
 
 # Vercel API (for deployments)
-export VERCEL_TOKEN_NEW="your-vercel-token"
+# Token semantics:
+# - VERCEL_TOKEN: Primary token for all Vercel operations (recommended)
+# - VERCEL_TOKEN_NEW: Temporary token during rotation (optional)
+# - VERCEL_TOKEN_2: Secondary token for testing/sandbox (optional)
+export VERCEL_TOKEN="your-vercel-token"
 export VERCEL_TEAM_ID="your-team-id"  # Optional
 
 # Orchestrator API (if using authentication)
@@ -460,7 +464,7 @@ Build and run:
 docker build -t ops-agent-worker .
 docker run -d \
   -e REDIS_URL=redis://redis:6379 \
-  -e VERCEL_TOKEN_NEW=your-token \
+  -e VERCEL_TOKEN=your-token \
   --name ops-agent-worker \
   ops-agent-worker
 ```
@@ -481,7 +485,7 @@ services:
           name: morningai-redis
           type: redis
           property: connectionString
-      - key: VERCEL_TOKEN_NEW
+      - key: VERCEL_TOKEN
         sync: false
       - key: PYTHON_VERSION
         value: 3.12.0

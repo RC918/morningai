@@ -23,7 +23,8 @@ def insert_planner_event(
     task_type: str,
     actual_plan_steps: List[str],
     planning_time_ms: float,
-    timestamp: Optional[datetime] = None
+    timestamp: Optional[datetime] = None,
+    provider: Optional[str] = None
 ) -> bool:
     """
     Insert a planner event into the database.
@@ -36,6 +37,7 @@ def insert_planner_event(
         actual_plan_steps: List of plan steps generated
         planning_time_ms: Time taken to generate plan in milliseconds
         timestamp: When the plan was generated (defaults to now)
+        provider: LLM provider used (e.g., "openai", "gemini"). None for static plans.
 
     Returns:
         True if successful, False otherwise
@@ -57,14 +59,15 @@ def insert_planner_event(
             "actual_plan_steps": actual_plan_steps,  # Supabase handles JSONB automatically
             "num_steps": len(actual_plan_steps),
             "planning_time_ms": planning_time_ms,
-            "timestamp": timestamp_str
+            "timestamp": timestamp_str,
+            "provider": provider
         }
 
         client.table("planner_events").insert(data).execute()
 
         logger.info(
             f"[Planner Events Store] Inserted event: trace_id={trace_id}, "
-            f"planner_type={planner_type}, num_steps={len(actual_plan_steps)}"
+            f"planner_type={planner_type}, provider={provider}, num_steps={len(actual_plan_steps)}"
         )
         return True
 
