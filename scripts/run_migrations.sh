@@ -48,10 +48,18 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --from)
+            if [[ -z "${2:-}" ]]; then
+                echo -e "${RED}ERROR: --from requires a migration number${NC}" >&2
+                exit 2
+            fi
             FROM_MIGRATION="$2"
             shift 2
             ;;
         --only)
+            if [[ -z "${2:-}" ]]; then
+                echo -e "${RED}ERROR: --only requires a migration number${NC}" >&2
+                exit 2
+            fi
             ONLY_MIGRATION="$2"
             shift 2
             ;;
@@ -92,11 +100,11 @@ log_success() {
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
 }
 
 log_error() {
-    echo -e "${RED}[FAIL]${NC} $1"
+    echo -e "${RED}[FAIL]${NC} $1" >&2
 }
 
 # Get list of migration files (numbered .sql files only)
@@ -165,6 +173,9 @@ run_migration() {
 
     log_info "Running: $name"
 
+    local output
+    local exit_code
+    
     if [[ "$VERBOSE" == "true" ]]; then
         if psql "$DATABASE_URL" -f "$migration" 2>&1; then
             log_success "$name"
@@ -174,11 +185,13 @@ run_migration() {
             return 1
         fi
     else
-        if psql "$DATABASE_URL" -f "$migration" -q 2>/dev/null; then
+        output=$(psql "$DATABASE_URL" -f "$migration" -q 2>&1) && exit_code=0 || exit_code=$?
+        if [[ $exit_code -eq 0 ]]; then
             log_success "$name"
             return 0
         else
             log_error "$name"
+            echo "$output" >&2
             return 1
         fi
     fi
