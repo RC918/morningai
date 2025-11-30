@@ -33,7 +33,6 @@ COVERAGE_THRESHOLDS = {
 }
 
 # Redis key patterns
-COVERAGE_KEY_PREFIX = 'coverage:trend:'
 COVERAGE_HISTORY_KEY = 'coverage:history:{module}'
 
 
@@ -44,7 +43,7 @@ def get_redis_client() -> Optional[redis.Redis]:
         return None
     try:
         return redis.from_url(redis_url)
-    except Exception as e:
+    except redis.exceptions.RedisError as e:
         print(f"Warning: Could not connect to Redis: {e}")
         return None
 
@@ -56,7 +55,8 @@ def record_coverage(module: str, coverage_pct: float, commit_sha: str = None):
         print("Warning: Redis not available, coverage not recorded")
         return False
 
-    timestamp = datetime.utcnow().isoformat()
+    now = datetime.utcnow()
+    timestamp = now.isoformat()
     data = {
         'timestamp': timestamp,
         'coverage': coverage_pct,
@@ -66,11 +66,11 @@ def record_coverage(module: str, coverage_pct: float, commit_sha: str = None):
 
     # Store in sorted set with timestamp as score
     key = COVERAGE_HISTORY_KEY.format(module=module)
-    score = datetime.utcnow().timestamp()
+    score = now.timestamp()
     r.zadd(key, {json.dumps(data): score})
 
     # Keep only last 90 days of data
-    cutoff = (datetime.utcnow() - timedelta(days=90)).timestamp()
+    cutoff = (now - timedelta(days=90)).timestamp()
     r.zremrangebyscore(key, '-inf', cutoff)
 
     return True
@@ -181,7 +181,7 @@ def display_dashboard(days: int = 30, module: Optional[str] = None):
     print("=" * 70)
 
 
-def display_summary_table():
+def display_summary_table(days: int = 30):
     """Display a summary table of all module coverage"""
     print()
     print("Coverage Summary Table")
@@ -190,7 +190,7 @@ def display_summary_table():
     print("-" * 60)
 
     for module, threshold in COVERAGE_THRESHOLDS.items():
-        history = get_coverage_history(module, days=7)
+        history = get_coverage_history(module, days=days)
         if history:
             coverage = history[-1]['coverage']
             status = '✅ Pass' if coverage >= threshold else '❌ Fail'
@@ -231,7 +231,7 @@ def main():
         return
 
     if args.summary:
-        display_summary_table()
+        display_summary_table(days=args.days)
     else:
         display_dashboard(days=args.days, module=args.module)
 
