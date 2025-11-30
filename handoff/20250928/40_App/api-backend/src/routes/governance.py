@@ -662,5 +662,5 @@ def get_config_summary():
         logger.error(f"Failed to get config summary: {e}")
         return jsonify({
             'error': 'Failed to get config summary',
-            'message': str(e)
+            'message': 'An internal error occurred while retrieving the configuration summary'
         }), 500
