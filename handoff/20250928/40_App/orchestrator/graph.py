@@ -26,6 +26,8 @@ from common.config.settings import settings
 logger = logging.getLogger(__name__)
 
 RISK_SEVERITY = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+SEVERITY_TO_RISK = {v: k for k, v in RISK_SEVERITY.items()}
+NEVER_BLOCK_THRESHOLD = 5
 
 
 def evaluate_simple_mode_policy(
@@ -74,7 +76,7 @@ def evaluate_simple_mode_policy(
         "block_all": 1,
     }
 
-    threshold = mode_thresholds.get(mode, 5)
+    threshold = mode_thresholds.get(mode, NEVER_BLOCK_THRESHOLD)
 
     worst_risk = "info"
     worst_severity = 0
@@ -89,8 +91,7 @@ def evaluate_simple_mode_policy(
 
     would_block = worst_severity >= threshold and mode != "advisory"
 
-    severity_to_risk = {v: k for k, v in RISK_SEVERITY.items()}
-    threshold_name = severity_to_risk.get(threshold, "none")
+    threshold_name = SEVERITY_TO_RISK.get(threshold, "none")
 
     policy_event = {
         "event_type": "simple_mode_policy_evaluation",
