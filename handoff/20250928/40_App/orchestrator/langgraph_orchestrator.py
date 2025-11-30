@@ -857,7 +857,7 @@ def policy_enforcement_node(state: AgentState) -> AgentState:
 
     worst_risk = "info"
     worst_severity = 0
-    worst_advisor = None
+    worst_advisor = "none"
 
     for advisor, risk in advisor_risks.items():
         severity = RISK_SEVERITY.get(risk, 0)
@@ -868,8 +868,11 @@ def policy_enforcement_node(state: AgentState) -> AgentState:
 
     should_block = worst_severity >= threshold
 
+    severity_to_risk = {v: k for k, v in RISK_SEVERITY.items()}
+    threshold_name = severity_to_risk.get(threshold, "none")
+
     if should_block:
-        block_reason = f"{worst_advisor}_risk={worst_risk} (mode={mode}, threshold={list(RISK_SEVERITY.keys())[threshold] if threshold < 5 else 'none'})"
+        block_reason = f"{worst_advisor}_risk={worst_risk} (mode={mode}, threshold={threshold_name})"
         state["policy_blocked"] = True
         state["policy_block_reason"] = block_reason
 
