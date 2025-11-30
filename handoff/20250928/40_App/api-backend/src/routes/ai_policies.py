@@ -30,8 +30,10 @@ try:
         get_ai_policy_manager,
     )
     AI_POLICY_AVAILABLE = True
-except ImportError as e:
+except Exception as e:
     print(f"Warning: AI Policy module not available: {e}")
+    import traceback
+    traceback.print_exc()
     AI_POLICY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
