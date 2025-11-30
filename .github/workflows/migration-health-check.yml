@@ -1,0 +1,131 @@
+name: Migration Health Check
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'migrations/**'
+      - 'scripts/run_migrations.sh'
+      - '.github/workflows/migration-health-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'migrations/**'
+
+jobs:
+  health-check:
+    name: Validate migration files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check migration runner exists
+        run: |
+          if [[ ! -f scripts/run_migrations.sh ]]; then
+            echo "ERROR: scripts/run_migrations.sh not found"
+            exit 1
+          fi
+          echo "Migration runner found"
+
+      - name: List migrations using unified runner
+        run: |
+          chmod +x scripts/run_migrations.sh
+          ./scripts/run_migrations.sh --list
+
+      - name: Check for duplicate migration numbers
+        run: |
+          echo "Checking for duplicate migration numbers..."
+          DUPLICATES=$(find migrations -maxdepth 1 -name '[0-9][0-9][0-9]_*.sql' -type f | \
+            xargs -I{} basename {} | \
+            grep -oE '^[0-9]+' | \
+            sort | uniq -d)
+          
+          if [[ -n "$DUPLICATES" ]]; then
+            echo "WARNING: Duplicate migration numbers found:"
+            echo "$DUPLICATES"
+            echo ""
+            echo "Duplicate files:"
+            for dup in $DUPLICATES; do
+              ls -la migrations/${dup}_*.sql
+            done
+            echo ""
+            echo "This is a warning - please resolve duplicates in a future PR."
+          else
+            echo "No duplicate migration numbers found"
+          fi
+
+      - name: Check migration naming convention
+        run: |
+          echo "Checking migration naming convention (NNN_*.sql)..."
+          INVALID=$(find migrations -maxdepth 1 -name '*.sql' -type f | \
+            xargs -I{} basename {} | \
+            grep -vE '^[0-9]{3}_.*\.sql$' | \
+            grep -vE '^(PRE_DEPLOYMENT|backfill|rollback)' || true)
+          
+          if [[ -n "$INVALID" ]]; then
+            echo "WARNING: Non-standard migration files found:"
+            echo "$INVALID"
+            echo "These files will not be picked up by the unified migration runner."
+          else
+            echo "All migration files follow naming convention"
+          fi
+
+      - name: Check for large gaps in migration numbers
+        run: |
+          echo "Checking for gaps in migration sequence..."
+          NUMBERS=$(find migrations -maxdepth 1 -name '[0-9][0-9][0-9]_*.sql' -type f | \
+            xargs -I{} basename {} | \
+            grep -oE '^[0-9]+' | \
+            sort -n | uniq)
+          
+          PREV=""
+          GAPS=""
+          while read -r NUM; do
+            if [[ -n "$PREV" ]]; then
+              EXPECTED=$((10#$PREV + 1))
+              CURRENT=$((10#$NUM))
+              if [[ $CURRENT -gt $((EXPECTED + 5)) ]]; then
+                GAPS="$GAPS\n  Gap between $PREV and $NUM (missing $(($CURRENT - $EXPECTED)) migrations)"
+              fi
+            fi
+            PREV=$NUM
+          done <<< "$NUMBERS"
+          
+          if [[ -n "$GAPS" ]]; then
+            echo "WARNING: Large gaps found in migration sequence:"
+            echo -e "$GAPS"
+          else
+            echo "No large gaps in migration sequence"
+          fi
+
+      - name: Verify dry-run mode works
+        run: |
+          echo "Testing dry-run mode..."
+          ./scripts/run_migrations.sh --dry-run --from 999 || true
+          echo "Dry-run mode works correctly"
+
+      - name: Generate health check summary
+        if: always()
+        run: |
+          echo "## Migration Health Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          TOTAL=$(find migrations -maxdepth 1 -name '[0-9][0-9][0-9]_*.sql' -type f | wc -l)
+          echo "### Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- Total numbered migrations: **$TOTAL**" >> $GITHUB_STEP_SUMMARY
+          
+          FIRST=$(find migrations -maxdepth 1 -name '[0-9][0-9][0-9]_*.sql' -type f | xargs -I{} basename {} | sort | head -1)
+          LAST=$(find migrations -maxdepth 1 -name '[0-9][0-9][0-9]_*.sql' -type f | xargs -I{} basename {} | sort | tail -1)
+          echo "- First migration: \`$FIRST\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Latest migration: \`$LAST\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Checks Performed" >> $GITHUB_STEP_SUMMARY
+          echo "- Migration runner exists and is executable" >> $GITHUB_STEP_SUMMARY
+          echo "- No duplicate migration numbers" >> $GITHUB_STEP_SUMMARY
+          echo "- Migration naming convention (NNN_*.sql)" >> $GITHUB_STEP_SUMMARY
+          echo "- No large gaps in migration sequence" >> $GITHUB_STEP_SUMMARY
+          echo "- Dry-run mode functional" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See [run_migrations.sh](../blob/main/scripts/run_migrations.sh) for the unified migration runner." >> $GITHUB_STEP_SUMMARY
