@@ -1,64 +1,78 @@
-# Fix Authentication Timeout Issue
+# Adding a Cost Tracking Dashboard to the Owner Console
 
-When working with MorningAI, you may encounter an authentication timeout issue. This problem typically occurs when the authentication token used by the platform expires or when there is a misconfiguration in the system settings related to session management. This FAQ aims to guide developers through understanding and resolving authentication timeout issues within the MorningAI platform.
+The addition of a cost tracking dashboard to the Owner Console in MorningAI aims to provide users with a comprehensive view of their incurred costs, enabling better budget management and financial planning. This feature integrates directly into the existing MorningAI platform, leveraging its multi-tenant architecture and data analytics capabilities.
 
-## Understanding Authentication Timeout
+## Comprehensive Explanation
 
-Authentication timeouts are mechanisms designed to improve security by limiting the duration of an active session. When a user logs in, they are granted a token that expires after a set period. If the session lasts longer than this period without renewal, the user is automatically logged out, requiring re-authentication.
+The cost tracking dashboard is designed to aggregate and display various metrics related to the usage and associated costs within MorningAI. This includes, but is not limited to, resource consumption (e.g., compute time for autonomous agent systems), API call volumes, and subscription fees. By implementing this dashboard, owners can monitor their spending in real-time, identify trends, and make informed decisions about resource allocation.
 
-In MorningAI, authentication timeouts can affect both the web interface and API calls, leading to interrupted workflows and decreased productivity.
+### Implementation Steps
 
-## Configuration Settings
+1. **Data Collection**: Ensure all relevant cost metrics are being tracked within MorningAI's backend. This might involve modifying the Python Flask application to log additional data points.
 
-First, check the configuration settings related to authentication timeout:
+    ```python
+    # Example modification in Flask app for logging compute usage
+    @app.route('/api/compute_usage', methods=['POST'])
+    def track_compute_usage():
+        usage_data = request.json
+        store_usage_data(usage_data)  # Function to log data into PostgreSQL
+        return jsonify({"message": "Usage tracked successfully"}), 200
+    ```
 
-```python
-# Configuration file path: morningai/config.py
+2. **Database Storage**: Utilize PostgreSQL (Supabase) for storing and querying cost-related data. Ensure that tables are structured efficiently for quick retrieval and analysis.
 
-# Example configuration for session timeout
-SESSION_TIMEOUT = 3600  # Timeout in seconds (e.g., 3600 seconds = 1 hour)
-```
+    ```sql
+    -- Example SQL for creating a table to store compute usage data
+    CREATE TABLE compute_usage (
+        id SERIAL PRIMARY KEY,
+        tenant_id INT NOT NULL,
+        usage_time TIMESTAMP NOT NULL,
+        cost NUMERIC(10, 2) NOT NULL
+    );
+    ```
 
-Ensure that the `SESSION_TIMEOUT` value is set appropriately for your use case. A too-short timeout period may lead to frequent re-authentications, while a too-long period might compromise security.
+3. **Frontend Development**: Develop the dashboard interface using React and TailwindCSS. The interface should include visualizations like charts and graphs for easy interpretation of the data.
 
-## Refreshing Tokens
+    ```jsx
+    // Example React component for displaying cost data
+    import React, { useEffect, useState } from 'react';
+    import { fetchComputeUsage } from './api'; // Assume this function is implemented
 
-For API usage and integrations, ensure that your implementation accounts for token expiration by implementing a token refresh mechanism:
+    const CostDashboard = () => {
+        const [usageData, setUsageData] = useState([]);
 
-```python
-import requests
-from morningai.credentials import get_refresh_token
+        useEffect(() => {
+            fetchComputeUsage().then(data => setUsageData(data));
+        }, []);
 
-def refresh_access_token():
-    refresh_token = get_refresh_token()
-    response = requests.post('https://api.morningai.com/auth/refresh', data={'refresh_token': refresh_token})
-    if response.status_code == 200:
-        new_access_token = response.json()['access_token']
-        # Update your stored access token here
-        return new_access_token
-    else:
-        raise Exception("Failed to refresh token")
+        return (
+            <div className="cost-dashboard">
+                {/* Visualization components go here */}
+            </div>
+        );
+    };
+    export default CostDashboard;
+    ```
 
-try:
-    # Attempt to use access token
-except TokenExpiredError:
-    # Token has expired; attempt to refresh it
-    refresh_access_token()
-```
+4. **Integration Testing**: Test the dashboard feature thoroughly across different tenants to ensure accurate tracking and representation of costs.
 
-## Troubleshooting Tips
+5. **Deployment**: Use Render.com with CI/CD pipelines for deploying updates to the live platform.
 
-- **Check Server Time**: Ensure that the server hosting MorningAI has synchronized time settings. Time drift can cause premature token expirations.
-- **Review Token Expiry Settings**: In some cases, adjusting the lifetime of tokens via MorningAI's administrative settings can resolve frequent timeout issues.
-- **Monitor for Errors**: Look out for `401 Unauthorized` or `403 Forbidden` responses from API calls, as these can indicate expired tokens.
-- **Logs and Debugging**: Check the application logs for any errors related to authentication or tokens. These logs can often provide insights into what might be causing timeouts.
+### Related Documentation Links
 
-## Related Documentation Links
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- Supabase Documentation: [https://supabase.io/docs](https://supabase.io/docs)
+- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
+- TailwindCSS Documentation: [https://tailwindcss.com/docs](https://tailwindcss.com/docs)
+- Render Deployment Guides: [https://render.com/docs](https://render.com/docs)
 
-- [MorningAI Authentication Overview](https://docs.morningai.com/authentication)
-- [API Integration Guide](https://docs.morningai.com/api/integration)
+### Common Troubleshooting Tips
 
-By following these guidelines and ensuring proper configuration and handling of authentication tokens, developers can mitigate and resolve authentication timeout issues within MorningAI, thereby enhancing both security and user experience.
+- **Data Inconsistencies**: Ensure that timestamps are uniformly handled across different services to avoid discrepancies in usage metrics.
+- **Performance Issues**: If the dashboard loads slowly or queries take too long, consider optimizing your database queries or adding indexes to improve performance.
+- **Visualization Errors**: Verify that all data passed into visualization components is correctly formatted and that error handling is implemented for edge cases or missing data.
+
+By following these steps and considering the provided tips, developers can successfully implement a cost tracking dashboard within the Owner Console of MorningAI, enhancing the platform's utility for financial oversight.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -66,7 +80,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Add cost tracking dashboard to Owner Console
+- Trace ID: `task-010`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
