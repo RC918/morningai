@@ -1,64 +1,80 @@
-# Fix Authentication Timeout Issue
+# Migrate Flask Routes to Use Blueprint Pattern
 
-When working with MorningAI, you may encounter an authentication timeout issue. This problem typically occurs when the authentication token used by the platform expires or when there is a misconfiguration in the system settings related to session management. This FAQ aims to guide developers through understanding and resolving authentication timeout issues within the MorningAI platform.
+## Introduction
 
-## Understanding Authentication Timeout
+In Flask, a `Blueprint` is a way for you to organize your Flask application into smaller and re-usable applications. By migrating your Flask routes to use the Blueprint pattern, you can enhance the scalability and maintainability of your MorningAI platform. This FAQ aims to guide developers through the process of refactoring existing Flask routes into Blueprints.
 
-Authentication timeouts are mechanisms designed to improve security by limiting the duration of an active session. When a user logs in, they are granted a token that expires after a set period. If the session lasts longer than this period without renewal, the user is automatically logged out, requiring re-authentication.
+## What is a Blueprint?
 
-In MorningAI, authentication timeouts can affect both the web interface and API calls, leading to interrupted workflows and decreased productivity.
+A Blueprint in Flask is essentially a template for generating sections of your site that are modular and can be scaled or reused across the application. It allows you to compartmentalize your features (like authentication, admin dashboard, API routes) and integrate them into the main application without hassle.
 
-## Configuration Settings
+## Step-by-Step Guide to Migrating Flask Routes to Blueprints
 
-First, check the configuration settings related to authentication timeout:
+### 1. Define Your Blueprints
 
+Start by creating a new Python file for each logical section of your application. For instance, if you're organizing your routes into public, admin, and api sections, you might create `public.py`, `admin.py`, and `api.py` files in your project's `views` directory.
+
+**Example:**
+
+In `views/public.py`:
 ```python
-# Configuration file path: morningai/config.py
+from flask import Blueprint
 
-# Example configuration for session timeout
-SESSION_TIMEOUT = 3600  # Timeout in seconds (e.g., 3600 seconds = 1 hour)
+public = Blueprint('public', __name__)
+
+@public.route('/')
+def home():
+    return "Welcome to MorningAI!"
 ```
 
-Ensure that the `SESSION_TIMEOUT` value is set appropriately for your use case. A too-short timeout period may lead to frequent re-authentications, while a too-long period might compromise security.
+### 2. Register Your Blueprints with the Application
 
-## Refreshing Tokens
+After defining your Blueprints, you must register them with your Flask application object.
 
-For API usage and integrations, ensure that your implementation accounts for token expiration by implementing a token refresh mechanism:
+**Example:**
+
+In your main application file (`app.py` or where you initialize your Flask app), import and register the Blueprints:
 
 ```python
-import requests
-from morningai.credentials import get_refresh_token
+from flask import Flask
+from views.public import public
+# Import other blueprints similarly
 
-def refresh_access_token():
-    refresh_token = get_refresh_token()
-    response = requests.post('https://api.morningai.com/auth/refresh', data={'refresh_token': refresh_token})
-    if response.status_code == 200:
-        new_access_token = response.json()['access_token']
-        # Update your stored access token here
-        return new_access_token
-    else:
-        raise Exception("Failed to refresh token")
-
-try:
-    # Attempt to use access token
-except TokenExpiredError:
-    # Token has expired; attempt to refresh it
-    refresh_access_token()
+app = Flask(__name__)
+app.register_blueprint(public)
+# Register other blueprints similarly
 ```
 
-## Troubleshooting Tips
+### 3. Adjust Your Project Structure Accordingly
 
-- **Check Server Time**: Ensure that the server hosting MorningAI has synchronized time settings. Time drift can cause premature token expirations.
-- **Review Token Expiry Settings**: In some cases, adjusting the lifetime of tokens via MorningAI's administrative settings can resolve frequent timeout issues.
-- **Monitor for Errors**: Look out for `401 Unauthorized` or `403 Forbidden` responses from API calls, as these can indicate expired tokens.
-- **Logs and Debugging**: Check the application logs for any errors related to authentication or tokens. These logs can often provide insights into what might be causing timeouts.
+Ensure that your project structure supports this modular approach. A suggested structure is:
 
-## Related Documentation Links
+```
+/morningai
+    /views
+        __init__.py
+        public.py
+        admin.py
+        api.py
+    app.py
+    ...
+```
 
-- [MorningAI Authentication Overview](https://docs.morningai.com/authentication)
-- [API Integration Guide](https://docs.morningai.com/api/integration)
+### 4. Update Imports and References
 
-By following these guidelines and ensuring proper configuration and handling of authentication tokens, developers can mitigate and resolve authentication timeout issues within MorningAI, thereby enhancing both security and user experience.
+Since routes are now part of their respective Blueprint objects, update any imports or references throughout your codebase to reflect this change.
+
+### Related Documentation Links
+
+- Official Flask Documentation on Blueprints: [Flask Blueprints](https://flask.palletsprojects.com/en/2.0.x/blueprints/)
+
+## Common Troubleshooting Tips
+
+- **Blueprints Not Found Error**: Ensure all Blueprint files are correctly imported in your main app file.
+- **URL Prefix Issues**: If integrating a Blueprint causes URL mismatches or errors, check the `url_prefix` parameter in the `register_blueprint` method.
+- **Circular Imports**: Circular import errors may occur if importing the main app object into your Blueprint files. Restructure imports or use local imports within functions as necessary.
+
+For more detailed examples and troubleshooting tips related to MorningAI's specific architecture or setup, refer to the respective module documentation or reach out on our developer forum.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -66,7 +82,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Migrate Flask routes to use Blueprint pattern
+- Trace ID: `task-008`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
