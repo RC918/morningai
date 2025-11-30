@@ -853,13 +853,22 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
     return newTokens;
   }
   
+  // Build headers with CSRF token for cross-origin requests
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  // Include CSRF token if available (required when SameSite=None)
+  const csrfToken = getCsrfToken();
+  if (csrfToken) {
+    headers['X-CSRF-Token'] = csrfToken;
+  }
+  
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/api/auth/v2/refresh`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       credentials: 'include',
     });
   } catch (error) {
