@@ -18,9 +18,20 @@ from src.middleware.auth_middleware import jwt_required, admin_required
 
 # Add 40_App directory to sys.path so that 'orchestrator' package can be imported
 # Path: routes -> src -> api-backend -> 40_App (3 levels up)
+# IMPORTANT: There's a conflicting 'orchestrator' package at the repo root that must be
+# removed from sys.modules before importing the correct one from 40_App
 app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
-if app_dir not in sys.path:
-    sys.path.insert(0, app_dir)
+
+# Remove any existing orchestrator module that might be from the wrong location
+# This is needed because there's a conflicting orchestrator package at the repo root
+for mod_name in list(sys.modules.keys()):
+    if mod_name == 'orchestrator' or mod_name.startswith('orchestrator.'):
+        del sys.modules[mod_name]
+
+# Ensure app_dir is at the very beginning of sys.path
+if app_dir in sys.path:
+    sys.path.remove(app_dir)
+sys.path.insert(0, app_dir)
 
 AI_POLICY_IMPORT_ERROR = None
 try:
