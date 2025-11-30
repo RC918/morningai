@@ -5,6 +5,8 @@
  * Phase 6 PR-2: AI Policy Editor UI
  */
 
+import { getAccessToken } from './auth'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
 /**
@@ -12,14 +14,17 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  * @returns {Promise<{templates: Object, count: number}>}
  */
 export async function getPolicyTemplates() {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/templates`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -40,18 +45,21 @@ export async function getPolicyTemplates() {
  * @returns {Promise<{policies: Array, count: number, limit: number, offset: number}>}
  */
 export async function listPolicies({ limit = 50, offset = 0, policy_type, status } = {}) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() })
   if (policy_type) params.append('policy_type', policy_type)
   if (status) params.append('status', status)
   
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
   const response = await fetch(`${API_BASE_URL}/api/ai-policies?${params}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -68,14 +76,17 @@ export async function listPolicies({ limit = 50, offset = 0, policy_type, status
  * @returns {Promise<Object>} Policy object
  */
 export async function getPolicy(policyId) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/${policyId}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -98,14 +109,17 @@ export async function getPolicy(policyId) {
  * @returns {Promise<Object>} Created policy
  */
 export async function createPolicy(policy) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers,
+    credentials: 'include',
     body: JSON.stringify(policy)
   })
 
@@ -129,14 +143,17 @@ export async function createPolicy(policy) {
  * @returns {Promise<Object>} Updated policy
  */
 export async function updatePolicy(policyId, updates) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/${policyId}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers,
+    credentials: 'include',
     body: JSON.stringify(updates)
   })
 
@@ -154,14 +171,17 @@ export async function updatePolicy(policyId, updates) {
  * @returns {Promise<{message: string, policy_id: string}>}
  */
 export async function deletePolicy(policyId) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/${policyId}`, {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
+    headers,
+    credentials: 'include'
   })
 
   if (!response.ok) {
@@ -179,14 +199,17 @@ export async function deletePolicy(policyId) {
  * @returns {Promise<{allowed: boolean, reason: string, applied_policies: Array}>}
  */
 export async function evaluateRequest(capability, context = {}) {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
+  
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE_URL}/api/ai-policies/evaluate`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers,
+    credentials: 'include',
     body: JSON.stringify({ capability, context })
   })
 
