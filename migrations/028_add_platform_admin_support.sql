@@ -72,17 +72,22 @@ CREATE POLICY "admins_can_update_tenant_profiles" ON user_profiles
         )
     )
     WITH CHECK (
-        -- Platform admins can update to any tenant
+        -- Platform admins can update to any tenant and set any is_platform_admin value
         EXISTS (
             SELECT 1 FROM user_profiles
             WHERE id = auth.uid() AND is_platform_admin = TRUE
         )
         OR
-        -- Tenant admins can only update within their tenant
-        tenant_id = (
-            SELECT tenant_id 
-            FROM user_profiles 
-            WHERE id = auth.uid()
+        (
+            -- Tenant admins can only update within their tenant
+            tenant_id = (
+                SELECT tenant_id 
+                FROM user_profiles 
+                WHERE id = auth.uid()
+            )
+            -- SECURITY: Non-platform admins cannot set is_platform_admin to TRUE
+            -- This prevents privilege escalation attacks
+            AND is_platform_admin = FALSE
         )
     );
 
