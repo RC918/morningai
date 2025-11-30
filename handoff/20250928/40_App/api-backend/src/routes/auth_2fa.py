@@ -277,7 +277,10 @@ def verify_enroll_2fa():
                 "tenantId": user["tenant_id"],
                 "avatar": user.get("avatar"),
             },
-            "tokens": {"expiresAt": access_expiry_ms},
+            "tokens": {
+                "accessToken": access_token,
+                "expiresAt": access_expiry_ms,
+            },
         }
 
         response = make_response(jsonify(response_data), 200)
@@ -493,7 +496,10 @@ def challenge_2fa():
                 "tenantId": user["tenant_id"],
                 "avatar": user.get("avatar"),
             },
-            "tokens": {"expiresAt": access_expiry_ms},
+            "tokens": {
+                "accessToken": access_token,
+                "expiresAt": access_expiry_ms,
+            },
         }
 
         if backup_codes_remaining is not None:
