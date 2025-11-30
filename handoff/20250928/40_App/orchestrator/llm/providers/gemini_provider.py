@@ -5,11 +5,11 @@ Provides Gemini Pro and Gemini 3 Pro support for MorningAI Orchestrator.
 Uses the new google-genai SDK (GA since May 2025).
 
 Supports:
-- gemini-pro (legacy, default for backward compatibility)
-- gemini-3-pro-preview (Gemini 3, recommended for new features)
+- gemini-2.0-flash (default, recommended)
+- gemini-3-pro-preview (Gemini 3, for advanced features)
 
 Fallback Behavior:
-- When a Gemini 3 model fails, automatically falls back to gemini-pro
+- When a Gemini 3 model fails, automatically falls back to gemini-2.0-flash
 - Fallback is logged for monitoring and A/B test analysis
 - LLMResponse.model reflects the actual model used (including fallback)
 
@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 ThinkingLevel = Literal["low", "high"]
 
 # Fallback model for Gemini 3 failures
-FALLBACK_MODEL = "gemini-pro"
+# Note: gemini-pro is deprecated, use gemini-2.0-flash as fallback
+FALLBACK_MODEL = "gemini-2.0-flash"
 
 # Allowed extra config keys that can be passed via **kwargs
 # These are passed directly to GenerateContentConfig
@@ -54,11 +55,11 @@ class GeminiProvider(BaseLLMProvider):
     - thinking_level: Control reasoning depth for Gemini 3 models
       (parameter on generate() method, only applied for Gemini 3 models)
     - json_mode: Request JSON-formatted responses
-    - Automatic fallback: Gemini 3 failures fall back to gemini-pro
+    - Automatic fallback: Gemini 3 failures fall back to gemini-2.0-flash
     """
 
     provider_name = "gemini"
-    default_model = "gemini-pro"  # Keep legacy default for backward compatibility
+    default_model = "gemini-2.0-flash"  # Updated from deprecated gemini-pro
 
     # Gemini 3 models that support thinking_level
     GEMINI_3_MODELS = ["gemini-3-pro-preview", "gemini-3-pro-image-preview"]
@@ -68,7 +69,7 @@ class GeminiProvider(BaseLLMProvider):
         Initialize Gemini provider
 
         Args:
-            model: Model to use (default: gemini-pro)
+            model: Model to use (default: gemini-2.0-flash)
                    Use "gemini-3-pro-preview" for Gemini 3 features
         """
         self.model = model or self.default_model
