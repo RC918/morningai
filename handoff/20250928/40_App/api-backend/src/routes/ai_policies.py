@@ -22,6 +22,7 @@ app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
 if app_dir not in sys.path:
     sys.path.insert(0, app_dir)
 
+AI_POLICY_IMPORT_ERROR = None
 try:
     from orchestrator.governance.ai_policy import (
         PolicyType,
@@ -31,14 +32,60 @@ try:
     )
     AI_POLICY_AVAILABLE = True
 except Exception as e:
-    print(f"Warning: AI Policy module not available: {e}")
     import traceback
-    traceback.print_exc()
+    AI_POLICY_IMPORT_ERROR = traceback.format_exc()
+    print(f"Warning: AI Policy module not available: {e}")
+    print(AI_POLICY_IMPORT_ERROR)
     AI_POLICY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('ai_policies', __name__, url_prefix='/api/ai-policies')
+
+
+@bp.route('/debug-import', methods=['GET'])
+def debug_import():
+    """
+    Debug endpoint to diagnose import issues (staging only).
+    Returns detailed information about the import failure.
+    """
+    import importlib
+    import traceback as tb
+    
+    info = {
+        "sys_path": sys.path,
+        "app_dir": app_dir,
+        "AI_POLICY_AVAILABLE": AI_POLICY_AVAILABLE,
+        "AI_POLICY_IMPORT_ERROR": AI_POLICY_IMPORT_ERROR,
+    }
+    
+    try:
+        import orchestrator
+        info["orchestrator_file"] = getattr(orchestrator, "__file__", None)
+        info["orchestrator_path"] = list(getattr(orchestrator, "__path__", []))
+        
+        try:
+            governance_dir = os.path.join(
+                os.path.dirname(orchestrator.__file__), "governance"
+            )
+            if os.path.exists(governance_dir):
+                info["governance_dir_contents"] = os.listdir(governance_dir)
+            else:
+                info["governance_dir_exists"] = False
+        except Exception as e:
+            info["governance_dir_error"] = str(e)
+        
+        m = importlib.import_module("orchestrator.governance.ai_policy")
+        info["ai_policy_file"] = getattr(m, "__file__", None)
+        return jsonify({"status": "ok", "info": info})
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "type": e.__class__.__name__,
+            "message": str(e),
+            "traceback": tb.format_exc(),
+            "info": info,
+        }), 500
 
 
 def get_user_profile(user_id: str):
