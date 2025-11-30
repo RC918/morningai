@@ -83,7 +83,7 @@ class TestAuthMiddlewareFallbackPaths:
         }
         token = jwt.encode(payload, jwt_secret, algorithm='HS256')
 
-        client.set_cookie('localhost', 'access_token', token)
+        client.set_cookie('access_token', token, domain='localhost')
         response = client.get('/test')
 
         assert response.status_code == 200
@@ -133,7 +133,7 @@ class TestAuthMiddlewareFallbackPaths:
             'exp': datetime.now(UTC) - timedelta(hours=1)
         }, jwt_secret, algorithm='HS256')
 
-        client.set_cookie('localhost', 'access_token', valid_token)
+        client.set_cookie('access_token', valid_token, domain='localhost')
         response = client.get('/test', headers={
             'Authorization': f'Bearer {expired_token}',
             'X-Access-Token': expired_token
@@ -152,7 +152,7 @@ class TestAuthMiddlewareFallbackPaths:
             'exp': datetime.now(UTC) - timedelta(hours=1)
         }, jwt_secret, algorithm='HS256')
 
-        client.set_cookie('localhost', 'access_token', expired_token)
+        client.set_cookie('access_token', expired_token, domain='localhost')
         response = client.get('/test', headers={
             'Authorization': f'Bearer {expired_token}',
             'X-Access-Token': expired_token
@@ -166,38 +166,48 @@ class TestAuthMiddlewareFallbackPaths:
 class TestAuthMiddlewareErrorResponses:
     """Test error response mapping in auth_middleware"""
 
-    def test_error_response_expired_signature(self):
+    @pytest.fixture
+    def app(self):
+        """Create Flask app for testing"""
+        app = Flask(__name__)
+        app.config['TESTING'] = True
+        return app
+
+    def test_error_response_expired_signature(self, app):
         """Test _error_response_from_exception with ExpiredSignatureError"""
         from src.middleware.auth_middleware import _error_response_from_exception
 
-        error = jwt.ExpiredSignatureError("Token expired")
-        response, status = _error_response_from_exception(error)
+        with app.app_context():
+            error = jwt.ExpiredSignatureError("Token expired")
+            response, status = _error_response_from_exception(error)
 
-        assert status == 401
-        data = response.get_json()
-        assert data['error'] == 'Token expired'
+            assert status == 401
+            data = response.get_json()
+            assert data['error'] == 'Token expired'
 
-    def test_error_response_invalid_token(self):
+    def test_error_response_invalid_token(self, app):
         """Test _error_response_from_exception with InvalidTokenError"""
         from src.middleware.auth_middleware import _error_response_from_exception
 
-        error = jwt.InvalidTokenError("Invalid token")
-        response, status = _error_response_from_exception(error)
+        with app.app_context():
+            error = jwt.InvalidTokenError("Invalid token")
+            response, status = _error_response_from_exception(error)
 
-        assert status == 401
-        data = response.get_json()
-        assert data['error'] == 'Invalid token'
+            assert status == 401
+            data = response.get_json()
+            assert data['error'] == 'Invalid token'
 
-    def test_error_response_generic_exception(self):
+    def test_error_response_generic_exception(self, app):
         """Test _error_response_from_exception with generic Exception"""
         from src.middleware.auth_middleware import _error_response_from_exception
 
-        error = Exception("Some other error")
-        response, status = _error_response_from_exception(error)
+        with app.app_context():
+            error = Exception("Some other error")
+            response, status = _error_response_from_exception(error)
 
-        assert status == 401
-        data = response.get_json()
-        assert data['error'] == 'Authentication failed'
+            assert status == 401
+            data = response.get_json()
+            assert data['error'] == 'Authentication failed'
 
 
 class TestRedisClientConnectionInfo:
