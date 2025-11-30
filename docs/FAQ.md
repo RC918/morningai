@@ -1,64 +1,70 @@
-# Fix Authentication Timeout Issue
+# Adding End-to-End Tests for Complete Agent Execution Flow
 
-When working with MorningAI, you may encounter an authentication timeout issue. This problem typically occurs when the authentication token used by the platform expires or when there is a misconfiguration in the system settings related to session management. This FAQ aims to guide developers through understanding and resolving authentication timeout issues within the MorningAI platform.
+End-to-end (E2E) testing is crucial in ensuring that the MorningAI platform's autonomous agent system performs as expected from start to finish. This involves testing the entire process of code generation, task orchestration, and integration with other platforms, ensuring all components work together seamlessly.
 
-## Understanding Authentication Timeout
+## Overview
 
-Authentication timeouts are mechanisms designed to improve security by limiting the duration of an active session. When a user logs in, they are granted a token that expires after a set period. If the session lasts longer than this period without renewal, the user is automatically logged out, requiring re-authentication.
+Implementing E2E tests for the complete agent execution flow requires a comprehensive approach, focusing on scenarios that mimic real-world usage. These tests should cover the initiation of an agent task, the execution of code generation, interaction with external platforms (if applicable), and the final output verification.
 
-In MorningAI, authentication timeouts can affect both the web interface and API calls, leading to interrupted workflows and decreased productivity.
+### Tools and Technologies
 
-## Configuration Settings
+While there are several tools available for E2E testing, for a stack involving React for the frontend and Flask for the backend, we recommend using Cypress for frontend testing and PyTest for backend testing. Both tools are widely supported and offer extensive documentation.
 
-First, check the configuration settings related to authentication timeout:
+### Code Examples
 
-```python
-# Configuration file path: morningai/config.py
+Below are simplified examples of how you might structure your E2E tests for both frontend and backend components.
 
-# Example configuration for session timeout
-SESSION_TIMEOUT = 3600  # Timeout in seconds (e.g., 3600 seconds = 1 hour)
+#### Frontend Testing with Cypress
+
+For testing a user interaction flow in React:
+
+```javascript
+// cypress/integration/agentFlow.spec.js
+
+describe('Agent Execution Flow', () => {
+  it('successfully executes an agent task', () => {
+    cy.visit('/'); // Assuming '/' is where the task initiation happens
+    cy.get('input[name="task-input"]').type('Generate README.md');
+    cy.contains('Submit').click();
+    cy.contains('Task successfully executed', { timeout: 10000 });
+  });
+});
 ```
 
-Ensure that the `SESSION_TIMEOUT` value is set appropriately for your use case. A too-short timeout period may lead to frequent re-authentications, while a too-long period might compromise security.
+#### Backend Testing with PyTest
 
-## Refreshing Tokens
-
-For API usage and integrations, ensure that your implementation accounts for token expiration by implementing a token refresh mechanism:
+For simulating an agent execution flow in Flask:
 
 ```python
-import requests
-from morningai.credentials import get_refresh_token
+# tests/test_agent_flow.py
 
-def refresh_access_token():
-    refresh_token = get_refresh_token()
-    response = requests.post('https://api.morningai.com/auth/refresh', data={'refresh_token': refresh_token})
-    if response.status_code == 200:
-        new_access_token = response.json()['access_token']
-        # Update your stored access token here
-        return new_access_token
-    else:
-        raise Exception("Failed to refresh token")
-
-try:
-    # Attempt to use access token
-except TokenExpiredError:
-    # Token has expired; attempt to refresh it
-    refresh_access_token()
+def test_agent_execution_flow(client):
+    response = client.post('/execute-task', json={'task': 'Generate README.md'})
+    assert response.status_code == 200
+    assert 'execution_id' in response.json
+    # Further checks can include querying the database or checking output files
 ```
 
-## Troubleshooting Tips
+### Setup and Configuration
 
-- **Check Server Time**: Ensure that the server hosting MorningAI has synchronized time settings. Time drift can cause premature token expirations.
-- **Review Token Expiry Settings**: In some cases, adjusting the lifetime of tokens via MorningAI's administrative settings can resolve frequent timeout issues.
-- **Monitor for Errors**: Look out for `401 Unauthorized` or `403 Forbidden` responses from API calls, as these can indicate expired tokens.
-- **Logs and Debugging**: Check the application logs for any errors related to authentication or tokens. These logs can often provide insights into what might be causing timeouts.
+1. **Cypress**: Follow the [official Cypress documentation](https://docs.cypress.io/guides/getting-started/installing-cypress) to set it up in your project.
+2. **PyTest**: Install pytest using pip (`pip install pytest`) and follow the [PyTest documentation](https://docs.pytest.org/en/latest/) to configure it for your Flask application.
 
-## Related Documentation Links
+### Related Documentation Links
 
-- [MorningAI Authentication Overview](https://docs.morningai.com/authentication)
-- [API Integration Guide](https://docs.morningai.com/api/integration)
+- Cypress Documentation: [https://docs.cypress.io](https://docs.cypress.io)
+- PyTest Documentation: [https://docs.pytest.org/en/latest/](https://docs.pytest.org/en/latest/)
+- Flask Testing: [https://flask.palletsprojects.com/en/2.0.x/testing/](https://flask.palletsprojects.com/en/2.0.x/testing/)
+- React Testing: [https://reactjs.org/docs/testing.html](https://reactjs.org/docs/testing.html)
 
-By following these guidelines and ensuring proper configuration and handling of authentication tokens, developers can mitigate and resolve authentication timeout issues within MorningAI, thereby enhancing both security and user experience.
+### Common Troubleshooting Tips
+
+- **Timeout Issues**: Ensure that your timeouts in tests are adjusted based on the expected duration of tasks. Tasks that involve heavy processing might need longer timeouts.
+- **Environment Consistency**: Run your tests in an environment as close to production as possible to avoid discrepancies.
+- **Data Clean-up**: After each test run, ensure to clean up any data or state to avoid interference between tests.
+- **Debugging Flaky Tests**: If encountering flaky tests (tests that sometimes pass and sometimes fail), increase logging verbosity and consider using tools like Cypress Dashboard for better insights.
+
+Implementing comprehensive E2E tests will not only help in maintaining high-quality code but also ensure that all components of the MorningAI platform work harmoniously together.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -66,7 +72,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Fix authentication timeout issue
-- Trace ID: `task-001`
+- Task: Add E2E tests for complete agent execution flow
+- Trace ID: `task-009`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
