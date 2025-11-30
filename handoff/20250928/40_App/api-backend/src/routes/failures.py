@@ -4,13 +4,11 @@ import sys
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-orchestrator_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestrator')
-if orchestrator_path not in sys.path:
-    sys.path.insert(0, orchestrator_path)
+# Add the 40_App directory to sys.path so that 'orchestrator' package can be imported
+# The import 'from orchestrator.xxx' requires the parent of 'orchestrator' in sys.path
+app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
 
 import logging  # noqa: E402
 

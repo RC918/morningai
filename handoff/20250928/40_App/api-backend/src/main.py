@@ -14,18 +14,21 @@ if str(repo_root) not in sys.path:
     logging.basicConfig(level=logging.INFO)
     logging.info(f"Added repo root to sys.path: {repo_root}")
 
-orchestrator_path = app_settings.orchestrator_path
-if not orchestrator_path:
-    orchestrator_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../orchestrator")
+# Add the 40_App directory to sys.path so that 'orchestrator' package can be imported
+# The import 'from orchestrator.persistence.db_client' requires the parent of 'orchestrator' in sys.path
+app_dir = app_settings.orchestrator_path
+if not app_dir:
+    # Point to 40_App directory (parent of orchestrator), not orchestrator itself
+    app_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../..")
     )
 
-if os.path.exists(orchestrator_path) and orchestrator_path not in sys.path:
-    sys.path.insert(0, orchestrator_path)
-    logging.info(f"Added orchestrator path to sys.path: {orchestrator_path}")
-elif not os.path.exists(orchestrator_path):
+if os.path.exists(app_dir) and app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
+    logging.info(f"Added app directory to sys.path: {app_dir}")
+elif not os.path.exists(app_dir):
     logging.warning(
-        f"Orchestrator path does not exist: {orchestrator_path}. Orchestrator features may not work."
+        f"App directory does not exist: {app_dir}. Orchestrator features may not work."
     )
 
 from src.routes.billing import bp as billing_bp

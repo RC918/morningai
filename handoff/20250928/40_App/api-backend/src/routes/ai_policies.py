@@ -16,17 +16,13 @@ import logging
 from flask import Blueprint, jsonify, request
 from src.middleware.auth_middleware import jwt_required, admin_required
 
-project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '../../../../..')
+# Add the 40_App directory to sys.path so that 'orchestrator' package can be imported
+# The import 'from orchestrator.persistence.db_client' requires the parent of 'orchestrator' in sys.path
+app_dir = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '../../../..')
 )
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-orchestrator_path = os.path.join(
-    project_root, 'handoff/20250928/40_App/orchestrator'
-)
-if orchestrator_path not in sys.path:
-    sys.path.insert(0, orchestrator_path)
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
 
 try:
     from governance.ai_policy import (
