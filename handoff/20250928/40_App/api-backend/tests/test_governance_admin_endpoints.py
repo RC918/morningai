@@ -622,3 +622,131 @@ class TestGovernanceStatusFilterBranches:
         data = json.loads(response.data)
         for execution in data['executions']:
             assert execution['status'] == 'failure'
+
+
+class TestConfigSummaryEndpoint:
+    """Test config summary endpoint (PR-10)"""
+
+    def test_config_summary_success(self, client, admin_token):
+        """Test successful config summary retrieval"""
+        response = client.get(
+            '/api/admin/config/summary',
+            headers={'Authorization': f'Bearer {admin_token}'}
+        )
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        assert 'orchestrator' in data
+        assert 'use_langgraph' in data['orchestrator']
+        assert 'use_langgraph_percent' in data['orchestrator']
+        assert 'enable_orchestrator' in data['orchestrator']
+
+        assert 'llm' in data
+        assert 'provider' in data['llm']
+        assert 'use_llm_planner' in data['llm']
+        assert 'use_llm_reviewer' in data['llm']
+
+        assert 'canary' in data
+        assert 'metrics_enabled' in data['canary']
+        assert 'alerting_enabled' in data['canary']
+        assert 'window_minutes' in data['canary']
+        assert 'p95_ms_threshold' in data['canary']
+
+        assert 'enforcement' in data
+        assert 'security_enforcement_mode' in data['enforcement']
+        assert 'policies_path' in data['enforcement']
+
+        assert 'code_generation' in data
+        assert 'use_code_generation' in data['code_generation']
+
+        assert 'agents' in data
+        assert 'ops_agent_enabled' in data['agents']
+
+        assert 'environment' in data
+        assert 'environment' in data['environment']
+        assert 'app_version' in data['environment']
+
+        assert 'rate_limiting' in data
+        assert 'rate_limit_requests' in data['rate_limiting']
+
+        assert 'timestamp' in data
+
+    def test_config_summary_no_auth(self, client):
+        """Test config summary without authentication"""
+        response = client.get('/api/admin/config/summary')
+        assert response.status_code == 401
+
+    def test_config_summary_non_admin(self, client, user_token):
+        """Test config summary with non-admin user"""
+        response = client.get(
+            '/api/admin/config/summary',
+            headers={'Authorization': f'Bearer {user_token}'}
+        )
+        assert response.status_code == 403
+
+    def test_config_summary_orchestrator_fields(self, client, admin_token):
+        """Test config summary contains all orchestrator fields"""
+        response = client.get(
+            '/api/admin/config/summary',
+            headers={'Authorization': f'Bearer {admin_token}'}
+        )
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        orchestrator = data['orchestrator']
+        assert 'use_langgraph' in orchestrator
+        assert 'use_langgraph_percent' in orchestrator
+        assert 'enable_orchestrator' in orchestrator
+        assert 'orchestrator_path' in orchestrator
+        assert 'orchestrator_test_mode' in orchestrator
+        assert 'orchestrator_shutdown_timeout' in orchestrator
+
+    def test_config_summary_llm_fields(self, client, admin_token):
+        """Test config summary contains all LLM fields"""
+        response = client.get(
+            '/api/admin/config/summary',
+            headers={'Authorization': f'Bearer {admin_token}'}
+        )
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        llm = data['llm']
+        assert 'provider' in llm
+        assert 'use_llm_planner' in llm
+        assert 'use_llm_reviewer' in llm
+        assert 'planner_json_mode' in llm
+        assert 'reviewer_json_mode' in llm
+        assert 'dev_agent_model' in llm
+        assert 'use_tiktoken_estimator' in llm
+        assert 'planner_events_storage' in llm
+
+    def test_config_summary_canary_fields(self, client, admin_token):
+        """Test config summary contains all canary fields"""
+        response = client.get(
+            '/api/admin/config/summary',
+            headers={'Authorization': f'Bearer {admin_token}'}
+        )
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        canary = data['canary']
+        assert 'metrics_enabled' in canary
+        assert 'alerting_enabled' in canary
+        assert 'window_minutes' in canary
+        assert 'p95_ms_threshold' in canary
+        assert '5xx_rate_threshold' in canary
+        assert 'failure_rate_threshold' in canary
+        assert 'buckets_ms' in canary
+
+    def test_config_summary_enforcement_fields(self, client, admin_token):
+        """Test config summary contains all enforcement fields"""
+        response = client.get(
+            '/api/admin/config/summary',
+            headers={'Authorization': f'Bearer {admin_token}'}
+        )
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        enforcement = data['enforcement']
+        assert 'security_enforcement_mode' in enforcement
+        assert 'policies_path' in enforcement
