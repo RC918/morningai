@@ -362,8 +362,10 @@ class TestCanaryDeployment:
             except:
                 pass
         
-        assert 2 <= langgraph_count <= 8, f"Expected 2-8 LangGraph tasks, got {langgraph_count}"
-        assert 92 <= simple_count <= 98, f"Expected 92-98 simple tasks, got {simple_count}"
+        # For n=100, p=0.05: expected=5, std_dev≈2.18
+        # Using ~3-sigma range (0-12) to avoid flaky failures from binomial variance
+        assert 0 <= langgraph_count <= 12, f"Expected 0-12 LangGraph tasks (5% canary), got {langgraph_count}"
+        assert 88 <= simple_count <= 100, f"Expected 88-100 simple tasks (95% baseline), got {simple_count}"
     
     @patch('redis_queue.worker.redis')
     @patch('graph.execute')
