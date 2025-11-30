@@ -275,14 +275,29 @@ Generate a 3-7 step plan to accomplish this goal. Return ONLY the JSON array."""
             if use_json_mode:
                 logger.info(f"[LLM Planner] Using JSON mode for trace_id={trace_id}")
 
-            response = self.llm_client.generate(
-                prompt=user_prompt,
-                system_prompt=system_prompt,
-                temperature=0.7,
-                max_tokens=1000,
-                json_mode=use_json_mode,
-                timeout=25
-            )
+            # Build kwargs for provider-specific parameters
+            generate_kwargs = {
+                "prompt": user_prompt,
+                "system_prompt": system_prompt,
+                "temperature": 0.7,
+                "max_tokens": 1000,
+                "json_mode": use_json_mode,
+                "timeout": 25
+            }
+
+            # Add thinking_level for Gemini 3 models (complex planning benefits from deep reasoning)
+            if self.llm_client.provider_name == "gemini":
+                generate_kwargs["thinking_level"] = "high"
+                logger.info(
+                    "[LLM Planner] Using thinking_level=high for Gemini provider",
+                    extra={
+                        "operation": "llm_planner",
+                        "trace_id": trace_id,
+                        "thinking_level": "high"
+                    }
+                )
+
+            response = self.llm_client.generate(**generate_kwargs)
 
             planning_time_ms = (time.time() - start_time) * 1000
 

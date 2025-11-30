@@ -227,10 +227,10 @@ def get_client_for_component(
         component: Component name (e.g., "planner", "reviewer")
         trace_id: Unique trace identifier for consistent variant assignment
         default_provider: Default provider if no experiment is active
-        model: Optional model override
+        model: Optional model override (takes precedence over experiment model)
 
     Returns:
-        LLMClient configured with the appropriate provider
+        LLMClient configured with the appropriate provider and model
 
     Usage:
         # In reviewer code:
@@ -238,26 +238,45 @@ def get_client_for_component(
         response = client.generate("Review this code...")
     """
     try:
-        from experiment_manager import get_provider_for_component
+        from experiment_manager import get_experiment_manager
 
-        provider = get_provider_for_component(
-            component=component,
-            trace_id=trace_id,
-            default_provider=default_provider
-        )
+        manager = get_experiment_manager()
+        experiment_info = manager.get_experiment_for_component(component, trace_id)
 
-        logger.info(
-            f"[LLMClient] Creating client for component={component}, "
-            f"provider={provider}, trace_id={trace_id}",
-            extra={
-                "operation": "get_client_for_component",
-                "component": component,
-                "provider": provider,
-                "trace_id": trace_id
-            }
-        )
+        if experiment_info:
+            provider = experiment_info["provider"]
+            # Use experiment model if no explicit model override provided
+            experiment_model = experiment_info.get("model")
+            final_model = model or experiment_model
 
-        return LLMClient(provider=provider, model=model)
+            logger.info(
+                f"[LLMClient] Creating client for component={component}, "
+                f"provider={provider}, model={final_model}, trace_id={trace_id}, "
+                f"experiment={experiment_info['experiment_name']}, variant={experiment_info['variant']}",
+                extra={
+                    "operation": "get_client_for_component",
+                    "component": component,
+                    "provider": provider,
+                    "model": final_model,
+                    "trace_id": trace_id,
+                    "experiment_name": experiment_info["experiment_name"],
+                    "variant": experiment_info["variant"]
+                }
+            )
+
+            return LLMClient(provider=provider, model=final_model)
+        else:
+            logger.info(
+                f"[LLMClient] No active experiment for component={component}, "
+                f"using default provider={default_provider}",
+                extra={
+                    "operation": "get_client_for_component",
+                    "component": component,
+                    "provider": default_provider,
+                    "trace_id": trace_id
+                }
+            )
+            return LLMClient(provider=default_provider, model=model)
 
     except ImportError:
         logger.debug(

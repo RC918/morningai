@@ -43,6 +43,10 @@ class ExperimentConfig:
     target_component: str  # Component to experiment on (e.g., "planner", "reviewer")
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     enabled: bool = True
+    # Optional model override for treatment group (e.g., "gemini-3-pro-preview")
+    treatment_model: Optional[str] = None
+    # Optional model override for control group
+    control_model: Optional[str] = None
 
 
 # Pre-defined experiment configurations
@@ -66,6 +70,29 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
         control_provider="openai",
         target_component="reviewer",
         enabled=True
+    ),
+    # Gemini 3 specific experiments (Phase 2)
+    "gemini3_planner_10pct_staging": ExperimentConfig(
+        name="gemini3_planner_10pct_staging",
+        description="Test Gemini 3 Pro as planner LLM on 10% of staging traffic with thinking_level=high",
+        treatment_percent=10,
+        enabled_environments=["staging"],
+        treatment_provider="gemini",
+        control_provider="openai",
+        target_component="planner",
+        enabled=False,  # Disabled by default, enable after Phase 1 validation
+        treatment_model="gemini-3-pro-preview"
+    ),
+    "gemini3_reviewer_5pct_staging": ExperimentConfig(
+        name="gemini3_reviewer_5pct_staging",
+        description="Test Gemini 3 Pro as reviewer LLM on 5% of staging traffic with thinking_level=high",
+        treatment_percent=5,
+        enabled_environments=["staging"],
+        treatment_provider="gemini",
+        control_provider="openai",
+        target_component="reviewer",
+        enabled=False,  # Disabled by default, enable after Phase 1 validation
+        treatment_model="gemini-3-pro-preview"
     ),
 }
 
@@ -246,22 +273,25 @@ class ExperimentManager:
             trace_id: Unique trace identifier
 
         Returns:
-            Dict with experiment_name, variant, provider or None if no active experiment
+            Dict with experiment_name, variant, provider, model or None if no active experiment
         """
         for name, config in self.experiments.items():
             if config.target_component == component and self.is_experiment_active(name):
                 variant = self.get_variant(name, trace_id)
                 provider = config.treatment_provider if variant == "treatment" else config.control_provider
+                # Get model override if specified
+                model = config.treatment_model if variant == "treatment" else config.control_model
 
                 logger.debug(
                     f"[ExperimentManager] Component={component} assigned to "
-                    f"experiment={name}, variant={variant}, provider={provider}"
+                    f"experiment={name}, variant={variant}, provider={provider}, model={model}"
                 )
 
                 return {
                     "experiment_name": name,
                     "variant": variant,
                     "provider": provider,
+                    "model": model,  # May be None if no model override
                     "component": component
                 }
 
