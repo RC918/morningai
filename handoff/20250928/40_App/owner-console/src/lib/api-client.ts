@@ -77,8 +77,24 @@ export async function apiClient<T>(
     headers,
   });
 
-  // Handle 401 Token Expired with retry logic
+  // Handle 401 responses - only retry for "Token expired" cases
   if (res.status === 401) {
+    // Read the response body once to check if it's a token-expired error
+    const text = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
+    const statusText = res.statusText || '';
+    
+    // Check if this is a token-expired error (not a generic 401 Unauthorized)
+    const isTokenExpiredError = 
+      text.toLowerCase().includes('token expired') ||
+      text.toLowerCase().includes('token_expired') ||
+      text.toLowerCase().includes('jwt expired');
+    
+    if (!isTokenExpiredError) {
+      // Generic 401 - preserve original behavior, throw error without retry
+      throw new Error(`HTTP 401 ${statusText} - ${text}`);
+    }
+    
+    // Token expired - attempt refresh and retry
     try {
       // Attempt to refresh the token
       await refreshAccessToken();
@@ -99,14 +115,14 @@ export async function apiClient<T>(
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
         }
-        const text = typeof retryRes.text === 'function' ? await retryRes.text().catch(() => '') : '';
-        throw new Error(`HTTP 401 - Authentication failed. Please login again. ${text}`);
+        const retryText = typeof retryRes.text === 'function' ? await retryRes.text().catch(() => '') : '';
+        throw new Error(`HTTP 401 - Authentication failed. Please login again. ${retryText}`);
       }
       
       if (!retryRes.ok) {
-        const text = typeof retryRes.text === 'function' ? await retryRes.text().catch(() => '') : '';
-        const statusText = retryRes.statusText || '';
-        throw new Error(`HTTP ${retryRes.status} ${statusText} - ${text}`);
+        const retryText = typeof retryRes.text === 'function' ? await retryRes.text().catch(() => '') : '';
+        const retryStatusText = retryRes.statusText || '';
+        throw new Error(`HTTP ${retryRes.status} ${retryStatusText} - ${retryText}`);
       }
       
       const ct = retryRes.headers && typeof retryRes.headers.get === 'function' ? retryRes.headers.get('content-type') || '' : '';
@@ -414,8 +430,24 @@ export async function apiClientWithMeta<T>(
       csrfTokenCache = response.headers.get('X-CSRF-Token');
     }
 
-    // Handle 401 Token Expired with retry logic
+    // Handle 401 responses - only retry for "Token expired" cases
     if (response.status === 401) {
+      // Read the response body once to check if it's a token-expired error
+      const errorData = await response.json().catch(() => ({ message: 'Unauthorized' }));
+      const errorMessage = errorData.message || errorData.error || '';
+      
+      // Check if this is a token-expired error (not a generic 401 Unauthorized)
+      const isTokenExpiredError = 
+        errorMessage.toLowerCase().includes('token expired') ||
+        errorMessage.toLowerCase().includes('token_expired') ||
+        errorMessage.toLowerCase().includes('jwt expired');
+      
+      if (!isTokenExpiredError) {
+        // Generic 401 - preserve original behavior, throw error without retry
+        throw new ApiError(401, errorMessage || 'Unauthorized', errorData);
+      }
+      
+      // Token expired - attempt refresh and retry
       try {
         // Attempt to refresh the token
         await refreshAccessToken();
@@ -448,16 +480,16 @@ export async function apiClientWithMeta<T>(
             if (typeof window !== 'undefined') {
               window.location.href = '/login';
             }
-            const errorData = await retryResponse.json().catch(() => ({ message: 'Authentication failed' }));
-            throw new ApiError(401, 'Authentication failed. Please login again.', errorData);
+            const retryErrorData = await retryResponse.json().catch(() => ({ message: 'Authentication failed' }));
+            throw new ApiError(401, 'Authentication failed. Please login again.', retryErrorData);
           }
           
           if (!retryResponse.ok) {
-            const errorData = await retryResponse.json().catch(() => ({ message: 'Request failed' }));
+            const retryErrorData = await retryResponse.json().catch(() => ({ message: 'Request failed' }));
             throw new ApiError(
               retryResponse.status,
-              errorData.message || `HTTP ${retryResponse.status}`,
-              errorData
+              retryErrorData.message || `HTTP ${retryResponse.status}`,
+              retryErrorData
             );
           }
           

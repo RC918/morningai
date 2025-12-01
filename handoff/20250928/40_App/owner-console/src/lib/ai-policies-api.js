@@ -38,8 +38,30 @@ async function authenticatedFetchWithRetry(url, options, errorMessage) {
     credentials: 'include'
   })
   
-  // Handle 401 Token Expired with retry logic
+  // Handle 401 responses - only retry for "Token expired" cases
   if (response.status === 401) {
+    // Read the response body once to check if it's a token-expired error
+    const errorData = await response.json().catch(() => ({ error: 'Unauthorized' }))
+    const errorMessage = errorData.error || errorData.message || ''
+    
+    // Check if this is a token-expired error (not a generic 401 Unauthorized)
+    const isTokenExpiredError = 
+      errorMessage.toLowerCase().includes('token expired') ||
+      errorMessage.toLowerCase().includes('token_expired') ||
+      errorMessage.toLowerCase().includes('jwt expired')
+    
+    if (!isTokenExpiredError) {
+      // Generic 401 - preserve original behavior, return response for caller to handle
+      // Create a new response-like object since we already consumed the body
+      return {
+        ok: false,
+        status: 401,
+        json: async () => errorData,
+        text: async () => JSON.stringify(errorData)
+      }
+    }
+    
+    // Token expired - attempt refresh and retry
     try {
       // Attempt to refresh the token
       await refreshAccessToken()
