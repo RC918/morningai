@@ -18,7 +18,7 @@ import time
 from typing import Dict, List, Any, Optional
 
 from common.config.settings import settings
-from llm.client import LLMClient
+from llm.client import LLMClient, get_client_for_component
 
 try:
     from openai import OpenAI
@@ -42,21 +42,43 @@ class LLMPlannerAdapter:
     - Planner accuracy metric recording
     """
 
-    def __init__(self, provider: Optional[str] = None):
+    def __init__(self, trace_id: Optional[str] = None, provider: Optional[str] = None):
         """
         Initialize LLM planner adapter
 
         Args:
-            provider: LLM provider to use (openai, gemini, auto)
-                     If None, uses LLM_PROVIDER env var or defaults to openai
+            trace_id: Trace ID for experiment assignment and logging.
+                     If provided, uses get_client_for_component for A/B testing.
+            provider: LLM provider to use (openai, gemini, auto).
+                     Only used if trace_id is not provided (legacy mode).
+                     If None, uses LLM_PROVIDER env var or defaults to openai.
         """
+        self.trace_id = trace_id
         self.llm_client = None
         self._openai_client = None
         try:
-            self.llm_client = LLMClient(provider=provider)
-            logger.info(
-                f"[LLM Planner] Initialized with provider={self.llm_client.provider_name}"
-            )
+            if trace_id:
+                # Use experiment-aware client creation for A/B testing
+                self.llm_client = get_client_for_component(
+                    component="planner",
+                    trace_id=trace_id,
+                    default_provider="openai"
+                )
+                logger.info(
+                    f"[LLM Planner] Initialized with experiment routing, "
+                    f"provider={self.llm_client.provider_name}",
+                    extra={
+                        "operation": "llm_planner_init",
+                        "trace_id": trace_id,
+                        "provider": self.llm_client.provider_name
+                    }
+                )
+            else:
+                # Legacy mode: direct provider specification
+                self.llm_client = LLMClient(provider=provider)
+                logger.info(
+                    f"[LLM Planner] Initialized with provider={self.llm_client.provider_name} (legacy mode)"
+                )
             if self.llm_client.provider_name == "openai" and OpenAI and settings.openai_api_key:
                 self._openai_client = OpenAI(api_key=settings.openai_api_key)
         except ValueError as e:
@@ -587,12 +609,12 @@ def generate_llm_plan(
     Args:
         goal: User's goal
         repo: GitHub repository
-        trace_id: Trace ID
+        trace_id: Trace ID for experiment assignment
         task_type: Optional task type
         code_context: Optional code context
 
     Returns:
         Dict with plan and metadata
     """
-    adapter = LLMPlannerAdapter()
+    adapter = LLMPlannerAdapter(trace_id=trace_id)
     return adapter.generate_plan(goal, repo, trace_id, task_type, code_context)
