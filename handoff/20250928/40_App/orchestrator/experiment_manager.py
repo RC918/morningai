@@ -59,7 +59,7 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
         treatment_provider="gemini",
         control_provider="openai",
         target_component="planner",
-        enabled=True
+        enabled=False  # Disabled to allow gemini3_planner_10pct_staging to take effect
     ),
     "gemini_reviewer_staging_only": ExperimentConfig(
         name="gemini_reviewer_staging_only",
@@ -80,7 +80,7 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
         treatment_provider="gemini",
         control_provider="openai",
         target_component="planner",
-        enabled=False,  # Disabled by default, enable after Phase 1 validation
+        enabled=True,  # Enabled for Phase 2 validation
         treatment_model="gemini-3-pro-preview"
     ),
     "gemini3_reviewer_5pct_staging": ExperimentConfig(
