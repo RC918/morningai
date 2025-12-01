@@ -1,7 +1,7 @@
 # MorningAI Environment Architecture
 
-**Last Updated**: 2025-11-28  
-**Document Version**: 2.4  
+**Last Updated**: 2025-12-01  
+**Document Version**: 2.5  
 **Related Documents**: 
 - [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
 - [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
@@ -21,26 +21,63 @@
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
 
-**近期重要更新** (2025-11-25 至 2025-11-26):
+**近期重要更新** (2025-11-29 至 2025-12-01):
+- **PR #1788**: Failure Memory Integration - 失敗知識庫整合到 failure recorder (Phase 5 PR-1)
+  - Path: `handoff/20250928/40_App/orchestrator/failure_recorder.py`
+  - 影響：失敗記錄持久化到 Supabase `failure_memory` 表
+- **PR #1787**: Sentry Error Prevention - 新增防禦性檢查實現優雅降級
+  - Path: `handoff/20250928/40_App/orchestrator/persistence/db_client.py`, `db_writer.py`, `auth_middleware.py`
+  - 影響：Supabase 不可用時不再導致應用崩潰
+- **PR #1785**: Real Metrics Aggregation - 實驗比較的 RPC 聚合 (Tier 1)
+  - Path: `handoff/20250928/40_App/orchestrator/persistence/planner_events_store.py`
+  - Migration: `migrations/030_create_planner_metrics_rpc.sql`
+- **PR #1781**: ORCHESTRATOR_DRY_RUN Flag - 乾跑模式跳過 PR 創建
+  - Path: `handoff/20250928/40_App/orchestrator/graph.py`
+  - 新增環境變數：`ORCHESTRATOR_DRY_RUN` (boolean)
+- **PR #1780**: OpenAI SDK Upgrade - 修復 httpx 0.28 proxies 相容性
+  - Path: `handoff/20250928/40_App/orchestrator/requirements.txt`
+- **PR #1778**: 401 Retry Logic - owner-console 主動 token 過期檢查
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/auth.ts`, `api-client.ts`
+
+**Gemini 3 SDK 遷移** (2025-11-29 至 2025-11-30):
+- **PR #1761**: Gemini Provider Migration - 遷移到 google-genai SDK (Phase 1)
+  - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`
+- **PR #1762**: Gemini Fallback Model Update - 從 gemini-pro 改為 gemini-2.0-flash
+- **PR #1763**: Gemini 3 Phase 2 - thinking_level 支援和新實驗
+  - 新增 API 參數：`thinking_level` (string: low/medium/high) - 透過 API 請求傳遞，非環境變數
+- **PR #1765**: Enable gemini3_planner_10pct_staging 實驗
+
+**AI 治理與安全** (2025-11-28 至 2025-11-29):
+- **PR #1741**: Three-tier Permission Architecture (Phase 6 PR-5)
+  - Path: `handoff/20250928/40_App/api-backend/src/middleware/auth_middleware.py`
+  - Migration: `migrations/028_add_platform_admin_support.sql`
+- **PR #1746**: SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
+  - Path: `common/config/settings.py`, `config/env.schema.yaml`
+  - 新增環境變數：`SECURITY_ENFORCEMENT_MODE` (string: advisory/block_critical/block_all)
+- **PR #1748**: LangGraph Enforcement Integration (PR-2)
+- **PR #1749**: Simple Mode Policy Observability (PR-3)
+- **PR #1751**: Blessed Configurations Documentation (PR-4)
+  - Path: `config/blessed_configs.yaml`
+- **PR #1753**: Config Validation Script and CI (PR-5)
+  - Path: `scripts/validate_blessed_configs.py`, `.github/workflows/validate-blessed-configs.yml`
+
+**CI/CD 改進** (2025-11-28 至 2025-11-29):
+- **PR #1756**: Unified Migration Runner (PR-6)
+  - Path: `scripts/run_migrations.sh`
+- **PR #1757**: Migration Health Check CI (PR-7)
+  - Path: `.github/workflows/migration-health-check.yml`
+- **PR #1767**: Coverage Trend Tracking
+  - Path: `.github/workflows/coverage-trend.yml`
+- **PR #1766**: Migration 029 - Fix Security Advisor warnings
+  - Path: `migrations/029_fix_reputation_security_warnings.sql`
+
+**先前重要更新** (2025-11-25 至 2025-11-26):
 - **PR #1548**: Frontend Dashboard 代碼分割優化 - 20% bundle 減少 + Lighthouse CI color-contrast 修復
   - Path: `handoff/20250928/40_App/frontend-dashboard/`
   - 影響：提升性能和無障礙合規性
 - **PR #1562**: RQ Job Timeout 配置 - 新增 `RQ_JOB_TIMEOUT` 環境變數
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
   - 影響：可配置的任務超時時間（預設：3600 秒）
-- **PR #1547**: AppleButton 遷移到 shared-ui - Adapter pattern 實作
-  - Path: `packages/shared-ui/`
-  - 影響：統一組件庫跨 frontend-dashboard 和 owner-console
-- **PR #1546**: Phase 2 UI 完成 - 情感顏色、AppleButton 對齊、Spring 動畫
-  - Path: `handoff/20250928/40_App/frontend-dashboard/src/`
-- **PR #1545**: P1 情感顏色 + AgentExecutionLogs Apple 設計
-  - Path: `handoff/20250928/40_App/owner-console/src/components/AgentExecutionLogs.tsx`
-- **PR #1544**: Apple 設計系統全局應用
-  - Path: `handoff/20250928/40_App/frontend-dashboard/`, `handoff/20250928/40_App/owner-console/`
-- **UUID 正規化修復**: 處理外部工具的前綴 task ID
-  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
-- **LoginPage UX 改進**: 使用 Apple 設計系統全面重構
-  - Path: `handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx`
 
 **先前重要更新** (2025-11-18 至 2025-11-23):
 - **PR #1350**: E2E 測試基礎設施完成 - 32 Playwright 測試通過，route handler 隔離，完整 API mocking

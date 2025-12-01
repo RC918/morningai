@@ -1,6 +1,6 @@
 # Monitoring Dashboard Troubleshooting Guide
 
-**Last Updated**: 2025-11-26  
+**Last Updated**: 2025-12-01  
 **Applies To**: Monitoring Dashboard v2 (`/api/phase7/monitoring/dashboard`)
 
 ---
@@ -407,7 +407,53 @@ For additional support:
 
 ---
 
-## Recent Updates (Nov 25-26, 2025)
+## Recent Updates (Nov 29 - Dec 1, 2025)
+
+### PR #1788: Failure Memory Integration (Phase 5 PR-1)
+- **Path**: `handoff/20250928/40_App/orchestrator/failure_recorder.py`
+- **Change**: Wire failure knowledge base into failure recorder
+- **Impact**: Failures now persist to Supabase `failure_memory` table for long-term knowledge base
+
+### PR #1787: Sentry Error Prevention
+- **Path**: `handoff/20250928/40_App/orchestrator/persistence/db_client.py`, `db_writer.py`, `auth_middleware.py`
+- **Change**: Add defensive checks for graceful degradation
+- **Impact**: Supabase unavailability no longer crashes the application
+
+### PR #1785: Real Metrics Aggregation (Tier 1)
+- **Path**: `handoff/20250928/40_App/orchestrator/persistence/planner_events_store.py`
+- **Migration**: `migrations/030_create_planner_metrics_rpc.sql`
+- **Change**: Implement RPC-based metrics aggregation for experiment comparison
+- **Impact**: Improved experiment comparison capabilities
+
+### PR #1781: ORCHESTRATOR_DRY_RUN Flag
+- **Path**: `handoff/20250928/40_App/orchestrator/graph.py`
+- **Change**: Skip PR creation in dry run mode
+- **New Env Var**: `ORCHESTRATOR_DRY_RUN` (boolean)
+- **Impact**: Enable testing without creating actual PRs
+
+### PR #1780: OpenAI SDK Upgrade
+- **Path**: `handoff/20250928/40_App/orchestrator/requirements.txt`
+- **Change**: Fix httpx 0.28 proxies compatibility
+- **Impact**: Resolve SDK compatibility issues
+
+### PR #1778: 401 Retry Logic
+- **Path**: `handoff/20250928/40_App/owner-console/src/lib/auth.ts`, `api-client.ts`
+- **Change**: Proactive token expiry check for owner-console
+- **Impact**: Auto-refresh token when in-memory token is lost after page reload
+
+### Gemini 3 SDK Migration (Nov 29-30, 2025)
+- **PR #1761**: Migrate Gemini provider to google-genai SDK (Phase 1)
+- **PR #1762**: Update fallback model from gemini-pro to gemini-2.0-flash
+- **PR #1763**: Add thinking_level support and new experiments
+- **PR #1765**: Enable gemini3_planner_10pct_staging experiment
+
+### AI Governance & Security (Nov 28-29, 2025)
+- **PR #1741**: Three-tier permission architecture (Migration 028)
+- **PR #1746**: SECURITY_ENFORCEMENT_MODE configuration
+- **PR #1756**: Unified migration runner script
+- **PR #1757**: Migration health check CI workflow
+
+## Previous Updates (Nov 25-26, 2025)
 
 ### PR #1548: Frontend Dashboard Code Splitting
 - **Path**: `handoff/20250928/40_App/frontend-dashboard/`
@@ -418,26 +464,6 @@ For additional support:
 - **Path**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
 - **Change**: Added `RQ_JOB_TIMEOUT` environment variable
 - **Impact**: Configurable job timeout for long-running tasks (default: 3600s)
-
-### PR #1547: AppleButton Migration to shared-ui
-- **Path**: `packages/shared-ui/`
-- **Change**: Adapter pattern implementation
-- **Impact**: Unified component library across frontend-dashboard and owner-console
-
-### PR #1546: Phase 2 UI Completion
-- **Path**: `handoff/20250928/40_App/frontend-dashboard/src/`
-- **Change**: Emotional colors, AppleButton alignment, Spring animations
-- **Impact**: Enhanced Apple design system consistency
-
-### UUID Normalization Fix
-- **Path**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
-- **Change**: Handle prefixed task IDs from external tools
-- **Impact**: Improved compatibility with external task submission tools
-
-### LoginPage UX Improvements
-- **Path**: `handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx`
-- **Change**: Comprehensive redesign using Apple design system
-- **Impact**: Fixed icon blur, added static labels, improved accessibility
 
 ## Previous Updates (Nov 18-23, 2025)
 
