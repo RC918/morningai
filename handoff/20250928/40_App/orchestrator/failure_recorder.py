@@ -138,6 +138,51 @@ class FailureRecorder:
         """Generate Redis key for a failure record"""
         return f"{self.key_prefix}:{failure_id}"
 
+    def _save_to_failure_memory(self, failure: FailureRecord) -> None:
+        """
+        Save failure to long-term memory (Supabase) for knowledge base
+
+        This is a best-effort operation - failures here should not break
+        the main recording flow. The failure_memory module handles graceful
+        degradation when Supabase is not available.
+
+        Args:
+            failure: FailureRecord instance to persist
+        """
+        try:
+            from failure_memory import save_failure_to_memory
+
+            memory_key = save_failure_to_memory(failure)
+            if memory_key:
+                logger.info(
+                    f"[FailureRecorder] Saved to failure memory: {memory_key}",
+                    extra={
+                        "operation": "save_to_failure_memory",
+                        "failure_id": failure.id,
+                        "memory_key": memory_key
+                    }
+                )
+            else:
+                logger.debug(
+                    "[FailureRecorder] Failure memory not available, skipping",
+                    extra={"failure_id": failure.id}
+                )
+        except ImportError:
+            logger.debug(
+                "[FailureRecorder] failure_memory module not available",
+                extra={"failure_id": failure.id}
+            )
+        except Exception as e:
+            # Never break the main flow - just log the error
+            logger.warning(
+                f"[FailureRecorder] Failed to save to failure memory: {e}",
+                extra={
+                    "operation": "save_to_failure_memory",
+                    "failure_id": failure.id,
+                    "error": str(e)
+                }
+            )
+
     def record_failure(self, failure: FailureRecord) -> Optional[str]:
         """
         Record a workflow failure
@@ -169,6 +214,10 @@ class FailureRecorder:
                 "error_type": failure.error_type,
                 "fixer_retries": failure.fixer_retries
             })
+
+            # Also save to long-term failure memory (Supabase) for knowledge base
+            # This is wrapped in try/except to never break the main recording flow
+            self._save_to_failure_memory(failure)
 
             return failure.id
 
