@@ -201,22 +201,16 @@ export async function getOrRefreshAccessToken(): Promise<string | null> {
     return null;
   }
   
-  // Check if the session has expired (beyond refresh buffer)
-  if (isTokenExpired(expiresAt)) {
-    // Session expired, user needs to login again
-    return null;
-  }
-  
   // Check if we have a valid token in memory that is NOT about to expire
   const existingToken = getAccessToken();
-  if (existingToken) {
-    // Token exists - check if it's still valid (not expired or about to expire)
-    // isTokenExpired returns true if token is expired OR within TOKEN_REFRESH_BUFFER_MS of expiry
-    if (!isTokenExpired(expiresAt)) {
-      return existingToken;
-    }
-    // Token exists but is about to expire - fall through to refresh
+  if (existingToken && !isTokenExpired(expiresAt)) {
+    // Token exists and is not near expiry -> fast path
+    return existingToken;
   }
+  
+  // Either no token in memory, or token is expired/within buffer -> try refresh
+  // If session is truly invalid, refreshAccessToken will throw 'session_invalid'
+  // and clear tokens, effectively logging the user out
   
   // We need to refresh: either no token in memory, or token is about to expire
   // Use single-flight pattern to prevent concurrent refresh requests
