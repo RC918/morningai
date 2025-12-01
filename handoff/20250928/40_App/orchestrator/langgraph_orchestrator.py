@@ -1000,6 +1000,18 @@ def ci_monitor_node(state: AgentState) -> AgentState:
 
     metrics.record_node_start("ci_monitor", trace_id)
 
+    # Handle dry_run mode - skip CI checks entirely
+    ci_state = state.get("ci_state")
+    if ci_state == "dry_run":
+        logger.info("[CI Monitor] Dry run mode - skipping CI checks", extra={
+            "operation": "ci_monitor",
+            "trace_id": trace_id,
+            "ci_state": ci_state
+        })
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
     if not pr_number:
         logger.warning("[CI Monitor] No PR number available", extra={
             "operation": "ci_monitor",
@@ -1436,6 +1448,17 @@ def decision_node(state: AgentState) -> AgentState:
             "operation": "decision",
             "trace_id": trace_id,
             "decision": merge_decision
+        })
+
+    # Handle dry_run mode - treat as approved to skip CI monitoring loop
+    elif ci_state == "dry_run":
+        merge_decision = "approve"
+        decision_reason = "Dry run mode: skipping CI checks and treating as approved"
+        logger.info("[Decision] Decision: approve (dry_run)", extra={
+            "operation": "decision",
+            "trace_id": trace_id,
+            "decision": merge_decision,
+            "ci_state": ci_state
         })
 
     # Check for critical issues
