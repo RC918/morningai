@@ -4,7 +4,7 @@
  * Provides functions to interact with the agent evaluation API endpoints.
  */
 
-import { getAccessToken } from './auth'
+import { getOrRefreshAccessToken } from './auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
@@ -14,7 +14,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  * @returns {Promise<{evaluations: Array, latest: Object, count: number, timestamp: string}>}
  */
 export async function getAgentEvaluationResults(limit = 10) {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -40,7 +40,7 @@ export async function getAgentEvaluationResults(limit = 10) {
  * @returns {Promise<{metrics: Object, targets: Object, last_evaluation: string, timestamp: string}>}
  */
 export async function getAgentEvaluationMetrics() {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {

@@ -5,7 +5,7 @@
  * Phase 5 PR-6: Owner Console Dashboard
  */
 
-import { getAccessToken } from './auth'
+import { getOrRefreshAccessToken } from './auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
@@ -14,7 +14,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  * @returns {Promise<{summary: Object, timestamp: string}>}
  */
 export async function getFailureSummary() {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -45,7 +45,7 @@ export async function getFailureSummary() {
  * @returns {Promise<{failures: Array, count: number, limit: number, offset: number}>}
  */
 export async function getFailures({ limit = 50, offset = 0, error_type, task_type } = {}) {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() })
   if (error_type) params.append('error_type', error_type)
@@ -75,7 +75,7 @@ export async function getFailures({ limit = 50, offset = 0, error_type, task_typ
  * @returns {Promise<{metrics: Object, timestamp: string}>}
  */
 export async function getEvalMetrics() {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -104,7 +104,7 @@ export async function getEvalMetrics() {
  * @returns {Promise<Object>}
  */
 export async function replayFailure(failureId, { repo } = {}) {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -131,7 +131,7 @@ export async function replayFailure(failureId, { repo } = {}) {
  * @returns {Promise<{summary: Object, timestamp: string}>}
  */
 export async function getExperimentSummary() {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -157,7 +157,7 @@ export async function getExperimentSummary() {
  * @returns {Promise<{experiments: Object, environment: string, active_experiments: Array}>}
  */
 export async function getExperiments() {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -183,7 +183,7 @@ export async function getExperiments() {
  * @returns {Promise<{comparisons: Array, environment: string, active_experiments: Array}>}
  */
 export async function getExperimentComparison() {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {

@@ -127,6 +127,38 @@ class ViolationDetector:
             sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
         
         return sanitized
+    
+    def get_recent_violations(self, agent_id: Optional[str] = None, limit: int = 50) -> List[Dict]:
+        """Get recent violations, optionally filtered by agent_id
+        
+        Args:
+            agent_id: Optional agent ID to filter violations
+            limit: Maximum number of violations to return
+            
+        Returns:
+            List of violation records
+        """
+        violations = []
+        
+        try:
+            from ..persistence.supabase_client import get_supabase_client
+            supabase = get_supabase_client()
+            
+            if supabase:
+                query = supabase.table('governance_violations').select('*')
+                
+                if agent_id:
+                    query = query.eq('agent_id', agent_id)
+                
+                query = query.order('created_at', desc=True).limit(limit)
+                result = query.execute()
+                
+                if result.data:
+                    violations = result.data
+        except Exception as e:
+            print(f"[ViolationDetector] Error fetching violations from database: {e}")
+        
+        return violations
 
 
 _violation_detector = None

@@ -53,6 +53,18 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }) {
       setLoading(true);
       setError(null);
       const response = await verifyEnrollTwoFA({ code: totpCode }, tmpLoginToken);
+      
+      // Store tokens from enrollment response
+      if (response?.tokens) {
+        const { storeAccessToken, storeTokenExpiry } = await import('@/lib/auth');
+        if (response.tokens.accessToken) {
+          storeAccessToken(response.tokens.accessToken);
+        }
+        if (response.tokens.expiresAt) {
+          storeTokenExpiry(response.tokens.expiresAt);
+        }
+      }
+      
       setBackupCodes(response.backup_codes);
       setStep('backup');
     } catch (err) {

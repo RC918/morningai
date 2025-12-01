@@ -16,6 +16,9 @@ import {
   initAuth,
   cleanupAuth,
   authenticatedFetch,
+  getOrRefreshAccessToken,
+  storeAccessToken,
+  RefreshAccessTokenError,
 } from '../auth';
 
 const mockFetch = vi.fn();
@@ -360,6 +363,9 @@ describe('Auth Module', () => {
         isFeatureEnabled: () => true,
         AVAILABLE_FEATURES: [],
       }));
+      // Set up CSRF token to prevent ensureCsrfToken() from being called during refresh
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+      document.cookie = 'csrf_token=test-csrf-token';
     });
 
     it('should refresh access token successfully', async () => {
@@ -368,7 +374,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          tokens: { expiresAt: newExpiresAt },
+          tokens: { accessToken: 'new-token', expiresAt: newExpiresAt },
         }),
       });
 
@@ -378,7 +384,7 @@ describe('Auth Module', () => {
       expect(getStoredTokenExpiry()).toBe(newExpiresAt);
     });
 
-    it('should clear tokens on refresh failure', async () => {
+    it('should clear tokens on refresh failure with 401', async () => {
       storeTokenExpiry(Date.now() + 1000);
 
       mockFetch.mockResolvedValueOnce({
@@ -386,7 +392,7 @@ describe('Auth Module', () => {
         status: 401,
       });
 
-      await expect(refreshAccessToken()).rejects.toThrow('Token refresh failed');
+      await expect(refreshAccessToken()).rejects.toThrow('Session is invalid or expired');
       expect(getStoredTokenExpiry()).toBeNull();
     });
 
@@ -394,7 +400,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          tokens: { expiresAt: Date.now() + 3600000 },
+          tokens: { accessToken: 'new-token', expiresAt: Date.now() + 3600000 },
         }),
       });
 
@@ -525,6 +531,9 @@ describe('Auth Module', () => {
   describe('401 Refresh-and-Retry (P0)', () => {
     beforeEach(() => {
       localStorage.setItem('feature_flag_OWNER_CONSOLE_API', 'true');
+      // Set up CSRF token to prevent ensureCsrfToken() from being called during refresh
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+      document.cookie = 'csrf_token=test-csrf-token';
     });
 
     it('should retry request after refreshing token on 401', async () => {
@@ -541,7 +550,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({ tokens: { expiresAt: Date.now() + 3600000 } }),
+        json: async () => ({ tokens: { accessToken: 'new-token', expiresAt: Date.now() + 3600000 } }),
       });
       
       mockFetch.mockResolvedValueOnce({
@@ -577,7 +586,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({ tokens: { expiresAt: Date.now() + 3600000 } }),
+        json: async () => ({ tokens: { accessToken: 'new-token', expiresAt: Date.now() + 3600000 } }),
       });
       
       mockFetch.mockResolvedValueOnce({
@@ -650,7 +659,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({ tokens: { expiresAt: Date.now() + 3600000 } }),
+        json: async () => ({ tokens: { accessToken: 'new-token', expiresAt: Date.now() + 3600000 } }),
       });
       
       mockFetch.mockResolvedValueOnce({
@@ -681,7 +690,7 @@ describe('Auth Module', () => {
       mockFetch.mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({ tokens: { expiresAt: newExpiry } }),
+        json: async () => ({ tokens: { accessToken: 'new-token', expiresAt: newExpiry } }),
       });
       
       mockFetch.mockResolvedValueOnce({
@@ -693,6 +702,211 @@ describe('Auth Module', () => {
       await authenticatedFetch(testUrl, { method: 'GET' });
       
       expect(getStoredTokenExpiry()).toBe(newExpiry);
+    });
+  });
+
+  describe('getOrRefreshAccessToken (P0)', () => {
+    beforeEach(() => {
+      vi.mock('../feature-flags.ts', () => ({
+        isFeatureEnabled: () => true,
+        AVAILABLE_FEATURES: [],
+      }));
+      // Set up CSRF token to prevent ensureCsrfToken() from being called
+      // This simulates a normal browser session where CSRF token is already bootstrapped
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+      document.cookie = 'csrf_token=test-csrf-token';
+    });
+
+    it('should return existing token without calling refresh when in-memory token exists', async () => {
+      const existingToken = 'existing-access-token';
+      storeAccessToken(existingToken);
+      storeTokenExpiry(Date.now() + 3600000);
+
+      const token = await getOrRefreshAccessToken();
+
+      expect(token).toBe(existingToken);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should return null when there is no session (no expiry stored)', async () => {
+      clearTokens();
+
+      const token = await getOrRefreshAccessToken();
+
+      expect(token).toBeNull();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should return null when session is expired', async () => {
+      // Set expiry to 1 second ago (expired)
+      storeTokenExpiry(Date.now() - 1000);
+
+      const token = await getOrRefreshAccessToken();
+
+      expect(token).toBeNull();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should refresh token when session valid but no in-memory token (happy path)', async () => {
+      // Clear in-memory token but keep valid session
+      clearTokens();
+      storeTokenExpiry(Date.now() + 3600000);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+
+      const newAccessToken = 'new-access-token';
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          tokens: { accessToken: newAccessToken, expiresAt: Date.now() + 3600000 },
+        }),
+      });
+
+      const token = await getOrRefreshAccessToken();
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/v2/refresh'),
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'include',
+        })
+      );
+      expect(token).toBe(newAccessToken);
+    });
+
+    it('should NOT clear tokens on network error during refresh', async () => {
+      // Set up valid session without in-memory token
+      clearTokens();
+      const validExpiry = Date.now() + 3600000;
+      storeTokenExpiry(validExpiry);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+
+      // Simulate network error (fetch throws)
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+      const token = await getOrRefreshAccessToken();
+
+      expect(token).toBeNull();
+      // Session expiry should still be there (not cleared)
+      expect(getStoredTokenExpiry()).toBe(validExpiry);
+    });
+
+    it('should NOT clear tokens on 5xx server error during refresh', async () => {
+      // Set up valid session without in-memory token
+      clearTokens();
+      const validExpiry = Date.now() + 3600000;
+      storeTokenExpiry(validExpiry);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+
+      // Simulate 500 server error
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+      });
+
+      const token = await getOrRefreshAccessToken();
+
+      expect(token).toBeNull();
+      // Session expiry should still be there (not cleared)
+      expect(getStoredTokenExpiry()).toBe(validExpiry);
+    });
+
+    it('should clear tokens on 401 session invalid during refresh', async () => {
+      // Set up valid session without in-memory token
+      clearTokens();
+      storeTokenExpiry(Date.now() + 3600000);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+
+      // Simulate 401 unauthorized
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      });
+
+      const token = await getOrRefreshAccessToken();
+
+      expect(token).toBeNull();
+      // Session should be cleared
+      expect(getStoredTokenExpiry()).toBeNull();
+    });
+
+    it('should clear tokens on 403 forbidden during refresh', async () => {
+      // Set up valid session without in-memory token
+      clearTokens();
+      storeTokenExpiry(Date.now() + 3600000);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+
+      // Simulate 403 forbidden (non-CSRF error - e.g., authorization failure)
+      // Must include headers.get() method for isCsrfFailure() to work
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        headers: {
+          get: (name: string) => name === 'Content-Type' ? 'application/json' : null,
+        },
+        clone: () => ({
+          json: async () => ({ error: 'Forbidden' }), // Non-CSRF error message
+        }),
+      });
+
+      const token = await getOrRefreshAccessToken();
+
+      expect(token).toBeNull();
+      // Session should be cleared
+      expect(getStoredTokenExpiry()).toBeNull();
+    });
+
+    it('should use single-flight pattern for concurrent refresh requests', async () => {
+      // Set up valid session without in-memory token
+      clearTokens();
+      storeTokenExpiry(Date.now() + 3600000);
+      // Re-set CSRF token after clearTokens
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
+
+      const newAccessToken = 'single-flight-token';
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          tokens: { accessToken: newAccessToken, expiresAt: Date.now() + 3600000 },
+        }),
+      });
+
+      // Call getOrRefreshAccessToken twice concurrently
+      const [token1, token2] = await Promise.all([
+        getOrRefreshAccessToken(),
+        getOrRefreshAccessToken(),
+      ]);
+
+      // Both should get the same token
+      expect(token1).toBe(newAccessToken);
+      expect(token2).toBe(newAccessToken);
+      // But refresh should only be called once
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('RefreshAccessTokenError', () => {
+    it('should create error with network_error code', () => {
+      const error = new RefreshAccessTokenError('network_error', 'Network failed');
+      
+      expect(error.code).toBe('network_error');
+      expect(error.message).toBe('Network failed');
+      expect(error.status).toBeUndefined();
+      expect(error.name).toBe('RefreshAccessTokenError');
+    });
+
+    it('should create error with session_invalid code and status', () => {
+      const error = new RefreshAccessTokenError('session_invalid', 'Session expired', 401);
+      
+      expect(error.code).toBe('session_invalid');
+      expect(error.message).toBe('Session expired');
+      expect(error.status).toBe(401);
+      expect(error.name).toBe('RefreshAccessTokenError');
     });
   });
 });

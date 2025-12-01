@@ -1,6 +1,9 @@
 """Agent Governance Framework"""
 from pathlib import Path
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 repo_root = Path(__file__).resolve().parent
 for _ in range(8):  # Limit search depth to avoid infinite loop
@@ -11,40 +14,78 @@ for _ in range(8):  # Limit search depth to avoid infinite loop
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
-from .policy_guard import PolicyGuard, guarded
-from .cost_tracker import CostTracker, CostBudgetExceeded, get_cost_tracker
-from .reputation_engine import ReputationEngine, get_reputation_engine
-from .permission_checker import PermissionChecker, PermissionDenied, get_permission_checker
-from .violation_detector import ViolationDetector, ViolationError, get_violation_detector
-from .ai_policy import (
-    AIPolicy,
-    AIPolicyManager,
-    PolicyType,
-    PolicyScope,
-    PolicyStatus,
-    get_ai_policy_manager,
-    DEFAULT_POLICY_TEMPLATES
-)
+# Use try/except for each import to allow partial imports
+# This ensures ai_policy can be imported even if other modules fail
+__all__ = []
 
-__all__ = [
-    'PolicyGuard',
-    'guarded',
-    'CostTracker',
-    'CostBudgetExceeded',
-    'get_cost_tracker',
-    'ReputationEngine',
-    'get_reputation_engine',
-    'PermissionChecker',
-    'PermissionDenied',
-    'get_permission_checker',
-    'ViolationDetector',
-    'ViolationError',
-    'get_violation_detector',
-    'AIPolicy',
-    'AIPolicyManager',
-    'PolicyType',
-    'PolicyScope',
-    'PolicyStatus',
-    'get_ai_policy_manager',
-    'DEFAULT_POLICY_TEMPLATES',
-]
+try:
+    from .policy_guard import PolicyGuard, guarded
+    __all__.extend(['PolicyGuard', 'guarded'])
+except ImportError as e:
+    logger.warning(f"Failed to import policy_guard: {e}")
+    PolicyGuard = None
+    guarded = None
+
+try:
+    from .cost_tracker import CostTracker, CostBudgetExceeded, get_cost_tracker
+    __all__.extend(['CostTracker', 'CostBudgetExceeded', 'get_cost_tracker'])
+except ImportError as e:
+    logger.warning(f"Failed to import cost_tracker: {e}")
+    CostTracker = None
+    CostBudgetExceeded = None
+    get_cost_tracker = None
+
+try:
+    from .reputation_engine import ReputationEngine, get_reputation_engine
+    __all__.extend(['ReputationEngine', 'get_reputation_engine'])
+except ImportError as e:
+    logger.warning(f"Failed to import reputation_engine: {e}")
+    ReputationEngine = None
+    get_reputation_engine = None
+
+try:
+    from .permission_checker import PermissionChecker, PermissionDenied, get_permission_checker
+    __all__.extend(['PermissionChecker', 'PermissionDenied', 'get_permission_checker'])
+except ImportError as e:
+    logger.warning(f"Failed to import permission_checker: {e}")
+    PermissionChecker = None
+    PermissionDenied = None
+    get_permission_checker = None
+
+try:
+    from .violation_detector import ViolationDetector, ViolationError, get_violation_detector
+    __all__.extend(['ViolationDetector', 'ViolationError', 'get_violation_detector'])
+except ImportError as e:
+    logger.warning(f"Failed to import violation_detector: {e}")
+    ViolationDetector = None
+    ViolationError = None
+    get_violation_detector = None
+
+try:
+    from .ai_policy import (
+        AIPolicy,
+        AIPolicyManager,
+        PolicyType,
+        PolicyScope,
+        PolicyStatus,
+        get_ai_policy_manager,
+        DEFAULT_POLICY_TEMPLATES
+    )
+    __all__.extend([
+        'AIPolicy',
+        'AIPolicyManager',
+        'PolicyType',
+        'PolicyScope',
+        'PolicyStatus',
+        'get_ai_policy_manager',
+        'DEFAULT_POLICY_TEMPLATES',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import ai_policy: {e}")
+    AIPolicy = None
+    AIPolicyManager = None
+    PolicyType = None
+    PolicyScope = None
+    PolicyStatus = None
+    get_ai_policy_manager = None
+    DEFAULT_POLICY_TEMPLATES = None
