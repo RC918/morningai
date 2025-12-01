@@ -38,18 +38,107 @@ MorningAI is an intelligent agent orchestration platform that automates software
 
 Building the world's most advanced autonomous AI agent orchestration platform that seamlessly integrates development, operations, and business intelligence with human-in-the-loop governance.
 
-### Current Status (Updated: 2025-11-26)
+### Current Status (Updated: 2025-12-01)
 
 - **Phase**: Phase 8 (v8.0.0) - MVP Foundation Complete
 - **Test Coverage**: 
   - Owner Console: **59.89% lines, 45.76% branches** (32 E2E tests passing, 218 unit tests)
+  - Orchestrator: **70%+** (超過 50% 門檻)
   - Backend: **74%+** (CI environment fixed, all tests passing)
   - Target: 80% by Q2 2026
 - **Uptime**: 90% (Target: 99.9% by Q2 2026)
 - **Transformation**: Q4 2025 - Q2 2026 (MVP to World-Class)
 - **Latest Roadmap**: [Strategic Roadmap Reality Comparison](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
-**Recent Improvements (Nov 25-26, 2025)**:
+**Recent Improvements (Nov 29 - Dec 1, 2025)**:
+- **PR #1788**: Failure Memory Integration - Wire failure knowledge base into failure recorder (Phase 5 PR-1)
+  - Path: `handoff/20250928/40_App/orchestrator/failure_recorder.py`
+  - Impact: Failures now persist to Supabase `failure_memory` table for long-term knowledge base
+  - Merged: 2025-12-01
+- **PR #1787**: Sentry Error Prevention - Add defensive checks for graceful degradation
+  - Path: `handoff/20250928/40_App/orchestrator/persistence/db_client.py`, `db_writer.py`, `auth_middleware.py`
+  - Impact: Supabase unavailability no longer crashes the application
+  - Merged: 2025-12-01
+- **PR #1785**: Real Metrics Aggregation - Implement experiment comparison (Tier 1)
+  - Path: `handoff/20250928/40_App/orchestrator/persistence/planner_events_store.py`
+  - Impact: RPC-based metrics aggregation for experiment comparison
+  - Migration: `migrations/030_create_planner_metrics_rpc.sql`
+  - Merged: 2025-12-01
+- **PR #1784**: Remove Stale egg-info - Fix old openai version reference
+  - Path: `handoff/20250928/40_App/orchestrator/morningai_orchestrator.egg-info/` (deleted)
+  - Impact: Clean up stale package metadata
+  - Merged: 2025-12-01
+- **PR #1781**: ORCHESTRATOR_DRY_RUN Flag - Skip PR creation in dry run mode
+  - Path: `handoff/20250928/40_App/orchestrator/graph.py`
+  - Impact: Enable testing without creating actual PRs
+  - Merged: 2025-11-30
+- **PR #1780**: OpenAI SDK Upgrade - Fix httpx 0.28 proxies compatibility
+  - Path: `handoff/20250928/40_App/orchestrator/requirements.txt`
+  - Impact: Resolve SDK compatibility issues
+  - Merged: 2025-11-30
+- **PR #1778**: 401 Retry Logic - Proactive token expiry check for owner-console
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/auth.ts`, `api-client.ts`
+  - Impact: Auto-refresh token when in-memory token is lost after page reload
+  - Merged: 2025-11-30
+
+**Gemini 3 SDK Migration (Nov 29-30, 2025)**:
+- **PR #1761**: Gemini Provider Migration - Migrate to google-genai SDK (Phase 1)
+  - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`
+  - Impact: Use official Google GenAI SDK instead of legacy API
+- **PR #1762**: Gemini Fallback Model Update - Change from gemini-pro to gemini-2.0-flash
+  - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`
+  - Impact: Use latest Gemini model as fallback
+- **PR #1763**: Gemini 3 Phase 2 - thinking_level support and new experiments
+  - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`, `experiment_manager.py`
+  - Impact: Enable thinking_level=high for complex reasoning tasks
+- **PR #1765**: Enable gemini3_planner_10pct_staging experiment
+  - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`
+  - Impact: 10% staging traffic uses Gemini 3 planner
+
+**AI Governance & Security (Nov 28-29, 2025)**:
+- **PR #1741**: Three-tier Permission Architecture (Phase 6 PR-5)
+  - Path: `handoff/20250928/40_App/api-backend/src/middleware/auth_middleware.py`
+  - Migration: `migrations/028_add_platform_admin_support.sql`
+  - Impact: Platform admin, tenant admin, user permission levels
+- **PR #1746**: SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
+  - Path: `common/config/settings.py`, `config/env.schema.yaml`
+  - Impact: Configurable security enforcement (advisory/block_critical/strict)
+- **PR #1748**: LangGraph Enforcement Integration (PR-2)
+  - Path: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`
+  - Impact: Security policy enforcement in LangGraph workflows
+- **PR #1749**: Simple Mode Policy Observability (PR-3)
+  - Path: `handoff/20250928/40_App/orchestrator/graph.py`
+  - Impact: Policy violation logging in Simple mode
+- **PR #1751**: Blessed Configurations Documentation (PR-4)
+  - Path: `config/blessed_configs.yaml`
+  - Impact: Documented approved configuration combinations
+- **PR #1753**: Config Validation Script and CI (PR-5)
+  - Path: `scripts/validate_blessed_configs.py`, `.github/workflows/validate-blessed-configs.yml`
+  - Impact: CI validation of configuration against blessed configs
+
+**CI/CD Improvements (Nov 28-29, 2025)**:
+- **PR #1756**: Unified Migration Runner (PR-6)
+  - Path: `scripts/run_migrations.sh`
+  - Impact: Single script for running all migrations
+- **PR #1757**: Migration Health Check CI (PR-7)
+  - Path: `.github/workflows/migration-health-check.yml`
+  - Impact: CI workflow to validate migration health
+- **PR #1767**: Coverage Trend Tracking
+  - Path: `.github/workflows/coverage-trend.yml`
+  - Impact: Track coverage trends over time
+- **PR #1766**: Migration 029 - Fix Security Advisor warnings
+  - Path: `migrations/029_fix_reputation_security_warnings.sql`
+  - Impact: Fix reputation system security warnings
+
+**Documentation (Nov 29, 2025)**:
+- **PR #1759**: Gemini 3 Integration Design Document
+  - Path: `docs/gemini3_integration.md`
+  - Impact: Comprehensive design document for Gemini 3 integration
+- **PR #1760**: /config/summary Endpoint (PR-10)
+  - Path: `handoff/20250928/40_App/api-backend/src/routes/experiments.py`
+  - Impact: Configuration visibility endpoint
+
+**Previous Improvements (Nov 25-26, 2025)**:
 - **PR #1548**: Frontend Dashboard Code Splitting - 20% bundle reduction + Lighthouse CI color-contrast fix
   - Path: `handoff/20250928/40_App/frontend-dashboard/`
   - Impact: Improved performance and accessibility compliance
@@ -57,27 +146,6 @@ Building the world's most advanced autonomous AI agent orchestration platform th
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - Path: `config/env.schema.yaml`
   - Impact: Configurable job timeout for long-running tasks (default: 3600s)
-- **PR #1547**: AppleButton Migration to shared-ui - Adapter pattern implementation
-  - Path: `packages/shared-ui/`
-  - Impact: Unified component library across frontend-dashboard and owner-console
-- **PR #1546**: Phase 2 UI Completion - Emotional colors, AppleButton alignment, Spring animations
-  - Path: `handoff/20250928/40_App/frontend-dashboard/src/`
-  - Impact: Enhanced Apple design system consistency
-- **PR #1545**: P1 Emotional Colors + AgentExecutionLogs Apple Design
-  - Path: `handoff/20250928/40_App/owner-console/src/components/AgentExecutionLogs.tsx`
-  - Impact: Consistent design language across Owner Console
-- **PR #1544**: Apple Design System Global Application
-  - Path: `handoff/20250928/40_App/frontend-dashboard/`, `handoff/20250928/40_App/owner-console/`
-  - Impact: Unified UI/UX across all frontend applications
-- **PR #1543**: Dark Mode Disable + PlatformSettings Card Styling
-  - Path: `handoff/20250928/40_App/owner-console/`
-  - Impact: Improved accessibility and visual consistency
-- **UUID Normalization Fix**: Handle prefixed task IDs from external tools
-  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
-  - Impact: Improved compatibility with external task submission tools
-- **LoginPage UX Improvements**: Comprehensive redesign using Apple design system
-  - Path: `handoff/20250928/40_App/frontend-dashboard/src/components/LoginPage.tsx`
-  - Impact: Fixed icon blur, added static labels, improved accessibility
 
 **Previous Improvements (Nov 18-23, 2025)**:
 - **PR #1350**: E2E Testing Infrastructure - Fixed 21 failing tests, implemented route handler isolation, added comprehensive API mocking

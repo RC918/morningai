@@ -6,28 +6,60 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.8.0  
-**Last Updated**: 2025-11-26  
-**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow)  
-**Test Coverage**: 59.89% (Owner Console), 74%+ (Backend)  
-**Recent Activity**: 220+ commits on main (2025-11-12 至 2025-11-26，快照值截至 2025-11-26)  
+**Document Version**: 1.9.0  
+**Last Updated**: 2025-12-01  
+**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow) + Phase 5-6 (AI Governance + Failure Memory)  
+**Test Coverage**: 59.89% (Owner Console), 70%+ (Orchestrator), 74%+ (Backend)  
+**Recent Activity**: 280+ commits on main (2025-11-12 至 2025-12-01，快照值截至 2025-12-01)  
 **Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
-**Recent PRs (Nov 25-26, 2025)**:
+**Recent PRs (Nov 29 - Dec 1, 2025)**:
+- **PR #1788** (Merged): Failure Memory Integration - Wire failure knowledge base into failure recorder (Phase 5 PR-1)
+  - Path: `handoff/20250928/40_App/orchestrator/failure_recorder.py`
+- **PR #1787** (Merged): Sentry Error Prevention - Add defensive checks for graceful degradation
+  - Path: `handoff/20250928/40_App/orchestrator/persistence/db_client.py`, `db_writer.py`, `auth_middleware.py`
+- **PR #1785** (Merged): Real Metrics Aggregation - Implement experiment comparison (Tier 1)
+  - Path: `handoff/20250928/40_App/orchestrator/persistence/planner_events_store.py`
+  - Migration: `migrations/030_create_planner_metrics_rpc.sql`
+- **PR #1781** (Merged): ORCHESTRATOR_DRY_RUN Flag - Skip PR creation in dry run mode
+  - Path: `handoff/20250928/40_App/orchestrator/graph.py`
+- **PR #1780** (Merged): OpenAI SDK Upgrade - Fix httpx 0.28 proxies compatibility
+  - Path: `handoff/20250928/40_App/orchestrator/requirements.txt`
+- **PR #1778** (Merged): 401 Retry Logic - Proactive token expiry check for owner-console
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/auth.ts`, `api-client.ts`
+
+**Gemini 3 SDK Migration (Nov 29-30, 2025)**:
+- **PR #1761** (Merged): Gemini Provider Migration - Migrate to google-genai SDK (Phase 1)
+  - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`
+- **PR #1762** (Merged): Gemini Fallback Model Update - Change from gemini-pro to gemini-2.0-flash
+- **PR #1763** (Merged): Gemini 3 Phase 2 - thinking_level support and new experiments
+- **PR #1765** (Merged): Enable gemini3_planner_10pct_staging experiment
+
+**AI Governance & Security (Nov 28-29, 2025)**:
+- **PR #1741** (Merged): Three-tier Permission Architecture (Phase 6 PR-5)
+  - Path: `handoff/20250928/40_App/api-backend/src/middleware/auth_middleware.py`
+  - Migration: `migrations/028_add_platform_admin_support.sql`
+- **PR #1746** (Merged): SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
+- **PR #1748** (Merged): LangGraph Enforcement Integration (PR-2)
+- **PR #1749** (Merged): Simple Mode Policy Observability (PR-3)
+- **PR #1751** (Merged): Blessed Configurations Documentation (PR-4)
+  - Path: `config/blessed_configs.yaml`
+- **PR #1753** (Merged): Config Validation Script and CI (PR-5)
+  - Path: `scripts/validate_blessed_configs.py`, `.github/workflows/validate-blessed-configs.yml`
+
+**CI/CD Improvements (Nov 28-29, 2025)**:
+- **PR #1756** (Merged): Unified Migration Runner (PR-6)
+  - Path: `scripts/run_migrations.sh`
+- **PR #1757** (Merged): Migration Health Check CI (PR-7)
+  - Path: `.github/workflows/migration-health-check.yml`
+- **PR #1767** (Merged): Coverage Trend Tracking
+  - Path: `.github/workflows/coverage-trend.yml`
+
+**Previous PRs (Nov 25-26, 2025)**:
 - **PR #1548** (Merged): Frontend Dashboard Code Splitting - 20% bundle reduction + Lighthouse CI color-contrast fix
   - Path: `handoff/20250928/40_App/frontend-dashboard/`
 - **PR #1562** (Merged): RQ Job Timeout Configuration - Added `RQ_JOB_TIMEOUT` environment variable
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
-- **PR #1547** (Merged): AppleButton Migration to shared-ui - Adapter pattern implementation
-  - Path: `packages/shared-ui/`
-- **PR #1546** (Merged): Phase 2 UI Completion - Emotional colors, AppleButton alignment, Spring animations
-  - Path: `handoff/20250928/40_App/frontend-dashboard/src/`
-- **PR #1545** (Merged): P1 Emotional Colors + AgentExecutionLogs Apple Design
-  - Path: `handoff/20250928/40_App/owner-console/src/components/AgentExecutionLogs.tsx`
-- **PR #1544** (Merged): Apple Design System Global Application
-  - Path: `handoff/20250928/40_App/frontend-dashboard/`, `handoff/20250928/40_App/owner-console/`
-- **PR #1543** (Merged): Dark Mode Disable + PlatformSettings Card Styling
-  - Path: `handoff/20250928/40_App/owner-console/`
 
 **Previous PRs (Nov 18-23, 2025)**:
 - **PR #1350** (Merged): E2E Testing Infrastructure - 32 Playwright tests, route handler isolation, API mocking
