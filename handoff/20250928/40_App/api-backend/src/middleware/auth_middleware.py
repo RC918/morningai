@@ -516,6 +516,9 @@ def check_platform_admin(user_id):
     try:
         from persistence.db_client import get_client
         client = get_client()
+        if client is None:
+            logging.warning(f"Supabase client unavailable, cannot check platform admin status for user {user_id}")
+            return False
         response = client.table('user_profiles').select(
             'is_platform_admin'
         ).eq('id', user_id).single().execute()

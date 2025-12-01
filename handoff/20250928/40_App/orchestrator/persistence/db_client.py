@@ -15,10 +15,14 @@ logger = logging.getLogger(__name__)
 
 _supabase_client: Optional["Client"] = None
 
-def get_client() -> "Client":
+def get_client() -> Optional["Client"]:
     """
     Lazy initialization of Supabase client; avoids requiring external SDK at module load time.
-    Returns cached client if available.
+    Returns cached client if available, or None if credentials are missing.
+    
+    Returns:
+        Supabase Client instance, or None if credentials are not configured.
+        Callers should check for None before using the client.
     """
     global _supabase_client
     
@@ -28,18 +32,21 @@ def get_client() -> "Client":
     try:
         from supabase import create_client
     except ImportError as e:
-        raise RuntimeError(
-            f"Supabase SDK unavailable at runtime: {e}. "
-            "Ensure dependency is installed and SUPABASE_URL/KEY are set."
-        ) from e
+        logger.warning(
+            f"[Supabase] SDK unavailable at runtime: {e}. "
+            "Supabase features will be disabled."
+        )
+        return None
     
     supabase_url = settings.supabase_url
     supabase_key = settings.supabase_service_role_key or settings.supabase_anon_key
     
     if not supabase_url or not supabase_key:
-        raise RuntimeError(
-            "Supabase credentials missing (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)."
+        logger.warning(
+            "[Supabase] Credentials missing (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY). "
+            "Supabase features will be disabled."
         )
+        return None
     
     _supabase_client = create_client(supabase_url, supabase_key)
     logger.info("Supabase client initialized for agent_tasks persistence")

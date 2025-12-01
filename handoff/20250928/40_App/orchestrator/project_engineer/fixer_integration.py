@@ -89,13 +89,20 @@ class AutoFixer:
 
     MAX_FIX_RETRIES = 3
 
-    def __init__(self, settings: "Settings"):
+    def __init__(self, settings: "Settings" = None):
         """
         Initialize AutoFixer with settings.
 
         Args:
-            settings: Application settings containing feature flags
+            settings: Application settings containing feature flags.
+                     If None, falls back to global settings.
         """
+        if settings is None:
+            from common.config.settings import settings as global_settings
+            logger.warning(
+                "[AutoFixer] settings=None passed to __init__, falling back to global settings"
+            )
+            settings = global_settings
         self.settings = settings
         self._reviewer_agent = None
         self._project_engineer_agent = None
