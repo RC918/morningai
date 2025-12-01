@@ -155,6 +155,11 @@ def upsert_task_queued(
     """
     try:
         client = get_client()
+        if client is None:
+            logger.warning(
+                f"Supabase client unavailable, cannot upsert task {task_id} (queued)"
+            )
+            return False
         now = datetime.now(timezone.utc).isoformat()
 
         # Normalize UUIDs to handle prefixed IDs from external tools
@@ -202,6 +207,11 @@ def upsert_task_running(task_id: str, trace_id: str, tenant_id: Optional[str] = 
     """
     try:
         client = get_client()
+        if client is None:
+            logger.warning(
+                f"Supabase client unavailable, cannot upsert task {task_id} (running)"
+            )
+            return False
         now = datetime.now(timezone.utc).isoformat()
 
         # Normalize UUIDs to handle prefixed IDs from external tools
@@ -242,6 +252,11 @@ def upsert_task_done(task_id: str, trace_id: str, pr_url: str, tenant_id: Option
     """
     try:
         client = get_client()
+        if client is None:
+            logger.warning(
+                f"Supabase client unavailable, cannot upsert task {task_id} (done)"
+            )
+            return False
         now = datetime.now(timezone.utc).isoformat()
 
         # Normalize UUIDs to handle prefixed IDs from external tools
@@ -283,6 +298,11 @@ def upsert_task_error(task_id: str, trace_id: str, error_msg: str, tenant_id: Op
     """
     try:
         client = get_client()
+        if client is None:
+            logger.warning(
+                f"Supabase client unavailable, cannot upsert task {task_id} (error)"
+            )
+            return False
         now = datetime.now(timezone.utc).isoformat()
 
         # Normalize UUIDs to handle prefixed IDs from external tools
