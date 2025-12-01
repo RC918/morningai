@@ -196,6 +196,21 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
         repo=repo_full
     )
     
+    is_dry_run = settings.orchestrator_dry_run or False
+    if is_dry_run:
+        print(f"[DRY_RUN] Skipping PR creation for goal: {goal[:50]}...")
+        print(f"[DRY_RUN] trace_id={trace_id}, repo={repo_full}")
+        logger.info(
+            "[DRY_RUN] Orchestrator dry run mode - skipping GitHub operations",
+            extra={
+                "operation": "dry_run",
+                "trace_id": trace_id,
+                "goal": goal[:100],
+                "repo": repo_full
+            }
+        )
+        return f"dry-run://trace/{trace_id}", "dry_run", trace_id
+    
     repo = get_repo()
     timestamp = int(time.time())
     branch = create_branch(repo, base="main", new_branch=f"orchestrator/{timestamp}-faq-update")

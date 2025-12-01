@@ -194,6 +194,112 @@ class TestExecute:
         assert mock_generate_faq.call_count == 2
 
 
+class TestExecuteDryRun:
+    """Test execute function with ORCHESTRATOR_DRY_RUN flag"""
+    
+    @patch('graph.settings')
+    @patch('graph.evaluate_simple_mode_policy')
+    @patch('graph.check_pr_rate_limit')
+    @patch('graph.get_cost_tracker')
+    @patch('graph.get_reputation_engine')
+    def test_execute_dry_run_skips_github_operations(
+        self, mock_reputation, mock_cost_tracker, mock_rate_limit, 
+        mock_policy, mock_settings
+    ):
+        """Test execute returns synthetic results when dry_run is enabled"""
+        # Setup mocks
+        mock_settings.orchestrator_dry_run = True
+        mock_settings.orchestrator_test_mode = False
+        mock_settings.redis_url = "redis://localhost"
+        
+        mock_cost_tracker_instance = Mock()
+        mock_cost_tracker.return_value = mock_cost_tracker_instance
+        
+        mock_reputation_instance = Mock()
+        mock_reputation_instance.get_or_create_agent.return_value = "agent-123"
+        mock_reputation.return_value = mock_reputation_instance
+        
+        mock_rate_limit.return_value = (True, 0)  # Allowed, 0 PRs created
+        
+        goal = "Test FAQ question"
+        repo_full = "RC918/morningai"
+        trace_id = "test-trace-dry-run-123"
+        
+        pr_url, state, returned_trace_id = execute(goal, repo_full, trace_id=trace_id)
+        
+        # Verify dry_run results
+        assert pr_url == f"dry-run://trace/{trace_id}"
+        assert state == "dry_run"
+        assert returned_trace_id == trace_id
+    
+    @patch('graph.settings')
+    @patch('graph.evaluate_simple_mode_policy')
+    @patch('graph.check_pr_rate_limit')
+    @patch('graph.get_cost_tracker')
+    @patch('graph.get_reputation_engine')
+    def test_execute_dry_run_does_not_call_github_api(
+        self, mock_reputation, mock_cost_tracker, mock_rate_limit,
+        mock_policy, mock_settings
+    ):
+        """Test execute does not call GitHub API functions when dry_run is enabled"""
+        # Setup mocks
+        mock_settings.orchestrator_dry_run = True
+        mock_settings.orchestrator_test_mode = False
+        mock_settings.redis_url = "redis://localhost"
+        
+        mock_cost_tracker_instance = Mock()
+        mock_cost_tracker.return_value = mock_cost_tracker_instance
+        
+        mock_reputation_instance = Mock()
+        mock_reputation_instance.get_or_create_agent.return_value = "agent-123"
+        mock_reputation.return_value = mock_reputation_instance
+        
+        mock_rate_limit.return_value = (True, 0)
+        
+        with patch('graph.get_repo') as mock_get_repo, \
+             patch('graph.create_branch') as mock_create_branch, \
+             patch('graph.commit_file') as mock_commit, \
+             patch('graph.open_pr') as mock_open_pr:
+            
+            execute("Test", "owner/repo", trace_id="dry-run-test")
+            
+            # Verify GitHub functions were NOT called
+            mock_get_repo.assert_not_called()
+            mock_create_branch.assert_not_called()
+            mock_commit.assert_not_called()
+            mock_open_pr.assert_not_called()
+    
+    @patch('graph.settings')
+    @patch('graph.evaluate_simple_mode_policy')
+    @patch('graph.check_pr_rate_limit')
+    @patch('graph.get_cost_tracker')
+    @patch('graph.get_reputation_engine')
+    def test_execute_dry_run_generates_trace_id_if_not_provided(
+        self, mock_reputation, mock_cost_tracker, mock_rate_limit,
+        mock_policy, mock_settings
+    ):
+        """Test execute generates trace_id when not provided in dry_run mode"""
+        mock_settings.orchestrator_dry_run = True
+        mock_settings.orchestrator_test_mode = False
+        mock_settings.redis_url = "redis://localhost"
+        
+        mock_cost_tracker_instance = Mock()
+        mock_cost_tracker.return_value = mock_cost_tracker_instance
+        
+        mock_reputation_instance = Mock()
+        mock_reputation_instance.get_or_create_agent.return_value = "agent-123"
+        mock_reputation.return_value = mock_reputation_instance
+        
+        mock_rate_limit.return_value = (True, 0)
+        
+        pr_url, state, trace_id = execute("Test", "owner/repo", trace_id=None)
+        
+        assert trace_id is not None
+        assert len(trace_id) > 0
+        assert pr_url == f"dry-run://trace/{trace_id}"
+        assert state == "dry_run"
+
+
 class TestMain:
     """Test main function"""
     

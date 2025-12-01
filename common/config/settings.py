@@ -693,6 +693,12 @@ class Settings(BaseSettings):
         description="Enable orchestrator test mode"
     )
 
+    orchestrator_dry_run: bool = Field(
+        default=False,
+        alias="ORCHESTRATOR_DRY_RUN",
+        description="Skip PR creation in orchestrator, return synthetic results. Use in staging to avoid PR bombing."
+    )
+
     policies_path: str = Field(
         default="policies",
         alias="POLICIES_PATH",
