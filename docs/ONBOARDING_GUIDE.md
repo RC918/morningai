@@ -90,7 +90,7 @@ Building the world's most advanced autonomous AI agent orchestration platform th
   - Impact: Use latest Gemini model as fallback
 - **PR #1763**: Gemini 3 Phase 2 - thinking_level support and new experiments
   - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`, `experiment_manager.py`
-  - Impact: Enable thinking_level=high for complex reasoning tasks
+  - Impact: Enable thinking_level=high for complex reasoning tasks (API parameter, not env var)
 - **PR #1765**: Enable gemini3_planner_10pct_staging experiment
   - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`
   - Impact: 10% staging traffic uses Gemini 3 planner
@@ -102,7 +102,7 @@ Building the world's most advanced autonomous AI agent orchestration platform th
   - Impact: Platform admin, tenant admin, user permission levels
 - **PR #1746**: SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
-  - Impact: Configurable security enforcement (advisory/block_critical/strict)
+  - Impact: Configurable security enforcement (advisory/block_critical/block_all)
 - **PR #1748**: LangGraph Enforcement Integration (PR-2)
   - Path: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`
   - Impact: Security policy enforcement in LangGraph workflows
@@ -143,8 +143,7 @@ Building the world's most advanced autonomous AI agent orchestration platform th
   - Path: `handoff/20250928/40_App/frontend-dashboard/`
   - Impact: Improved performance and accessibility compliance
 - **PR #1562**: RQ Job Timeout Configuration - Added `RQ_JOB_TIMEOUT` environment variable
-  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
-  - Path: `config/env.schema.yaml`
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
   - Impact: Configurable job timeout for long-running tasks (default: 3600s)
 
 **Previous Improvements (Nov 18-23, 2025)**:

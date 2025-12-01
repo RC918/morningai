@@ -44,7 +44,7 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
   - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`
 - **PR #1762**: Gemini Fallback Model Update - 從 gemini-pro 改為 gemini-2.0-flash
 - **PR #1763**: Gemini 3 Phase 2 - thinking_level 支援和新實驗
-  - 新增環境變數：`GEMINI_THINKING_LEVEL` (string: low/medium/high)
+  - 新增 API 參數：`thinking_level` (string: low/medium/high) - 透過 API 請求傳遞，非環境變數
 - **PR #1765**: Enable gemini3_planner_10pct_staging 實驗
 
 **AI 治理與安全** (2025-11-28 至 2025-11-29):
@@ -53,7 +53,7 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
   - Migration: `migrations/028_add_platform_admin_support.sql`
 - **PR #1746**: SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
-  - 新增環境變數：`SECURITY_ENFORCEMENT_MODE` (string: advisory/block_critical/strict)
+  - 新增環境變數：`SECURITY_ENFORCEMENT_MODE` (string: advisory/block_critical/block_all)
 - **PR #1748**: LangGraph Enforcement Integration (PR-2)
 - **PR #1749**: Simple Mode Policy Observability (PR-3)
 - **PR #1751**: Blessed Configurations Documentation (PR-4)
