@@ -28,6 +28,10 @@ if SENTRY_DSN and SENTRY_DSN.strip():
 else:
     sentry_sdk = None
 
+# Default tenant ID for testing environments (DRY: used in multiple fallback paths)
+DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
+
+
 class FAQRequest(BaseModel):
     """Request model for FAQ generation"""
     question: str = Field(..., description="Question to generate FAQ for")
@@ -128,7 +132,7 @@ def resolve_tenant_or_error(user_id: str, task_id: str, operation: str = "task")
         # Expected in testing environment where orchestrator module is not available
         logger.warning(f"orchestrator module not available (testing environment?): {e}")
         if _is_testing_mode():
-            return "00000000-0000-0000-0000-000000000001", None
+            return DEFAULT_TENANT_ID, None
 
         logger.error(f"CRITICAL: orchestrator module failed to import in a non-testing environment: {e}")
         if sentry_sdk:
@@ -152,12 +156,28 @@ def resolve_tenant_or_error(user_id: str, task_id: str, operation: str = "task")
     except Exception as e:
         logger.error(f"Failed to fetch tenant for user {user_id}: {e}")
         
-        # In testing mode, fall back to default tenant when database is unavailable
-        # This handles the case where orchestrator module imports successfully but
-        # Supabase credentials are not configured (common in CI environments)
+        # In testing mode, fall back to default tenant ONLY for database-related errors
+        # (DatabaseReadError, DatabaseConnectionError). Do NOT fall back for
+        # TenantResolutionError which indicates a user is not assigned to a tenant.
         if _is_testing_mode():
-            logger.warning(f"Testing mode: falling back to default tenant due to database error: {e}")
-            return "00000000-0000-0000-0000-000000000001", None
+            # Check if this is a database availability error (not a tenant resolution error)
+            error_type = type(e).__name__
+            is_db_error = error_type in ('DatabaseReadError', 'DatabaseConnectionError', 'DatabaseException')
+            # Also check error message for common database unavailability patterns
+            error_msg = str(e).lower()
+            is_credentials_error = any(pattern in error_msg for pattern in [
+                'supabase credentials missing',
+                'failed to get database client',
+                'connection refused',
+                'connection error'
+            ])
+            
+            if is_db_error or is_credentials_error:
+                logger.warning(f"Testing mode: falling back to default tenant due to database error: {e}")
+                return DEFAULT_TENANT_ID, None
+            else:
+                # For non-database errors (e.g., TenantResolutionError), don't fall back
+                logger.warning(f"Testing mode: NOT falling back for non-database error: {error_type}")
         
         if sentry_sdk:
             sentry_sdk.capture_exception(e)
