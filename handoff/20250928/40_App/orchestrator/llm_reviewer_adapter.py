@@ -281,14 +281,29 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             if use_json_mode:
                 logger.info(f"[LLM Reviewer] Using JSON mode for trace_id={self.trace_id}")
 
-            response = self.llm_client.generate(
-                prompt=user_prompt,
-                system_prompt=system_prompt,
-                temperature=0.5,
-                max_tokens=1000,
-                json_mode=use_json_mode,
-                timeout=20
-            )
+            # Build kwargs for provider-specific parameters
+            generate_kwargs = {
+                "prompt": user_prompt,
+                "system_prompt": system_prompt,
+                "temperature": 0.5,
+                "max_tokens": 1000,
+                "json_mode": use_json_mode,
+                "timeout": 20
+            }
+
+            # Add thinking_level for Gemini 3 models (code review benefits from deep reasoning)
+            if self.llm_client.provider_name == "gemini":
+                generate_kwargs["thinking_level"] = "high"
+                logger.info(
+                    "[LLM Reviewer] Using thinking_level=high for Gemini provider",
+                    extra={
+                        "operation": "llm_reviewer",
+                        "trace_id": self.trace_id,
+                        "thinking_level": "high"
+                    }
+                )
+
+            response = self.llm_client.generate(**generate_kwargs)
 
             review_time_ms = (time.time() - start_time) * 1000
 
