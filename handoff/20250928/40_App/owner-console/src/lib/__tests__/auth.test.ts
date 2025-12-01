@@ -737,14 +737,32 @@ describe('Auth Module', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('should return null when session is expired', async () => {
+    it('should attempt refresh when session is expired and return null after backend rejects', async () => {
       // Set expiry to 1 second ago (expired)
+      // Re-set CSRF token for the refresh attempt
+      sessionStorage.setItem('csrf_token', 'test-csrf-token');
       storeTokenExpiry(Date.now() - 1000);
+
+      // Backend will reject with 401 since session is truly expired
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      });
 
       const token = await getOrRefreshAccessToken();
 
+      // Should attempt refresh (let backend decide if session is valid)
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/v2/refresh'),
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'include',
+        })
+      );
+      // Backend rejected, so token should be null and session cleared
       expect(token).toBeNull();
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(getStoredTokenExpiry()).toBeNull();
     });
 
     it('should refresh token when session valid but no in-memory token (happy path)', async () => {
