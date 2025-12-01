@@ -189,6 +189,115 @@ class TestLangGraphCI:
             assert any(expected_node in node_id for node_id in node_ids), f"Node {expected_node} not found in graph"
 
 
+class TestLangGraphDryRun:
+    """Tests for dry_run mode handling in LangGraph nodes"""
+    
+    def test_ci_monitor_node_skips_checks_in_dry_run(self):
+        """Test ci_monitor_node skips GitHub API calls when ci_state is dry_run"""
+        from langgraph_orchestrator import ci_monitor_node
+        
+        state = {
+            "messages": [],
+            "goal": "Test",
+            "trace_id": "dry-run-ci-test",
+            "repo": "test/repo",
+            "branch": "",
+            "plan": ["Step 1"],
+            "current_step": 1,
+            "pr_url": "dry-run://trace/dry-run-ci-test",
+            "pr_number": 0,
+            "ci_state": "dry_run",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {}
+        }
+        
+        with patch('tools.github_api.get_repo') as mock_get_repo, \
+             patch('tools.github_api.get_pr_checks') as mock_get_pr_checks:
+            
+            result = ci_monitor_node(state)
+            
+            # Verify GitHub API was NOT called
+            mock_get_repo.assert_not_called()
+            mock_get_pr_checks.assert_not_called()
+            
+            # Verify ci_state remains dry_run and state is returned unchanged
+            assert result["ci_state"] == "dry_run"
+            assert result is state
+    
+    def test_decision_node_approves_dry_run(self):
+        """Test decision_node treats dry_run as approved to avoid CI loop"""
+        from langgraph_orchestrator import decision_node
+        
+        state = {
+            "messages": [],
+            "goal": "Test",
+            "trace_id": "dry-run-decision-test",
+            "repo": "test/repo",
+            "branch": "",
+            "plan": ["Step 1"],
+            "current_step": 1,
+            "pr_url": "dry-run://trace/dry-run-decision-test",
+            "pr_number": 0,
+            "ci_state": "dry_run",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {},
+            "review_severity": "none",
+            "code_quality_score": 100
+        }
+        
+        result = decision_node(state)
+        
+        # Verify dry_run is treated as approved
+        assert result["merge_decision"] == "approve"
+    
+    def test_should_fix_or_finalize_routes_dry_run_to_finalize(self):
+        """Test should_fix_or_finalize routes dry_run approved state to finalizer"""
+        from langgraph_orchestrator import should_fix_or_finalize
+        
+        state = {
+            "merge_decision": "approve",
+            "retry_count": 0,
+            "trace_id": "dry-run-routing-test"
+        }
+        
+        result = should_fix_or_finalize(state)
+        
+        # Approved decisions should route to finalize
+        assert result == "finalize"
+    
+    @patch('graph.execute')
+    def test_executor_node_with_dry_run_result(self, mock_execute):
+        """Test executor_node handles dry_run results from execute()"""
+        mock_execute.return_value = ("dry-run://trace/test-123", "dry_run", "test-123")
+        
+        state = {
+            "messages": [],
+            "goal": "Test goal",
+            "trace_id": "test-123",
+            "repo": "test/repo",
+            "branch": "test",
+            "plan": ["Step 1"],
+            "current_step": 0,
+            "pr_url": "",
+            "pr_number": 0,
+            "ci_state": "pending",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {}
+        }
+        
+        result = executor_node(state)
+        
+        assert result["pr_url"] == "dry-run://trace/test-123"
+        assert result["ci_state"] == "dry_run"
+        assert result["error"] is None
+
+
 class TestLangGraphPerformance:
     """Performance benchmark tests"""
     
