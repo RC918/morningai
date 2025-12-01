@@ -81,20 +81,26 @@ ALTER TABLE reputation_events ENABLE ROW LEVEL SECURITY;
 -- ============================================================================
 -- PART 3: Create RLS Policies for agent_reputation
 -- ============================================================================
--- For now, we allow service_role full access and authenticated users read access
--- This can be refined later based on business requirements
+-- We allow service_role full access and authenticated users (with valid JWT) read access
+-- Using auth.uid() IS NOT NULL ensures only logged-in users can read (not anon key)
 
--- Drop existing policies if any
+-- Drop policies from previous migrations (014, 015) to avoid duplicates
+DROP POLICY IF EXISTS "service_role_agent_reputation_all" ON agent_reputation;
+DROP POLICY IF EXISTS "authenticated_agent_reputation_read" ON agent_reputation;
+DROP POLICY IF EXISTS "user_authenticated_agent_reputation_read" ON agent_reputation;
+
+-- Drop existing policies if any (for idempotency of this script)
 DROP POLICY IF EXISTS agent_reputation_select_policy ON agent_reputation;
 DROP POLICY IF EXISTS agent_reputation_insert_policy ON agent_reputation;
 DROP POLICY IF EXISTS agent_reputation_update_policy ON agent_reputation;
 DROP POLICY IF EXISTS agent_reputation_delete_policy ON agent_reputation;
 
--- Allow authenticated users to read agent reputation data
+-- Allow authenticated users (with valid JWT) to read agent reputation data
+-- Using auth.uid() IS NOT NULL prevents anon key access (security best practice)
 CREATE POLICY agent_reputation_select_policy ON agent_reputation
     FOR SELECT
     TO authenticated
-    USING (true);
+    USING (auth.uid() IS NOT NULL);
 
 -- Allow service_role to insert (backend operations)
 CREATE POLICY agent_reputation_insert_policy ON agent_reputation
@@ -118,17 +124,23 @@ CREATE POLICY agent_reputation_delete_policy ON agent_reputation
 -- PART 4: Create RLS Policies for reputation_events
 -- ============================================================================
 
--- Drop existing policies if any
+-- Drop policies from previous migrations (014, 015) to avoid duplicates
+DROP POLICY IF EXISTS "service_role_reputation_events_all" ON reputation_events;
+DROP POLICY IF EXISTS "authenticated_reputation_events_read" ON reputation_events;
+DROP POLICY IF EXISTS "user_authenticated_reputation_events_read" ON reputation_events;
+
+-- Drop existing policies if any (for idempotency of this script)
 DROP POLICY IF EXISTS reputation_events_select_policy ON reputation_events;
 DROP POLICY IF EXISTS reputation_events_insert_policy ON reputation_events;
 DROP POLICY IF EXISTS reputation_events_update_policy ON reputation_events;
 DROP POLICY IF EXISTS reputation_events_delete_policy ON reputation_events;
 
--- Allow authenticated users to read reputation events
+-- Allow authenticated users (with valid JWT) to read reputation events
+-- Using auth.uid() IS NOT NULL prevents anon key access (security best practice)
 CREATE POLICY reputation_events_select_policy ON reputation_events
     FOR SELECT
     TO authenticated
-    USING (true);
+    USING (auth.uid() IS NOT NULL);
 
 -- Allow service_role to insert (backend operations)
 CREATE POLICY reputation_events_insert_policy ON reputation_events
