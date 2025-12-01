@@ -204,3 +204,111 @@ def get_planner_stats_summary(
         "planner_type_filter": planner_type_filter,
         "limit": limit
     }
+
+
+def get_metrics_by_provider(
+    days: int = 7,
+    planner_type_filter: Optional[str] = "llm"
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Get aggregated metrics grouped by provider for experiment comparison.
+
+    This function queries planner_events and aggregates statistics by provider,
+    which is used to compare control (e.g., openai) vs treatment (e.g., gemini)
+    performance in A/B experiments.
+
+    Args:
+        days: Number of days to look back (default: 7)
+        planner_type_filter: Filter by planner type (default: "llm")
+
+    Returns:
+        Dictionary with provider as key and metrics as value:
+        {
+            "openai": {
+                "total_requests": 100,
+                "avg_latency_ms": 1250.5,
+                "success_rate": 0.95,
+                "error_rate": 0.05
+            },
+            "gemini": {...}
+        }
+    """
+    try:
+        from datetime import timedelta
+        client = get_client()
+
+        # Calculate start time
+        start_time = datetime.now(timezone.utc) - timedelta(days=days)
+        start_str = start_time.isoformat()
+
+        # Query events with provider not null
+        query = client.table("planner_events").select("*")
+
+        if planner_type_filter:
+            query = query.eq("planner_type", planner_type_filter)
+
+        query = query.gte("timestamp", start_str)
+        query = query.not_.is_("provider", "null")
+
+        response = query.execute()
+        events = response.data if response.data else []
+
+        if not events:
+            logger.info("[Planner Events Store] No events found for metrics aggregation")
+            return {}
+
+        # Group by provider and calculate metrics
+        provider_stats: Dict[str, Dict[str, Any]] = {}
+
+        for event in events:
+            provider = event.get("provider")
+            if not provider:
+                continue
+
+            if provider not in provider_stats:
+                provider_stats[provider] = {
+                    "total_requests": 0,
+                    "total_latency_ms": 0.0,
+                    "success_count": 0,
+                    "error_count": 0
+                }
+
+            stats = provider_stats[provider]
+            stats["total_requests"] += 1
+
+            # Add latency
+            latency = event.get("planning_time_ms", 0)
+            stats["total_latency_ms"] += latency
+
+            # Count success/error based on whether plan steps were generated
+            plan_steps = event.get("actual_plan_steps", [])
+            if plan_steps and len(plan_steps) > 0:
+                stats["success_count"] += 1
+            else:
+                stats["error_count"] += 1
+
+        # Calculate final metrics
+        result: Dict[str, Dict[str, Any]] = {}
+        for provider, stats in provider_stats.items():
+            total = stats["total_requests"]
+            if total > 0:
+                result[provider] = {
+                    "total_requests": total,
+                    "avg_latency_ms": round(stats["total_latency_ms"] / total, 2),
+                    "success_rate": round(stats["success_count"] / total, 4),
+                    "error_rate": round(stats["error_count"] / total, 4)
+                }
+
+        logger.info(
+            f"[Planner Events Store] Aggregated metrics for {len(result)} providers: "
+            f"{list(result.keys())}"
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(
+            f"[Planner Events Store] Failed to get metrics by provider: {e}",
+            exc_info=True
+        )
+        return {}
