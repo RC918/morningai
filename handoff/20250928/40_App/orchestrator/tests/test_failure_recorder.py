@@ -589,3 +589,72 @@ class TestReplayFailure:
         if result.new_trace_id:
             assert result.new_trace_id.startswith("replay-")
             assert "abcd1234" in result.new_trace_id
+
+
+class TestSaveToFailureMemory:
+    """Tests for _save_to_failure_memory method (Phase 5 PR-1 wiring)"""
+
+    def test_save_to_failure_memory_success(self):
+        """Test successful save to failure memory returns key"""
+        recorder = FailureRecorder(redis_client=None, enabled=False)
+        failure = FailureRecord(
+            id="test-failure-id",
+            trace_id="test-trace",
+            goal="Test goal",
+            error_type="test_error"
+        )
+
+        with patch("failure_memory.save_failure_to_memory") as mock_save:
+            mock_save.return_value = "memory-key-123"
+            recorder._save_to_failure_memory(failure)
+
+            mock_save.assert_called_once_with(failure)
+
+    def test_save_to_failure_memory_returns_none(self):
+        """Test graceful handling when save_failure_to_memory returns None"""
+        recorder = FailureRecorder(redis_client=None, enabled=False)
+        failure = FailureRecord(
+            id="test-failure-id",
+            trace_id="test-trace",
+            goal="Test goal",
+            error_type="test_error"
+        )
+
+        with patch("failure_memory.save_failure_to_memory") as mock_save:
+            mock_save.return_value = None
+            # Should not raise - graceful degradation
+            recorder._save_to_failure_memory(failure)
+
+            mock_save.assert_called_once_with(failure)
+
+    def test_save_to_failure_memory_handles_exception(self):
+        """Test that exceptions don't break the main flow"""
+        recorder = FailureRecorder(redis_client=None, enabled=False)
+        failure = FailureRecord(
+            id="test-failure-id",
+            trace_id="test-trace",
+            goal="Test goal",
+            error_type="test_error"
+        )
+
+        with patch("failure_memory.save_failure_to_memory") as mock_save:
+            mock_save.side_effect = RuntimeError("Database connection failed")
+            # Should not raise - graceful degradation
+            recorder._save_to_failure_memory(failure)
+
+            mock_save.assert_called_once_with(failure)
+
+    def test_save_to_failure_memory_handles_import_error(self):
+        """Test graceful handling when failure_memory module not available"""
+        recorder = FailureRecorder(redis_client=None, enabled=False)
+        failure = FailureRecord(
+            id="test-failure-id",
+            trace_id="test-trace",
+            goal="Test goal",
+            error_type="test_error"
+        )
+
+        # Temporarily remove failure_memory from sys.modules if present
+        with patch.dict(sys.modules, {"failure_memory": None}):
+            # Should not raise - graceful degradation
+            recorder._save_to_failure_memory(failure)

@@ -174,8 +174,9 @@ class FailureRecorder:
             )
         except Exception as e:
             # Never break the main flow - just log the error
+            # Use static message for log aggregation (error details in extra)
             logger.warning(
-                f"[FailureRecorder] Failed to save to failure memory: {e}",
+                "[FailureRecorder] Failed to save to failure memory",
                 extra={
                     "operation": "save_to_failure_memory",
                     "failure_id": failure.id,
