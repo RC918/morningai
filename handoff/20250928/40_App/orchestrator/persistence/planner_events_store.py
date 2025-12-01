@@ -9,7 +9,7 @@ in the database. Used by both the orchestrator (for writing) and monitoring tool
 Phase 1 Monitoring: Replaces ephemeral JSONL files with persistent database storage.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional, Any
 from .db_client import get_client
 
@@ -213,9 +213,8 @@ def get_metrics_by_provider(
     """
     Get aggregated metrics grouped by provider for experiment comparison.
 
-    This function queries planner_events and aggregates statistics by provider,
-    which is used to compare control (e.g., openai) vs treatment (e.g., gemini)
-    performance in A/B experiments.
+    This function uses database-level aggregation via RPC for better performance,
+    with a fallback to Python aggregation if the RPC function is not available.
 
     Args:
         days: Number of days to look back (default: 7)
@@ -233,8 +232,76 @@ def get_metrics_by_provider(
             "gemini": {...}
         }
     """
+    # Try database-level aggregation first (more efficient)
+    result = _get_metrics_by_provider_rpc(days, planner_type_filter)
+    if result is not None:
+        return result
+
+    # Fallback to Python aggregation if RPC is not available
+    logger.info("[Planner Events Store] RPC not available, using Python aggregation")
+    return _get_metrics_by_provider_python(days, planner_type_filter)
+
+
+def _get_metrics_by_provider_rpc(
+    days: int,
+    planner_type_filter: Optional[str]
+) -> Optional[Dict[str, Dict[str, Any]]]:
+    """
+    Get metrics using database-level aggregation via RPC.
+
+    Returns None if the RPC function is not available, allowing fallback.
+    """
     try:
-        from datetime import timedelta
+        client = get_client()
+
+        # Build RPC parameters
+        params = {
+            "p_days": days,
+            "p_planner_type": planner_type_filter
+        }
+
+        response = client.rpc("get_planner_metrics_by_provider", params).execute()
+        rows = response.data or []
+
+        if not rows:
+            logger.info("[Planner Events Store] No metrics from RPC aggregation")
+            return {}
+
+        result: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            provider = row.get("provider")
+            if provider:
+                result[provider] = {
+                    "total_requests": row.get("total_requests", 0),
+                    "avg_latency_ms": round(row.get("avg_latency_ms", 0) or 0, 2),
+                    "success_rate": round(row.get("success_rate", 0) or 0, 4),
+                    "error_rate": round(row.get("error_rate", 0) or 0, 4)
+                }
+
+        logger.info(
+            f"[Planner Events Store] RPC aggregated metrics for {len(result)} providers: "
+            f"{list(result.keys())}"
+        )
+        return result
+
+    except Exception as e:
+        # RPC function might not exist yet, return None to trigger fallback
+        logger.warning(
+            f"[Planner Events Store] RPC aggregation failed (may not exist): {e}"
+        )
+        return None
+
+
+def _get_metrics_by_provider_python(
+    days: int,
+    planner_type_filter: Optional[str]
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Get metrics using Python-level aggregation (fallback method).
+
+    This is less efficient but works without requiring the RPC function.
+    """
+    try:
         client = get_client()
 
         # Calculate start time
@@ -300,7 +367,7 @@ def get_metrics_by_provider(
                 }
 
         logger.info(
-            f"[Planner Events Store] Aggregated metrics for {len(result)} providers: "
+            f"[Planner Events Store] Python aggregated metrics for {len(result)} providers: "
             f"{list(result.keys())}"
         )
 

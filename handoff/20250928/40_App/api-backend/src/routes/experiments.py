@@ -280,18 +280,8 @@ def get_experiment_comparison():
                 'treatment_percent': config.treatment_percent,
                 'active': is_active,
                 'metrics': {
-                    'control': {
-                        'success_rate': control_metrics.get('success_rate', 0.0),
-                        'avg_latency_ms': control_metrics.get('avg_latency_ms', 0),
-                        'total_requests': control_metrics.get('total_requests', 0),
-                        'error_rate': control_metrics.get('error_rate', 0.0)
-                    },
-                    'treatment': {
-                        'success_rate': treatment_metrics.get('success_rate', 0.0),
-                        'avg_latency_ms': treatment_metrics.get('avg_latency_ms', 0),
-                        'total_requests': treatment_metrics.get('total_requests', 0),
-                        'error_rate': treatment_metrics.get('error_rate', 0.0)
-                    }
+                    'control': control_metrics,
+                    'treatment': treatment_metrics
                 }
             })
 

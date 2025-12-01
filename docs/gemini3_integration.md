@@ -702,7 +702,8 @@ SELECT
     provider,           -- 'openai' or 'gemini'
     COUNT(*) as total_requests,
     AVG(planning_time_ms) as avg_latency_ms,
-    COUNT(CASE WHEN actual_plan_steps IS NOT NULL THEN 1 END)::float / COUNT(*) as success_rate
+    COUNT(CASE WHEN jsonb_array_length(actual_plan_steps) > 0 THEN 1 END)::float / COUNT(*) as success_rate,
+    COUNT(CASE WHEN actual_plan_steps IS NULL OR jsonb_array_length(actual_plan_steps) = 0 THEN 1 END)::float / COUNT(*) as error_rate
 FROM planner_events
 WHERE provider IS NOT NULL
   AND timestamp > NOW() - INTERVAL '7 days'
