@@ -1,48 +1,71 @@
-# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
+# How to Reset Your Password if You Forgot It
 
-The Phase 1 Canary Final Validation Test within the MorningAI platform focuses on verifying the basic functionality and integration of autonomous code generation features. A fundamental task such as creating a simple Python function to add two numbers serves as an effective validation step. This FAQ provides an overview of how to accomplish this task, aiding developers in understanding and utilizing the capabilities of MorningAI.
+If you've forgotten your password for the MorningAI platform, you can reset it using the password recovery feature. This process involves verifying your email address to ensure that only you can reset your password. Below is a step-by-step guide to resetting your password, along with some code examples relevant to developers who might be integrating or modifying the authentication flow in their applications.
 
-## Comprehensive Explanation
+## Step-by-Step Guide
 
-Creating a Python function to add two numbers is a basic but essential programming task, serving as a cornerstone for more complex operations and logic within software development. This task tests the basic setup, syntax understanding, and execution flow in Python, which are crucial for further development on the MorningAI platform.
+1. **Initiate Password Reset**:
+   - Navigate to the login page of the MorningAI platform.
+   - Click on the "Forgot Password?" link.
+   - Enter your registered email address in the provided field and submit the form.
 
-### Code Example
+2. **Email Verification**:
+   - Check your email inbox for a password reset email from MorningAI. If you don't see it within a few minutes, check your spam or junk folder.
+   - Click on the link provided in the email. This link contains a secure token that verifies your identity and allows you to set a new password.
 
-Below is a simple example of how to create a Python function named `add_numbers` that takes two parameters, `number1` and `number2`, and returns their sum.
+3. **Reset Your Password**:
+   - After clicking on the link, you'll be redirected to a password reset page.
+   - Enter your new password twice, once in each of the provided fields, to confirm it.
+   - Submit the form to update your password.
+
+4. **Confirmation**:
+   - You will receive a confirmation message stating that your password has been successfully changed.
+   - You can now log in to MorningAI with your new password.
+
+## Code Example: Initiating Password Reset
+
+For developers looking to understand how the password reset feature can be implemented or customized, here's a simplified example using Flask:
 
 ```python
-def add_numbers(number1, number2):
-    """Adds two numbers and returns the result."""
-    return number1 + number2
+from flask import Flask, request, render_template, redirect, url_for
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
-# Example usage
-result = add_numbers(5, 3)
-print(f"The sum is: {result}")
+app = Flask(__name__)
+serializer = URLSafeTimedSerializer('YourSecretKey')
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        token = serializer.dumps(email, salt='email-confirm-salt')
+        # Send email logic here with URL containing token
+        return redirect(url_for('login'))
+    return render_template('forgot-password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        email = serializer.loads(token, salt='email-confirm-salt', max_age=3600)
+    except SignatureExpired:
+        return '<h1>The token is expired!</h1>'
+    # Reset password logic here
+    return render_template('reset-password.html')
 ```
 
-This function can be easily integrated into any part of your project within the MorningAI platform where you need to perform addition operations.
+This code demonstrates handling of forgot-password functionality and how a secure token can be generated and validated using Flask and itsdangerous library.
 
-### Related Documentation Links
+## Related Documentation Links
 
-For further information on Python functions and basic syntax, refer to these resources:
-- Python Functions: [https://docs.python.org/3/tutorial/controlflow.html#defining-functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions)
-- Basic Python Syntax: [https://docs.python.org/3/tutorial/introduction.html](https://docs.python.org/3/tutorial/introduction.html)
+- Flask Documentation: [https://flask.palletsprojects.com/](https://flask.palletsprojects.com/)
+- Itsdangerous Serializer: [https://itsdangerous.palletsprojects.com/](https://itsdangerous.palletsprojects.com/)
 
-Additionally, for more details on how to integrate custom Python code into your MorningAI projects, consult the following:
-- MorningAI Custom Code Integration: `/docs/custom-code-integration.md`
+## Common Troubleshooting Tips
 
-### Common Troubleshooting Tips
+- **Not Receiving Emails**: Ensure that the email address entered is correct and check spam/junk folders. Verify SMTP settings if you are handling mail sending functionality within your application.
+- **Token Issues**: Make sure that the token hasn’t expired (it’s common to set an expiration time for security reasons). Verify that you're using the correct secret key and salt for token generation and validation.
+- **Login Issues After Password Reset**: Confirm that the new password meets all complexity requirements and was correctly saved in the database. Ensure any session or cache data related to authentication is cleared upon resetting.
 
-- **Syntax Errors**: Ensure that your Python syntax is correct. Common mistakes include missing colons (`:`) at the end of the `def` line or incorrect indentation.
-- **Type Errors**: If adding non-numeric types, ensure type conversion or validation is performed before calling `add_numbers`.
-- **Integration Issues**: When integrating into MorningAI, ensure that your environment is correctly set up according to the platform's requirements. This includes correct installation of dependencies and adherence to project structure guidelines outlined in `/docs/project-setup.md`.
-
-For more specific issues related to MorningAI's setup or configuration:
-- Ensure that your development environment matches the required specifications detailed in `/docs/environment-setup.md`.
-- Review log files for errors related to function execution or integration points. These can often provide clues for misconfigurations or coding mistakes.
-- For issues related to multi-tenant SaaS functionalities or real-time task orchestration with Redis Queue within MorningAI, consult `/docs/multi-tenant-saas.md` and `/docs/task-orchestration-with-redis-queue.md`.
-
-Should you encounter problems not covered by these tips or need further assistance, please consult the broader documentation available in the RC918/morningai repository or reach out through our support channels.
+By following these steps and utilizing the provided examples, developers should be able to effectively manage and troubleshoot the password reset process within MorningAI.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -50,7 +73,7 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
-- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
+- Task: How do I reset my password if I forgot it?
+- Trace ID: `4074bf6b-1385-4613-8a95-a5b82c5bb133`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Repository: RC918/morningai
