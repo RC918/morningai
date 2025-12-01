@@ -66,6 +66,30 @@ export interface RefreshTokenResponse {
   };
 }
 
+/**
+ * Error codes for token refresh failures
+ * - 'network_error': Transient network issues (fetch failed, timeout, 5xx errors)
+ * - 'session_invalid': Backend explicitly rejected the session (401/403)
+ * - 'unknown': Other unexpected errors
+ */
+export type RefreshErrorCode = 'network_error' | 'session_invalid' | 'unknown';
+
+/**
+ * Custom error class for token refresh failures
+ * Allows callers to distinguish between transient network errors and invalid sessions
+ */
+export class RefreshAccessTokenError extends Error {
+  code: RefreshErrorCode;
+  status?: number;
+
+  constructor(code: RefreshErrorCode, message: string, status?: number) {
+    super(message);
+    this.code = code;
+    this.status = status;
+    this.name = 'RefreshAccessTokenError';
+  }
+}
+
 
 const TOKEN_EXPIRY_KEY = 'morningai_token_expiry';
 const USER_STORAGE_KEY = 'morningai_user';
@@ -147,6 +171,77 @@ export function getAccessToken(): string | null {
   }
   
   return null;
+}
+
+/**
+ * Single-flight promise for token refresh
+ * Prevents concurrent API calls from triggering multiple refresh requests
+ */
+let tokenRefreshPromise: Promise<string | null> | null = null;
+
+/**
+ * Get access token, refreshing if necessary
+ * 
+ * This function handles the case where the in-memory token is lost after page refresh
+ * but the session is still valid (expiresAt in localStorage). In this case, it will
+ * automatically call /api/auth/v2/refresh to get a new access token.
+ * 
+ * Uses single-flight pattern to prevent concurrent refresh requests.
+ * 
+ * @returns Promise<string | null> - The access token or null if not authenticated
+ */
+export async function getOrRefreshAccessToken(): Promise<string | null> {
+  // First, check if we already have a valid token in memory
+  const existingToken = getAccessToken();
+  if (existingToken) {
+    return existingToken;
+  }
+  
+  // Check if we have a valid session (expiresAt in localStorage)
+  const expiresAt = getStoredTokenExpiry();
+  if (!expiresAt) {
+    // No session at all, user needs to login
+    return null;
+  }
+  
+  // Check if the session has expired
+  if (isTokenExpired(expiresAt)) {
+    // Session expired, user needs to login again
+    return null;
+  }
+  
+  // We have a valid session but no token in memory - need to refresh
+  // Use single-flight pattern to prevent concurrent refresh requests
+  if (tokenRefreshPromise) {
+    return tokenRefreshPromise;
+  }
+  
+  tokenRefreshPromise = (async () => {
+    try {
+      const newTokens = await refreshAccessToken();
+      return newTokens.accessToken ?? null;
+    } catch (error) {
+      // Handle different error types appropriately
+      if (error instanceof RefreshAccessTokenError) {
+        if (error.code === 'session_invalid') {
+          // Session is invalid - tokens already cleared by refreshAccessToken
+          console.warn('Session invalid during token refresh');
+        } else if (error.code === 'network_error') {
+          // Transient network error - do NOT clear tokens
+          // User stays logged in, but this API call will fail
+          console.warn('Network error during token refresh, keeping session:', error.message);
+        }
+      } else {
+        // Unexpected error - log but don't clear tokens to be safe
+        console.error('Unexpected error while refreshing access token:', error);
+      }
+      return null;
+    } finally {
+      tokenRefreshPromise = null;
+    }
+  })();
+  
+  return tokenRefreshPromise;
 }
 
 /**
@@ -748,6 +843,12 @@ export async function logout(): Promise<void> {
 /**
  * Refresh access token using refresh token
  * Backend handles token rotation automatically
+ * 
+ * P1 Enhancement: CSRF-aware token refresh
+ * - Ensures CSRF token exists before making the request
+ * - Handles 403 CSRF failures with automatic token refresh and retry
+ * - Discriminates between CSRF failures and real session invalid errors
+ * - Prevents token refresh from failing due to missing or expired CSRF tokens
  */
 export async function refreshAccessToken(): Promise<AuthTokens> {
   if (!isFeatureEnabled('OWNER_CONSOLE_API')) {
@@ -758,17 +859,126 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
     return newTokens;
   }
   
-  const response = await fetch(`${API_BASE_URL}/api/auth/v2/refresh`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-  });
+  // Ensure CSRF token is bootstrapped before making the request
+  // This handles the case where page reload clears in-memory token
+  // and sessionStorage might not have the token yet
+  if (!getCsrfToken()) {
+    await ensureCsrfToken();
+  }
+  
+  // Build headers with CSRF token for cross-origin requests
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  // Include CSRF token (required when SameSite=None)
+  const csrfToken = getCsrfToken();
+  if (csrfToken) {
+    headers['X-CSRF-Token'] = csrfToken;
+  }
+  
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/auth/v2/refresh`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+    });
+  } catch (error) {
+    // Network error (fetch failed, timeout, DNS error, etc.)
+    // Do NOT clear tokens - this is a transient error
+    throw new RefreshAccessTokenError(
+      'network_error',
+      'Network error while refreshing access token',
+      undefined
+    );
+  }
+  
+  // Handle 403 CSRF failures with retry logic (mirrors authenticatedFetch pattern)
+  if (response.status === 403) {
+    const isCsrf = await isCsrfFailure(response);
+    
+    if (isCsrf) {
+      // CSRF failure - try to re-bootstrap CSRF token and retry once
+      try {
+        clearCsrfToken();
+        await ensureCsrfToken();
+        
+        // Build retry headers with fresh CSRF token
+        const retryHeaders: HeadersInit = {
+          'Content-Type': 'application/json',
+        };
+        const freshCsrfToken = getCsrfToken();
+        if (freshCsrfToken) {
+          retryHeaders['X-CSRF-Token'] = freshCsrfToken;
+        }
+        
+        const retryResponse = await fetch(`${API_BASE_URL}/api/auth/v2/refresh`, {
+          method: 'POST',
+          headers: retryHeaders,
+          credentials: 'include',
+        });
+        
+        if (retryResponse.ok) {
+          // Retry succeeded - process the response
+          const data: RefreshTokenResponse = await retryResponse.json();
+          const newTokens: AuthTokens = {
+            accessToken: data.tokens.accessToken,
+            expiresAt: data.tokens.expiresAt,
+          };
+          storeTokenExpiry(newTokens.expiresAt);
+          if (data.tokens.accessToken) {
+            storeAccessToken(data.tokens.accessToken);
+          }
+          return newTokens;
+        }
+        
+        // Retry also failed - check if it's still a CSRF issue
+        if (retryResponse.status === 403) {
+          const isRetryCsrf = await isCsrfFailure(retryResponse);
+          if (isRetryCsrf) {
+            // CSRF still failing after retry - treat as network error, don't clear tokens
+            throw new RefreshAccessTokenError(
+              'network_error',
+              'CSRF token validation failed. Please refresh the page.',
+              403
+            );
+          }
+        }
+        
+        // Retry failed with non-CSRF error - fall through to normal error handling
+        response = retryResponse;
+      } catch (error) {
+        if (error instanceof RefreshAccessTokenError) {
+          throw error;
+        }
+        // CSRF re-bootstrap failed - treat as network error
+        throw new RefreshAccessTokenError(
+          'network_error',
+          'Failed to refresh CSRF token',
+          undefined
+        );
+      }
+    }
+  }
   
   if (!response.ok) {
-    clearTokens();
-    throw new Error('Token refresh failed. Please login again.');
+    if (response.status === 401 || response.status === 403) {
+      // Backend explicitly rejected the session (not CSRF) - clear tokens
+      clearTokens();
+      throw new RefreshAccessTokenError(
+        'session_invalid',
+        'Session is invalid or expired. Please login again.',
+        response.status
+      );
+    }
+    
+    // Other HTTP errors (5xx, etc.) - treat as transient, do NOT clear tokens
+    throw new RefreshAccessTokenError(
+      'network_error',
+      `Token refresh failed with status ${response.status}`,
+      response.status
+    );
   }
   
   const data: RefreshTokenResponse = await response.json();

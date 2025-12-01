@@ -4,29 +4,37 @@ import sys
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Add 40_App directory to sys.path so that 'orchestrator' package can be imported
+# Path: routes -> src -> api-backend -> 40_App (3 levels up)
+# IMPORTANT: There's a conflicting 'orchestrator' package at the repo root that must be
+# removed from sys.modules before importing the correct one from 40_App
+app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
 
-orchestrator_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestrator')
-if orchestrator_path not in sys.path:
-    sys.path.insert(0, orchestrator_path)
+# Remove any existing orchestrator module that might be from the wrong location
+for mod_name in list(sys.modules.keys()):
+    if mod_name == 'orchestrator' or mod_name.startswith('orchestrator.'):
+        del sys.modules[mod_name]
+
+# Ensure app_dir is at the very beginning of sys.path
+if app_dir in sys.path:
+    sys.path.remove(app_dir)
+sys.path.insert(0, app_dir)
 
 import logging  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
 try:
-    from failure_recorder import init_failure_recorder_from_env, FailureRecorder
+    from orchestrator.failure_recorder import init_failure_recorder_from_env, FailureRecorder
     FAILURE_RECORDER_AVAILABLE = True
-except ImportError as e:
+except Exception as e:
     logger.warning(f"Failure recorder module not available: {e}")
     FAILURE_RECORDER_AVAILABLE = False
 
 try:
-    from agent_eval_integration import init_agent_eval_from_env, AgentEvalIntegration
+    from orchestrator.agent_eval_integration import init_agent_eval_from_env, AgentEvalIntegration
     AGENT_EVAL_AVAILABLE = True
-except ImportError as e:
+except Exception as e:
     logger.warning(f"Agent eval integration module not available: {e}")
     AGENT_EVAL_AVAILABLE = False
 

@@ -5,7 +5,7 @@
  * Phase 6 PR-2: AI Policy Editor UI
  */
 
-import { getAccessToken } from './auth'
+import { getOrRefreshAccessToken } from './auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
@@ -14,7 +14,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  * @returns {Promise<{templates: Object, count: number}>}
  */
 export async function getPolicyTemplates() {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -45,7 +45,7 @@ export async function getPolicyTemplates() {
  * @returns {Promise<{policies: Array, count: number, limit: number, offset: number}>}
  */
 export async function listPolicies({ limit = 50, offset = 0, policy_type, status } = {}) {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() })
   if (policy_type) params.append('policy_type', policy_type)
@@ -76,7 +76,7 @@ export async function listPolicies({ limit = 50, offset = 0, policy_type, status
  * @returns {Promise<Object>} Policy object
  */
 export async function getPolicy(policyId) {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -109,7 +109,7 @@ export async function getPolicy(policyId) {
  * @returns {Promise<Object>} Created policy
  */
 export async function createPolicy(policy) {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -143,7 +143,7 @@ export async function createPolicy(policy) {
  * @returns {Promise<Object>} Updated policy
  */
 export async function updatePolicy(policyId, updates) {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -171,7 +171,7 @@ export async function updatePolicy(policyId, updates) {
  * @returns {Promise<{message: string, policy_id: string}>}
  */
 export async function deletePolicy(policyId) {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
@@ -199,7 +199,7 @@ export async function deletePolicy(policyId) {
  * @returns {Promise<{allowed: boolean, reason: string, applied_policies: Array}>}
  */
 export async function evaluateRequest(capability, context = {}) {
-  const token = getAccessToken()
+  const token = await getOrRefreshAccessToken()
   
   const headers = { 'Content-Type': 'application/json' }
   if (token) {

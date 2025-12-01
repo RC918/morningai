@@ -198,7 +198,7 @@ class AIPolicyManager:
         """Get Supabase client, initializing if needed"""
         if self._supabase is None:
             try:
-                from orchestrator.persistence.db_client import get_client
+                from ..persistence.db_client import get_client
                 self._supabase = get_client()
             except Exception as e:
                 logger.warning(f"Failed to initialize Supabase client: {e}")

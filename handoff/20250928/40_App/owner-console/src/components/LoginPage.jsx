@@ -74,12 +74,23 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
   const handle2FAVerify = async (params) => {
     if (tmpLoginToken) {
       const { challengeTwoFA } = await import('@/lib/2fa-api')
+      const { storeAccessToken, storeTokenExpiry } = await import('@/lib/auth')
       
-      await challengeTwoFA({
+      const response = await challengeTwoFA({
         code: params.isBackup ? undefined : params.code,
         backup_code: params.isBackup ? params.code : undefined,
         remember_device: params.rememberDevice,
       }, tmpLoginToken)
+
+      // Store tokens from 2FA response
+      if (response?.tokens) {
+        if (response.tokens.accessToken) {
+          storeAccessToken(response.tokens.accessToken)
+        }
+        if (response.tokens.expiresAt) {
+          storeTokenExpiry(response.tokens.expiresAt)
+        }
+      }
 
       setShow2FADialog(false)
       setTmpLoginToken('')
@@ -97,14 +108,25 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
       }
     } else {
       const { verifyTwoFALogin } = await import('@/lib/2fa-api')
+      const { storeAccessToken, storeTokenExpiry } = await import('@/lib/auth')
       
-      await verifyTwoFALogin({
+      const response = await verifyTwoFALogin({
         email: credentials.email,
         password: credentials.password,
         totp_code: params.isBackup ? undefined : params.code,
         backup_code: params.isBackup ? params.code : undefined,
         remember_device: params.rememberDevice,
       })
+
+      // Store tokens from 2FA response
+      if (response?.tokens) {
+        if (response.tokens.accessToken) {
+          storeAccessToken(response.tokens.accessToken)
+        }
+        if (response.tokens.expiresAt) {
+          storeTokenExpiry(response.tokens.expiresAt)
+        }
+      }
 
       setShow2FADialog(false)
       
